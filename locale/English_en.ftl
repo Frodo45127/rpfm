@@ -125,8 +125,6 @@ templates_load_official_template_to_packfile = Load Official Templates to PackFi
 
 about_about_qt = About &Qt
 about_about_rpfm = About RPFM
-about_open_manual = &Open Manual
-about_patreon_link = &Support me on Patreon
 about_check_updates = &Check Updates
 about_check_schema_updates = Check Schema &Updates
 
@@ -1253,3 +1251,8 @@ new_mymod_pack_import_ignore_contents_placeholder = Relative paths, one per line
 new_mymod_gitignore_contents_placeholder = Paths ignored by git, one per line.
 global_search_search_placeholder = Search
 global_search_replace_placeholder = Replace
+
+github_link = Open RPFM Github's Page
+discord_link = Open "The Modding Den" discord channel
+open_manual = Open RPFM Manual
+patreon_link = Support me on Patreon

@@ -123,6 +123,14 @@ pub struct AppUI {
     shortcuts: CppBox<QListOfQObject>,
 
     //-------------------------------------------------------------------------------//
+    // Status bar stuff.
+    //-------------------------------------------------------------------------------//
+    discord_button: QBox<QPushButton>,
+    github_button: QBox<QPushButton>,
+    patreon_button: QBox<QPushButton>,
+    manual_button: QBox<QPushButton>,
+
+    //-------------------------------------------------------------------------------//
     // `MenuBar` menus.
     //-------------------------------------------------------------------------------//
     menu_bar_packfile: QPtr<QMenu>,
@@ -283,8 +291,6 @@ pub struct AppUI {
     //-------------------------------------------------------------------------------//
     about_about_qt: QPtr<QAction>,
     about_about_rpfm: QPtr<QAction>,
-    about_open_manual: QPtr<QAction>,
-    about_patreon_link: QPtr<QAction>,
     about_check_updates: QPtr<QAction>,
     about_check_schema_updates: QPtr<QAction>,
     about_check_message_updates: QPtr<QAction>,
@@ -357,7 +363,33 @@ impl AppUI {
         tab_bar_packed_file.set_tabs_closable(true);
         tab_bar_packed_file.set_movable(true);
         tab_bar_packed_file.set_context_menu_policy(ContextMenuPolicy::CustomContextMenu);
+        status_bar.set_size_grip_enabled(false);
         layout.add_widget_5a(&tab_bar_packed_file, 0, 0, 1, 1);
+
+        let github_button = QPushButton::from_q_widget(&status_bar);
+        github_button.set_flat(true);
+        github_button.set_tool_tip(&qtr("github_link"));
+        github_button.set_icon(&QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/github.svg", ASSETS_PATH.to_string_lossy()))));
+        status_bar.add_permanent_widget_1a(&github_button);
+
+        let manual_button = QPushButton::from_q_widget(&status_bar);
+        manual_button.set_flat(true);
+        manual_button.set_tool_tip(&qtr("open_manual"));
+        manual_button.set_icon(&QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/manual_icon.png", ASSETS_PATH.to_string_lossy()))));
+        status_bar.add_permanent_widget_1a(&manual_button);
+
+        let discord_button = QPushButton::from_q_widget(&status_bar);
+        discord_button.set_flat(true);
+        discord_button.set_tool_tip(&qtr("discord_link"));
+        discord_button.set_icon(&QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/discord.svg", ASSETS_PATH.to_string_lossy()))));
+        status_bar.add_permanent_widget_1a(&discord_button);
+
+        let patreon_button = QPushButton::from_q_widget(&status_bar);
+        patreon_button.set_flat(true);
+        patreon_button.set_tool_tip(&qtr("patreon_link"));
+        patreon_button.set_icon(&QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/patreon.png", ASSETS_PATH.to_string_lossy()))));
+        status_bar.add_permanent_widget_1a(&patreon_button);
+
         STATUS_BAR.store(status_bar.as_mut_raw_ptr(), Ordering::SeqCst);
 
         let tab_bar_packed_file_context_menu = QMenu::from_q_widget(&tab_bar_packed_file);
@@ -669,8 +701,6 @@ impl AppUI {
         //-----------------------------------------------//
         let about_about_qt = add_action_to_menu(&menu_bar_about, shortcuts.as_ref(), "about_menu", "about_qt", "about_about_qt", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let about_about_rpfm = add_action_to_menu(&menu_bar_about, shortcuts.as_ref(), "about_menu", "about_rpfm", "about_about_rpfm", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let about_open_manual = add_action_to_menu(&menu_bar_about, shortcuts.as_ref(), "about_menu", "open_manual", "about_open_manual", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let about_patreon_link = add_action_to_menu(&menu_bar_about, shortcuts.as_ref(), "about_menu", "support_me_on_patreon", "about_patreon_link", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let about_check_updates = add_action_to_menu(&menu_bar_about, shortcuts.as_ref(), "about_menu", "check_updates", "about_check_updates", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let about_check_schema_updates = add_action_to_menu(&menu_bar_about, shortcuts.as_ref(), "about_menu", "check_schema_updates", "about_check_schema_updates", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let about_check_message_updates = add_action_to_menu(&menu_bar_about, shortcuts.as_ref(), "about_menu", "check_message_updates", "about_check_message_updates", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
@@ -699,6 +729,14 @@ impl AppUI {
             main_window,
             tab_bar_packed_file,
             shortcuts,
+
+            //-------------------------------------------------------------------------------//
+            // Status bar stuff.
+            //-------------------------------------------------------------------------------//
+            discord_button,
+            github_button,
+            patreon_button,
+            manual_button,
 
             //-------------------------------------------------------------------------------//
             // `MenuBar` menus.
@@ -863,8 +901,6 @@ impl AppUI {
             //-------------------------------------------------------------------------------//
             about_about_qt,
             about_about_rpfm,
-            about_open_manual,
-            about_patreon_link,
             about_check_updates,
             about_check_schema_updates,
             about_check_message_updates,

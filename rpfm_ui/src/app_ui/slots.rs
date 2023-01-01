@@ -47,10 +47,12 @@ use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, THREADS_COMMUNICATION_ERROR, Command, Response};
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
-use crate::DOCS_BASE_URL;
+use crate::DISCORD_URL;
 use crate::GAME_SELECTED;
+use crate::GITHUB_URL;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, tr, tre};
+use crate::MANUAL_URL;
 use crate::mymod_ui::MyModUI;
 use crate::pack_tree::*;
 use crate::packedfile_views::{DataSource, View, ViewType};
@@ -140,8 +142,6 @@ pub struct AppUISlots {
     //-----------------------------------------------//
     pub about_about_qt: QBox<SlotOfBool>,
     pub about_about_rpfm: QBox<SlotOfBool>,
-    pub about_open_manual: QBox<SlotOfBool>,
-    pub about_patreon_link: QBox<SlotOfBool>,
     pub about_check_updates: QBox<SlotOfBool>,
     pub about_check_schema_updates: QBox<SlotOfBool>,
     pub about_check_message_updates: QBox<SlotOfBool>,
@@ -174,6 +174,14 @@ pub struct AppUISlots {
     pub tab_bar_packed_file_next: QBox<SlotNoArgs>,
     pub tab_bar_packed_file_import_from_dependencies: QBox<SlotNoArgs>,
     pub tab_bar_packed_file_toggle_tips: QBox<SlotNoArgs>,
+
+    //-----------------------------------------------//
+    // `StatusBar` slots.
+    //-----------------------------------------------//
+    pub discord_link: QBox<SlotNoArgs>,
+    pub github_link: QBox<SlotNoArgs>,
+    pub patreon_link: QBox<SlotNoArgs>,
+    pub manual_link: QBox<SlotNoArgs>,
 }
 
 pub struct AppUITempSlots {}
@@ -1223,12 +1231,6 @@ impl AppUISlots {
             }
         ));
 
-        // What happens when we trigger the "Open Manual" action.
-        let about_open_manual = SlotOfBool::new(&app_ui.main_window, |_| { QDesktopServices::open_url(&QUrl::new_1a(&QString::from_std_str(DOCS_BASE_URL))); });
-
-        // What happens when we trigger the "Support me on Patreon" action.
-        let about_patreon_link = SlotOfBool::new(&app_ui.main_window, |_| { QDesktopServices::open_url(&QUrl::new_1a(&QString::from_std_str(PATREON_URL))); });
-
         // What happens when we trigger the "Check Update" action.
         let about_check_updates = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
@@ -1567,6 +1569,11 @@ impl AppUISlots {
             }
         ));
 
+        let discord_link = SlotNoArgs::new(&app_ui.main_window, || { QDesktopServices::open_url(&QUrl::new_1a(&QString::from_std_str(DISCORD_URL))); });
+        let github_link = SlotNoArgs::new(&app_ui.main_window, || { QDesktopServices::open_url(&QUrl::new_1a(&QString::from_std_str(GITHUB_URL))); });
+        let patreon_link = SlotNoArgs::new(&app_ui.main_window, || { QDesktopServices::open_url(&QUrl::new_1a(&QString::from_std_str(PATREON_URL))); });
+        let manual_link = SlotNoArgs::new(&app_ui.main_window, || { QDesktopServices::open_url(&QUrl::new_1a(&QString::from_std_str(MANUAL_URL))); });
+
         // And here... we return all the slots.
 		Self {
 
@@ -1635,8 +1642,6 @@ impl AppUISlots {
 	        //-----------------------------------------------//
     		about_about_qt,
             about_about_rpfm,
-            about_open_manual,
-            about_patreon_link,
             about_check_updates,
             about_check_schema_updates,
             about_check_message_updates,
@@ -1669,6 +1674,14 @@ impl AppUISlots {
             tab_bar_packed_file_next,
             tab_bar_packed_file_import_from_dependencies,
             tab_bar_packed_file_toggle_tips,
+
+            //-----------------------------------------------//
+            // `StatusBar` slots.
+            //-----------------------------------------------//
+            discord_link,
+            github_link,
+            patreon_link,
+            manual_link,
 		}
 	}
 }

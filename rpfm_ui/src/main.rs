@@ -257,8 +257,10 @@ lazy_static! {
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const VERSION_SUBTITLE: &str = "I forgot about this message";
 
-const DOCS_BASE_URL: &str = "https://frodo45127.github.io/rpfm/";
+const MANUAL_URL: &str = "https://frodo45127.github.io/rpfm/";
+const GITHUB_URL: &str = "https://github.com/Frodo45127/rpfm";
 const PATREON_URL: &str = "https://www.patreon.com/RPFM";
+const DISCORD_URL: &str = "https://discord.gg/moddingden";
 
 /// Main function.
 fn main() {

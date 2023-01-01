@@ -112,8 +112,6 @@ pub unsafe fn set_tips(app_ui: &Rc<AppUI>) {
     //-----------------------------------------------//
     app_ui.about_about_qt.set_status_tip(&qtr("tt_about_about_qt"));
     app_ui.about_about_rpfm.set_status_tip(&qtr("tt_about_about_rpfm"));
-    app_ui.about_open_manual.set_status_tip(&qtr("tt_about_open_manual"));
-    app_ui.about_patreon_link.set_status_tip(&qtr("tt_about_patreon_link"));
     app_ui.about_check_updates.set_status_tip(&qtr("tt_about_check_updates"));
     app_ui.about_check_schema_updates.set_status_tip(&qtr("tt_about_check_schema_updates"));
     app_ui.about_check_lua_autogen_updates.set_status_tip(&qtr("tt_about_check_lua_autogen_updates"));
