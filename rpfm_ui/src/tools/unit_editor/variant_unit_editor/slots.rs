@@ -203,7 +203,7 @@ impl SubToolVariantUnitEditorSlots {
         let change_icon = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
                 let key = ui.unit_variants_unit_card_combobox.current_text().to_std_string();
-                ui.load_unit_icon(&HashMap::new(), Some(key));
+                let _ = ui.load_unit_icon(&HashMap::new(), Some(key));
             }
         ));
 
