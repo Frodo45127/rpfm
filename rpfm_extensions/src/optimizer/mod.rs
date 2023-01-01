@@ -95,7 +95,7 @@ impl OptimizableContainer for Pack {
         let extra_data = Some(extra_data);
 
         // Then, do a second pass, this time over the decodeable files that we can optimize.
-        files_to_delete.extend(self.files_mut().iter_mut().filter_map(|(path, rfile)|{
+        files_to_delete.extend(self.files_mut().iter_mut().filter_map(|(path, rfile)| {
 
             // Only check it if it's not already marked for deletion.
             if files_to_delete.get(path).is_none() {
@@ -105,7 +105,7 @@ impl OptimizableContainer for Pack {
 
                         // Unless we specifically wanted to, ignore the same-name-as-vanilla-or-parent files,
                         // as those are probably intended to overwrite vanilla files, not to be optimized.
-                        if optimize_datacored_tables || dependencies.file_exists(path, true, true, true) {
+                        if optimize_datacored_tables || !dependencies.file_exists(path, true, true, true) {
                             if let Ok(Some(RFileDecoded::DB(mut db))) = rfile.decode(&extra_data, false, true) {
                                 if db.optimize(dependencies) {
                                     return Some(path.to_owned());
@@ -117,7 +117,7 @@ impl OptimizableContainer for Pack {
                     FileType::Loc => {
 
                         // Same as with tables, don't optimize them if they're overwriting.
-                        if optimize_datacored_tables || dependencies.file_exists(path, true, true, true) {
+                        if optimize_datacored_tables || !dependencies.file_exists(path, true, true, true) {
                             if let Ok(Some(RFileDecoded::Loc(mut loc))) = rfile.decode(&extra_data, false, true) {
                                 if loc.optimize(dependencies) {
                                     return Some(path.to_owned());
