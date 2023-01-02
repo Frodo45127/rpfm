@@ -110,6 +110,9 @@ impl ReferencesUI {
             references_table_view.vertical_header().set_default_section_size(22);
         }
 
+        // Hide this widget by default.
+        references_dock_widget.hide();
+
         Ok(Self {
 
             //-------------------------------------------------------------------------------//

@@ -225,7 +225,7 @@ jobs:
           mkdir locale
           mkdir ui
           cp C:\actions-runner\_work\rpfm\rpfm/LICENSE ${{ matrix.DDISK }}:\deploy\rpfm-release-assets
-          cp C:\actions-runner\_work\rpfm\rpfm/CHANGELOG.md ${{ matrix.DDISK }}:\deploy\rpfm-release-assets
+          cp C:\actions-runner\_work\rpfm\rpfm/Changelog.md ${{ matrix.DDISK }}:\deploy\rpfm-release-assets
           cp C:\actions-runner\_work\rpfm\rpfm/icons/* ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\icons\
           cp C:\actions-runner\_work\rpfm\rpfm/locale/* ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\locale\
           cp C:\actions-runner\_work\rpfm\rpfm/rpfm_ui/ui_templates/* ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\ui\

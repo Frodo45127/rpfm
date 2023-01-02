@@ -1545,12 +1545,12 @@ pub fn background_loop() {
 
                 let parent_files = dependencies.files_by_path(&[path.clone()], false, true, true);
                 if !parent_files.is_empty() {
-                    files.insert(DataSource::ParentFiles, parent_files.into_keys().map(|path| ContainerPath::File(path)).collect());
+                    files.insert(DataSource::ParentFiles, parent_files.into_keys().map(ContainerPath::File).collect());
                 }
 
                 let game_files = dependencies.files_by_path(&[path.clone()], true, false, true);
                 if !game_files.is_empty() {
-                    files.insert(DataSource::GameFiles, game_files.into_keys().map(|path| ContainerPath::File(path)).collect());
+                    files.insert(DataSource::GameFiles, game_files.into_keys().map(ContainerPath::File).collect());
                 }
 
                 let local_files = pack_file_decoded.files_by_path(&path, true);
@@ -1583,7 +1583,7 @@ pub fn background_loop() {
                         // Then, optimize the PackFile. This should remove any non-edited rows/files.
                         match pack_file_decoded.optimize(&mut dependencies.write().unwrap(), schema, false) {
                             Ok(paths_to_delete) => CentralCommand::send_back(&sender, Response::VecContainerPathVecContainerPath(added_paths, paths_to_delete.into_iter()
-                                .map(|x| ContainerPath::File(x))
+                                .map(ContainerPath::File)
                                 .collect())),
                             Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                         }
@@ -1773,7 +1773,6 @@ pub fn background_loop() {
 
             // These two belong to the network thread, not to this one!!!!
             Command::CheckUpdates | Command::CheckSchemaUpdates | Command::CheckMessageUpdates | Command::CheckLuaAutogenUpdates => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-            _ => {}
         }
     }
 }
