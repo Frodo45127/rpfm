@@ -58,7 +58,8 @@ jobs:
         if: matrix.os == 'self-hosted-windows'
         shell: pwsh
         run: |
-          echo "file_name=$(rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }})" >> $GITHUB_OUTPUT
+          echo "file_name=rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}" >> $GITHUB_OUTPUT
+
           ${{ matrix.DDISK }}:\Craft\craft\craftenv.ps1
 
           # TODO: Build this from tag.
@@ -73,7 +74,7 @@ jobs:
         id: build_linux
         if: matrix.os == 'self-hosted-linux'
         run: |
-          echo "file_name=$(rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }})" >> $GITHUB_OUTPUT
+          echo "file_name=rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}" >> $GITHUB_OUTPUT
 
           # Go back one folder to not put the built files in the repo.
           cd /usr/src/app/_work/rpfm/
