@@ -17,12 +17,17 @@ to change them manually.
 !*/
 
 use qt_core::QBox;
+use qt_core::QByteArray;
 use qt_core::QSettings;
 use qt_core::QString;
 use qt_core::QVariant;
 
+use cpp_core::CppBox;
+use cpp_core::Ref;
+
 use anyhow::{anyhow, Result};
 use directories::ProjectDirs;
+use qt_widgets::QApplication;
 
 use std::fs::{DirBuilder, File};
 use std::path::{Path, PathBuf};
@@ -32,6 +37,7 @@ use rpfm_lib::games::{*, supported_games::*};
 use rpfm_lib::schema::SCHEMA_FOLDER;
 use rpfm_lib::tips::TIPS_REMOTE_FOLDER;
 
+use crate::app_ui::AppUI;
 use crate::GAME_SELECTED;
 use crate::SUPPORTED_GAMES;
 use crate::updater::STABLE;
@@ -57,8 +63,11 @@ const DEPENDENCIES_FOLDER: &str = "dependencies";
 //                         Setting-related functions
 //-------------------------------------------------------------------------------//
 
-pub unsafe fn init_settings() {
-    let q_settings = QSettings::from_2_q_string(&QString::from_std_str(ORGANISATION), &QString::from_std_str(PROGRAM_NAME));
+pub unsafe fn init_settings(app_ui: &AppUI) {
+    let q_settings = settings();
+
+    set_setting_if_new_q_byte_array(&q_settings, "originalGeometry", app_ui.main_window().save_geometry().as_ref());
+    set_setting_if_new_q_byte_array(&q_settings, "originalWindowState", app_ui.main_window().save_state_0a().as_ref());
 
     set_setting_if_new_string(&q_settings, MYMOD_BASE_PATH, "");
     set_setting_if_new_string(&q_settings, ZIP_PATH, "");
@@ -81,8 +90,14 @@ pub unsafe fn init_settings() {
     set_setting_if_new_string(&q_settings, "update_channel", STABLE);
     set_setting_if_new_int(&q_settings, "autosave_amount", 10);
     set_setting_if_new_int(&q_settings, "autosave_interval", 5);
-    set_setting_if_new_string(&q_settings, "font_name", "");
-    set_setting_if_new_string(&q_settings, "font_size", "");
+
+    let font = QApplication::font();
+    let font_name = font.family().to_std_string();
+    let font_size = font.point_size();
+    set_setting_if_new_string(&q_settings, "font_name", &font_name);
+    set_setting_if_new_int(&q_settings, "font_size", font_size);
+    set_setting_if_new_string(&q_settings, "original_font_name", &font_name);
+    set_setting_if_new_int(&q_settings, "original_font_size", font_size);
 
     // UI Settings.
     set_setting_if_new_bool(&q_settings, "start_maximized", false);
@@ -146,6 +161,13 @@ pub fn settings() -> QBox<QSettings> {
 }
 
 #[allow(dead_code)]
+pub fn setting_from_q_setting_variant(q_settings: &QBox<QSettings>, setting: &str) -> CppBox<QVariant> {
+    unsafe {
+        q_settings.value_1a(&QString::from_std_str(setting))
+    }
+}
+
+#[allow(dead_code)]
 pub fn setting_path(setting: &str) -> PathBuf {
     unsafe {
         let q_settings = QSettings::from_2_q_string(&QString::from_std_str(ORGANISATION), &QString::from_std_str(PROGRAM_NAME));
@@ -174,6 +196,14 @@ pub fn setting_bool(setting: &str) -> bool {
     unsafe {
         let q_settings = QSettings::from_2_q_string(&QString::from_std_str(ORGANISATION), &QString::from_std_str(PROGRAM_NAME));
         q_settings.value_1a(&QString::from_std_str(setting)).to_bool()
+    }
+}
+
+#[allow(dead_code)]
+pub fn setting_byte_array(setting: &str) -> CppBox<QByteArray> {
+    unsafe {
+        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(ORGANISATION), &QString::from_std_str(PROGRAM_NAME));
+        q_settings.value_1a(&QString::from_std_str(setting)).to_byte_array()
     }
 }
 
@@ -210,6 +240,22 @@ pub fn set_setting_bool(setting: &str, value: bool) {
 }
 
 #[allow(dead_code)]
+pub fn set_setting_q_byte_array(setting: &str, value: Ref<QByteArray>) {
+    unsafe {
+        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(ORGANISATION), &QString::from_std_str(PROGRAM_NAME));
+        q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_q_byte_array(value));
+        q_settings.sync();
+    }
+}
+
+#[allow(dead_code)]
+pub fn set_setting_variant_to_q_setting(q_settings: &QBox<QSettings>, setting: &str, value: Ref<QVariant>) {
+    unsafe {
+        q_settings.set_value(&QString::from_std_str(setting), value);
+    }
+}
+
+#[allow(dead_code)]
 pub fn set_setting_path_to_q_setting(q_settings: &QBox<QSettings>, setting: &str, value: &Path) {
     set_setting_string_to_q_setting(q_settings, setting, &value.to_string_lossy())
 }
@@ -232,6 +278,13 @@ pub fn set_setting_int_to_q_setting(q_settings: &QBox<QSettings>, setting: &str,
 pub fn set_setting_bool_to_q_setting(q_settings: &QBox<QSettings>, setting: &str, value: bool) {
     unsafe {
         q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_bool(value));
+    }
+}
+
+#[allow(dead_code)]
+pub fn set_setting_q_byte_array_to_q_setting(q_settings: &QBox<QSettings>, setting: &str, value: Ref<QByteArray>) {
+    unsafe {
+        q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_q_byte_array(value));
     }
 }
 
@@ -266,6 +319,16 @@ pub fn set_setting_if_new_bool(q_settings: &QBox<QSettings>, setting: &str, valu
         }
     }
 }
+
+#[allow(dead_code)]
+pub fn set_setting_if_new_q_byte_array(q_settings: &QBox<QSettings>, setting: &str, value: Ref<QByteArray>) {
+    unsafe {
+        if !q_settings.value_1a(&QString::from_std_str(setting)).is_valid() {
+            q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_q_byte_array(value));
+        }
+    }
+}
+
 //-------------------------------------------------------------------------------//
 //                             Extra Helpers
 //-------------------------------------------------------------------------------//

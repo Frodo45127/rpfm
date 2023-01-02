@@ -30,10 +30,7 @@ use qt_gui::QIcon;
 
 use qt_core::QFlags;
 use qt_core::QString;
-use qt_core::QVariant;
 use qt_core::WindowState;
-
-use cpp_core::Ptr;
 
 use anyhow::Result;
 
@@ -52,8 +49,6 @@ use crate::app_ui;
 use crate::app_ui::AppUI;
 use crate::app_ui::slots::{AppUITempSlots, AppUISlots};
 use crate::ASSETS_PATH;
-use crate::DARK_PALETTE;
-use crate::DARK_STYLESHEET;
 use crate::dependencies_ui;
 use crate::dependencies_ui::DependenciesUI;
 use crate::dependencies_ui::slots::DependenciesUISlots;
@@ -65,7 +60,6 @@ use crate::GAME_SELECTED_ICONS;
 use crate::global_search_ui;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::global_search_ui::slots::GlobalSearchSlots;
-use crate::LIGHT_PALETTE;
 use crate::references_ui;
 use crate::references_ui::ReferencesUI;
 use crate::references_ui::slots::ReferencesUISlots;
@@ -80,10 +74,7 @@ use crate::packfile_contents_ui::slots::PackFileContentsSlots;
 use crate::RPFM_PATH;
 use crate::settings_ui::backend::*;
 use crate::UI_STATE;
-use crate::utils::atomic_from_cpp_box;
-use crate::utils::log_to_status_bar;
-use crate::utils::show_dialog;
-use crate::utils::ref_from_atomic;
+use crate::utils::*;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -124,7 +115,7 @@ pub struct GameSelectedIcons {
 impl UI {
 
     /// This function initialize the entire `UI`.
-    pub unsafe fn new(app: Ptr<QApplication>) -> Result<Self> {
+    pub unsafe fn new() -> Result<Self> {
         let t = std::time::SystemTime::now();
 
         let app_ui = Rc::new(AppUI::new());
@@ -159,26 +150,17 @@ impl UI {
         references_ui::connections::set_connections(&references_ui, &references_slots);
 
         // Initialize settings.
-        init_settings();
+        init_settings(&app_ui);
 
         // Apply last ui state.
-        // TODO: Move all this to settings.
-        let q_settings = settings();
-        let mut sync_needed = false;
+        app_ui.main_window().restore_geometry(&setting_byte_array("geometry"));
+        app_ui.main_window().restore_state_1a(&setting_byte_array("windowState"));
 
-        // TODO: this may be wrong.
-        if !q_settings.contains(&QString::from_std_str("originalGeometry")) {
-            q_settings.set_value(&QString::from_std_str("originalGeometry"), &QVariant::from_q_byte_array(&app_ui.main_window().save_geometry()));
-            q_settings.set_value(&QString::from_std_str("originalWindowState"), &QVariant::from_q_byte_array(&app_ui.main_window().save_state_0a()));
-            sync_needed = true;
-        }
-
-        app_ui.main_window().restore_geometry(&q_settings.value_1a(&QString::from_std_str("geometry")).to_byte_array());
-        app_ui.main_window().restore_state_1a(&q_settings.value_1a(&QString::from_std_str("windowState")).to_byte_array());
-
-        if sync_needed {
-            q_settings.sync();
-        }
+        // Apply the font.
+        let font_name = setting_string("font_name");
+        let font_size = setting_int("font_size");
+        let font = QFont::from_q_string_int(&QString::from_std_str(font_name), font_size);
+        QApplication::set_font_1a(&font);
 
         // Here we also initialize the UI.
         UI_STATE.set_operational_mode(&app_ui, None);
@@ -189,35 +171,8 @@ impl UI {
             app_ui.main_window().set_window_state(QFlags::from(WindowState::WindowMaximized));
         }
 
-        if !setting_string("font_name").is_empty() && !setting_string("font_size").is_empty() {
-            let font = QFont::new();
-            font.set_family(&QString::from_std_str(setting_string("font_name")));
-            font.set_point_size(setting_string("font_size").parse::<i32>().unwrap());
-            QApplication::set_font_1a(&font);
-        }
+        reload_theme();
 
-        // On Windows, we use the dark theme switch to control the Style, StyleSheet and Palette.
-        if cfg!(target_os = "windows") {
-            if setting_bool("use_dark_theme") {
-                QApplication::set_style_q_string(&QString::from_std_str("fusion"));
-                QApplication::set_palette_1a(ref_from_atomic(&*DARK_PALETTE));
-                app.set_style_sheet(&QString::from_std_str(&*DARK_STYLESHEET));
-            } else {
-                QApplication::set_style_q_string(&QString::from_std_str("windowsvista"));
-                QApplication::set_palette_1a(ref_from_atomic(&*LIGHT_PALETTE));
-            }
-        }
-
-        // On MacOS, we use the dark theme switch to control the StyleSheet and Palette.
-        else if cfg!(target_os = "macos") {
-            if setting_bool("use_dark_theme") {
-                QApplication::set_palette_1a(ref_from_atomic(&*DARK_PALETTE));
-                app.set_style_sheet(&QString::from_std_str(&*DARK_STYLESHEET));
-            } else {
-                QApplication::set_palette_1a(ref_from_atomic(&*LIGHT_PALETTE));
-            }
-        }
-dbg!(t.elapsed().unwrap());
         // Show the Main Window...
         app_ui.main_window().show();
         log_to_status_bar("Initializing, please wait...");
@@ -288,8 +243,8 @@ dbg!(t.elapsed().unwrap());
 dbg!(t.elapsed().unwrap());
         // Show the "only for the brave" alert for specially unstable builds.
         #[cfg(feature = "only_for_the_brave")] {
-            let first_boot_setting = QString::from_std_str("firstBoot".to_owned() + VERSION);
-            if !q_settings.contains(&first_boot_setting) {
+            let first_boot_setting = "firstBoot".to_owned() + VERSION;
+            if !setting_bool(&first_boot_setting) {
 
                 let title = qtr("title_only_for_the_brave");
                 let message = qtr("message_only_for_the_brave");
@@ -302,7 +257,7 @@ dbg!(t.elapsed().unwrap());
                 ).exec();
 
                 // Set it so it doesn't popup again for this version.
-                q_settings.set_value(&first_boot_setting, &QVariant::from_bool(true));
+                set_setting_bool(&first_boot_setting, true);
             }
         }
 dbg!(t.elapsed().unwrap());

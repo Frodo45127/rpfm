@@ -26,6 +26,7 @@ use qt_widgets::QMainWindow;
 use qt_ui_tools::QUiLoader;
 
 use qt_core::QBox;
+use qt_core::QCoreApplication;
 use qt_core::QFlags;
 use qt_core::QListOfQObject;
 use qt_core::QPtr;
@@ -54,19 +55,15 @@ use std::fs::File;
 use std::io::{BufReader, Read};
 use std::sync::atomic::{AtomicPtr, Ordering};
 
-use crate::{ASSETS_PATH, GAME_SELECTED, SENTRY_GUARD};
+use crate::{ASSETS_PATH, DARK_PALETTE, GAME_SELECTED, LIGHT_PALETTE, LIGHT_STYLE_SHEET, SENTRY_GUARD};
 use crate::ffi::*;
 use crate::locale::{qtr, qtre};
+use crate::setting_bool;
 use crate::STATUS_BAR;
 use crate::pack_tree::{get_color_correct, get_color_wrong, get_color_clean};
 
 // Colors used all over the program for theming and stuff.
 pub const MEDIUM_DARKER_GREY: &str = "#262626";          // Medium-Darker Grey.
-pub const DARK_GREY: &str = "#181818";                   // Dark Grey. The color of the background of the Main TreeView.
-pub const SLIGHTLY_DARKER_GREY: &str = "#101010";        // A Bit Darker Grey.
-pub const KINDA_WHITY_GREY: &str = "#BBBBBB";            // Light Grey. The color of the normal Text.
-pub const EVEN_MORE_WHITY_GREY: &str = "#FAFAFA";        // Even Lighter Grey.
-pub const ORANGE: &str = "#E67E22";                      // Orange, used for borders.
 pub const GREEN_BRIGHT: &str = "#D0FDCC";
 pub const GREEN_DARK: &str = "#708F6E";
 pub const RED_BRIGHT: &str = "#FFCCCC";
@@ -356,144 +353,62 @@ pub fn get_feature_flags() -> String {
 }
 
 /// This function creates the stylesheet used for the dark theme in windows.
-///
-/// TODO: Extract this to a file.
-pub fn create_dark_theme_stylesheet() -> String {
-    format!("
-        /* Normal buttons, with no rounded corners, dark background (darker when enabled), and colored borders. */
+pub fn dark_stylesheet() -> Result<String> {
+    let mut file = File::open(ASSETS_PATH.join("dark-theme.qss"))?;
+    let mut string = String::new();
+    file.read_to_string(&mut string)?;
+    Ok(string.replace("{assets_path}", &ASSETS_PATH.to_string_lossy()))
+}
 
-        QPushButton {{
-            border-style: solid;
-            border-width: 1px;
-            padding-top: 5px;
-            padding-bottom: 4px;
-            padding-left: 10px;
-            padding-right: 10px;
-            border-color: {button_bd_off};
-            color: {text_normal};
-            background-color: {button_bg_off};
-        }}
-        QPushButton:hover {{
-            border-color: {button_bd_hover};
-            color: {text_highlighted};
-            background-color: {button_bg_hover};
-        }}
-        QPushButton:pressed {{
-            border-color: {button_bd_hover};
-            color: {text_highlighted};
-            background-color: {button_bg_on};
-        }}
-        QPushButton:checked {{
-            border-color: {button_bd_hover};
-            background-color: {button_bg_on};
-        }}
-        QPushButton:disabled {{
-            color: #808086;
-            background-color: {button_bg_off};
-        }}
+/// This function is used to load/reload a theme live.
+pub unsafe fn reload_theme() {
+    let app = QCoreApplication::instance();
+    let qapp = app.static_downcast::<QApplication>();
+    let use_dark_theme = setting_bool("use_dark_theme");
 
-        /* Normal checkboxes */
-        QCheckBox::indicator:unchecked {{
-            border-style: solid;
-            border-width: 1px;
-            border-color: {checkbox_bd_off};
-        }}
-        /* Disabled due to the evanesce check bug.
-        QCheckBox::indicator:checked {{
-            height: 12px;
-            width: 12px;
-            border-style: solid;
-            border-width: 1px;
-            border-color: {checkbox_bd_off};
-            image:url({assets_path}/icons/checkbox_check.png);
-        }}
-        QCheckBox::indicator:hover {{
-            border-style: solid;
-            border-width: 1px;
-            border-color: {checkbox_bd_hover};
-        }}
-        */
+    // Initialize the globals before applying anything.
+    let light_style_sheet = ref_from_atomic(&*LIGHT_STYLE_SHEET);
+    let light_palette = ref_from_atomic(&*LIGHT_PALETTE);
+    let dark_palette = ref_from_atomic(&*DARK_PALETTE);
 
-        /* Tweaked TableView, so the Checkboxes are white and easy to see. */
+    // On Windows, we use the dark theme switch to control the Style, StyleSheet and Palette.
+    if cfg!(target_os = "windows") {
+        if use_dark_theme {
+            QApplication::set_style_q_string(&QString::from_std_str("fusion"));
+            QApplication::set_palette_1a(dark_palette);
+            if let Ok(dark_stylesheet) = dark_stylesheet() {
+                qapp.set_style_sheet(&QString::from_std_str(dark_stylesheet));
+            }
+        } else {
+            QApplication::set_style_q_string(&QString::from_std_str("windowsvista"));
+            QApplication::set_palette_1a(light_palette);
+            qapp.set_style_sheet(light_style_sheet);
+        }
+    }
 
-        /* Checkboxes */
-        QTableView::indicator:unchecked {{
-            border-style: solid;
-            border-width: 1px;
-            border-color: {checkbox_bd_off};
-        }}
+    // On MacOS, we use the dark theme switch to control the StyleSheet and Palette.
+    else if cfg!(target_os = "macos") {
+        if use_dark_theme {
+            QApplication::set_palette_1a(dark_palette);
+            if let Ok(dark_stylesheet) = dark_stylesheet() {
+                qapp.set_style_sheet(&QString::from_std_str(dark_stylesheet));
+            }
+        } else {
+            QApplication::set_palette_1a(light_palette);
+            qapp.set_style_sheet(light_style_sheet);
+        }
+    }
 
-        /* Disabled due to the evanesce check bug.
-        QTableView::indicator:hover {{
-            border-style: solid;
-            border-width: 1px;
-            border-color: {checkbox_bd_hover};
-        }}
-        QTableView::indicator:checked {{
-            border-style: solid;
-            border-width: 1px;
-            border-color: {checkbox_bd_off};
-            image:url({assets_path}/icons/checkbox_check.png);
-        }}
-        */
-        /* Normal LineEdits, with no rounded corners, dark background (darker when enabled), and colored borders. */
-
-        QLineEdit {{
-            border-style: solid;
-            border-width: 1px;
-            padding-top: 3px;
-            padding-bottom: 3px;
-            padding-left: 3px;
-            padding-right: 3px;
-            border-color: {button_bd_off};
-            color: {text_normal};
-            background-color: {button_bg_off};
-        }}
-        QLineEdit:hover {{
-            border-color: {button_bd_hover};
-            color: {text_highlighted};
-            background-color: {button_bg_hover};
-        }}
-
-        QLineEdit:disabled {{
-            color: #808086;
-            background-color: {button_bg_off};
-        }}
-
-        /* Combos, similar to buttons. */
-        /* Disabled due to the unlimited items bug.
-        QComboBox {{
-            border-style: solid;
-            border-width: 1px;
-            padding-top: 3px;
-            padding-bottom: 3px;
-            padding-left: 10px;
-            padding-right: 10px;
-            border-color: {button_bd_off};
-            color: {text_normal};
-            background-color: {button_bg_off};
-        }}*/
-
-        /* TreeView, with no rounded corners and darker. */
-        QTreeView {{
-            border-style: solid;
-            border-width: 1px;
-            border-color: {button_bd_off};
-        }}
-
-        ",
-        assets_path = ASSETS_PATH.to_string_lossy(),
-        button_bd_hover = ORANGE,
-        button_bd_off = SLIGHTLY_DARKER_GREY,
-        button_bg_on = SLIGHTLY_DARKER_GREY,
-        button_bg_off = MEDIUM_DARKER_GREY,
-        button_bg_hover = DARK_GREY,
-        text_normal = KINDA_WHITY_GREY,
-        text_highlighted = EVEN_MORE_WHITY_GREY,
-
-        checkbox_bd_off = KINDA_WHITY_GREY,
-        checkbox_bd_hover = ORANGE
-    )
+    // Linux and company.
+    else if use_dark_theme {
+        qt_widgets::QApplication::set_palette_1a(dark_palette);
+        if let Ok(dark_stylesheet) = dark_stylesheet() {
+            qapp.set_style_sheet(&QString::from_std_str(dark_stylesheet));
+        }
+    } else {
+        qt_widgets::QApplication::set_palette_1a(light_palette);
+        qapp.set_style_sheet(light_style_sheet);
+    }
 }
 
 /// This function returns the a widget from the view if it exits, and an error if it doesn't.

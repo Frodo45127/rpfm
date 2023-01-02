@@ -36,6 +36,7 @@ use qt_gui::{QPalette, q_palette::{ColorGroup, ColorRole}};
 use qt_gui::QFontDatabase;
 use qt_gui::q_font_database::SystemFont;
 
+use qt_core::QCoreApplication;
 use qt_core::QString;
 
 use lazy_static::lazy_static;
@@ -173,6 +174,13 @@ lazy_static! {
     /// Icons for the `Game Selected` in the TitleBar.
     static ref GAME_SELECTED_ICONS: GameSelectedIcons = unsafe { GameSelectedIcons::new() };
 
+    /// Light stylesheet.
+    static ref LIGHT_STYLE_SHEET: AtomicPtr<QString> = unsafe {
+        let app = QCoreApplication::instance();
+        let qapp = app.static_downcast::<QApplication>();
+        atomic_from_cpp_box(qapp.style_sheet())
+    };
+
     /// Bright and dark palettes of colours for Windows.
     /// The dark one is taken from here, with some modifications: https://gist.github.com/QuantumCD/6245215
     static ref LIGHT_PALETTE: AtomicPtr<QPalette> = unsafe { atomic_from_cpp_box(QPalette::new()) };
@@ -211,9 +219,6 @@ lazy_static! {
 
         atomic_from_cpp_box(palette)
     }};
-
-    /// Stylesheet used by the dark theme in Windows.
-    static ref DARK_STYLESHEET: String = utils::create_dark_theme_stylesheet();
 
     /// Variable to keep the locale fallback data (english locales) used by the UI loaded and available.
     static ref LOCALE_FALLBACK: Locale = {
@@ -282,8 +287,8 @@ fn main() {
     let net_handle = thread::spawn(|| { network_thread::network_loop(); });
 
     // Create the application and start the loop.
-    QApplication::init(|app| {
-        let ui = unsafe { UI::new(app) };
+    QApplication::init(|_app| {
+        let ui = unsafe { UI::new() };
         match ui {
             Ok(ui) => {
 

@@ -22,7 +22,6 @@ use qt_widgets::QSpinBox;
 use qt_widgets::QPushButton;
 use qt_widgets::QWidget;
 
-use qt_gui::QGuiApplication;
 use qt_gui::{QColor, q_color::NameFormat};
 use qt_gui::{QPalette, q_palette::ColorRole};
 use qt_gui::QStandardItemModel;
@@ -40,6 +39,7 @@ use cpp_core::Ptr;
 use anyhow::Result;
 use getset::Getters;
 
+use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::rc::Rc;
@@ -125,6 +125,8 @@ pub struct SettingsUI {
     ui_window_hide_background_icon_checkbox: QBox<QCheckBox>,
     general_packfile_treeview_resize_to_fit_checkbox: QBox<QCheckBox>,
     general_packfile_treeview_expand_treeview_when_adding_items_checkbox: QBox<QCheckBox>,
+
+    font_data: Rc<RefCell<(String, i32)>>,
 
     //-------------------------------------------------------------------------------//
     // `Table` section of the `Settings` dialog.
@@ -790,6 +792,8 @@ impl SettingsUI {
             general_packfile_treeview_resize_to_fit_checkbox,
             general_packfile_treeview_expand_treeview_when_adding_items_checkbox,
 
+            font_data: Rc::new(RefCell::new((String::new(), -1))),
+
             //-------------------------------------------------------------------------------//
             // `Table` section of the `Settings` dialog.
             //-------------------------------------------------------------------------------//
@@ -866,6 +870,7 @@ impl SettingsUI {
 
     /// This function loads the data from the provided `Settings` into our `SettingsUI`.
     pub unsafe fn load(&self) -> Result<()> {
+
         // TODO: Pass this everywhere so we don't call it again on every request.
         let q_settings = settings();
 
@@ -911,6 +916,8 @@ impl SettingsUI {
                 break;
             }
         }
+
+        *self.font_data.borrow_mut() = (setting_string("font_name"), setting_int("font_size"));
 
         // Load the General Stuff.
         self.extra_packfile_autosave_amount_spinbox.set_value(setting_int("autosave_amount"));
@@ -962,20 +969,16 @@ impl SettingsUI {
         self.ui_table_colour_dark_diagnostic_warning_button.set_palette(&QPalette::from_q_color(&colour_dark_diagnostic_warning));
         self.ui_table_colour_dark_diagnostic_info_button.set_palette(&QPalette::from_q_color(&colour_dark_diagnostic_info));
 
-        // So, windows is fucking annoying when it wants, and here's an example. QPalette doesn't change the visual colour of buttons, only on windows.
-        // The colour is there, but the button color will not change. So we have to set it, AGAIN, with stylesheets, only in fucking windows.
-        if cfg!(target_os = "windows") {
-            self.ui_table_colour_light_table_added_button.set_style_sheet(&QString::from_std_str(format!("background-color: {}", colour_light_table_added.name_1a(NameFormat::HexArgb).to_std_string())));
-            self.ui_table_colour_light_table_modified_button.set_style_sheet(&QString::from_std_str(format!("background-color: {}", colour_light_table_modified.name_1a(NameFormat::HexArgb).to_std_string())));
-            self.ui_table_colour_light_diagnostic_error_button.set_style_sheet(&QString::from_std_str(format!("background-color: {}", colour_light_diagnostic_error.name_1a(NameFormat::HexArgb).to_std_string())));
-            self.ui_table_colour_light_diagnostic_warning_button.set_style_sheet(&QString::from_std_str(format!("background-color: {}", colour_light_diagnostic_warning.name_1a(NameFormat::HexArgb).to_std_string())));
-            self.ui_table_colour_light_diagnostic_info_button.set_style_sheet(&QString::from_std_str(format!("background-color: {}", colour_light_diagnostic_info.name_1a(NameFormat::HexArgb).to_std_string())));
-            self.ui_table_colour_dark_table_added_button.set_style_sheet(&QString::from_std_str(format!("background-color: {}", colour_dark_table_added.name_1a(NameFormat::HexArgb).to_std_string())));
-            self.ui_table_colour_dark_table_modified_button.set_style_sheet(&QString::from_std_str(format!("background-color: {}", colour_dark_table_modified.name_1a(NameFormat::HexArgb).to_std_string())));
-            self.ui_table_colour_dark_diagnostic_error_button.set_style_sheet(&QString::from_std_str(format!("background-color: {}", colour_dark_diagnostic_error.name_1a(NameFormat::HexArgb).to_std_string())));
-            self.ui_table_colour_dark_diagnostic_warning_button.set_style_sheet(&QString::from_std_str(format!("background-color: {}", colour_dark_diagnostic_warning.name_1a(NameFormat::HexArgb).to_std_string())));
-            self.ui_table_colour_dark_diagnostic_info_button.set_style_sheet(&QString::from_std_str(format!("background-color: {}", colour_dark_diagnostic_info.name_1a(NameFormat::HexArgb).to_std_string())));
-        }
+        self.ui_table_colour_light_table_added_button.set_style_sheet(&QString::from_std_str(format!("background-color: {}", colour_light_table_added.name_1a(NameFormat::HexArgb).to_std_string())));
+        self.ui_table_colour_light_table_modified_button.set_style_sheet(&QString::from_std_str(format!("background-color: {}", colour_light_table_modified.name_1a(NameFormat::HexArgb).to_std_string())));
+        self.ui_table_colour_light_diagnostic_error_button.set_style_sheet(&QString::from_std_str(format!("background-color: {}", colour_light_diagnostic_error.name_1a(NameFormat::HexArgb).to_std_string())));
+        self.ui_table_colour_light_diagnostic_warning_button.set_style_sheet(&QString::from_std_str(format!("background-color: {}", colour_light_diagnostic_warning.name_1a(NameFormat::HexArgb).to_std_string())));
+        self.ui_table_colour_light_diagnostic_info_button.set_style_sheet(&QString::from_std_str(format!("background-color: {}", colour_light_diagnostic_info.name_1a(NameFormat::HexArgb).to_std_string())));
+        self.ui_table_colour_dark_table_added_button.set_style_sheet(&QString::from_std_str(format!("background-color: {}", colour_dark_table_added.name_1a(NameFormat::HexArgb).to_std_string())));
+        self.ui_table_colour_dark_table_modified_button.set_style_sheet(&QString::from_std_str(format!("background-color: {}", colour_dark_table_modified.name_1a(NameFormat::HexArgb).to_std_string())));
+        self.ui_table_colour_dark_diagnostic_error_button.set_style_sheet(&QString::from_std_str(format!("background-color: {}", colour_dark_diagnostic_error.name_1a(NameFormat::HexArgb).to_std_string())));
+        self.ui_table_colour_dark_diagnostic_warning_button.set_style_sheet(&QString::from_std_str(format!("background-color: {}", colour_dark_diagnostic_warning.name_1a(NameFormat::HexArgb).to_std_string())));
+        self.ui_table_colour_dark_diagnostic_info_button.set_style_sheet(&QString::from_std_str(format!("background-color: {}", colour_dark_diagnostic_info.name_1a(NameFormat::HexArgb).to_std_string())));
 
         // Load the Debug Stuff.
         self.debug_check_for_missing_table_definitions_checkbox.set_checked(setting_bool("check_for_missing_table_definitions"));
@@ -995,12 +998,10 @@ impl SettingsUI {
         self.debug_colour_dark_local_tip_button.set_palette(&QPalette::from_q_color(&colour_dark_local_tip));
         self.debug_colour_dark_remote_tip_button.set_palette(&QPalette::from_q_color(&colour_dark_remote_tip));
 
-        if cfg!(target_os = "windows") {
-            self.debug_colour_light_local_tip_button.set_style_sheet(&QString::from_std_str(format!("background-color: {}", colour_light_local_tip.name_1a(NameFormat::HexArgb).to_std_string())));
-            self.debug_colour_light_remote_tip_button.set_style_sheet(&QString::from_std_str(format!("background-color: {}", colour_light_remote_tip.name_1a(NameFormat::HexArgb).to_std_string())));
-            self.debug_colour_dark_local_tip_button.set_style_sheet(&QString::from_std_str(format!("background-color: {}", colour_dark_local_tip.name_1a(NameFormat::HexArgb).to_std_string())));
-            self.debug_colour_dark_remote_tip_button.set_style_sheet(&QString::from_std_str(format!("background-color: {}", colour_dark_remote_tip.name_1a(NameFormat::HexArgb).to_std_string())));
-        }
+        self.debug_colour_light_local_tip_button.set_style_sheet(&QString::from_std_str(format!("background-color: {}", colour_light_local_tip.name_1a(NameFormat::HexArgb).to_std_string())));
+        self.debug_colour_light_remote_tip_button.set_style_sheet(&QString::from_std_str(format!("background-color: {}", colour_light_remote_tip.name_1a(NameFormat::HexArgb).to_std_string())));
+        self.debug_colour_dark_local_tip_button.set_style_sheet(&QString::from_std_str(format!("background-color: {}", colour_dark_local_tip.name_1a(NameFormat::HexArgb).to_std_string())));
+        self.debug_colour_dark_remote_tip_button.set_style_sheet(&QString::from_std_str(format!("background-color: {}", colour_dark_remote_tip.name_1a(NameFormat::HexArgb).to_std_string())));
 
         // Load the Diagnostics Stuff.
         self.diagnostics_diagnostics_trigger_on_open_checkbox.set_checked(setting_bool("diagnostics_trigger_on_open"));
@@ -1041,9 +1042,8 @@ impl SettingsUI {
 
         set_setting_string_to_q_setting(&q_settings, "update_channel", &self.extra_network_update_channel_combobox.current_text().to_std_string());
 
-        let current_font = QGuiApplication::font();
-        set_setting_string_to_q_setting(&q_settings, "font_name", &current_font.family().to_std_string());
-        set_setting_string_to_q_setting(&q_settings, "font_size", &current_font.point_size().to_string());
+        set_setting_string_to_q_setting(&q_settings, "font_name", &self.font_data.borrow().0);
+        set_setting_int_to_q_setting(&q_settings, "font_size", self.font_data.borrow().1);
 
         // Get the General Settings.
         set_setting_int_to_q_setting(&q_settings, "autosave_amount", self.extra_packfile_autosave_amount_spinbox.value());

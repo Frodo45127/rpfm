@@ -12,6 +12,7 @@
 Module with all the code related to `SettingsUISlots`.
 !*/
 
+use qt_widgets::QApplication;
 use qt_widgets::QColorDialog;
 use qt_widgets::QFontDialog;
 use qt_widgets::QPushButton;
@@ -19,15 +20,12 @@ use qt_widgets::QWidget;
 
 use qt_gui::{QPalette, q_palette::ColorRole};
 use qt_gui::q_color::NameFormat;
-use qt_gui::QGuiApplication;
-use qt_gui::QFontDatabase;
-use qt_gui::q_font_database::SystemFont;
 
 use qt_core::QBox;
 use qt_core::QString;
 use qt_core::SlotNoArgs;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fs::remove_dir_all;
 use std::rc::Rc;
 use std::process::Command as SystemCommand;
@@ -93,19 +91,47 @@ impl SettingsUISlots {
             app_ui,
             ui => move || {
 
-                // Restore RPFM settings and reload the view.
-                init_settings();
+                // Restore RPFM settings and reload the view, WITHOUT SAVING THE SETTINGS.
+                // An exception are the original states. We need to keep those.
+                let q_settings = settings();
+                let keys = q_settings.all_keys();
+
+                let mut old_settings = HashMap::new();
+                for i in 0..keys.count_0a() {
+                    old_settings.insert(keys.at(i).to_std_string(), setting_from_q_setting_variant(&q_settings, &keys.at(i).to_std_string()));
+                }
+
+                // Fonts are a bit special. Init picks them up from the running app, not from a fixed value,
+                // so we need to manually overwrite them here before init_settings gets triggered.
+                let original_font_name = setting_string("original_font_name");
+                let original_font_size = setting_int("original_font_size");
+
+                q_settings.clear();
+
+                set_setting_string_to_q_setting(&q_settings, "font_name", &original_font_name);
+                set_setting_int_to_q_setting(&q_settings, "font_size", original_font_size);
+
+                q_settings.sync();
+
+                init_settings(&app_ui);
                 if let Err(error) = ui.load() {
                     return show_dialog(&ui.dialog, error, false);
                 }
 
-                // Restore layout settings. TODO: move this to initialization of settings.
-                let q_settings = settings();
-                app_ui.main_window().restore_geometry(&q_settings.value_1a(&QString::from_std_str("originalGeometry")).to_byte_array());
-                app_ui.main_window().restore_state_1a(&q_settings.value_1a(&QString::from_std_str("originalWindowState")).to_byte_array());
+                // Once the original settings are reloaded, wipe them out from the backend again and put the old ones in.
+                // That way, if the user cancels, we still have the old settings.
+                q_settings.clear();
                 q_settings.sync();
 
-                QGuiApplication::set_font(&QFontDatabase::system_font(SystemFont::GeneralFont));
+                for (key, value) in &old_settings {
+                    set_setting_variant_to_q_setting(&q_settings, key, value.as_ref());
+                }
+
+                // Set this value to indicate future operations that a reset has taken place.
+                set_setting_bool_to_q_setting(&q_settings, "factoryReset", true);
+
+                // Save the backend settings again.
+                q_settings.sync();
             }
         ));
 
@@ -162,10 +188,10 @@ impl SettingsUISlots {
 
         let font_settings = SlotNoArgs::new(&ui.dialog, clone!(mut ui => move || {
             let font_changed: *mut bool = &mut false;
-            let current_font = QGuiApplication::font();
+            let current_font = QApplication::font();
             let new_font = QFontDialog::get_font_bool_q_font_q_widget(font_changed, current_font.as_ref(), &ui.dialog);
             if *font_changed {
-                QGuiApplication::set_font(new_font.as_ref());
+                *ui.font_data.borrow_mut() = (new_font.family().to_std_string(), new_font.point_size());
             }
         }));
 
@@ -333,9 +359,6 @@ unsafe fn change_colour(button: &QBox<QPushButton>) {
     if color.is_valid() {
         let palette = QPalette::from_q_color(&color);
         button.set_palette(&palette);
-
-        if cfg!(target_os = "windows") {
-            button.set_style_sheet(&QString::from_std_str(format!("background-color: {}", color.name_1a(NameFormat::HexArgb).to_std_string())));
-        }
+        button.set_style_sheet(&QString::from_std_str(format!("background-color: {}", color.name_1a(NameFormat::HexArgb).to_std_string())));
     }
 }

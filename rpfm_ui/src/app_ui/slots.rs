@@ -12,6 +12,7 @@
 Module with all the code related to the main `AppUISlot`.
 !*/
 
+use qt_widgets::QApplication;
 use qt_widgets::QAction;
 use qt_widgets::QDialog;
 use qt_widgets::{QFileDialog, q_file_dialog::FileMode};
@@ -23,6 +24,7 @@ use qt_widgets::SlotOfQPoint;
 
 use qt_gui::QCursor;
 use qt_gui::QDesktopServices;
+use qt_gui::QFont;
 
 use qt_core::QBox;
 use qt_core::{SlotOfBool, SlotOfInt, SlotNoArgs};
@@ -552,6 +554,9 @@ impl AppUISlots {
                 let mymod_path_old = setting_path(MYMOD_BASE_PATH);
                 let game_path_old = setting_path(&game_key);
                 let ak_path_old = setting_path(&format!("{}_assembly_kit", game_key));
+                let dark_theme_old = setting_bool("use_dark_theme");
+                let font_name_old = setting_string("font_name");
+                let font_size_old = setting_int("font_size");
 
                 match SettingsUI::new(&app_ui) {
                     Ok(saved) => {
@@ -572,10 +577,34 @@ impl AppUISlots {
                             if game_path_old != game_path_new || ak_path_old != ak_path_new {
                                 QAction::trigger(&app_ui.game_selected_group.checked_action());
                             }
+
+                            // If we detect a change in theme, reload it.
+                            let dark_theme_new = setting_bool("use_dark_theme");
+                            if dark_theme_old != dark_theme_new {
+                                crate::utils::reload_theme();
+                            }
+
+                            // If we detect a change in the saved font, trigger a font change.
+                            let font_name = setting_string("font_name");
+                            let font_size = setting_int("font_size");
+                            if font_name_old != font_name || font_size_old != font_size {
+                                let font = QFont::from_q_string_int(&QString::from_std_str(&font_name), font_size);
+                                QApplication::set_font_1a(&font);
+                            }
+
+                            // If we detect a factory reset, reset the window's geometry and state, and the font.
+                            let factory_reset = setting_bool("factoryReset");
+                            if factory_reset {
+                                app_ui.main_window().restore_geometry(&setting_byte_array("originalGeometry"));
+                                app_ui.main_window().restore_state_1a(&setting_byte_array("originalWindowState"));
+                            }
                         }
                     }
                     Err(error) => show_dialog(&app_ui.main_window, error, false),
                 }
+
+                // Make sure we don't drag the factory reset setting, no matter if the user saved or not.
+                set_setting_bool("factoryReset", false);
             }
         ));
 

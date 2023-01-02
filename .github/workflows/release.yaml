@@ -78,6 +78,10 @@ jobs:
           cp -R rpfm/target/release/rpfm_cli build/usr/bin/rpfm_cli
           cp -R rpfm/target/release/rpfm_ui build/usr/bin/rpfm_ui
 
+          # The dark theme. May be removed in a future cleanup.
+          mkdir -p build/usr/share/rpfm/
+          cp -R rpfm/dark-theme.qss build/usr/share/rpfm/dark-theme.qss
+
           # The icons.
           mkdir -p build/usr/share/rpfm/icons/
           cp -R rpfm/icons/* build/usr/share/rpfm/icons/
@@ -226,6 +230,7 @@ jobs:
           mkdir ui
           cp C:\actions-runner\_work\rpfm\rpfm/LICENSE ${{ matrix.DDISK }}:\deploy\rpfm-release-assets
           cp C:\actions-runner\_work\rpfm\rpfm/Changelog.md ${{ matrix.DDISK }}:\deploy\rpfm-release-assets
+          cp C:\actions-runner\_work\rpfm\rpfm/dark-theme.qss ${{ matrix.DDISK }}:\deploy\rpfm-release-assets
           cp C:\actions-runner\_work\rpfm\rpfm/icons/* ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\icons\
           cp C:\actions-runner\_work\rpfm\rpfm/locale/* ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\locale\
           cp C:\actions-runner\_work\rpfm\rpfm/rpfm_ui/ui_templates/* ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\ui\

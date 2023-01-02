@@ -1,0 +1,120 @@
+/* Normal buttons, with no rounded corners, dark background (darker when enabled), and colored borders. */
+
+QPushButton {
+    border-style: solid;
+    border-width: 1px;
+    padding-top: 5px;
+    padding-bottom: 4px;
+    padding-left: 10px;
+    padding-right: 10px;
+    border-color: #101010;
+    color: #BBBBBB;
+    background-color: #262626;
+}
+QPushButton:hover {
+    border-color: #E67E22;
+    color: #FAFAFA;
+    background-color: #181818;
+}
+QPushButton:pressed {
+    border-color: #E67E22;
+    color: #FAFAFA;
+    background-color: #101010;
+}
+QPushButton:checked {
+    border-color: #E67E22;
+    background-color: #101010;
+}
+QPushButton:disabled {
+    color: #808086;
+    background-color: #262626;
+}
+
+/* Normal checkboxes */
+QCheckBox::indicator:unchecked {
+    border-style: solid;
+    border-width: 1px;
+    border-color: #BBBBBB;
+}
+/* Disabled due to the evanesce check bug.
+QCheckBox::indicator:checked {
+    height: 12px;
+    width: 12px;
+    border-style: solid;
+    border-width: 1px;
+    border-color: #BBBBBB;
+    image:url({assets_path}/icons/checkbox_check.png);
+}
+QCheckBox::indicator:hover {
+    border-style: solid;
+    border-width: 1px;
+    border-color: #E67E22;
+}
+*/
+
+/* Tweaked TableView, so the Checkboxes are white and easy to see. */
+
+/* Checkboxes */
+QTableView::indicator:unchecked {
+    border-style: solid;
+    border-width: 1px;
+    border-color: #BBBBBB;
+}
+
+/* Disabled due to the evanesce check bug.
+QTableView::indicator:hover {
+    border-style: solid;
+    border-width: 1px;
+    border-color: #E67E22;
+}
+QTableView::indicator:checked {
+    border-style: solid;
+    border-width: 1px;
+    border-color: #BBBBBB;
+    image:url({assets_path}/icons/checkbox_check.png);
+}
+*/
+/* Normal LineEdits, with no rounded corners, dark background (darker when enabled), and colored borders. */
+
+QLineEdit {
+    border-style: solid;
+    border-width: 1px;
+    padding-top: 3px;
+    padding-bottom: 3px;
+    padding-left: 3px;
+    padding-right: 3px;
+    border-color: #101010;
+    color: #BBBBBB;
+    background-color: #262626;
+}
+QLineEdit:hover {
+    border-color: #E67E22;
+    color: #FAFAFA;
+    background-color: #181818;
+}
+
+QLineEdit:disabled {
+    color: #808086;
+    background-color: #262626;
+}
+
+/* Combos, similar to buttons. */
+/* Disabled due to the unlimited items bug.
+QComboBox {
+    border-style: solid;
+    border-width: 1px;
+    padding-top: 3px;
+    padding-bottom: 3px;
+    padding-left: 10px;
+    padding-right: 10px;
+    border-color: #101010;
+    color: #BBBBBB;
+    background-color: #262626;
+}*/
+
+/* TreeView, with no rounded corners and darker. */
+QTreeView {
+    border-style: solid;
+    border-width: 1px;
+    border-color: #101010;
+}
