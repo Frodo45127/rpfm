@@ -372,7 +372,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create_release.outputs.upload_url }}
-          asset_path: ./downloads/${{ needs.build.outputs.linuxArtifactFake }}/${{ needs.build.outputs.linuxArtifact }}
+          asset_path: ./downloads/${{ needs.build.outputs.linuxArtifact }}/${{ needs.build.outputs.linuxArtifactFake }}
           asset_name: ${{ needs.build.outputs.linuxArtifact }}
           asset_content_type: application/tar+zstd
 
@@ -382,7 +382,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create_release.outputs.upload_url }}
-          asset_path: ./downloads/${{ needs.build.outputs.windowsArtifactFake }}/${{ needs.build.outputs.windowsArtifact }}
+          asset_path: ./downloads/${{ needs.build.outputs.windowsArtifact }}/${{ needs.build.outputs.windowsArtifactFake }}
           asset_name: ${{ needs.build.outputs.windowsArtifact }}
           asset_content_type: application/x-zip-compressed
 
