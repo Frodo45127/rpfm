@@ -14,9 +14,7 @@ jobs:
 
     outputs:
       linuxArtifact: ${{ steps.build_linux.outputs.file_name_lin }}
-      linuxArtifactFake: ${{ steps.build_linux.outputs.file_name_fake_lin }}
       windowsArtifact: ${{ steps.build_windows.outputs.file_name_win }}
-      windowsArtifactFake: ${{ steps.build_windows.outputs.file_name_fake_win }}
       version: ${{ steps.get_version.outputs.version }}
 
     strategy:
@@ -62,7 +60,6 @@ jobs:
         shell: pwsh
         run: |
           echo "file_name_win=rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}" >> $env:GITHUB_OUTPUT
-          echo "file_name_fake_win=rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}-1.${{ matrix.EXTENSION }}" >> $env:GITHUB_OUTPUT
 
           ${{ matrix.DDISK }}:\Craft\craft\craftenv.ps1
 
@@ -79,7 +76,6 @@ jobs:
         if: matrix.os == 'self-hosted-linux'
         run: |
           echo "file_name_lin=rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}" >> $GITHUB_OUTPUT
-          echo "file_name_fake_lin=rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}-1.${{ matrix.EXTENSION }}" >> $GITHUB_OUTPUT
 
           # Go back one folder to not put the built files in the repo.
           cd /usr/src/app/_work/rpfm/
@@ -113,9 +109,7 @@ jobs:
           cp -R rpfm/LICENSE build/usr/share/licenses/rpfm/LICENSE
 
           # And finally create the compressed file.
-          tar --zstd -cf rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }} build/usr
-
-          tar --zstd -cf rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}-1.${{ matrix.EXTENSION }} rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
+          tar --zstd -cf rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }} -C build usr
 
       - name: Prepare Assets for Release (Windows)
         if: matrix.os == 'self-hosted-windows'
@@ -254,10 +248,6 @@ jobs:
 
           7z a rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }} .\**
 
-          # Stupid idea. Download artifacts fucks up zips by extracting them without an option to disable it.
-          # So we compress them twice to bypass it. Lets see if it works.
-          7z a rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}-1.${{ matrix.EXTENSION }} rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
-
       - name: Upload build artifact (Linux)
         id: upload-release-asset-linux
         if: matrix.os == 'self-hosted-linux'
@@ -372,7 +362,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create_release.outputs.upload_url }}
-          asset_path: ./downloads/${{ needs.build.outputs.linuxArtifact }}/${{ needs.build.outputs.linuxArtifactFake }}
+          asset_path: ./downloads/${{ needs.build.outputs.linuxArtifact }}/${{ needs.build.outputs.linuxArtifact }}
           asset_name: ${{ needs.build.outputs.linuxArtifact }}
           asset_content_type: application/tar+zstd
 
@@ -382,7 +372,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create_release.outputs.upload_url }}
-          asset_path: ./downloads/${{ needs.build.outputs.windowsArtifact }}/${{ needs.build.outputs.windowsArtifactFake }}
+          asset_path: ./downloads/${{ needs.build.outputs.windowsArtifact }}/${{ needs.build.outputs.windowsArtifact }}
           asset_name: ${{ needs.build.outputs.windowsArtifact }}
           asset_content_type: application/x-zip-compressed
 
