@@ -247,6 +247,10 @@ jobs:
 
           7z a rpfm-${{ github.ref }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }} .\**
 
+          # Stupid idea. Download artifacts fucks up zips by extracting them without an option to disable it.
+          # So we compress them twice to bypass it. Lets see if it works.
+          7z a rpfm-${{ github.ref }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }} rpfm-${{ github.ref }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
+
       - name: Upload build artifact (Linux)
         id: upload-release-asset-linux
         if: matrix.os == 'self-hosted-linux'
@@ -346,9 +350,13 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v2.0.5
+        uses: actions/download-artifact@v3
         with:
           path: ./downloads
+
+      - name: List downloads
+        run: |
+          ls -a downloads
 
       # TODO: Move the mimes out.
       - name: Upload Release Asset (Linux)
@@ -359,7 +367,7 @@ jobs:
           upload_url: ${{ needs.create_release.outputs.upload_url }}
           asset_path: ./downloads/${{ needs.build.outputs.linuxArtifact }}
           asset_name: ${{ needs.build.outputs.linuxArtifact }}
-          asset_content_type: application/x-zip-compressed
+          asset_content_type: application/tar+zstd
 
       - name: Upload Release Asset (Windows)
         uses: actions/upload-release-asset@v1
@@ -369,7 +377,7 @@ jobs:
           upload_url: ${{ needs.create_release.outputs.upload_url }}
           asset_path: ./downloads/${{ needs.build.outputs.windowsArtifact }}
           asset_name: ${{ needs.build.outputs.windowsArtifact }}
-          asset_content_type: application/tar+zstd
+          asset_content_type: application/x-zip-compressed
 
   publish_aur_package:
     name: Publish AUR package
