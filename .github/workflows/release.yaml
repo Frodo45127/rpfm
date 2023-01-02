@@ -415,7 +415,7 @@ jobs:
       - name: Update PKGBUILD's sha256 and version number.
         shell: bash
         run: |
-          checksum=$(shasum -a 256 ${{ needs.build.outputs.linuxArtifact }} | grep -oE '^[A-Za-z0-9]+')
+          checksum=$(shasum -a 256 ./downloads/${{ needs.build.outputs.linuxArtifact }} | grep -oE '^[A-Za-z0-9]+')
           sed -i "s/^sha256sums_x86_64=('.*')$/sha256sums_x86_64=('$checksum')/" install/arch/rpfm/PKGBUILD
           sed -i "s/^pkgver=.*$/pkgver=${{ needs.build.outputs.version }}/" install/arch/rpfm/PKGBUILD
 
