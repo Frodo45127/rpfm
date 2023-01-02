@@ -154,6 +154,7 @@ pub struct AppUISlots {
     //-----------------------------------------------//
     pub debug_update_current_schema_from_asskit: QBox<SlotOfBool>,
     pub debug_import_schema_patch: QBox<SlotNoArgs>,
+    pub debug_reload_style_sheet: QBox<SlotNoArgs>,
 
     //-----------------------------------------------//
     // `PackedFileView` slots.
@@ -1354,6 +1355,13 @@ impl AppUISlots {
             }
         ));
 
+        let debug_reload_style_sheet = SlotNoArgs::new(&app_ui.main_window, clone!(
+            app_ui => move || {
+                info!("Triggering `Reload StyleSheets` By Slot");
+                reload_theme();
+            }
+        ));
+
         //-----------------------------------------------//
         // `PackedFileView` logic.
         //-----------------------------------------------//
@@ -1681,6 +1689,7 @@ impl AppUISlots {
             //-----------------------------------------------//
             debug_update_current_schema_from_asskit,
             debug_import_schema_patch,
+            debug_reload_style_sheet,
 
             //-----------------------------------------------//
             // `PackedFileView` slots.

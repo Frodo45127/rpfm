@@ -1256,3 +1256,4 @@ github_link = Open RPFM Github's Page
 discord_link = Open "The Modding Den" discord channel
 open_manual = Open RPFM Manual
 patreon_link = Support me on Patreon
+reload_style_sheet = Reload StyleSheets

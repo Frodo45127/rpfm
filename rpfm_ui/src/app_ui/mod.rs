@@ -301,6 +301,7 @@ pub struct AppUI {
     //-------------------------------------------------------------------------------//
     debug_update_current_schema_from_asskit: QPtr<QAction>,
     debug_import_schema_patch: QPtr<QAction>,
+    debug_reload_style_sheet: QPtr<QAction>,
 
     //-------------------------------------------------------------------------------//
     // Extra stuff
@@ -713,6 +714,7 @@ impl AppUI {
         // Populate the `Debug` menu.
         let debug_update_current_schema_from_asskit = menu_bar_debug.add_action_q_string(&qtr("update_current_schema_from_asskit"));
         let debug_import_schema_patch = menu_bar_debug.add_action_q_string(&qtr("import_schema_patch"));
+        let debug_reload_style_sheet = menu_bar_debug.add_action_q_string(&qtr("reload_style_sheet"));
 
         //-------------------------------------------------------------------------------//
         // "Extra stuff" menu.
@@ -911,6 +913,7 @@ impl AppUI {
             //-------------------------------------------------------------------------------//
             debug_update_current_schema_from_asskit,
             debug_import_schema_patch,
+            debug_reload_style_sheet,
 
             //-------------------------------------------------------------------------------//
             // "Extra stuff" menu.

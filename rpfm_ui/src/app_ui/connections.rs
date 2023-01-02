@@ -145,6 +145,7 @@ pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
     //-----------------------------------------------//
     app_ui.debug_update_current_schema_from_asskit.triggered().connect(&slots.debug_update_current_schema_from_asskit);
     app_ui.debug_import_schema_patch.triggered().connect(&slots.debug_import_schema_patch);
+    app_ui.debug_reload_style_sheet.triggered().connect(&slots.debug_reload_style_sheet);
 
     //-----------------------------------------------//
     // `PackedFileView` connections.
