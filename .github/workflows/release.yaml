@@ -13,8 +13,8 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     outputs:
-      linux_artifact: ${{ steps.upload-release-asset-linux.outputs.name }}
-      windows_artifacts: ${{ steps.upload-release-asset-windows.outputs.name }}
+      linuxArtifact: ${{ steps.build_linux.outputs.file_name }}
+      windowsArtifact: ${{ steps.build_windows.outputs.file_name }}
       version: ${{ steps.get_version.outputs.version }}
 
     strategy:
@@ -54,9 +54,11 @@ jobs:
           cargo build --release
 
       - name: Build RPFM (Windows)
+        id: build_windows
         if: matrix.os == 'self-hosted-windows'
         shell: pwsh
         run: |
+          echo "file_name=$(rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }})" >> $GITHUB_OUTPUT
           ${{ matrix.DDISK }}:\Craft\craft\craftenv.ps1
 
           # TODO: Build this from tag.
@@ -68,8 +70,10 @@ jobs:
           cargo build --release --features "support_rigidmodel support_modern_dds" --bin rpfm_ui
 
       - name: Prepare Assets for Release (Linux)
+        id: build_linux
         if: matrix.os == 'self-hosted-linux'
         run: |
+          echo "file_name=$(rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }})" >> $GITHUB_OUTPUT
 
           # Go back one folder to not put the built files in the repo.
           cd /usr/src/app/_work/rpfm/
@@ -245,7 +249,7 @@ jobs:
       - name: Upload build artifact (Linux)
         id: upload-release-asset-linux
         if: matrix.os == 'self-hosted-linux'
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
           path: /usr/src/app/_work/rpfm/rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
@@ -253,7 +257,7 @@ jobs:
       - name: Upload build artifact (Windows)
         id: upload-release-asset-windows
         if: matrix.os == 'self-hosted-windows'
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
           path: ${{ matrix.DDISK }}:/deploy/rpfm-release-assets/rpfm-${{ github.ref }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
@@ -352,8 +356,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create_release.outputs.upload_url }}
-          asset_path: ./downloads/${{ needs.build.outputs.linux_artifact }}
-          asset_name: ${{ needs.build.outputs.linux_artifact }}
+          asset_path: ./downloads/${{ needs.build.outputs.linuxArtifact }}
+          asset_name: ${{ needs.build.outputs.linuxArtifact }}
           asset_content_type: application/x-zip-compressed
 
       - name: Upload Release Asset (Windows)
@@ -362,8 +366,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create_release.outputs.upload_url }}
-          asset_path: ./downloads/${{ needs.build.outputs.windows_artifacts }}
-          asset_name: ${{ needs.build.outputs.windows_artifacts }}
+          asset_path: ./downloads/${{ needs.build.outputs.windowsArtifact }}
+          asset_name: ${{ needs.build.outputs.windowsArtifact }}
           asset_content_type: application/tar+zstd
 
   publish_aur_package:
@@ -385,7 +389,7 @@ jobs:
       - name: Update PKGBUILD's sha256 and version number.
         shell: bash
         run: |
-          checksum=$(shasum -a 256 ${{ needs.build.outputs.linux_artifact }} | grep -oE '^[A-Za-z0-9]+')
+          checksum=$(shasum -a 256 ${{ needs.build.outputs.linuxArtifact }} | grep -oE '^[A-Za-z0-9]+')
           sed -i "s/^sha256sums_x86_64=('.*')$/sha256sums_x86_64=('$checksum')/" install/arch/rpfm/PKGBUILD
           sed -i "s/^pkgver=.*$/pkgver=${{ needs.build.outputs.version }}/" install/arch/rpfm/PKGBUILD
 
@@ -393,15 +397,15 @@ jobs:
         with:
           commit_message: Update PKGBUILD for latest release.
 
-      - name: Publish rpfm-bin to the AUR
-        uses: KSXGitHub/github-actions-deploy-aur@v2.0.4
-        with:
-          pkgname: rpfm-bin
-          pkgbuild: ./install/arch/rpfm/PKGBUILD
-          commit_username: ${{ secrets.AUR_USERNAME }}
-          commit_email: ${{ secrets.AUR_EMAIL }}
-          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
-          commit_message: ${{ github.ref }}
+#      - name: Publish rpfm-bin to the AUR
+#        uses: KSXGitHub/github-actions-deploy-aur@v2.0.4
+#        with:
+#          pkgname: rpfm-bin
+#          pkgbuild: ./install/arch/rpfm/PKGBUILD
+#          commit_username: ${{ secrets.AUR_USERNAME }}
+#          commit_email: ${{ secrets.AUR_EMAIL }}
+#          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+#          commit_message: ${{ github.ref }}
 #
 #  publish_cargo_crate:
 #    name: Publish Cargo crate
