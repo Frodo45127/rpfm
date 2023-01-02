@@ -154,6 +154,7 @@ impl ToolFactionPainter {
                 ContainerPath::Folder("db/factions_tables".to_owned()),
                 ContainerPath::Folder("db/faction_banners_tables".to_owned()),
                 ContainerPath::Folder("db/faction_uniform_colours_tables".to_owned()),
+                ContainerPath::Folder("text".to_owned()),
             ]
         };
 
@@ -608,9 +609,6 @@ impl ToolFactionPainter {
 
                     // We need multiple column's data for this to work.
                     let key_column = table.column_position_by_name("key").ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), "key".to_string()))?;
-
-                    // TODO: move this to get the name from the loc file instead, as that should work for any game/language.
-                    let name_column =  if GAME_SELECTED.read().unwrap().game_key_name() != KEY_WARHAMMER_3 { table.column_position_by_name("screen_name").ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), "screen_name".to_string()))? } else { 0 };
                     let flag_path_column = table.column_position_by_name("flags_path").ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), "flags_path".to_string()))?;
 
                     // Only used for WH3.
@@ -625,17 +623,6 @@ impl ToolFactionPainter {
                     let definition = serde_json::to_string(table.definition())?;
                     for row in table.data(&None)?.iter() {
                         let mut data = HashMap::new();
-
-                        // TODO: This doesn't work for WH3.
-                        match Tool::get_row_by_column_index(row, name_column)? {
-                            DecodedData::StringU8(ref value) |
-                            DecodedData::StringU16(ref value) |
-                            DecodedData::OptionalStringU8(ref value) |
-                            DecodedData::OptionalStringU16(ref value) => {
-                                data.insert("screen_name".to_owned(), value.to_owned());
-                            }
-                            _ => return Err(ToolsError::ToolTableColumnNotOfTypeWeExpected.into()),
-                        }
 
                         match Tool::get_row_by_column_index(row, flag_path_column)? {
                             DecodedData::StringU8(ref value) |
