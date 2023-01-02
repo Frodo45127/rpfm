@@ -13,10 +13,10 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     outputs:
-      linuxArtifact: ${{ steps.build_linux.outputs.file_name }}
-      linuxArtifactFake: ${{ steps.build_linux.outputs.file_name_fake }}
-      windowsArtifact: ${{ steps.build_windows.outputs.file_name }}
-      windowsArtifactFake: ${{ steps.build_windows.outputs.file_name_fake }}
+      linuxArtifact: ${{ steps.build_linux.outputs.file_name_lin }}
+      linuxArtifactFake: ${{ steps.build_linux.outputs.file_name_fake_lin }}
+      windowsArtifact: ${{ steps.build_windows.outputs.file_name_win }}
+      windowsArtifactFake: ${{ steps.build_windows.outputs.file_name_fake_win }}
       version: ${{ steps.get_version.outputs.version }}
 
     strategy:
@@ -61,8 +61,8 @@ jobs:
         if: matrix.os == 'self-hosted-windows'
         shell: pwsh
         run: |
-          echo "file_name=rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}" >> $GITHUB_OUTPUT
-          echo "file_name_fake=rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}-1.${{ matrix.EXTENSION }}" >> $GITHUB_OUTPUT
+          echo "file_name_win=rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}" >> $GITHUB_OUTPUT
+          echo "file_name_fake_win=rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}-1.${{ matrix.EXTENSION }}" >> $GITHUB_OUTPUT
 
           ${{ matrix.DDISK }}:\Craft\craft\craftenv.ps1
 
@@ -78,8 +78,8 @@ jobs:
         id: build_linux
         if: matrix.os == 'self-hosted-linux'
         run: |
-          echo "file_name=rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}" >> $GITHUB_OUTPUT
-          echo "file_name_fake=rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}-1.${{ matrix.EXTENSION }}" >> $GITHUB_OUTPUT
+          echo "file_name_lin=rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}" >> $GITHUB_OUTPUT
+          echo "file_name_fake_lin=rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}-1.${{ matrix.EXTENSION }}" >> $GITHUB_OUTPUT
 
           # Go back one folder to not put the built files in the repo.
           cd /usr/src/app/_work/rpfm/
