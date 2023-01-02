@@ -18,6 +18,7 @@ jobs:
       version: ${{ steps.get_version.outputs.version }}
 
     strategy:
+      fail-fast: true
       matrix:
 
         # We use self-hosted because this action often runs out of memory on github's own servers.
@@ -109,6 +110,8 @@ jobs:
 
           # And finally create the compressed file.
           tar --zstd -cf rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }} build/usr
+
+          tar --zstd -cf rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }} rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
 
       - name: Prepare Assets for Release (Windows)
         if: matrix.os == 'self-hosted-windows'
@@ -245,11 +248,11 @@ jobs:
           cd ${{ matrix.DDISK }}:\deploy\rpfm-release-assets
           windeployqt rpfm_ui.exe
 
-          7z a rpfm-${{ github.ref }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }} .\**
+          7z a rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }} .\**
 
           # Stupid idea. Download artifacts fucks up zips by extracting them without an option to disable it.
           # So we compress them twice to bypass it. Lets see if it works.
-          7z a rpfm-${{ github.ref }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }} rpfm-${{ github.ref }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
+          7z a rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }} rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
 
       - name: Upload build artifact (Linux)
         id: upload-release-asset-linux
@@ -265,7 +268,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
-          path: ${{ matrix.DDISK }}:/deploy/rpfm-release-assets/rpfm-${{ github.ref }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
+          path: ${{ matrix.DDISK }}:/deploy/rpfm-release-assets/rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
 
   create_release:
     name: Create Release
@@ -356,7 +359,7 @@ jobs:
 
       - name: List downloads
         run: |
-          ls -a downloads
+          ls -lR downloads
 
       # TODO: Move the mimes out.
       - name: Upload Release Asset (Linux)
@@ -394,6 +397,16 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ needs.build.outputs.linuxArtifact }}
+          path: ./downloads
+
+      - name: List downloads
+        run: |
+          ls -lR downloads
 
       - name: Update PKGBUILD's sha256 and version number.
         shell: bash
