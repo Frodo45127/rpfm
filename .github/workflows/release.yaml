@@ -61,8 +61,8 @@ jobs:
         if: matrix.os == 'self-hosted-windows'
         shell: pwsh
         run: |
-          echo "file_name_win=rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}" >> $GITHUB_OUTPUT
-          echo "file_name_fake_win=rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}-1.${{ matrix.EXTENSION }}" >> $GITHUB_OUTPUT
+          echo "file_name_win=rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}" >> $env:GITHUB_OUTPUT
+          echo "file_name_fake_win=rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}-1.${{ matrix.EXTENSION }}" >> $env:GITHUB_OUTPUT
 
           ${{ matrix.DDISK }}:\Craft\craft\craftenv.ps1
 
