@@ -62,13 +62,15 @@ use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::PATREON_URL;
 use crate::references_ui::ReferencesUI;
 use crate::settings_ui::{backend::*, SettingsUI};
-use crate::tools::{faction_painter::ToolFactionPainter, unit_editor::ToolUnitEditor};
+#[cfg(feature = "enable_tools")]use crate::tools::{faction_painter::ToolFactionPainter, unit_editor::ToolUnitEditor};
 use crate::ui::GameSelectedIcons;
 use crate::{ui_state::OperationalMode, UI_STATE};
 use crate::utils::*;
 use crate::VERSION;
 use crate::VERSION_SUBTITLE;
 use crate::views::table::utils::{get_reference_data, setup_item_delegates};
+
+const TOOLS_NOT_ENABLED_ERROR: &str = "Tools not enabled at compile time.";
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -1149,7 +1151,7 @@ impl AppUISlots {
         // `Tools` menu logic.
         //-----------------------------------------------//
 
-        let tools_faction_painter = SlotNoArgs::new(&app_ui.main_window, clone!(
+        #[cfg(feature = "enable_tools")]let tools_faction_painter = SlotNoArgs::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui,
             global_search_ui,
@@ -1165,7 +1167,11 @@ impl AppUISlots {
             }
         ));
 
-        let tools_unit_editor = SlotNoArgs::new(&app_ui.main_window, clone!(
+        #[cfg(not(feature = "enable_tools"))]let tools_faction_painter = SlotNoArgs::new(&app_ui.main_window, clone!(app_ui => move || {
+            show_dialog(&app_ui.main_window, TOOLS_NOT_ENABLED_ERROR, false);
+        }));
+
+        #[cfg(feature = "enable_tools")]let tools_unit_editor = SlotNoArgs::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui,
             global_search_ui,
@@ -1180,6 +1186,10 @@ impl AppUISlots {
                 app_ui.toggle_main_window(true);
             }
         ));
+
+        #[cfg(not(feature = "enable_tools"))]let tools_unit_editor = SlotNoArgs::new(&app_ui.main_window, clone!(app_ui => move || {
+            show_dialog(&app_ui.main_window, TOOLS_NOT_ENABLED_ERROR, false);
+        }));
 
 		//-----------------------------------------------//
         // `About` menu logic.

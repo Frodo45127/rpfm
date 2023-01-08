@@ -105,7 +105,7 @@ mod packfile_contents_ui;
 mod packedfile_views;
 mod references_ui;
 mod settings_ui;
-mod tools;
+#[cfg(feature = "enable_tools")]mod tools;
 mod ui;
 mod ui_state;
 mod updater;

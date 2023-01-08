@@ -52,7 +52,8 @@ jobs:
         shell: bash
         run: |
           cd /usr/src/app/_work/rpfm/rpfm
-          cargo build --release
+          cargo build --release --bin rpfm_cli
+          cargo build --release --features "enable_tools" --bin rpfm_ui
 
       - name: Build RPFM (Windows)
         id: build_windows
@@ -69,7 +70,7 @@ jobs:
 
           # First build every executable one by one, so we can speed up compilation.
           cargo build --release --bin rpfm_cli
-          cargo build --release --features "support_rigidmodel support_modern_dds" --bin rpfm_ui
+          cargo build --release --features "support_rigidmodel support_modern_dds enable_tools" --bin rpfm_ui
 
       - name: Prepare Assets for Release (Linux)
         id: build_linux
