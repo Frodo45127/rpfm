@@ -287,6 +287,16 @@ pub unsafe fn add_action_to_menu(menu: &QPtr<QMenu>, shortcuts: Ref<QListOfQObje
     action
 }
 
+pub unsafe fn add_action_to_widget(shortcuts: Ref<QListOfQObject>, action_group: &str, action_name: &str, associated_widget: Option<QPtr<QWidget>>) -> QPtr<QAction> {
+    let action = shortcut_action_safe(shortcuts.as_ptr(), QString::from_std_str(action_group).into_ptr(), QString::from_std_str(action_name).into_ptr());
+
+    if let Some(associated_widget) = associated_widget {
+        associated_widget.add_action(action.as_ptr());
+    }
+
+    action
+}
+
 /// This function deletes all widgets from a widget's layout.
 pub unsafe fn clear_layout(widget: &QPtr<QWidget>) {
     let layout = widget.layout();

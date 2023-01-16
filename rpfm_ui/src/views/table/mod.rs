@@ -205,7 +205,7 @@ pub struct TableView {
     context_menu_find_references: QPtr<QAction>,
     context_menu_cascade_edition: QPtr<QAction>,
     context_menu_patch_column: QPtr<QAction>,
-    context_menu_smart_delete: QBox<QAction>,
+    context_menu_smart_delete: QPtr<QAction>,
 
     _context_menu_go_to: QBox<QMenu>,
     context_menu_go_to_definition: QPtr<QAction>,
@@ -359,7 +359,7 @@ impl TableView {
         layout.add_widget_5a(&filter_base_widget, 4, 0, 1, 2);
 
         // Action to make the delete button delete contents.
-        let context_menu_smart_delete = QAction::from_q_object(&table_view);
+        let context_menu_smart_delete = add_action_to_widget(app_ui.shortcuts().as_ref(), "table_editor", "smart_delete", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
 
         // Create the Contextual Menu for the TableView.
         let context_menu = QMenu::from_q_widget(&table_view);
