@@ -293,7 +293,9 @@ impl PackTree for QPtr<QTreeView> {
         // If we have fileinfo, set the new tooltip for the item.
         if let Some(file_info) = file_info {
             let tooltip = new_packed_file_tooltip(file_info);
-            row.value_1a(0).set_tool_tip(&QString::from_std_str(tooltip));
+            if !tooltip.is_empty() {
+                row.value_1a(0).set_tool_tip(&QString::from_std_str(tooltip));
+            }
         }
 
         // If there was an item with than name, remove it.
@@ -1076,7 +1078,10 @@ impl PackTree for QPtr<QTreeView> {
                             let tooltip = new_packed_file_tooltip(packed_file);
                             let file = base_file_item.clone();
                             file.set_text(&name);
-                            file.set_tool_tip(&QString::from_std_str(tooltip));
+
+                            if !tooltip.is_empty() {
+                                file.set_tool_tip(&QString::from_std_str(tooltip));
+                            }
 
                             TREEVIEW_ICONS.set_standard_item_icon(&file, Some(packed_file.file_type()));
 
@@ -1236,7 +1241,9 @@ impl PackTree for QPtr<QTreeView> {
                                     if let Some(file_info) = files_info.par_iter().find_first(|x| x.path() == item_type.path_raw()) {
                                         TREEVIEW_ICONS.set_standard_item_icon(&item, Some(file_info.file_type()));
                                         let tooltip = new_packed_file_tooltip(file_info);
-                                        item.set_tool_tip(&QString::from_std_str(tooltip));
+                                        if !tooltip.is_empty() {
+                                            item.set_tool_tip(&QString::from_std_str(tooltip));
+                                        }
                                     }
                                 }
 
@@ -1427,7 +1434,9 @@ impl PackTree for QPtr<QTreeView> {
                         let packed_file_info = if let Response::OptionRFileInfo(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
                         if let Some(info) = packed_file_info {
                             let tooltip = new_packed_file_tooltip(&info);
-                            item.set_tool_tip(&QString::from_std_str(tooltip));
+                            if !tooltip.is_empty() {
+                                item.set_tool_tip(&QString::from_std_str(tooltip));
+                            }
                         }
                     }
 
@@ -1512,7 +1521,9 @@ impl PackTree for QPtr<QTreeView> {
                                     let packed_file_info = if let Response::OptionRFileInfo(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
                                     if let Some(info) = packed_file_info {
                                         let tooltip = new_packed_file_tooltip(&info);
-                                        item.set_tool_tip(&QString::from_std_str(tooltip));
+                                        if !tooltip.is_empty() {
+                                            item.set_tool_tip(&QString::from_std_str(tooltip));
+                                        }
                                     }
                                 }
 
@@ -1564,10 +1575,13 @@ impl PackTree for QPtr<QTreeView> {
             // If we want to get the tooltips of the PackedFiles updated...
             TreeViewOperation::UpdateTooltip(packed_files_info) => {
                 for packed_file_info in packed_files_info {
-                    let tooltip = QString::from_std_str(new_packed_file_tooltip(&packed_file_info));
-                    let tree_path_type = ContainerPath::File(packed_file_info.path().to_owned());
-                    let item = Self::item_from_path(&tree_path_type, &model);
-                    item.set_tool_tip(&tooltip);
+                    let tooltip = new_packed_file_tooltip(&packed_file_info);
+                    if !tooltip.is_empty() {
+                        let tooltip = QString::from_std_str(tooltip);
+                        let tree_path_type = ContainerPath::File(packed_file_info.path().to_owned());
+                        let item = Self::item_from_path(&tree_path_type, &model);
+                        item.set_tool_tip(&tooltip);
+                    }
                 }
             },
         }
