@@ -184,6 +184,7 @@ impl Decodeable for AnimPack {
                     path: path_in_container.to_owned(),
                     timestamp: None,
                     file_type: FileType::AnimPack,
+                    container_name: None,
                     data: RFileInnerData::Cached(data),
                 };
 

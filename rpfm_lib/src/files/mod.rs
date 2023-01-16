@@ -139,6 +139,9 @@ pub struct RFile {
     /// The type of this file.
     file_type: FileType,
 
+    /// Name of the container this [`RFile`] is from, if it's in a contanier.
+    container_name: Option<String>,
+
     /// Inner data of the file.
     ///
     /// Internal only. Users should use the [`RFile`] methods instead of using this directly.
@@ -1140,6 +1143,7 @@ impl RFile {
             path: path_in_container.to_owned(),
             timestamp: if file_timestamp == 0 { None } else { Some(file_timestamp) },
             file_type: FileType::Unknown,
+            container_name: Some(container.disk_file_name()),
             data: RFileInnerData::OnDisk(on_disk)
         };
 
@@ -1172,6 +1176,7 @@ impl RFile {
             path: path.to_owned(),
             timestamp: Some(on_disk.timestamp),
             file_type: FileType::Unknown,
+            container_name: None,
             data: RFileInnerData::OnDisk(on_disk)
         };
 
@@ -1196,6 +1201,7 @@ impl RFile {
             path: path.to_owned(),
             timestamp: if timestamp == 0 { None } else { Some(timestamp) },
             file_type,
+            container_name: None,
             data: RFileInnerData::Cached(data.to_vec())
         }
     }
@@ -1208,6 +1214,7 @@ impl RFile {
             path: path.to_owned(),
             timestamp: if timestamp == 0 { None } else { Some(timestamp) },
             file_type: FileType::from(data),
+            container_name: None,
             data: RFileInnerData::Decoded(Box::new(data.clone()))
         }
     }
@@ -1610,6 +1617,11 @@ impl RFile {
     /// This function returns the file name if this RFile, if it has one.
     pub fn file_name(&self) -> Option<&str> {
         self.path_in_container_raw().split('/').last()
+    }
+
+    /// This function returns the file name of the container this RFile originates from, if any.
+    pub fn container_name(&self) -> &Option<String> {
+        &self.container_name
     }
 
     /// This function returns the [ContainerPath] corresponding to this file.

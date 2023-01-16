@@ -64,8 +64,8 @@ pub struct RFileInfo {
     /// This is the path of the `PackedFile`.
     path: String,
 
-    /// This is the name of the `PackFile` this file belongs to.
-    packfile_name: String,
+    /// This is the name of the `Container` this file belongs to.
+    container_name: Option<String>,
 
     /// This is the ***Last Modified*** time.
     timestamp: Option<u64>,
@@ -175,7 +175,7 @@ impl From<&RFile> for RFileInfo {
         //else { format!("{:?}", PackedFileType::from(rfile.get_ref_decoded())) };
         Self {
             path: rfile.path_in_container_raw().to_owned(),
-            packfile_name: rfile.file_name().unwrap().to_string(),
+            container_name: rfile.container_name().clone(),
             timestamp: rfile.timestamp(),
             file_type: rfile.file_type(),
             //is_compressed: rfile.get_ref_raw().get_compression_state(),
@@ -252,7 +252,7 @@ impl RFileInfo {
     pub fn from_db(db: &DB, table_file_name: &str) -> Self {
         Self {
             path: format!("db/{}/{}", db.table_name(), table_file_name),
-            packfile_name: table_file_name.to_owned(),
+            container_name: None,
             timestamp: None,
             file_type: FileType::DB,
         }
