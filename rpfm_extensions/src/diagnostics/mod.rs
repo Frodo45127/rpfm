@@ -145,7 +145,7 @@ impl Diagnostics {
         if paths_to_check.is_empty() {
             self.results.clear();
         } else {
-            self.results.retain(|diagnostic| paths_to_check.contains(&ContainerPath::File(diagnostic.path().to_string())));
+            self.results.retain(|diagnostic| !paths_to_check.contains(&ContainerPath::File(diagnostic.path().to_string())));
             self.results.iter_mut().for_each(|x| {
                 if let DiagnosticType::Config(config) = x {
                     config.results_mut().retain(|x|
