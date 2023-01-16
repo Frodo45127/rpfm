@@ -1601,9 +1601,11 @@ pub fn new_pack_file_tooltip(info: &ContainerInfo) -> String {
 /// This function is used to create the tooltip for each `PackedFile` item in the PackFile Content's TreeView.
 fn new_packed_file_tooltip(info: &RFileInfo) -> String {
     let mut string = String::from("File Info: <ul>");
+    let mut has_info = false;
 
     if let Some(container_name) = info.container_name() {
         string.push_str(&format!("<li><b>Original Pack:</b> <i>{}</i></li>", container_name));
+        has_info = true;
     }
 
     if let Some(timestamp) = info.timestamp() {
@@ -1611,10 +1613,15 @@ fn new_packed_file_tooltip(info: &RFileInfo) -> String {
             .unwrap()
             .format(&FULL_DATE_FORMAT)
             .unwrap()));
+        has_info = true;
     }
 
-    string.push_str("</ul>");
-    string
+    if has_info {
+        string.push_str("</ul>");
+        string
+    } else {
+        String::new()
+    }
 }
 
 /// This function cleans the entire TreeView from colors. To be used when saving.
