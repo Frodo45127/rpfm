@@ -12,6 +12,8 @@
 //!
 //! Not much to say appart of that, really.
 
+use std::path::PathBuf;
+
 use thiserror::Error;
 
 use crate::files::FileType;
@@ -277,6 +279,9 @@ pub enum RLibError {
 
     #[error("There are not files in this Pack that could be patched/deleted.")]
     PatchSiegeAINoPatchableFiles,
+
+    #[error("Error in path: {1}. {0}")]
+    IOErrorPath(Box<Self>, PathBuf),
 
     /// Represents all other cases of `std::io::Error`.
     #[error(transparent)]

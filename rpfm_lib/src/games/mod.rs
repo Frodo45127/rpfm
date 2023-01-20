@@ -417,34 +417,32 @@ impl GameInfo {
             // Try to get the manifest, if exists.
             match Manifest::read_from_game_path(self, game_path) {
                 Ok(manifest) => {
-                    let pack_file_names = manifest.0.iter().filter_map(|x|
-                        if x.relative_path().ends_with(".pack") {
+                    let data_path = self.data_path(game_path)?;
+                    let mut paths = manifest.0.iter().filter_map(|entry|
+                        if entry.relative_path().ends_with(".pack") {
+
+                            let mut pack_file_path = data_path.to_path_buf();
+                            pack_file_path.push(entry.relative_path());
                             match &language {
                                 Some(language) => {
 
                                     // Filter out other language's packfiles.
-                                    if x.relative_path().contains("local_") {
+                                    if entry.relative_path().contains("local_") {
                                         let language = format!("local_{}", language);
-                                        if x.relative_path().contains(&language) {
-                                            Some(x.relative_path().to_owned())
+                                        if entry.relative_path().contains(&language) {
+                                            entry.path_from_manifest_entry(pack_file_path)
                                         } else {
                                             None
                                         }
                                     } else {
-                                        Some(x.relative_path().to_owned())
+                                        entry.path_from_manifest_entry(pack_file_path)
                                     }
                                 }
-                                None => Some(x.relative_path().to_owned())
+                                None => entry.path_from_manifest_entry(pack_file_path),
                             }
                         } else { None }
-                        ).collect::<Vec<String>>();
+                        ).collect::<Vec<PathBuf>>();
 
-                    let data_path = self.data_path(game_path)?;
-                    let mut paths = pack_file_names.iter().map(|x| {
-                        let mut pack_file_path = data_path.to_path_buf();
-                        pack_file_path.push(x);
-                        pack_file_path
-                    }).collect::<Vec<PathBuf>>();
                     paths.sort();
                     Ok(paths)
                 }
@@ -464,29 +462,23 @@ impl GameInfo {
         if !vanilla_packs.is_empty() {
             Ok(vanilla_packs.iter().filter_map(|pack_name| {
 
+                let mut pack_file_path = data_path.to_path_buf();
+                pack_file_path.push(pack_name);
                 match language_pack {
                     Some(ref language_pack) => {
 
                         // Filter out other language's packfiles.
-                        if pack_name.contains("local_") {
-                            if !language_pack.is_empty() && pack_name.contains(language_pack) {
-                                let mut pack_file_path = data_path.to_path_buf();
-                                pack_file_path.push(pack_name);
+                        if !pack_name.is_empty() && pack_name.starts_with("local_") {
+                            if pack_name.starts_with(language_pack) {
                                 std::fs::canonicalize(pack_file_path).ok()
                             } else {
                                 None
                             }
                         } else {
-                            let mut pack_file_path = data_path.to_path_buf();
-                            pack_file_path.push(pack_name);
                             std::fs::canonicalize(pack_file_path).ok()
                         }
                     }
-                    None => {
-                        let mut pack_file_path = data_path.to_path_buf();
-                        pack_file_path.push(pack_name);
-                        std::fs::canonicalize(pack_file_path).ok()
-                    }
+                    None => std::fs::canonicalize(pack_file_path).ok(),
                 }
             }).collect::<Vec<PathBuf>>())
         }

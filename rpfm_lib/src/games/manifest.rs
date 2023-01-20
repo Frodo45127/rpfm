@@ -11,7 +11,8 @@
 use csv::ReaderBuilder;
 use serde_derive::Deserialize;
 
-use std::path::Path;
+use std::fs::canonicalize;
+use std::path::{Path, PathBuf};
 
 use getset::*;
 
@@ -104,5 +105,24 @@ impl Manifest {
     pub fn is_path_in_manifest(&self, path: &Path) -> bool {
         let insensitivized_path = path.to_str().unwrap().to_lowercase().replace('\\', "/");
         self.0.iter().any(|x| insensitivized_path.ends_with(&x.relative_path.to_lowercase()))
+    }
+}
+
+impl ManifestEntry {
+
+    /// This function returns if a path from a manifest entry can be use (optional files can be missing depending on dlcs used by the user).
+    pub fn path_from_manifest_entry(&self, path: PathBuf) -> Option<PathBuf> {
+        match self.belongs_to_base_game() {
+            Some(value) => {
+                if *value == 1 {
+                    canonicalize(path).ok()
+                } else if path.is_file() {
+                    canonicalize(path).ok()
+                } else {
+                    None
+                }
+            },
+            None => canonicalize(path).ok(),
+        }
     }
 }

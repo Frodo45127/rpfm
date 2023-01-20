@@ -591,11 +591,12 @@ impl Pack {
 
         // If we only got one path, just decode the Pack on it.
         if pack_paths.len() == 1 {
-            let mut data = BufReader::new(File::open(&pack_paths[0])?);
+            let mut data = BufReader::new(File::open(&pack_paths[0])
+                .map_err(|error| RLibError::IOErrorPath(Box::new(RLibError::IOError(error)), pack_paths[0].to_path_buf()))?);
             let path_str = pack_paths[0].to_string_lossy().replace('\\', "/");
 
             extra_data.set_disk_file_path(Some(&path_str));
-            extra_data.set_timestamp(last_modified_time_from_file(data.get_ref())?);
+            extra_data.set_timestamp(last_modified_time_from_file(data.get_ref()).unwrap());
 
             return Self::read(&mut data, &Some(extra_data))
         }
@@ -604,7 +605,8 @@ impl Pack {
         let mut pack_new = Pack::default();
         let mut packs = pack_paths.par_iter()
             .map(|path| {
-                let mut data = BufReader::new(File::open(path)?);
+                let mut data = BufReader::new(File::open(path)
+                    .map_err(|error| RLibError::IOErrorPath(Box::new(RLibError::IOError(error)), pack_paths[0].to_path_buf()))?);
                 let path_str = path.to_string_lossy().replace('\\', "/");
 
                 let mut extra_data = extra_data.to_owned();
