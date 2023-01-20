@@ -457,7 +457,6 @@ impl PackedFileView {
         if data_source != DataSource::ExternalFile {
             match self.get_ref_mut_view() {
                 ViewType::Internal(view) => {
-
                     let receiver = CENTRAL_COMMAND.send_background(Command::DecodePackedFile(path.to_owned(), data_source));
                     let response = CentralCommand::recv(&receiver);
 
@@ -572,6 +571,15 @@ impl PackedFileView {
                                 old_text.reload_view(&text);
                                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
 
+                            }
+                            else {
+                                return Err(anyhow!(RFILE_RELOAD_ERROR));
+                            }
+                        },
+
+                        Response::Text(text) => {
+                            if let View::Text(old_text) = view {
+                                old_text.reload_view(&text);
                             }
                             else {
                                 return Err(anyhow!(RFILE_RELOAD_ERROR));

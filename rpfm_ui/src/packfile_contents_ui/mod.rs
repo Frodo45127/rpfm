@@ -39,6 +39,7 @@ use qt_core::QTimer;
 
 use anyhow::Result;
 use getset::Getters;
+use rpfm_lib::files::pack::{RESERVED_NAME_NOTES, RESERVED_NAME_SETTINGS};
 
 use std::cmp::Ordering;
 use std::path::PathBuf;
@@ -322,14 +323,11 @@ impl PackFileContentsUI {
                 UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
 
                 // Try to reload all open files which data we altered, and close those that failed.
-                let failed_paths = paths.iter().filter_map(|path| {
-                    let path = path.path_raw();
-                    if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| *x.get_ref_path() == *path && x.get_data_source() == DataSource::PackFile) {
-                        if packed_file_view.reload(path, pack_file_contents_ui).is_err() {
-                            Some(path.to_owned())
-                        } else { None }
-                    } else { None }
-                }).collect::<Vec<String>>();
+                let failed_paths = UI_STATE.set_open_packedfiles()
+                    .iter_mut()
+                    .filter(|view| view.get_data_source() == DataSource::PackFile && (paths.iter().any(|path| path.path_raw() == *view.get_ref_path() || *view.get_ref_path() == RESERVED_NAME_NOTES)))
+                    .filter_map(|view| if view.reload(&view.get_path(), pack_file_contents_ui).is_err() { Some(view.get_path()) } else { None })
+                    .collect::<Vec<_>>();
 
                 for path in &failed_paths {
                     let _ = AppUI::purge_that_one_specifically(app_ui, pack_file_contents_ui, path, DataSource::PackFile, false);
