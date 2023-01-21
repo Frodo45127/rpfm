@@ -498,6 +498,17 @@ impl PackedFileView {
                             }
                         },
 
+                        Response::ESFRFileInfo(esf, packed_file_info) => {
+                            if let View::ESF(old_esf) = view {
+                                old_esf.reload_view(&esf);
+                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
+
+                            }
+                            else {
+                                return Err(anyhow!(RFILE_RELOAD_ERROR));
+                            }
+                        },
+
                         Response::VideoInfoRFileInfo(video, packed_file_info) => {
                             if let View::Video(old_video) = view {
                                 old_video.reload_view(&video);
