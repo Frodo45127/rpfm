@@ -1801,7 +1801,7 @@ dbg!(t.elapsed().unwrap());
             self.table_model.append_row_q_list_of_q_standard_item(row.as_ref());
 
             // Select the row and scroll to it.
-            let model_index_filtered = self.table_filter.map_from_source(&self.table_model.index_2a(self.table_filter.row_count_0a() - 1, 0));
+            let model_index_filtered = self.table_filter.map_from_source(&self.table_model.index_2a(self.table_model.row_count_0a() - 1, 0));
             if model_index_filtered.is_valid() {
                 selection_model.select_q_model_index_q_flags_selection_flag(
                     &model_index_filtered,
@@ -1823,7 +1823,6 @@ dbg!(t.elapsed().unwrap());
         self.start_delayed_updates_timer();
         self.update_line_counter();
         update_undo_model(&self.table_model_ptr(), &self.undo_model_ptr());
-        //unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
     }
 
     /// This function is used to insert new rows into a table.
@@ -1877,12 +1876,15 @@ dbg!(t.elapsed().unwrap());
             self.table_model.insert_row_int_q_list_of_q_standard_item(index.row(), &row);
 
             // Select the row.
-            let model_index_filtered = self.table_filter.map_from_source(&self.table_model.index_2a(index.row(), 0));
-            if model_index_filtered.is_valid() {
-                selection_model.select_q_model_index_q_flags_selection_flag(
-                    &model_index_filtered,
-                    SelectionFlag::Select | SelectionFlag::Rows
-                );
+            let new_item = row.take_first();
+            if !new_item.is_null() {
+                let model_index_filtered = self.table_filter.map_from_source(&self.table_model.index_2a(new_item.index().row(), 0));
+                if model_index_filtered.is_valid() {
+                    selection_model.select_q_model_index_q_flags_selection_flag(
+                        &model_index_filtered,
+                        SelectionFlag::Select | SelectionFlag::Rows
+                    );
+                }
             }
         }
 
