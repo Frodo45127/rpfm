@@ -38,6 +38,7 @@ use cpp_core::Ref;
 use rayon::prelude::*;
 use rpfm_lib::schema::DefinitionPatch;
 
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::cmp::{Ordering, Reverse};
 use std::rc::Rc;
@@ -440,15 +441,14 @@ pub unsafe fn load_data(
     table_model.clear();
 
     // Set the right data, depending on the table type you get.
-    let (data, table_name) = match data {
-        TableType::AnimFragment(data) => (data.data().unwrap(), None),
-        TableType::AnimsTable(data) => (data.data().unwrap(), None),
-        //TableType::DependencyManager(data) => (&**data, None),
-        TableType::DB(data) => (data.data(&None).unwrap(), Some(data.table_name())),
-        TableType::Loc(data) => (data.data(&None).unwrap(), None),
-        TableType::MatchedCombat(data) => (data.data().unwrap(), None),
-        TableType::NormalTable(data) => (data.data(&None).unwrap(), None),
-        TableType::DependencyManager(_) => todo!(),
+    let data = match data {
+        TableType::AnimFragment(data) => data.data().unwrap(),
+        TableType::AnimsTable(data) => data.data().unwrap(),
+        TableType::DependencyManager(data) => Cow::from(data),
+        TableType::DB(data) => data.data(&None).unwrap(),
+        TableType::Loc(data) => data.data(&None).unwrap(),
+        TableType::MatchedCombat(data) => data.data().unwrap(),
+        TableType::NormalTable(data) => data.data(&None).unwrap(),
     };
 
     // TODO: Optimize this. On big loc files this is slow as hell.
@@ -483,6 +483,9 @@ pub unsafe fn load_data(
 
     // If the table it's empty, we add an empty row and delete it, so the "columns" get created.
     else {
+        table_view.set_updates_enabled(true);
+        blocker.unblock();
+
         let qlist = get_new_row(definition, None);
         table_model.append_row_q_list_of_q_standard_item(&qlist);
         table_model.remove_rows_2a(0, 1);

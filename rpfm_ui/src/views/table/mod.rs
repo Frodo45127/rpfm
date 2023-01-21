@@ -283,26 +283,23 @@ impl TableView {
     ) -> Result<Arc<Self>> {
         let t = std::time::SystemTime::now();
         let (table_definition, patches, table_name, table_uuid, packed_file_type) = match table_data {
-            //TableType::DependencyManager(_) => {
-            //    if let Some(schema) = &*SCHEMA.read().unwrap() {
-            //        (schema.get_ref_versioned_file_dep_manager()?.get_version_list()[0].clone(), None, None, FileType::DependencyPackFilesList)
-            //    } else {
-            //        return Err(anyhow!("There is no Schema for the Game Selected."));
-            //    }
-            //},
-            TableType::DB(ref table) => (table.definition(), table.patches().clone(), Some(table.table_name()), Some(table.guid()), FileType::DB),
-            TableType::Loc(ref table) => (table.definition(), DefinitionPatch::new(), None, None, FileType::Loc),
-            TableType::MatchedCombat(ref table) => (table.definition(), DefinitionPatch::new(), None, None, FileType::MatchedCombat),
-            TableType::AnimsTable(ref table) => (table.definition(), DefinitionPatch::new(), None, None, FileType::AnimsTable),
-            TableType::AnimFragment(ref table) => (table.definition(), DefinitionPatch::new(), None, None, FileType::AnimFragment),
-            TableType::NormalTable(ref table) => (table.definition(), DefinitionPatch::new(), None, None, FileType::Unknown),
-            _ => todo!()
+            TableType::DependencyManager(_) => {
+                let mut definition = Definition::new(-1);
+                definition.fields_mut().push(Field::new("Parent Packs".to_owned(), FieldType::StringU8, true, None, false, None, None, None, String::new(), -1, 0, BTreeMap::new(), None));
+                (definition, DefinitionPatch::new(), None, None, FileType::Unknown)
+            },
+            TableType::DB(ref table) => (table.definition().clone(), table.patches().clone(), Some(table.table_name()), Some(table.guid()), FileType::DB),
+            TableType::Loc(ref table) => (table.definition().clone(), DefinitionPatch::new(), None, None, FileType::Loc),
+            TableType::MatchedCombat(ref table) => (table.definition().clone(), DefinitionPatch::new(), None, None, FileType::MatchedCombat),
+            TableType::AnimsTable(ref table) => (table.definition().clone(), DefinitionPatch::new(), None, None, FileType::AnimsTable),
+            TableType::AnimFragment(ref table) => (table.definition().clone(), DefinitionPatch::new(), None, None, FileType::AnimFragment),
+            TableType::NormalTable(ref table) => (table.definition().clone(), DefinitionPatch::new(), None, None, FileType::Unknown),
         };
 
         dbg!(t.elapsed().unwrap());
         // Get the dependency data of this Table.
         let table_name_for_ref = if let Some(name) = table_name { name.to_owned() } else { "".to_owned() };
-        let dependency_data = get_reference_data(packed_file_type, &table_name_for_ref, table_definition)?;
+        let dependency_data = get_reference_data(packed_file_type, &table_name_for_ref, &table_definition)?;
         dbg!(t.elapsed().unwrap());
 
         // Create the locks for undoing and saving. These are needed to optimize the undo/saving process.
@@ -337,11 +334,10 @@ impl TableView {
         let layout: QPtr<QGridLayout> = parent.layout().static_downcast();
 
         let mut banned_table = false;
-        //if let FileType::DependencyPackFilesList = packed_file_type {
-        //    let warning_message = QLabel::from_q_string_q_widget(&qtr("dependency_packfile_list_label"), parent);
-        //    layout.add_widget_5a(&warning_message, 0, 0, 1, 4);
-        //} else if let FileType::DB = packed_file_type {
-        if let FileType::DB = packed_file_type {
+        if let TableType::DependencyManager(_) = table_data {
+            let warning_message = QLabel::from_q_string_q_widget(&qtr("dependency_packfile_list_label"), parent);
+            layout.add_widget_5a(&warning_message, 0, 0, 1, 4);
+        } else if let FileType::DB = packed_file_type {
             banned_table = GAME_SELECTED.read().unwrap().is_file_banned(&format!("db/{}", &table_name_for_ref));
             if banned_table {
                 let warning_message = QLabel::from_q_string_q_widget(&qtr("banned_tables_warning"), parent);
@@ -537,7 +533,7 @@ dbg!(t.elapsed().unwrap());
         // Get the reference data for this table, to speedup reference searching.
         let reference_map = if let Some(schema) = &*SCHEMA.read().unwrap() {
             if let Some(table_name) = table_name {
-                schema.referencing_columns_for_table(table_name, table_definition)
+                schema.referencing_columns_for_table(table_name, &table_definition)
             } else {
                 HashMap::new()
             }
@@ -602,7 +598,7 @@ dbg!(t.elapsed().unwrap());
             table_name: table_name.map(|x| x.to_owned()),
             table_uuid: table_uuid.map(|x| x.to_owned()),
             dependency_data: Arc::new(RwLock::new(dependency_data)),
-            table_definition: Arc::new(RwLock::new(table_definition.clone())),
+            table_definition: Arc::new(RwLock::new(table_definition)),
             patches: Arc::new(RwLock::new(patches)),
             data_source,
             packed_file_path: packed_file_path.clone(),
@@ -681,16 +677,20 @@ dbg!(t.elapsed().unwrap());
 
         // Update the stored definition.
         let table_definition = match data {
-            TableType::AnimFragment(ref table) => table.definition(),
-            TableType::AnimsTable(ref table) => table.definition(),
-            TableType::DB(ref table) => table.definition(),
-            TableType::Loc(ref table) => table.definition(),
-            TableType::MatchedCombat(ref table) => table.definition(),
-            TableType::NormalTable(ref table) => table.definition(),
-            _ => unimplemented!(),
+            TableType::AnimFragment(ref table) => table.definition().clone(),
+            TableType::AnimsTable(ref table) => table.definition().clone(),
+            TableType::DB(ref table) => table.definition().clone(),
+            TableType::Loc(ref table) => table.definition().clone(),
+            TableType::MatchedCombat(ref table) => table.definition().clone(),
+            TableType::NormalTable(ref table) => table.definition().clone(),
+            TableType::DependencyManager(_) => {
+                let mut definition = Definition::new(-1);
+                definition.fields_mut().push(Field::new("Parent Packs".to_owned(), FieldType::StringU8, true, None, false, None, None, None, String::new(), -1, 0, BTreeMap::new(), None));
+                definition
+            }
         };
 
-        *self.table_definition.write().unwrap() = table_definition.clone();
+        *self.table_definition.write().unwrap() = table_definition;
 
         // Load the data to the Table. For some reason, if we do this after setting the titles of
         // the columns, the titles will be resetted to 1, 2, 3,... so we do this here.
