@@ -124,13 +124,21 @@ impl GlobalSearchSlots {
             GlobalSearchUI::open_match(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, model_index_filter.as_ptr());
         }));
 
-        // What happens when we toggle the "All" checkbox we have to disable/enable the rest ot the checkboxes..
+        // What happens when we toggle the "All" checkbox we have to disable/enable the rest ot the checkboxes.
         let toggle_all = SlotOfBool::new(&global_search_ui.dock_widget, clone!(
         global_search_ui => move |state| {
             global_search_ui.search_on_dbs_checkbox.set_enabled(!state);
             global_search_ui.search_on_locs_checkbox.set_enabled(!state);
             global_search_ui.search_on_texts_checkbox.set_enabled(!state);
             global_search_ui.search_on_schemas_checkbox.set_enabled(!state);
+
+            // If we're selecting all, check them.
+            if state {
+                global_search_ui.search_on_dbs_checkbox.set_checked(state);
+                global_search_ui.search_on_locs_checkbox.set_checked(state);
+                global_search_ui.search_on_texts_checkbox.set_checked(state);
+                global_search_ui.search_on_schemas_checkbox.set_checked(state);
+            }
         }));
 
         // What happens when we filter the different result TreeViews
