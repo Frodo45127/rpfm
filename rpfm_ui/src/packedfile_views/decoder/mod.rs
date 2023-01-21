@@ -172,13 +172,15 @@ impl PackedFileDecoderView {
     /// This function creates a new Decoder View, and sets up his slots and connections.
     pub unsafe fn new_view(
         packed_file_view: &mut PackedFileView,
+        path: &str,
+        app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
-        app_ui: &Rc<AppUI>
     ) -> Result<()> {
 
         let container_path = ContainerPath::File(packed_file_view.get_path());
         let table_name = container_path.db_table_name_from_path().unwrap();
-        let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFileRawData(packed_file_view.get_path()));
+
+        let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFileRawData(path.to_owned()));
         let response = CentralCommand::recv(&receiver);
         let mut data = match response {
             Response::VecU8(data) => Cursor::new(data),

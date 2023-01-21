@@ -2856,7 +2856,6 @@ impl AppUI {
                 SpecialView::Pack(ref path) => (path.to_owned(), QString::from_std_str(path)),
                 SpecialView::PackSettings => (RESERVED_NAME_SETTINGS.to_owned(), qtr("settings")),
                 SpecialView::PackDependencies => (RESERVED_NAME_DEPENDENCIES_MANAGER.to_owned(), qtr("table_dependency_manager_title")),
-                //SpecialView::Notes => (RESERVED_NAME_NOTES.to_owned(), QString::from_std_str(RESERVED_NAME_NOTES)),
             };
 
             // Close all preview views except the file we're opening. The path used for the manager is empty.
@@ -2891,8 +2890,8 @@ impl AppUI {
             let icon = TREEVIEW_ICONS.icon(icon_type);
 
             match view_type {
-                SpecialView::Decoder(_) => {
-                    match PackedFileDecoderView::new_view(&mut tab, pack_file_contents_ui, app_ui) {
+                SpecialView::Decoder(ref path) => {
+                    match PackedFileDecoderView::new_view(&mut tab, path, app_ui, pack_file_contents_ui) {
                         Ok(_) => {
 
                             // Add the decoder to the 'Currently open' list and make it visible.
@@ -2938,21 +2937,6 @@ impl AppUI {
                         Err(error) => return show_dialog(&app_ui.main_window, error, false),
                     }
                 }
-                /*
-                SpecialView::Notes => {
-                    PackedFileTextView::new_view(&mut tab, app_ui, pack_file_contents_ui, &data);
-
-                    // Add the file to the 'Currently open' list and make it visible.
-                    app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
-                    app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
-
-                    // Fix the tips view.
-                    let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
-                    layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
-
-                    let mut open_list = UI_STATE.set_open_packedfiles();
-                    open_list.push(tab);
-                },*/
             }
         }
 
