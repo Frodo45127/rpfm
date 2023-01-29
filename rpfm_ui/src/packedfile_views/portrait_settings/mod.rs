@@ -630,4 +630,11 @@ impl PortraitSettingsView {
             } else { None }
         )
     }
+
+    /// Function to get the full list of strings from a model.
+    pub unsafe fn text_list_from_model(model: &QPtr<QStandardItemModel>) -> Vec<String> {
+        (0..model.row_count_0a())
+            .map(|row| model.item_1a(row).text().to_std_string())
+            .collect::<Vec<_>>()
+    }
 }

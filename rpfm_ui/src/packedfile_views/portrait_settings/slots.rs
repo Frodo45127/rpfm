@@ -150,9 +150,7 @@ impl PortraitSettingsSlots {
 
         let main_list_add = SlotNoArgs::new(view.main_list_view(), clone!(
             view => move || {
-            let current_values = (0..view.main_list_model().row_count_0a())
-                .map(|row| view.main_list_model().item_1a(row).text().to_std_string())
-                .collect::<Vec<_>>();
+            let current_values = PortraitSettingsView::text_list_from_model(&view.main_list_model().static_upcast());
 
             match view.id_dialog(None, current_values) {
                 Ok(new_name) => if let Some(new_name) = new_name {
@@ -167,9 +165,7 @@ impl PortraitSettingsSlots {
             let selection = view.main_list_view.selection_model().selected_indexes();
             let index = selection.at(0);
             if index.is_valid() {
-                let current_values = (0..view.main_list_model().row_count_0a())
-                    .map(|row| view.main_list_model().item_1a(row).text().to_std_string())
-                    .collect::<Vec<_>>();
+                let current_values = PortraitSettingsView::text_list_from_model(&view.main_list_model().static_upcast());
 
                 let source_index = view.main_list_filter.map_to_source(index);
                 let item = view.main_list_model.item_from_index(&source_index);
@@ -189,9 +185,7 @@ impl PortraitSettingsSlots {
 
         let variants_list_add = SlotNoArgs::new(view.main_list_view(), clone!(
             view => move || {
-            let current_values = (0..view.variants_list_model().row_count_0a())
-                .map(|row| view.variants_list_model().item_1a(row).text().to_std_string())
-                .collect::<Vec<_>>();
+            let current_values = PortraitSettingsView::text_list_from_model(&view.variants_list_model().static_upcast());
 
             match view.id_dialog(None, current_values) {
                 Ok(new_name) => if let Some(new_name) = new_name {
@@ -206,12 +200,10 @@ impl PortraitSettingsSlots {
             let selection = view.variants_list_view.selection_model().selected_indexes();
             let index = selection.at(0);
             if index.is_valid() {
-                let current_values = (0..view.variants_list_model().row_count_0a())
-                    .map(|row| view.variants_list_model().item_1a(row).text().to_std_string())
-                    .collect::<Vec<_>>();
+                let current_values = PortraitSettingsView::text_list_from_model(&view.variants_list_model().static_upcast());
 
-                let source_index = view.main_list_filter.map_to_source(index);
-                let item = view.main_list_model.item_from_index(&source_index);
+                let source_index = view.variants_list_filter.map_to_source(index);
+                let item = view.variants_list_model.item_from_index(&source_index);
                 let data = item.text().to_std_string();
                 match view.id_dialog(Some(&data), current_values) {
                     Ok(new_name) => if let Some(new_name) = new_name {
