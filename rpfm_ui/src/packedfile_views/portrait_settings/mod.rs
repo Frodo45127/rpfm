@@ -51,7 +51,7 @@ use rpfm_lib::files::{FileType, portrait_settings::*};
 
 use crate::app_ui::AppUI;
 use crate::ffi::*;
-use crate::locale::qtr;
+use crate::locale::{qtr, tr};
 use crate::packedfile_views::{PackedFileView, View, ViewType};
 use crate::utils::*;
 use self::slots::PortraitSettingsSlots;
@@ -601,18 +601,18 @@ impl PortraitSettingsView {
         let message_widget: QPtr<QWidget> = find_widget(&main_widget.static_upcast(), "message_widget")?;
         let button_box: QPtr<QDialogButtonBox> = find_widget(&main_widget.static_upcast(), "button_box")?;
         button_box.button(StandardButton::Ok).released().connect(dialog.slot_accept());
+        kmessage_widget_close_safe(&message_widget.as_ptr());
 
         name_line_edit.set_placeholder_text(&qtr("portrait_settings_id"));
         if let Some(id) = current_id {
             name_line_edit.set_text(&QString::from_std_str(id));
             button_box.button(StandardButton::Ok).set_enabled(false);
-            kmessage_widget_set_error_safe(&message_widget.as_ptr(), qtr("portrait_settings_list_id_error").as_ptr());
+            show_message_error(&message_widget, tr("portrait_settings_list_id_error"));
         }
 
-        kmessage_widget_close_safe(&message_widget.as_ptr());
         name_line_edit.text_changed().connect(&SlotOfQString::new(&name_line_edit, move |new_name| {
             if banned_list.contains(&new_name.to_std_string()) {
-                kmessage_widget_set_error_safe(&message_widget.as_ptr(), qtr("portrait_settings_list_id_error").as_ptr());
+                show_message_error(&message_widget, tr("portrait_settings_list_id_error"));
                 button_box.button(StandardButton::Ok).set_enabled(false);
             } else {
                 kmessage_widget_close_safe(&message_widget.as_ptr());
