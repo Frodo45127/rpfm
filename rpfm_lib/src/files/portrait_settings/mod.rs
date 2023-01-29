@@ -9,17 +9,24 @@
 //---------------------------------------------------------------------------//
 
 //! This is a module to read/write binary Portrait Settings files.
+//!
+//! Portrait settings are files containing information about the small portrait each unit uses,
+//! tipically at the bottom left of the screen (may vary from game to game), when in battle or in campaign.
+//!
+//! TODO: add format info.
 
 use getset::*;
 use serde_derive::{Serialize, Deserialize};
 
-use crate::error::Result;
+use crate::error::{Result, RLibError};
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::files::{DecodeableExtraData, Decodeable, EncodeableExtraData, Encodeable};
 use crate::utils::check_size_mismatch;
 
 /// Extension used by PortraitSettings.
 pub const EXTENSION: &str = ".bin";
+
+mod versions;
 
 //#[cfg(test)] mod portrait_settings_test;
 
@@ -28,7 +35,8 @@ pub const EXTENSION: &str = ".bin";
 //---------------------------------------------------------------------------//
 
 /// This represents an entire PortraitSettings decoded in memory.
-#[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
+#[derive(PartialEq, Clone, Debug, Default, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct PortraitSettings {
 
     /// Version of the PortraitSettings.
@@ -38,8 +46,9 @@ pub struct PortraitSettings {
     entries: Vec<Entry>,
 }
 
-/// This represents a Portrait Settings Entry.
-#[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
+/// This represents a generic Portrait Settings Entry.
+#[derive(PartialEq, Clone, Debug, Default, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Entry {
 
     /// Id of the entry. Points to an art set key.
@@ -56,7 +65,8 @@ pub struct Entry {
 }
 
 /// This represents a Camera setting of a Portrait.
-#[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
+#[derive(PartialEq, Clone, Debug, Default, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct CameraSetting {
 
     /// Distance of the camera from the character.
@@ -78,8 +88,9 @@ pub struct CameraSetting {
     distance_body: u16,
 }
 
-/// This represents a Variant of a Portrait.
-#[derive(PartialEq, Eq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
+/// This represents a generic variant of a Portrait.
+#[derive(PartialEq, Eq, Clone, Debug, Default, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Variant {
 
     /// No idea what this corresponds to.
@@ -106,61 +117,20 @@ impl Decodeable for PortraitSettings {
 
     fn decode<R: ReadBytes>(data: &mut R, _extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
         let version = data.read_u32()?;
-        let entries_count = data.read_u32()?;
-        let mut entries = vec![];
-        for _ in 0..entries_count {
-            let id = data.read_sized_string_u8()?;
-            let camera_settings_head = CameraSetting {
-                distance: data.read_f32()?,
-                theta: data.read_f32()?,
-                phi: data.read_f32()?,
-                fov: data.read_f32()?,
-                distance_1: data.read_f32()?,
-                distance_body: data.read_u16()?,
-            };
 
-            let has_body_camera = data.read_bool()?;
-            let camera_settings_body = if has_body_camera {
-                Some(CameraSetting {
-                    distance: data.read_f32()?,
-                    theta: data.read_f32()?,
-                    phi: data.read_f32()?,
-                    fov: data.read_f32()?,
-                    distance_1: data.read_f32()?,
-                    distance_body: data.read_u16()?,
-                })
-            } else {
-                None
-            };
+        let mut settings = Self::default();
+        settings.version = version;
 
-            let count = data.read_u32()?;
-            let mut variants = vec![];
-            for _ in 0..count {
-                variants.push(Variant {
-                    id: data.read_sized_string_u8()?,
-                    file_diffuse: data.read_sized_string_u8()?,
-                    file_mask_1: data.read_sized_string_u8()?,
-                    file_mask_2: data.read_sized_string_u8()?,
-                    file_mask_3: data.read_sized_string_u8()?,
-                });
-            }
-
-            entries.push(Entry {
-                id,
-                camera_settings_head,
-                camera_settings_body,
-                variants
-            });
+        match version {
+            //1 => settings.read_v1(data)?,
+            4 => settings.read_v4(data)?,
+            _ => Err(RLibError::DecodingPortraitSettingUnsupportedVersion(version as usize))?,
         }
-
 
         // Trigger an error if there's left data on the source.
         check_size_mismatch(data.stream_position()? as usize, data.len()? as usize)?;
 
-        Ok(Self {
-            version,
-            entries
-        })
+        Ok(settings)
     }
 }
 
@@ -168,38 +138,11 @@ impl Encodeable for PortraitSettings {
 
     fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         buffer.write_u32(self.version)?;
-        buffer.write_u32(self.entries.len() as u32)?;
 
-        for entry in &self.entries {
-            buffer.write_sized_string_u8(&entry.id)?;
-            buffer.write_f32(entry.camera_settings_head.distance)?;
-            buffer.write_f32(entry.camera_settings_head.theta)?;
-            buffer.write_f32(entry.camera_settings_head.phi)?;
-            buffer.write_f32(entry.camera_settings_head.fov)?;
-            buffer.write_f32(entry.camera_settings_head.distance_1)?;
-            buffer.write_u16(entry.camera_settings_head.distance_body)?;
-
-            match &entry.camera_settings_body {
-                Some(camera) => {
-                    buffer.write_bool(true)?;
-                    buffer.write_f32(camera.distance)?;
-                    buffer.write_f32(camera.theta)?;
-                    buffer.write_f32(camera.phi)?;
-                    buffer.write_f32(camera.fov)?;
-                    buffer.write_f32(camera.distance_1)?;
-                    buffer.write_u16(camera.distance_body)?;
-                },
-                None => buffer.write_bool(false)?,
-            }
-
-            buffer.write_u32(entry.variants.len() as u32)?;
-            for variant in &entry.variants {
-                buffer.write_sized_string_u8(&variant.id)?;
-                buffer.write_sized_string_u8(&variant.file_diffuse)?;
-                buffer.write_sized_string_u8(&variant.file_mask_1)?;
-                buffer.write_sized_string_u8(&variant.file_mask_2)?;
-                buffer.write_sized_string_u8(&variant.file_mask_3)?;
-            }
+        match self.version {
+            //1 => self.write_v1(buffer)?,
+            4 => self.write_v4(buffer)?,
+            _ => unimplemented!()
         }
 
         Ok(())

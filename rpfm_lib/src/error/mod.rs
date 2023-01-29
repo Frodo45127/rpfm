@@ -181,6 +181,9 @@ pub enum RLibError {
     #[error("This file's reported size is '{0}' bytes, but we expected it to be '{1}' bytes. This means that the definition of the table is incorrect (only on tables, it's usually this), the decoding logic in RPFM is broken for this file, or this file is corrupted.")]
     DecodingMismatchSizeError(usize, usize),
 
+    #[error("This file's version ({0}) is not yet supported.")]
+    DecodingPortraitSettingUnsupportedVersion(usize),
+
     #[error("This file is expected to be of {0} type, but the data provided is of {1} type. If you see this, 99% sure it is a bug.")]
     DecodedDataDoesNotMatchFileType(FileType, FileType),
 

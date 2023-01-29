@@ -189,6 +189,13 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     new_action(decoder_actions, "load_definition", "Load Definition", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+L"), "kt-set-max-upload-speed");
     decoder_actions->readSettings();
 
+    KActionCollection* portrait_settings_actions = new KActionCollection(parent, "portrait_settings");
+    portrait_settings_actions->setComponentDisplayName("Portrait Settings");
+    new_action(portrait_settings_actions, "add", "Add", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+A"), "edit-table-insert-row-below");
+    new_action(portrait_settings_actions, "clone", "Clone", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+D"), "insert-table-row");
+    new_action(portrait_settings_actions, "delete", "Delete", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+Del"), "edit-table-delete-row");
+    portrait_settings_actions->readSettings();
+
     // Text Editor actions.
     KTextEditor::Editor *editor = KTextEditor::Editor::instance();
     KTextEditor::Document *doc = editor->createDocument(nullptr);
@@ -210,6 +217,7 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     shortcuts->append(dynamic_cast<QObject*>(secondary_pack_tree_actions));
     shortcuts->append(dynamic_cast<QObject*>(table_editor_actions));
     shortcuts->append(dynamic_cast<QObject*>(decoder_actions));
+    shortcuts->append(dynamic_cast<QObject*>(portrait_settings_actions));
     shortcuts->append(dynamic_cast<QObject*>(text_editor_actions));
 }
 

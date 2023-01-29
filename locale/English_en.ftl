@@ -15,11 +15,9 @@ message_only_for_the_brave = <p>This version has been marked as "Only For The Br
     </ul>
     <p>Currently in this beta, you need to be aware that some parts of the UI have not been yet updated for the new backend and do not work/crash the program. Known broken stuff is:</p>
     <ul>
-        <li>Dependencies Manager: it crashes.</li>
         <li>Update table: untested.</li>
-        <li>Generate Loc Data: do not work yet.</li>
         <li>AnimFragment/AnimsTables/MatchedCombat: they "may" work, but are pending a full rewrite to support the newer game variants of these files.</li>
-        <li>Tables/Rename References: works only for DBs.</li>
+        <li>Tables/Rename References: works only for DB entries, not for Loc entries.</li>
     </ul>
     <p>Everything else should work... in theory.</p>
 
@@ -1257,3 +1255,30 @@ discord_link = Open "The Modding Den" discord channel
 open_manual = Open RPFM Manual
 patreon_link = Support me on Patreon
 reload_style_sheet = Reload StyleSheets
+
+portrait_settings_main_camera_settings_title = Main Camera
+portrait_settings_body_camera_settings_title = Body Camera
+portrait_settings_variants_title = Variants
+portrait_settings_main_distance = Distance:
+portrait_settings_main_distance_1_label = Distance 1:
+portrait_settings_main_distance_body_label = Distance Body:
+portrait_settings_main_fov_label = Fov:
+portrait_settings_main_phi_label = Phi:
+portrait_settings_main_theta_label = Theta:
+portrait_settings_body_distance = Distance:
+portrait_settings_body_distance_1_label = Distance 1:
+portrait_settings_body_distance_body_label = Distance Body:
+portrait_settings_body_fov_label = Fov:
+portrait_settings_body_phi_label = Phi:
+portrait_settings_body_theta_label = Theta:
+portrait_settings_file_diffuse_label = Diffuse:
+portrait_settings_file_mask_1_label = Mask 1:
+portrait_settings_file_mask_2_label = Mask 2:
+portrait_settings_file_mask_3_label = Mask 3:
+
+context_menu_clone = Clone
+portrait_settings_filter = Filter
+
+portrait_settings_list_id_error = That ID already exists.
+portrait_settings_id = Id
+portrait_settings_id_title = Edit ID

@@ -47,10 +47,11 @@ use self::decoder::PackedFileDecoderView;
 use self::dependencies_manager::DependenciesManagerView;
 use self::external::PackedFileExternalView;
 use self::image::PackedFileImageView;
-use self::table::PackedFileTableView;
-use self::text::PackedFileTextView;
 use self::packfile::PackFileExtraView;
 use self::packfile_settings::PackFileSettingsView;
+use self::portrait_settings::PortraitSettingsView;
+use self::table::PackedFileTableView;
+use self::text::PackedFileTextView;
 //use self::tips::TipsView;
 use self::video::PackedFileVideoView;
 
@@ -70,6 +71,7 @@ pub mod external;
 pub mod image;
 pub mod packfile;
 pub mod packfile_settings;
+pub mod portrait_settings;
 
 #[cfg(feature = "support_rigidmodel")]
 pub mod rigidmodel;
@@ -144,6 +146,7 @@ pub enum View {
     Image(PackedFileImageView),
     PackFile(Arc<PackFileExtraView>),
     PackSettings(Arc<PackFileSettingsView>),
+    PortraitSettings(Arc<PortraitSettingsView>),
 
     #[cfg(feature = "support_rigidmodel")]
     RigidModel(Arc<PackedFileRigidModelView>),
@@ -394,6 +397,7 @@ impl PackedFileView {
                                     _ => return Err(anyhow!("{}{}", RFILE_SAVED_ERROR, self.get_path()))
                                 }
                             },
+                            View::PortraitSettings(view) => RFileDecoded::PortraitSettings(view.save_view()),
                             View::Text(view) => {
                                 let mut text = Text::default();
                                 let widget = view.get_mut_editor();
@@ -557,6 +561,17 @@ impl PackedFileView {
                             if let View::Table(old_table) = view {
                                 let old_table = old_table.get_ref_table();
                                 old_table.reload_view(TableType::MatchedCombat(table));
+                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
+
+                            }
+                            else {
+                                return Err(anyhow!(RFILE_RELOAD_ERROR));
+                            }
+                        },
+
+                        Response::PortraitSettingsRFileInfo(mut portrait_settings, packed_file_info) => {
+                            if let View::PortraitSettings(old_portrait_settings) = view {
+                                old_portrait_settings.reload_view(&mut portrait_settings)?;
                                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
 
                             }
