@@ -787,17 +787,6 @@ impl Pack {
         let loc_tables = self.files_by_type(&[FileType::Loc]);
         let mut missing_trads_file = Loc::new(false);
 
-        db_tables.iter().for_each(|rfile| {
-            if let RFileDecoded::DB(table) = rfile.decoded().unwrap() {
-                let definition = table.definition();
-                let fields_processed = definition.fields_processed();
-                let localised_fields = definition.localised_fields();
-                if !localised_fields.is_empty() && fields_processed.iter().filter(|x| x.is_key()).count() > 1 {
-                    println!("{}, keys: {}", table.table_name_without_tables(), fields_processed.iter().filter(|x| x.is_key()).count());
-                }
-            }
-        });
-
         let loc_keys_from_memory = loc_tables.par_iter().filter_map(|rfile| {
             if let RFileDecoded::Loc(table) = rfile.decoded().unwrap() {
                 Some(table.data(&None).unwrap().iter().filter_map(|x| {
@@ -814,20 +803,17 @@ impl Pack {
             if let RFileDecoded::DB(table) = rfile.decoded().unwrap() {
                 let definition = table.definition();
                 let loc_fields = definition.localised_fields();
-                let processed_fields = definition.fields_processed();
                 if !loc_fields.is_empty() {
                     let table_data = table.data(&None).unwrap();
                     let table_name = table.table_name_without_tables();
 
                     // Get the keys, which may be concatenated. We get them IN THE ORDER THEY ARE IN THE BINARY FILE.
-                    let key_field_names = definition.fields().iter().filter_map(|field| if field.is_key() { Some(field.name()) } else { None }).collect::<Vec<&str>>();
-                    let key_field_positions = key_field_names.iter().filter_map(|name| processed_fields.iter().position(|field| field.name() == *name)).collect::<Vec<usize>>();
-
+                    let localised_order = definition.localised_key_order();
                     let mut new_rows = vec![];
 
                     for row in table_data.iter() {
                         for loc_field in loc_fields {
-                            let key = key_field_positions.iter().map(|pos| row[*pos].data_to_string()).join("");
+                            let key = localised_order.iter().map(|pos| row[*pos as usize].data_to_string()).join("");
                             let loc_key = format!("{}_{}_{}", table_name, loc_field.name(), key);
 
                             if loc_keys_from_memory.get(&*loc_key).is_none() {

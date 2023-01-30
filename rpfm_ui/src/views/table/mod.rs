@@ -2664,8 +2664,7 @@ dbg!(t.elapsed().unwrap());
                 } else { return Some(tr("loc_key_not_found")) };
 
                 let table_definition = self.table_definition();
-                let key_field_names = table_definition.fields().iter().filter_map(|field| if field.is_key() { Some(field.name()) } else { None }).collect::<Vec<&str>>();
-                let key_field_positions = key_field_names.iter().filter_map(|name| table_definition.fields_processed().iter().position(|field| field.name() == *name)).collect::<Vec<usize>>();
+                let key_field_positions = table_definition.localised_key_order();
 
                 let key = key_field_positions.iter().map(|column| self.table_model.index_2a(self.table_filter.map_to_source(self.table_view.selection_model().selection().indexes().at(0)).row(), *column as i32).data_0a().to_string().to_std_string()).join("");
                 let loc_key = format!("{}_{}_{}", table_name, loc_column_name, key);

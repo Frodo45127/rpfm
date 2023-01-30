@@ -123,6 +123,13 @@ impl Loc {
         self.table.data(pool)
     }
 
+    /// This function returns a reference to the entries of this Loc table.
+    ///
+    /// Make sure to keep the table structure valid for the table definition.
+    pub fn data_mut(&mut self) -> Result<&mut Vec<Vec<DecodedData>>> {
+        self.table.data_mut()
+    }
+
     /// This function returns a valid empty (with default values if any) row for this table.
     pub fn new_row(&self) -> Vec<DecodedData> {
         Table::new_row(self.definition(), None)
