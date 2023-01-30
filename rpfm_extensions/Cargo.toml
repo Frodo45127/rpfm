@@ -22,7 +22,7 @@ itertools = "^0.10"
 regex = "^1"
 
 # Support for advanced regex stuff (I think, I have to check if I can replace it with the normal regex crate).
-fancy-regex = "^0.10"
+fancy-regex = "^0.11"
 
 # Serialization support.
 serde = "^1.0"
