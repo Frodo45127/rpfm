@@ -357,15 +357,15 @@ jobs:
           ls -lR downloads
 
       # TODO: Move the mimes out.
-      - name: Upload Release Asset (Linux)
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create_release.outputs.upload_url }}
-          asset_path: ./downloads/${{ needs.build.outputs.linuxArtifact }}/${{ needs.build.outputs.linuxArtifact }}
-          asset_name: ${{ needs.build.outputs.linuxArtifact }}
-          asset_content_type: application/tar+zstd
+      #- name: Upload Release Asset (Linux)
+      #  uses: actions/upload-release-asset@v1
+      #  env:
+      #    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #  with:
+      #    upload_url: ${{ needs.create_release.outputs.upload_url }}
+      #    asset_path: ./downloads/${{ needs.build.outputs.linuxArtifact }}/${{ needs.build.outputs.linuxArtifact }}
+      #    asset_name: ${{ needs.build.outputs.linuxArtifact }}
+      #    asset_content_type: application/tar+zstd
 
       - name: Upload Release Asset (Windows)
         uses: actions/upload-release-asset@v1
@@ -377,43 +377,43 @@ jobs:
           asset_name: ${{ needs.build.outputs.windowsArtifact }}
           asset_content_type: application/x-zip-compressed
 
-  publish_aur_package:
-    name: Publish AUR package
-
-    needs:
-      - build
-      - create_release
-      - upload_release_assets
-
-    # Temporal. To be changed to 0 once 4.0 is stable.
-    if: needs.create_release.outputs.is_beta == 1
-
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Download all artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: ${{ needs.build.outputs.linuxArtifact }}
-          path: ./downloads
-
-      - name: List downloads
-        run: |
-          ls -lR downloads
-
-      - name: Update PKGBUILD's sha256 and version number.
-        shell: bash
-        run: |
-          checksum=$(shasum -a 256 ./downloads/${{ needs.build.outputs.linuxArtifact }} | grep -oE '^[A-Za-z0-9]+')
-          sed -i "s/^sha256sums_x86_64=('.*')$/sha256sums_x86_64=('$checksum')/" install/arch/rpfm/PKGBUILD
-          sed -i "s/^pkgver=.*$/pkgver=${{ needs.build.outputs.version }}/" install/arch/rpfm/PKGBUILD
-
-      - uses: stefanzweifel/git-auto-commit-action@v4
-        with:
-          commit_message: Update PKGBUILD for latest release.
-
+#  publish_aur_package:
+#    name: Publish AUR package
+#
+#    needs:
+#      - build
+#      - create_release
+#      - upload_release_assets
+#
+#    # Temporal. To be changed to 0 once 4.0 is stable.
+#    if: needs.create_release.outputs.is_beta == 1
+#
+#    runs-on: ubuntu-latest
+#
+#    steps:
+#      - uses: actions/checkout@v2
+#
+#      - name: Download all artifacts
+#        uses: actions/download-artifact@v3
+#        with:
+#          name: ${{ needs.build.outputs.linuxArtifact }}
+#          path: ./downloads
+#
+#      - name: List downloads
+#        run: |
+#          ls -lR downloads
+#
+#      - name: Update PKGBUILD's sha256 and version number.
+#        shell: bash
+#        run: |
+#          checksum=$(shasum -a 256 ./downloads/${{ needs.build.outputs.linuxArtifact }} | grep -oE '^[A-Za-z0-9]+')
+#          sed -i "s/^sha256sums_x86_64=('.*')$/sha256sums_x86_64=('$checksum')/" install/arch/rpfm/PKGBUILD
+#          sed -i "s/^pkgver=.*$/pkgver=${{ needs.build.outputs.version }}/" install/arch/rpfm/PKGBUILD
+#
+#      - uses: stefanzweifel/git-auto-commit-action@v4
+#        with:
+#          commit_message: Update PKGBUILD for latest release.
+#
 #      - name: Publish rpfm-bin to the AUR
 #        uses: KSXGitHub/github-actions-deploy-aur@v2.0.4
 #        with:
