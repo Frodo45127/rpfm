@@ -37,7 +37,7 @@ jobs:
 
         # Self-hosted linux requires:
         # - Archlinux Docker with some custom stuff.
-        - {os: self-hosted-linux, TARGET: x86_64-unknown-linux-gnu, EXTENSION: tar.zst, MIME: application/tar+zstd}
+        #- {os: self-hosted-linux, TARGET: x86_64-unknown-linux-gnu, EXTENSION: tar.zst, MIME: application/tar+zstd}
 
     steps:
       - uses: actions/checkout@v2
