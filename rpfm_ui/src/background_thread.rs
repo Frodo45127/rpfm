@@ -346,7 +346,17 @@ pub fn background_loop() {
 
                         let tables_to_skip = dependencies.vanilla_tables().keys().map(|x| &**x).collect::<Vec<_>>();
                         match update_schema_from_raw_files(schema, &game_selected, &asskit_path, &schema_path, &tables_to_skip, &tables_to_check_split) {
-                            Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                            Ok(_) => {
+
+                                if dependencies.bruteforce_loc_key_order(schema).is_ok() {
+                                    match schema.save(&schemas_path().unwrap().join(GAME_SELECTED.read().unwrap().schema_file_name())) {
+                                        Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                                        Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                                    }
+                                } else {
+                                    CentralCommand::send_back(&sender, Response::Success)
+                                }
+                            },
                             Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                         }
                     }

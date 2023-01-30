@@ -153,6 +153,11 @@ pub struct Definition {
 
     /// This is a list of all the fields from this definition that are moved to a Loc PackedFile on exporting.
     localised_fields: Vec<Field>,
+
+    /// This is the order in which key fields are ordered when used as part of a localisation key.
+    ///
+    /// Note: this order is only applicable to the processed fields, not the raw fields.
+    localised_key_order: Vec<u32>,
 }
 
 /// This struct holds all the relevant data do properly decode a field from a versioned PackedFile.
@@ -319,6 +324,9 @@ impl Schema {
         self.definitions.get(table_name)?.iter().find(|definition| *definition.version() == table_version)
     }
 
+    pub fn definition_by_name_and_version_mut(&mut self, table_name: &str, table_version: i32) -> Option<&mut Definition>  {
+        self.definitions.get_mut(table_name)?.iter_mut().find(|definition| *definition.version() == table_version)
+    }
 
     /// This function loads a [Schema] to memory from a provided `.ron` file.
     pub fn load(path: &Path) -> Result<Self> {
@@ -536,6 +544,7 @@ impl Definition {
             version,
             localised_fields: vec![],
             fields: vec![],
+            localised_key_order: vec![],
         }
     }
 
@@ -545,6 +554,7 @@ impl Definition {
             version,
             localised_fields: loc_fields.to_vec(),
             fields: fields.to_vec(),
+            localised_key_order: vec![],
         }
     }
 

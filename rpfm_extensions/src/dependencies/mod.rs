@@ -11,6 +11,7 @@
 //! This module contains a dependencies system implementation, used to manage dependencies between packs.
 
 use getset::{Getters, MutGetters};
+use itertools::Itertools;
 use rayon::prelude::*;
 use serde_derive::{Serialize, Deserialize};
 
@@ -23,7 +24,7 @@ use std::thread::{JoinHandle, spawn};
 use rpfm_lib::error::{Result, RLibError};
 use rpfm_lib::files::{Container, ContainerPath, db::DB, DecodeableExtraData, FileType, pack::Pack, RFile, RFileDecoded};
 use rpfm_lib::games::GameInfo;
-use rpfm_lib::integrations::assembly_kit::table_data::RawTable;
+use rpfm_lib::integrations::{assembly_kit::table_data::RawTable, log::info};
 use rpfm_lib::schema::{Definition, Schema};
 use rpfm_lib::utils::{current_time, last_modified_time_from_files, starts_with_case_insensitive};
 
@@ -1160,6 +1161,106 @@ impl Dependencies {
             }
             _ => Err(RLibError::DecodingDBNotADBTable),
         }
+    }
+
+    /// This function bruteforces the order in which multikeyed tables get their keys together for loc entries.
+    pub fn bruteforce_loc_key_order(&self, schema: &mut Schema) -> Result<()> {
+
+        // Get all vanilla loc keys into a big hashmap so we can check them fast.
+        let loc_files = self.loc_data(true, false)?;
+        let loc_table = loc_files.iter()
+            .filter_map(|file| if let Ok(RFileDecoded::Loc(loc)) = file.decoded() { Some(loc) } else { None })
+            .flat_map(|file| file.data(&None).unwrap().to_vec())
+            .map(|entry| (entry[0].data_to_string().to_string(), entry[1].data_to_string().to_string()))
+            .collect::<HashMap<_,_>>();
+
+        // Get all the tables so we don't need to re-fetch each table individually.
+        let db_tables = self.db_and_loc_data(true, false, true, false)?
+            .iter()
+            .filter_map(|file| if let Ok(RFileDecoded::DB(table)) = file.decoded() { Some(table) } else { None })
+            .collect::<Vec<_>>();
+
+        for table in db_tables {
+            let definition = table.definition();
+
+            // Ignore tables without localisation.
+            if !definition.localised_fields().is_empty() {
+                let fields = definition.fields_processed();
+                let key_fields = fields.iter()
+                    .enumerate()
+                    .filter(|(_, field)| field.is_key())
+                    .collect::<Vec<_>>();
+
+                // If we only have one key field, don't bother searching.
+                let order = if key_fields.len() == 1 {
+                    vec![key_fields[0].0 as u32]
+                }
+
+                // If we have multiple key fields, we need to test for combinations.
+                else {
+                    let mut order = Vec::with_capacity(key_fields.len());
+                    let combos = key_fields.iter().permutations(key_fields.len());
+                    let short_table_name = table.table_name_without_tables();
+                    let table_data = table.data(&None)?;
+                    for combo in combos {
+                        if table.table_name() == "cdir_events_dilemma_choice_details_tables" {
+                            dbg!(&combo);
+                        }
+
+                        // Many multikeyed tables admit empty values as part of the key. We need rows with no empty values.
+                        for row in table_data.iter() {
+                            let mut all_keys_populated = true;
+                            for (index, _) in &combo {
+                                if row[*index].data_to_string().is_empty() {
+                                    all_keys_populated = false;
+                                    break;
+                                }
+                            }
+
+                            if all_keys_populated {
+                                let mut combined_key = String::new();
+                                for (index, _) in &combo {
+                                    combined_key.push_str(&row[*index].data_to_string());
+                                }
+
+                                for localised_field in definition.localised_fields() {
+                                    let localised_key = format!("{}_{}_{}", short_table_name, localised_field.name(), combined_key);
+                                    if table.table_name() == "cdir_events_dilemma_choice_details_tables" {
+                                        info!("Bruteforce: {}", localised_key);
+                                        info!("Bruteforce: {:?}", loc_table.get(&localised_key));
+                                    }
+                                    if loc_table.get(&localised_key).is_some() {
+                                        order = combo.iter().map(|(index, _)| *index as u32).collect();
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if !order.is_empty() {
+                                break;
+                            }
+                        }
+
+                        if !order.is_empty() {
+                            break;
+                        } else {
+                            info!("Bruteforce: failed to find order for table {}, version {}, combo {:?}. Trying another combo (if any left to try).", table.table_name(), definition.version(), combo);
+                        }
+                    }
+
+                    order
+                };
+
+                if !order.is_empty() {
+                    info!("Bruteforce: loc key order found for table {}, version {}.", table.table_name(), definition.version());
+                    if let Some(schema_definition) = schema.definition_by_name_and_version_mut(table.table_name(), *definition.version()) {
+                        schema_definition.set_localised_key_order(order);
+                    }
+                }
+            }
+        }
+
+        Ok(())
     }
 }
 

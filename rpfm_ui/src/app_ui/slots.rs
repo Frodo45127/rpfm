@@ -1365,12 +1365,10 @@ impl AppUISlots {
             }
         ));
 
-        let debug_reload_style_sheet = SlotNoArgs::new(&app_ui.main_window, clone!(
-            app_ui => move || {
-                info!("Triggering `Reload StyleSheets` By Slot");
-                reload_theme();
-            }
-        ));
+        let debug_reload_style_sheet = SlotNoArgs::new(&app_ui.main_window, move || {
+            info!("Triggering `Reload StyleSheets` By Slot");
+            reload_theme();
+        });
 
         //-----------------------------------------------//
         // `PackedFileView` logic.
