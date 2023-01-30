@@ -2,11 +2,11 @@
 pkgname=('rpfm-git')
 pkgver=3.99.106.2813.g3af6da7c
 pkgrel=1
-pkgdesc="Rusted PackFile Manager (RPFM) is a modding tool for modern (since Empire) Total War games."
+pkgdesc="A modding tool for modern (since Empire) Total War games. Development version."
 arch=('x86_64')
 url="https://github.com/Frodo45127/rpfm.git"
 license=('MIT')
-depends=('qt5-base' 'qt5-imageformats' 'kf5' 'xz' 'p7zip')
+depends=('libgit2' 'xz' 'p7zip' 'qt5-base' 'qt5-imageformats' 'kcompletion' 'kiconthemes'  'ktexteditor' 'kxmlgui' 'kwidgetsaddons' 'breeze-icons')
 makedepends=('git' 'rust' 'cmake')
 provides=('rpfm')
 source=("git+https://github.com/Frodo45127/rpfm.git")
@@ -30,29 +30,26 @@ package() {
     install -D -m755 "$srcdir/$_programname/target/release/rpfm_cli" "$pkgdir/usr/bin/rpfm_cli"
 
     # The icons.
-    mkdir -p "$pkgdir/usr/share/$_programname/icons"
-    for image in "$srcdir/$_programname/icons/."; do
-        cp -R $image "$pkgdir/usr/share/$_programname/icons/"
+    cd "$srcdir/usr/share/$_programname/icons/"
+    for icon in *; do
+        install -D -m644 $icon "$pkgdir/usr/share/$_programname/icons/$icon"
     done
 
     # The language files.
-    mkdir -p "$pkgdir/usr/share/$_programname/locale"
-    for locale in "$srcdir/$_programname/locale/."; do
-        cp -R $locale "$pkgdir/usr/share/$_programname/locale/"
+    cd "$srcdir/usr/share/$_programname/locale/"
+    for locale in *; do
+        install -D -m644 $locale "$pkgdir/usr/share/$_programname/locale/$locale"
     done
 
     # The UI files.
-    mkdir -p "$pkgdir/usr/share/$_programname/ui"
-    for ui_template in "$srcdir/$_programname/rpfm_ui/ui_templates/."; do
-        cp -R $ui_template "$pkgdir/usr/share/$_programname/ui/"
+    cd "$srcdir/usr/share/$_programname/ui/"
+    for ui_template in *; do
+        install -D -m644 $ui_template "$pkgdir/usr/share/$_programname/ui/$ui_template"
     done
 
-    # Shortcuts.
-    install -D -m644 "$srcdir/$_programname/install/arch/rpfm.desktop" "$pkgdir/usr/share/applications/rpfm.desktop"
+    # Shortcut.
+    install -D -m644 "$srcdir/usr/share/applications/rpfm.desktop" "$pkgdir/usr/share/applications/rpfm.desktop"
 
     # License.
-    install -D -m644 "$srcdir/$_programname/LICENSE" "$pkgdir/usr/share/licenses/$_programname/LICENSE"
-
-    # This one is not in the qt5-imageformats package by default since Qt 5.8.
-    #install -D -m644 "$srcdir/$_programname/imageformats/libqdds.so" "$pkgdir/usr/lib/qt/plugins/imageformats/libqdds.so"
+    install -D -m644 "$srcdir/usr/share/licenses/$_programname/LICENSE" "$pkgdir/usr/share/licenses/$_programname/LICENSE"
 }
