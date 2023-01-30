@@ -115,7 +115,19 @@ impl Default for SupportedGames {
                     store_id: 1_142_710,
                     executable: "Warhammer3.exe".to_owned(),
                     data_path: "data".to_owned(),
+                    language_path: "data".to_owned(),
                     local_mods_path: "data".to_owned(),
+                    downloaded_mods_path: "./../../workshop/content/1142710".to_owned(),
+                });
+
+                data.insert(InstallType::LnxSteam, InstallData {
+                    vanilla_packs: vec![],
+                    use_manifest: true,
+                    store_id: 1_142_710,
+                    executable: "TotalWarhammer3.sh".to_owned(),
+                    data_path: "share/data/data".to_owned(),
+                    language_path: "share/data/data/localisation".to_owned(),
+                    local_mods_path: "share/data/data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/1142710".to_owned(),
                 });
 
@@ -177,6 +189,7 @@ impl Default for SupportedGames {
                     store_id: 0,
                     executable: "Troy.exe".to_owned(),
                     data_path: "data".to_owned(),
+                    language_path: "data".to_owned(),
                     local_mods_path: "mods/mymods".to_owned(),
                     downloaded_mods_path: "mods".to_owned(),
                 });
@@ -187,6 +200,7 @@ impl Default for SupportedGames {
                     store_id: 1_099_410,
                     executable: "Troy.exe".to_owned(),
                     data_path: "data".to_owned(),
+                    language_path: "data".to_owned(),
                     local_mods_path: "data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/1099410".to_owned(),
                 });
@@ -303,6 +317,7 @@ impl Default for SupportedGames {
                     store_id: 779_340,
                     executable: "Three_Kingdoms.exe".to_owned(),
                     data_path: "data".to_owned(),
+                    language_path: "data".to_owned(),
                     local_mods_path: "data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/779340".to_owned(),
                 });
@@ -365,6 +380,7 @@ impl Default for SupportedGames {
                     store_id: 779_340,
                     executable: "ThreeKingdoms.sh".to_owned(),
                     data_path: "share/data/data".to_owned(),
+                    language_path: "share/data/data/localisation".to_owned(),
                     local_mods_path: "share/data/data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/779340".to_owned(),
                 });
@@ -630,6 +646,7 @@ impl Default for SupportedGames {
                     store_id: 594_570,
                     executable: "Warhammer2.exe".to_owned(),
                     data_path: "data".to_owned(),
+                    language_path: "data".to_owned(),
                     local_mods_path: "data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/594570".to_owned(),
                 });
@@ -776,6 +793,7 @@ impl Default for SupportedGames {
                     store_id: 594_570,
                     executable: "TotalWarhammer2.sh".to_owned(),
                     data_path: "share/data/data".to_owned(),
+                    language_path: "share/data/data/localisation".to_owned(),
                     local_mods_path: "share/data/data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/594570".to_owned(),
                 });
@@ -838,6 +856,7 @@ impl Default for SupportedGames {
                     store_id: 364_360,
                     executable: "Warhammer.exe".to_owned(),
                     data_path: "data".to_owned(),
+                    language_path: "data".to_owned(),
                     local_mods_path: "data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/364360".to_owned(),
                 });
@@ -930,6 +949,7 @@ impl Default for SupportedGames {
                     store_id: 364_360,
                     executable: "TotalWarhammer.sh".to_owned(),
                     data_path: "share/data/data".to_owned(),
+                    language_path: "share/data/data".to_owned(),
                     local_mods_path: "share/data/data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/364360".to_owned(),
                 });
@@ -992,6 +1012,7 @@ impl Default for SupportedGames {
                     store_id: 712_100,
                     executable: "Thrones.exe".to_owned(),
                     data_path: "data".to_owned(),
+                    language_path: "data".to_owned(),
                     local_mods_path: "data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/712100".to_owned(),
                 });
@@ -1032,6 +1053,7 @@ impl Default for SupportedGames {
                     store_id: 712_100,
                     executable: "ThronesOfBritannia.sh".to_owned(),
                     data_path: "share/data/data".to_owned(),
+                    language_path: "share/data/data".to_owned(),
                     local_mods_path: "share/data/data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/712100".to_owned(),
                 });
@@ -1094,6 +1116,7 @@ impl Default for SupportedGames {
                     store_id: 325_610,
                     executable: "Attila.exe".to_owned(),
                     data_path: "data".to_owned(),
+                    language_path: "data".to_owned(),
                     local_mods_path: "data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/325610".to_owned(),
                 });
@@ -1105,6 +1128,7 @@ impl Default for SupportedGames {
                     store_id: 325_610,
                     executable: "Attila".to_owned(),
                     data_path: "data".to_owned(),
+                    language_path: "data".to_owned(),
                     local_mods_path: "data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/325610".to_owned(),
                 });
@@ -1167,6 +1191,7 @@ impl Default for SupportedGames {
                     store_id: 214_950,
                     executable: "Rome2.exe".to_owned(),
                     data_path: "data".to_owned(),
+                    language_path: "data".to_owned(),
                     local_mods_path: "data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/214950".to_owned(),
                 });
@@ -1230,6 +1255,7 @@ impl Default for SupportedGames {
                     store_id: 34_330,
                     executable: "Shogun2.exe".to_owned(),
                     data_path: "data".to_owned(),
+                    language_path: "data".to_owned(),
                     local_mods_path: "data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/34330".to_owned(),
                 });
@@ -1263,6 +1289,7 @@ impl Default for SupportedGames {
                     store_id: 34_330,
                     executable: "Shogun2.sh".to_owned(),
                     data_path: "share/data/data".to_owned(),
+                    language_path: "share/data/data".to_owned(),
                     local_mods_path: "share/data/data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/34330".to_owned(),
                 });
@@ -1349,6 +1376,7 @@ impl Default for SupportedGames {
                     store_id: 34_030,
                     executable: "Napoleon.exe".to_owned(),
                     data_path: "data".to_owned(),
+                    language_path: "data".to_owned(),
                     local_mods_path: "data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/34030".to_owned(),
                 });
@@ -1445,6 +1473,7 @@ impl Default for SupportedGames {
                     store_id: 10_500,
                     executable: "Empire.exe".to_owned(),
                     data_path: "data".to_owned(),
+                    language_path: "data".to_owned(),
                     local_mods_path: "data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/10500".to_owned(),
                 });
@@ -1511,6 +1540,7 @@ impl Default for SupportedGames {
                     store_id: 10_500,
                     executable: "Empire.sh".to_owned(),
                     data_path: "data".to_owned(),
+                    language_path: "data".to_owned(),
                     local_mods_path: "data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/10500".to_owned(),
                 });
@@ -1553,6 +1583,7 @@ impl Default for SupportedGames {
                     store_id: 0,
                     executable: "Arena.exe".to_owned(),
                     data_path: "data".to_owned(),
+                    language_path: "data".to_owned(),
                     local_mods_path: "data".to_owned(),
                     downloaded_mods_path: "".to_owned(),
                 });

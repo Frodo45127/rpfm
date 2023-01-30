@@ -21,7 +21,7 @@ use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 
 use getset::*;
-#[cfg(feature = "integration_log")] use log::warn;
+#[cfg(feature = "integration_log")] use log::{info, warn};
 
 use crate::error::{RLibError, Result};
 use crate::utils::*;
@@ -160,6 +160,9 @@ struct InstallData {
 
     /// /data path of the game, or equivalent. Relative to the game's path.
     data_path: String,
+
+    /// Path where the language.txt file of the game is expected to be. Usually /data, but it's different on linux builds. Relative to the game's path.
+    language_path: String,
 
     /// Folder where local (your own) mods are stored. Relative to the game's path.
     local_mods_path: String,
@@ -322,11 +325,86 @@ impl GameInfo {
         }
     }
 
-    /// This function gets the `/data` path or equivalent of the game selected, if said game it's configured in the settings
+    /// This function gets the `/data` path or equivalent of the game selected, if said game it's configured in the settings.
     pub fn data_path(&self, game_path: &Path) -> Result<PathBuf> {
         let install_type = self.install_type(game_path)?;
         let install_data = self.install_data.get(&install_type).ok_or_else(|| RLibError::GameInstallTypeNotSupported(self.display_name.to_string(), install_type.to_string()))?;
         Ok(game_path.join(install_data.data_path()))
+    }
+
+    /// This function gets the `language.txt` path of the game selected, if said game uses it and it's configured in the settings.
+    pub fn language_path(&self, game_path: &Path) -> Result<PathBuf> {
+
+        // For games that don't support
+        let language_file_name = self.locale_file_name().clone().unwrap_or_else(|| "language.txt".to_owned());
+
+        let install_type = self.install_type(game_path)?;
+        let install_data = self.install_data.get(&install_type).ok_or_else(|| RLibError::GameInstallTypeNotSupported(self.display_name.to_string(), install_type.to_string()))?;
+        let base_path = game_path.join(install_data.language_path());
+
+        // The language files are either in this folder, or in a folder with the locale value inside this folder.
+        let path_with_file = base_path.to_path_buf().join(language_file_name);
+        if path_with_file.is_file() {
+            Ok(base_path)
+        } else {
+
+            // Yes, this is ugly. But I'm not the retarded idiot that decided to put the file that sets the language used inside a folder specific of the language used.
+            let path = base_path.to_path_buf().join(BRAZILIAN);
+            if path.is_dir() {
+                return Ok(path);
+            }
+            let path = base_path.to_path_buf().join(SIMPLIFIED_CHINESE);
+            if path.is_dir() {
+                return Ok(path);
+            }
+            let path = base_path.to_path_buf().join(CZECH);
+            if path.is_dir() {
+                return Ok(path);
+            }
+            let path = base_path.to_path_buf().join(ENGLISH);
+            if path.is_dir() {
+                return Ok(path);
+            }
+            let path = base_path.to_path_buf().join(FRENCH);
+            if path.is_dir() {
+                return Ok(path);
+            }
+            let path = base_path.to_path_buf().join(GERMAN);
+            if path.is_dir() {
+                return Ok(path);
+            }
+            let path = base_path.to_path_buf().join(ITALIAN);
+            if path.is_dir() {
+                return Ok(path);
+            }
+            let path = base_path.to_path_buf().join(KOREAN);
+            if path.is_dir() {
+                return Ok(path);
+            }
+            let path = base_path.to_path_buf().join(POLISH);
+            if path.is_dir() {
+                return Ok(path);
+            }
+            let path = base_path.to_path_buf().join(RUSSIAN);
+            if path.is_dir() {
+                return Ok(path);
+            }
+            let path = base_path.to_path_buf().join(SPANISH);
+            if path.is_dir() {
+                return Ok(path);
+            }
+            let path = base_path.to_path_buf().join(TURKISH);
+            if path.is_dir() {
+                return Ok(path);
+            }
+            let path = base_path.to_path_buf().join(TRADITIONAL_CHINESE);
+            if path.is_dir() {
+                return Ok(path);
+            }
+
+            // If no path exists, we just return the base path.
+            Ok(base_path)
+        }
     }
 
     /// This function gets the `/data` path or equivalent (the folder local mods are installed during development) of the game selected, if said game it's configured in the settings
@@ -428,7 +506,7 @@ impl GameInfo {
 
                                     // Filter out other language's packfiles.
                                     if entry.relative_path().contains("local_") {
-                                        let language = format!("local_{}", language);
+                                        let language = format!("local_{language}");
                                         if entry.relative_path().contains(&language) {
                                             entry.path_from_manifest_entry(pack_file_path)
                                         } else {
@@ -458,7 +536,7 @@ impl GameInfo {
         let data_path = self.data_path(game_path)?;
         let install_type = self.install_type(game_path)?;
         let vanilla_packs = &self.install_data.get(&install_type).ok_or_else(|| RLibError::GameInstallTypeNotSupported(self.display_name.to_string(), install_type.to_string()))?.vanilla_packs;
-        let language_pack = language.clone().map(|lang| format!("local_{}", lang));
+        let language_pack = language.clone().map(|lang| format!("local_{lang}"));
         if !vanilla_packs.is_empty() {
             Ok(vanilla_packs.iter().filter_map(|pack_name| {
 
@@ -503,7 +581,7 @@ impl GameInfo {
             InstallType::LnxSteam |
             InstallType::WinSteam => {
                 let store_id = self.install_data.get(&install_type).ok_or_else(|| RLibError::GameInstallTypeNotSupported(self.display_name.to_string(), install_type.to_string()))?.store_id();
-                Ok(format!("steam://rungameid/{}", store_id))
+                Ok(format!("steam://rungameid/{store_id}"))
             },
             _ => Err(RLibError::GameInstallLaunchNotSupported(self.display_name.to_string(), install_type.to_string())),
         }
@@ -533,8 +611,8 @@ impl GameInfo {
     fn game_locale_from_file(&self, game_path: &Path) -> Result<Option<String>> {
         match self.locale_file_name() {
             Some(locale_file) => {
-                let data_path = self.data_path(game_path)?;
-                let locale_path = data_path.join(locale_file);
+                let language_path = self.language_path(game_path)?;
+                let locale_path = language_path.join(locale_file);
                 let mut language = String::new();
                 if let Ok(mut file) = File::open(locale_path) {
                     file.read_to_string(&mut language)?;
@@ -558,10 +636,14 @@ impl GameInfo {
                         _ => ENGLISH.to_owned(),
                     };
 
+                    #[cfg(feature = "integration_log")] {
+                        info!("Language file found, using {} language.", language);
+                    }
+
                     Ok(Some(language))
                 } else {
                     #[cfg(feature = "integration_log")] {
-                        warn!("Missing or unreadable locale file under {}. Using english locale.", game_path.to_string_lossy());
+                        warn!("Missing or unreadable language file under {}. Using english language.", game_path.to_string_lossy());
                     }
                     Ok(Some(ENGLISH.to_owned()))
                 }
