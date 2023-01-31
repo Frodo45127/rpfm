@@ -96,6 +96,9 @@ windows {
 
     # Fix for the broken KSyntaxHighlighting include on linux, by AaronBPaden.
     INCLUDEPATH += C:/CraftRoot/include/KF5/KSyntaxHighlighting
+
+    # Same fix for the build machine.
+    INCLUDEPATH += D:/Craft/include/KF5/KSyntaxHighlighting
 }
 
 unix {
