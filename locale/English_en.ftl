@@ -18,6 +18,7 @@ message_only_for_the_brave = <p>This version has been marked as "Only For The Br
         <li>Update table: untested.</li>
         <li>AnimFragment/AnimsTables/MatchedCombat: they "may" work, but are pending a full rewrite to support the newer game variants of these files.</li>
         <li>Tables/Rename References: works only for DB entries, not for Loc entries.</li>
+        <li>Remember to clear up and update your schemas and regenerate the dependencies cache.</li>
     </ul>
     <p>Everything else should work... in theory.</p>
 

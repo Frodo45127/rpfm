@@ -1993,7 +1993,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_cli"
-version = "3.99.113"
+version = "3.99.114"
 dependencies = [
  "anyhow",
  "clap",
@@ -2007,7 +2007,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_extensions"
-version = "3.99.113"
+version = "3.99.114"
 dependencies = [
  "bincode",
  "caseless",
@@ -2025,7 +2025,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_lib"
-version = "3.99.113"
+version = "3.99.114"
 dependencies = [
  "backtrace",
  "bincode",
@@ -2066,7 +2066,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_ui"
-version = "3.99.113"
+version = "3.99.114"
 dependencies = [
  "anyhow",
  "cpp_core",
