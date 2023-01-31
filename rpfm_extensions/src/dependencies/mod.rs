@@ -1203,9 +1203,6 @@ impl Dependencies {
                     let short_table_name = table.table_name_without_tables();
                     let table_data = table.data(&None)?;
                     for combo in combos {
-                        if table.table_name() == "cdir_events_dilemma_choice_details_tables" {
-                            dbg!(&combo);
-                        }
 
                         // Many multikeyed tables admit empty values as part of the key. We need rows with no empty values.
                         for row in table_data.iter() {
@@ -1225,10 +1222,6 @@ impl Dependencies {
 
                                 for localised_field in definition.localised_fields() {
                                     let localised_key = format!("{}_{}_{}", short_table_name, localised_field.name(), combined_key);
-                                    if table.table_name() == "cdir_events_dilemma_choice_details_tables" {
-                                        info!("Bruteforce: {}", localised_key);
-                                        info!("Bruteforce: {:?}", loc_table.get(&localised_key));
-                                    }
                                     if loc_table.get(&localised_key).is_some() {
                                         order = combo.iter().map(|(index, _)| *index as u32).collect();
                                         break;
