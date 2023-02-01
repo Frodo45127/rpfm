@@ -80,7 +80,6 @@ use crate::utils::*;
 use self::slots::PackedFileDecoderViewSlots;
 
 pub mod connections;
-pub mod shortcuts;
 pub mod slots;
 
 pub const DECODER_EXTENSION: &str = "-rpfm-decoder";
@@ -227,11 +226,11 @@ impl PackedFileDecoderView {
         let table_view_context_menu = QMenu::from_q_widget(&table_view);
 
         // Create the Contextual Menu Actions.
-        let table_view_context_menu_move_up = table_view_context_menu.add_action_q_string(&QString::from_std_str("Move Up"));
-        let table_view_context_menu_move_down = table_view_context_menu.add_action_q_string(&QString::from_std_str("Move Down"));
-        let table_view_context_menu_move_left = table_view_context_menu.add_action_q_string(&QString::from_std_str("Move Left"));
-        let table_view_context_menu_move_right = table_view_context_menu.add_action_q_string(&QString::from_std_str("Move Right"));
-        let table_view_context_menu_delete = table_view_context_menu.add_action_q_string(&QString::from_std_str("Delete"));
+        let table_view_context_menu_move_up = add_action_to_menu(&table_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "decoder", "move_field_up", "move_field_up", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
+        let table_view_context_menu_move_down = add_action_to_menu(&table_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "decoder", "move_field_down", "move_field_down", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
+        let table_view_context_menu_move_left = add_action_to_menu(&table_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "decoder", "move_field_left", "move_field_left", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
+        let table_view_context_menu_move_right = add_action_to_menu(&table_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "decoder", "move_field_right", "move_field_right", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
+        let table_view_context_menu_delete = add_action_to_menu(&table_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "decoder", "delete_field", "delete_field", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
 
         // Disable them by default.
         table_view_context_menu_move_up.set_enabled(false);
@@ -392,8 +391,8 @@ impl PackedFileDecoderView {
         table_view_old_versions.set_context_menu_policy(ContextMenuPolicy::CustomContextMenu);
 
         let table_view_old_versions_context_menu = QMenu::new();
-        let table_view_old_versions_context_menu_load = table_view_old_versions_context_menu.add_action_q_string(&QString::from_std_str("&Load"));
-        let table_view_old_versions_context_menu_delete = table_view_old_versions_context_menu.add_action_q_string(&QString::from_std_str("&Delete"));
+        let table_view_old_versions_context_menu_load = add_action_to_menu(&table_view_old_versions_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "decoder", "load_definition", "load_definition", Some(table_view_old_versions.static_upcast::<qt_widgets::QWidget>()));
+        let table_view_old_versions_context_menu_delete = add_action_to_menu(&table_view_old_versions_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "decoder", "delete_definition", "delete_definition", Some(table_view_old_versions.static_upcast::<qt_widgets::QWidget>()));
         table_view_old_versions_context_menu_load.set_enabled(false);
         table_view_old_versions_context_menu_delete.set_enabled(false);
 
@@ -513,7 +512,6 @@ impl PackedFileDecoderView {
         packed_file_decoder_view.update_view(&fields, true)?;
         packed_file_decoder_view.update_rows_decoded(None, None)?;
         connections::set_connections(&packed_file_decoder_view, &packed_file_decoder_view_slots);
-        shortcuts::set_shortcuts(&packed_file_decoder_view);
         packed_file_view.view = ViewType::Internal(View::Decoder(packed_file_decoder_view));
 
         // Update the path so the decoder is identified as a separate file.

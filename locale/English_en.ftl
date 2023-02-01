@@ -1283,3 +1283,11 @@ portrait_settings_filter = Filter
 portrait_settings_list_id_error = That ID already exists.
 portrait_settings_id = Id
 portrait_settings_id_title = Edit ID
+
+move_field_up = Move Field Up
+move_field_down = Move Field Down
+move_field_left = Move Field Left
+move_field_right = Move Field Right
+delete_field = Delete Field
+load_definition = Load Definition
+delete_definition = Delete Definition
