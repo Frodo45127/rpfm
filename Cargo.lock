@@ -2015,6 +2015,7 @@ dependencies = [
  "float_eq",
  "getset",
  "itertools 0.10.5",
+ "lazy_static",
  "rayon",
  "regex",
  "rpfm_lib",

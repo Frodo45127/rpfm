@@ -22,9 +22,7 @@ Notes on cells_affected:
 use getset::{Getters, MutGetters};
 use serde_derive::{Serialize, Deserialize};
 use itertools::Itertools;
-use fancy_regex::Regex;
 use rayon::prelude::*;
-//use unicase::UniCase;
 
 use std::path::Path;
 use std::{fmt, fmt::Display};
@@ -37,6 +35,7 @@ use rpfm_lib::games::{GameInfo, VanillaDBTableNameLogic};
 use rpfm_lib::schema::{FieldType, Schema};
 
 use crate::dependencies::{Dependencies, TableReferences};
+use crate::REGEX_INVALID_ESCAPES;
 
 use self::anim_fragment::{AnimFragmentDiagnostic, AnimFragmentDiagnosticReport, AnimFragmentDiagnosticReportType};
 use self::config::{ConfigDiagnostic, ConfigDiagnosticReport, ConfigDiagnosticReportType};
@@ -679,7 +678,7 @@ impl Diagnostics {
                 }
 
                 // Magic Regex. It works. Don't ask why.
-                if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field_text_name), Some("InvalidEscape"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && !data.is_empty() && Regex::new(r"(?<!\\)\\n|(?<!\\)\\t").unwrap().is_match(data).unwrap() {
+                if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field_text_name), Some("InvalidEscape"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && !data.is_empty() && REGEX_INVALID_ESCAPES.is_match(data).unwrap() {
                     let result = TableDiagnosticReport::new(TableDiagnosticReportType::InvalidEscape, &[(row as i32, 1)]);
                     diagnostic.results_mut().push(result);
                 }
