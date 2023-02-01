@@ -280,18 +280,18 @@ impl TableView {
         data_source: Arc<RwLock<DataSource>>,
     ) -> Result<Arc<Self>> {
         let t = std::time::SystemTime::now();
-        let (table_definition, patches, table_name, table_uuid, packed_file_type) = match table_data {
+        let (table_definition, table_name, table_uuid, packed_file_type) = match table_data {
             TableType::DependencyManager(_) => {
                 let mut definition = Definition::new(-1, None);
                 definition.fields_mut().push(Field::new("Parent Packs".to_owned(), FieldType::StringU8, true, None, false, None, None, None, String::new(), -1, 0, BTreeMap::new(), None));
-                (definition, DefinitionPatch::new(), None, None, FileType::Unknown)
+                (definition, None, None, FileType::Unknown)
             },
-            TableType::DB(ref table) => (table.definition().clone(), table.patches().clone(), Some(table.table_name()), Some(table.guid()), FileType::DB),
-            TableType::Loc(ref table) => (table.definition().clone(), DefinitionPatch::new(), None, None, FileType::Loc),
-            TableType::MatchedCombat(ref table) => (table.definition().clone(), DefinitionPatch::new(), None, None, FileType::MatchedCombat),
-            TableType::AnimsTable(ref table) => (table.definition().clone(), DefinitionPatch::new(), None, None, FileType::AnimsTable),
-            TableType::AnimFragment(ref table) => (table.definition().clone(), DefinitionPatch::new(), None, None, FileType::AnimFragment),
-            TableType::NormalTable(ref table) => (table.definition().clone(), DefinitionPatch::new(), None, None, FileType::Unknown),
+            TableType::DB(ref table) => (table.definition().clone(), Some(table.table_name()), Some(table.guid()), FileType::DB),
+            TableType::Loc(ref table) => (table.definition().clone(), None, None, FileType::Loc),
+            TableType::MatchedCombat(ref table) => (table.definition().clone(), None, None, FileType::MatchedCombat),
+            TableType::AnimsTable(ref table) => (table.definition().clone(), None, None, FileType::AnimsTable),
+            TableType::AnimFragment(ref table) => (table.definition().clone(), None, None, FileType::AnimFragment),
+            TableType::NormalTable(ref table) => (table.definition().clone(), None, None, FileType::Unknown),
         };
 
         dbg!(t.elapsed().unwrap());

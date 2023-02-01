@@ -73,8 +73,8 @@ pub struct PackedFileAnimPackView {
     pack_filter_autoexpand_matches_button: QPtr<QToolButton>,
     pack_filter_case_sensitive_button: QPtr<QToolButton>,
 
-    pack_expand_all: QBox<QAction>,
-    pack_collapse_all: QBox<QAction>,
+    pack_expand_all: QPtr<QAction>,
+    pack_collapse_all: QPtr<QAction>,
 
     anim_pack_tree_view: QPtr<QTreeView>,
     anim_pack_tree_model_filter: QBox<QSortFilterProxyModel>,
@@ -84,10 +84,9 @@ pub struct PackedFileAnimPackView {
     anim_pack_filter_autoexpand_matches_button: QPtr<QToolButton>,
     anim_pack_filter_case_sensitive_button: QPtr<QToolButton>,
 
-    anim_pack_expand_all: QBox<QAction>,
-    anim_pack_collapse_all: QBox<QAction>,
-
-    anim_pack_delete: QBox<QAction>,
+    anim_pack_expand_all: QPtr<QAction>,
+    anim_pack_collapse_all: QPtr<QAction>,
+    anim_pack_delete: QPtr<QAction>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -102,7 +101,7 @@ impl PackedFileAnimPackView {
         packed_file_view: &mut PackedFileView,
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
-        container_info: ContainerInfo,
+        file_info: &RFileInfo,
         files_info: &[RFileInfo],
     ) -> Result<()> {
         let layout: QPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast();
@@ -135,10 +134,8 @@ impl PackedFileAnimPackView {
         pack_filter_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
 
         // Create the extra actions for the TreeView.
-        let pack_expand_all = QAction::from_q_string_q_object(&qtr("treeview_expand_all"), packed_file_view.get_mut_widget());
-        let pack_collapse_all = QAction::from_q_string_q_object(&qtr("treeview_collapse_all"), packed_file_view.get_mut_widget());
-        pack_tree_view.add_action(&pack_expand_all);
-        pack_tree_view.add_action(&pack_collapse_all);
+        let pack_expand_all = add_action_to_widget(app_ui.shortcuts().as_ref(), "anim_pack_tree_context_menu", "pack_expand_all", Some(pack_tree_view.static_upcast()));
+        let pack_collapse_all = add_action_to_widget(app_ui.shortcuts().as_ref(), "anim_pack_tree_context_menu", "pack_collapse_all", Some(pack_tree_view.static_upcast()));
 
         // Add everything to the main widget's Layout.
         layout.add_widget_5a(&instructions, 0, 0, 1, 2);
@@ -154,8 +151,7 @@ impl PackedFileAnimPackView {
         anim_pack_tree_view.header().set_stretch_last_section(true);
 
         let mut build_data = BuildData::new();
-
-        // TODO: This is wrong, it names the pack wrong.
+        let mut container_info = From::from(file_info);
         build_data.data = Some((container_info, files_info.to_vec()));
         build_data.editable = false;
         anim_pack_tree_view.update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
@@ -164,13 +160,9 @@ impl PackedFileAnimPackView {
         anim_pack_filter_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
 
         // Create the extra actions for the TreeView.
-        let anim_pack_expand_all = QAction::from_q_string_q_object(&qtr("treeview_expand_all"), packed_file_view.get_mut_widget());
-        let anim_pack_collapse_all = QAction::from_q_string_q_object(&qtr("treeview_collapse_all"), packed_file_view.get_mut_widget());
-        let anim_pack_delete = QAction::from_q_string_q_object(&qtr("treeview_animpack_delete"), packed_file_view.get_mut_widget());
-
-        anim_pack_tree_view.add_action(&anim_pack_expand_all);
-        anim_pack_tree_view.add_action(&anim_pack_collapse_all);
-        anim_pack_tree_view.add_action(&anim_pack_delete);
+        let anim_pack_expand_all = add_action_to_widget(app_ui.shortcuts().as_ref(), "anim_pack_tree_context_menu", "expand_all", Some(anim_pack_tree_view.static_upcast()));
+        let anim_pack_collapse_all = add_action_to_widget(app_ui.shortcuts().as_ref(), "anim_pack_tree_context_menu", "collapse_all", Some(anim_pack_tree_view.static_upcast()));
+        let anim_pack_delete = add_action_to_widget(app_ui.shortcuts().as_ref(), "anim_pack_tree_context_menu", "delete", Some(anim_pack_tree_view.static_upcast()));
 
         let packed_file_animpack_view = Arc::new(PackedFileAnimPackView {
             path: packed_file_view.get_path_raw(),
@@ -213,9 +205,10 @@ impl PackedFileAnimPackView {
     }
 
     /// Function to reload the data of the view without having to delete the view itself.
-    pub unsafe fn reload_view(&self, data: (ContainerInfo, Vec<RFileInfo>)) {
+    pub unsafe fn reload_view(&self, data: (&RFileInfo, Vec<RFileInfo>)) {
         let mut build_data = BuildData::new();
-        build_data.data = Some(data);
+        let container_info = From::from(data.0);
+        build_data.data = Some((container_info, data.1));
         build_data.editable = false;
         self.anim_pack_tree_view.update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
     }

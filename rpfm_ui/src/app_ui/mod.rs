@@ -2442,8 +2442,8 @@ impl AppUI {
                             }
                         }
 
-                        Response::AnimPackRFileInfo(container_info, files_info, file_info) => {
-                            match PackedFileAnimPackView::new_view(&mut tab, app_ui, pack_file_contents_ui, container_info, &files_info) {
+                        Response::AnimPackRFileInfo(files_info, file_info) => {
+                            match PackedFileAnimPackView::new_view(&mut tab, app_ui, pack_file_contents_ui, &file_info, &files_info) {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.

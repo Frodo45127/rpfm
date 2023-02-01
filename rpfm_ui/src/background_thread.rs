@@ -674,7 +674,7 @@ pub fn background_loop() {
 
                                     match result {
                                         Ok(RFileDecoded::AnimFragment(data)) => CentralCommand::send_back(&sender, Response::AnimFragmentRFileInfo(data, From::from(&*file))),
-                                        Ok(RFileDecoded::AnimPack(data)) => CentralCommand::send_back(&sender, Response::AnimPackRFileInfo(From::from(&data), data.files().values().map(From::from).collect(), From::from(&*file))),
+                                        Ok(RFileDecoded::AnimPack(data)) => CentralCommand::send_back(&sender, Response::AnimPackRFileInfo(data.files().values().map(From::from).collect(), From::from(&*file))),
                                         Ok(RFileDecoded::AnimsTable(data)) => CentralCommand::send_back(&sender, Response::AnimsTableRFileInfo(data, From::from(&*file))),
                                         Ok(RFileDecoded::CEO(data)) => CentralCommand::send_back(&sender, Response::ESFRFileInfo(data, From::from(&*file))),
                                         Ok(RFileDecoded::ESF(data)) => CentralCommand::send_back(&sender, Response::ESFRFileInfo(data, From::from(&*file))),
@@ -711,7 +711,7 @@ pub fn background_loop() {
 
                                 match result {
                                     Ok(RFileDecoded::AnimFragment(data)) => CentralCommand::send_back(&sender, Response::AnimFragmentRFileInfo(data, From::from(&*file))),
-                                    Ok(RFileDecoded::AnimPack(data)) => CentralCommand::send_back(&sender, Response::AnimPackRFileInfo(From::from(&data), data.files().values().map(From::from).collect(), From::from(&*file))),
+                                    Ok(RFileDecoded::AnimPack(data)) => CentralCommand::send_back(&sender, Response::AnimPackRFileInfo(data.files().values().map(From::from).collect(), From::from(&*file))),
                                     Ok(RFileDecoded::AnimsTable(data)) => CentralCommand::send_back(&sender, Response::AnimsTableRFileInfo(data, From::from(&*file))),
                                     Ok(RFileDecoded::CEO(data)) => CentralCommand::send_back(&sender, Response::ESFRFileInfo(data, From::from(&*file))),
                                     Ok(RFileDecoded::ESF(data)) => CentralCommand::send_back(&sender, Response::ESFRFileInfo(data, From::from(&*file))),
@@ -748,7 +748,7 @@ pub fn background_loop() {
 
                                 match result {
                                     Ok(RFileDecoded::AnimFragment(data)) => CentralCommand::send_back(&sender, Response::AnimFragmentRFileInfo(data, From::from(&*file))),
-                                    Ok(RFileDecoded::AnimPack(data)) => CentralCommand::send_back(&sender, Response::AnimPackRFileInfo(From::from(&data), data.files().values().map(From::from).collect(), From::from(&*file))),
+                                    Ok(RFileDecoded::AnimPack(data)) => CentralCommand::send_back(&sender, Response::AnimPackRFileInfo(data.files().values().map(From::from).collect(), From::from(&*file))),
                                     Ok(RFileDecoded::AnimsTable(data)) => CentralCommand::send_back(&sender, Response::AnimsTableRFileInfo(data, From::from(&*file))),
                                     Ok(RFileDecoded::CEO(data)) => CentralCommand::send_back(&sender, Response::ESFRFileInfo(data, From::from(&*file))),
                                     Ok(RFileDecoded::ESF(data)) => CentralCommand::send_back(&sender, Response::ESFRFileInfo(data, From::from(&*file))),

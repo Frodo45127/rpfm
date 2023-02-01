@@ -19,7 +19,7 @@ use rpfm_extensions::dependencies::Dependencies;
 use rpfm_extensions::search::{GlobalSearch, SearchSource};
 
 use rpfm_lib::games::{*, pfh_file_type::PFHFileType, pfh_version::PFHVersion};
-use rpfm_lib::files::{animpack::*, Container, db::*, FileType, pack::*, RFile, video::*};
+use rpfm_lib::files::{animpack::*, Container, ContainerPath, db::*, FileType, pack::*, RFile, video::*};
 
 use crate::GAME_SELECTED;
 
@@ -156,13 +156,24 @@ impl From<&Pack> for ContainerInfo {
     }
 }
 
-/// TODO: Pretty sure this doesn't work.
-/// Yeah, this sets the path wrong.
+/// NOTE: DO NOT USE THIS FOR ANIMPACKS WITHIN PACKS.
+///
+/// It sets the path and name wrong in those cases.
 impl From<&AnimPack> for ContainerInfo {
     fn from(animpack: &AnimPack) -> Self {
         Self {
             file_name: animpack.disk_file_path().split('/').last().unwrap_or("unknown.animpack").to_string(),
             file_path: animpack.disk_file_path().to_string(),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<&RFileInfo> for ContainerInfo {
+    fn from(file_info: &RFileInfo) -> Self {
+        Self {
+            file_name: ContainerPath::File(file_info.path().to_owned()).name().unwrap_or("unknown").to_string(),
+            file_path: file_info.path().to_owned(),
             ..Default::default()
         }
     }

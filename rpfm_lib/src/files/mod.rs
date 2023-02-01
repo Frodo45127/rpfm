@@ -2001,6 +2001,11 @@ impl ContainerPath {
         }
     }
 
+    /// This function returns the last item of the provided [ContainerPath], if any.
+    pub fn name(&self) -> Option<&str> {
+        self.path_raw().split('/').last()
+    }
+
     /// This function the *table_name* of this file (the folder that contains this file) if this file is a DB table.
     ///
     /// It returns None of the file provided is not a DB Table.

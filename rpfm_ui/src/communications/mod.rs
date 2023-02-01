@@ -418,8 +418,7 @@ pub enum Response {
     /// Response to return `(AnimFragment, RFileInfo)`.
     AnimFragmentRFileInfo(AnimFragment, RFileInfo),
 
-    /// Response to return `(Vec<String>, RFileInfo)`.
-    AnimPackRFileInfo(ContainerInfo, Vec<RFileInfo>, RFileInfo),
+    AnimPackRFileInfo(Vec<RFileInfo>, RFileInfo),
 
     /// Response to return `(AnimTable, RFileInfo)`.
     AnimsTableRFileInfo(AnimsTable, RFileInfo),

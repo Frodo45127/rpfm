@@ -479,9 +479,9 @@ impl PackedFileView {
                             }
                         },
 
-                        Response::AnimPackRFileInfo(anim_pack, files_info, file_info) => {
+                        Response::AnimPackRFileInfo(files_info, file_info) => {
                             if let View::AnimPack(old_anim_pack) = view {
-                                old_anim_pack.reload_view((anim_pack, files_info));
+                                old_anim_pack.reload_view((&file_info, files_info));
                                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), DataSource::PackFile);
 
                             }
