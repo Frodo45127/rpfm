@@ -103,7 +103,7 @@ impl Loc {
 
     /// This function returns the definition of a Loc table.
     pub(crate) fn new_definition() -> Definition {
-        let mut definition = Definition::new(VERSION);
+        let mut definition = Definition::new(VERSION, None);
         let fields = vec![
             Field::new("key".to_owned(), FieldType::StringU16, true, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
             Field::new("text".to_owned(), FieldType::StringU16, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),

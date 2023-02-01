@@ -92,12 +92,12 @@ impl MatchedCombat {
             // Seen in 3k.
             3 => {
 
-                let mut subdefinition = Definition::new(-1);
+                let mut subdefinition = Definition::new(-1, None);
                 let subfields = vec![
                     Field::new("uk_1".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
                 ];
                 subdefinition.set_fields(subfields);
-                let mut definition = Definition::new(version);
+                let mut definition = Definition::new(version, None);
                 let fields = vec![
                     Field::new("unit_1_uk_1".to_owned(), FieldType::SequenceU32(Box::new(subdefinition.clone())), true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
                     Field::new("unit_1_uk_2".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
@@ -121,12 +121,12 @@ impl MatchedCombat {
             // Seen in wh3
             1 => {
 
-                let mut subdefinition = Definition::new(-1);
+                let mut subdefinition = Definition::new(-1, None);
                 let subfields = vec![
                     Field::new("uk_1".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
                 ];
                 subdefinition.set_fields(subfields);
-                let mut definition = Definition::new(version);
+                let mut definition = Definition::new(version, None);
                 let fields = vec![
                     Field::new("unit_1_uk_1".to_owned(), FieldType::SequenceU32(Box::new(subdefinition.clone())), true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
                     Field::new("unit_1_uk_2".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),

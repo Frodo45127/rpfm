@@ -1251,8 +1251,9 @@ impl Table {
             }
 
             // Also, check if we have to be careful about localised fields.
+            let patches = schema.patches().get(table_name);
             let has_loc_fields = if let Some(field) = fields.iter().find(|x| x.name() == column_name) {
-                (field.is_key() || field.name() == "key") && !localised_fields.is_empty()
+                (field.is_key(patches) || field.name() == "key") && !localised_fields.is_empty()
             } else { false };
 
             Some((tables, has_loc_fields))

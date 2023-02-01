@@ -335,7 +335,7 @@ impl From<&SchemaV4> for SchemaV5 {
 
 impl From<&DefinitionV4> for DefinitionV5 {
     fn from(legacy_table_definition: &DefinitionV4) -> Self {
-        let mut definition = Self::new(legacy_table_definition.version);
+        let mut definition = Self::new(legacy_table_definition.version, None);
 
         let fields = legacy_table_definition.fields.iter().map(From::from).collect::<Vec<FieldV5>>();
         definition.set_fields(fields);

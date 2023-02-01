@@ -98,7 +98,7 @@ impl AnimFragment {
     /// This function returns the definition of a Loc table.
     pub(crate) fn new_definition(version: i32) -> Definition {
         dbg!(version);
-        let mut definition = Definition::new(version);
+        let mut definition = Definition::new(version, None);
         let fields = match version {
             2 => vec![
                 Field::new("id".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),

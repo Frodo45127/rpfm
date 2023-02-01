@@ -729,7 +729,7 @@ impl PackedFileDecoderView {
         let decoded_string_u16 = Self::decode_data_by_fieldtype(&mut *data, &FieldType::StringU16);
         let decoded_optional_string_u8 = Self::decode_data_by_fieldtype(&mut *data, &FieldType::OptionalStringU8);
         let decoded_optional_string_u16 = Self::decode_data_by_fieldtype(&mut *data, &FieldType::OptionalStringU16);
-        let decoded_sequence_u32 = Self::decode_data_by_fieldtype(&mut *data, &FieldType::SequenceU32(Box::new(Definition::new(-100))));
+        let decoded_sequence_u32 = Self::decode_data_by_fieldtype(&mut *data, &FieldType::SequenceU32(Box::new(Definition::new(-100, None))));
 
         // We update all the decoded entries here.
         self.bool_line_edit.set_text(&QString::from_std_str(decoded_bool));
@@ -881,7 +881,7 @@ impl PackedFileDecoderView {
         let field_is_key = QStandardItem::new();
         field_is_key.set_editable(false);
         field_is_key.set_checkable(true);
-        field_is_key.set_check_state(if field.is_key() { CheckState::Checked } else { CheckState::Unchecked });
+        field_is_key.set_check_state(if field.is_key(None) { CheckState::Checked } else { CheckState::Unchecked });
 
         let (field_reference_table, field_reference_field) = if let Some(ref reference) = field.is_reference() {
             (QStandardItem::from_q_string(&QString::from_std_str(&reference.0)), QStandardItem::from_q_string(&QString::from_std_str(&reference.1)))
@@ -1150,7 +1150,7 @@ impl PackedFileDecoderView {
                         "StringU16" => FieldType::StringU16,
                         "OptionalStringU8" => FieldType::OptionalStringU8,
                         "OptionalStringU16" => FieldType::OptionalStringU16,
-                        "SequenceU32" => FieldType::SequenceU32(Box::new(Definition::new(-100))),
+                        "SequenceU32" => FieldType::SequenceU32(Box::new(Definition::new(-100, None))),
                         _ => unimplemented!("{}", &*row_type.data_1a(0).to_string().to_std_string())
                     };
 
@@ -1276,7 +1276,7 @@ impl PackedFileDecoderView {
                     "OptionalStringU8" => FieldType::OptionalStringU8,
                     "OptionalStringU16" => FieldType::OptionalStringU16,
                     "SequenceU32" => FieldType::SequenceU32({
-                        let mut definition = Definition::new(-100);
+                        let mut definition = Definition::new(-100, None);
                         *definition.fields_mut() = self.get_fields_from_view(Some(model_index));
                         Box::new(definition)
                     }),
@@ -1317,7 +1317,7 @@ impl PackedFileDecoderView {
     /// This function adds the definition currently in the view to a temporal schema, and returns it.
     unsafe fn add_definition_to_schema(&self) -> Schema {
         let mut schema = SCHEMA.read().unwrap().clone().unwrap();
-        let mut definition = Definition::new(self.version);
+        let mut definition = Definition::new(self.version, None);
         *definition.fields_mut() = self.get_fields_from_view(None);
         schema.add_definition(&self.table_name, &definition);
 

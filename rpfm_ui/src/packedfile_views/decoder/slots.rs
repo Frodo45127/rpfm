@@ -199,7 +199,7 @@ impl PackedFileDecoderViewSlots {
 
         let use_this_sequence_u32 = SlotNoArgs::new(&view.table_view, clone!(
             mut view => move || {
-            let _ = view.use_this(FieldType::SequenceU32(Box::new(Definition::new(-100))));
+            let _ = view.use_this(FieldType::SequenceU32(Box::new(Definition::new(-100, None))));
         }));
 
         //-----------------------------------------//

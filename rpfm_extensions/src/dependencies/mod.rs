@@ -1007,6 +1007,7 @@ impl Dependencies {
                         if !localised_fields.is_empty() && key_split.len() > index + 2 {
                             let mut field = String::new();
                             let fields_processed = definition.fields_processed();
+                            let patches = Some(definition.patches());
 
                             // Loop to get the column.
                             for (second_index, value) in key_split[index + 1..].iter().enumerate() {
@@ -1015,7 +1016,7 @@ impl Dependencies {
 
                                     // If we reached this, the rest is the value.
                                     let key_field = &key_split[index + second_index + 2..].join("_");
-                                    if let Some(field) = fields_processed.iter().find(|x| (x.name() == "key" || x.name() == "id") && x.is_key()) {
+                                    if let Some(field) = fields_processed.iter().find(|x| (x.name() == "key" || x.name() == "id") && x.is_key(patches)) {
                                         return Some((table_name, field.name().to_string(), key_field.to_owned()));
                                     }
                                 }
@@ -1183,12 +1184,13 @@ impl Dependencies {
         for table in db_tables {
             let definition = table.definition();
 
-            // Ignore tables without localisation.
+            // Ignore tables without localisation. Note that we only consider keys those that come from the asskit.
+            // Custom loc keys we setup through patches are not taken into account for locs.
             if !definition.localised_fields().is_empty() {
                 let fields = definition.fields_processed();
                 let key_fields = fields.iter()
                     .enumerate()
-                    .filter(|(_, field)| field.is_key())
+                    .filter(|(_, field)| field.is_key(None))
                     .collect::<Vec<_>>();
 
                 // If we only have one key field, don't bother searching.

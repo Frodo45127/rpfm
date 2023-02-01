@@ -96,7 +96,7 @@ pub(crate) mod v4;
 /// Name of the folder containing all the schemas.
 pub const SCHEMA_FOLDER: &str = "schemas";
 
-const BINARY_EXTENSION: &str = ".bin";
+//const BINARY_EXTENSION: &str = ".bin";
 
 pub const SCHEMA_REPO: &str = "https://github.com/Frodo45127/rpfm-schemas";
 pub const SCHEMA_REMOTE: &str = "origin";
@@ -116,6 +116,8 @@ pub const MERGE_COLOUR_POST: &str = "_hex";
 //---------------------------------------------------------------------------//
 
 /// This type defines patches for specific table definitions, in a ColumnName -> [key -> value] format.
+///
+/// Note: for table-wide patches, we use column name "-1".
 pub type DefinitionPatch = HashMap<String, HashMap<String, String>>;
 
 /// This struct represents a Schema File in memory, ready to be used to decode versioned PackedFiles.
@@ -131,18 +133,16 @@ pub struct Schema {
     definitions: HashMap<String, Vec<Definition>>,
 
     /// It stores a list of per-table, per-column patches.
-    ///
-    /// These patches are not hardcoded, which means changes to them do not
     #[serde(serialize_with = "ordered_map_patches")]
     patches: HashMap<String, DefinitionPatch>,
 }
 
 /// This struct contains all the data needed to decode a specific version of a versioned PackedFile.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Debug, Default, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Debug, Default, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Definition {
 
-    /// The version of the PackedFile the definition is for. These versions are:
+    /// The version of the file the definition is for. These versions are:
     /// - `-1`: for fake `Definition`, used for dependency resolving stuff.
     /// - `0`: for unversioned PackedFiles.
     /// - `1+`: for versioned PackedFiles.
@@ -158,10 +158,16 @@ pub struct Definition {
     ///
     /// Note: this order is only applicable to the processed fields, not the raw fields.
     localised_key_order: Vec<u32>,
+
+    /// Patches that apply to this definition.
+    ///
+    /// Not serialized. Populated when getting the definition.
+    #[serde(skip)]
+    patches: DefinitionPatch
 }
 
 /// This struct holds all the relevant data do properly decode a field from a versioned PackedFile.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Debug, Setters, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Debug, Setters, Serialize, Deserialize)]
 #[getset(set = "pub")]
 pub struct Field {
 
@@ -206,7 +212,7 @@ pub struct Field {
 }
 
 /// This enum defines every type of field the lib can encode/decode.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub enum FieldType {
     Boolean,
     F32,
@@ -244,6 +250,8 @@ impl Schema {
     }
 
     /// This function adds a list of patches into the currently loaded schema.
+    ///
+    /// Note: if you add a patch, you'll need to re-retrieve any definition you retrieved before in order for them to get patched.
     pub fn add_patch(&mut self, patches: HashMap<String, DefinitionPatch>) {
         patches.iter().for_each(|(table_name, column_patch)| {
             match self.patches.get_mut(table_name) {
@@ -333,7 +341,18 @@ impl Schema {
         let mut file = BufReader::new(File::open(path)?);
         let mut data = Vec::with_capacity(file.get_ref().metadata()?.len() as usize);
         file.read_to_end(&mut data)?;
-        from_bytes(&data).map_err(From::from)
+        let mut schema: Self = from_bytes(&data)?;
+
+        // Preload all patches to their respective definitions.
+        for (table_name, patches) in schema.patches().clone() {
+            if let Some(definitions) = schema.definitions_by_table_name_mut(&table_name) {
+                for definition in definitions {
+                    definition.set_patches(patches.clone());
+                }
+            }
+        }
+
+        Ok(schema)
     }
 
     /// This function loads a [Schema] to memory from a provided `.json` file.
@@ -341,7 +360,18 @@ impl Schema {
         let mut file = BufReader::new(File::open(path)?);
         let mut data = Vec::with_capacity(file.get_ref().metadata()?.len() as usize);
         file.read_to_end(&mut data)?;
-        serde_json::from_slice(&data).map_err(From::from)
+        let mut schema: Self = serde_json::from_slice(&data)?;
+
+        // Preload all patches to their respective definitions.
+        for (table_name, patches) in schema.patches().clone() {
+            if let Some(definitions) = schema.definitions_by_table_name_mut(&table_name) {
+                for definition in definitions {
+                    definition.set_patches(patches.clone());
+                }
+            }
+        }
+
+        Ok(schema)
     }
 
     /// This function saves a [Schema] from memory to a `.ron` file with the provided path.
@@ -539,22 +569,24 @@ impl Schema {
 impl Definition {
 
     /// This function creates a new empty `Definition` for the version provided.
-    pub fn new(version: i32) -> Definition {
+    pub fn new(version: i32, schema_patches: Option<&DefinitionPatch>) -> Definition {
         Definition {
             version,
             localised_fields: vec![],
             fields: vec![],
             localised_key_order: vec![],
+            patches: schema_patches.cloned().unwrap_or_default(),
         }
     }
 
     /// This function creates a new empty `Definition` for the version provided, with the fields provided.
-    pub fn new_with_fields(version: i32, fields: &[Field], loc_fields: &[Field]) -> Definition {
+    pub fn new_with_fields(version: i32, fields: &[Field], loc_fields: &[Field], schema_patches: Option<&DefinitionPatch>) -> Definition {
         Definition {
             version,
             localised_fields: loc_fields.to_vec(),
             fields: fields.to_vec(),
             localised_key_order: vec![],
+            patches: schema_patches.cloned().unwrap_or_default(),
         }
     }
 
@@ -641,11 +673,12 @@ impl Definition {
     /// This function returns the field list of a definition, properly sorted.
     pub fn fields_processed_sorted(&self, key_first: bool) -> Vec<Field> {
         let mut fields = self.fields_processed();
+        let patches = Some(self.patches());
         fields.sort_by(|a, b| {
             if key_first {
-                if a.is_key() && b.is_key() { Ordering::Equal }
-                else if a.is_key() && !b.is_key() { Ordering::Less }
-                else if !a.is_key() && b.is_key() { Ordering::Greater }
+                if a.is_key(patches) && b.is_key(patches) { Ordering::Equal }
+                else if a.is_key(patches) && !b.is_key(patches) { Ordering::Less }
+                else if !a.is_key(patches) && b.is_key(patches) { Ordering::Greater }
                 else { Ordering::Equal }
             }
             else if a.ca_order() == -1 || b.ca_order() == -1 { Ordering::Equal }
@@ -664,10 +697,11 @@ impl Definition {
     /// This function maps a table definition to a `CREATE TABLE` SQL Query.
     #[cfg(feature = "integration_sqlite")]
     pub fn map_to_sql_create_table_string(&self, key_first: bool, table_name: &str, schema_patches: Option<&DefinitionPatch>) -> String {
+        let patches = Some(self.patches());
         let fields_sorted = self.fields_processed_sorted(key_first);
         let fields_query = fields_sorted.iter().map(|field| field.map_to_sql_string(schema_patches)).collect::<Vec<_>>().join(",");
 
-        let local_keys_join = fields_sorted.iter().filter_map(|field| if field.is_key() { Some(format!("\"{}\"", field.name()))} else { None }).collect::<Vec<_>>().join(",");
+        let local_keys_join = fields_sorted.iter().filter_map(|field| if field.is_key(patches) { Some(format!("\"{}\"", field.name()))} else { None }).collect::<Vec<_>>().join(",");
         let local_keys = format!("CONSTRAINT unique_key PRIMARY KEY (\"table_unique_id\", {})", local_keys_join);
         let foreign_keys = fields_sorted.iter()
             .filter_map(|field| field.is_reference().clone().map(|(ref_table, ref_column)| (field.name(), ref_table, ref_column)))
@@ -865,7 +899,15 @@ impl Field {
     pub fn field_type(&self) -> &FieldType {
         &self.field_type
     }
-    pub fn is_key(&self) -> bool {
+    pub fn is_key(&self, schema_patches: Option<&DefinitionPatch>) -> bool {
+        if let Some(schema_patches) = schema_patches {
+            if let Some(patch) = schema_patches.get(self.name()) {
+                if let Some(is_key) = patch.get("is_key") {
+                    return is_key.parse().unwrap_or(false);
+                }
+            }
+        }
+
         self.is_key
     }
     pub fn default_value(&self, schema_patches: Option<&DefinitionPatch>) -> Option<String> {
@@ -1062,8 +1104,8 @@ impl From<&DecodedData> for FieldType {
             DecodedData::OptionalI64(_) => FieldType::OptionalI64,
             DecodedData::OptionalStringU8(_) => FieldType::OptionalStringU8,
             DecodedData::OptionalStringU16(_) => FieldType::OptionalStringU16,
-            DecodedData::SequenceU16(_) => FieldType::SequenceU16(Box::new(Definition::new(INVALID_VERSION))),
-            DecodedData::SequenceU32(_) => FieldType::SequenceU32(Box::new(Definition::new(INVALID_VERSION))),
+            DecodedData::SequenceU16(_) => FieldType::SequenceU16(Box::new(Definition::new(INVALID_VERSION, None))),
+            DecodedData::SequenceU32(_) => FieldType::SequenceU32(Box::new(Definition::new(INVALID_VERSION, None))),
         }
     }
 }

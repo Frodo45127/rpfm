@@ -218,8 +218,9 @@ pub unsafe fn delete_rows(model: &QPtr<QStandardItemModel>, rows: &[i32]) -> Vec
 }
 
 /// This function returns a new default row.
-pub unsafe fn get_new_row(table_definition: &Definition, patches: Option<&DefinitionPatch>) -> CppBox<QListOfQStandardItem> {
+pub unsafe fn get_new_row(table_definition: &Definition) -> CppBox<QListOfQStandardItem> {
     let qlist = QListOfQStandardItem::new();
+    let patches = Some(table_definition.patches());
     for field in table_definition.fields_processed() {
         let item = get_default_item_from_field(&field, patches);
         qlist.append_q_standard_item(&item.into_ptr().as_mut_raw_ptr());
@@ -394,7 +395,7 @@ pub unsafe fn get_default_item_from_field(field: &Field, patches: Option<&Defini
         }
     };
 
-    if field.is_key() {
+    if field.is_key(patches) {
         item.set_data_2a(&QVariant::from_bool(true), ITEM_IS_KEY);
     }
 
@@ -458,7 +459,8 @@ pub unsafe fn load_data(
     let blocker = QSignalBlocker::from_q_object(table_model.static_upcast::<QObject>());
     if !data.is_empty() {
         let fields_processed = definition.fields_processed();
-        let keys = fields_processed.iter().enumerate().filter_map(|(x, y)| if y.is_key() { Some(x as i32) } else { None }).collect::<Vec<i32>>();
+        let patches = Some(definition.patches());
+        let keys = fields_processed.iter().enumerate().filter_map(|(x, y)| if y.is_key(patches) { Some(x as i32) } else { None }).collect::<Vec<i32>>();
 
         // Load the data, row by row.
         for (row, entry) in data.iter().enumerate() {
@@ -486,7 +488,7 @@ pub unsafe fn load_data(
         table_view.set_updates_enabled(true);
         blocker.unblock();
 
-        let qlist = get_new_row(definition, None);
+        let qlist = get_new_row(definition);
         table_model.append_row_q_list_of_q_standard_item(&qlist);
         table_model.remove_rows_2a(0, 1);
     }
@@ -644,6 +646,7 @@ pub unsafe fn build_columns(
     let mut keys = vec![];
 
     let fields_processed = definition.fields_processed();
+    let patches = Some(definition.patches());
     let tooltips = get_column_tooltips(&schema, &fields_processed, table_name);
 
     for (index, field) in fields_processed.iter().enumerate() {
@@ -677,7 +680,7 @@ pub unsafe fn build_columns(
         }
 
         // If the field is key, add that column to the "Key" list, so we can move them at the beginning later.
-        if field.is_key() { keys.push(index); }
+        if field.is_key(patches) { keys.push(index); }
         if field.ca_order() != -1 { do_we_have_ca_order |= true; }
     }
 

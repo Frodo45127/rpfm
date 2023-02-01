@@ -236,8 +236,6 @@ pub struct TableView {
     #[getset(skip)]
     table_definition: Arc<RwLock<Definition>>,
     #[getset(skip)]
-    patches: Arc<RwLock<DefinitionPatch>>,
-    #[getset(skip)]
     dependency_data: Arc<RwLock<HashMap<i32, TableReferences>>>,
 
     banned_table: bool,
@@ -284,7 +282,7 @@ impl TableView {
         let t = std::time::SystemTime::now();
         let (table_definition, patches, table_name, table_uuid, packed_file_type) = match table_data {
             TableType::DependencyManager(_) => {
-                let mut definition = Definition::new(-1);
+                let mut definition = Definition::new(-1, None);
                 definition.fields_mut().push(Field::new("Parent Packs".to_owned(), FieldType::StringU8, true, None, false, None, None, None, String::new(), -1, 0, BTreeMap::new(), None));
                 (definition, DefinitionPatch::new(), None, None, FileType::Unknown)
             },
@@ -599,7 +597,6 @@ dbg!(t.elapsed().unwrap());
             table_uuid: table_uuid.map(|x| x.to_owned()),
             dependency_data: Arc::new(RwLock::new(dependency_data)),
             table_definition: Arc::new(RwLock::new(table_definition)),
-            patches: Arc::new(RwLock::new(patches)),
             data_source,
             packed_file_path: packed_file_path.clone(),
             packed_file_type: Arc::new(packed_file_type),
@@ -684,7 +681,7 @@ dbg!(t.elapsed().unwrap());
             TableType::MatchedCombat(ref table) => table.definition().clone(),
             TableType::NormalTable(ref table) => table.definition().clone(),
             TableType::DependencyManager(_) => {
-                let mut definition = Definition::new(-1);
+                let mut definition = Definition::new(-1, None);
                 definition.fields_mut().push(Field::new("Parent Packs".to_owned(), FieldType::StringU8, true, None, false, None, None, None, String::new(), -1, 0, BTreeMap::new(), None));
                 definition
             }
@@ -773,10 +770,6 @@ dbg!(t.elapsed().unwrap());
 
     pub fn search_view(&self) -> RwLockReadGuard<Option<Arc<SearchView>>> {
         self.search_view.read().unwrap()
-    }
-
-    pub fn patches(&self) -> RwLockReadGuard<DefinitionPatch> {
-        self.patches.read().unwrap()
     }
 
     pub fn filters(&self) -> RwLockReadGuard<Vec<Arc<FilterView>>> {
@@ -1168,7 +1161,9 @@ dbg!(t.elapsed().unwrap());
 
         // Get the selection sorted visually.
         let indexes_sorted = get_real_indexes_from_visible_selection_sorted(&self.table_view_ptr(), &self.table_view_filter_ptr());
-        let fields_processed = self.table_definition().fields_processed();
+        let definition = self.table_definition();
+        let fields_processed = definition.fields_processed();
+        let patches = Some(definition.patches());
 
         // Check if the table has duplicated keys, and filter out invalid indexes.
         let mut has_unique_keys = true;
@@ -1182,7 +1177,7 @@ dbg!(t.elapsed().unwrap());
                 let data = index_sorted.data_0a().to_string().to_std_string();
 
                 let column_data = processed.get_mut(&index_sorted.column());
-                let has_key = fields_processed[index_sorted.column() as usize].is_key();
+                let has_key = fields_processed[index_sorted.column() as usize].is_key(patches);
                 if has_key {
                     match column_data {
                         Some(column_data) => {
@@ -1409,7 +1404,7 @@ dbg!(t.elapsed().unwrap());
                         // If real_row is -1 (invalid), then we need to add an empty row to the model (NOT TO THE FILTER)
                         // because that means we have no row for that position, and we need one.
                         if real_row == -1 {
-                            let row = get_new_row(&self.table_definition(), Some(&self.patches()));
+                            let row = get_new_row(&self.table_definition());
                             for index in 0..row.count_0a() {
                                 row.value_1a(index).set_data_2a(&QVariant::from_bool(true), ITEM_IS_ADDED);
                             }
@@ -1616,7 +1611,9 @@ dbg!(t.elapsed().unwrap());
     unsafe fn get_indexes_as_lua_table(&self, indexes: &[Ref<QModelIndex>], has_keys: bool) -> String {
         let mut table_data: Vec<(Option<String>, Vec<String>)> = vec![];
         let mut last_row = None;
-        let fields_processed = self.table_definition().fields_processed();
+        let definition = self.table_definition();
+        let patches = Some(definition.patches());
+        let fields_processed = definition.fields_processed();
         for index in indexes {
             if index.column() != -1 {
                 let current_row = index.row();
@@ -1627,7 +1624,7 @@ dbg!(t.elapsed().unwrap());
                         if current_row == row {
                             let entry = table_data.last_mut().unwrap();
                             let data = self.get_escaped_lua_string_from_index(*index, &fields_processed);
-                            if entry.0.is_none() && fields_processed[index.column() as usize].is_key() && has_keys {
+                            if entry.0.is_none() && fields_processed[index.column() as usize].is_key(patches) && has_keys {
                                 entry.0 = Some(self.escape_string_from_index(*index, &fields_processed));
                             }
                             entry.1.push(data);
@@ -1638,7 +1635,7 @@ dbg!(t.elapsed().unwrap());
                             let mut entry = (None, vec![]);
                             let data = self.get_escaped_lua_string_from_index(*index, &fields_processed);
                             entry.1.push(data.to_string());
-                            if entry.0.is_none() && fields_processed[index.column() as usize].is_key() && has_keys {
+                            if entry.0.is_none() && fields_processed[index.column() as usize].is_key(patches) && has_keys {
                                 entry.0 = Some(self.escape_string_from_index(*index, &fields_processed));
                             }
                             table_data.push(entry);
@@ -1648,7 +1645,7 @@ dbg!(t.elapsed().unwrap());
                         let mut entry = (None, vec![]);
                         let data = self.get_escaped_lua_string_from_index(*index, &fields_processed);
                         entry.1.push(data.to_string());
-                        if entry.0.is_none() && fields_processed[index.column() as usize].is_key() && has_keys {
+                        if entry.0.is_none() && fields_processed[index.column() as usize].is_key(patches) && has_keys {
                             entry.0 = Some(self.escape_string_from_index(*index, &fields_processed));
                         }
                         table_data.push(entry);
@@ -1788,7 +1785,7 @@ dbg!(t.elapsed().unwrap());
             }
             rows
         } else {
-            let row = get_new_row(&self.table_definition(), Some(&self.patches()));
+            let row = get_new_row(&self.table_definition());
             for index in 0..row.count_0a() {
                 row.value_1a(index).set_data_2a(&QVariant::from_bool(true), ITEM_IS_ADDED);
             }
@@ -1840,7 +1837,7 @@ dbg!(t.elapsed().unwrap());
 
         // If nothing is selected, we just append one new row at the end. This only happens when adding empty rows, so...
         if indexes_sorted.is_empty() {
-            let row = get_new_row(&self.table_definition(), Some(&self.patches()));
+            let row = get_new_row(&self.table_definition());
             for index in 0..row.count_0a() {
                 row.value_1a(index).set_data_2a(&QVariant::from_bool(true), ITEM_IS_ADDED);
             }
@@ -1867,7 +1864,7 @@ dbg!(t.elapsed().unwrap());
                 }
                 qlist
             } else {
-                let row = get_new_row(&self.table_definition(), Some(&self.patches()));
+                let row = get_new_row(&self.table_definition());
                 for index in 0..row.count_0a() {
                     row.value_1a(index).set_data_2a(&QVariant::from_bool(true), ITEM_IS_ADDED);
                 }
@@ -2475,11 +2472,11 @@ dbg!(t.elapsed().unwrap());
         explanation_text_edit.set_placeholder_text(&qtr("explanation_placeholder_text"));
 
         // Setup data.
-        if let Some(default_value) = field.default_value(Some(&self.patches())) {
+        if let Some(default_value) = field.default_value(Some(&self.table_definition().patches())) {
             default_value_line_edit.set_text(&QString::from_std_str(default_value));
         }
-        not_empty_checkbox.set_checked(field.cannot_be_empty(Some(&self.patches())));
-        explanation_text_edit.set_text(&QString::from_std_str(field.schema_patch_explanation(Some(&self.patches()))));
+        not_empty_checkbox.set_checked(field.cannot_be_empty(Some(&self.table_definition().patches())));
+        explanation_text_edit.set_text(&QString::from_std_str(field.schema_patch_explanation(Some(&self.table_definition().patches()))));
 
         // Launch.
         if dialog.exec() == 1 {
@@ -2666,7 +2663,13 @@ dbg!(t.elapsed().unwrap());
                 let table_definition = self.table_definition();
                 let key_field_positions = table_definition.localised_key_order();
 
-                let key = key_field_positions.iter().map(|column| self.table_model.index_2a(self.table_filter.map_to_source(self.table_view.selection_model().selection().indexes().at(0)).row(), *column as i32).data_0a().to_string().to_std_string()).join("");
+                let key = key_field_positions.iter()
+                    .map(|column|
+                        self.table_model.index_2a(
+                            self.table_filter.map_to_source(self.table_view.selection_model().selection().indexes().at(0)).row(),
+                            *column as i32
+                        ).data_0a().to_string().to_std_string()
+                    ).join("");
                 let loc_key = format!("{}_{}_{}", table_name, loc_column_name, key);
 
                 // Then ask the backend to do the heavy work.

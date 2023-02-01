@@ -291,10 +291,10 @@ impl DB {
         Table::new_row(self.definition(), Some(self.patches()))
     }
 
-    /// This function returns the definition of a Loc table.
+    /// This function returns the definition of a table.
     #[cfg(test)]
     pub fn test_definition() -> Definition {
-        let mut definition = Definition::new(-100);
+        let mut definition = Definition::new(-100, None);
         let mut fields = vec![];
 
         fields.push(Field::new("bool".to_owned(), FieldType::Boolean, false, Some("true".to_string()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
@@ -311,8 +311,8 @@ impl DB {
         fields.push(Field::new("optionali64".to_owned(), FieldType::OptionalI64, false, Some("5".to_string()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
         fields.push(Field::new("optionalstringu8".to_owned(), FieldType::OptionalStringU8, false, Some("Opt".to_string()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
         fields.push(Field::new("optionalstringu16".to_owned(), FieldType::OptionalStringU16, false, Some("Opt".to_string()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
-        fields.push(Field::new("sequenceu16".to_owned(), FieldType::SequenceU16(Box::new(Definition::new(-100))), false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
-        fields.push(Field::new("sequenceu32".to_owned(), FieldType::SequenceU32(Box::new(Definition::new(-100))), false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
+        fields.push(Field::new("sequenceu16".to_owned(), FieldType::SequenceU16(Box::new(Definition::new(-100, None))), false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
+        fields.push(Field::new("sequenceu32".to_owned(), FieldType::SequenceU32(Box::new(Definition::new(-100, None))), false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
 
         // Special fields that use postprocessing.
         fields.push(Field::new("merged_colours_1_r".to_owned(), FieldType::I32, false, Some("AB".to_string()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), Some(0)));
@@ -420,7 +420,9 @@ impl DB {
                     }
                 }
             }
-            //}
+
+            // Now, with locs. First, this is done only if our definition has localised fields and we edited the "key" field of our table.
+
             /*
             // Now, with locs. First, this is done only if our definition has localised fields and we edited the "key" field of our table.
             if let Some(field) = self.edited_table_definition().fields_processed().get(*column as usize) {

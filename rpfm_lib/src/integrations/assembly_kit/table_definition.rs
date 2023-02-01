@@ -159,7 +159,7 @@ impl RawDefinition {
 impl From<&RawDefinition> for Definition {
     fn from(raw_definition: &RawDefinition) -> Self {
         let fields = raw_definition.fields.iter().map(From::from).collect::<Vec<_>>();
-        Self::new_with_fields(-100, &fields, &[])
+        Self::new_with_fields(-100, &fields, &[], None)
     }
 }
 

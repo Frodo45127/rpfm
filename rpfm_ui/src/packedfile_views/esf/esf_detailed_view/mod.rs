@@ -383,7 +383,7 @@ impl ESFDetailedView {
 
                     let field = Field::new("Value".to_owned(), FieldType::I32, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None);
 
-                    let mut definition = Definition::new(0);
+                    let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
                     let mut table = Table::new(&definition, None, "", false);
@@ -404,7 +404,7 @@ impl ESFDetailedView {
 
                     let field = Field::new("Value".to_owned(), FieldType::Boolean, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None);
 
-                    let mut definition = Definition::new(0);
+                    let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
                     let mut table = Table::new(&definition, None, "", false);
@@ -425,7 +425,7 @@ impl ESFDetailedView {
 
                     let field = Field::new("Value".to_owned(), FieldType::I16, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None);
 
-                    let mut definition = Definition::new(0);
+                    let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
                     let mut table = Table::new(&definition, None, "", false);
@@ -446,7 +446,7 @@ impl ESFDetailedView {
 
                     let field = Field::new("Value".to_owned(), FieldType::I16, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None);
 
-                    let mut definition = Definition::new(0);
+                    let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
                     let mut table = Table::new(&definition, None, "", false);
@@ -467,7 +467,7 @@ impl ESFDetailedView {
 
                     let field = Field::new("Value".to_owned(), FieldType::I32, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None);
 
-                    let mut definition = Definition::new(0);
+                    let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
                     let mut table = Table::new(&definition, None, "", false);
@@ -488,7 +488,7 @@ impl ESFDetailedView {
 
                     let field = Field::new("Value".to_owned(), FieldType::I64, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None);
 
-                    let mut definition = Definition::new(0);
+                    let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
                     let mut table = Table::new(&definition, None, "", false);
@@ -509,7 +509,7 @@ impl ESFDetailedView {
 
                     let field = Field::new("Value".to_owned(), FieldType::I16, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None);
 
-                    let mut definition = Definition::new(0);
+                    let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
                     let mut table = Table::new(&definition, None, "", false);
@@ -530,7 +530,7 @@ impl ESFDetailedView {
 
                     let field = Field::new("Value".to_owned(), FieldType::I16, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None);
 
-                    let mut definition = Definition::new(0);
+                    let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
                     let mut table = Table::new(&definition, None, "", false);
@@ -551,7 +551,7 @@ impl ESFDetailedView {
 
                     let field = Field::new("Value".to_owned(), FieldType::I32, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None);
 
-                    let mut definition = Definition::new(0);
+                    let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
                     let mut table = Table::new(&definition, None, "", false);
@@ -572,7 +572,7 @@ impl ESFDetailedView {
 
                     let field = Field::new("Value".to_owned(), FieldType::I64, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None);
 
-                    let mut definition = Definition::new(0);
+                    let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
                     let mut table = Table::new(&definition, None, "", false);
@@ -593,7 +593,7 @@ impl ESFDetailedView {
 
                     let field = Field::new("Value".to_owned(), FieldType::F32, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None);
 
-                    let mut definition = Definition::new(0);
+                    let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
                     let mut table = Table::new(&definition, None, "", false);
@@ -614,7 +614,7 @@ impl ESFDetailedView {
 
                     let field = Field::new("Value".to_owned(), FieldType::F32, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None);
 
-                    let mut definition = Definition::new(0);
+                    let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
                     let mut table = Table::new(&definition, None, "", false);
@@ -636,7 +636,7 @@ impl ESFDetailedView {
                     let x_field = Field::new("X".to_owned(), FieldType::F32, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None);
                     let y_field = Field::new("Y".to_owned(), FieldType::F32, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None);
 
-                    let mut definition = Definition::new(0);
+                    let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(x_field);
                     definition.fields_mut().push(y_field);
 
@@ -660,7 +660,7 @@ impl ESFDetailedView {
                     let y_field = Field::new("Y".to_owned(), FieldType::F32, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None);
                     let z_field = Field::new("Z".to_owned(), FieldType::F32, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None);
 
-                    let mut definition = Definition::new(0);
+                    let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(x_field);
                     definition.fields_mut().push(y_field);
                     definition.fields_mut().push(z_field);
@@ -683,7 +683,7 @@ impl ESFDetailedView {
 
                     let field = Field::new("Value".to_owned(), FieldType::StringU8, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None);
 
-                    let mut definition = Definition::new(0);
+                    let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
                     let mut table = Table::new(&definition, None, "", false);
@@ -704,7 +704,7 @@ impl ESFDetailedView {
 
                     let field = Field::new("Value".to_owned(), FieldType::StringU8, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None);
 
-                    let mut definition = Definition::new(0);
+                    let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
                     let mut table = Table::new(&definition, None, "", false);
@@ -725,7 +725,7 @@ impl ESFDetailedView {
 
                     let field = Field::new("Value".to_owned(), FieldType::I16, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None);
 
-                    let mut definition = Definition::new(0);
+                    let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
                     let mut table = Table::new(&definition, None, "", false);

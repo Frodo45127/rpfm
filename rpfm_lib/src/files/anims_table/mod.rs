@@ -88,14 +88,14 @@ impl AnimsTable {
         match version {
             2 => {
 
-                let mut subdefinition = Definition::new(-1);
+                let mut subdefinition = Definition::new(-1, None);
                 let subfields = vec![
                     Field::new("fragment".to_owned(), FieldType::StringU8, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
                     Field::new("unknown_2".to_owned(), FieldType::I32, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
                 ];
                 subdefinition.set_fields(subfields);
 
-                let mut definition = Definition::new(version);
+                let mut definition = Definition::new(version, None);
                 let fields = vec![
                     Field::new("unknown_1".to_owned(), FieldType::StringU8, true, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
                     Field::new("unknown_2".to_owned(), FieldType::StringU8, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),

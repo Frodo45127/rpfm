@@ -387,7 +387,8 @@ impl Diagnostics {
 
             // Check all the columns with reference data.
             let fields_processed = table.definition().fields_processed();
-            let key_amount = fields_processed.iter().filter(|field| field.is_key()).count();
+            let patches = Some(table.definition().patches());
+            let key_amount = fields_processed.iter().filter(|field| field.is_key(patches)).count();
             let table_data = table.data(&None).ok()?;
             let mut columns_without_reference_table = vec![];
             let mut columns_with_reference_table_and_no_column = vec![];
@@ -506,12 +507,12 @@ impl Diagnostics {
                         row_is_empty = false;
                     }
 
-                    if row_keys_are_empty && field.is_key() && (!cell_data.is_empty() && cell_data != "false") {
+                    if row_keys_are_empty && field.is_key(patches) && (!cell_data.is_empty() && cell_data != "false") {
                         row_keys_are_empty = false;
                     }
 
                     if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field.name()), Some("EmptyKeyField"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
-                        if field.is_key() && key_amount == 1 && *field.field_type() != FieldType::OptionalStringU8 && *field.field_type() != FieldType::Boolean && (cell_data.is_empty() || cell_data == "false") {
+                        if field.is_key(patches) && key_amount == 1 && *field.field_type() != FieldType::OptionalStringU8 && *field.field_type() != FieldType::Boolean && (cell_data.is_empty() || cell_data == "false") {
                             let result = TableDiagnosticReport::new(TableDiagnosticReportType::EmptyKeyField(field.name().to_string()), &[(row as i32, column as i32)]);
                             diagnostic.results_mut().push(result);
                         }
@@ -524,7 +525,7 @@ impl Diagnostics {
                         }
                     }
 
-                    if field.is_key() {
+                    if field.is_key(patches) {
                         row_keys.insert(column as i32, cell_data.to_string());
                     }
                 }
