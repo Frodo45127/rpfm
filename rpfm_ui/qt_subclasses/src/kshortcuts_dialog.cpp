@@ -242,18 +242,6 @@ extern "C" QAction* shortcut_action(QList<QObject*> const &shortcuts, QString co
     return nullptr;
 }
 
-extern "C" void shortcut_associate_action_group_to_widget(QList<QObject*>* shortcuts, QString const action_group, QWidget* widget) {
-    QList<QObject *>::iterator i;
-    for (i = shortcuts->begin(); i != shortcuts->end(); ++i) {
-        KActionCollection* actions = dynamic_cast<KActionCollection*>(*i);
-        if (actions->componentName() == action_group) {
-            actions->associateWidget(widget);
-            break;
-        }
-    }
-}
-
-
 extern "C" void kshortcut_dialog_init(QWidget* widget, QList<QObject*>* shortcuts) {
     KShortcutsDialog* dialog = new KShortcutsDialog(widget);
 

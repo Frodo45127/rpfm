@@ -93,7 +93,7 @@ impl GitIntegration {
         let master_refname = format!("refs/heads/{}", self.branch);
 
         let signature = Signature::now("RPFM Updater", "-")?;
-        let stash_id = repo.stash_save(&signature, &format!("Stashed changes before checking for updates from branch {}", current_branch_name), Some(StashFlags::INCLUDE_UNTRACKED));
+        let stash_id = repo.stash_save(&signature, &format!("Stashed changes before checking for updates from branch {current_branch_name}"), Some(StashFlags::INCLUDE_UNTRACKED));
 
         // In case we're not in master, checkout the master branch.
         if current_branch_name != master_refname {
@@ -159,7 +159,7 @@ impl GitIntegration {
         let master_refname = format!("refs/heads/{}", self.branch);
 
         let signature = Signature::now("RPFM Updater", "-")?;
-        let stash_id = repo.stash_save(&signature, &format!("Stashed changes before update from branch {}", current_branch_name), Some(StashFlags::INCLUDE_UNTRACKED));
+        let stash_id = repo.stash_save(&signature, &format!("Stashed changes before update from branch {current_branch_name}"), Some(StashFlags::INCLUDE_UNTRACKED));
 
         // In case we're not in master, checkout the master branch.
         if current_branch_name != master_refname {

@@ -56,7 +56,7 @@ impl DebugViewSlots {
                         Response::Error(error) => show_dialog(&view.editor, error, false),
 
                         // In ANY other situation, it's a message problem.
-                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                     }
                 }
                 Err(error) => show_dialog(&view.editor, error, false),

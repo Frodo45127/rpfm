@@ -116,8 +116,6 @@ impl UI {
 
     /// This function initialize the entire `UI`.
     pub unsafe fn new() -> Result<Self> {
-        let t = std::time::SystemTime::now();
-
         let app_ui = Rc::new(AppUI::new());
         let global_search_ui = Rc::new(GlobalSearchUI::new(app_ui.main_window())?);
         let pack_file_contents_ui = Rc::new(PackFileContentsUI::new(&app_ui)?);
@@ -197,10 +195,10 @@ impl UI {
             // So just in case, by default we use WH3.
             _ => app_ui.game_selected_warhammer_3().set_checked(true),
         }
-dbg!(t.elapsed().unwrap());
+
         AppUI::change_game_selected(&app_ui, &pack_file_contents_ui, &dependencies_ui, true);
         info!("Initial Game Selected set to {}.", setting_string("default_game"));
-dbg!(t.elapsed().unwrap());
+
         // We get all the Arguments provided when starting RPFM, just in case we passed it a path,
         // in which case, we automatically try to open it.
         let args = args().collect::<Vec<String>>();
@@ -214,7 +212,6 @@ dbg!(t.elapsed().unwrap());
                 DiagnosticsUI::check(&app_ui, &diagnostics_ui);
             }
         }
-dbg!(t.elapsed().unwrap());
 
         // If we have it enabled in the prefs, check if there are updates.
         if setting_bool("check_updates_on_start") { AppUI::check_updates(&app_ui, false) };
@@ -240,7 +237,7 @@ dbg!(t.elapsed().unwrap());
                 info!("Update folders cleared.");
             }
         }
-dbg!(t.elapsed().unwrap());
+
         // Show the "only for the brave" alert for specially unstable builds.
         #[cfg(feature = "only_for_the_brave")] {
             let first_boot_setting = "firstBoot".to_owned() + VERSION;
@@ -260,7 +257,7 @@ dbg!(t.elapsed().unwrap());
                 set_setting_bool(&first_boot_setting, true);
             }
         }
-dbg!(t.elapsed().unwrap());
+
         info!("Initialization complete.");
         Ok(Self {
             app_ui,

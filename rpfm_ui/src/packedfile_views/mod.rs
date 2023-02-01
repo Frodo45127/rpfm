@@ -427,7 +427,7 @@ impl PackedFileView {
                             }
 
                             // In ANY other situation, it's a message problem.
-                            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                         }
                     },
                     ViewType::External(view) => {
@@ -436,7 +436,7 @@ impl PackedFileView {
                         match response {
                             Response::Success => {},
                             Response::Error(error) => show_dialog(pack_file_contents_ui.packfile_contents_tree_view(), error, false),
-                            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                         }
 
                         Ok(())
@@ -641,7 +641,7 @@ impl PackedFileView {
 
                         Response::Error(error) => return Err(error),
                         Response::Unknown => return Err(anyhow!("File Type Unknown.")),
-                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                     }
 
                     Ok(())

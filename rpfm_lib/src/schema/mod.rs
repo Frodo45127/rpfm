@@ -702,10 +702,10 @@ impl Definition {
         let fields_query = fields_sorted.iter().map(|field| field.map_to_sql_string(schema_patches)).collect::<Vec<_>>().join(",");
 
         let local_keys_join = fields_sorted.iter().filter_map(|field| if field.is_key(patches) { Some(format!("\"{}\"", field.name()))} else { None }).collect::<Vec<_>>().join(",");
-        let local_keys = format!("CONSTRAINT unique_key PRIMARY KEY (\"table_unique_id\", {})", local_keys_join);
+        let local_keys = format!("CONSTRAINT unique_key PRIMARY KEY (\"table_unique_id\", {local_keys_join})");
         let foreign_keys = fields_sorted.iter()
             .filter_map(|field| field.is_reference().clone().map(|(ref_table, ref_column)| (field.name(), ref_table, ref_column)))
-            .map(|(loc_name, ref_table, ref_field)| format!("CONSTRAINT fk_{} FOREIGN KEY (\"{}\") REFERENCES {}(\"{}\") ON UPDATE CASCADE ON DELETE CASCADE", table_name, loc_name, ref_table, ref_field))
+            .map(|(loc_name, ref_table, ref_field)| format!("CONSTRAINT fk_{table_name} FOREIGN KEY (\"{loc_name}\") REFERENCES {ref_table}(\"{ref_field}\") ON UPDATE CASCADE ON DELETE CASCADE"))
             .collect::<Vec<_>>()
             .join(",");
 
@@ -746,7 +746,7 @@ impl Definition {
     pub fn map_to_sql_insert_into_string(&self, key_first: bool) -> String {
         let fields_sorted = self.fields_processed_sorted(key_first);
         let fields_query = fields_sorted.iter().map(|field| format!("\"{}\"", field.name())).collect::<Vec<_>>().join(",");
-        let fields_query = format!("(\"table_unique_id\", {})", fields_query);
+        let fields_query = format!("(\"table_unique_id\", {fields_query})");
 
         fields_query
     }
@@ -954,7 +954,7 @@ impl Field {
 
     /// Getter for the `enum_values` field in a string format.
     pub fn enum_values_to_string(&self) -> String {
-        self.enum_values.iter().map(|(x, y)| format!("{},{}", x, y)).collect::<Vec<String>>().join(";")
+        self.enum_values.iter().map(|(x, y)| format!("{x},{y}")).collect::<Vec<String>>().join(";")
     }
 
     pub fn is_part_of_colour(&self) -> Option<u8>{
@@ -993,7 +993,7 @@ impl Field {
         let mut string = format!(" \"{}\" {:?} ", self.name(), self.field_type().map_to_sql_type());
 
         if let Some(default_value) = self.default_value(schema_patches) {
-            string.push_str(&format!(" DEFAULT \"{}\"", default_value));
+            string.push_str(&format!(" DEFAULT \"{default_value}\""));
         }
 
         string

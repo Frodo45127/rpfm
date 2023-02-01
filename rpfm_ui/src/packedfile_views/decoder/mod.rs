@@ -185,7 +185,7 @@ impl PackedFileDecoderView {
         let mut data = match response {
             Response::VecU8(data) => Cursor::new(data),
             Response::Error(error) => return Err(error),
-            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
         };
 
         // Create the hex view on the left side.

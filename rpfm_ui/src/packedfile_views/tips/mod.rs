@@ -153,7 +153,7 @@ impl TipsView {
         let response = CentralCommand::recv(&receiver);
         let (local_tips, remote_tips) = match response {
             Response::VecTipVecTip(local_tips, remote_tips) => (local_tips, remote_tips),
-            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
         };
 
         if !remote_tips.is_empty() || !local_tips.is_empty() {
@@ -177,7 +177,7 @@ impl TipsView {
         match response {
             Response::Success => {},
             Response::Error(error) => show_dialog(&self.list, error, false),
-            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
         };
     }
 
@@ -329,7 +329,7 @@ impl TipsView {
         match response {
             Response::Success => {},
             Response::Error(error) => show_dialog(&self.list, error, false),
-            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
         };
 
         let indexes = self.filter.map_selection_to_source(&self.list.selection_model().selection()).indexes();
@@ -356,7 +356,7 @@ impl TipsView {
         match response {
             Response::Success => Ok(()),
             Response::Error(error) => Err(error),
-            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
         }
     }
 }

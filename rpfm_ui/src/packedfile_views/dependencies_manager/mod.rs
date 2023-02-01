@@ -64,7 +64,7 @@ impl DependenciesManagerView {
         let response = CentralCommand::recv(&receiver);
         let table_data = match response {
             Response::VecString(table) => TableType::DependencyManager(table.iter().map(|x| vec![DecodedData::StringU8(x.to_owned()); 1]).collect::<Vec<Vec<DecodedData>>>()),
-            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
         };
 
         let table_view = TableView::new_view(

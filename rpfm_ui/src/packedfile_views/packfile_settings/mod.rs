@@ -79,7 +79,7 @@ impl PackFileSettingsView {
         let settings = match response {
             Response::PackSettings(settings) => settings,
             Response::Error(error) => return Err(error),
-            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
         };
 
         let layout: QPtr<QGridLayout> = pack_file_view.get_mut_widget().layout().static_downcast();

@@ -494,7 +494,7 @@ impl AppUISlots {
                     }
 
                     // In ANY other situation, it's a message problem.
-                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                 }
 
                 // Always reenable the Main Window.
@@ -736,7 +736,7 @@ impl AppUISlots {
                                         }
 
                                         // In ANY other situation, it's a message problem.
-                                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                                     }
                                 }
                                 Response::Error(error) => {
@@ -745,7 +745,7 @@ impl AppUISlots {
                                 }
 
                                 // In ANY other situation, it's a message problem.
-                                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                             }
                         }
                     }
@@ -1011,7 +1011,7 @@ impl AppUISlots {
                             wait_dialog.done(1);
                             show_dialog(&app_ui.main_window, error, false);
                         },
-                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                     }
 
                     app_ui.toggle_main_window(true);
@@ -1047,7 +1047,7 @@ impl AppUISlots {
                             show_dialog(&app_ui.main_window, tr("optimize_packfile_success"), true);
                         }
                         Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
-                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                     }
 
                     // Re-enable the Main Window.
@@ -1137,7 +1137,7 @@ impl AppUISlots {
                             Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
 
                             // In ANY other situation, it's a message problem.
-                            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                         }
                     }
 
@@ -1316,7 +1316,7 @@ impl AppUISlots {
                 match response {
                     Response::Success => show_dialog(&app_ui.main_window, tr("update_current_schema_from_asskit_success"), true),
                     Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
-                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                 }
 
                 app_ui.toggle_main_window(true);
@@ -1354,7 +1354,7 @@ impl AppUISlots {
                             match response {
                                 Response::Success => show_dialog(&app_ui.main_window, tr("import_schema_patch_success"), true),
                                 Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
-                                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                             }
                         },
                         Err(error) => show_dialog(&app_ui.main_window, error, false),

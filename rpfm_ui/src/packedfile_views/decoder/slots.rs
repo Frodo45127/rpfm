@@ -585,7 +585,7 @@ impl PackedFileDecoderViewSlots {
                 match response {
                     Response::Success => show_dialog(&view.table_view, "Schema successfully saved.", true),
                     Response::Error(error) => show_dialog(&view.table_view, error, false),
-                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                 }
 
                 view.load_versions_list();

@@ -374,7 +374,7 @@ impl DiagnosticsUI {
                 Self::update_level_counts(diagnostics_ui, diagnostics.results());
                 UI_STATE.set_diagnostics(&diagnostics);
             }
-            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
         }
 
         app_ui.menu_bar_packfile().set_enabled(true);
@@ -404,7 +404,7 @@ impl DiagnosticsUI {
                 Self::update_level_counts(diagnostics_ui, diagnostics.results());
                 UI_STATE.set_diagnostics(&diagnostics);
             }
-            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
         }
 
         app_ui.menu_bar_packfile().set_enabled(true);

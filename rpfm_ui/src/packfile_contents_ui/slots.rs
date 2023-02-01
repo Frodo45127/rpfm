@@ -410,7 +410,7 @@ impl PackFileContentsSlots {
                 let response = CentralCommand::recv(&receiver);
                 let is_there_a_dependency_database = match response {
                     Response::Bool(it_is) => it_is,
-                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                 };
 
                 // If there is no dependency_database or schema for our GameSelected, ALWAYS disable creating new DB Tables and exporting them.
@@ -655,7 +655,7 @@ impl PackFileContentsSlots {
                             }
                         },
                         Response::Error(error) => return show_dialog(app_ui.main_window(), error, false),
-                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                     }
 
                     app_ui.toggle_main_window(false);
@@ -706,7 +706,7 @@ impl PackFileContentsSlots {
                                 }
                             }
                         },
-                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                     };
                 }
             }
@@ -820,7 +820,7 @@ impl PackFileContentsSlots {
                                     UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                                 },
                                 Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
-                                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                             }
                         }
                     }
@@ -947,7 +947,7 @@ impl PackFileContentsSlots {
             match response {
                 Response::Success => {}
                 Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
-                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
             }
         }));
 
@@ -1083,7 +1083,7 @@ impl PackFileContentsSlots {
                         }
 
                         Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
-                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                     }
                 }
             }
@@ -1128,7 +1128,7 @@ impl PackFileContentsSlots {
                         }
 
                         Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
-                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                     }
                 }
                 _ => unimplemented!()
@@ -1152,7 +1152,7 @@ impl PackFileContentsSlots {
                 }
 
                 Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
-                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
             }
         }));
 

@@ -343,61 +343,61 @@ impl GameInfo {
         let base_path = game_path.join(install_data.language_path());
 
         // The language files are either in this folder, or in a folder with the locale value inside this folder.
-        let path_with_file = base_path.to_path_buf().join(language_file_name);
+        let path_with_file = base_path.join(language_file_name);
         if path_with_file.is_file() {
             Ok(base_path)
         } else {
 
             // Yes, this is ugly. But I'm not the retarded idiot that decided to put the file that sets the language used inside a folder specific of the language used.
-            let path = base_path.to_path_buf().join(BRAZILIAN);
+            let path = base_path.join(BRAZILIAN);
             if path.is_dir() {
                 return Ok(path);
             }
-            let path = base_path.to_path_buf().join(SIMPLIFIED_CHINESE);
+            let path = base_path.join(SIMPLIFIED_CHINESE);
             if path.is_dir() {
                 return Ok(path);
             }
-            let path = base_path.to_path_buf().join(CZECH);
+            let path = base_path.join(CZECH);
             if path.is_dir() {
                 return Ok(path);
             }
-            let path = base_path.to_path_buf().join(ENGLISH);
+            let path = base_path.join(ENGLISH);
             if path.is_dir() {
                 return Ok(path);
             }
-            let path = base_path.to_path_buf().join(FRENCH);
+            let path = base_path.join(FRENCH);
             if path.is_dir() {
                 return Ok(path);
             }
-            let path = base_path.to_path_buf().join(GERMAN);
+            let path = base_path.join(GERMAN);
             if path.is_dir() {
                 return Ok(path);
             }
-            let path = base_path.to_path_buf().join(ITALIAN);
+            let path = base_path.join(ITALIAN);
             if path.is_dir() {
                 return Ok(path);
             }
-            let path = base_path.to_path_buf().join(KOREAN);
+            let path = base_path.join(KOREAN);
             if path.is_dir() {
                 return Ok(path);
             }
-            let path = base_path.to_path_buf().join(POLISH);
+            let path = base_path.join(POLISH);
             if path.is_dir() {
                 return Ok(path);
             }
-            let path = base_path.to_path_buf().join(RUSSIAN);
+            let path = base_path.join(RUSSIAN);
             if path.is_dir() {
                 return Ok(path);
             }
-            let path = base_path.to_path_buf().join(SPANISH);
+            let path = base_path.join(SPANISH);
             if path.is_dir() {
                 return Ok(path);
             }
-            let path = base_path.to_path_buf().join(TURKISH);
+            let path = base_path.join(TURKISH);
             if path.is_dir() {
                 return Ok(path);
             }
-            let path = base_path.to_path_buf().join(TRADITIONAL_CHINESE);
+            let path = base_path.join(TRADITIONAL_CHINESE);
             if path.is_dir() {
                 return Ok(path);
             }

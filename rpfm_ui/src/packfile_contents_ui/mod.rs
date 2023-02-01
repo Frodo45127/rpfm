@@ -503,7 +503,7 @@ impl PackFileContentsUI {
             match response {
                 Response::String(result) => show_dialog(app_ui.main_window(), result, true),
                 Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
-                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
             }
             app_ui.toggle_main_window(true);
         }

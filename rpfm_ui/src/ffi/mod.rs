@@ -335,11 +335,6 @@ pub fn shortcut_action_safe(shortcuts: Ptr<QListOfQObject>, action_group: Ptr<QS
     unsafe { QPtr::from_raw(shortcut_action(shortcuts.as_raw_ptr(), action_group.as_raw_ptr(), action_name.as_raw_ptr())) }
 }
 
-extern "C" { fn shortcut_associate_action_group_to_widget(shortcuts: *mut QListOfQObject, action_group: *const QString, widget: *mut QWidget); }
-pub fn shortcut_associate_action_group_to_widget_safe(shortcuts: Ptr<QListOfQObject>, action_group: Ptr<QString>, widget: Ptr<QWidget>) {
-    unsafe { shortcut_associate_action_group_to_widget(shortcuts.as_mut_raw_ptr(), action_group.as_raw_ptr(), widget.as_mut_raw_ptr()) }
-}
-
 extern "C" { fn kshortcut_dialog_init(widget: *mut QWidget, shortcuts: *mut QListOfQObject); }
 pub fn kshortcut_dialog_init_safe(widget: &Ptr<QWidget>, shortcuts: Ptr<QListOfQObject>) {
     unsafe { kshortcut_dialog_init(widget.as_mut_raw_ptr(), shortcuts.as_mut_raw_ptr()) }

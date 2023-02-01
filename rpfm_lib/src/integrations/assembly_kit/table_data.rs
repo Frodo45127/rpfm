@@ -108,9 +108,9 @@ impl RawTable {
                 // rows in each file is not supported for deserializing. Same for the fields, we have to change them to something more generic.
                 let mut buffer = String::new();
                 raw_table_data_file.read_to_string(&mut buffer)?;
-                buffer = buffer.replace(&format!("<{} record_uuid", name_no_xml), "<rows record_uuid");
-                buffer = buffer.replace(&format!("<{}>", name_no_xml), "<rows>");
-                buffer = buffer.replace(&format!("</{}>", name_no_xml), "</rows>");
+                buffer = buffer.replace(&format!("<{name_no_xml} record_uuid"), "<rows record_uuid");
+                buffer = buffer.replace(&format!("<{name_no_xml}>"), "<rows>");
+                buffer = buffer.replace(&format!("</{name_no_xml}>"), "</rows>");
                 for field in &raw_definition.fields {
                     let field_name_regex = Regex::new(&format!("\n<{}>", field.name)).unwrap();
                     let field_name_regex2 = Regex::new(&format!("\n<{} .+?\">", field.name)).unwrap();
@@ -164,7 +164,7 @@ impl TryFrom<&RawTable> for Table {
             x.pop();
             x.pop();
 
-            format!("{}_tables", x)
+            format!("{x}_tables")
         } else { String::new() };
 
         let mut table = Self::new(&From::from(raw_definition), None, &table_name, false);

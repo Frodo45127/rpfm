@@ -200,20 +200,20 @@ impl Text {
         else {
             let utf8_string = data.read_string_u8(len as usize);
             if utf8_string.is_ok() {
-                data.seek(SeekFrom::Start(0))?;
+                data.rewind()?;
                 return Ok(Encoding::Utf8)
             }
 
-            data.seek(SeekFrom::Start(0))?;
+            data.rewind()?;
             let iso_8859_1_string = data.read_string_u8_iso_8859_15(len as usize);
             if iso_8859_1_string.is_ok() {
-                data.seek(SeekFrom::Start(0))?;
+                data.rewind()?;
                 return Ok(Encoding::Iso8859_1)
             }
         }
 
         // If we reach this, we do not support the format.
-        data.seek(SeekFrom::Start(0))?;
+        data.rewind()?;
         Err(RLibError::DecodingTextUnsupportedEncodingOrNotATextFile)
     }
 }

@@ -1340,7 +1340,7 @@ impl AppUI {
             }
 
             // In ANY other situation, it's a message problem.
-            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
         }
 
         // Return success.
@@ -1411,7 +1411,7 @@ impl AppUI {
                     Response::Error(error) => result = Err(error),
 
                     // In ANY other situation, it's a message problem.
-                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                 }
             }
         }
@@ -1429,7 +1429,7 @@ impl AppUI {
                 Response::Error(error) => result = Err(error),
 
                 // In ANY other situation, it's a message problem.
-                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
             }
         }
 
@@ -2011,7 +2011,7 @@ impl AppUI {
                 if !use_dialog { return; }
                 qtre("api_response_error", &[&error.to_string()])
             }
-            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
         };
 
         dialog.set_text(&message);
@@ -2050,7 +2050,7 @@ impl AppUI {
                     dialog.set_text(&QString::from_std_str(error.to_string()));
                     close_button.set_enabled(true);
                 }
-                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
             }
         }
     }
@@ -2127,7 +2127,7 @@ impl AppUI {
                     dialog.set_text(&QString::from_std_str(error.to_string()));
                     close_button.set_enabled(true);
                 }
-                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
             }
         }
     }
@@ -2205,7 +2205,7 @@ impl AppUI {
                         dialog.set_text(&QString::from_std_str(error.to_string()));
                         close_button.set_enabled(true);
                     }
-                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                 }
             }
         } else {
@@ -2214,7 +2214,7 @@ impl AppUI {
             match response {
                 Response::Success => log_to_status_bar("messages_update_success"),
                 Response::Error(error) => log_to_status_bar(&error.to_string()),
-                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
             }
         }
     }
@@ -2291,7 +2291,7 @@ impl AppUI {
                     dialog.set_text(&QString::from_std_str(error.to_string()));
                     close_button.set_enabled(true);
                 }
-                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
             }
         }
     }
@@ -2517,7 +2517,7 @@ impl AppUI {
                                     let data = match response {
                                         Response::VecU8(data) => data,
                                         Response::Error(_) => return show_dialog(&app_ui.main_window, error, false),
-                                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                                     };
 
                                     return show_dialog_decode_button(app_ui.main_window.static_upcast::<qt_widgets::QWidget>().as_ptr(), error, file_info.table_name().unwrap(), &data);
@@ -2757,7 +2757,7 @@ impl AppUI {
 
                         Response::Unknown => {},
                         Response::Error(error) => return show_dialog(&app_ui.main_window, error, false),
-                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                     };
                     /*
                     let packed_file_type = get_packed_file_type(path);
@@ -2827,7 +2827,7 @@ impl AppUI {
                     let external_path = match response {
                         Response::PathBuf(external_path) => external_path,
                         Response::Error(error) => return show_dialog(&app_ui.main_window, error, false),
-                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                     };
 
                     PackedFileExternalView::new_view(&path, app_ui, &mut tab, pack_file_contents_ui, &external_path);
@@ -2979,7 +2979,7 @@ impl AppUI {
             let response = CentralCommand::recv(&receiver);
             match response {
                 Response::Bool(it_is) => if !it_is { return show_dialog(&app_ui.main_window, "The dependencies cache for the Game Selected is either missing, outdated, or it was generated without the Assembly Kit. Please, re-generate it and try again.", false); },
-                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
             }
         }
 
@@ -3068,7 +3068,7 @@ impl AppUI {
                                     }
 
                                     Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
-                                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                                 }
                             }
                         }
@@ -3110,7 +3110,7 @@ impl AppUI {
                     let version = match response {
                         Response::I32(data) => data,
                         Response::Error(error) => return show_dialog(&app_ui.main_window, error, false),
-                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                     };
 
                     let new_packed_file = NewPackedFile::DB(name.to_owned(), table.to_owned(), version);
@@ -3179,7 +3179,7 @@ impl AppUI {
                         UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
                     }
                     Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
-                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                 }
             }
         }
@@ -3300,7 +3300,7 @@ impl AppUI {
                     let version = match response {
                         Response::I32(data) => data,
                         Response::Error(error) => return Some(Err(error)),
-                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                     };
                     Some(Ok(NewPackedFile::DB(packed_file_name, table, version)))
                 },
@@ -3554,7 +3554,7 @@ impl AppUI {
             let response = CentralCommand::recv(&receiver);
             match response {
                 Response::Success => {}
-                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
             }
 
             // If we have a pack open, set the current "Operational Mode" to `Normal` (In case we were in `MyMod` mode).
@@ -3612,7 +3612,7 @@ impl AppUI {
                     }
                 }
                 Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
-                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
             }
         }
 
@@ -3697,7 +3697,7 @@ impl AppUI {
                 dependencies_ui.dependencies_tree_view().update_treeview(true, TreeViewOperation::Build(parent_build_data), DataSource::ParentFiles);
             }
             Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
-            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
         }
 
         // Re-enable the Main Window.
@@ -3752,7 +3752,7 @@ impl AppUI {
                     let response = CentralCommand::recv(&receiver);
                     let settings = match response {
                         Response::PackSettings(settings) => settings,
-                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                     };
 
                     let files_to_ignore = settings.setting_text("import_files_to_ignore").map(|files_to_ignore| {

@@ -101,7 +101,7 @@ pub fn network_loop() {
             }
 
             // If you hit this, you fucked it up somewhere else.
-            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
         }
     }
 }

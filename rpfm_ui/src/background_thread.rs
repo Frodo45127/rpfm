@@ -1791,7 +1791,7 @@ pub fn background_loop() {
             }
 
             // These two belong to the network thread, not to this one!!!!
-            Command::CheckUpdates | Command::CheckSchemaUpdates | Command::CheckMessageUpdates | Command::CheckLuaAutogenUpdates => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+            Command::CheckUpdates | Command::CheckSchemaUpdates | Command::CheckMessageUpdates | Command::CheckLuaAutogenUpdates => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
         }
     }
 }

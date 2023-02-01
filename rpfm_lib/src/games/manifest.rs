@@ -114,9 +114,7 @@ impl ManifestEntry {
     pub fn path_from_manifest_entry(&self, path: PathBuf) -> Option<PathBuf> {
         match self.belongs_to_base_game() {
             Some(value) => {
-                if *value == 1 {
-                    canonicalize(path).ok()
-                } else if path.is_file() {
+                if *value == 1 || path.is_file() {
                     canonicalize(path).ok()
                 } else {
                     None

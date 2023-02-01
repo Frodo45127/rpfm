@@ -83,7 +83,7 @@ impl Logger {
 
         // Make sure the provided folder exists.
         if let Some(parent_folder) = logging_path.parent() {
-            DirBuilder::new().recursive(true).create(&parent_folder)?;
+            DirBuilder::new().recursive(true).create(parent_folder)?;
         }
 
         let log_level = if verbose {
@@ -166,7 +166,7 @@ impl Logger {
     /// This function tries to save a generated Crash Report to the provided folder.
     pub fn save(&self, path: &Path) -> Result<()> {
         let file_path = path.join(format!("error-report-{}.toml", current_time()?));
-        let mut file = BufWriter::new(File::create(&file_path)?);
+        let mut file = BufWriter::new(File::create(file_path)?);
         file.write_all(toml::to_string_pretty(&self)?.as_bytes())?;
         Ok(())
     }

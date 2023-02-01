@@ -278,7 +278,7 @@ impl TableView {
         packed_file_path: Option<Arc<RwLock<String>>>,
         data_source: Arc<RwLock<DataSource>>,
     ) -> Result<Arc<Self>> {
-        let t = std::time::SystemTime::now();
+
         let (table_definition, table_name, packed_file_type) = match table_data {
             TableType::DependencyManager(_) => {
                 let mut definition = Definition::new(-1, None);
@@ -293,11 +293,9 @@ impl TableView {
             TableType::NormalTable(ref table) => (table.definition().clone(), None, FileType::Unknown),
         };
 
-        dbg!(t.elapsed().unwrap());
         // Get the dependency data of this Table.
         let table_name_for_ref = if let Some(name) = table_name { name.to_owned() } else { "".to_owned() };
         let dependency_data = get_reference_data(packed_file_type, &table_name_for_ref, &table_definition)?;
-        dbg!(t.elapsed().unwrap());
 
         // Create the locks for undoing and saving. These are needed to optimize the undo/saving process.
         let undo_lock = Arc::new(AtomicBool::new(false));
@@ -523,7 +521,7 @@ impl TableView {
         layout.add_widget_5a(&sidebar_scroll_area, 0, 4, 5, 1);
         sidebar_scroll_area.hide();
         sidebar_grid.set_row_stretch(999, 10);
-dbg!(t.elapsed().unwrap());
+
         let timer_delayed_updates = QTimer::new_1a(parent);
         timer_delayed_updates.set_single_shot(true);
 
@@ -537,7 +535,7 @@ dbg!(t.elapsed().unwrap());
         } else {
             return Err(anyhow!("There is no Schema for the Game Selected."));
         };
-dbg!(t.elapsed().unwrap());
+
         // Create the raw Struct and begin
         let packed_file_table_view = Arc::new(TableView {
             table_view,
@@ -621,11 +619,11 @@ dbg!(t.elapsed().unwrap());
             references_ui,
             packed_file_path
         );
-dbg!(t.elapsed().unwrap());
+
         // Build the first filter.
         FilterView::new(&packed_file_table_view)?;
         SearchView::new(&packed_file_table_view)?;
-dbg!(t.elapsed().unwrap());
+
         // Load the data to the Table. For some reason, if we do this after setting the titles of
         // the columns, the titles will be resetted to 1, 2, 3,... so we do this here.
         load_data(
@@ -636,27 +634,26 @@ dbg!(t.elapsed().unwrap());
             &packed_file_table_view.timer_delayed_updates,
             packed_file_table_view.get_data_source()
         );
-dbg!(t.elapsed().unwrap());
+
         // Initialize the undo model.
         update_undo_model(&packed_file_table_view.table_model_ptr(), &packed_file_table_view.undo_model_ptr());
-dbg!(t.elapsed().unwrap());
+
         // Build the columns. If we have a model from before, use it to paint our cells as they were last time we painted them.
         build_columns(
             &packed_file_table_view.table_view_ptr(),
             &packed_file_table_view.table_definition.read().unwrap(),
             packed_file_table_view.table_name.as_deref()
         );
-dbg!(t.elapsed().unwrap());
+
         // Set the connections and return success.
         connections::set_connections(&packed_file_table_view, &packed_file_table_view_slots);
 
-dbg!(t.elapsed().unwrap());
         // Update the line counter.
         packed_file_table_view.update_line_counter();
 
         // This fixes some weird issues on first click.
         packed_file_table_view.context_menu_update();
-dbg!(t.elapsed().unwrap());
+
         Ok(packed_file_table_view)
     }
 
@@ -2365,7 +2362,7 @@ dbg!(t.elapsed().unwrap());
                     // Now it's safe to trigger the timer.
                     self.start_delayed_updates_timer();
                 }
-                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
             }
         }
 
@@ -2494,7 +2491,7 @@ dbg!(t.elapsed().unwrap());
             match response {
                 Response::Success => show_dialog(&self.table_view, tr("schema_patch_submitted_correctly"), true),
                 Response::Error(error) => return Err(error),
-                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
             }
         }
 
@@ -2537,7 +2534,7 @@ dbg!(t.elapsed().unwrap());
                     let response = CENTRAL_COMMAND.recv_try(&receiver);
                     match response {
                         Response::OptionStringStringString(response) => response,
-                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                     }
                 }
                 _ => None,
@@ -2614,7 +2611,7 @@ dbg!(t.elapsed().unwrap());
                     }
 
                     Response::Error(error) => error_message = error.to_string(),
-                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                 }
             } else {
                 error_message = tr("source_data_for_field_not_found");
@@ -2731,7 +2728,7 @@ dbg!(t.elapsed().unwrap());
                     }
 
                     Response::Error(error) => error_message = error.to_string(),
-                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                 }
             }
         }
@@ -2774,7 +2771,7 @@ impl Debug for TableOperations {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Editing(data) => write!(f, "Cell/s edited, starting in row {}, column {}.", (data[0].0).0, (data[0].0).1),
-            Self::AddRows(data) => write!(f, "Removing row/s added in position/s {}.", data.iter().map(|x| format!("{}, ", x)).collect::<String>()),
+            Self::AddRows(data) => write!(f, "Removing row/s added in position/s {}.", data.iter().map(|x| format!("{x}, ")).collect::<String>()),
             Self::RemoveRows(data) => write!(f, "Re-adding row/s removed in {} batches.", data.len()),
             Self::ImportTSV(_) => write!(f, "Imported TSV file."),
             Self::Carolina(_) => write!(f, "Carolina, trátame bien, no te rías de mi, no me arranques la piel."),

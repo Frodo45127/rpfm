@@ -731,27 +731,27 @@ impl Table {
         for split_colour in split_colours.values() {
             let mut colour_hex = "".to_owned();
             if let Some(r) = split_colour.get("r") {
-                colour_hex.push_str(&format!("{:02X?}", r));
+                colour_hex.push_str(&format!("{r:02X?}"));
             }
 
             if let Some(r) = split_colour.get("red") {
-                colour_hex.push_str(&format!("{:02X?}", r));
+                colour_hex.push_str(&format!("{r:02X?}"));
             }
 
             if let Some(g) = split_colour.get("g") {
-                colour_hex.push_str(&format!("{:02X?}", g));
+                colour_hex.push_str(&format!("{g:02X?}"));
             }
 
             if let Some(g) = split_colour.get("green") {
-                colour_hex.push_str(&format!("{:02X?}", g));
+                colour_hex.push_str(&format!("{g:02X?}"));
             }
 
             if let Some(b) = split_colour.get("b") {
-                colour_hex.push_str(&format!("{:02X?}", b));
+                colour_hex.push_str(&format!("{b:02X?}"));
             }
 
             if let Some(b) = split_colour.get("blue") {
-                colour_hex.push_str(&format!("{:02X?}", b));
+                colour_hex.push_str(&format!("{b:02X?}"));
             }
 
             if u32::from_str_radix(&colour_hex, 16).is_ok() {

@@ -150,7 +150,7 @@ impl Tool {
         let response = CentralCommand::recv(&receiver);
         match response {
             Response::Bool(it_is) => if !it_is { return Err(ToolsError::DependenciesCacheNotGeneratedorOutOfDate.into()); },
-            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
         }
 
         // Load the UI Template.
@@ -1167,10 +1167,9 @@ impl Tool {
         let definition = match response {
             Response::Definition(data) => data,
             Response::Error(error) => return Err(error),
-            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
         };
 
         Ok(definition)
     }
-
 }

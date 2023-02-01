@@ -107,7 +107,7 @@ impl PackedFileAnimPackViewSlots {
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                         },
                         Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
-                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                     }
 
                     // Re-enable and re-focus the Main Window.
@@ -156,7 +156,7 @@ impl PackedFileAnimPackViewSlots {
                             }
                         },
                         Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
-                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                     }
 
                     // Re-enable and re-focus the Main Window.
@@ -193,7 +193,7 @@ impl PackedFileAnimPackViewSlots {
                         }
 
                         Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
-                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                     }
                 }
             }

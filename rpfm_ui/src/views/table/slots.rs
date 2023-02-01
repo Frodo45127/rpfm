@@ -484,7 +484,7 @@ impl TableViewSlots {
                                 }
                             },
                             Response::Error(error) => return show_dialog(&view.table_view, error, false),
-                            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                         }
 
                         //unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
@@ -529,7 +529,7 @@ impl TableViewSlots {
                             match response {
                                 Response::Success => (),
                                 Response::Error(error) => show_dialog(&view.table_view, error, false),
-                                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                             }
                         }
                     }
@@ -623,7 +623,7 @@ impl TableViewSlots {
                                         // Reenable the table.
                                         references_ui.references_table_view().set_enabled(true);
                                     }
-                                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                                 }
                             }
                         }

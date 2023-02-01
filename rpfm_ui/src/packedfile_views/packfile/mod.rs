@@ -100,7 +100,7 @@ impl PackFileExtraView {
         match response {
             Response::ContainerInfo(_) => {},
             Response::Error(error) => return Err(error),
-            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
         }
 
         // Load the UI Template.

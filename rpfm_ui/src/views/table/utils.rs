@@ -866,7 +866,7 @@ pub unsafe fn get_reference_data(file_type: FileType, table_name: &str, definiti
                     Ok(dependency_data.clone())
                 },
                 Response::Error(error) => Err(error),
-                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
             }
         }
 

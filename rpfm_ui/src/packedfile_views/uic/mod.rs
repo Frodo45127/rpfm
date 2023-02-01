@@ -72,7 +72,7 @@ impl PackedFileUICView {
             Response::UICRFileInfo((data, packed_file_info)) => (data, packed_file_info),
             Response::Error(error) => return Err(error),
             Response::Unknown => return Err(ErrorKind::PackedFileTypeUnknown.into()),
-            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
         };
 
         let layout: QPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast();

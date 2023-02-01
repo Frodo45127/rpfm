@@ -736,7 +736,7 @@ pub trait Container {
 
                     // Fix for when we try to delete empty folders.
                     if paths_to_remove.is_empty() {
-                        vec![ContainerPath::Folder(String::from(path)); 1]
+                        vec![ContainerPath::Folder(path); 1]
                     } else {
                         paths_to_remove.par_iter().map(|path| ContainerPath::File(path.to_string())).collect()
                     }
