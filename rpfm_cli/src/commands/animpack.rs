@@ -46,7 +46,7 @@ pub fn list(config: &Config, path: &Path) -> Result<()> {
     let pack = AnimPack::decode(&mut reader, &Some(extra_data))?;
     let files: BTreeMap<_, _> = pack.files().iter().collect();
     for (path, _) in files {
-        println!("{}", path);
+        println!("{path}");
     }
 
     Ok(())

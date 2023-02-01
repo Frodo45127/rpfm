@@ -91,8 +91,8 @@ impl PackFileSettingsView {
 
         let mut row = 0;
         for (key, setting) in settings.settings_text() {
-            let label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{}_label", key)), pack_file_view.get_mut_widget());
-            let description_label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{}_description_label", key)), pack_file_view.get_mut_widget());
+            let label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{key}_label")), pack_file_view.get_mut_widget());
+            let description_label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{key}_description_label")), pack_file_view.get_mut_widget());
             let edit = QPlainTextEdit::from_q_string_q_widget(&QString::from_std_str(setting), pack_file_view.get_mut_widget());
             description_label.set_word_wrap(true);
 
@@ -106,8 +106,8 @@ impl PackFileSettingsView {
         }
 
         for (key, setting) in settings.settings_string() {
-            let label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{}_label", key)), pack_file_view.get_mut_widget());
-            let _description_label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{}_description_label", key)), pack_file_view.get_mut_widget());
+            let label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{key}_label")), pack_file_view.get_mut_widget());
+            let _description_label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{key}_description_label")), pack_file_view.get_mut_widget());
             let edit = QLineEdit::from_q_string_q_widget(&QString::from_std_str(setting), pack_file_view.get_mut_widget());
 
             layout.add_widget_5a(&label, row, 0, 1, 1);
@@ -118,8 +118,8 @@ impl PackFileSettingsView {
         }
 
         for (key, setting) in settings.settings_bool() {
-            let label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{}_label", key)), pack_file_view.get_mut_widget());
-            let _description_label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{}_description_label", key)), pack_file_view.get_mut_widget());
+            let label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{key}_label")), pack_file_view.get_mut_widget());
+            let _description_label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{key}_description_label")), pack_file_view.get_mut_widget());
             let edit = QCheckBox::from_q_widget(pack_file_view.get_mut_widget());
             edit.set_checked(*setting);
 
@@ -131,8 +131,8 @@ impl PackFileSettingsView {
         }
 
         for (key, setting) in settings.settings_number() {
-            let label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{}_label", key)), pack_file_view.get_mut_widget());
-            let _description_label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{}_description_label", key)), pack_file_view.get_mut_widget());
+            let label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{key}_label")), pack_file_view.get_mut_widget());
+            let _description_label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{key}_description_label")), pack_file_view.get_mut_widget());
             let edit = QSpinBox::new_1a(pack_file_view.get_mut_widget());
             edit.set_value(*setting);
 

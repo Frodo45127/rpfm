@@ -375,8 +375,8 @@ impl DecodedData {
     pub fn data_to_string(&self) -> Cow<str> {
         match self {
             DecodedData::Boolean(data) => Cow::from(if *data { "true" } else { "false" }),
-            DecodedData::F32(data) => Cow::from(format!("{:.4}", data)),
-            DecodedData::F64(data) => Cow::from(format!("{:.4}", data)),
+            DecodedData::F32(data) => Cow::from(format!("{data:.4}")),
+            DecodedData::F64(data) => Cow::from(format!("{data:.4}")),
             DecodedData::I16(data) => Cow::from(data.to_string()),
             DecodedData::I32(data) => Cow::from(data.to_string()),
             DecodedData::I64(data) => Cow::from(data.to_string()),

@@ -70,7 +70,7 @@ pub unsafe fn update_undo_model(model: &QPtr<QStandardItemModel>, undo_model: &Q
             if item.is_null() {
                 error!("Null on item model? WTF? Row: {}, Column: {}", row, column);
             } else {
-                undo_model.set_item_3a(row, column, (&*item).clone());
+                undo_model.set_item_3a(row, column, (*item).clone());
             }
         }
     }
@@ -182,7 +182,7 @@ pub unsafe fn delete_rows(model: &QPtr<QStandardItemModel>, rows: &[i32]) -> Vec
 
         // Items are individually cloned because there is no "takeRows" function to take out multiple individual rows.
         let items = (0..model.column_count_0a())
-            .map(|column| (&*model.item_2a(*row, column)).clone())
+            .map(|column| (*model.item_2a(*row, column)).clone())
             .collect::<Vec<Ptr<QStandardItem>>>();
 
         // If the current line is not the next of the batch, nor the first one, finish the pack.
@@ -524,10 +524,10 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData, keys: &[i32], colum
         // Also, they should be limited to 3 decimals.
         DecodedData::F32(ref data) => {
             let data = {
-                let data_str = format!("{}", data);
+                let data_str = format!("{data}");
                 if let Some(position) = data_str.find('.') {
                     let decimals = &data_str[position..].len();
-                    if *decimals > 4 { format!("{:.4}", data).parse::<f32>().unwrap() }
+                    if *decimals > 4 { format!("{data:.4}").parse::<f32>().unwrap() }
                     else { *data }
                 }
                 else { *data }
@@ -544,10 +544,10 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData, keys: &[i32], colum
 
         DecodedData::F64(ref data) => {
             let data = {
-                let data_str = format!("{}", data);
+                let data_str = format!("{data}");
                 if let Some(position) = data_str.find('.') {
                     let decimals = &data_str[position..].len();
-                    if *decimals > 4 { format!("{:.4}", data).parse::<f64>().unwrap() }
+                    if *decimals > 4 { format!("{data:.4}").parse::<f64>().unwrap() }
                     else { *data }
                 }
                 else { *data }
@@ -822,7 +822,7 @@ pub unsafe fn get_reference_data(file_type: FileType, table_name: &str, definiti
                     let path = packed_file_view.get_ref_path();
                     if packed_file_view.get_data_source() == DataSource::PackFile {
                         let path_split = path.split('/').collect::<Vec<_>>();
-                        if path_split.len() == 3 && path_split[0].to_lowercase() == "db" && path_split[1].to_lowercase() == format!("{}_tables", table) {
+                        if path_split.len() == 3 && path_split[0].to_lowercase() == "db" && path_split[1].to_lowercase() == format!("{table}_tables") {
                             if let ViewType::Internal(View::Table(table)) = packed_file_view.get_view() {
                                 let table = table.get_ref_table();
                                 let column = clean_column_names(column);

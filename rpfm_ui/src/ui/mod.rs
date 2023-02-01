@@ -319,12 +319,12 @@ impl GameSelectedIcons {
                 let border =  if cfg!(target_os = "windows") { "border: 0px solid #754EF9;" } else { "" };
                 app_ui.tab_bar_packed_file().set_style_sheet(&QString::from_std_str(format!("
                     QTabWidget::pane {{
-                        background-image: url('{}');
+                        background-image: url('{big_icon}');
                         background-repeat: no-repeat;
                         background-position: center;
-                        {}
+                        {border}
                     }}
-                ", big_icon, border)));
+                ")));
             }
             else {
 

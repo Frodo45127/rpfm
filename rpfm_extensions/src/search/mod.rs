@@ -404,7 +404,7 @@ impl GlobalSearch {
                                 VanillaDBTableNameLogic::DefaultName(ref default_name) => default_name.to_owned()
                             };
 
-                            let path = format!("db/{}/{}", table_name, file_name);
+                            let path = format!("db/{table_name}/{file_name}");
                             let result = table.search(&path, &self.pattern, self.case_sensitive, &matching_mode);
                             if !result.matches().is_empty() {
                                 Some(result)

@@ -91,23 +91,23 @@ impl DiagnosticReport for TableDiagnosticReport {
     fn message(&self) -> String {
         match &self.report_type {
             TableDiagnosticReportType::OutdatedTable => "Possibly outdated table".to_owned(),
-            TableDiagnosticReportType::InvalidReference(cell_data, field_name) => format!("Invalid reference \"{}\" in column \"{}\".", cell_data, field_name),
+            TableDiagnosticReportType::InvalidReference(cell_data, field_name) => format!("Invalid reference \"{cell_data}\" in column \"{field_name}\"."),
             TableDiagnosticReportType::EmptyRow => "Empty row.".to_owned(),
-            TableDiagnosticReportType::EmptyKeyField(field_name) => format!("Empty key for column \"{}\".", field_name),
+            TableDiagnosticReportType::EmptyKeyField(field_name) => format!("Empty key for column \"{field_name}\"."),
             TableDiagnosticReportType::EmptyKeyFields => "Empty key fields.".to_owned(),
             TableDiagnosticReportType::DuplicatedCombinedKeys(combined_keys) => format!("Duplicated combined keys: {}.", &combined_keys),
-            TableDiagnosticReportType::NoReferenceTableFound(field_name) => format!("No reference table found for column \"{}\".", field_name),
-            TableDiagnosticReportType::NoReferenceTableNorColumnFoundPak(field_name) => format!("No reference column found in referenced table for column \"{}\". Maybe a problem with the schema?", field_name),
-            TableDiagnosticReportType::NoReferenceTableNorColumnFoundNoPak(field_name) => format!("No reference column found in referenced table for column \"{}\". Did you forgot to generate the Dependencies Cache, or did you generated it before installing the Assembly kit?", field_name),
+            TableDiagnosticReportType::NoReferenceTableFound(field_name) => format!("No reference table found for column \"{field_name}\"."),
+            TableDiagnosticReportType::NoReferenceTableNorColumnFoundPak(field_name) => format!("No reference column found in referenced table for column \"{field_name}\". Maybe a problem with the schema?"),
+            TableDiagnosticReportType::NoReferenceTableNorColumnFoundNoPak(field_name) => format!("No reference column found in referenced table for column \"{field_name}\". Did you forgot to generate the Dependencies Cache, or did you generated it before installing the Assembly kit?"),
             TableDiagnosticReportType::InvalidEscape => "Invalid line jump/tabulation detected in loc entry. Use \\\\n or \\\\t instead.".to_owned(),
-            TableDiagnosticReportType::DuplicatedRow(combined_keys) => format!("Duplicated row: {}.", combined_keys),
+            TableDiagnosticReportType::DuplicatedRow(combined_keys) => format!("Duplicated row: {combined_keys}."),
             TableDiagnosticReportType::InvalidLocKey => "Invalid localisation key.".to_owned(),
             TableDiagnosticReportType::TableNameEndsInNumber => "Table name ends in number.".to_owned(),
             TableDiagnosticReportType::TableNameHasSpace => "Table name contains spaces.".to_owned(),
             TableDiagnosticReportType::TableIsDataCoring => "Table is datacoring.".to_owned(),
             TableDiagnosticReportType::FieldWithPathNotFound(paths) => format!("Path not found: {}.", paths.iter().join(" || ")),
             TableDiagnosticReportType::BannedTable => "Banned table.".to_owned(),
-            TableDiagnosticReportType::ValueCannotBeEmpty(field_name) => format!("Empty value for column \"{}\".", field_name),
+            TableDiagnosticReportType::ValueCannotBeEmpty(field_name) => format!("Empty value for column \"{field_name}\"."),
         }
     }
 

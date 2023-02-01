@@ -450,7 +450,7 @@ impl PackFileContentsSlots {
                             // We check that path exists, and create it if it doesn't.
                             if !assets_folder.is_dir() {
                                 if let Err(error) = DirBuilder::new().recursive(true).create(&assets_folder) {
-                                    return show_dialog(app_ui.main_window(), format!("Error while creating the MyMod's Assets folder: {}", error), false);
+                                    return show_dialog(app_ui.main_window(), format!("Error while creating the MyMod's Assets folder: {error}"), false);
                                 }
                             }
 
@@ -554,7 +554,7 @@ impl PackFileContentsSlots {
                             // We check that path exists, and create it if it doesn't.
                             if !assets_folder.is_dir() {
                                 if let Err(error) = DirBuilder::new().recursive(true).create(&assets_folder) {
-                                    return show_dialog(app_ui.main_window(), format!("Error while creating the MyMod's Assets folder: {}", error), false);
+                                    return show_dialog(app_ui.main_window(), format!("Error while creating the MyMod's Assets folder: {error}"), false);
                                 }
                             }
 
@@ -893,7 +893,7 @@ impl PackFileContentsSlots {
                         // Check if the folder exists.
                         let receiver = CENTRAL_COMMAND.send_background(Command::FolderExists(complete_path.to_owned()));
                         let response = CentralCommand::recv(&receiver);
-                        let folder_exists = if let Response::Bool(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
+                        let folder_exists = if let Response::Bool(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
 
                         // If the folder already exists, return an error.
                         if folder_exists { return show_dialog(app_ui.main_window(), "That folder already exists in the current path.", false)}

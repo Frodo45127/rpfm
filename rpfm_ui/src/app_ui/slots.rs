@@ -317,7 +317,7 @@ impl AppUISlots {
                 // Get the current path of the PackFile.
                 let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFilePath);
                 let response = CentralCommand::recv(&receiver);
-                let pack_path = if let Response::PathBuf(pack_path) = response { pack_path } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) };
+                let pack_path = if let Response::PathBuf(pack_path) = response { pack_path } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}") };
                 let mut pack_image_path = pack_path.clone();
                 pack_image_path.set_extension("png");
 
@@ -377,7 +377,7 @@ impl AppUISlots {
                 // Get the current path of the PackFile.
                 let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFilePath);
                 let response = CentralCommand::recv(&receiver);
-                let pack_path = if let Response::PathBuf(pack_path) = response { pack_path } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) };
+                let pack_path = if let Response::PathBuf(pack_path) = response { pack_path } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}") };
 
                 // Ensure it's a file and it's not in data before proceeding.
                 if !pack_path.is_file() {
@@ -556,7 +556,7 @@ impl AppUISlots {
                 let game_key = GAME_SELECTED.read().unwrap().game_key_name();
                 let mymod_path_old = setting_path(MYMOD_BASE_PATH);
                 let game_path_old = setting_path(&game_key);
-                let ak_path_old = setting_path(&format!("{}_assembly_kit", game_key));
+                let ak_path_old = setting_path(&format!("{game_key}_assembly_kit"));
                 let dark_theme_old = setting_bool("use_dark_theme");
                 let font_name_old = setting_string("font_name");
                 let font_size_old = setting_int("font_size");
@@ -566,7 +566,7 @@ impl AppUISlots {
                         if saved {
                             let mymod_path_new = setting_path(MYMOD_BASE_PATH);
                             let game_path_new = setting_path(&game_key);
-                            let ak_path_new = setting_path(&format!("{}_assembly_kit", game_key));
+                            let ak_path_new = setting_path(&format!("{game_key}_assembly_kit"));
 
                             // If we changed the "MyMod's Folder" path, disable the MyMod mode and set it so the MyMod menu will be re-built
                             // next time we open the MyMod menu.
@@ -656,7 +656,7 @@ impl AppUISlots {
                 match MyModUI::new(&app_ui) {
                     Ok(dialog) => {
                         if let Some((mod_name, mod_game, sublime_support, vscode_support, paths_ignore_on_import, git_support)) = dialog {
-                            let full_mod_name = format!("{}.pack", mod_name);
+                            let full_mod_name = format!("{mod_name}.pack");
 
                             // Change the Game Selected to match the one we chose for the new "MyMod".
                             // NOTE: Arena should not be on this list.
@@ -1082,7 +1082,7 @@ impl AppUISlots {
 
                     // If the PackFile is empty or is not patchable, report it. Otherwise, praise the nine divines.
                     Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
-                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response)
+                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}")
                 }
 
                 // Re-enable the Main Window.

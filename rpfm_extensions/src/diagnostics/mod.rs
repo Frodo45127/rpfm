@@ -325,45 +325,36 @@ impl Diagnostics {
             let mut diagnostic = TableDiagnostic::new(file.path_in_container_raw());
 
             // Before anything else, check if the table is outdated.
-            if !Self::ignore_diagnostic(global_ignored_diagnostics, None, Some("OutdatedTable"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
-                if Self::is_table_outdated(table.table_name(), *table.definition().version(), dependencies) {
-                    let result = TableDiagnosticReport::new(TableDiagnosticReportType::OutdatedTable, &[]);
-                    diagnostic.results_mut().push(result);
-                }
+            if !Self::ignore_diagnostic(global_ignored_diagnostics, None, Some("OutdatedTable"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && Self::is_table_outdated(table.table_name(), *table.definition().version(), dependencies) {
+                let result = TableDiagnosticReport::new(TableDiagnosticReportType::OutdatedTable, &[]);
+                diagnostic.results_mut().push(result);
             }
 
             // Check if it's one of the banned tables for the game selected.
-            if !Self::ignore_diagnostic(global_ignored_diagnostics, None, Some("BannedTable"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
-                if game_info.is_file_banned(file.path_in_container_raw()) {
-                    let result = TableDiagnosticReport::new(TableDiagnosticReportType::BannedTable, &[]);
-                    diagnostic.results_mut().push(result);
-                }
+            if !Self::ignore_diagnostic(global_ignored_diagnostics, None, Some("BannedTable"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && game_info.is_file_banned(file.path_in_container_raw()) {
+                let result = TableDiagnosticReport::new(TableDiagnosticReportType::BannedTable, &[]);
+                diagnostic.results_mut().push(result);
             }
 
             // Check if the table name has a number at the end, which causes very annoying bugs.
             if let Some(name) = file.file_name() {
-                if !Self::ignore_diagnostic(global_ignored_diagnostics, None, Some("TableNameEndsInNumber"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
-                    if name.ends_with('0') ||
-                        name.ends_with('1') ||
-                        name.ends_with('2') ||
-                        name.ends_with('3') ||
-                        name.ends_with('4') ||
-                        name.ends_with('5') ||
-                        name.ends_with('6') ||
-                        name.ends_with('7') ||
-                        name.ends_with('8') ||
-                        name.ends_with('9') {
+                if !Self::ignore_diagnostic(global_ignored_diagnostics, None, Some("TableNameEndsInNumber"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && (name.ends_with('0') ||
+                    name.ends_with('1') ||
+                    name.ends_with('2') ||
+                    name.ends_with('3') ||
+                    name.ends_with('4') ||
+                    name.ends_with('5') ||
+                    name.ends_with('6') ||
+                    name.ends_with('7') ||
+                    name.ends_with('8') || name.ends_with('9')) {
 
-                        let result = TableDiagnosticReport::new(TableDiagnosticReportType::TableNameEndsInNumber, &[]);
-                        diagnostic.results_mut().push(result);
-                    }
+                    let result = TableDiagnosticReport::new(TableDiagnosticReportType::TableNameEndsInNumber, &[]);
+                    diagnostic.results_mut().push(result);
                 }
 
-                if !Self::ignore_diagnostic(global_ignored_diagnostics, None, Some("TableNameHasSpace"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
-                    if name.contains(' ') {
-                        let result = TableDiagnosticReport::new(TableDiagnosticReportType::TableNameHasSpace, &[]);
-                        diagnostic.results_mut().push(result);
-                    }
+                if !Self::ignore_diagnostic(global_ignored_diagnostics, None, Some("TableNameHasSpace"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && name.contains(' ') {
+                    let result = TableDiagnosticReport::new(TableDiagnosticReportType::TableNameHasSpace, &[]);
+                    diagnostic.results_mut().push(result);
                 }
 
                 if !Self::ignore_diagnostic(global_ignored_diagnostics, None, Some("TableIsDataCoring"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
@@ -404,99 +395,93 @@ impl Diagnostics {
                     let cell_data = cells[column].data_to_string();
 
                     // Path checks.
-                    if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field.name()), Some("FieldWithPathNotFound"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
-                        if !cell_data.is_empty() {
-                            if fields_processed[column].is_filename() {
-                                let mut path_found = false;
-                                let paths = {
-                                    let path = if let Some(relative_path) = fields_processed[column].filename_relative_path() {
-                                        relative_path.replace('%', &cell_data)
-                                    } else {
-                                        cell_data.to_string()
-                                    };
+                    if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field.name()), Some("FieldWithPathNotFound"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && !cell_data.is_empty() && fields_processed[column].is_filename() {
+                        let mut path_found = false;
+                        let paths = {
+                            let path = if let Some(relative_path) = fields_processed[column].filename_relative_path() {
+                                relative_path.replace('%', &cell_data)
+                            } else {
+                                cell_data.to_string()
+                            };
 
-                                    // Skip paths with wildcards, as we do not support them.
-                                    if path.contains('*') {
-                                        path_found = true;
-                                        vec![]
-                                    } else {
-                                        path.replace('\\', "/").replace(';', ",").split(',').map(|x| {
-                                            let mut x = x.to_owned();
-                                            if x.ends_with('/') {
-                                                x.pop();
-                                            }
-                                            x
-                                        }).collect::<Vec<String>>()
+                            // Skip paths with wildcards, as we do not support them.
+                            if path.contains('*') {
+                                path_found = true;
+                                vec![]
+                            } else {
+                                path.replace('\\', "/").replace(';', ",").split(',').map(|x| {
+                                    let mut x = x.to_owned();
+                                    if x.ends_with('/') {
+                                        x.pop();
                                     }
-                                };
-
-                                for path in &paths {
-                                    if local_path_list.par_iter().any(|path_2| caseless::canonical_caseless_match_str(path_2, path)) {
-                                        path_found = true;
-                                    }
-
-                                    if !path_found && local_folder_list.par_iter().any(|path_2| caseless::canonical_caseless_match_str(path_2, path)) {
-                                        path_found = true;
-                                    }
-
-                                    if !path_found && dependencies.file_exists(path, true, true, true) {
-                                        path_found = true;
-                                    }
-
-                                    if !path_found && dependencies.folder_exists(path, true, true, true) {
-                                        path_found = true;
-                                    }
-
-                                    if path_found {
-                                        break;
-                                    }
-                                }
-
-                                if !path_found {
-                                    let result = TableDiagnosticReport::new(TableDiagnosticReportType::FieldWithPathNotFound(paths), &[(row as i32, column as i32)]);
-                                    diagnostic.results_mut().push(result);
-                                }
+                                    x
+                                }).collect::<Vec<String>>()
                             }
+                        };
+
+                        for path in &paths {
+                            if local_path_list.par_iter().any(|path_2| caseless::canonical_caseless_match_str(path_2, path)) {
+                                path_found = true;
+                            }
+
+                            if !path_found && local_folder_list.par_iter().any(|path_2| caseless::canonical_caseless_match_str(path_2, path)) {
+                                path_found = true;
+                            }
+
+                            if !path_found && dependencies.file_exists(path, true, true, true) {
+                                path_found = true;
+                            }
+
+                            if !path_found && dependencies.folder_exists(path, true, true, true) {
+                                path_found = true;
+                            }
+
+                            if path_found {
+                                break;
+                            }
+                        }
+
+                        if !path_found {
+                            let result = TableDiagnosticReport::new(TableDiagnosticReportType::FieldWithPathNotFound(paths), &[(row as i32, column as i32)]);
+                            diagnostic.results_mut().push(result);
                         }
                     }
 
                     // Dependency checks.
-                    if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field.name()), None, ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
-                        if field.is_reference().is_some() {
-                            match dependency_data.get(&(column as i32)) {
-                                Some(ref_data) => {
+                    if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field.name()), None, ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && field.is_reference().is_some() {
+                        match dependency_data.get(&(column as i32)) {
+                            Some(ref_data) => {
 
-                                    if *ref_data.referenced_column_is_localised() || *ref_data.referenced_table_is_ak_only() {
-                                        // TODO: report missing loc data here.
-                                    }
-                                    /*
-                                    else if ref_data.referenced_table_is_ak_only {
-                                        // If it's only in the AK, ignore it.
-                                    }*/
+                                if *ref_data.referenced_column_is_localised() || *ref_data.referenced_table_is_ak_only() {
+                                    // TODO: report missing loc data here.
+                                }
+                                /*
+                                else if ref_data.referenced_table_is_ak_only {
+                                    // If it's only in the AK, ignore it.
+                                }*/
 
-                                    // Blue cell check. Only one for each column, so we don't fill the diagnostics with this.
-                                    else if ref_data.data().is_empty() {
-                                        if !columns_with_reference_table_and_no_column.contains(&column) {
-                                            columns_with_reference_table_and_no_column.push(column);
-                                        }
-                                    }
-
-                                    // Check for non-empty cells with reference data, but the data in the cell is not in the reference data list.
-                                    else if !cell_data.is_empty() && !ref_data.data().contains_key(&*cell_data) {
-
-                                        // Numeric cells with 0 are "empty" references and should not be checked.
-                                        let is_number = *field.field_type() == FieldType::I32 || *field.field_type() == FieldType::I64;
-                                        let is_valid_reference = if is_number { cell_data != "0" } else { true };
-                                        if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field.name()), Some("InvalidReference"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && is_valid_reference {
-                                            let result = TableDiagnosticReport::new(TableDiagnosticReportType::InvalidReference(cell_data.to_string(), field.name().to_string()), &[(row as i32, column as i32)]);
-                                            diagnostic.results_mut().push(result);
-                                        }
+                                // Blue cell check. Only one for each column, so we don't fill the diagnostics with this.
+                                else if ref_data.data().is_empty() {
+                                    if !columns_with_reference_table_and_no_column.contains(&column) {
+                                        columns_with_reference_table_and_no_column.push(column);
                                     }
                                 }
-                                None => {
-                                    if !columns_without_reference_table.contains(&column) {
-                                        columns_without_reference_table.push(column);
+
+                                // Check for non-empty cells with reference data, but the data in the cell is not in the reference data list.
+                                else if !cell_data.is_empty() && !ref_data.data().contains_key(&*cell_data) {
+
+                                    // Numeric cells with 0 are "empty" references and should not be checked.
+                                    let is_number = *field.field_type() == FieldType::I32 || *field.field_type() == FieldType::I64;
+                                    let is_valid_reference = if is_number { cell_data != "0" } else { true };
+                                    if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field.name()), Some("InvalidReference"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && is_valid_reference {
+                                        let result = TableDiagnosticReport::new(TableDiagnosticReportType::InvalidReference(cell_data.to_string(), field.name().to_string()), &[(row as i32, column as i32)]);
+                                        diagnostic.results_mut().push(result);
                                     }
+                                }
+                            }
+                            None => {
+                                if !columns_without_reference_table.contains(&column) {
+                                    columns_without_reference_table.push(column);
                                 }
                             }
                         }
@@ -511,18 +496,14 @@ impl Diagnostics {
                         row_keys_are_empty = false;
                     }
 
-                    if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field.name()), Some("EmptyKeyField"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
-                        if field.is_key(patches) && key_amount == 1 && *field.field_type() != FieldType::OptionalStringU8 && *field.field_type() != FieldType::Boolean && (cell_data.is_empty() || cell_data == "false") {
-                            let result = TableDiagnosticReport::new(TableDiagnosticReportType::EmptyKeyField(field.name().to_string()), &[(row as i32, column as i32)]);
-                            diagnostic.results_mut().push(result);
-                        }
+                    if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field.name()), Some("EmptyKeyField"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && field.is_key(patches) && key_amount == 1 && *field.field_type() != FieldType::OptionalStringU8 && *field.field_type() != FieldType::Boolean && (cell_data.is_empty() || cell_data == "false") {
+                        let result = TableDiagnosticReport::new(TableDiagnosticReportType::EmptyKeyField(field.name().to_string()), &[(row as i32, column as i32)]);
+                        diagnostic.results_mut().push(result);
                     }
 
-                    if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field.name()), Some("ValueCannotBeEmpty"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
-                        if cell_data.is_empty() && field.cannot_be_empty(schema_patches) {
-                            let result = TableDiagnosticReport::new(TableDiagnosticReportType::ValueCannotBeEmpty(field.name().to_string()), &[(row as i32, column as i32)]);
-                            diagnostic.results_mut().push(result);
-                        }
+                    if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field.name()), Some("ValueCannotBeEmpty"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && cell_data.is_empty() && field.cannot_be_empty(schema_patches) {
+                        let result = TableDiagnosticReport::new(TableDiagnosticReportType::ValueCannotBeEmpty(field.name().to_string()), &[(row as i32, column as i32)]);
+                        diagnostic.results_mut().push(result);
                     }
 
                     if field.is_key(patches) {
@@ -530,19 +511,15 @@ impl Diagnostics {
                     }
                 }
 
-                if !Self::ignore_diagnostic(global_ignored_diagnostics, None, Some("EmptyRow"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
-                    if row_is_empty {
-                        let result = TableDiagnosticReport::new(TableDiagnosticReportType::EmptyRow, &[(row as i32, -1)]);
-                        diagnostic.results_mut().push(result);
-                    }
+                if !Self::ignore_diagnostic(global_ignored_diagnostics, None, Some("EmptyRow"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && row_is_empty {
+                    let result = TableDiagnosticReport::new(TableDiagnosticReportType::EmptyRow, &[(row as i32, -1)]);
+                    diagnostic.results_mut().push(result);
                 }
 
-                if !Self::ignore_diagnostic(global_ignored_diagnostics, None, Some("EmptyKeyFields"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
-                    if row_keys_are_empty {
-                        let cells_affected = row_keys.keys().map(|column| (row as i32, *column)).collect::<Vec<(i32, i32)>>();
-                        let result = TableDiagnosticReport::new(TableDiagnosticReportType::EmptyKeyFields, &cells_affected);
-                        diagnostic.results_mut().push(result);
-                    }
+                if !Self::ignore_diagnostic(global_ignored_diagnostics, None, Some("EmptyKeyFields"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && row_keys_are_empty {
+                    let cells_affected = row_keys.keys().map(|column| (row as i32, *column)).collect::<Vec<(i32, i32)>>();
+                    let result = TableDiagnosticReport::new(TableDiagnosticReportType::EmptyKeyFields, &cells_affected);
+                    diagnostic.results_mut().push(result);
                 }
 
                 if !Self::ignore_diagnostic(global_ignored_diagnostics, None, Some("DuplicatedCombinedKeys"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
@@ -620,42 +597,38 @@ impl Diagnostics {
                 for (column, field) in fields_processed.iter().enumerate() {
                     let cell_data = cells[column].data_to_string();
 
-                    if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field.name()), Some("FieldWithPathNotFound"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
-                        if !cell_data.is_empty() {
-                            if fields_processed[column].is_filename() {
-                                let mut path_found = false;
-                                let mut path = cell_data.replace('\\', "/");
+                    if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field.name()), Some("FieldWithPathNotFound"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && !cell_data.is_empty() && fields_processed[column].is_filename() {
+                        let mut path_found = false;
+                        let mut path = cell_data.replace('\\', "/");
 
-                                // If it's a folder, remove the trailing /.
-                                if path.ends_with('/') {
-                                    path.pop();
-                                }
+                        // If it's a folder, remove the trailing /.
+                        if path.ends_with('/') {
+                            path.pop();
+                        }
 
-                                if local_path_list.par_iter().any(|path_2| caseless::canonical_caseless_match_str(path_2, &path)) {
-                                    path_found = true;
-                                }
+                        if local_path_list.par_iter().any(|path_2| caseless::canonical_caseless_match_str(path_2, &path)) {
+                            path_found = true;
+                        }
 
-                                if !path_found && local_folder_list.par_iter().any(|path_2| caseless::canonical_caseless_match_str(path_2, &path)) {
-                                    path_found = true;
-                                }
+                        if !path_found && local_folder_list.par_iter().any(|path_2| caseless::canonical_caseless_match_str(path_2, &path)) {
+                            path_found = true;
+                        }
 
-                                if !path_found && dependencies.file_exists(&path, true, true, true) {
-                                    path_found = true;
-                                }
+                        if !path_found && dependencies.file_exists(&path, true, true, true) {
+                            path_found = true;
+                        }
 
-                                if !path_found && dependencies.folder_exists(&path, true, true, true) {
-                                    path_found = true;
-                                }
+                        if !path_found && dependencies.folder_exists(&path, true, true, true) {
+                            path_found = true;
+                        }
 
-                                if path_found {
-                                    continue;
-                                }
+                        if path_found {
+                            continue;
+                        }
 
-                                if !path_found {
-                                    let result = AnimFragmentDiagnosticReport::new(AnimFragmentDiagnosticReportType::FieldWithPathNotFound(vec![path]), &[(row as i32, column as i32)]);
-                                    diagnostic.results_mut().push(result);
-                                }
-                            }
+                        if !path_found {
+                            let result = AnimFragmentDiagnosticReport::new(AnimFragmentDiagnosticReportType::FieldWithPathNotFound(vec![path]), &[(row as i32, column as i32)]);
+                            diagnostic.results_mut().push(result);
                         }
                     }
                 }
@@ -689,36 +662,26 @@ impl Diagnostics {
                 let key = if let DecodedData::StringU16(ref data) = cells[0] { data } else { unimplemented!() };
                 let data = if let DecodedData::StringU16(ref data) = cells[1] { data } else { unimplemented!() };
 
-                if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field_key_name), Some("InvalidLocKey"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
-                    if !key.is_empty() && (key.contains('\n') || key.contains('\t')) {
-                        let result = TableDiagnosticReport::new(TableDiagnosticReportType::InvalidLocKey, &[(row as i32, 0)]);
-                        diagnostic.results_mut().push(result);
-                    }
+                if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field_key_name), Some("InvalidLocKey"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && !key.is_empty() && (key.contains('\n') || key.contains('\t')) {
+                    let result = TableDiagnosticReport::new(TableDiagnosticReportType::InvalidLocKey, &[(row as i32, 0)]);
+                    diagnostic.results_mut().push(result);
                 }
 
                 // Only in case none of the two columns are ignored, we perform these checks.
-                if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field_key_name), Some("EmptyRow"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) &&
-                    !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field_text_name), Some("EmptyRow"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
-
-                    if key.is_empty() && data.is_empty() {
-                        let result = TableDiagnosticReport::new(TableDiagnosticReportType::EmptyRow, &[(row as i32, -1)]);
-                        diagnostic.results_mut().push(result);
-                    }
+                if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field_key_name), Some("EmptyRow"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field_text_name), Some("EmptyRow"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && key.is_empty() && data.is_empty() {
+                    let result = TableDiagnosticReport::new(TableDiagnosticReportType::EmptyRow, &[(row as i32, -1)]);
+                    diagnostic.results_mut().push(result);
                 }
 
-                if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field_key_name), Some("EmptyKeyField"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
-                    if key.is_empty() && !data.is_empty() {
-                        let result = TableDiagnosticReport::new(TableDiagnosticReportType::EmptyKeyField("Key".to_string()), &[(row as i32, 0)]);
-                        diagnostic.results_mut().push(result);
-                    }
+                if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field_key_name), Some("EmptyKeyField"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && key.is_empty() && !data.is_empty() {
+                    let result = TableDiagnosticReport::new(TableDiagnosticReportType::EmptyKeyField("Key".to_string()), &[(row as i32, 0)]);
+                    diagnostic.results_mut().push(result);
                 }
 
                 // Magic Regex. It works. Don't ask why.
-                if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field_text_name), Some("InvalidEscape"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
-                    if !data.is_empty() && Regex::new(r"(?<!\\)\\n|(?<!\\)\\t").unwrap().is_match(data).unwrap() {
-                        let result = TableDiagnosticReport::new(TableDiagnosticReportType::InvalidEscape, &[(row as i32, 1)]);
-                        diagnostic.results_mut().push(result);
-                    }
+                if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field_text_name), Some("InvalidEscape"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && !data.is_empty() && Regex::new(r"(?<!\\)\\n|(?<!\\)\\t").unwrap().is_match(data).unwrap() {
+                    let result = TableDiagnosticReport::new(TableDiagnosticReportType::InvalidEscape, &[(row as i32, 1)]);
+                    diagnostic.results_mut().push(result);
                 }
 
                 if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field_key_name), Some("DuplicatedRow"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {

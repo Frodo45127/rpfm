@@ -1448,7 +1448,7 @@ impl TableView {
 
             // Get the last operation in the Undo History, or return if there is none.
             let operation = if let Some(operation) = history_source.pop() { operation } else { return };
-            log_to_status_bar(&format!("{:?}", operation));
+            log_to_status_bar(&format!("{operation:?}"));
             match operation {
                 TableOperations::Editing(editions) => {
 
@@ -1663,7 +1663,7 @@ impl TableView {
 
                 // Start the row.
                 if let Some(key) = &row.0 {
-                    lua_table.push_str(&format!("\t[{}] = {{", key));
+                    lua_table.push_str(&format!("\t[{key}] = {{"));
                 }
                 else {
                     lua_table.push('{');
@@ -2120,7 +2120,7 @@ impl TableView {
                     FieldType::F32 => {
                         let current_value = format!("{:.4}", self.table_model.data_2a(real_cell, 2).to_float_0a());
                         if let Ok(new_value) = text.parse::<f32>() {
-                            let new_value_txt = format!("{:.4}", new_value);
+                            let new_value_txt = format!("{new_value:.4}");
                             if current_value != new_value_txt {
                                 self.table_model.set_data_3a(real_cell, &QVariant::from_float(new_value), 2);
                                 changed_cells += 1;
@@ -2133,7 +2133,7 @@ impl TableView {
                     FieldType::F64 => {
                         let current_value = format!("{:.4}", self.table_model.data_2a(real_cell, 2).to_double_0a());
                         if let Ok(new_value) = text.parse::<f64>() {
-                            let new_value_txt = format!("{:.4}", new_value);
+                            let new_value_txt = format!("{new_value:.4}");
                             if current_value != new_value_txt {
                                 self.table_model.set_data_3a(real_cell, &QVariant::from_double(new_value), 2);
                                 changed_cells += 1;
@@ -2467,11 +2467,11 @@ impl TableView {
         explanation_text_edit.set_placeholder_text(&qtr("explanation_placeholder_text"));
 
         // Setup data.
-        if let Some(default_value) = field.default_value(Some(&self.table_definition().patches())) {
+        if let Some(default_value) = field.default_value(Some(self.table_definition().patches())) {
             default_value_line_edit.set_text(&QString::from_std_str(default_value));
         }
-        not_empty_checkbox.set_checked(field.cannot_be_empty(Some(&self.table_definition().patches())));
-        explanation_text_edit.set_text(&QString::from_std_str(field.schema_patch_explanation(Some(&self.table_definition().patches()))));
+        not_empty_checkbox.set_checked(field.cannot_be_empty(Some(self.table_definition().patches())));
+        explanation_text_edit.set_text(&QString::from_std_str(field.schema_patch_explanation(Some(self.table_definition().patches()))));
 
         // Launch.
         if dialog.exec() == 1 {
@@ -2543,7 +2543,7 @@ impl TableView {
             if let Some((ref_table, ref_column, ref_data)) = ref_info {
 
                 // Save the tables that may be the source before searching, to ensure their data is updated.
-                let ref_path = format!("db/{}", ref_table);
+                let ref_path = format!("db/{ref_table}");
                 UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).for_each(|packed_file_view| {
                     if packed_file_view.get_path().starts_with(&ref_path) {
                         let _ = packed_file_view.save(app_ui, pack_file_contents_ui);
@@ -2665,7 +2665,7 @@ impl TableView {
                             *column as i32
                         ).data_0a().to_string().to_std_string()
                     ).join("");
-                let loc_key = format!("{}_{}_{}", table_name, loc_column_name, key);
+                let loc_key = format!("{table_name}_{loc_column_name}_{key}");
 
                 // Then ask the backend to do the heavy work.
                 let receiver = CENTRAL_COMMAND.send_background(Command::GoToLoc(loc_key));

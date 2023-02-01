@@ -445,7 +445,7 @@ impl DiagnosticsUI {
 
                             level.set_background(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(color))));
                             level.set_text(&QString::from_std_str(result_type));
-                            diag_type.set_text(&QString::from_std_str(format!("{}", diagnostic_type)));
+                            diag_type.set_text(&QString::from_std_str(format!("{diagnostic_type}")));
                             cells_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&result.cells_affected()).unwrap())), 2);
                             path.set_text(&QString::from_std_str(diagnostic.path()));
                             message.set_text(&QString::from_std_str(result.message()));
@@ -493,7 +493,7 @@ impl DiagnosticsUI {
 
                             level.set_background(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(color))));
                             level.set_text(&QString::from_std_str(result_type));
-                            diag_type.set_text(&QString::from_std_str(format!("{}", diagnostic_type)));
+                            diag_type.set_text(&QString::from_std_str(format!("{diagnostic_type}")));
                             cells_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&result.cells_affected()).unwrap())), 2);
                             path.set_text(&QString::from_std_str(diagnostic.path()));
                             message.set_text(&QString::from_std_str(result.message()));
@@ -541,7 +541,7 @@ impl DiagnosticsUI {
 
                             level.set_background(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(color))));
                             level.set_text(&QString::from_std_str(result_type));
-                            diag_type.set_text(&QString::from_std_str(format!("{}", diagnostic_type)));
+                            diag_type.set_text(&QString::from_std_str(format!("{diagnostic_type}")));
                             message.set_text(&QString::from_std_str(result.message()));
                             report_type.set_text(&QString::from_std_str(format!("{}", result.report_type())));
 
@@ -586,7 +586,7 @@ impl DiagnosticsUI {
 
                             level.set_background(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(color))));
                             level.set_text(&QString::from_std_str(result_type));
-                            diag_type.set_text(&QString::from_std_str(format!("{}", diagnostic_type)));
+                            diag_type.set_text(&QString::from_std_str(format!("{diagnostic_type}")));
                             cells_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&result.cells_affected()).unwrap())), 2);
                             path.set_text(&QString::from_std_str(diagnostic.path()));
                             message.set_text(&QString::from_std_str(result.message()));
@@ -634,7 +634,7 @@ impl DiagnosticsUI {
 
                             level.set_background(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(color))));
                             level.set_text(&QString::from_std_str(result_type));
-                            diag_type.set_text(&QString::from_std_str(format!("{}", diagnostic_type)));
+                            diag_type.set_text(&QString::from_std_str(format!("{diagnostic_type}")));
                             message.set_text(&QString::from_std_str(result.message()));
                             report_type.set_text(&QString::from_std_str(format!("{}", result.report_type())));
 

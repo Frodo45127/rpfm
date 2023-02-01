@@ -390,7 +390,7 @@ impl ToolUnitEditor {
         // Note: this data is HashMap<DataSource, HashMap<Path, RFile>>.
         let receiver = CENTRAL_COMMAND.send_background(Command::GetRFilesFromAllSources(self.tool.used_paths.to_vec()));
         let response = CentralCommand::recv(&receiver);
-        let mut data = if let Response::HashMapDataSourceHashMapStringRFile(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
+        let mut data = if let Response::HashMapDataSourceHashMapStringRFile(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
 
         let mut processed_data = HashMap::new();
 
@@ -551,7 +551,7 @@ impl ToolUnitEditor {
 
             let receiver = CENTRAL_COMMAND.send_background(Command::GetRFilesFromAllSources(icon_paths.to_vec()));
             let response = CentralCommand::recv(&receiver);
-            let images_data = if let Response::HashMapDataSourceHashMapStringRFile(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
+            let images_data = if let Response::HashMapDataSourceHashMapStringRFile(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
 
             let mut images_files = icon_paths.iter().filter_map(|path_type| {
                 if let ContainerPath::File(path) = path_type {

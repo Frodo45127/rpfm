@@ -176,7 +176,7 @@ impl MyModUI {
 
             // Lua stuff
             if mymod_ui.sublime_support_checkbox.is_checked() {
-                autoignored_paths.push_str(&format!("\n{}.sublime-project\n{}.sublime-workspace", mod_name, mod_name));
+                autoignored_paths.push_str(&format!("\n{mod_name}.sublime-project\n{mod_name}.sublime-workspace"));
             }
             if mymod_ui.vscode_support_checkbox.is_checked() {
                 autoignored_paths.push_str("\n.vscode");
@@ -237,7 +237,7 @@ impl MyModUI {
             // If there is text and it doesn't have whitespace...
             if !mod_name.is_empty() && !mod_name.contains(' ') {
                 mod_path.push(mod_game);
-                mod_path.push(format!("{}.pack", mod_name));
+                mod_path.push(format!("{mod_name}.pack"));
 
                 if !mod_path.is_file() { self.button_box().button(q_dialog_button_box::StandardButton::Ok).set_enabled(true);}
                 else { self.button_box().button(q_dialog_button_box::StandardButton::Ok).set_enabled(false); }

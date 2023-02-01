@@ -323,7 +323,7 @@ impl Dependencies {
         definition.fields_processed().into_iter().enumerate().filter_map(|(column, field)| {
             if let Some((ref ref_table, ref ref_column)) = field.is_reference() {
                 if !ref_table.is_empty() && !ref_column.is_empty() {
-                    let ref_table = format!("{}_tables", ref_table);
+                    let ref_table = format!("{ref_table}_tables");
 
                     // Get his lookup data if it has it.
                     let lookup_data = if let Some(ref data) = field.lookup() { data.to_vec() } else { Vec::with_capacity(0) };
@@ -950,7 +950,7 @@ impl Dependencies {
         let ref_column = reference_info.1;
         let ref_lookup_columns = reference_info.2;
 
-        pack.files_by_path(&ContainerPath::Folder(format!("db/{}_tables", ref_table)), false).iter()
+        pack.files_by_path(&ContainerPath::Folder(format!("db/{ref_table}_tables")), false).iter()
             .for_each(|file| {
             if let Ok(RFileDecoded::DB(db)) = file.decoded() {
                 let fields_processed = db.definition().fields_processed();
@@ -997,7 +997,7 @@ impl Dependencies {
         for (index, value) in key_split.iter().enumerate() {
             table_name.push_str(value);
 
-            let full_table_name = format!("{}_tables", table_name);
+            let full_table_name = format!("{table_name}_tables");
 
             if let Ok(rfiles) = self.db_data(&full_table_name, true, false) {
                 for rfile in rfiles {

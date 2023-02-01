@@ -239,19 +239,19 @@ pub fn open_text_editor_config_safe(parent: &Ptr<QWidget>) {
 
 // This function triggers the config dialog for the KTextEditor.
 extern "C" { fn get_text_changed_dummy_widget(parent: *mut QWidget) -> *mut QLineEdit; }
-pub fn get_text_changed_dummy_widget_safe<'a>(parent: &Ptr<QWidget>) -> Ptr<QLineEdit> {
+pub fn get_text_changed_dummy_widget_safe(parent: &Ptr<QWidget>) -> Ptr<QLineEdit> {
     unsafe { Ptr::from_raw(get_text_changed_dummy_widget(parent.as_mut_raw_ptr())) }
 }
 
 // This function allows to scroll to an specific row in a KTextEditor.
 extern "C" { fn scroll_to_row(parent: *mut QWidget, row_number: u64); }
-pub fn scroll_to_row_safe<'a>(parent: &Ptr<QWidget>, row_number: u64) {
+pub fn scroll_to_row_safe(parent: &Ptr<QWidget>, row_number: u64) {
     unsafe { scroll_to_row(parent.as_mut_raw_ptr(), row_number) }
 }
 
 // This function returns the current row of the cursor in a KTextEditor.
 extern "C" { fn cursor_row(parent: *mut QWidget) -> u64; }
-pub fn cursor_row_safe<'a>(parent: &Ptr<QWidget>) -> u64 {
+pub fn cursor_row_safe(parent: &Ptr<QWidget>) -> u64 {
     unsafe { cursor_row(parent.as_mut_raw_ptr()) }
 }
 

@@ -265,7 +265,7 @@ impl ESFDetailedView {
                     let widget = QDoubleSpinBox::new_1a(parent_widget);
                     widget.set_maximum(f64::MAX);
                     widget.set_minimum(f64::MIN);
-                    widget.set_value(*value as f64);
+                    widget.set_value(*value);
                     layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
@@ -325,7 +325,7 @@ impl ESFDetailedView {
                 NodeType::Utf16(value) => {
                     let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QLineEdit::from_q_widget(parent_widget);
-                    widget.set_text(&QString::from_std_str(&value));
+                    widget.set_text(&QString::from_std_str(value));
                     layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
@@ -334,7 +334,7 @@ impl ESFDetailedView {
                 NodeType::Ascii(value) => {
                     let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QLineEdit::from_q_widget(parent_widget);
-                    widget.set_text(&QString::from_std_str(&value));
+                    widget.set_text(&QString::from_std_str(value));
                     layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
@@ -773,7 +773,7 @@ impl ESFDetailedView {
                             index += 1;
                         },
                         NodeType::I32(value) => if let DataType::I32(widget) = &self.data_types[index] {
-                            *value.value_mut() = widget.value() as i32;
+                            *value.value_mut() = widget.value();
                             index += 1;
                         },
                         NodeType::I64(value) => if let DataType::I64(widget) = &self.data_types[index] {
@@ -984,7 +984,7 @@ impl ESFDetailedView {
                     }
                 }
 
-                item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string(&nodes).unwrap())), 42);
+                item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&nodes).unwrap())), 42);
             }
         }
     }

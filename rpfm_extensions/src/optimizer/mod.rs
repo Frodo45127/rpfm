@@ -186,7 +186,7 @@ impl Optimizable for DB {
                                 // We map all floats here to string representations of floats, so we can actually compare them reliably.
                                 let json = x.iter().map(|data|
                                     if let DecodedData::F32(value) = data {
-                                        DecodedData::StringU8(format!("{:.4}", value))
+                                        DecodedData::StringU8(format!("{value:.4}"))
                                     } else {
                                         data.to_owned()
                                     }
@@ -198,7 +198,7 @@ impl Optimizable for DB {
                         // Remove ITM and ITNR entries.
                         let new_row = self.new_row().iter().map(|data|
                             if let DecodedData::F32(value) = data {
-                                DecodedData::StringU8(format!("{:.4}", value))
+                                DecodedData::StringU8(format!("{value:.4}"))
                             } else {
                                 data.to_owned()
                             }
@@ -207,7 +207,7 @@ impl Optimizable for DB {
                         entries.retain(|entry| {
                             let entry_json = entry.iter().map(|data|
                                 if let DecodedData::F32(value) = data {
-                                    DecodedData::StringU8(format!("{:.4}", value))
+                                    DecodedData::StringU8(format!("{value:.4}"))
                                 } else {
                                     data.to_owned()
                                 }

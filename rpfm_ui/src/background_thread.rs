@@ -1293,8 +1293,8 @@ pub fn background_loop() {
             }
 
             Command::GoToDefinition(ref_table, ref_column, ref_data) => {
-                let table_name = format!("{}_tables", ref_table);
-                let table_folder = format!("db/{}", table_name);
+                let table_name = format!("{ref_table}_tables");
+                let table_folder = format!("db/{table_name}");
                 let packed_files = pack_file_decoded.files_by_path(&ContainerPath::Folder(table_folder.to_owned()), true);
                 let mut found = false;
                 for packed_file in &packed_files {
@@ -1356,7 +1356,7 @@ pub fn background_loop() {
             },
 
             Command::SearchReferences(reference_map, value) => {
-                let paths = reference_map.keys().map(|x| ContainerPath::Folder(format!("db/{}", x))).collect::<Vec<ContainerPath>>();
+                let paths = reference_map.keys().map(|x| ContainerPath::Folder(format!("db/{x}"))).collect::<Vec<ContainerPath>>();
                 let files = pack_file_decoded.files_by_paths(&paths, true);
 
                 let mut references: Vec<(DataSource, String, String, usize, usize)> = vec![];
@@ -1760,10 +1760,10 @@ pub fn background_loop() {
                             let _ = file.write_all(format!("
 {{
     \"workspace.library\": [
-        \"{folder}/global/\",
-        \"{folder}/campaign/\",
-        \"{folder}/frontend/\",
-        \"{folder}/battle/\"
+        \"{lua_autogen_folder}/global/\",
+        \"{lua_autogen_folder}/campaign/\",
+        \"{lua_autogen_folder}/frontend/\",
+        \"{lua_autogen_folder}/battle/\"
     ],
     \"runtime.version\": \"Lua 5.1\",
     \"completion.autoRequire\": false,
@@ -1780,7 +1780,7 @@ pub fn background_loop() {
         \".vscode\",
         \".git\"
     ]
-}}", folder = lua_autogen_folder).as_bytes());
+}}").as_bytes());
                         }
                     }
                 }

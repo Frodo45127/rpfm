@@ -183,7 +183,7 @@ impl TableViewSlots {
                     // Only trigger this if the values are actually different. Checkable cells are tricky. Nested cells an go to hell.
                     if (item_old.text().compare_q_string(item.text().as_ref()) != 0 || item_old.check_state() != item.check_state()) ||
                         item_old.data_1a(ITEM_IS_SEQUENCE).to_bool() && 0 != item_old.data_1a(ITEM_SEQUENCE_DATA).to_string().compare_q_string(&item.data_1a(ITEM_SEQUENCE_DATA).to_string()) {
-                        let edition = vec![((item.row(), item.column()), atomic_from_ptr((&*item_old).clone()))];
+                        let edition = vec![((item.row(), item.column()), atomic_from_ptr((*item_old).clone()))];
                         let operation = TableOperations::Editing(edition);
                         view.history_undo.write().unwrap().push(operation);
                         view.history_redo.write().unwrap().clear();

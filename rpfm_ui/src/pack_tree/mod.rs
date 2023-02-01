@@ -903,13 +903,13 @@ impl PackTree for QPtr<QTreeView> {
                             let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFileExtraDataForTreeView(path.to_path_buf()));
                             let response = CentralCommand::recv(&receiver);
                             if let Response::ContainerInfoVecRFileInfo(data) = response { data }
-                            else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); }
+                            else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); }
                         }
                         else {
                             let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFileDataForTreeView);
                             let response = CentralCommand::recv(&receiver);
                             if let Response::ContainerInfoVecRFileInfo(data) = response { data }
-                            else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) }
+                            else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}") }
                         };
 
                         // Second, we set as the big_parent, the base for the folders of the TreeView, a fake folder
@@ -1161,7 +1161,7 @@ impl PackTree for QPtr<QTreeView> {
                 let item_paths = item_types.par_iter().map(|item| item.path_raw().to_owned()).collect::<Vec<_>>();
                 let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFilesInfo(item_paths));
                 let response = CentralCommand::recv(&receiver);
-                let files_info = if let Response::VecRFileInfo(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
+                let files_info = if let Response::VecRFileInfo(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
 
                 // Mark the base Pack as modified and having received additions.
                 if !item_types.is_empty() {
@@ -1431,7 +1431,7 @@ impl PackTree for QPtr<QTreeView> {
                     if path_type.is_file() {
                         let receiver = CENTRAL_COMMAND.send_background(Command::GetRFileInfo(path.to_owned()));
                         let response = CentralCommand::recv(&receiver);
-                        let packed_file_info = if let Response::OptionRFileInfo(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
+                        let packed_file_info = if let Response::OptionRFileInfo(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
                         if let Some(info) = packed_file_info {
                             let tooltip = new_packed_file_tooltip(&info);
                             if !tooltip.is_empty() {
@@ -1471,7 +1471,7 @@ impl PackTree for QPtr<QTreeView> {
 
                 let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFilesInfo(new_paths));
                 let response = CentralCommand::recv(&receiver);
-                let files_info = if let Response::VecRFileInfo(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
+                let files_info = if let Response::VecRFileInfo(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
 
                 for (source_path, new_path) in &moved_paths  {
                     let taken_row = Self::take_row_from_path(source_path, &model);
@@ -1518,7 +1518,7 @@ impl PackTree for QPtr<QTreeView> {
                                 if let ContainerPath::File(_) = item_type {
                                     let receiver = CENTRAL_COMMAND.send_background(Command::GetRFileInfo(path.to_owned()));
                                     let response = CentralCommand::recv(&receiver);
-                                    let packed_file_info = if let Response::OptionRFileInfo(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
+                                    let packed_file_info = if let Response::OptionRFileInfo(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
                                     if let Some(info) = packed_file_info {
                                         let tooltip = new_packed_file_tooltip(&info);
                                         if !tooltip.is_empty() {
@@ -1618,7 +1618,7 @@ fn new_packed_file_tooltip(info: &RFileInfo) -> String {
     let mut has_info = false;
 
     if let Some(container_name) = info.container_name() {
-        string.push_str(&format!("<li><b>Original Pack:</b> <i>{}</i></li>", container_name));
+        string.push_str(&format!("<li><b>Original Pack:</b> <i>{container_name}</i></li>"));
         has_info = true;
     }
 

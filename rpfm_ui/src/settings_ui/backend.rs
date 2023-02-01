@@ -357,7 +357,7 @@ pub fn init_config_path() -> Result<()> {
     let mut max_autosaves = setting_int("autosave_amount");
     if max_autosaves < 1 { max_autosaves = 1; }
     (1..=max_autosaves).for_each(|x| {
-        let path = autosaves_path.join(format!("autosave_{:02?}.pack", x));
+        let path = autosaves_path.join(format!("autosave_{x:02?}.pack"));
         if !path.is_file() {
             let _ = File::create(path);
         }

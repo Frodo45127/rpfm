@@ -635,7 +635,7 @@ impl PackedFileDecoderView {
         }
 
         self.packed_file_info_version_decoded_spinbox().set_value(self.version);
-        self.packed_file_info_entry_count_decoded_label().set_text(&QString::from_std_str(&self.entry_count.to_string()));
+        self.packed_file_info_entry_count_decoded_label().set_text(&QString::from_std_str(self.entry_count.to_string()));
 
         Ok(())
     }
@@ -667,8 +667,8 @@ impl PackedFileDecoderView {
         }
 
         cursor_dest.move_position_1a(MoveOperation::Start);
-        cursor_dest.move_position_3a(MoveOperation::NextCharacter, MoveMode::MoveAnchor, selection_start as i32);
-        cursor_dest.move_position_3a(MoveOperation::NextCharacter, MoveMode::KeepAnchor, (selection_end - selection_start) as i32);
+        cursor_dest.move_position_3a(MoveOperation::NextCharacter, MoveMode::MoveAnchor, selection_start);
+        cursor_dest.move_position_3a(MoveOperation::NextCharacter, MoveMode::KeepAnchor, (selection_end - selection_start));
 
         // Block the signals during this, so we don't trigger an infinite loop.
         if hex {
@@ -740,11 +740,11 @@ impl PackedFileDecoderView {
         self.optional_i32_line_edit.set_text(&QString::from_std_str(decoded_optional_i32));
         self.optional_i64_line_edit.set_text(&QString::from_std_str(decoded_optional_i64));
         self.colour_rgb_line_edit.set_text(&QString::from_std_str(decoded_colour_rgb));
-        self.string_u8_line_edit.set_text(&QString::from_std_str(&format!("{:?}", decoded_string_u8)));
-        self.string_u16_line_edit.set_text(&QString::from_std_str(&format!("{:?}", decoded_string_u16)));
-        self.optional_string_u8_line_edit.set_text(&QString::from_std_str(&format!("{:?}", decoded_optional_string_u8)));
-        self.optional_string_u16_line_edit.set_text(&QString::from_std_str(&format!("{:?}", decoded_optional_string_u16)));
-        self.sequence_u32_line_edit.set_text(&QString::from_std_str(&format!("Sequence of {:?} entries.", decoded_sequence_u32)));
+        self.string_u8_line_edit.set_text(&QString::from_std_str(format!("{decoded_string_u8:?}")));
+        self.string_u16_line_edit.set_text(&QString::from_std_str(format!("{decoded_string_u16:?}")));
+        self.optional_string_u8_line_edit.set_text(&QString::from_std_str(format!("{decoded_optional_string_u8:?}")));
+        self.optional_string_u16_line_edit.set_text(&QString::from_std_str(format!("{decoded_optional_string_u16:?}")));
+        self.sequence_u32_line_edit.set_text(&QString::from_std_str(format!("Sequence of {decoded_sequence_u32:?} entries.")));
 
         //---------------------------------------------//
         // Raw data cleaning section.
@@ -874,7 +874,7 @@ impl PackedFileDecoderView {
         let qlist = QListOfQStandardItem::new();
 
         // Create the items of the new row.
-        let field_name = QStandardItem::from_q_string(&QString::from_std_str(&field.name()));
+        let field_name = QStandardItem::from_q_string(&QString::from_std_str(field.name()));
         let field_type = QStandardItem::from_q_string(&QString::from_std_str(field_type));
         let field_is_key = QStandardItem::new();
         field_is_key.set_editable(false);
@@ -893,7 +893,7 @@ impl PackedFileDecoderView {
         decoded_data.set_editable(false);
 
         let field_default_value = if let Some(ref default_value) = field.default_value(None) {
-            QStandardItem::from_q_string(&QString::from_std_str(&default_value))
+            QStandardItem::from_q_string(&QString::from_std_str(default_value))
         } else { QStandardItem::new() };
 
         let field_is_filename = QStandardItem::new();
@@ -902,7 +902,7 @@ impl PackedFileDecoderView {
         field_is_filename.set_check_state(if field.is_filename() { CheckState::Checked } else { CheckState::Unchecked });
 
         let field_filename_relative_path = if let Some(ref filename_relative_path) = field.filename_relative_path() {
-            QStandardItem::from_q_string(&QString::from_std_str(&filename_relative_path))
+            QStandardItem::from_q_string(&QString::from_std_str(filename_relative_path))
         } else { QStandardItem::new() };
 
         let field_ca_order = QStandardItem::from_q_string(&QString::from_std_str(&format!("{}", field.ca_order())));
@@ -1186,7 +1186,7 @@ impl PackedFileDecoderView {
         if let Some(ref schema) = *SCHEMA.read().unwrap() {
             if let Some(definitions) = schema.definitions_by_table_name(&self.table_name) {
                 definitions.iter().for_each(|definition| {
-                    let item = QStandardItem::from_q_string(&QString::from_std_str(&definition.version().to_string()));
+                    let item = QStandardItem::from_q_string(&QString::from_std_str(definition.version().to_string()));
                     self.table_model_old_versions.append_row_q_standard_item(item.into_ptr());
                 })
             }

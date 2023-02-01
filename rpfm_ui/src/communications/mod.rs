@@ -550,7 +550,7 @@ impl<T: Send + Sync + Debug> CentralCommand<T> {
     fn send<S: Send + Sync + Debug>(sender: &Sender<(Sender<T>, S)>, data: S) -> Receiver<T> {
         let (sender_back, receiver_back) = unbounded();
         if let Err(error) = sender.send((sender_back, data)) {
-            panic!("{}: {}", THREADS_SENDER_ERROR, error);
+            panic!("{THREADS_SENDER_ERROR}: {error}");
         }
 
         receiver_back
@@ -573,7 +573,7 @@ impl<T: Send + Sync + Debug> CentralCommand<T> {
     /// This function serves to send a message back through a generated channel.
     pub fn send_back(sender: &Sender<T>, data: T) {
         if let Err(error) = sender.send(data) {
-            panic!("{}: {}", THREADS_SENDER_ERROR, error);
+            panic!("{THREADS_SENDER_ERROR}: {error}");
         }
     }
 
@@ -584,7 +584,7 @@ impl<T: Send + Sync + Debug> CentralCommand<T> {
         let response = self.receiver_background.recv();
         match response {
             Ok(data) => data,
-            Err(_) => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response)
+            Err(_) => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}")
         }
     }
 
@@ -595,7 +595,7 @@ impl<T: Send + Sync + Debug> CentralCommand<T> {
         let response = self.receiver_network.recv();
         match response {
             Ok(data) => data,
-            Err(_) => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response)
+            Err(_) => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}")
         }
     }
 
@@ -606,7 +606,7 @@ impl<T: Send + Sync + Debug> CentralCommand<T> {
         let response = receiver.recv();
         match response {
             Ok(data) => data,
-            Err(_) => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response)
+            Err(_) => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}")
         }
     }
 
@@ -632,7 +632,7 @@ impl<T: Send + Sync + Debug> CentralCommand<T> {
                         return data
                     },
                     Err(error) => if error.is_disconnected() {
-                        panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response)
+                        panic!("{THREADS_COMMUNICATION_ERROR}{response:?}")
                     }
                 }
                 unsafe { event_loop.process_events_0a(); }

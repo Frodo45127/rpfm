@@ -335,13 +335,13 @@ impl PackFileContentsUI {
             }
 
             Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
-            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response1),
+            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response1:?}"),
         }
 
         match response2 {
             Response::Success => {},
             Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
-            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response2),
+            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response2:?}"),
         }
 
         // Re-enable the Main Window.
@@ -406,7 +406,7 @@ impl PackFileContentsUI {
 
                 // Branch 1: all items in the same folder. We allow full-path replace, and by default we change the file name to {x}.
                 if selected_items.iter().all(|item| item.path_raw().rfind('/') == last_separator && ((!start_path.is_empty() && item.path_raw().starts_with(start_path)) || start_path.is_empty())) {
-                    let new_path = format!("{}{{x}}", start_path);
+                    let new_path = format!("{start_path}{{x}}");
                     rewrite_sequence_line_edit.set_text(&QString::from_std_str(new_path));
                 }
 

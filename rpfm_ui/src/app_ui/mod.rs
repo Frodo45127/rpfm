@@ -1366,7 +1366,7 @@ impl AppUI {
 
         let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFilePath);
         let response = CentralCommand::recv(&receiver);
-        let mut path = if let Response::PathBuf(path) = response { path } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) };
+        let mut path = if let Response::PathBuf(path) = response { path } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}") };
         if !path.is_file() || save_as {
 
             // Create the FileDialog to save the PackFile and configure it.
@@ -2104,7 +2104,7 @@ impl AppUI {
                 if !use_dialog { return; }
                 qtre("api_response_error", &[&error.to_string()])
             }
-            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response_thread),
+            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response_thread:?}"),
         };
 
         // If we hit "Update", try to update the schemas.
@@ -2181,7 +2181,7 @@ impl AppUI {
                 if !use_dialog { return; }
                 qtre("api_response_error", &[&error.to_string()])
             }
-            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response_thread),
+            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response_thread:?}"),
         };
 
         // If we hit "Update", try to update the messages.
@@ -2268,7 +2268,7 @@ impl AppUI {
                 if !use_dialog { return; }
                 qtre("api_response_error", &[&error.to_string()])
             }
-            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response_thread),
+            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response_thread:?}"),
         };
 
         // If we hit "Update", try to update the schemas.
@@ -3033,7 +3033,7 @@ impl AppUI {
                             // and only continue if there is only one and it's not empty.
                             let selected_paths = pack_file_contents_ui.packfile_contents_tree_view().get_path_from_selection();
                             let complete_path = if let NewPackedFile::DB(name, table,_) = &new_packed_file {
-                                format!("db/{}/{}", table, name)
+                                format!("db/{table}/{name}")
                             }
                             else {
 
@@ -3055,7 +3055,7 @@ impl AppUI {
                                 // Check if the PackedFile already exists, and report it if so.
                                 let receiver = CENTRAL_COMMAND.send_background(Command::PackedFileExists(complete_path.to_owned()));
                                 let response = CentralCommand::recv(&receiver);
-                                let exists = if let Response::Bool(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
+                                let exists = if let Response::Bool(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
                                 if exists { return show_dialog(&app_ui.main_window, "There is no Schema for the Game Selected.", false)}
 
                                 // Get the response, just in case it failed.
@@ -3102,7 +3102,7 @@ impl AppUI {
 
                 // DB Check.
                 let (new_path, new_packed_file) = if path.starts_with("db") && (path_split.len() == 2 || path_split.len() == 3) {
-                    let new_path = format!("{}/{}", path, name);
+                    let new_path = format!("{path}/{name}");
                     let table = path_split[1];
 
                     let receiver = CENTRAL_COMMAND.send_background(Command::GetTableVersionFromDependencyPackFile(table.to_owned()));
@@ -3167,7 +3167,7 @@ impl AppUI {
                 // Check if the PackedFile already exists, and report it if so.
                 let receiver = CENTRAL_COMMAND.send_background(Command::PackedFileExists(new_path.to_owned()));
                 let response = CentralCommand::recv(&receiver);
-                let exists = if let Response::Bool(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
+                let exists = if let Response::Bool(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
                 if exists { return show_dialog(&app_ui.main_window, "The provided file/s already exists in the current path.", false)}
 
                 // Create the PackFile.
@@ -3236,7 +3236,7 @@ impl AppUI {
 
         let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFileName);
         let response = CentralCommand::recv(&receiver);
-        let packfile_name = if let Response::String(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
+        let packfile_name = if let Response::String(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
         let packfile_name = if packfile_name.to_lowercase().ends_with(".pack") {
             let mut packfile_name = packfile_name;
             packfile_name.pop();
@@ -3259,7 +3259,7 @@ impl AppUI {
         if let FileType::DB = file_type {
             let receiver = CENTRAL_COMMAND.send_background(Command::GetTableListFromDependencyPackFile);
             let response = CentralCommand::recv(&receiver);
-            let mut tables = if let Response::VecString(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
+            let mut tables = if let Response::VecString(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
             tables.sort();
             tables.iter().for_each(|x| table_dropdown.add_item_q_string(&QString::from_std_str(x)));
             table_filter.set_source_model(&table_model);
@@ -3331,7 +3331,7 @@ impl AppUI {
 
         let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFileName);
         let response = CentralCommand::recv(&receiver);
-        let packfile_name = if let Response::String(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
+        let packfile_name = if let Response::String(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
         let packfile_name = if packfile_name.to_lowercase().ends_with(".pack") {
             let mut packfile_name = packfile_name;
             packfile_name.pop();
@@ -3368,7 +3368,7 @@ impl AppUI {
 
         let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFileName);
         let response = CentralCommand::recv(&receiver);
-        let packfile_name = if let Response::String(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
+        let packfile_name = if let Response::String(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
         let packfile_name = if packfile_name.to_lowercase().ends_with(".pack") {
             let mut packfile_name = packfile_name;
             packfile_name.pop();
@@ -3532,7 +3532,7 @@ impl AppUI {
         // Mutable because we reuse this variable to store the other receiver we need to generate down below.
         let mut receiver = CENTRAL_COMMAND.send_background(Command::GetPackFilePath);
         let response = CentralCommand::recv(&receiver);
-        let pack_path = if let Response::PathBuf(pack_path) = response { pack_path } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) };
+        let pack_path = if let Response::PathBuf(pack_path) = response { pack_path } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}") };
 
         // Get the new `Game Selected` and clean his name up, so it ends up like "x_y".
         let mut new_game_selected = app_ui.game_selected_group.checked_action().text().to_std_string();

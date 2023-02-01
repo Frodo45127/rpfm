@@ -264,7 +264,7 @@ impl ToolFactionPainter {
         // Note: this data is HashMap<DataSource, HashMap<Path, RFile>>.
         let receiver = CENTRAL_COMMAND.send_background(Command::GetRFilesFromAllSources(self.tool.used_paths.to_vec()));
         let response = CentralCommand::recv(&receiver);
-        let mut data = if let Response::HashMapDataSourceHashMapStringRFile(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
+        let mut data = if let Response::HashMapDataSourceHashMapStringRFile(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
 
         let mut processed_data = HashMap::new();
 
@@ -288,7 +288,7 @@ impl ToolFactionPainter {
 
         let receiver = CENTRAL_COMMAND.send_background(Command::GetRFilesFromAllSources(paths_to_use));
         let response = CentralCommand::recv(&receiver);
-        let images_data = if let Response::HashMapDataSourceHashMapStringRFile(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
+        let images_data = if let Response::HashMapDataSourceHashMapStringRFile(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
 
         // Map the paths to be a single string, lowercase. That should speed-up things.
         let mut images_data: HashMap<DataSource, HashMap<String, RFile>> = images_data.iter().map(|(x, y)| (*x, y.par_iter().map(|(path, z)| (path.to_lowercase(), z.clone())).collect())).collect();

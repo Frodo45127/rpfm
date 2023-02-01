@@ -201,7 +201,7 @@ impl ESFTree for QBox<QTreeView> {
                 let root_node = esf_data.root_node();
                 if let NodeType::Record(node) = root_node {
 
-                    let big_parent = QStandardItem::from_q_string(&QString::from_std_str(&node.name()));
+                    let big_parent = QStandardItem::from_q_string(&QString::from_std_str(node.name()));
                     let state_item = QStandardItem::new();
                     big_parent.set_editable(false);
                     state_item.set_editable(false);
@@ -211,7 +211,7 @@ impl ESFTree for QBox<QTreeView> {
                     big_parent.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string_pretty(&esf_data_no_node).unwrap())), ESF_DATA);
                     big_parent.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string_pretty(&root_node.clone_without_children()).unwrap())), CHILDLESS_NODE);
                     big_parent.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string_pretty(&node.children()[0].iter().map(|x| x.clone_without_children()).collect::<Vec<NodeType>>()).unwrap())), CHILD_NODES);
-                    big_parent.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&node.name())), RECORD_NODE_NAME);
+                    big_parent.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(node.name())), RECORD_NODE_NAME);
 
                     let flags = ItemFlag::from(state_item.flags().to_int() & ItemFlag::ItemIsSelectable.to_int());
                     state_item.set_flags(QFlags::from(flags));
@@ -283,7 +283,7 @@ unsafe fn load_node_to_view(parent: &CppBox<QStandardItem>, child: &NodeType, bl
                 // Put all record nodes under the "Group Node".
                 for grandchild_node in node_group {
                     if let NodeType::Record(_) = grandchild_node {
-                        load_node_to_view(&node_group_item, &grandchild_node, None);
+                        load_node_to_view(&node_group_item, grandchild_node, None);
                     }
                 }
 
@@ -300,7 +300,7 @@ unsafe fn load_node_to_view(parent: &CppBox<QStandardItem>, child: &NodeType, bl
 
             // Set the child's data, and add the child to the TreeView.
             child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string_pretty(&child.clone_without_children()).unwrap())), CHILDLESS_NODE);
-            child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&node.name())), RECORD_NODE_NAME);
+            child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(node.name())), RECORD_NODE_NAME);
         }
 
         // If it doesn't have nested blocks, just grab the first block's pack.
@@ -309,14 +309,14 @@ unsafe fn load_node_to_view(parent: &CppBox<QStandardItem>, child: &NodeType, bl
             // First, load record nodes into the view.
             for child_node in &node.children()[0] {
                 if let NodeType::Record(_) = child_node {
-                    load_node_to_view(&child_item, &child_node, None);
+                    load_node_to_view(&child_item, child_node, None);
                 }
             }
 
             // Once done, store its data and it's values.
             child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string_pretty(&child.clone_without_children()).unwrap())), CHILDLESS_NODE);
             child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string_pretty(&node.children()[0].iter().map(|x| x.clone_without_children()).collect::<Vec<NodeType>>()).unwrap())), CHILD_NODES);
-            child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&node.name())), RECORD_NODE_NAME);
+            child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(node.name())), RECORD_NODE_NAME);
         }
 
         let qlist = QListOfQStandardItem::new();

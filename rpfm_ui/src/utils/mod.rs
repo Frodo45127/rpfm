@@ -337,7 +337,7 @@ pub unsafe fn check_regex(pattern: &str, widget: QPtr<QWidget>) {
         get_color_clean()
     };
 
-    widget.set_style_sheet(&QString::from_std_str(format!("background-color: {}", style_sheet)));
+    widget.set_style_sheet(&QString::from_std_str(format!("background-color: {style_sheet}")));
 }
 
 /// This functin returns the feature flags enabled for RPFM.

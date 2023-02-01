@@ -56,7 +56,7 @@ impl PackDiagnosticReport {
 impl DiagnosticReport for PackDiagnosticReport {
     fn message(&self) -> String {
         match &self.report_type {
-            PackDiagnosticReportType::InvalidPackName(pack_name) => format!("Invalid Pack name: {}", pack_name),
+            PackDiagnosticReportType::InvalidPackName(pack_name) => format!("Invalid Pack name: {pack_name}"),
         }
     }
 

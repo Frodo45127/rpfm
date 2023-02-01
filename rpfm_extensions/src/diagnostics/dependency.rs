@@ -74,7 +74,7 @@ impl DependencyDiagnosticReport {
 impl DiagnosticReport for DependencyDiagnosticReport {
     fn message(&self) -> String {
         match &self.report_type {
-            DependencyDiagnosticReportType::InvalidDependencyPackName(pack_name) => format!("Invalid dependency Pack name: {}", pack_name),
+            DependencyDiagnosticReportType::InvalidDependencyPackName(pack_name) => format!("Invalid dependency Pack name: {pack_name}"),
         }
     }
 

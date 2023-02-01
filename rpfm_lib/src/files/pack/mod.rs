@@ -907,15 +907,14 @@ impl Pack {
 
             // The message is different depending on the amount of files deleted.
             if files_to_delete.is_empty() {
-                Ok((format!("{} files patched.\nNo file suitable for deleting has been found.\
+                Ok((format!("{files_patched} files patched.\nNo file suitable for deleting has been found.\
                 \n\n\
                 WARNING: Multiple Defensive Hints have been found and we only patched the first one.\
                  If you are using SiegeAI, you should only have one Defensive Hill in the map (the \
                  one acting as the perimeter of your fort/city/castle). Due to SiegeAI being present, \
                  in the map, normal Defensive Hills will not work anyways, and the only thing they do \
                  is interfere with the patching process. So, if your map doesn't work properly after \
-                 patching, delete all the extra Defensive Hill Hints. They are the culprit.",
-                 files_patched), files_to_delete))
+                 patching, delete all the extra Defensive Hill Hints. They are the culprit."), files_to_delete))
             }
             else {
                 Ok((format!("{} files patched.\n{} files deleted.\
@@ -932,7 +931,7 @@ impl Pack {
 
         // If no files to delete were found, but we got files patched, report it.
         else if files_to_delete.is_empty() {
-            Ok((format!("{} files patched.\nNo file suitable for deleting has been found.", files_patched), files_to_delete))
+            Ok((format!("{files_patched} files patched.\nNo file suitable for deleting has been found."), files_to_delete))
         }
 
         // And finally, if we got some files patched and some deleted, report it too.
