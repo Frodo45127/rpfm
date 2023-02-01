@@ -788,7 +788,7 @@ impl Pack {
         let mut missing_trads_file = Loc::new(false);
 
         let loc_keys_from_memory = loc_tables.par_iter().filter_map(|rfile| {
-            if let RFileDecoded::Loc(table) = rfile.decoded().unwrap() {
+            if let Ok(RFileDecoded::Loc(table)) = rfile.decoded() {
                 Some(table.data(&None).unwrap().iter().filter_map(|x| {
                     if let DecodedData::StringU16(data) = &x[0] {
                         Some(data.to_owned())
@@ -800,7 +800,7 @@ impl Pack {
         }).flatten().collect::<HashSet<String>>();
 
         let missing_trads_file_table_data = db_tables.par_iter().filter_map(|rfile| {
-            if let RFileDecoded::DB(table) = rfile.decoded().unwrap() {
+            if let Ok(RFileDecoded::DB(table)) = rfile.decoded() {
                 let definition = table.definition();
                 let loc_fields = definition.localised_fields();
                 if !loc_fields.is_empty() {
@@ -814,13 +814,17 @@ impl Pack {
                     for row in table_data.iter() {
                         for loc_field in loc_fields {
                             let key = localised_order.iter().map(|pos| row[*pos as usize].data_to_string()).join("");
-                            let loc_key = format!("{}_{}_{}", table_name, loc_field.name(), key);
 
-                            if loc_keys_from_memory.get(&*loc_key).is_none() {
-                                let mut new_row = missing_trads_file.new_row();
-                                new_row[0] = DecodedData::StringU16(loc_key);
-                                new_row[1] = DecodedData::StringU16("PLACEHOLDER".to_owned());
-                                new_rows.push(new_row);
+                            // Key can be empty due to incomplete schema. Ignore those.
+                            if !key.is_empty() {
+                                let loc_key = format!("{}_{}_{}", table_name, loc_field.name(), key);
+
+                                if loc_keys_from_memory.get(&*loc_key).is_none() {
+                                    let mut new_row = missing_trads_file.new_row();
+                                    new_row[0] = DecodedData::StringU16(loc_key);
+                                    new_row[1] = DecodedData::StringU16("PLACEHOLDER".to_owned());
+                                    new_rows.push(new_row);
+                                }
                             }
                         }
                     }
