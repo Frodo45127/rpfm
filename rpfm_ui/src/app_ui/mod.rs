@@ -2415,7 +2415,7 @@ impl AppUI {
                     let icon_type = IconType::File(path.to_owned());
                     let icon = TREEVIEW_ICONS.icon(icon_type);
 
-                    let mut response = CentralCommand::recv(&receiver);
+                    let response = CentralCommand::recv(&receiver);
                     match response {
 
                         // If the file is an AnimFragment PackedFile...

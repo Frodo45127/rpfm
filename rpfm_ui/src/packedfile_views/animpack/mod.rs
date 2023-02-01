@@ -36,7 +36,7 @@ use std::sync::{Arc, RwLock};
 use rpfm_lib::files::FileType;
 
 use crate::app_ui::AppUI;
-use crate::backend::{ContainerInfo, RFileInfo};
+use crate::backend::RFileInfo;
 use crate::communications::*;
 use crate::ffi::*;
 use crate::locale::qtr;
@@ -78,7 +78,7 @@ pub struct PackedFileAnimPackView {
 
     anim_pack_tree_view: QPtr<QTreeView>,
     anim_pack_tree_model_filter: QBox<QSortFilterProxyModel>,
-    anim_pack_tree_model: QBox<QStandardItemModel>,
+    _anim_pack_tree_model: QBox<QStandardItemModel>,
 
     anim_pack_filter_line_edit: QPtr<QLineEdit>,
     anim_pack_filter_autoexpand_matches_button: QPtr<QToolButton>,
@@ -151,7 +151,7 @@ impl PackedFileAnimPackView {
         anim_pack_tree_view.header().set_stretch_last_section(true);
 
         let mut build_data = BuildData::new();
-        let mut container_info = From::from(file_info);
+        let container_info = From::from(file_info);
         build_data.data = Some((container_info, files_info.to_vec()));
         build_data.editable = false;
         anim_pack_tree_view.update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
@@ -180,7 +180,7 @@ impl PackedFileAnimPackView {
 
             anim_pack_tree_view,
             anim_pack_tree_model_filter,
-            anim_pack_tree_model,
+            _anim_pack_tree_model: anim_pack_tree_model,
 
             anim_pack_filter_line_edit,
             anim_pack_filter_autoexpand_matches_button,

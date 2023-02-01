@@ -16,7 +16,7 @@ use std::path::PathBuf;
 
 use thiserror::Error;
 
-use crate::files::FileType;
+use crate::files::{FileType, table::Table};
 
 /// Custom `Result` type, to always return our custom error.
 pub type Result<T, E = RLibError> = core::result::Result<T, E>;
@@ -147,6 +147,9 @@ pub enum RLibError {
 
     #[error("Error trying to get the data for a {3} on Row {0}, Cell {1}: {2}.")]
     DecodingTableFieldSequenceDataError(u32, u32, String, String),
+
+    #[error("Error trying to decode a table: {0}. The incomplete table is: {1:#?}.")]
+    DecodingTableIncomplete(String, Table),
 
     #[error("Missing extra data required to decode the file. This means the programmer messed up the code while that tries to decode files.")]
     DecodingMissingExtraData,

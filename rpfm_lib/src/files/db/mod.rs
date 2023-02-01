@@ -148,7 +148,11 @@ impl Decodeable for DB {
         };
 
         // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt, or the decoding failed and we bailed early.
-        check_size_mismatch(data.stream_position()? as usize, len as usize)?;
+        //
+        // If we have return_incomplete enabled, we pass whatever we got decoded into this error.
+        check_size_mismatch(data.stream_position()? as usize, len as usize).map_err(|error| {
+            RLibError::DecodingTableIncomplete(error.to_string(), table.clone())
+        })?;
 
         // If we've reached this, we've successfully decoded the table.
         Ok(Self {

@@ -39,7 +39,7 @@ use qt_core::QTimer;
 
 use anyhow::Result;
 use getset::Getters;
-use rpfm_lib::files::pack::{RESERVED_NAME_NOTES, RESERVED_NAME_SETTINGS};
+use rpfm_lib::files::pack::RESERVED_NAME_NOTES;
 
 use std::cmp::Ordering;
 use std::path::PathBuf;

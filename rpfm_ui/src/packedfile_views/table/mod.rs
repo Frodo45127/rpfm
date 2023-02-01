@@ -58,19 +58,16 @@ impl PackedFileTableView {
     ) -> Result<()> {
 
         // Get the decoded Table.
-        let (table_data, packed_file_info) = match response {
-            Response::AnimsTableRFileInfo(table, packed_file_info) => (TableType::AnimsTable(table), Some(packed_file_info)),
-            Response::DBRFileInfo(table, packed_file_info) => (TableType::DB(table), Some(packed_file_info)),
-            Response::LocRFileInfo(table, packed_file_info) => (TableType::Loc(table), Some(packed_file_info)),
-            Response::MatchedCombatRFileInfo(table, packed_file_info) => (TableType::MatchedCombat(table), Some(packed_file_info)),
+        let table_data = match response {
+            Response::AnimsTableRFileInfo(table, _) => TableType::AnimsTable(table),
+            Response::DBRFileInfo(table, _) => TableType::DB(table),
+            Response::LocRFileInfo(table, _) => TableType::Loc(table),
+            Response::MatchedCombatRFileInfo(table, _) => TableType::MatchedCombat(table),
             Response::Error(error) => return Err(error),
-            //Response::Unknown => return Err(ErrorKind::PackedFileTypeUnknown.into()),
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         };
 
         let packed_file_type = match table_data {
-
-            // This one should never happen.
             TableType::AnimFragment(_) => FileType::AnimFragment,
             TableType::AnimsTable(_) => FileType::AnimsTable,
             TableType::DB(_) => FileType::DB,

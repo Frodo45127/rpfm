@@ -36,22 +36,24 @@ use super::*;
 //-------------------------------------------------------------------------------//
 
 /// This struct contains the slots of the view of a AnimPack PackedFile.
+#[derive(Getters)]
+#[getset(get = "pub")]
 pub struct PackedFileAnimPackViewSlots {
-    pub copy_in: QBox<SlotOfQModelIndex>,
-    pub copy_out: QBox<SlotOfQModelIndex>,
-    pub delete: QBox<SlotNoArgs>,
+    copy_in: QBox<SlotOfQModelIndex>,
+    copy_out: QBox<SlotOfQModelIndex>,
+    delete: QBox<SlotNoArgs>,
 
-    pub pack_filter_change_text: QBox<SlotOfQString>,
-    pub pack_filter_change_autoexpand_matches: QBox<SlotOfBool>,
-    pub pack_filter_change_case_sensitive: QBox<SlotOfBool>,
-    pub anim_pack_filter_change_text: QBox<SlotOfQString>,
-    pub anim_pack_filter_change_autoexpand_matches: QBox<SlotOfBool>,
-    pub anim_pack_filter_change_case_sensitive: QBox<SlotOfBool>,
+    pack_filter_change_text: QBox<SlotOfQString>,
+    pack_filter_change_autoexpand_matches: QBox<SlotOfBool>,
+    pack_filter_change_case_sensitive: QBox<SlotOfBool>,
+    anim_pack_filter_change_text: QBox<SlotOfQString>,
+    anim_pack_filter_change_autoexpand_matches: QBox<SlotOfBool>,
+    anim_pack_filter_change_case_sensitive: QBox<SlotOfBool>,
 
-    pub pack_expand_all: QBox<SlotNoArgs>,
-    pub pack_collapse_all: QBox<SlotNoArgs>,
-    pub anim_pack_expand_all: QBox<SlotNoArgs>,
-    pub anim_pack_collapse_all: QBox<SlotNoArgs>,
+    pack_expand_all: QBox<SlotNoArgs>,
+    pack_collapse_all: QBox<SlotNoArgs>,
+    anim_pack_expand_all: QBox<SlotNoArgs>,
+    anim_pack_collapse_all: QBox<SlotNoArgs>,
 }
 
 //-------------------------------------------------------------------------------//

@@ -76,7 +76,7 @@ use std::rc::Rc;
 use rpfm_extensions::dependencies::TableReferences;
 
 use rpfm_lib::files::{anim_fragment::AnimFragment, anims_table::AnimsTable, FileType, db::DB, loc::Loc, matched_combat::MatchedCombat, table::*};
-use rpfm_lib::schema::{Definition, DefinitionPatch, Field, FieldType, Schema};
+use rpfm_lib::schema::{Definition, Field, FieldType, Schema};
 
 use crate::ASSETS_PATH;
 use crate::app_ui::AppUI;
@@ -225,7 +225,6 @@ pub struct TableView {
     search_view: Arc<RwLock<Option<Arc<SearchView>>>>,
 
     table_name: Option<String>,
-    table_uuid: Option<String>,
 
     #[getset(skip)]
     data_source: Arc<RwLock<DataSource>>,
@@ -280,18 +279,18 @@ impl TableView {
         data_source: Arc<RwLock<DataSource>>,
     ) -> Result<Arc<Self>> {
         let t = std::time::SystemTime::now();
-        let (table_definition, table_name, table_uuid, packed_file_type) = match table_data {
+        let (table_definition, table_name, packed_file_type) = match table_data {
             TableType::DependencyManager(_) => {
                 let mut definition = Definition::new(-1, None);
                 definition.fields_mut().push(Field::new("Parent Packs".to_owned(), FieldType::StringU8, true, None, false, None, None, None, String::new(), -1, 0, BTreeMap::new(), None));
-                (definition, None, None, FileType::Unknown)
+                (definition, None, FileType::Unknown)
             },
-            TableType::DB(ref table) => (table.definition().clone(), Some(table.table_name()), Some(table.guid()), FileType::DB),
-            TableType::Loc(ref table) => (table.definition().clone(), None, None, FileType::Loc),
-            TableType::MatchedCombat(ref table) => (table.definition().clone(), None, None, FileType::MatchedCombat),
-            TableType::AnimsTable(ref table) => (table.definition().clone(), None, None, FileType::AnimsTable),
-            TableType::AnimFragment(ref table) => (table.definition().clone(), None, None, FileType::AnimFragment),
-            TableType::NormalTable(ref table) => (table.definition().clone(), None, None, FileType::Unknown),
+            TableType::DB(ref table) => (table.definition().clone(), Some(table.table_name()), FileType::DB),
+            TableType::Loc(ref table) => (table.definition().clone(), None, FileType::Loc),
+            TableType::MatchedCombat(ref table) => (table.definition().clone(), None, FileType::MatchedCombat),
+            TableType::AnimsTable(ref table) => (table.definition().clone(), None, FileType::AnimsTable),
+            TableType::AnimFragment(ref table) => (table.definition().clone(), None, FileType::AnimFragment),
+            TableType::NormalTable(ref table) => (table.definition().clone(), None, FileType::Unknown),
         };
 
         dbg!(t.elapsed().unwrap());
@@ -594,7 +593,6 @@ dbg!(t.elapsed().unwrap());
             search_view: Arc::new(RwLock::new(None)),
 
             table_name: table_name.map(|x| x.to_owned()),
-            table_uuid: table_uuid.map(|x| x.to_owned()),
             dependency_data: Arc::new(RwLock::new(dependency_data)),
             table_definition: Arc::new(RwLock::new(table_definition)),
             data_source,

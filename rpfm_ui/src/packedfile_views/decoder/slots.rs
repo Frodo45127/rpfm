@@ -26,6 +26,7 @@ use std::io::{Seek, SeekFrom};
 use std::rc::Rc;
 use std::sync::Arc;
 
+use rpfm_lib::error::RLibError;
 use rpfm_lib::files::{ContainerPath, Decodeable, DecodeableExtraData, db::DB};
 use rpfm_lib::schema::{Definition, FieldType};
 
@@ -525,18 +526,17 @@ impl PackedFileDecoderViewSlots {
 
                 let mut extra_data = DecodeableExtraData::default();
                 extra_data.set_schema(Some(&schema));
+                extra_data.set_return_incomplete(true);
                 let extra_data = Some(extra_data);
 
                  match DB::decode(&mut *view.data.write().unwrap(), &extra_data) {
                     Ok(_) => show_dialog(&view.table_view, "Seems ok.", true),
                     Err(error) => {
-                        /*
-                        if let ErrorKind::TableIncompleteError(error, data) = error.kind() {
-                            let data: Table = deserialize(data).unwrap();
-                            show_debug_dialog(app_ui.main_window(), &format!("{}\n{:#?}", error, data.get_table_data()));
+                        if let RLibError::DecodingTableIncomplete(error, table) = error {
+                            show_debug_dialog(app_ui.main_window(), error);
                         } else {
                             show_dialog(app_ui.main_window(), error, true);
-                        }*/
+                        }
                     }
                 }
             }

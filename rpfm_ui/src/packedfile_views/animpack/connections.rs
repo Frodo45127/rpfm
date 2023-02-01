@@ -24,21 +24,21 @@ use super::{PackedFileAnimPackView, slots::PackedFileAnimPackViewSlots};
 /// to not pollute the other modules with a ton of connections.
 pub unsafe fn set_connections(ui: &Arc<PackedFileAnimPackView>, slots: &PackedFileAnimPackViewSlots) {
 
-    ui.pack_tree_view().double_clicked().connect(&slots.copy_in);
-    ui.anim_pack_tree_view().double_clicked().connect(&slots.copy_out);
+    ui.pack_tree_view().double_clicked().connect(slots.copy_in());
+    ui.anim_pack_tree_view().double_clicked().connect(slots.copy_out());
 
-    ui.pack_filter_line_edit().text_changed().connect(&slots.pack_filter_change_text);
-    ui.pack_filter_autoexpand_matches_button().toggled().connect(&slots.pack_filter_change_autoexpand_matches);
-    ui.pack_filter_case_sensitive_button().toggled().connect(&slots.pack_filter_change_case_sensitive);
+    ui.pack_filter_line_edit().text_changed().connect(slots.pack_filter_change_text());
+    ui.pack_filter_autoexpand_matches_button().toggled().connect(slots.pack_filter_change_autoexpand_matches());
+    ui.pack_filter_case_sensitive_button().toggled().connect(slots.pack_filter_change_case_sensitive());
 
-    ui.anim_pack_filter_line_edit().text_changed().connect(&slots.anim_pack_filter_change_text);
-    ui.anim_pack_filter_autoexpand_matches_button().toggled().connect(&slots.anim_pack_filter_change_autoexpand_matches);
-    ui.anim_pack_filter_case_sensitive_button().toggled().connect(&slots.anim_pack_filter_change_case_sensitive);
+    ui.anim_pack_filter_line_edit().text_changed().connect(slots.anim_pack_filter_change_text());
+    ui.anim_pack_filter_autoexpand_matches_button().toggled().connect(slots.anim_pack_filter_change_autoexpand_matches());
+    ui.anim_pack_filter_case_sensitive_button().toggled().connect(slots.anim_pack_filter_change_case_sensitive());
 
-    ui.pack_expand_all().triggered().connect(&slots.pack_expand_all);
-    ui.pack_collapse_all().triggered().connect(&slots.pack_collapse_all);
-    ui.anim_pack_expand_all().triggered().connect(&slots.anim_pack_expand_all);
-    ui.anim_pack_collapse_all().triggered().connect(&slots.anim_pack_collapse_all);
-    ui.anim_pack_delete().triggered().connect(&slots.delete);
+    ui.pack_expand_all().triggered().connect(slots.pack_expand_all());
+    ui.pack_collapse_all().triggered().connect(slots.pack_collapse_all());
+    ui.anim_pack_expand_all().triggered().connect(slots.anim_pack_expand_all());
+    ui.anim_pack_collapse_all().triggered().connect(slots.anim_pack_collapse_all());
+    ui.anim_pack_delete().triggered().connect(slots.delete());
 }
 
