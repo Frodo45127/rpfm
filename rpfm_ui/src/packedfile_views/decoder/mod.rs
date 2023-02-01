@@ -178,7 +178,8 @@ impl PackedFileDecoderView {
     ) -> Result<()> {
 
         let container_path = ContainerPath::File(packed_file_view.get_path());
-        let table_name = container_path.db_table_name_from_path().unwrap();
+        let table_name = container_path.db_table_name_from_path()
+            .ok_or_else(|| anyhow!("The decoder cannot be use for this file."))?;
 
         let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFileRawData(path.to_owned()));
         let response = CentralCommand::recv(&receiver);
