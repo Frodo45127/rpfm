@@ -690,19 +690,19 @@ all = All
 settings_expand_treeview_when_adding_items = Expand new TreeView items when added:
 settings_expand_treeview_when_adding_items_tip = Set this to true if you want folders to be expanded when added to the TreeView. Set it to false to not expand them.
 
-label_outdated_table = Outdated table:
-label_invalid_reference = Invalid reference:
-label_empty_row = Empty row:
-label_empty_key_field = Empty key field:
-label_empty_key_fields = Empty key fields:
-label_duplicated_combined_keys = Duplicated combined keys:
-label_no_reference_table_found = No reference table found:
-label_no_reference_table_nor_column_found_pak = No reference Table/Column found:
-label_no_reference_table_nor_column_found_no_pak = No reference Table/Column/Dependencies found:
-label_invalid_escape = Invalid escape:
-label_duplicated_row = Duplicated row:
-label_invalid_dependency_packfile = Invalid dependency PackFile:
-label_dependencies_cache_not_generated = Dependencies Cache not generated:
+label_outdated_table = Outdated table
+label_invalid_reference = Invalid reference
+label_empty_row = Empty row
+label_empty_key_field = Empty key field
+label_empty_key_fields = Empty key fields
+label_duplicated_combined_keys = Duplicated combined keys
+label_no_reference_table_found = No reference table found
+label_no_reference_table_nor_column_found_pak = No reference Table/Column found
+label_no_reference_table_nor_column_found_no_pak = No reference Table/Column/Dependencies found
+label_invalid_escape = Invalid escape
+label_duplicated_row = Duplicated row
+label_invalid_dependency_packfile = Invalid dependency PackFile
+label_dependencies_cache_not_generated = Dependencies Cache not generated
 
 diagnostics_button_show_more_filters = Show more filters
 diagnostics_colum_report_type = Report Type
@@ -927,7 +927,7 @@ are_you_sure_rescue_packfile = Are you sure you want to do this? This is a dange
 
 filter_group = Group
 are_you_sure_delete = Are you sure you want to delete the selected PackedFiles?
-label_invalid_loc_key = Invalid Loc Key:
+label_invalid_loc_key = Invalid Loc Key
 info_title = Info
 category_title = Category {"{"}{"}"}
 equipment_title = Equipments
@@ -943,22 +943,22 @@ dependencies_cache_not_generated_explanation = The dependencies cache hasn't bee
 
     Remember to do this after a game patch too, so the cache gets updated with the new changes.
 
-label_invalid_packfile_name = Invalid PackFile Name:
+label_invalid_packfile_name = Invalid PackFile Name
 invalid_packfile_name_explanation = PackFile names cannot contain whitespace characters.
 
     To fix it, replace any whitespace in the PackFile's name with underscores.
 
-label_table_name_ends_in_number = Table name ends in number:
+label_table_name_ends_in_number = Table name ends in number
 table_name_ends_in_number_explanation = Numbers at the end of a DB Table's name usually cause a very weird issue, where a mod crashes for anyone but the modder who makes it.
 
     To fix it, remove the number at the end of the name of the reported DB Table.
 
-label_table_name_has_space = Table name has spaces:
+label_table_name_has_space = Table name has spaces
 table_name_has_space_explanation = Cataph doesn't like them. Also, this causes tables to sometimes not being loaded at all.
 
     Replace any whitespace in the table's name with underscores.
 
-label_table_is_datacoring = Table is datacoring:
+label_table_is_datacoring = Table is datacoring
 table_is_datacoring_explanation = When your mod has a table (or any file, really) with the exact same path as a vanilla file, your mod overwrites it entirely.
 
     When this happens with tables, it's called "Datacoring", and it's something to be aware of. Datacoring replaces the vanilla tables with yours, and thus it causes your
@@ -970,8 +970,8 @@ table_is_datacoring_explanation = When your mod has a table (or any file, really
     this warning for this table there.
 
 
-label_dependencies_cache_outdated = Dependencies Cache is outdated:
-label_dependencies_cache_could_not_be_loaded = Dependencies Cache could not be loaded:
+label_dependencies_cache_outdated = Dependencies Cache is outdated
+label_dependencies_cache_could_not_be_loaded = Dependencies Cache could not be loaded
 
 dependencies_cache_outdated_explanation = The dependencies cache is outdated and must be regenerated. This usually happens due to a game update, or due to someone modifying the game files.
 
@@ -1038,7 +1038,7 @@ field_with_path_not_found_explanation = The data in the reported cell is suppose
     Please make sure the value in the cell is an existing path. For cells that expect only a filename and not a full path, hover over their column header to know
     in what path the file is expected to be.
 
-label_field_with_path_not_found = Path/File in field not found:
+label_field_with_path_not_found = Path/File in field not found
 settings_enable_rigidmodel_editor = Enable RigidModel Editor:
 tt_settings_debug_enable_rigidmodel_editor = This setting allows you to disable the new RigidModel editor (still in beta) should you face any issues with it,
     so you can still use RPFM without it.
@@ -1291,3 +1291,25 @@ move_field_right = Move Field Right
 delete_field = Delete Field
 load_definition = Load Definition
 delete_definition = Delete Definition
+
+label_invalid_art_set_id = Invalid Art Set Id
+label_invalid_variant_id = Invalid Variant Id
+label_file_diffuse_not_found_for_variant = File Diffuse not found for Variant
+label_datacored_portrait_settings = Datacored Portrait Settings file
+invalid_art_set_id_explanation = You have an Art Set Id in a Portrait Settings file that doesn't exists in the 'campaign_character_arts' table.
+
+    This may be a typo, or an unused art set id... but it's usually a typo.
+
+invalid_variant_id_explanation = You have an Art Set Id containing a Variant Id in a Portrait Settings file that doesn't exists in the 'variants' table.
+
+    This may be a typo, or an unused variant id... but it's usually a typo.
+
+file_diffuse_not_found_for_variant_explanation = You have a diffuse path (the path to the file used for a 2D Portrait) on a Portrait Settings file pointing to a non-existant file.
+
+    This causes units to use default portraits.
+
+datacored_portrait_settings_explanation = You're overwriting/datacoring a Portrait Settings file.
+
+    99% of the time you DO NOT WANT TO DO THIS, because if you do it you may cause units everywhere to not have portrait icons/image.
+
+    Usually you just need to create a Portrait Settings file only for your units, not overwriting the vanilla ones.

@@ -49,7 +49,7 @@ use getset::Getters;
 
 use std::rc::Rc;
 
-use rpfm_extensions::diagnostics::{*, anim_fragment::*, config::*, dependency::*, pack::*, table::*};
+use rpfm_extensions::diagnostics::{*, anim_fragment::*, config::*, dependency::*, pack::*, portrait_settings::*, table::*};
 
 use rpfm_lib::files::ContainerPath;
 use rpfm_lib::games::supported_games::*;
@@ -132,6 +132,10 @@ pub struct DiagnosticsUI {
     checkbox_incorrect_game_path: QBox<QCheckBox>,
     checkbox_banned_table: QBox<QCheckBox>,
     checkbox_value_cannot_be_empty: QBox<QCheckBox>,
+    checkbox_invalid_art_set_id: QBox<QCheckBox>,
+    checkbox_invalid_variant_id: QBox<QCheckBox>,
+    checkbox_file_diffuse_not_found_for_variant: QBox<QCheckBox>,
+    checkbox_datacored_portrait_settings: QBox<QCheckBox>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -249,8 +253,12 @@ impl DiagnosticsUI {
         let checkbox_incorrect_game_path = QCheckBox::from_q_string_q_widget(&qtr("label_incorrect_game_path"), &sidebar_scroll_area);
         let checkbox_banned_table = QCheckBox::from_q_string_q_widget(&qtr("label_banned_table"), &sidebar_scroll_area);
         let checkbox_value_cannot_be_empty = QCheckBox::from_q_string_q_widget(&qtr("label_value_cannot_be_empty"), &sidebar_scroll_area);
+        let checkbox_invalid_art_set_id = QCheckBox::from_q_string_q_widget(&qtr("label_invalid_art_set_id"), &sidebar_scroll_area);
+        let checkbox_invalid_variant_id = QCheckBox::from_q_string_q_widget(&qtr("label_invalid_variant_id"), &sidebar_scroll_area);
+        let checkbox_file_diffuse_not_found_for_variant = QCheckBox::from_q_string_q_widget(&qtr("label_file_diffuse_not_found_for_variant"), &sidebar_scroll_area);
+        let checkbox_datacored_portrait_settings = QCheckBox::from_q_string_q_widget(&qtr("label_datacored_portrait_settings"), &sidebar_scroll_area);
 
-        checkbox_all.set_checked(true);
+        checkbox_all.set_checked(false);
         checkbox_outdated_table.set_checked(true);
         checkbox_invalid_reference.set_checked(true);
         checkbox_empty_row.set_checked(true);
@@ -275,6 +283,10 @@ impl DiagnosticsUI {
         checkbox_incorrect_game_path.set_checked(true);
         checkbox_banned_table.set_checked(true);
         checkbox_value_cannot_be_empty.set_checked(true);
+        checkbox_invalid_art_set_id.set_checked(true);
+        checkbox_invalid_variant_id.set_checked(true);
+        checkbox_file_diffuse_not_found_for_variant.set_checked(false);
+        checkbox_datacored_portrait_settings.set_checked(false);
 
         sidebar_grid.add_widget_1a(&checkbox_all);
         sidebar_grid.add_widget_1a(&checkbox_outdated_table);
@@ -301,6 +313,10 @@ impl DiagnosticsUI {
         sidebar_grid.add_widget_1a(&checkbox_incorrect_game_path);
         sidebar_grid.add_widget_1a(&checkbox_banned_table);
         sidebar_grid.add_widget_1a(&checkbox_value_cannot_be_empty);
+        sidebar_grid.add_widget_1a(&checkbox_invalid_art_set_id);
+        sidebar_grid.add_widget_1a(&checkbox_invalid_variant_id);
+        sidebar_grid.add_widget_1a(&checkbox_file_diffuse_not_found_for_variant);
+        sidebar_grid.add_widget_1a(&checkbox_datacored_portrait_settings);
 
         Ok(Self {
 
@@ -348,7 +364,11 @@ impl DiagnosticsUI {
             checkbox_field_with_path_not_found,
             checkbox_incorrect_game_path,
             checkbox_banned_table,
-            checkbox_value_cannot_be_empty
+            checkbox_value_cannot_be_empty,
+            checkbox_invalid_art_set_id,
+            checkbox_invalid_variant_id,
+            checkbox_file_diffuse_not_found_for_variant,
+            checkbox_datacored_portrait_settings,
         })
     }
 
@@ -565,6 +585,53 @@ impl DiagnosticsUI {
 
                             // Append the new row.
                             diagnostics_ui.diagnostics_table_model.append_row_q_list_of_q_standard_item(qlist_boi.as_ref());
+                        }
+                    }
+                    DiagnosticType::PortraitSettings(ref diagnostic) => {
+                        for result in diagnostic.results() {
+                            let qlist_boi = QListOfQStandardItem::new();
+
+                            // Create an empty row.
+                            let level = QStandardItem::new();
+                            let diag_type = QStandardItem::new();
+                            let cells_affected = QStandardItem::new();
+                            let path = QStandardItem::new();
+                            let message = QStandardItem::new();
+                            let report_type = QStandardItem::new();
+                            let (result_type, color) = match result.level() {
+                                DiagnosticLevel::Info => ("Info".to_owned(), get_color_info()),
+                                DiagnosticLevel::Warning => ("Warning".to_owned(), get_color_warning()),
+                                DiagnosticLevel::Error => ("Error".to_owned(), get_color_error()),
+                            };
+
+                            level.set_background(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(color))));
+                            level.set_text(&QString::from_std_str(result_type));
+                            diag_type.set_text(&QString::from_std_str(format!("{diagnostic_type}")));
+                            //cells_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&result.cells_affected()).unwrap())), 2);
+                            path.set_text(&QString::from_std_str(diagnostic.path()));
+                            message.set_text(&QString::from_std_str(result.message()));
+                            report_type.set_text(&QString::from_std_str(format!("{}", result.report_type())));
+
+                            level.set_editable(false);
+                            diag_type.set_editable(false);
+                            cells_affected.set_editable(false);
+                            path.set_editable(false);
+                            message.set_editable(false);
+                            report_type.set_editable(false);
+
+                            // Set the tooltips to the diag type and description columns.
+                            Self::set_tooltips_portrait_settings(&[&level, &path, &message], result.report_type());
+
+                            // Add an empty row to the list.
+                            qlist_boi.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
+                            qlist_boi.append_q_standard_item(&diag_type.into_ptr().as_mut_raw_ptr());
+                            qlist_boi.append_q_standard_item(&cells_affected.into_ptr().as_mut_raw_ptr());
+                            qlist_boi.append_q_standard_item(&path.into_ptr().as_mut_raw_ptr());
+                            qlist_boi.append_q_standard_item(&message.into_ptr().as_mut_raw_ptr());
+                            qlist_boi.append_q_standard_item(&report_type.into_ptr().as_mut_raw_ptr());
+
+                            // Append the new row.
+                            diagnostics_ui.diagnostics_table_model.append_row_q_list_of_q_standard_item(qlist_boi.into_ptr().as_ref().unwrap());
                         }
                     }
                     DiagnosticType::Dependency(ref diagnostic) => {
@@ -1235,6 +1302,18 @@ impl DiagnosticsUI {
             diagnostic_type_pattern.push_str(&format!("{}|", PackDiagnosticReportType::InvalidPackName(String::new())));
         }
 
+        if diagnostics_ui.checkbox_datacored_portrait_settings.is_checked() {
+            diagnostic_type_pattern.push_str(&format!("{}|", PortraitSettingsDiagnosticReportType::DatacoredPortraitSettings));
+        }
+        if diagnostics_ui.checkbox_invalid_art_set_id.is_checked() {
+            diagnostic_type_pattern.push_str(&format!("{}|", PortraitSettingsDiagnosticReportType::InvalidArtSetId(String::new())));
+        }
+        if diagnostics_ui.checkbox_invalid_variant_id.is_checked() {
+            diagnostic_type_pattern.push_str(&format!("{}|", PortraitSettingsDiagnosticReportType::InvalidVariantId(String::new(), String::new())));
+        }
+        if diagnostics_ui.checkbox_file_diffuse_not_found_for_variant.is_checked() {
+            diagnostic_type_pattern.push_str(&format!("{}|", PortraitSettingsDiagnosticReportType::FileDiffuseNotFoundForVariant(String::new(), String::new(), String::new())));
+        }
         diagnostic_type_pattern.pop();
 
         if diagnostic_type_pattern.is_empty() {
@@ -1267,11 +1346,15 @@ impl DiagnosticsUI {
                     .iter()
                     .filter(|y| matches!(y.level(), DiagnosticLevel::Info))
                     .count(),
-                 DiagnosticType::Dependency(ref diag) => diag.results()
+                DiagnosticType::PortraitSettings(ref diag) => diag.results()
                     .iter()
                     .filter(|y| matches!(y.level(), DiagnosticLevel::Info))
                     .count(),
-                 DiagnosticType::Config(ref diag) => diag.results()
+                DiagnosticType::Dependency(ref diag) => diag.results()
+                    .iter()
+                    .filter(|y| matches!(y.level(), DiagnosticLevel::Info))
+                    .count(),
+                DiagnosticType::Config(ref diag) => diag.results()
                     .iter()
                     .filter(|y| matches!(y.level(), DiagnosticLevel::Info))
                     .count(),
@@ -1289,6 +1372,10 @@ impl DiagnosticsUI {
                     .filter(|y| matches!(y.level(), DiagnosticLevel::Warning))
                     .count(),
                 DiagnosticType::Pack(ref diag) => diag.results()
+                    .iter()
+                    .filter(|y| matches!(y.level(), DiagnosticLevel::Warning))
+                    .count(),
+                DiagnosticType::PortraitSettings(ref diag) => diag.results()
                     .iter()
                     .filter(|y| matches!(y.level(), DiagnosticLevel::Warning))
                     .count(),
@@ -1315,6 +1402,10 @@ impl DiagnosticsUI {
                     .filter(|y| matches!(y.level(), DiagnosticLevel::Error))
                     .count(),
                 DiagnosticType::Pack(ref diag) => diag.results()
+                    .iter()
+                    .filter(|y| matches!(y.level(), DiagnosticLevel::Error))
+                    .count(),
+                DiagnosticType::PortraitSettings(ref diag) => diag.results()
                     .iter()
                     .filter(|y| matches!(y.level(), DiagnosticLevel::Error))
                     .count(),
@@ -1403,6 +1494,19 @@ impl DiagnosticsUI {
         }
     }
 
+    pub unsafe fn set_tooltips_portrait_settings(items: &[&CppBox<QStandardItem>], report_type: &PortraitSettingsDiagnosticReportType) {
+        let tool_tip = match report_type {
+            PortraitSettingsDiagnosticReportType::DatacoredPortraitSettings => qtr("datacored_portrait_settings_explanation"),
+            PortraitSettingsDiagnosticReportType::InvalidArtSetId(_) => qtr("invalid_art_set_id_explanation"),
+            PortraitSettingsDiagnosticReportType::InvalidVariantId(_, _) => qtr("invalid_variant_id_explanation"),
+            PortraitSettingsDiagnosticReportType::FileDiffuseNotFoundForVariant(_, _, _) => qtr("file_diffuse_not_found_for_variant_explanation"),
+        };
+
+        for item in items {
+            item.set_tool_tip(&tool_tip);
+        }
+    }
+
     unsafe fn diagnostics_ignored(&self) -> Vec<String> {
 
         let mut diagnostics_ignored = vec![];
@@ -1482,6 +1586,18 @@ impl DiagnosticsUI {
             diagnostics_ignored.push(PackDiagnosticReportType::InvalidPackName(String::new()).to_string());
         }
 
+        if !self.checkbox_datacored_portrait_settings.is_checked() {
+            diagnostics_ignored.push(PortraitSettingsDiagnosticReportType::DatacoredPortraitSettings.to_string());
+        }
+        if !self.checkbox_invalid_art_set_id.is_checked() {
+            diagnostics_ignored.push(PortraitSettingsDiagnosticReportType::InvalidArtSetId(String::new()).to_string());
+        }
+        if !self.checkbox_invalid_variant_id.is_checked() {
+            diagnostics_ignored.push(PortraitSettingsDiagnosticReportType::InvalidVariantId(String::new(), String::new()).to_string());
+        }
+        if !self.checkbox_file_diffuse_not_found_for_variant.is_checked() {
+            diagnostics_ignored.push(PortraitSettingsDiagnosticReportType::FileDiffuseNotFoundForVariant(String::new(), String::new(), String::new()).to_string());
+        }
         diagnostics_ignored
     }
 }

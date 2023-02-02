@@ -20,6 +20,7 @@ Notes on cells_affected:
 !*/
 
 use getset::{Getters, MutGetters};
+use rpfm_lib::files::portrait_settings::PortraitSettings;
 use serde_derive::{Serialize, Deserialize};
 use itertools::Itertools;
 use rayon::prelude::*;
@@ -37,16 +38,18 @@ use rpfm_lib::schema::{FieldType, Schema};
 use crate::dependencies::{Dependencies, TableReferences};
 use crate::REGEX_INVALID_ESCAPES;
 
-use self::anim_fragment::{AnimFragmentDiagnostic, AnimFragmentDiagnosticReport, AnimFragmentDiagnosticReportType};
-use self::config::{ConfigDiagnostic, ConfigDiagnosticReport, ConfigDiagnosticReportType};
-use self::dependency::{DependencyDiagnostic, DependencyDiagnosticReport, DependencyDiagnosticReportType};
-use self::pack::{PackDiagnostic, PackDiagnosticReport, PackDiagnosticReportType};
-use self::table::{TableDiagnostic, TableDiagnosticReport, TableDiagnosticReportType};
+use self::anim_fragment::*;
+use self::config::*;
+use self::dependency::*;
+use self::pack::*;
+use self::portrait_settings::*;
+use self::table::*;
 
 pub mod anim_fragment;
 pub mod config;
 pub mod dependency;
 pub mod pack;
+pub mod portrait_settings;
 pub mod table;
 
 //-------------------------------------------------------------------------------//
@@ -101,6 +104,7 @@ pub enum DiagnosticType {
     DB(TableDiagnostic),
     Loc(TableDiagnostic),
     Pack(PackDiagnostic),
+    PortraitSettings(PortraitSettingsDiagnostic),
 }
 
 /// This enum defines the possible level of a diagnostic.
@@ -129,6 +133,7 @@ impl DiagnosticType {
             Self::DB(ref diag) |
             Self::Loc(ref diag) => diag.path(),
             Self::Pack(_) => "",
+            Self::PortraitSettings(diag) => diag.path(),
             Self::Dependency(diag) => diag.path(),
             Self::Config(_) => "",
         }
@@ -180,9 +185,9 @@ impl Diagnostics {
         // Logic here: we want to process the tables on batches containing all the tables of the same type, so we can check duplicates in different tables.
         // To do that, we have to sort/split the file list, the process that.
         let files = if paths_to_check.is_empty() {
-            pack.files_by_type(&[FileType::AnimFragment, FileType::DB, FileType::Loc])
+            pack.files_by_type(&[FileType::AnimFragment, FileType::DB, FileType::Loc, FileType::PortraitSettings])
         } else {
-            pack.files_by_type_and_paths(&[FileType::AnimFragment, FileType::DB, FileType::Loc], paths_to_check, false)
+            pack.files_by_type_and_paths(&[FileType::AnimFragment, FileType::DB, FileType::Loc, FileType::PortraitSettings], paths_to_check, false)
         };
 
         let mut files_split: HashMap<&str, Vec<&RFile>> = HashMap::new();
@@ -213,6 +218,13 @@ impl Diagnostics {
                         files_split.insert("locs", vec![file]);
                     }
                 },
+                FileType::PortraitSettings => {
+                    if let Some(table_set) = files_split.get_mut("portrait_settings") {
+                        table_set.push(file);
+                    } else {
+                        files_split.insert("portrait_settings", vec![file]);
+                    }
+                },
                 _ => {},
             }
         }
@@ -225,8 +237,12 @@ impl Diagnostics {
 
         // TODO: Get the table reference data here, outside the parallel loop.
         // That way we can get it fast on the first try, and skip.
-        let table_names = files_split.iter().filter(|(key, _)| **key != "anim_fragments" && **key != "locs").map(|(key, _)| key.to_string()).collect::<Vec<_>>();
+        let table_names = files_split.iter().filter(|(key, _)| **key != "anim_fragments" && **key != "locs" && **key != "portrait_settings").map(|(key, _)| key.to_string()).collect::<Vec<_>>();
         dependencies.generate_local_db_references(pack, &table_names);
+
+        // Caches for Portrait Settings diagnostics.
+        let art_set_ids = Self::values_from_table_name_and_column_name(dependencies, pack, "campaign_character_arts_tables", "art_set_id");
+        let variant_ids = Self::values_from_table_name_and_column_name(dependencies, pack, "variants_tables", "variant_name");
 
         // Process the files in batches.
         self.results.append(&mut files_split.par_iter().filter_map(|(_, files)| {
@@ -274,6 +290,7 @@ impl Diagnostics {
                         )
                     },
                     FileType::Loc => Self::check_loc(file, &self.diagnostics_ignored, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields),
+                    FileType::PortraitSettings => PortraitSettingsDiagnostic::check(file, &art_set_ids, &variant_ids, dependencies, &self.diagnostics_ignored, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields),
                     _ => None,
                 };
 
@@ -881,6 +898,39 @@ impl Diagnostics {
     pub fn json(&self) -> Result<String> {
         serde_json::to_string_pretty(self).map_err(From::from)
     }
+
+    /// This function returns the list of values a column of a table has, across all instances of said table in the dependencies and the provided Pack.
+    fn values_from_table_name_and_column_name(dependencies: &Dependencies, pack: &Pack, table_name: &str, column_name: &str) -> HashSet<String> {
+        let mut ids = HashSet::new();
+
+        if let Ok(files) = dependencies.db_data(table_name, true, true) {
+            for file in &files {
+                if let Ok(RFileDecoded::DB(table)) = file.decoded() {
+                    if let Some(column) = table.definition().column_position_by_name(column_name) {
+                        if let Ok(data) = table.data(&None) {
+                            for row in data.iter() {
+                                ids.insert(row[column].data_to_string().to_string());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        for file in &pack.files_by_path(&ContainerPath::Folder(format!("db/{table_name}")), true) {
+            if let Ok(RFileDecoded::DB(table)) = file.decoded() {
+                if let Some(column) = table.definition().column_position_by_name(column_name) {
+                    if let Ok(data) = table.data(&None) {
+                        for row in data.iter() {
+                            ids.insert(row[column].data_to_string().to_string());
+                        }
+                    }
+                }
+            }
+        }
+
+        ids
+    }
 }
 
 impl Display for DiagnosticType {
@@ -891,6 +941,7 @@ impl Display for DiagnosticType {
             Self::DB(_) => "DB",
             Self::Loc(_) => "Loc",
             Self::Pack(_) => "Packfile",
+            Self::PortraitSettings(_) => "PortraitSettings",
             Self::Dependency(_) => "DependencyManager",
         }, f)
     }
