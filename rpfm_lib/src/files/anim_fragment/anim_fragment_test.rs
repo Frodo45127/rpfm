@@ -17,7 +17,7 @@ use crate::binary::ReadBytes;
 use crate::files::*;
 
 use super::AnimFragment;
-
+/*
 #[test]
 fn test_encode_anim_fragment_frg() {
     let path_1 = "../test_files/test_decode_anim_fragment.frg";
@@ -31,6 +31,25 @@ fn test_encode_anim_fragment_frg() {
     let before = reader.read_slice(data_len as usize, true).unwrap();
     let mut data = AnimFragment::decode(&mut reader, &Some(decodeable_extra_data)).unwrap();
     dbg!(&data);
+
+    let mut after = vec![];
+    data.encode(&mut after, &None).unwrap();
+
+    let mut writer = BufWriter::new(File::create(path_2).unwrap());
+    writer.write_all(&after).unwrap();
+
+    assert_eq!(before, after);
+}*/
+
+#[test]
+fn test_encode_anim_fragment_bin_wh3() {
+    let path_1 = "../test_files/test_decode_anim_wh3.bin";
+    let path_2 = "../test_files/test_encode_anim_wh3.bin";
+    let mut reader = BufReader::new(File::open(path_1).unwrap());
+
+    let data_len = reader.len().unwrap();
+    let before = reader.read_slice(data_len as usize, true).unwrap();
+    let mut data = AnimFragment::decode(&mut reader, &None).unwrap();
 
     let mut after = vec![];
     data.encode(&mut after, &None).unwrap();

@@ -134,7 +134,6 @@ const PATCH_COLUMN_VIEW_RELEASE: &str = "ui/new_schema_patch_dialog.ui";
 /// This enum is used to distinguish between the different types of tables we can decode.
 #[derive(Clone, Debug)]
 pub enum TableType {
-    AnimFragment(AnimFragment),
     AnimsTable(AnimsTable),
     DependencyManager(Vec<Vec<DecodedData>>),
     DB(DB),
@@ -289,7 +288,6 @@ impl TableView {
             TableType::Loc(ref table) => (table.definition().clone(), None, FileType::Loc),
             TableType::MatchedCombat(ref table) => (table.definition().clone(), None, FileType::MatchedCombat),
             TableType::AnimsTable(ref table) => (table.definition().clone(), None, FileType::AnimsTable),
-            TableType::AnimFragment(ref table) => (table.definition().clone(), None, FileType::AnimFragment),
             TableType::NormalTable(ref table) => (table.definition().clone(), None, FileType::Unknown),
         };
 
@@ -669,7 +667,6 @@ impl TableView {
 
         // Update the stored definition.
         let table_definition = match data {
-            TableType::AnimFragment(ref table) => table.definition().clone(),
             TableType::AnimsTable(ref table) => table.definition().clone(),
             TableType::DB(ref table) => table.definition().clone(),
             TableType::Loc(ref table) => table.definition().clone(),

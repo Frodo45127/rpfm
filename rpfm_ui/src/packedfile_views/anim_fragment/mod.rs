@@ -95,7 +95,7 @@ impl PackedFileAnimFragmentView {
         references_ui: &Rc<ReferencesUI>,
         data: AnimFragment
     ) -> Result<()> {
-
+        /*
         // For any other game, use the debug view.
         if GAME_SELECTED.read().unwrap().game_key_name() != KEY_WARHAMMER_2 {
 
@@ -180,6 +180,8 @@ impl PackedFileAnimFragmentView {
             // Return success.
             Ok(())
         }
+        */
+            Ok(())
     }
 
     /// Function to reload the data of the view without having to delete the view itself.
@@ -197,10 +199,10 @@ impl PackedFileAnimFragmentView {
     pub unsafe fn load_data(&self, original_data: &AnimFragment) -> Result<()> {
         self.integer_label_1.set_text(&QString::from_std_str(original_data.skeleton_1()));
         self.integer_label_2.set_text(&QString::from_std_str(original_data.skeleton_2()));
-
+        /*
         self.integer_1.set_value(*original_data.min_id());
         self.integer_2.set_value(*original_data.max_id());
-
+*/
         // Each table view, we just load them.
         //if let Some(DecodedData::SequenceU32(data)) = data.get(0) {
         //    self.table_view_1.reload_view(TableType::AnimFragment(From::from(data.clone())));
@@ -215,6 +217,7 @@ impl PackedFileAnimFragmentView {
 
     /// This function takes care of building a RFileDecoded from the view's data.
     pub unsafe fn save_data(&self) -> Result<RFileDecoded> {
+        /*
         let mut table = AnimFragment::new(&self.definition());
         let mut data = vec![];
         let i1 = DecodedData::I32(self.integer_1.text().to_std_string().parse::<i32>()?);
@@ -231,7 +234,8 @@ impl PackedFileAnimFragmentView {
 
         let data = vec![data; 1];
         //table.set_table_data(&data)?;
-        Ok(RFileDecoded::AnimFragment(table))
+        Ok(RFileDecoded::AnimFragment(table))*/
+        Err(anyhow!("test"))
     }
 
     /// This function returns a copy of the definition of this AnimFragment.

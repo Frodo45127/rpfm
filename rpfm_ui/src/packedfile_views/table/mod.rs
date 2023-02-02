@@ -68,7 +68,6 @@ impl PackedFileTableView {
         };
 
         let packed_file_type = match table_data {
-            TableType::AnimFragment(_) => FileType::AnimFragment,
             TableType::AnimsTable(_) => FileType::AnimsTable,
             TableType::DB(_) => FileType::DB,
             TableType::Loc(_) => FileType::Loc,

@@ -238,16 +238,16 @@ impl Diagnostics {
                 let (ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) = Self::ignore_data_for_file(file, &files_to_ignore)?;
 
                 let diagnostic = match file.file_type() {
-                    FileType::AnimFragment => Self::check_anim_fragment(
-                        file,
-                        dependencies,
-                        &self.diagnostics_ignored,
-                        &ignored_fields,
-                        &ignored_diagnostics,
-                        &ignored_diagnostics_for_fields,
-                        &local_file_path_list,
-                        &local_folder_path_list
-                    ),
+                    //FileType::AnimFragment => Self::check_anim_fragment(
+                    //    file,
+                    //    dependencies,
+                    //    &self.diagnostics_ignored,
+                    //    &ignored_fields,
+                    //    &ignored_diagnostics,
+                    //    &ignored_diagnostics_for_fields,
+                    //    &local_file_path_list,
+                    //    &local_folder_path_list
+                    //),
                     FileType::DB => {
 
                         // Get the dependency data for tables once per batch.
@@ -575,7 +575,7 @@ impl Diagnostics {
             } else { None }
         } else { None }
     }
-
+    /*
     /// This function takes care of checking the loc tables of your mod for errors.
     fn check_anim_fragment(
         file: &RFile,
@@ -637,7 +637,7 @@ impl Diagnostics {
                 Some(DiagnosticType::AnimFragment(diagnostic))
             } else { None }
         } else { None }
-    }
+    }*/
 
     /// This function takes care of checking the loc tables of your mod for errors.
     fn check_loc(

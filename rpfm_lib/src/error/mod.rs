@@ -187,6 +187,9 @@ pub enum RLibError {
     #[error("This file's version ({0}) is not yet supported.")]
     DecodingPortraitSettingUnsupportedVersion(usize),
 
+    #[error("This file's version ({0}) is not yet supported.")]
+    DecodingAnimFragmentUnsupportedVersion(usize),
+
     #[error("This file is expected to be of {0} type, but the data provided is of {1} type. If you see this, 99% sure it is a bug.")]
     DecodedDataDoesNotMatchFileType(FileType, FileType),
 
