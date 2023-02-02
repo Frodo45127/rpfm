@@ -604,10 +604,17 @@ impl DiagnosticsUI {
                                 DiagnosticLevel::Error => ("Error".to_owned(), get_color_error()),
                             };
 
+                            let cells_affected_string = match result.report_type() {
+                                PortraitSettingsDiagnosticReportType::DatacoredPortraitSettings => String::new(),
+                                PortraitSettingsDiagnosticReportType::InvalidArtSetId(art_set_id) => art_set_id.to_owned(),
+                                PortraitSettingsDiagnosticReportType::InvalidVariantId(art_set_id, variant_id) => format!("{art_set_id}|{variant_id}"),
+                                PortraitSettingsDiagnosticReportType::FileDiffuseNotFoundForVariant(art_set_id, variant_id, _) => format!("{art_set_id}|{variant_id}"),
+                            };
+
                             level.set_background(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(color))));
                             level.set_text(&QString::from_std_str(result_type));
                             diag_type.set_text(&QString::from_std_str(format!("{diagnostic_type}")));
-                            //cells_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&result.cells_affected()).unwrap())), 2);
+                            cells_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(cells_affected_string)), 2);
                             path.set_text(&QString::from_std_str(diagnostic.path()));
                             message.set_text(&QString::from_std_str(result.message()));
                             report_type.set_text(&QString::from_std_str(format!("{}", result.report_type())));
@@ -847,11 +854,11 @@ impl DiagnosticsUI {
                             }
                         }
                     }
-                    /*
+
                     else if let ViewType::Internal(View::DependenciesManager(view)) = packed_file_view.get_view() {
 
                         let table_view = view.get_ref_table();
-                        let table_view = table_view.get_mut_ptr_table_view_primary();
+                        let table_view = table_view.table_view();
                         let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
                         let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
                         let table_selection_model = table_view.selection_model();
@@ -868,7 +875,58 @@ impl DiagnosticsUI {
                                 table_selection_model.select_q_model_index_q_flags_selection_flag(table_model_index_filtered.as_ref(), QFlags::from(SelectionFlag::SelectCurrent));
                             }
                         }
-                    }*/
+                    }
+                }
+            }
+
+            "PortraitSettings" => {
+                if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).find(|x| *x.get_ref_path() == path) {
+                    if let ViewType::Internal(View::PortraitSettings(view)) = packed_file_view.get_view() {
+                        let list_view = view.main_list_view();
+                        let list_filter: QPtr<QSortFilterProxyModel> = list_view.model().static_downcast();
+                        let list_model: QPtr<QStandardItemModel> = list_filter.source_model().static_downcast();
+                        let list_selection_model = list_view.selection_model();
+
+                        list_selection_model.clear_selection();
+                        let data_merged = model.item_2a(model_index.row(), 2).text().to_std_string();
+                        let data: Vec<&str> = data_merged.split('|').collect::<Vec<_>>();
+                        let mut art_set_id_found = false;
+
+                        if let Some(art_set_id) = data.first() {
+                            let q_string = QString::from_std_str(art_set_id);
+                            for row in 0..list_model.row_count_0a() {
+                                let list_model_index = list_model.index_2a(row, 0);
+                                if list_model.data_1a(&list_model_index).to_string().compare_q_string(&q_string) == 0 {
+                                    let list_model_index_filtered = list_filter.map_from_source(&list_model_index);
+                                    if list_model_index_filtered.is_valid() {
+                                        list_view.set_focus_0a();
+                                        list_view.set_current_index(list_model_index_filtered.as_ref());
+                                        list_view.scroll_to_2a(list_model_index_filtered.as_ref(), ScrollHint::EnsureVisible);
+                                        list_selection_model.select_q_model_index_q_flags_selection_flag(list_model_index_filtered.as_ref(), QFlags::from(SelectionFlag::SelectCurrent));
+                                        art_set_id_found = true;
+                                    }
+                                }
+                            }
+                        }
+
+                        if art_set_id_found {
+                            if let Some(variant_id) = data.get(1) {
+                                let q_string = QString::from_std_str(variant_id);
+                                for row in 0..view.variants_list_model().row_count_0a() {
+                                    let list_model_index = view.variants_list_model().index_2a(row, 0);
+                                    if view.variants_list_model().data_1a(&list_model_index).to_string().compare_q_string(&q_string) == 0 {
+                                        let list_model_index_filtered = view.variants_list_filter().map_from_source(&list_model_index);
+                                        if list_model_index_filtered.is_valid() {
+                                            view.variants_list_view().set_focus_0a();
+                                            view.variants_list_view().set_current_index(list_model_index_filtered.as_ref());
+                                            view.variants_list_view().scroll_to_2a(list_model_index_filtered.as_ref(), ScrollHint::EnsureVisible);
+                                            view.variants_list_view().selection_model().select_q_model_index_q_flags_selection_flag(list_model_index_filtered.as_ref(), QFlags::from(SelectionFlag::SelectCurrent));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
@@ -913,7 +971,7 @@ impl DiagnosticsUI {
             DiagnosticType::AnimFragment(ref diagnostic) => diagnostic.path(),
             DiagnosticType::DB(ref diagnostic) |
             DiagnosticType::Loc(ref diagnostic) => diagnostic.path(),
-            //DiagnosticType::DependencyManager(ref diagnostic) => diagnostic.get_path(),
+            DiagnosticType::Dependency(ref diagnostic) => diagnostic.path(),
             _ => return,
         };
 
@@ -922,7 +980,7 @@ impl DiagnosticsUI {
 
                 // In case of tables, we have to get the logical row/column of the match and select it.
                 let internal_table_view = if let ViewType::Internal(View::Table(view)) = view.get_view() { view.get_ref_table() }
-                //else if let ViewType::Internal(View::DependenciesManager(view)) = view.get_view() { view.get_ref_table() }
+                else if let ViewType::Internal(View::DependenciesManager(view)) = view.get_view() { view.get_ref_table() }
                 else if let ViewType::Internal(View::AnimFragment(view)) = view.get_view() { view.table_view() }
                 else { return };
 
@@ -982,20 +1040,20 @@ impl DiagnosticsUI {
                             }
                         }
                     },
-                    /*
-                    DiagnosticType::DependencyManager(ref diagnostic) => {
-                        for result in diagnostic.get_ref_result() {
-                            for (row, column) in &result.cells_affected {
+
+                    DiagnosticType::Dependency(ref diagnostic) => {
+                        for result in diagnostic.results() {
+                            for (row, column) in result.cells_affected() {
                                 if *row != -1 || *column != -1 {
 
                                     if *column == -1 {
                                         for column in 0..table_model.column_count_0a() {
-                                            let table_model_index = table_model.index_2a(*row as i32, column as i32);
+                                            let table_model_index = table_model.index_2a(*row, column);
                                             let table_model_item = table_model.item_from_index(&table_model_index);
 
                                             // At this point, is possible the row is no longer valid, so we have to check it out first.
                                             if table_model_index.is_valid() {
-                                                match result.level {
+                                                match result.level() {
                                                     DiagnosticLevel::Error => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_ERROR),
                                                     DiagnosticLevel::Warning => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_WARNING),
                                                     DiagnosticLevel::Info => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_INFO),
@@ -1004,12 +1062,12 @@ impl DiagnosticsUI {
                                         }
                                     } else if *row == -1 {
                                         for row in 0..table_model.row_count_0a() {
-                                            let table_model_index = table_model.index_2a(row as i32, *column as i32);
+                                            let table_model_index = table_model.index_2a(row, *column);
                                             let table_model_item = table_model.item_from_index(&table_model_index);
 
                                             // At this point, is possible the row is no longer valid, so we have to check it out first.
                                             if table_model_index.is_valid() {
-                                                match result.level {
+                                                match result.level() {
                                                     DiagnosticLevel::Error => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_ERROR),
                                                     DiagnosticLevel::Warning => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_WARNING),
                                                     DiagnosticLevel::Info => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_INFO),
@@ -1017,12 +1075,12 @@ impl DiagnosticsUI {
                                             }
                                         }
                                     } else {
-                                        let table_model_index = table_model.index_2a(*row as i32, *column as i32);
+                                        let table_model_index = table_model.index_2a(*row, *column);
                                         let table_model_item = table_model.item_from_index(&table_model_index);
 
                                         // At this point, is possible the row is no longer valid, so we have to check it out first.
                                         if table_model_index.is_valid() {
-                                            match result.level {
+                                            match result.level() {
                                                 DiagnosticLevel::Error => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_ERROR),
                                                 DiagnosticLevel::Warning => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_WARNING),
                                                 DiagnosticLevel::Info => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_INFO),
@@ -1032,7 +1090,8 @@ impl DiagnosticsUI {
                                 }
                             }
                         }
-                    },*/
+                    },
+
                     DiagnosticType::AnimFragment(ref diagnostic) => {
                         for result in diagnostic.results() {
                             for (row, column) in result.cells_affected() {
@@ -1146,9 +1205,9 @@ impl DiagnosticsUI {
                     blocker.unblock();
                     table_view.viewport().repaint();
                 }
-                /*
+
                 else if let ViewType::Internal(View::DependenciesManager(view)) = view.get_view() {
-                    let table_view = view.get_ref_table().get_mut_ptr_table_view_primary();
+                    let table_view = view.get_ref_table().table_view();
                     let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
                     let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
                     let blocker = QSignalBlocker::from_q_object(table_model.static_upcast::<QObject>());
@@ -1170,7 +1229,7 @@ impl DiagnosticsUI {
                     }
                     blocker.unblock();
                     table_view.viewport().repaint();
-                }*/
+                }
             }
         }
     }
