@@ -26,7 +26,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 
 use rpfm_lib::integrations::log::*;
-use rpfm_lib::files::{anims_table::AnimsTable, ContainerPath, db::DB, loc::Loc, FileType, matched_combat::MatchedCombat, RFileDecoded, text::Text};
+use rpfm_lib::files::{ContainerPath, db::DB, loc::Loc, FileType, matched_combat::MatchedCombat, RFileDecoded, text::Text};
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
@@ -373,10 +373,10 @@ impl PackedFileView {
                             View::Table(view) => {
                                 let new_table = get_table_from_view(&view.get_ref_table().table_model_ptr().static_upcast(), &view.get_ref_table().table_definition())?;
                                 match self.packed_file_type {
-                                    FileType::AnimsTable => {
-                                        let table = AnimsTable::from(new_table);
-                                        RFileDecoded::AnimsTable(table)
-                                    }
+                                    //FileType::AnimsTable => {
+                                    //    let table = AnimsTable::from(new_table);
+                                    //    RFileDecoded::AnimsTable(table)
+                                    //}
 
                                     FileType::DB => {
 
@@ -490,17 +490,17 @@ impl PackedFileView {
                             }
                         },
 
-                        Response::AnimsTableRFileInfo(table, packed_file_info) => {
-                            if let View::Table(old_table) = view {
-                                let old_table = old_table.get_ref_table();
-                                old_table.reload_view(TableType::AnimsTable(table));
-                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
-
-                            }
-                            else {
-                                return Err(anyhow!(RFILE_RELOAD_ERROR));
-                            }
-                        },
+                        //Response::AnimsTableRFileInfo(table, packed_file_info) => {
+                        //    if let View::Table(old_table) = view {
+                        //        let old_table = old_table.get_ref_table();
+                        //        old_table.reload_view(TableType::AnimsTable(table));
+                        //        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
+//
+//                        //    }
+//                        //    else {
+//                        //        return Err(anyhow!(RFILE_RELOAD_ERROR));
+//                        //    }
+                        //},
 
                         Response::ESFRFileInfo(esf, packed_file_info) => {
                             if let View::ESF(old_esf) = view {

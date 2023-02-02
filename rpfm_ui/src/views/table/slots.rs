@@ -724,7 +724,6 @@ impl TableViewSlots {
                         FileType::DB => TableType::DB(From::from(table)),
                         FileType::Loc => TableType::Loc(From::from(table)),
                         FileType::MatchedCombat => TableType::MatchedCombat(From::from(table)),
-                        FileType::AnimsTable => TableType::AnimsTable(From::from(table)),
                         _ => unimplemented!("You forgot to implement subtables for this kind of packedfile"),
                     };
                     if let Some(new_data) = open_subtable(

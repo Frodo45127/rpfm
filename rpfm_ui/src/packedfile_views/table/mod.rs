@@ -59,7 +59,6 @@ impl PackedFileTableView {
 
         // Get the decoded Table.
         let table_data = match response {
-            Response::AnimsTableRFileInfo(table, _) => TableType::AnimsTable(table),
             Response::DBRFileInfo(table, _) => TableType::DB(table),
             Response::LocRFileInfo(table, _) => TableType::Loc(table),
             Response::MatchedCombatRFileInfo(table, _) => TableType::MatchedCombat(table),
@@ -68,7 +67,6 @@ impl PackedFileTableView {
         };
 
         let packed_file_type = match table_data {
-            TableType::AnimsTable(_) => FileType::AnimsTable,
             TableType::DB(_) => FileType::DB,
             TableType::Loc(_) => FileType::Loc,
             TableType::MatchedCombat(_) => FileType::MatchedCombat,

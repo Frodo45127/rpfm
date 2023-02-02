@@ -443,7 +443,6 @@ pub unsafe fn load_data(
 
     // Set the right data, depending on the table type you get.
     let data = match data {
-        TableType::AnimsTable(data) => data.data().unwrap(),
         TableType::DependencyManager(data) => Cow::from(data),
         TableType::DB(data) => data.data(&None).unwrap(),
         TableType::Loc(data) => data.data(&None).unwrap(),
