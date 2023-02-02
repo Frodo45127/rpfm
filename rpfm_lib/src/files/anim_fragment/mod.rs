@@ -22,8 +22,7 @@ pub const EXTENSIONS: [&str; 2] = [".frg", ".bin"];
 
 mod versions;
 
-// Commented until I get some test files on github.
-//#[cfg(test)] mod anim_fragment_test;
+#[cfg(test)] mod anim_fragment_test;
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
@@ -51,7 +50,12 @@ pub struct Entry {
     uk3: f32,
     uk4: u32,
     uk5: bool,
-    uk6: u32,
+    anim_data: Vec<AnimData>,
+}
+
+#[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", set = "pub")]
+pub struct AnimData {
     anim: String,
     anim_meta: String,
     anim_snd: String,

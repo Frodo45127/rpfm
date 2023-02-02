@@ -31,18 +31,36 @@ impl AnimFragment {
         self.uk_string = data.read_sized_string_u8()?;
 
         let count = data.read_u32()?;
+        dbg!(&self);
+        dbg!(count);
+        for i in 0..count {
+            let uk1 = data.read_u32()?; dbg!(uk1);
+            let uk2 = data.read_f32()?; dbg!(uk2);
+            let uk3 = data.read_f32()?; dbg!(uk3);
+            let uk4 = data.read_u32()?; dbg!(uk4);
+            let uk5 = data.read_bool()?; dbg!(uk5);
+            let count2 = data.read_u32()?; dbg!(count2);
 
-        for _ in 0..count {
+            let mut anim_data = vec![];
+            for i2 in 0..count2 {
+                let anim = data.read_sized_string_u8()?; dbg!(&anim);
+                let anim_meta = data.read_sized_string_u8()?; dbg!(&anim_meta);
+                let anim_snd = data.read_sized_string_u8()?; dbg!(&anim_snd);
+
+                let data = AnimData {
+                    anim,
+                    anim_meta,
+                    anim_snd,
+                };
+                anim_data.push(data);
+            }
             let entry = Entry {
-                uk1: data.read_u32()?,
-                uk2: data.read_f32()?,
-                uk3: data.read_f32()?,
-                uk4: data.read_u32()?,
-                uk5: data.read_bool()?,
-                uk6: data.read_u32()?,
-                anim: data.read_sized_string_u8()?,
-                anim_meta: data.read_sized_string_u8()?,
-                anim_snd: data.read_sized_string_u8()?,
+                uk1,
+                uk2,
+                uk3,
+                uk4,
+                uk5,
+                anim_data
             };
 
             self.entries.push(entry);
@@ -66,10 +84,12 @@ impl AnimFragment {
             buffer.write_f32(entry.uk3)?;
             buffer.write_u32(entry.uk4)?;
             buffer.write_bool(entry.uk5)?;
-            buffer.write_u32(entry.uk6)?;
-            buffer.write_sized_string_u8(&entry.anim)?;
-            buffer.write_sized_string_u8(&entry.anim_meta)?;
-            buffer.write_sized_string_u8(&entry.anim_snd)?;
+            buffer.write_u32(entry.anim_data.len() as u32)?;
+            for data in &entry.anim_data {
+                buffer.write_sized_string_u8(&data.anim)?;
+                buffer.write_sized_string_u8(&data.anim_meta)?;
+                buffer.write_sized_string_u8(&data.anim_snd)?;
+            }
         }
 
         Ok(())
