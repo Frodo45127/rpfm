@@ -197,8 +197,8 @@ impl PackedFileAnimFragmentView {
 
     /// This function takes care of loading the data into the AnimFragment View.
     pub unsafe fn load_data(&self, original_data: &AnimFragment) -> Result<()> {
-        self.integer_label_1.set_text(&QString::from_std_str(original_data.skeleton_1()));
-        self.integer_label_2.set_text(&QString::from_std_str(original_data.skeleton_2()));
+        //self.integer_label_1.set_text(&QString::from_std_str(original_data.skeleton_1()));
+        //self.integer_label_2.set_text(&QString::from_std_str(original_data.skeleton_2()));
         /*
         self.integer_1.set_value(*original_data.min_id());
         self.integer_2.set_value(*original_data.max_id());

@@ -26,25 +26,23 @@ impl MatchedCombat {
         let count = data.read_u32()?;
 
         for _ in 0..count {
-            let entry = Entry {
-                uk1: data.read_u32()?,
-                uk2: data.read_u32()?,
-                uk3: data.read_u32()?,
-                uk4: data.read_u32()?,
-                uk5: data.read_u32()?,
-                uk6: data.read_u32()?,
-                str1: data.read_sized_string_u8()?,
-                str2: data.read_sized_string_u8()?,
-                uk21: data.read_u32()?,
-                uk22: data.read_u32()?,
-                uk23: data.read_u32()?,
-                uk24: data.read_u32()?,
-                uk25: data.read_u32()?,
-                str21: data.read_sized_string_u8()?,
-                str22: data.read_sized_string_u8()?,
-            };
+            let entry_count = data.read_u32()?;
+            let mut matched_entries = vec![];
 
-            self.entries.push(entry);
+            for _ in 0..entry_count {
+                let entry = Entry {
+                    uk1: data.read_u32()?,      // Team?
+                    uk2: data.read_u32()?,      // Start status (0: alive, 1: dead)?
+                    uk3: data.read_u32()?,      // Ends status (0: alive, 1: dead)?
+                    uk4: data.read_u32()?,
+                    uk5: data.read_u32()?,
+                    file_path: data.read_sized_string_u8()?,
+                    mount_file_path: data.read_sized_string_u8()?,
+                };
+
+                matched_entries.push(entry);
+            }
+            self.entries.push(matched_entries);
         }
 
         Ok(())
@@ -53,21 +51,16 @@ impl MatchedCombat {
     pub fn write_v1<W: WriteBytes>(&self, buffer: &mut W) -> Result<()> {
         buffer.write_u32(self.entries.len() as u32)?;
         for entry in &self.entries {
-            buffer.write_u32(entry.uk1)?;
-            buffer.write_u32(entry.uk2)?;
-            buffer.write_u32(entry.uk3)?;
-            buffer.write_u32(entry.uk4)?;
-            buffer.write_u32(entry.uk5)?;
-            buffer.write_u32(entry.uk6)?;
-            buffer.write_sized_string_u8(&entry.str1)?;
-            buffer.write_sized_string_u8(&entry.str2)?;
-            buffer.write_u32(entry.uk21)?;
-            buffer.write_u32(entry.uk22)?;
-            buffer.write_u32(entry.uk23)?;
-            buffer.write_u32(entry.uk24)?;
-            buffer.write_u32(entry.uk25)?;
-            buffer.write_sized_string_u8(&entry.str21)?;
-            buffer.write_sized_string_u8(&entry.str22)?;
+            buffer.write_u32(entry.len() as u32)?;
+            for matched_entry in entry {
+                buffer.write_u32(matched_entry.uk1)?;
+                buffer.write_u32(matched_entry.uk2)?;
+                buffer.write_u32(matched_entry.uk3)?;
+                buffer.write_u32(matched_entry.uk4)?;
+                buffer.write_u32(matched_entry.uk5)?;
+                buffer.write_sized_string_u8(&matched_entry.file_path)?;
+                buffer.write_sized_string_u8(&matched_entry.mount_file_path)?;
+            }
         }
 
         Ok(())

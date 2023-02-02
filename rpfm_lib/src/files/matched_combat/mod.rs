@@ -37,7 +37,7 @@ mod versions;
 #[getset(get = "pub", set = "pub")]
 pub struct MatchedCombat {
     version: u32,
-    entries: Vec<Entry>,
+    entries: Vec<Vec<Entry>>,
 }
 
 #[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
@@ -48,16 +48,8 @@ pub struct Entry {
     uk3: u32,
     uk4: u32,
     uk5: u32,
-    uk6: u32,
-    str1: String,
-    str2: String,
-    uk21: u32,
-    uk22: u32,
-    uk23: u32,
-    uk24: u32,
-    uk25: u32,
-    str21: String,
-    str22: String,
+    file_path: String,
+    mount_file_path: String,
 }
 
 //---------------------------------------------------------------------------//
