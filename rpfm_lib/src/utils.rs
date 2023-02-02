@@ -176,6 +176,33 @@ pub(crate) fn pe_resources(bytes: &[u8]) -> std::result::Result<Resources, pelit
     }
 }
 
+//--------------------------------------------------------//
+// VWise utils.
+//--------------------------------------------------------//
+
+const VWISE_HASH_VALUE: u32 = 0x811C9DC5;
+const VWISE_MULT_VALUE: u32 = 0x01000193;
+const VWISE_AND_VALUE: u32 = 0xFFFFFFFF;
+
+/// Function to generate a vwise hash from a file name.
+///
+/// Copy/pasted from Asset Editor.
+pub fn hash_vwise(name: &str) -> u32 {
+    let name = name.trim().to_lowercase();
+    let mut hash_value = VWISE_HASH_VALUE;
+    for byte in name.as_bytes() {
+        hash_value *= VWISE_MULT_VALUE;
+        hash_value ^= *byte as u32;
+        hash_value &= VWISE_AND_VALUE;
+    }
+
+    hash_value
+}
+
+//--------------------------------------------------------//
+// Decoder utils.
+//--------------------------------------------------------//
+
 /// Function to check for a size mismatch error (we expected the cursor to be at `expected_pos`,
 /// but instead we're at `curr_pos`).
 pub(crate) fn check_size_mismatch(curr_pos: usize, expected_pos: usize) -> Result<()> {

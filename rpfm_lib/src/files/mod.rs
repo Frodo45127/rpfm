@@ -89,6 +89,7 @@ use self::matched_combat::MatchedCombat;
 use self::pack::Pack;
 use self::portrait_settings::PortraitSettings;
 use self::rigidmodel::RigidModel;
+use self::soundbank::SoundBank;
 use self::text::Text;
 use self::uic::UIC;
 use self::unit_variant::UnitVariant;
@@ -106,6 +107,7 @@ pub mod matched_combat;
 pub mod pack;
 pub mod portrait_settings;
 pub mod rigidmodel;
+pub mod soundbank;
 pub mod table;
 pub mod text;
 pub mod uic;
@@ -216,6 +218,7 @@ pub enum RFileDecoded {
     PortraitSettings(PortraitSettings),
     RigidModel(RigidModel),
     Save(ESF),
+    SoundBank(SoundBank),
     Text(Text),
     UIC(UIC),
     UnitVariant(UnitVariant),
@@ -245,6 +248,7 @@ pub enum FileType {
     PortraitSettings,
     RigidModel,
     Save,
+    SoundBank,
     Text,
     UIC,
     UnitVariant,
@@ -1360,6 +1364,7 @@ impl RFile {
                     FileType::PortraitSettings => RFileDecoded::PortraitSettings(PortraitSettings::decode(&mut data, &Some(extra_data))?),
                     FileType::RigidModel => RFileDecoded::RigidModel(RigidModel::decode(&mut data, &Some(extra_data))?),
                     FileType::Save => RFileDecoded::Save(ESF::decode(&mut data, &Some(extra_data))?),
+                    FileType::SoundBank => RFileDecoded::SoundBank(SoundBank::decode(&mut data, &Some(extra_data))?),
                     FileType::Text => RFileDecoded::Text(Text::decode(&mut data, &Some(extra_data))?),
                     FileType::UIC => RFileDecoded::UIC(UIC::decode(&mut data, &Some(extra_data))?),
                     FileType::UnitVariant => RFileDecoded::UnitVariant(UnitVariant::decode(&mut data, &Some(extra_data))?),
@@ -1387,6 +1392,7 @@ impl RFile {
                     FileType::PortraitSettings |
                     FileType::RigidModel |
                     FileType::Save |
+                    FileType::SoundBank |
                     FileType::Text |
                     FileType::UIC |
                     FileType::UnitVariant |
@@ -1424,6 +1430,7 @@ impl RFile {
                             FileType::PortraitSettings => RFileDecoded::PortraitSettings(PortraitSettings::decode(&mut data, &Some(extra_data))?),
                             FileType::RigidModel => RFileDecoded::RigidModel(RigidModel::decode(&mut data, &Some(extra_data))?),
                             FileType::Save => RFileDecoded::Save(ESF::decode(&mut data, &Some(extra_data))?),
+                            FileType::SoundBank => RFileDecoded::SoundBank(SoundBank::decode(&mut data, &Some(extra_data))?),
                             FileType::Text => RFileDecoded::Text(Text::decode(&mut data, &Some(extra_data))?),
                             FileType::UIC => RFileDecoded::UIC(UIC::decode(&mut data, &Some(extra_data))?),
                             FileType::UnitVariant => RFileDecoded::UnitVariant(UnitVariant::decode(&mut data, &Some(extra_data))?),
@@ -1525,6 +1532,7 @@ impl RFile {
                     RFileDecoded::PortraitSettings(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::RigidModel(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::Save(data) => data.encode(&mut buffer, extra_data)?,
+                    RFileDecoded::SoundBank(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::Text(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::UIC(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::UnitVariant(data) => data.encode(&mut buffer, extra_data)?,
@@ -1700,6 +1708,10 @@ impl RFile {
 
         else if path.ends_with(video::EXTENSION) {
             self.file_type =  FileType::Video;
+        }
+
+        else if path.ends_with(soundbank::EXTENSION) {
+            self.file_type =  FileType::SoundBank;
         }
 
         else if image::EXTENSIONS.iter().any(|x| path.ends_with(x)) {
@@ -2132,6 +2144,7 @@ impl Display for FileType {
             FileType::PortraitSettings => write!(f, "Portrait Settings"),
             FileType::RigidModel => write!(f, "RigidModel"),
             FileType::Save => write!(f, "Save"),
+            FileType::SoundBank => write!(f, "SoundBank"),
             FileType::Text => write!(f, "Text"),
             FileType::UIC => write!(f, "UI Component"),
             FileType::UnitVariant => write!(f, "Unit Variant"),
@@ -2160,6 +2173,7 @@ impl From<&str> for FileType {
             "PortraitSettings" => FileType::PortraitSettings,
             "RigidModel" => FileType::RigidModel,
             "Save" => FileType::Save,
+            "SoundBank" => FileType::SoundBank,
             "Text" => FileType::Text,
             "UIC" => FileType::UIC,
             "UnitVariant" => FileType::UnitVariant,
@@ -2188,6 +2202,7 @@ impl From<FileType> for String {
             FileType::PortraitSettings => "PortraitSettings",
             FileType::RigidModel => "RigidModel",
             FileType::Save => "Save",
+            FileType::SoundBank => "SoundBank",
             FileType::Text => "Text",
             FileType::UIC => "UIC",
             FileType::UnitVariant => "UnitVariant",
@@ -2214,6 +2229,7 @@ impl From<&RFileDecoded> for FileType {
             RFileDecoded::PortraitSettings(_) => Self::PortraitSettings,
             RFileDecoded::RigidModel(_) => Self::RigidModel,
             RFileDecoded::Save(_) => Self::Save,
+            RFileDecoded::SoundBank(_) => Self::SoundBank,
             RFileDecoded::Text(_) => Self::Text,
             RFileDecoded::UIC(_) => Self::UIC,
             RFileDecoded::UnitVariant(_) => Self::UnitVariant,

@@ -21,7 +21,7 @@ use cpp_core::Ref;
 
 use std::sync::atomic::AtomicPtr;
 
-use rpfm_lib::files::{animpack, anim_fragment, anims_table, esf, FileType, image, loc, matched_combat, pack, portrait_settings, rigidmodel, text, text::*, unit_variant, video};
+use rpfm_lib::files::{animpack, anim_fragment, anims_table, esf, FileType, image, loc, matched_combat, pack, portrait_settings, rigidmodel, soundbank, text, text::*, unit_variant, video};
 use rpfm_lib::{REGEX_DB, REGEX_PORTRAIT_SETTINGS};
 
 use crate::pack_tree::{ROOT_NODE_TYPE_EDITABLE_PACKFILE, ROOT_NODE_TYPE};
@@ -65,6 +65,7 @@ pub struct Icons {
     pub matched_combat: AtomicPtr<QIcon>,
     pub portrait_settings: AtomicPtr<QIcon>,
     pub save: AtomicPtr<QIcon>,
+    pub sound_bank: AtomicPtr<QIcon>,
 
     pub text_generic: AtomicPtr<QIcon>,
     pub text_csv: AtomicPtr<QIcon>,
@@ -112,6 +113,7 @@ impl Icons {
             matched_combat: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("view-table-of-contents-ltr"))),
             portrait_settings: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("x-office-contact"))),
             save: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("document-save"))),
+            sound_bank: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("view-bank"))),
 
             text_generic: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("text-x-generic"))),
             text_csv: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("text-csv"))),
@@ -170,6 +172,10 @@ impl Icons {
 
                 else if path.ends_with(video::EXTENSION) {
                     &self.video
+                }
+
+                else if path.ends_with(soundbank::EXTENSION) {
+                    &self.sound_bank
                 }
 
                 else if image::EXTENSIONS.iter().any(|x| path.ends_with(x)) {
@@ -277,6 +283,7 @@ impl Icons {
                     FileType::PortraitSettings => &self.portrait_settings,
                     FileType::RigidModel => &self.rigid_model,
                     FileType::Save => &self.save,
+                    FileType::SoundBank => &self.sound_bank,
                     FileType::Text => {
                         let name = item.text().to_std_string();
                         match text::EXTENSIONS.iter().find(|(extension, _)| name.ends_with(extension)) {
