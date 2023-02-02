@@ -32,12 +32,13 @@ mod versions;
 #[getset(get = "pub", set = "pub")]
 pub struct AnimFragment {
     version: u32,
-    uk1: u32,
-    skeleton_1: String,
-    uk2: u32,
-    skeleton_2: String,
+    subversion: u32,
+    name: String,
+    mount_bin: String,
+    uk_string_1: String,
+    skeleton_name: String,
     locomotion_graph: String,
-    uk_string: String,
+    uk_string_2: String,
 
     entries: Vec<Entry>,
 }
@@ -45,20 +46,20 @@ pub struct AnimFragment {
 #[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", set = "pub")]
 pub struct Entry {
-    uk1: u32,
-    uk2: f32,
-    uk3: f32,
-    uk4: u32,
-    uk5: bool,
-    anim_data: Vec<AnimData>,
+    animation_id: u32,
+    blend_in: f32,
+    selection_weigth: f32,
+    weapon_bools: u32,
+    uk_bool_1: bool,
+    anim_refs: Vec<AnimRef>,
 }
 
 #[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", set = "pub")]
-pub struct AnimData {
-    anim: String,
-    anim_meta: String,
-    anim_snd: String,
+pub struct AnimRef {
+    file_path: String,
+    meta_file_path: String,
+    snd_file_path: String,
 }
 
 //---------------------------------------------------------------------------//
