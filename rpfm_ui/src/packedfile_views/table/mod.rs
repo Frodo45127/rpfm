@@ -61,7 +61,6 @@ impl PackedFileTableView {
         let table_data = match response {
             Response::DBRFileInfo(table, _) => TableType::DB(table),
             Response::LocRFileInfo(table, _) => TableType::Loc(table),
-            Response::MatchedCombatRFileInfo(table, _) => TableType::MatchedCombat(table),
             Response::Error(error) => return Err(error),
             _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
         };
@@ -69,7 +68,6 @@ impl PackedFileTableView {
         let packed_file_type = match table_data {
             TableType::DB(_) => FileType::DB,
             TableType::Loc(_) => FileType::Loc,
-            TableType::MatchedCombat(_) => FileType::MatchedCombat,
             _ => unimplemented!()
         };
 

@@ -19,18 +19,14 @@ use crate::files::*;
 use super::MatchedCombat;
 
 #[test]
-fn test_encode_matched_combat() {
-    let path_1 = "../test_files/test_decode_matched_combat.bin";
-    let path_2 = "../test_files/test_encode_matched_combat.bin";
+fn test_encode_matched_combat_wh3() {
+    let path_1 = "../test_files/test_decode_matched_combat_wh3.bin";
+    let path_2 = "../test_files/test_encode_matched_combat_wh3.bin";
     let mut reader = BufReader::new(File::open(path_1).unwrap());
-
-    let mut decodeable_extra_data = DecodeableExtraData::default();
-    decodeable_extra_data.file_name = Some("test_decode_matched_combat.bin");
-    decodeable_extra_data.table_name = Some("test_decode_matched_combat.bin");
 
     let data_len = reader.len().unwrap();
     let before = reader.read_slice(data_len as usize, true).unwrap();
-    let mut data = MatchedCombat::decode(&mut reader, &Some(decodeable_extra_data)).unwrap();
+    let mut data = MatchedCombat::decode(&mut reader, &None).unwrap();
 
     let mut after = vec![];
     data.encode(&mut after, &None).unwrap();

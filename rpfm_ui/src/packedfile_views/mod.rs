@@ -390,10 +390,10 @@ impl PackedFileView {
                                         let table = Loc::from(new_table);
                                         RFileDecoded::Loc(table)
                                     }
-                                    FileType::MatchedCombat => {
-                                        let table = MatchedCombat::from(new_table);
-                                        RFileDecoded::MatchedCombat(table)
-                                    }
+                                    //FileType::MatchedCombat => {
+                                    //    let table = MatchedCombat::from(new_table);
+                                    //    RFileDecoded::MatchedCombat(table)
+                                    //}
                                     _ => return Err(anyhow!("{}{}", RFILE_SAVED_ERROR, self.get_path()))
                                 }
                             },
@@ -557,7 +557,7 @@ impl PackedFileView {
                             }
                         },
 
-                        Response::MatchedCombatRFileInfo(table, packed_file_info) => {
+                        /*Response::MatchedCombatRFileInfo(table, packed_file_info) => {
                             if let View::Table(old_table) = view {
                                 let old_table = old_table.get_ref_table();
                                 old_table.reload_view(TableType::MatchedCombat(table));
@@ -567,7 +567,7 @@ impl PackedFileView {
                             else {
                                 return Err(anyhow!(RFILE_RELOAD_ERROR));
                             }
-                        },
+                        },*/
 
                         Response::PortraitSettingsRFileInfo(mut portrait_settings, packed_file_info) => {
                             if let View::PortraitSettings(old_portrait_settings) = view {

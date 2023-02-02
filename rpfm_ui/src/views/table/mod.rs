@@ -137,7 +137,6 @@ pub enum TableType {
     DependencyManager(Vec<Vec<DecodedData>>),
     DB(DB),
     Loc(Loc),
-    MatchedCombat(MatchedCombat),
 
     /// This one is for random views that just need a table with advanced behavior.
     NormalTable(Table),
@@ -285,7 +284,6 @@ impl TableView {
             },
             TableType::DB(ref table) => (table.definition().clone(), Some(table.table_name()), FileType::DB),
             TableType::Loc(ref table) => (table.definition().clone(), None, FileType::Loc),
-            TableType::MatchedCombat(ref table) => (table.definition().clone(), None, FileType::MatchedCombat),
             TableType::NormalTable(ref table) => (table.definition().clone(), None, FileType::Unknown),
         };
 
@@ -667,7 +665,6 @@ impl TableView {
         let table_definition = match data {
             TableType::DB(ref table) => table.definition().clone(),
             TableType::Loc(ref table) => table.definition().clone(),
-            TableType::MatchedCombat(ref table) => table.definition().clone(),
             TableType::NormalTable(ref table) => table.definition().clone(),
             TableType::DependencyManager(_) => {
                 let mut definition = Definition::new(-1, None);

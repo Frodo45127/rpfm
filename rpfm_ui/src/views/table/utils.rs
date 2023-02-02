@@ -446,7 +446,6 @@ pub unsafe fn load_data(
         TableType::DependencyManager(data) => Cow::from(data),
         TableType::DB(data) => data.data(&None).unwrap(),
         TableType::Loc(data) => data.data(&None).unwrap(),
-        TableType::MatchedCombat(data) => data.data().unwrap(),
         TableType::NormalTable(data) => data.data(&None).unwrap(),
     };
 
