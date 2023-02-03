@@ -285,6 +285,12 @@ pub fn kline_edit_configure_safe(view: &Ptr<QWidget>) {
 // KMessageWidget stuff.
 //---------------------------------------------------------------------------//
 
+// This function allow us to create a KMessageWidget.
+extern "C" { fn kmessage_widget_new(widget: *mut QWidget) -> *mut QWidget; }
+pub fn kmessage_widget_new_safe(widget: &Ptr<QWidget>) -> QPtr<QWidget> {
+    unsafe { QPtr::new(kmessage_widget_new(widget.as_mut_raw_ptr())) }
+}
+
 // This function allow us to close a KMessageWidget.
 extern "C" { fn kmessage_widget_close(widget: *mut QWidget); }
 pub fn kmessage_widget_close_safe(widget: &Ptr<QWidget>) {

@@ -121,6 +121,7 @@ pub struct AppUI {
     main_window: QBox<QMainWindow>,
     tab_bar_packed_file: QBox<QTabWidget>,
     shortcuts: CppBox<QListOfQObject>,
+    message_widget: QPtr<QWidget>,
 
     //-------------------------------------------------------------------------------//
     // Status bar stuff.
@@ -360,12 +361,15 @@ impl AppUI {
         // Get the menu and status bars.
         let menu_bar = main_window.menu_bar();
         let status_bar = main_window.status_bar();
+        let message_widget = kmessage_widget_new_safe(&widget.as_ptr());
         let tab_bar_packed_file = QTabWidget::new_1a(&widget);
         tab_bar_packed_file.set_tabs_closable(true);
         tab_bar_packed_file.set_movable(true);
         tab_bar_packed_file.set_context_menu_policy(ContextMenuPolicy::CustomContextMenu);
         status_bar.set_size_grip_enabled(false);
         layout.add_widget_5a(&tab_bar_packed_file, 0, 0, 1, 1);
+        layout.add_widget_5a(&message_widget, 1, 0, 1, 1);
+        layout.set_row_stretch(0, 10);
 
         let github_button = QPushButton::from_q_widget(&status_bar);
         github_button.set_flat(true);
@@ -731,6 +735,7 @@ impl AppUI {
             main_window,
             tab_bar_packed_file,
             shortcuts,
+            message_widget,
 
             //-------------------------------------------------------------------------------//
             // Status bar stuff.
@@ -1256,7 +1261,7 @@ impl AppUI {
                             match &*game_selected {
                                 KEY_TROY => app_ui.game_selected_troy.trigger(),
                                 _ => {
-                                    show_dialog(&app_ui.main_window, tre("game_selected_changed_on_opening", &[DISPLAY_NAME_TROY]), true);
+                                    show_message_warning(&app_ui.message_widget, tre("game_selected_changed_on_opening", &[DISPLAY_NAME_TROY]));
                                     app_ui.game_selected_troy.trigger();
                                 }
                             }
@@ -1278,7 +1283,7 @@ impl AppUI {
                                     KEY_THREE_KINGDOMS => app_ui.game_selected_three_kingdoms.trigger(),
                                     KEY_WARHAMMER_2 => app_ui.game_selected_warhammer_2.trigger(),
                                     _ => {
-                                        show_dialog(&app_ui.main_window, tre("game_selected_changed_on_opening", &[DISPLAY_NAME_WARHAMMER_3]), true);
+                                        show_message_warning(&app_ui.message_widget, tre("game_selected_changed_on_opening", &[DISPLAY_NAME_WARHAMMER_3]));
                                         app_ui.game_selected_warhammer_3.trigger();
                                     }
                                 }
@@ -1295,7 +1300,7 @@ impl AppUI {
                                 KEY_ATTILA => app_ui.game_selected_attila.trigger(),
                                 KEY_ROME_2 => app_ui.game_selected_rome_2.trigger(),
                                 _ => {
-                                    show_dialog(&app_ui.main_window, tre("game_selected_changed_on_opening", &[DISPLAY_NAME_ROME_2]), true);
+                                    show_message_warning(&app_ui.message_widget, tre("game_selected_changed_on_opening", &[DISPLAY_NAME_ROME_2]));
                                     app_ui.game_selected_rome_2.trigger();
                                 }
                             }
@@ -1306,7 +1311,7 @@ impl AppUI {
                             match &*game_selected {
                                 KEY_SHOGUN_2 => app_ui.game_selected_shogun_2.trigger(),
                                 _ => {
-                                    show_dialog(&app_ui.main_window, tre("game_selected_changed_on_opening", &[DISPLAY_NAME_SHOGUN_2]), true);
+                                    show_message_warning(&app_ui.message_widget, tre("game_selected_changed_on_opening", &[DISPLAY_NAME_SHOGUN_2]));
                                     app_ui.game_selected_shogun_2.trigger();
                                 }
                             }
@@ -1318,7 +1323,7 @@ impl AppUI {
                                 KEY_NAPOLEON => app_ui.game_selected_napoleon.trigger(),
                                 KEY_EMPIRE => app_ui.game_selected_empire.trigger(),
                                 _ => {
-                                    show_dialog(&app_ui.main_window, tre("game_selected_changed_on_opening", &[DISPLAY_NAME_EMPIRE]), true);
+                                    show_message_warning(&app_ui.message_widget, tre("game_selected_changed_on_opening", &[DISPLAY_NAME_EMPIRE]));
                                     app_ui.game_selected_empire.trigger();
                                 }
                             }

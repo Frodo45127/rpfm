@@ -2,6 +2,13 @@
 #include <QMessageBox>
 #include <QIcon>
 
+extern "C" QWidget* kmessage_widget_new(QWidget* widget) {
+    KMessageWidget* kmessagewidget = new KMessageWidget(widget);
+    kmessagewidget->setWordWrap(true);
+    kmessagewidget->hide();
+    return kmessagewidget;
+}
+
 extern "C" void kmessage_widget_close(QWidget* widget) {
     KMessageWidget* kmessagewidget = dynamic_cast<KMessageWidget*>(widget);
     kmessagewidget->setWordWrap(true);
