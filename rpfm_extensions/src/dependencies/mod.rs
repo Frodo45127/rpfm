@@ -621,7 +621,7 @@ impl Dependencies {
                     }
 
                     if include_parent {
-                        files = self.parent_files.par_iter()
+                        files.extend(self.parent_files.par_iter()
                             .filter(|(path, _)| {
                                 if case_insensitive {
                                     starts_with_case_insensitive(path, folder_path)
@@ -630,7 +630,7 @@ impl Dependencies {
                                 }
                             })
                             .map(|(path, file)| (path.to_owned(), file))
-                            .collect();
+                            .collect::<HashMap<_,_>>());
                     }
                 }
                 ContainerPath::File(file_path) => {
@@ -656,10 +656,10 @@ impl Dependencies {
         }
 
         if include_parent {
-            files = self.parent_files.par_iter()
+            files.extend(self.parent_files.par_iter()
                 .filter(|(_, file)| file_types.contains(&file.file_type()))
                 .map(|(path, file)| (path.to_owned(), file))
-                .collect();
+                .collect::<HashMap<_,_>>());
         }
 
         files
@@ -678,10 +678,10 @@ impl Dependencies {
         }
 
         if include_parent {
-            files = self.parent_files.par_iter_mut()
+            files.extend(self.parent_files.par_iter_mut()
                 .filter(|(_, file)| file_types.contains(&file.file_type()))
                 .map(|(path, file)| (path.to_owned(), file))
-                .collect();
+                .collect::<HashMap<_,_>>());
         }
 
         files
