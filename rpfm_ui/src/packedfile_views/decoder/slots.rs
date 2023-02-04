@@ -532,7 +532,7 @@ impl PackedFileDecoderViewSlots {
                  match DB::decode(&mut *view.data.write().unwrap(), &extra_data) {
                     Ok(_) => show_dialog(&view.table_view, "Seems ok.", true),
                     Err(error) => {
-                        if let RLibError::DecodingTableIncomplete(error, table) = error {
+                        if let RLibError::DecodingTableIncomplete(error, _) = error {
                             show_debug_dialog(app_ui.main_window(), error);
                         } else {
                             show_dialog(app_ui.main_window(), error, true);

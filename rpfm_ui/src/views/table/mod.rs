@@ -75,7 +75,7 @@ use std::rc::Rc;
 
 use rpfm_extensions::dependencies::TableReferences;
 
-use rpfm_lib::files::{anim_fragment::AnimFragment, anims_table::AnimsTable, FileType, db::DB, loc::Loc, matched_combat::MatchedCombat, table::*};
+use rpfm_lib::files::{FileType, db::DB, loc::Loc, table::*};
 use rpfm_lib::schema::{Definition, Field, FieldType, Schema};
 
 use crate::ASSETS_PATH;
