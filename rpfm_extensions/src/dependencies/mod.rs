@@ -1137,6 +1137,41 @@ impl Dependencies {
         None
     }
 
+    /// This function returns the list of values a column of a table has, across all instances of said table in the dependencies and the provided Pack.
+    pub fn db_values_from_table_name_and_column_name(&self, pack: Option<&Pack>, table_name: &str, column_name: &str, include_vanilla: bool, include_parent: bool) -> HashSet<String> {
+        let mut values = HashSet::new();
+
+        if let Ok(files) = self.db_data(table_name, include_vanilla, include_parent) {
+            for file in &files {
+                if let Ok(RFileDecoded::DB(table)) = file.decoded() {
+                    if let Some(column) = table.definition().column_position_by_name(column_name) {
+                        if let Ok(data) = table.data(&None) {
+                            for row in data.iter() {
+                                values.insert(row[column].data_to_string().to_string());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if let Some(pack) = pack {
+            for file in &pack.files_by_path(&ContainerPath::Folder(format!("db/{table_name}")), true) {
+                if let Ok(RFileDecoded::DB(table)) = file.decoded() {
+                    if let Some(column) = table.definition().column_position_by_name(column_name) {
+                        if let Ok(data) = table.data(&None) {
+                            for row in data.iter() {
+                                values.insert(row[column].data_to_string().to_string());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        values
+    }
+
     /// This function updates a DB Table to its latest valid version, being the latest valid version the one in the vanilla files.
     ///
     /// It returns both, old and new versions, or an error.

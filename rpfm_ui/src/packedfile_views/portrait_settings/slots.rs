@@ -20,8 +20,14 @@ use qt_core::SlotOfQItemSelectionQItemSelection;
 
 use getset::Getters;
 
+use std::rc::Rc;
 use std::sync::Arc;
 
+use rpfm_lib::integrations::log::info;
+
+use crate::app_ui::AppUI;
+use crate::packedfile_views::{DataSource, utils::set_modified};
+use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::utils::show_dialog;
 
 use super::PortraitSettingsView;
@@ -34,6 +40,8 @@ use super::PortraitSettingsView;
 #[derive(Getters)]
 #[getset(get = "pub")]
 pub struct PortraitSettingsSlots {
+    modified: QBox<SlotNoArgs>,
+
     delayed_updates_main: QBox<SlotNoArgs>,
     delayed_updates_variants: QBox<SlotNoArgs>,
     filter_edited_main: QBox<SlotNoArgs>,
@@ -50,6 +58,9 @@ pub struct PortraitSettingsSlots {
     variants_list_add: QBox<SlotNoArgs>,
     variants_list_clone: QBox<SlotNoArgs>,
     variants_list_delete: QBox<SlotNoArgs>,
+
+    delayed_reload_variant_images: QBox<SlotNoArgs>,
+    reload_variant_images: QBox<SlotNoArgs>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -57,7 +68,19 @@ pub struct PortraitSettingsSlots {
 //-------------------------------------------------------------------------------//
 
 impl PortraitSettingsSlots {
-    pub unsafe fn new(view: &Arc<PortraitSettingsView>)  -> Self {
+    pub unsafe fn new(view: &Arc<PortraitSettingsView>, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>)  -> Self {
+        let modified = SlotNoArgs::new(view.main_list_view(), clone!(
+            app_ui,
+            pack_file_contents_ui,
+            view => move || {
+                info!("Triggering `Modified Portrait Settings File` By Slot");
+
+                if let DataSource::PackFile = *view.data_source.read().unwrap() {
+                    set_modified(true, &view.path.read().unwrap(), &app_ui, &pack_file_contents_ui);
+                }
+            }
+        ));
+
         let delayed_updates_main = SlotNoArgs::new(view.main_list_view(), clone!(
             view => move || {
                 PortraitSettingsView::filter_list(view.main_list_filter.as_ref().unwrap(), view.main_filter_line_edit.as_ref().unwrap());
@@ -100,6 +123,12 @@ impl PortraitSettingsSlots {
                     let index = view.main_list_filter().map_to_source(filter_index);
                     view.load_entry_to_detailed_view(index.as_ref());
                 }
+
+                // If nothing is loaded, means we're selecting multiple things, or none.
+                // We need to clear the view to ensure no weird shenaningans happen.
+                else {
+                    view.clear_main_view();
+                }
             }
         ));
 
@@ -120,6 +149,12 @@ impl PortraitSettingsSlots {
                     let filter_index = filter_indexes.at(0);
                     let index = view.variants_list_filter().map_to_source(filter_index);
                     view.load_variant_to_detailed_view(index.as_ref());
+                }
+
+                // If nothing is loaded, means we're selecting multiple things, or none.
+                // We need to clear the view to ensure no weird shenaningans happen.
+                else {
+                    view.clear_variants_view();
                 }
             }
         ));
@@ -218,8 +253,23 @@ impl PortraitSettingsSlots {
             view.remove_variant(view.variants_list_view.selection_model().selected_indexes().at(0))
         }));
 
+        let reload_variant_images = SlotNoArgs::new(view.main_list_view(), clone!(
+            view => move || {
+            PortraitSettingsView::start_delayed_updates_timer(&view.timer_delayed_reload_variant_images.as_ref().unwrap());
+        }));
+        let delayed_reload_variant_images = SlotNoArgs::new(view.main_list_view(), clone!(
+            view => move || {
+            let diffuse = view.file_diffuse_line_edit.text().to_std_string();
+            let mask_1 = view.file_mask_1_line_edit.text().to_std_string();
+            let mask_2 = view.file_mask_2_line_edit.text().to_std_string();
+            let mask_3 = view.file_mask_3_line_edit.text().to_std_string();
+
+            view.load_variant_images(&diffuse, &mask_1, &mask_2, &mask_3);
+        }));
+
         // Return the slots, so we can keep them alive for the duration of the view.
         Self {
+            modified,
             delayed_updates_main,
             delayed_updates_variants,
             filter_edited_main,
@@ -236,6 +286,8 @@ impl PortraitSettingsSlots {
             variants_list_add,
             variants_list_clone,
             variants_list_delete,
+            delayed_reload_variant_images,
+            reload_variant_images,
         }
     }
 }

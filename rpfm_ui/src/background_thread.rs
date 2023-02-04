@@ -31,14 +31,14 @@ use rpfm_extensions::dependencies::Dependencies;
 use rpfm_extensions::diagnostics::Diagnostics;
 use rpfm_extensions::optimizer::OptimizableContainer;
 
-use rpfm_lib::files::{animpack::AnimPack, Container, ContainerPath, db::DB, DecodeableExtraData, EncodeableExtraData, FileType, loc::Loc, pack::*, RFile, RFileDecoded, text::*};
+use rpfm_lib::files::{animpack::AnimPack, Container, ContainerPath, db::DB, DecodeableExtraData, EncodeableExtraData, FileType, loc::Loc, pack::*, portrait_settings::PortraitSettings, RFile, RFileDecoded, text::*};
 use rpfm_lib::games::{GameInfo, LUA_REPO, LUA_BRANCH, LUA_REMOTE, pfh_file_type::PFHFileType};
 use rpfm_lib::integrations::{assembly_kit::*, git::*, log::*};
 use rpfm_lib::schema::*;
 use rpfm_lib::tips::*;
 use rpfm_lib::utils::*;
 
-use crate::app_ui::NewPackedFile;
+use crate::app_ui::NewFile;
 use crate::{backend::*, SENTRY_GUARD};
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
@@ -416,11 +416,11 @@ pub fn background_loop() {
             // In case we want to create a PackedFile from scratch...
             Command::NewPackedFile(path, new_packed_file) => {
                 let decoded = match new_packed_file {
-                    NewPackedFile::AnimPack(_) => {
+                    NewFile::AnimPack(_) => {
                         let file = AnimPack::default();
                         RFileDecoded::AnimPack(file)
                     },
-                    NewPackedFile::DB(_, table, version) => {
+                    NewFile::DB(_, table, version) => {
                         if let Some(ref schema) = *SCHEMA.read().unwrap() {
                             match schema.definition_by_name_and_version(&table, version) {
                                 Some(definition) => {
@@ -438,11 +438,40 @@ pub fn background_loop() {
                             continue;
                         }
                     },
-                    NewPackedFile::Loc(_) => {
+                    NewFile::Loc(_) => {
                         let file = Loc::new(false);
                         RFileDecoded::Loc(file)
                     }
-                    NewPackedFile::Text(_, text_type) => {
+                    NewFile::PortraitSettings(_, version, entries) => {
+                        let mut file = PortraitSettings::default();
+                        file.set_version(version);
+
+                        if !entries.is_empty() {
+
+                            let mut dependencies = dependencies.write().unwrap();
+                            let mut vanilla_files = dependencies.files_by_types_mut(&[FileType::PortraitSettings], true, true);
+                            let vanilla_files_decoded = vanilla_files.iter_mut()
+                                .filter_map(|(_, file)| file.decode(&None, false, true).ok().flatten())
+                                .filter_map(|file| if let RFileDecoded::PortraitSettings(file) = file { Some(file) } else { None })
+                                .collect::<Vec<_>>();
+
+                            let vanilla_values = vanilla_files_decoded.iter()
+                                .flat_map(|file| file.entries())
+                                .map(|entry| (entry.id(), entry))
+                                .collect::<HashMap<_,_>>();
+
+                            for (from_id, to_id) in entries {
+                                if let Some(from_entry) = vanilla_values.get(&from_id) {
+                                    let mut new_entry = (*from_entry).clone();
+                                    new_entry.set_id(to_id);
+                                    file.entries_mut().push(new_entry);
+                                }
+                            }
+                        }
+
+                        RFileDecoded::PortraitSettings(file)
+                    },
+                    NewFile::Text(_, text_type) => {
                         let mut file = Text::default();
                         file.set_format(text_type);
                         RFileDecoded::Text(file)
@@ -843,6 +872,11 @@ pub fn background_loop() {
 
             // In case we want to get the list of tables in the dependency database...
             Command::GetTableListFromDependencyPackFile => CentralCommand::send_back(&sender, Response::VecString(dependencies.read().unwrap().vanilla_tables().keys().map(|x| x.to_owned()).collect())),
+
+            Command::LocalArtSetIds => CentralCommand::send_back(&sender, Response::HashSetString(dependencies.read().unwrap().db_values_from_table_name_and_column_name(Some(&pack_file_decoded), "campaign_character_arts_tables", "art_set_id", false, false))),
+
+            // TODO: This needs to use a list pulled from portrait settings files, not from a table.
+            Command::DependenciesArtSetIds => CentralCommand::send_back(&sender, Response::HashSetString(dependencies.read().unwrap().db_values_from_table_name_and_column_name(None, "campaign_character_arts_tables", "art_set_id", true, true))),
 
             // In case we want to get the version of an specific table from the dependency database...
             Command::GetTableVersionFromDependencyPackFile(table_name) => {

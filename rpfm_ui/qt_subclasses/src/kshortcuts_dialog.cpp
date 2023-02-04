@@ -100,6 +100,7 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     new_action(pack_tree_actions, "new_animpack", "New AnimPack", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString(""), "document-new");
     new_action(pack_tree_actions, "new_db", "New DB", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+D"), "document-new");
     new_action(pack_tree_actions, "new_loc", "New Loc", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+L"), "document-new");
+    new_action(pack_tree_actions, "new_portrait_settings", "New PortraitSettings", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString(""), "document-new");
     new_action(pack_tree_actions, "new_text", "New Text", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+T"), "document-new");
     new_action(pack_tree_actions, "new_quick_file", "New Quick File", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+Q"), "document-new");
     new_action(pack_tree_actions, "merge_files", "Merge Files", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+M"), "merge");

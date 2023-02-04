@@ -39,13 +39,12 @@ use qt_core::QTimer;
 
 use anyhow::Result;
 use getset::Getters;
-use rpfm_lib::files::pack::RESERVED_NAME_NOTES;
 
 use std::cmp::Ordering;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use rpfm_lib::files::ContainerPath;
+use rpfm_lib::files::{ContainerPath, pack::RESERVED_NAME_NOTES};
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
@@ -102,6 +101,7 @@ pub struct PackFileContentsUI {
     context_menu_new_packed_file_anim_pack: QPtr<QAction>,
     context_menu_new_packed_file_db: QPtr<QAction>,
     context_menu_new_packed_file_loc: QPtr<QAction>,
+    context_menu_new_packed_file_portrait_settings: QPtr<QAction>,
     context_menu_new_packed_file_text: QPtr<QAction>,
     context_menu_new_queek_packed_file: QPtr<QAction>,
     context_menu_rename: QPtr<QAction>,
@@ -198,6 +198,7 @@ impl PackFileContentsUI {
         let context_menu_new_packed_file_anim_pack = add_action_to_menu(&menu_create.static_upcast(), app_ui.shortcuts().as_ref(), "pack_tree_context_menu", "new_animpack", "context_menu_new_packed_file_anim_pack", Some(packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_new_packed_file_db = add_action_to_menu(&menu_create.static_upcast(), app_ui.shortcuts().as_ref(), "pack_tree_context_menu", "new_db", "context_menu_new_packed_file_db", Some(packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_new_packed_file_loc = add_action_to_menu(&menu_create.static_upcast(), app_ui.shortcuts().as_ref(), "pack_tree_context_menu", "new_loc", "context_menu_new_packed_file_loc", Some(packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>()));
+        let context_menu_new_packed_file_portrait_settings = add_action_to_menu(&menu_create.static_upcast(), app_ui.shortcuts().as_ref(), "pack_tree_context_menu", "new_portrait_settings", "context_menu_new_packed_file_portrait_settings", Some(packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_new_packed_file_text = add_action_to_menu(&menu_create.static_upcast(), app_ui.shortcuts().as_ref(), "pack_tree_context_menu", "new_text", "context_menu_new_packed_file_text", Some(packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_new_queek_packed_file = add_action_to_menu(&menu_create.static_upcast(), app_ui.shortcuts().as_ref(), "pack_tree_context_menu", "new_quick_file", "context_menu_new_queek_packed_file", Some(packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_rename = add_action_to_menu(&packfile_contents_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "pack_tree_context_menu", "rename", "context_menu_move", Some(packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>()));
@@ -230,6 +231,7 @@ impl PackFileContentsUI {
         context_menu_new_packed_file_anim_pack.set_enabled(false);
         context_menu_new_packed_file_db.set_enabled(false);
         context_menu_new_packed_file_loc.set_enabled(false);
+        context_menu_new_packed_file_portrait_settings.set_enabled(false);
         context_menu_new_packed_file_text.set_enabled(false);
         context_menu_new_queek_packed_file.set_enabled(false);
         context_menu_delete.set_enabled(false);
@@ -272,6 +274,7 @@ impl PackFileContentsUI {
             context_menu_new_packed_file_anim_pack,
             context_menu_new_packed_file_db,
             context_menu_new_packed_file_loc,
+            context_menu_new_packed_file_portrait_settings,
             context_menu_new_packed_file_text,
             context_menu_new_queek_packed_file,
 

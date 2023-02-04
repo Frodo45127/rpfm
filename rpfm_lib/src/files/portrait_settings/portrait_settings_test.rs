@@ -24,12 +24,9 @@ fn test_encode_portrait_settings_v4() {
     let path_2 = "../test_files/test_encode_portrait_settings_v4.bin";
     let mut reader = BufReader::new(File::open(path_1).unwrap());
 
-    let mut decodeable_extra_data = DecodeableExtraData::default();
-    decodeable_extra_data.file_name = Some("test_decode_portrait_settings_v4.bin");
-
     let data_len = reader.len().unwrap();
     let before = reader.read_slice(data_len as usize, true).unwrap();
-    let mut data = PortraitSettings::decode(&mut reader, &Some(decodeable_extra_data)).unwrap();
+    let mut data = PortraitSettings::decode(&mut reader, &None).unwrap();
 
     let mut after = vec![];
     data.encode(&mut after, &None).unwrap();

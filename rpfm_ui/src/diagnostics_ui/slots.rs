@@ -145,7 +145,7 @@ impl DiagnosticsUISlots {
                 let _blocker_22 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_banned_table.static_upcast::<QObject>());
                 let _blocker_23 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_value_cannot_be_empty.static_upcast::<QObject>());
                 let _blocker_24 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_invalid_art_set_id.static_upcast::<QObject>());
-                let _blocker_25 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_invalid_variant_id.static_upcast::<QObject>());
+                let _blocker_25 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_invalid_variant_filename.static_upcast::<QObject>());
                 let _blocker_26 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_file_diffuse_not_found_for_variant.static_upcast::<QObject>());
                 let _blocker_27 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_datacored_portrait_settings.static_upcast::<QObject>());
 
@@ -174,7 +174,7 @@ impl DiagnosticsUISlots {
                 diagnostics_ui.checkbox_banned_table.toggle();
                 diagnostics_ui.checkbox_value_cannot_be_empty.toggle();
                 diagnostics_ui.checkbox_invalid_art_set_id.toggle();
-                diagnostics_ui.checkbox_invalid_variant_id.toggle();
+                diagnostics_ui.checkbox_invalid_variant_filename.toggle();
                 diagnostics_ui.checkbox_file_diffuse_not_found_for_variant.toggle();
                 diagnostics_ui.checkbox_datacored_portrait_settings.toggle();
 

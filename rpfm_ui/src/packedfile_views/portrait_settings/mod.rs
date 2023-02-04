@@ -13,6 +13,7 @@
 use qt_widgets::QAction;
 use qt_widgets::QDialog;
 use qt_widgets::QDialogButtonBox;
+use qt_widgets::q_dialog_button_box::StandardButton;
 use qt_widgets::QDoubleSpinBox;
 use qt_widgets::QGridLayout;
 use qt_widgets::QGroupBox;
@@ -20,19 +21,22 @@ use qt_widgets::QLabel;
 use qt_widgets::QLineEdit;
 use qt_widgets::QListView;
 use qt_widgets::QMenu;
-use qt_widgets::QSpinBox;
 use qt_widgets::QWidget;
 
+use qt_gui::QPixmap;
 use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;
 
 use qt_core::CaseSensitivity;
 use qt_core::QBox;
+use qt_core::QByteArray;
 use qt_core::q_item_selection_model::SelectionFlag;
 use qt_core::SlotOfQString;
 use qt_core::QModelIndex;
+use qt_core::QObject;
 use qt_core::QPtr;
 use qt_core::QSortFilterProxyModel;
+use qt_core::QSignalBlocker;
 use qt_core::QString;
 use qt_core::QTimer;
 use qt_core::QVariant;
@@ -42,19 +46,25 @@ use cpp_core::Ref;
 
 use anyhow::Result;
 use getset::*;
-use qt_widgets::q_dialog_button_box::StandardButton;
 
+use std::collections::HashMap;
 use std::rc::Rc;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
-use rpfm_lib::files::{FileType, portrait_settings::*};
+use rpfm_lib::files::{ContainerPath, FileType, portrait_settings::*, RFile, RFileDecoded};
 
 use crate::app_ui::AppUI;
+use crate::packfile_contents_ui::PackFileContentsUI;
+use crate::CENTRAL_COMMAND;
+use crate::communications::*;
 use crate::ffi::*;
 use crate::locale::{qtr, tr};
 use crate::packedfile_views::{PackedFileView, View, ViewType};
 use crate::utils::*;
+
 use self::slots::PortraitSettingsSlots;
+
+use super::DataSource;
 
 const VIEW_DEBUG: &str = "rpfm_ui/ui_templates/portrait_settings_editor.ui";
 const VIEW_RELEASE: &str = "ui/portrait_settings_editor.ui";
@@ -75,6 +85,9 @@ mod slots;
 #[derive(Getters)]
 #[getset(get = "pub")]
 pub struct PortraitSettingsView {
+    path: Arc<RwLock<String>>,
+    data_source: Arc<RwLock<DataSource>>,
+
     version: u32,
     detailed_view_widget: QPtr<QWidget>,
     body_camera_settings_groupbox: QPtr<QGroupBox>,
@@ -84,19 +97,19 @@ pub struct PortraitSettingsView {
     main_list_model: QBox<QStandardItemModel>,
     main_filter_line_edit: QPtr<QLineEdit>,
 
-    main_distance_spinbox: QPtr<QDoubleSpinBox>,
-    main_distance_1_spinbox: QPtr<QDoubleSpinBox>,
-    main_distance_body_spinbox: QPtr<QSpinBox>,
-    main_fov_spinbox: QPtr<QDoubleSpinBox>,
-    main_phi_spinbox: QPtr<QDoubleSpinBox>,
-    main_theta_spinbox: QPtr<QDoubleSpinBox>,
+    head_z_spinbox: QPtr<QDoubleSpinBox>,
+    head_y_spinbox: QPtr<QDoubleSpinBox>,
+    head_yaw_spinbox: QPtr<QDoubleSpinBox>,
+    head_pitch_spinbox: QPtr<QDoubleSpinBox>,
+    head_fov_spinbox: QPtr<QDoubleSpinBox>,
+    head_skeleton_node_line_edit: QPtr<QLineEdit>,
 
-    body_distance_spinbox: QPtr<QDoubleSpinBox>,
-    body_distance_1_spinbox: QPtr<QDoubleSpinBox>,
-    body_distance_body_spinbox: QPtr<QSpinBox>,
+    body_z_spinbox: QPtr<QDoubleSpinBox>,
+    body_y_spinbox: QPtr<QDoubleSpinBox>,
+    body_yaw_spinbox: QPtr<QDoubleSpinBox>,
+    body_pitch_spinbox: QPtr<QDoubleSpinBox>,
     body_fov_spinbox: QPtr<QDoubleSpinBox>,
-    body_phi_spinbox: QPtr<QDoubleSpinBox>,
-    body_theta_spinbox: QPtr<QDoubleSpinBox>,
+    body_skeleton_node_line_edit: QPtr<QLineEdit>,
 
     variants_widget: QPtr<QWidget>,
     variants_list_view: QPtr<QListView>,
@@ -107,6 +120,11 @@ pub struct PortraitSettingsView {
     file_mask_1_line_edit: QPtr<QLineEdit>,
     file_mask_2_line_edit: QPtr<QLineEdit>,
     file_mask_3_line_edit: QPtr<QLineEdit>,
+
+    diffuse_label: QPtr<QLabel>,
+    mask_1_label: QPtr<QLabel>,
+    mask_2_label: QPtr<QLabel>,
+    mask_3_label: QPtr<QLabel>,
 
     main_list_context_menu: QBox<QMenu>,
     variants_list_context_menu: QBox<QMenu>,
@@ -121,6 +139,7 @@ pub struct PortraitSettingsView {
 
     timer_delayed_updates_main: QBox<QTimer>,
     timer_delayed_updates_variants: QBox<QTimer>,
+    timer_delayed_reload_variant_images: QBox<QTimer>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -134,6 +153,7 @@ impl PortraitSettingsView {
         file_view: &mut PackedFileView,
         data: &mut PortraitSettings,
         app_ui: &Rc<AppUI>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
     ) -> Result<()> {
 
         // Load the UI Template.
@@ -146,56 +166,56 @@ impl PortraitSettingsView {
         let main_list_view: QPtr<QListView> = find_widget(&main_widget.static_upcast(), "main_list_view")?;
         let main_filter_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "main_filter_line_edit")?;
         let detailed_view_widget: QPtr<QWidget> = find_widget(&main_widget.static_upcast(), "detailed_view_widget")?;
-        let main_camera_settings_groupbox: QPtr<QGroupBox> = find_widget(&main_widget.static_upcast(), "main_camera_settings_groupbox")?;
+        let head_camera_settings_groupbox: QPtr<QGroupBox> = find_widget(&main_widget.static_upcast(), "head_camera_settings_groupbox")?;
         let body_camera_settings_groupbox: QPtr<QGroupBox> = find_widget(&main_widget.static_upcast(), "body_camera_settings_groupbox")?;
         let variants_groupbox: QPtr<QGroupBox> = find_widget(&main_widget.static_upcast(), "variants_groupbox")?;
         let variants_widget: QPtr<QWidget> = find_widget(&main_widget.static_upcast(), "variants_widget")?;
-        main_camera_settings_groupbox.set_title(&qtr("portrait_settings_main_camera_settings_title"));
+        head_camera_settings_groupbox.set_title(&qtr("portrait_settings_head_camera_settings_title"));
         body_camera_settings_groupbox.set_title(&qtr("portrait_settings_body_camera_settings_title"));
         variants_groupbox.set_title(&qtr("portrait_settings_variants_title"));
         main_filter_line_edit.set_placeholder_text(&qtr("portrait_settings_filter"));
 
         // Main camera.
-        let main_distance_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "main_distance_label")?;
-        let main_distance_1_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "main_distance_1_label")?;
-        let main_distance_body_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "main_distance_body_label")?;
-        let main_fov_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "main_fov_label")?;
-        let main_phi_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "main_phi_label")?;
-        let main_theta_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "main_theta_label")?;
-        main_distance_label.set_text(&qtr("portrait_settings_main_distance"));
-        main_distance_1_label.set_text(&qtr("portrait_settings_main_distance_1_label"));
-        main_distance_body_label.set_text(&qtr("portrait_settings_main_distance_body_label"));
-        main_fov_label.set_text(&qtr("portrait_settings_main_fov_label"));
-        main_phi_label.set_text(&qtr("portrait_settings_main_phi_label"));
-        main_theta_label.set_text(&qtr("portrait_settings_main_theta_label"));
+        let head_z_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "head_z_label")?;
+        let head_y_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "head_y_label")?;
+        let head_yaw_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "head_yaw_label")?;
+        let head_pitch_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "head_pitch_label")?;
+        let head_fov_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "head_fov_label")?;
+        let head_skeleton_node_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "head_skeleton_node_label")?;
+        head_z_label.set_text(&qtr("portrait_settings_head_z"));
+        head_y_label.set_text(&qtr("portrait_settings_head_y"));
+        head_yaw_label.set_text(&qtr("portrait_settings_head_yaw"));
+        head_pitch_label.set_text(&qtr("portrait_settings_head_pitch"));
+        head_fov_label.set_text(&qtr("portrait_settings_head_fov"));
+        head_skeleton_node_label.set_text(&qtr("portrait_settings_head_skeleton_node"));
 
-        let main_distance_spinbox: QPtr<QDoubleSpinBox> = find_widget(&main_widget.static_upcast(), "main_distance_spinbox")?;
-        let main_distance_1_spinbox: QPtr<QDoubleSpinBox> = find_widget(&main_widget.static_upcast(), "main_distance_1_spinbox")?;
-        let main_distance_body_spinbox: QPtr<QSpinBox> = find_widget(&main_widget.static_upcast(), "main_distance_body_spinbox")?;
-        let main_fov_spinbox: QPtr<QDoubleSpinBox> = find_widget(&main_widget.static_upcast(), "main_fov_spinbox")?;
-        let main_phi_spinbox: QPtr<QDoubleSpinBox> = find_widget(&main_widget.static_upcast(), "main_phi_spinbox")?;
-        let main_theta_spinbox: QPtr<QDoubleSpinBox> = find_widget(&main_widget.static_upcast(), "main_theta_spinbox")?;
+        let head_z_spinbox: QPtr<QDoubleSpinBox> = find_widget(&main_widget.static_upcast(), "head_z_spinbox")?;
+        let head_y_spinbox: QPtr<QDoubleSpinBox> = find_widget(&main_widget.static_upcast(), "head_y_spinbox")?;
+        let head_yaw_spinbox: QPtr<QDoubleSpinBox> = find_widget(&main_widget.static_upcast(), "head_yaw_spinbox")?;
+        let head_pitch_spinbox: QPtr<QDoubleSpinBox> = find_widget(&main_widget.static_upcast(), "head_pitch_spinbox")?;
+        let head_fov_spinbox: QPtr<QDoubleSpinBox> = find_widget(&main_widget.static_upcast(), "head_fov_spinbox")?;
+        let head_skeleton_node_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "head_skeleton_node_line_edit")?;
 
         // Body camera
-        let body_distance_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "body_distance_label")?;
-        let body_distance_1_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "body_distance_1_label")?;
-        let body_distance_body_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "body_distance_body_label")?;
+        let body_z_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "body_z_label")?;
+        let body_y_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "body_y_label")?;
+        let body_yaw_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "body_yaw_label")?;
+        let body_pitch_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "body_pitch_label")?;
         let body_fov_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "body_fov_label")?;
-        let body_phi_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "body_phi_label")?;
-        let body_theta_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "body_theta_label")?;
-        body_distance_label.set_text(&qtr("portrait_settings_body_distance"));
-        body_distance_1_label.set_text(&qtr("portrait_settings_body_distance_1_label"));
-        body_distance_body_label.set_text(&qtr("portrait_settings_body_distance_body_label"));
-        body_fov_label.set_text(&qtr("portrait_settings_body_fov_label"));
-        body_phi_label.set_text(&qtr("portrait_settings_body_phi_label"));
-        body_theta_label.set_text(&qtr("portrait_settings_body_theta_label"));
+        let body_skeleton_node_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "body_skeleton_node_label")?;
+        body_z_label.set_text(&qtr("portrait_settings_body_z"));
+        body_y_label.set_text(&qtr("portrait_settings_body_y"));
+        body_yaw_label.set_text(&qtr("portrait_settings_body_yaw"));
+        body_pitch_label.set_text(&qtr("portrait_settings_body_pitch"));
+        body_fov_label.set_text(&qtr("portrait_settings_body_fov"));
+        body_skeleton_node_label.set_text(&qtr("portrait_settings_body_skeleton_node"));
 
-        let body_distance_spinbox: QPtr<QDoubleSpinBox> = find_widget(&main_widget.static_upcast(), "body_distance_spinbox")?;
-        let body_distance_1_spinbox: QPtr<QDoubleSpinBox> = find_widget(&main_widget.static_upcast(), "body_distance_1_spinbox")?;
-        let body_distance_body_spinbox: QPtr<QSpinBox> = find_widget(&main_widget.static_upcast(), "body_distance_body_spinbox")?;
+        let body_z_spinbox: QPtr<QDoubleSpinBox> = find_widget(&main_widget.static_upcast(), "body_z_spinbox")?;
+        let body_y_spinbox: QPtr<QDoubleSpinBox> = find_widget(&main_widget.static_upcast(), "body_y_spinbox")?;
+        let body_yaw_spinbox: QPtr<QDoubleSpinBox> = find_widget(&main_widget.static_upcast(), "body_yaw_spinbox")?;
+        let body_pitch_spinbox: QPtr<QDoubleSpinBox> = find_widget(&main_widget.static_upcast(), "body_pitch_spinbox")?;
         let body_fov_spinbox: QPtr<QDoubleSpinBox> = find_widget(&main_widget.static_upcast(), "body_fov_spinbox")?;
-        let body_phi_spinbox: QPtr<QDoubleSpinBox> = find_widget(&main_widget.static_upcast(), "body_phi_spinbox")?;
-        let body_theta_spinbox: QPtr<QDoubleSpinBox> = find_widget(&main_widget.static_upcast(), "body_theta_spinbox")?;
+        let body_skeleton_node_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "body_skeleton_node_line_edit")?;
 
         // Variants
         let variants_list_view: QPtr<QListView> = find_widget(&main_widget.static_upcast(), "variants_list_view")?;
@@ -215,6 +235,23 @@ impl PortraitSettingsView {
         let file_mask_1_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "file_mask_1_line_edit")?;
         let file_mask_2_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "file_mask_2_line_edit")?;
         let file_mask_3_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "file_mask_3_line_edit")?;
+
+        // Placeholders.
+        let diffuse_label_placeholder: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "diffuse_label")?;
+        let mask_1_label_placeholder: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "mask_1_label")?;
+        let mask_2_label_placeholder: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "mask_2_label")?;
+        let mask_3_label_placeholder: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "mask_3_label")?;
+
+        let diffuse_label: QPtr<QLabel> = new_resizable_label_safe(&variants_widget.as_ptr(), &QPixmap::new().into_ptr());
+        let mask_1_label: QPtr<QLabel> = new_resizable_label_safe(&variants_widget.as_ptr(), &QPixmap::new().into_ptr());
+        let mask_2_label: QPtr<QLabel> = new_resizable_label_safe(&variants_widget.as_ptr(), &QPixmap::new().into_ptr());
+        let mask_3_label: QPtr<QLabel> = new_resizable_label_safe(&variants_widget.as_ptr(), &QPixmap::new().into_ptr());
+
+        let variants_layout = variants_widget.layout().static_downcast::<QGridLayout>();
+        variants_layout.replace_widget_2a(diffuse_label_placeholder, diffuse_label.as_ptr());
+        variants_layout.replace_widget_2a(mask_1_label_placeholder, mask_1_label.as_ptr());
+        variants_layout.replace_widget_2a(mask_2_label_placeholder, mask_2_label.as_ptr());
+        variants_layout.replace_widget_2a(mask_3_label_placeholder, mask_3_label.as_ptr());
 
         // Extra stuff.
         let main_list_filter = QSortFilterProxyModel::new_1a(&main_list_view);
@@ -245,10 +282,15 @@ impl PortraitSettingsView {
         // Filter timer.
         let timer_delayed_updates_main = QTimer::new_1a(main_widget.as_ptr());
         let timer_delayed_updates_variants = QTimer::new_1a(main_widget.as_ptr());
+        let timer_delayed_reload_variant_images = QTimer::new_1a(main_widget.as_ptr());
         timer_delayed_updates_main.set_single_shot(true);
         timer_delayed_updates_variants.set_single_shot(true);
+        timer_delayed_reload_variant_images.set_single_shot(true);
 
         let view = Arc::new(Self{
+            path: file_view.get_path_raw(),
+            data_source: Arc::new(RwLock::new(file_view.get_data_source())),
+
             version: *data.version(),
             main_list_view,
             main_list_filter,
@@ -257,19 +299,19 @@ impl PortraitSettingsView {
             detailed_view_widget,
             body_camera_settings_groupbox,
 
-            main_distance_spinbox,
-            main_distance_1_spinbox,
-            main_distance_body_spinbox,
-            main_fov_spinbox,
-            main_phi_spinbox,
-            main_theta_spinbox,
+            head_z_spinbox,
+            head_y_spinbox,
+            head_yaw_spinbox,
+            head_pitch_spinbox,
+            head_fov_spinbox,
+            head_skeleton_node_line_edit,
 
-            body_distance_spinbox,
-            body_distance_1_spinbox,
-            body_distance_body_spinbox,
+            body_z_spinbox,
+            body_y_spinbox,
+            body_yaw_spinbox,
+            body_pitch_spinbox,
             body_fov_spinbox,
-            body_phi_spinbox,
-            body_theta_spinbox,
+            body_skeleton_node_line_edit,
 
             variants_widget,
             variants_list_view,
@@ -280,6 +322,10 @@ impl PortraitSettingsView {
             file_mask_1_line_edit,
             file_mask_2_line_edit,
             file_mask_3_line_edit,
+            diffuse_label,
+            mask_1_label,
+            mask_2_label,
+            mask_3_label,
 
             main_list_context_menu,
             variants_list_context_menu,
@@ -294,11 +340,12 @@ impl PortraitSettingsView {
 
             timer_delayed_updates_main,
             timer_delayed_updates_variants,
+            timer_delayed_reload_variant_images,
         });
 
         view.load_data(data)?;
 
-        let slots = PortraitSettingsSlots::new(&view);
+        let slots = PortraitSettingsSlots::new(&view, app_ui, pack_file_contents_ui);
         connections::set_connections(&view, &slots);
 
         file_view.packed_file_type = FileType::PortraitSettings;
@@ -307,11 +354,51 @@ impl PortraitSettingsView {
         Ok(())
     }
 
+    /// Function to clear the full view so it doesn't have data un-linked to any item on the list.
+    pub unsafe fn clear_main_view(&self) {
+        self.detailed_view_widget.set_enabled(false);
+
+        self.head_z_spinbox.clear();
+        self.head_y_spinbox.clear();
+        self.head_yaw_spinbox.clear();
+        self.head_pitch_spinbox.clear();
+        self.head_fov_spinbox.clear();
+        self.head_skeleton_node_line_edit.clear();
+
+        self.body_camera_settings_groupbox.set_checked(false);
+        self.body_z_spinbox.clear();
+        self.body_y_spinbox.clear();
+        self.body_yaw_spinbox.clear();
+        self.body_pitch_spinbox.clear();
+        self.body_fov_spinbox.clear();
+        self.body_skeleton_node_line_edit.clear();
+
+        self.variants_list_model.clear();
+
+        self.clear_variants_view();
+    }
+
+    /// Function to clear the variants view so it doesn't have data un-linked to any item on the list.
+    pub unsafe fn clear_variants_view(&self) {
+        self.variants_widget.set_enabled(false);
+        self.file_diffuse_line_edit.clear();
+        self.file_mask_1_line_edit.clear();
+        self.file_mask_2_line_edit.clear();
+        self.file_mask_3_line_edit.clear();
+
+        set_pixmap_on_resizable_label_safe(&self.diffuse_label.as_ptr(), &QPixmap::new().into_ptr());
+        set_pixmap_on_resizable_label_safe(&self.mask_1_label.as_ptr(), &QPixmap::new().into_ptr());
+        set_pixmap_on_resizable_label_safe(&self.mask_2_label.as_ptr(), &QPixmap::new().into_ptr());
+        set_pixmap_on_resizable_label_safe(&self.mask_3_label.as_ptr(), &QPixmap::new().into_ptr());
+    }
+
     /// Function to save the view and encode it into a PortraitSettings struct.
     pub unsafe fn save_view(&self) -> PortraitSettings {
 
         // This saves whatever it's open to its item.
-        self.main_list_view.selection_model().select_q_item_selection_q_flags_selection_flag(&self.main_list_view.selection_model().selection(), SelectionFlag::Toggle.into());
+        let selection = self.main_list_view.selection_model().selection();
+        self.main_list_view.selection_model().select_q_item_selection_q_flags_selection_flag(&selection, SelectionFlag::Toggle.into());
+        self.main_list_view.selection_model().select_q_item_selection_q_flags_selection_flag(&selection, SelectionFlag::Toggle.into());
 
         let mut data = PortraitSettings::default();
         data.set_version(self.version);
@@ -355,44 +442,42 @@ impl PortraitSettingsView {
 
         let mut data: Entry = serde_json::from_str(&index.data_1a(DATA).to_string().to_std_string()).unwrap();
 
-        self.main_distance_spinbox.set_value(*data.camera_settings_head().distance() as f64);
-        self.main_distance_1_spinbox.set_value(*data.camera_settings_head().distance_1() as f64);
-        self.main_distance_body_spinbox.set_value(*data.camera_settings_head().distance_body() as i32);
-        self.main_fov_spinbox.set_value(*data.camera_settings_head().fov() as f64);
-        self.main_phi_spinbox.set_value(*data.camera_settings_head().phi() as f64);
-        self.main_theta_spinbox.set_value(*data.camera_settings_head().theta() as f64);
+        self.head_z_spinbox.set_value(*data.camera_settings_head().z() as f64);
+        self.head_y_spinbox.set_value(*data.camera_settings_head().y() as f64);
+        self.head_yaw_spinbox.set_value(*data.camera_settings_head().yaw() as f64);
+        self.head_pitch_spinbox.set_value(*data.camera_settings_head().pitch() as f64);
+        self.head_fov_spinbox.set_value(*data.camera_settings_head().fov() as f64);
+        self.head_skeleton_node_line_edit.set_text(&QString::from_std_str(data.camera_settings_head().skeleton_node()));
 
         match data.camera_settings_body() {
             Some(data) => {
                 self.body_camera_settings_groupbox.set_checked(true);
 
-                self.body_distance_spinbox.set_value(*data.distance() as f64);
-                self.body_distance_1_spinbox.set_value(*data.distance_1() as f64);
-                self.body_distance_body_spinbox.set_value(*data.distance_body() as i32);
+                self.body_z_spinbox.set_value(*data.z() as f64);
+                self.body_y_spinbox.set_value(*data.y() as f64);
+                self.body_yaw_spinbox.set_value(*data.yaw() as f64);
+                self.body_pitch_spinbox.set_value(*data.pitch() as f64);
                 self.body_fov_spinbox.set_value(*data.fov() as f64);
-                self.body_phi_spinbox.set_value(*data.phi() as f64);
-                self.body_theta_spinbox.set_value(*data.theta() as f64);
-                self.body_theta_spinbox.set_value(*data.theta() as f64);
+                self.body_skeleton_node_line_edit.set_text(&QString::from_std_str(data.skeleton_node()));
             },
             None => {
                 self.body_camera_settings_groupbox.set_checked(false);
 
-                self.body_distance_spinbox.set_value(0.0);
-                self.body_distance_1_spinbox.set_value(0.0);
-                self.body_distance_body_spinbox.set_value(0);
-                self.body_fov_spinbox.set_value(0.0);
-                self.body_phi_spinbox.set_value(0.0);
-                self.body_theta_spinbox.set_value(0.0);
-                self.body_theta_spinbox.set_value(0.0);
+                self.body_z_spinbox.clear();
+                self.body_y_spinbox.clear();
+                self.body_yaw_spinbox.clear();
+                self.body_pitch_spinbox.clear();
+                self.body_fov_spinbox.clear();
+                self.body_skeleton_node_line_edit.clear();
             }
         }
 
         self.variants_list_model.clear();
         self.variants_widget.set_enabled(false);
 
-        data.variants_mut().sort_by(|a, b| a.id().cmp(b.id()));
+        data.variants_mut().sort_by(|a, b| a.filename().cmp(b.filename()));
         for variant in data.variants() {
-            let item = QStandardItem::from_q_string(&QString::from_std_str(variant.id())).into_ptr();
+            let item = QStandardItem::from_q_string(&QString::from_std_str(variant.filename())).into_ptr();
             item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&variant).unwrap())), DATA);
             self.variants_list_model.append_row_q_standard_item(item);
         }
@@ -401,6 +486,11 @@ impl PortraitSettingsView {
         self.file_mask_1_line_edit.clear();
         self.file_mask_2_line_edit.clear();
         self.file_mask_3_line_edit.clear();
+
+        set_pixmap_on_resizable_label_safe(&self.diffuse_label.as_ptr(), &QPixmap::new().into_ptr());
+        set_pixmap_on_resizable_label_safe(&self.mask_1_label.as_ptr(), &QPixmap::new().into_ptr());
+        set_pixmap_on_resizable_label_safe(&self.mask_2_label.as_ptr(), &QPixmap::new().into_ptr());
+        set_pixmap_on_resizable_label_safe(&self.mask_3_label.as_ptr(), &QPixmap::new().into_ptr());
     }
 
     /// This function loads the data of a variant into the variant detailed view.
@@ -413,31 +503,119 @@ impl PortraitSettingsView {
 
         let data: Variant = serde_json::from_str(&index.data_1a(DATA).to_string().to_std_string()).unwrap();
 
+        // Blockers so we don't trigger the image load twice.
+        let blocker_file_diffuse = QSignalBlocker::from_q_object(self.file_diffuse_line_edit.static_upcast::<QObject>());
+        let blocker_file_mask_1 = QSignalBlocker::from_q_object(self.file_mask_1_line_edit.static_upcast::<QObject>());
+        let blocker_file_mask_2 = QSignalBlocker::from_q_object(self.file_mask_2_line_edit.static_upcast::<QObject>());
+        let blocker_file_mask_3 = QSignalBlocker::from_q_object(self.file_mask_3_line_edit.static_upcast::<QObject>());
+
         self.file_diffuse_line_edit.set_text(&QString::from_std_str(data.file_diffuse()));
         self.file_mask_1_line_edit.set_text(&QString::from_std_str(data.file_mask_1()));
         self.file_mask_2_line_edit.set_text(&QString::from_std_str(data.file_mask_2()));
         self.file_mask_3_line_edit.set_text(&QString::from_std_str(data.file_mask_3()));
+
+        blocker_file_diffuse.unblock();
+        blocker_file_mask_1.unblock();
+        blocker_file_mask_2.unblock();
+        blocker_file_mask_3.unblock();
+
+        self.load_variant_images(data.file_diffuse(), data.file_mask_1(), data.file_mask_2(), data.file_mask_3());
+    }
+
+    /// This function loads the variants images from the paths in each input to the UI, if found.
+    ///
+    /// This usually gets triggered "delayed", so except on load, the image change is always about 500ms after the input is changed.
+    pub unsafe fn load_variant_images(&self, diffuse: &str, mask_1: &str, mask_2: &str, mask_3: &str) {
+        set_pixmap_on_resizable_label_safe(&self.diffuse_label.as_ptr(), &QPixmap::new().into_ptr());
+        set_pixmap_on_resizable_label_safe(&self.mask_1_label.as_ptr(), &QPixmap::new().into_ptr());
+        set_pixmap_on_resizable_label_safe(&self.mask_2_label.as_ptr(), &QPixmap::new().into_ptr());
+        set_pixmap_on_resizable_label_safe(&self.mask_3_label.as_ptr(), &QPixmap::new().into_ptr());
+
+        // Try to get the relevant images and load them to the preview widgets.
+        let mut paths = vec![];
+        let mut search = false;
+        if !diffuse.is_empty() {
+            paths.push(ContainerPath::File(diffuse.to_owned()));
+            search = true;
+        }
+
+        if !mask_1.is_empty() {
+            paths.push(ContainerPath::File(mask_1.to_owned()));
+            search = true;
+        }
+
+        if !mask_2.is_empty() {
+            paths.push(ContainerPath::File(mask_2.to_owned()));
+            search = true;
+        }
+
+        if !mask_3.is_empty() {
+            paths.push(ContainerPath::File(mask_3.to_owned()));
+            search = true;
+        }
+
+        // Do not bother doing this if we have no paths.
+        if search {
+            let receiver = CENTRAL_COMMAND.send_background(Command::GetRFilesFromAllSources(paths));
+            let response = CENTRAL_COMMAND.recv_try(&receiver);
+            match response {
+                Response::HashMapDataSourceHashMapStringRFile(mut files) => {
+                    Self::load_variant_image_to_label(diffuse, &self.diffuse_label, &mut files);
+                    Self::load_variant_image_to_label(mask_1, &self.mask_1_label, &mut files);
+                    Self::load_variant_image_to_label(mask_2, &self.mask_2_label, &mut files);
+                    Self::load_variant_image_to_label(mask_3, &self.mask_3_label, &mut files);
+                },
+                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+            }
+        }
+    }
+
+    /// This function tries to load the image at the provided path to the provided label.
+    ///
+    /// Tries.
+    pub unsafe fn load_variant_image_to_label(path: &str, label: &QPtr<QLabel>, files: &mut HashMap<DataSource, HashMap<String, RFile>>) {
+        if !path.is_empty() {
+            let path_we_want = path.to_lowercase();
+            for files in files.values_mut() {
+                let mut found = false;
+                for (path, file) in files {
+                    if path.to_lowercase() == path_we_want {
+                        if let Ok(Some(RFileDecoded::Image(data))) = file.decode(&None, false, true) {
+                            let byte_array = QByteArray::from_slice(data.data()).into_ptr();
+                            let image = QPixmap::new();
+                            image.load_from_data_q_byte_array(byte_array.as_ref().unwrap());
+                            set_pixmap_on_resizable_label_safe(&label.as_ptr(), &image.into_ptr());
+                        }
+                        found = true;
+                        break;
+                    }
+                }
+                if found {
+                    break;
+                }
+            }
+        }
     }
 
     /// This function saves the data of an entry from the detailed view.
     pub unsafe fn save_entry_from_detailed_view(&self, index: Ref<QModelIndex>) {
         let mut data: Entry = serde_json::from_str(&index.data_1a(DATA).to_string().to_std_string()).unwrap();
 
-        data.camera_settings_head_mut().set_distance(self.main_distance_spinbox.value() as f32);
-        data.camera_settings_head_mut().set_distance_1(self.main_distance_1_spinbox.value() as f32);
-        data.camera_settings_head_mut().set_distance_body(self.main_distance_body_spinbox.value() as u16);
-        data.camera_settings_head_mut().set_fov(self.main_fov_spinbox.value() as f32);
-        data.camera_settings_head_mut().set_phi(self.main_phi_spinbox.value() as f32);
-        data.camera_settings_head_mut().set_theta(self.main_theta_spinbox.value() as f32);
+        data.camera_settings_head_mut().set_z(self.head_z_spinbox.value() as f32);
+        data.camera_settings_head_mut().set_y(self.head_y_spinbox.value() as f32);
+        data.camera_settings_head_mut().set_yaw(self.head_yaw_spinbox.value() as f32);
+        data.camera_settings_head_mut().set_pitch(self.head_pitch_spinbox.value() as f32);
+        data.camera_settings_head_mut().set_fov(self.head_fov_spinbox.value() as f32);
+        data.camera_settings_head_mut().set_skeleton_node(self.head_skeleton_node_line_edit.text().to_std_string());
 
         if self.body_camera_settings_groupbox.is_checked() {
             let mut body_camera_settings = CameraSetting::default();
-            body_camera_settings.set_distance(self.body_distance_spinbox.value() as f32);
-            body_camera_settings.set_distance_1(self.body_distance_1_spinbox.value() as f32);
-            body_camera_settings.set_distance_body(self.body_distance_body_spinbox.value() as u16);
+            body_camera_settings.set_z(self.body_z_spinbox.value() as f32);
+            body_camera_settings.set_y(self.body_y_spinbox.value() as f32);
+            body_camera_settings.set_yaw(self.body_yaw_spinbox.value() as f32);
+            body_camera_settings.set_pitch(self.body_pitch_spinbox.value() as f32);
             body_camera_settings.set_fov(self.body_fov_spinbox.value() as f32);
-            body_camera_settings.set_phi(self.body_phi_spinbox.value() as f32);
-            body_camera_settings.set_theta(self.body_theta_spinbox.value() as f32);
+            body_camera_settings.set_skeleton_node(self.body_skeleton_node_line_edit.text().to_std_string());
 
             *data.camera_settings_body_mut() = Some(body_camera_settings);
         } else {
@@ -445,7 +623,9 @@ impl PortraitSettingsView {
         }
 
         // This saves whatever it's open in the variant list to its item.
-        self.variants_list_view.selection_model().select_q_item_selection_q_flags_selection_flag(&self.variants_list_view.selection_model().selection(), SelectionFlag::Toggle.into());
+        let selection = self.variants_list_view.selection_model().selection();
+        self.variants_list_view.selection_model().select_q_item_selection_q_flags_selection_flag(&selection, SelectionFlag::Toggle.into());
+        self.variants_list_view.selection_model().select_q_item_selection_q_flags_selection_flag(&selection, SelectionFlag::Toggle.into());
         data.variants_mut().clear();
 
         for row in 0..self.variants_list_model.row_count_0a() {
@@ -533,14 +713,14 @@ impl PortraitSettingsView {
         self.detailed_view_widget.set_enabled(false);
     }
 
-    /// Function to add a new empty variant with the provided id.
+    /// Function to add a new empty variant with the provided filename.
     ///
-    /// Make sure the id is valid before calling this.
-    pub unsafe fn add_variant(&self, id: &str) {
+    /// Make sure the filename is valid before calling this.
+    pub unsafe fn add_variant(&self, filename: &str) {
         let mut new_variant = Variant::default();
-        new_variant.set_id(id.to_owned());
+        new_variant.set_filename(filename.to_owned());
 
-        let item = QStandardItem::from_q_string(&QString::from_std_str(new_variant.id())).into_ptr();
+        let item = QStandardItem::from_q_string(&QString::from_std_str(new_variant.filename())).into_ptr();
         item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&new_variant).unwrap())), DATA);
         self.variants_list_model.append_row_q_standard_item(item);
 
@@ -556,14 +736,14 @@ impl PortraitSettingsView {
         self.variants_list_filter.sort_2a(0, SortOrder::AscendingOrder);
     }
 
-    /// Function to clone an existing variant with the new one having the provided id.
+    /// Function to clone an existing variant with the new one having the provided filename.
     ///
-    /// Make sure the id is valid before calling this.
-    pub unsafe fn clone_variant(&self, id: &str, index: Ref<QModelIndex>) {
+    /// Make sure the filename is valid before calling this.
+    pub unsafe fn clone_variant(&self, filename: &str, index: Ref<QModelIndex>) {
         let mut data: Variant = serde_json::from_str(&index.data_1a(DATA).to_string().to_std_string()).unwrap();
-        data.set_id(id.to_owned());
+        data.set_filename(filename.to_owned());
 
-        let item = QStandardItem::from_q_string(&QString::from_std_str(data.id())).into_ptr();
+        let item = QStandardItem::from_q_string(&QString::from_std_str(data.filename())).into_ptr();
         item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&data).unwrap())), DATA);
         self.variants_list_model.append_row_q_standard_item(item);
 

@@ -26,6 +26,8 @@ pub unsafe fn set_connections(ui: &Arc<PortraitSettingsView>, slots: &PortraitSe
     ui.main_list_view().selection_model().selection_changed().connect(slots.load_entry_to_detailed_view());
     ui.variants_list_view().selection_model().selection_changed().connect(slots.load_variant_to_detailed_view());
 
+    ui.main_list_model().data_changed().connect(slots.modified());
+
     ui.timer_delayed_updates_main().timeout().connect(slots.delayed_updates_main());
     ui.timer_delayed_updates_variants().timeout().connect(slots.delayed_updates_variants());
 
@@ -45,4 +47,11 @@ pub unsafe fn set_connections(ui: &Arc<PortraitSettingsView>, slots: &PortraitSe
     ui.variants_list_add().triggered().connect(slots.variants_list_add());
     ui.variants_list_clone().triggered().connect(slots.variants_list_clone());
     ui.variants_list_delete().triggered().connect(slots.variants_list_delete());
+
+    ui.file_diffuse_line_edit().text_changed().connect(slots.reload_variant_images());
+    ui.file_mask_1_line_edit().text_changed().connect(slots.reload_variant_images());
+    ui.file_mask_2_line_edit().text_changed().connect(slots.reload_variant_images());
+    ui.file_mask_3_line_edit().text_changed().connect(slots.reload_variant_images());
+
+    ui.timer_delayed_reload_variant_images().timeout().connect(slots.delayed_reload_variant_images());
 }

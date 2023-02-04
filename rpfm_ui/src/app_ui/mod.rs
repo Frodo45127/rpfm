@@ -20,18 +20,23 @@ use qt_widgets::QApplication;
 use qt_widgets::QCheckBox;
 use qt_widgets::QComboBox;
 use qt_widgets::QDialog;
+use qt_widgets::QDialogButtonBox;
+use qt_widgets::q_dialog_button_box::StandardButton;
 use qt_widgets::QFileDialog;
 use qt_widgets::QGridLayout;
+use qt_widgets::QLabel;
 use qt_widgets::QLineEdit;
 use qt_widgets::QMainWindow;
 use qt_widgets::QMenu;
 use qt_widgets::{q_message_box, QMessageBox};
+use qt_widgets::QScrollArea;
 use qt_widgets::QPushButton;
 use qt_widgets::QTabWidget;
 use qt_widgets::QTreeView;
 use qt_widgets::QWidget;
 
 use qt_gui::QIcon;
+use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;
 
 use qt_core::QTimer;
@@ -42,7 +47,7 @@ use qt_core::QListOfQObject;
 use qt_core::QPtr;
 use qt_core::QStringList;
 use qt_core::QRegExp;
-use qt_core::{SlotOfBool, SlotOfQString};
+use qt_core::{SlotNoArgs, SlotOfBool};
 use qt_core::QSortFilterProxyModel;
 use qt_core::QString;
 use qt_core::QVariant;
@@ -51,6 +56,7 @@ use cpp_core::CppBox;
 
 use anyhow::Result;
 use getset::Getters;
+use itertools::Itertools;
 use self_update::cargo_crate_version;
 
 use std::cell::RefCell;
@@ -62,7 +68,7 @@ use std::process::{Command as SystemCommand, exit};
 use std::rc::Rc;
 use std::sync::{atomic::Ordering, RwLock};
 
-use rpfm_lib::files::{animpack, ContainerPath, FileType, loc, text, pack::*, text::TextFormat};
+use rpfm_lib::files::{animpack, ContainerPath, FileType, loc, text, pack::*, portrait_settings, text::TextFormat};
 use rpfm_lib::games::{pfh_file_type::*, pfh_version::*, supported_games::*};
 use rpfm_lib::integrations::{git::*, log::*};
 use rpfm_lib::utils::*;
@@ -99,6 +105,9 @@ use crate::packedfile_views::rigidmodel::*;
 
 #[cfg(feature = "support_uic")]
 use crate::packedfile_views::uic::*;
+
+const NEW_FILE_VIEW_DEBUG: &str = "rpfm_ui/ui_templates/new_file_dialog.ui";
+const NEW_FILE_VIEW_RELEASE: &str = "ui/new_file_dialog.ui";
 
 pub mod connections;
 pub mod slots;
@@ -325,7 +334,7 @@ pub struct AppUI {
 
 /// This enum contains the data needed to create a new PackedFile.
 #[derive(Clone, Debug)]
-pub enum NewPackedFile {
+pub enum NewFile {
 
     /// Name of the PackedFile.
     AnimPack(String),
@@ -337,7 +346,10 @@ pub enum NewPackedFile {
     Loc(String),
 
     /// Name of the Table.
-    Text(String, TextFormat)
+    Text(String, TextFormat),
+
+    /// Name of the file, version of the file, and a list of entries that must be cloned from existing values in vanilla files (from, to).
+    PortraitSettings(String, u32, Vec<(String, String)>),
 }
 
 //-------------------------------------------------------------------------------//
@@ -2628,7 +2640,7 @@ impl AppUI {
                         }
 
                         Response::PortraitSettingsRFileInfo(mut data, file_info) => {
-                            match PortraitSettingsView::new_view(&mut tab, &mut data, app_ui) {
+                            match PortraitSettingsView::new_view(&mut tab, &mut data, app_ui, pack_file_contents_ui) {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
@@ -2970,8 +2982,9 @@ impl AppUI {
         Self::update_views_names(app_ui);
     }
 
-    /// This function is the one that takes care of the creation of different PackedFiles.
-    pub unsafe fn new_packed_file(app_ui: &Rc<Self>, pack_file_contents_ui: &Rc<PackFileContentsUI>, file_type: FileType) {
+    /// This function is the one that takes care of the creation of different Files, including making sure we can create them,
+    /// and triggering the relevant dialogs for each file type.
+    pub unsafe fn new_file(app_ui: &Rc<Self>, pack_file_contents_ui: &Rc<PackFileContentsUI>, file_type: FileType) {
 
         // DB Files require the dependencies cache to be generated, and the schemas to be downloaded.
         if file_type == FileType::DB {
@@ -2988,99 +3001,79 @@ impl AppUI {
             }
         }
 
-        // Create the "New PackedFile" dialog and wait for his data (or a cancellation). If we receive None, we do nothing. If we receive Some,
-        // we still have to check if it has been any error during the creation of the PackedFile (for example, no definition for DB Tables).
-        if let Some(new_packed_file) = Self::new_packed_file_dialog(app_ui, file_type) {
-            match new_packed_file {
-                Ok(mut new_packed_file) => {
+        if file_type == FileType::PortraitSettings && GAME_SELECTED.read().unwrap().portrait_settings_version().is_none() {
+            return show_dialog(&app_ui.main_window, "Creating PortraitSettings files is currently not supported for this game.", false);
+        }
 
-                    // First we make sure the name is correct, and fix it if needed.
-                    match new_packed_file {
-                        NewPackedFile::AnimPack(ref mut name) |
-                        NewPackedFile::Loc(ref mut name) |
-                        NewPackedFile::Text(ref mut name, _) |
-                        NewPackedFile::DB(ref mut name, _, _) => {
+        // Create the "New File" dialog and wait for his data (or a cancellation). If we receive None, we do nothing. If we receive Some,
+        // we still have to check if it has been any error during the creation of the File (for example, no definition for DB Tables).
+        match Self::new_file_dialog(app_ui, file_type) {
+            Ok(new_file) => {
+                if let Some(mut new_file) = new_file {
+
+                    // Check for empty names.
+                    match new_file {
+                        NewFile::AnimPack(ref mut name) |
+                        NewFile::Loc(ref mut name) |
+                        NewFile::Text(ref mut name, _) |
+                        NewFile::PortraitSettings(ref mut name, _, _) |
+                        NewFile::DB(ref mut name, _, _) => {
 
                             // If the name is_empty, stop.
                             if name.is_empty() {
                                 return show_dialog(&app_ui.main_window, "Only my hearth can be empty.", false)
                             }
+                        }
+                    }
 
-                            // Fix their name termination if needed.
-                            if let FileType::AnimPack = file_type {
-                                if !name.ends_with(animpack::EXTENSION) { name.push_str(animpack::EXTENSION); }
-                            }
-                            if let FileType::Loc = file_type {
-                                if !name.ends_with(loc::EXTENSION) { name.push_str(loc::EXTENSION); }
-                            }
-                            if let FileType::Text = file_type {
-                                if !text::EXTENSIONS.iter().any(|(x, _)| name.ends_with(x)) {
-                                    name.push_str(".txt");
+                    // If we reach this place, we get the full path of the file.
+                    let selected_paths = pack_file_contents_ui.packfile_contents_tree_view().get_path_from_selection();
+                    let full_path = match new_file {
+                        NewFile::AnimPack(ref name) |
+                        NewFile::Loc(ref name) |
+                        NewFile::PortraitSettings(ref name, _, _) |
+                        NewFile::Text(ref name, _) => {
+
+                            if selected_paths.len() == 1 {
+                                let mut complete_path = selected_paths[0].to_owned();
+                                if !complete_path.is_empty() && !complete_path.ends_with('/') {
+                                    complete_path.push('/');
                                 }
-                            }
-                        }
-                    }
-
-                    if let NewPackedFile::Text(ref mut name, ref mut text_type) = new_packed_file {
-                        if let Some((_, text_type_real)) = text::EXTENSIONS.iter().find(|(x, _)| name.ends_with(x)) {
-                            *text_type = *text_type_real
-                        }
-                    }
-
-                    // If we reach this place, we got all alright.
-                    match new_packed_file {
-                        NewPackedFile::AnimPack(ref name) |
-                        NewPackedFile::Loc(ref name) |
-                        NewPackedFile::Text(ref name, _) |
-                        NewPackedFile::DB(ref name, _, _) => {
-
-                            // Get the currently selected paths (or the complete path, in case of DB Tables),
-                            // and only continue if there is only one and it's not empty.
-                            let selected_paths = pack_file_contents_ui.packfile_contents_tree_view().get_path_from_selection();
-                            let complete_path = if let NewPackedFile::DB(name, table,_) = &new_packed_file {
-                                format!("db/{table}/{name}")
+                                complete_path.push_str(name);
+                                complete_path
                             }
                             else {
-
-                                // We want to be able to write relative paths with this so, if a `/` is detected, split the name.
-                                if selected_paths.len() == 1 {
-                                    let mut complete_path = selected_paths[0].to_owned();
-                                   if !complete_path.is_empty() && !complete_path.ends_with('/') {
-                                        complete_path.push('/');
-                                    }
-                                    complete_path.push_str(name);
-                                    complete_path
-                                }
-                                else { String::new() }
-                            };
-
-                            // If and only if, after all these checks, we got a path to save the PackedFile, we continue.
-                            if !complete_path.is_empty() {
-
-                                // Check if the PackedFile already exists, and report it if so.
-                                let receiver = CENTRAL_COMMAND.send_background(Command::PackedFileExists(complete_path.to_owned()));
-                                let response = CentralCommand::recv(&receiver);
-                                let exists = if let Response::Bool(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
-                                if exists { return show_dialog(&app_ui.main_window, "There is no Schema for the Game Selected.", false)}
-
-                                // Get the response, just in case it failed.
-                                let receiver = CENTRAL_COMMAND.send_background(Command::NewPackedFile(complete_path.to_owned(), new_packed_file));
-                                let response = CentralCommand::recv(&receiver);
-                                match response {
-                                    Response::Success => {
-                                        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(vec![ContainerPath::File(complete_path); 1]), DataSource::PackFile);
-                                        UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
-                                    }
-
-                                    Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
-                                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-                                }
+                                return show_dialog(&app_ui.main_window, "Multiple selected paths? This should never happen. Pls, report it, because its a bug.", false)
                             }
+                        },
+                        NewFile::DB(ref name, ref table, _) => {
+                            format!("db/{table}/{name}")
                         }
+                    };
+
+                    // Check if the File already exists, and report it if so.
+                    let receiver = CENTRAL_COMMAND.send_background(Command::PackedFileExists(full_path.to_owned()));
+                    let response = CentralCommand::recv(&receiver);
+                    let exists = if let Response::Bool(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
+                    if exists {
+                        return show_dialog(&app_ui.main_window, format!("A file with this path ({full_path})' already exists in the Pack."), false)
+                    }
+
+                    // Get the response, just in case it failed.
+                    let receiver = CENTRAL_COMMAND.send_background(Command::NewPackedFile(full_path.to_owned(), new_file));
+                    let response = CentralCommand::recv(&receiver);
+                    match response {
+                        Response::Success => {
+                            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(vec![ContainerPath::File(full_path); 1]), DataSource::PackFile);
+                            UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
+                        }
+
+                        Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
+                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                     }
                 }
-                Err(error) => show_dialog(&app_ui.main_window, error, false),
-            }
+            },
+            Err(error) => show_dialog(&app_ui.main_window, error, false),
         }
     }
 
@@ -3118,7 +3111,7 @@ impl AppUI {
                         _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                     };
 
-                    let new_packed_file = NewPackedFile::DB(name.to_owned(), table.to_owned(), version);
+                    let new_packed_file = NewFile::DB(name.to_owned(), table.to_owned(), version);
                     (new_path, new_packed_file)
                 }
 
@@ -3132,7 +3125,7 @@ impl AppUI {
                     }
                     new_path.push_str(&name);
 
-                    let new_packed_file = NewPackedFile::Loc(name.to_owned());
+                    let new_packed_file = NewFile::Loc(name.to_owned());
                     (new_path, new_packed_file)
                 }
 
@@ -3146,7 +3139,7 @@ impl AppUI {
                     }
                     new_path.push_str(&name);
 
-                    let new_packed_file = NewPackedFile::Text(name.to_owned(), TextFormat::Lua);
+                    let new_packed_file = NewFile::Text(name.to_owned(), TextFormat::Lua);
                     (new_path, new_packed_file)
                 }
 
@@ -3160,7 +3153,7 @@ impl AppUI {
                     }
                     new_path.push_str(&name);
 
-                    let new_packed_file = NewPackedFile::Text(name.to_owned(), TextFormat::Xml);
+                    let new_packed_file = NewFile::Text(name.to_owned(), TextFormat::Xml);
                     (new_path, new_packed_file)
                 }
 
@@ -3213,110 +3206,199 @@ impl AppUI {
         else { None }
     }
 
-    /// This function creates all the "New PackedFile" dialogs.
+    /// This function creates all the "New File" dialogs.
     ///
     /// It returns the type/name of the new file, or None if the dialog is canceled or closed.
-    pub unsafe fn new_packed_file_dialog(app_ui: &Rc<Self>, file_type: FileType) -> Option<Result<NewPackedFile>> {
+    pub unsafe fn new_file_dialog(app_ui: &Rc<Self>, file_type: FileType) -> Result<Option<NewFile>> {
+
+        // Load the UI Template.
+        let template_path = if cfg!(debug_assertions) { NEW_FILE_VIEW_DEBUG } else { NEW_FILE_VIEW_RELEASE };
+        let main_widget = load_template(app_ui.main_window(), template_path)?;
+        let dialog = main_widget.static_downcast::<QDialog>();
 
         // Create and configure the "New PackedFile" Dialog.
-        let dialog = QDialog::new_1a(&app_ui.main_window);
         match file_type {
             FileType::AnimPack => dialog.set_window_title(&qtr("new_animpack_file")),
             FileType::DB => dialog.set_window_title(&qtr("new_db_file")),
             FileType::Loc => dialog.set_window_title(&qtr("new_loc_file")),
             FileType::Text => dialog.set_window_title(&qtr("new_txt_file")),
+            FileType::PortraitSettings => dialog.set_window_title(&qtr("new_portrait_settings_file")),
             _ => unimplemented!(),
         }
-        dialog.set_modal(true);
-        dialog.resize_2a(600, 20);
 
-        // Create the main Grid and his widgets.
-        let main_grid = create_grid_layout(dialog.static_upcast());
-        let name_line_edit = QLineEdit::from_q_widget(&dialog);
-        let table_filter_line_edit = QLineEdit::from_q_widget(&dialog);
-        let create_button = QPushButton::from_q_string_q_widget(&qtr("gen_loc_create"), &dialog);
-        let table_dropdown = QComboBox::new_1a(&dialog);
+        // Common section.
+        let name_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "name_line_edit")?;
+        let message_widget: QPtr<QWidget> = find_widget(&main_widget.static_upcast(), "message_widget")?;
+        let button_box: QPtr<QDialogButtonBox> = find_widget(&main_widget.static_upcast(), "button_box")?;
+        button_box.button(StandardButton::Ok).released().connect(dialog.slot_accept());
+        kmessage_widget_close_safe(&message_widget.as_ptr());
+
+        // DB section.
+        let table_extra_widget: QPtr<QWidget> = find_widget(&main_widget.static_upcast(), "db_widget")?;
+        let table_filter_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "filter_line_edit")?;
+        let table_dropdown: QPtr<QComboBox> = find_widget(&main_widget.static_upcast(), "table_combo_box")?;
         let table_filter = QSortFilterProxyModel::new_1a(&dialog);
         let table_model = QStandardItemModel::new_1a(&dialog);
+        table_filter.set_source_model(&table_model);
+        table_dropdown.set_model(&table_filter);
+        table_filter_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
+        table_filter_line_edit.text_changed().connect(&SlotNoArgs::new(&dialog, move || {
+            table_filter.set_filter_reg_exp_q_reg_exp(&QRegExp::new_1a(&table_filter_line_edit.text()));
+        }));
 
+        // Portrait Settings section.
+        let portrait_settings_extra_widget: QPtr<QWidget> = find_widget(&main_widget.static_upcast(), "portrait_settings_widget")?;
+        let portrait_settings_scroll_area: QPtr<QScrollArea> = find_widget(&main_widget.static_upcast(), "portrait_settings_scroll_area")?;
+        let portrait_settings_scroll_area_widget: QPtr<QWidget> = find_widget(&main_widget.static_upcast(), "portrait_settings_scroll_area_widget")?;
+        let portrait_settings_art_set_id_model = QStandardItemModel::new_1a(&dialog);
+        let portrait_settings_copy_column_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "copy_column_label")?;
+        let portrait_settings_copy_from_column_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "copy_from_column_label")?;
+        let portrait_settings_copy_to_column_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "copy_to_column_label")?;
+        let mut portrait_settings_widgets = vec![];
+        portrait_settings_copy_column_label.set_text(&qtr("new_portrait_settings_copy_column"));
+        portrait_settings_copy_from_column_label.set_text(&qtr("new_portrait_settings_copy_from_column"));
+        portrait_settings_copy_to_column_label.set_text(&qtr("new_portrait_settings_copy_to_column"));
+
+        // Hide all extra widgets by default, and only make the ones we need visible.
+        table_extra_widget.set_visible(false);
+        portrait_settings_extra_widget.set_visible(false);
+
+        // The default file name is the Pack name.
+        //
+        // That's because usually modders name many of the mod files like that.
         let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFileName);
         let response = CentralCommand::recv(&receiver);
-        let packfile_name = if let Response::String(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
-        let packfile_name = if packfile_name.to_lowercase().ends_with(".pack") {
-            let mut packfile_name = packfile_name;
-            packfile_name.pop();
-            packfile_name.pop();
-            packfile_name.pop();
-            packfile_name.pop();
-            packfile_name.pop();
-            packfile_name
-        } else { packfile_name };
+        let pack_name = if let Response::String(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
+        let pack_name = if pack_name.to_lowercase().ends_with(".pack") {
+            let mut pack_name = pack_name;
+            pack_name.pop();
+            pack_name.pop();
+            pack_name.pop();
+            pack_name.pop();
+            pack_name.pop();
+            pack_name
+        } else { pack_name };
 
-        name_line_edit.set_text(&QString::from_std_str(packfile_name));
-        table_dropdown.set_model(&table_model);
-        table_filter_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
+        match file_type {
+            FileType::AnimPack => name_line_edit.set_text(&QString::from_std_str(format!("{pack_name}.animpack"))),
+            FileType::DB => {
+                let receiver = CENTRAL_COMMAND.send_background(Command::GetTableListFromDependencyPackFile);
+                let response = CentralCommand::recv(&receiver);
+                let mut tables = if let Response::VecString(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
+                tables.sort();
+                tables.iter().for_each(|x| table_dropdown.add_item_q_string(&QString::from_std_str(x)));
 
-        // Add all the widgets to the main grid, except those specific for a PackedFileType.
-        main_grid.add_widget_5a(&name_line_edit, 0, 0, 1, 1);
-        main_grid.add_widget_5a(&create_button, 0, 1, 1, 1);
+                name_line_edit.set_text(&QString::from_std_str(&pack_name));
+                table_extra_widget.set_visible(true);
+            },
+            FileType::Loc => name_line_edit.set_text(&QString::from_std_str(format!("{pack_name}.loc"))),
+            FileType::Text => name_line_edit.set_text(&QString::from_std_str(format!("{pack_name}.txt"))),
+            FileType::PortraitSettings => {
+                let receiver = CENTRAL_COMMAND.send_background(Command::LocalArtSetIds);
+                let response = CentralCommand::recv(&receiver);
+                let local_art_set_ids = if let Response::HashSetString(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
 
-        // If it's a DB Table, add its widgets, and populate the table list.
-        if let FileType::DB = file_type {
-            let receiver = CENTRAL_COMMAND.send_background(Command::GetTableListFromDependencyPackFile);
-            let response = CentralCommand::recv(&receiver);
-            let mut tables = if let Response::VecString(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
-            tables.sort();
-            tables.iter().for_each(|x| table_dropdown.add_item_q_string(&QString::from_std_str(x)));
-            table_filter.set_source_model(&table_model);
-            table_dropdown.set_model(&table_filter);
+                let receiver = CENTRAL_COMMAND.send_background(Command::DependenciesArtSetIds);
+                let response = CentralCommand::recv(&receiver);
+                let dependencies_art_set_ids = if let Response::HashSetString(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
 
-            main_grid.add_widget_5a(&table_dropdown, 1, 0, 1, 1);
-            main_grid.add_widget_5a(&table_filter_line_edit, 2, 0, 1, 1);
+                for art_set_id in dependencies_art_set_ids.iter().sorted_unstable() {
+                    let item = QStandardItem::from_q_string(&QString::from_std_str(art_set_id));
+                    portrait_settings_art_set_id_model.append_row_q_standard_item(item.into_ptr());
+                }
+
+                // We need one row for each art set id we need an entry for.
+                let base_layout = portrait_settings_scroll_area_widget.layout().static_downcast::<QGridLayout>();
+                for (index, art_set_id) in local_art_set_ids.iter().sorted_unstable().enumerate() {
+                    let use_check_box = QCheckBox::from_q_widget(&portrait_settings_scroll_area);
+                    let art_set_id_to_copy_combo_box = QComboBox::new_1a(&portrait_settings_scroll_area);
+                    let arrow_label = QLabel::from_q_string_q_widget(&QString::from_std_str("<html><head/><body><p>→</p></body></html>"), &portrait_settings_scroll_area);
+                    let art_set_id_new_line_edit = QLineEdit::from_q_string_q_widget(&QString::from_std_str(art_set_id), &portrait_settings_scroll_area);
+
+                    use_check_box.set_checked(true);
+                    art_set_id_to_copy_combo_box.set_model(&portrait_settings_art_set_id_model);
+                    art_set_id_new_line_edit.set_read_only(true);
+
+                    base_layout.add_widget_5a(&use_check_box, index as i32 + 2, 0, 1, 1);
+                    base_layout.add_widget_5a(&art_set_id_to_copy_combo_box, index as i32 + 2, 1, 1, 1);
+                    base_layout.add_widget_5a(&arrow_label, index as i32 + 2, 2, 1, 1);
+                    base_layout.add_widget_5a(&art_set_id_new_line_edit, index as i32 + 2, 3, 1, 1);
+
+                    portrait_settings_widgets.push((use_check_box, art_set_id_to_copy_combo_box, art_set_id_new_line_edit));
+                }
+
+                name_line_edit.set_text(&QString::from_std_str(format!("portrait_settings_{pack_name}.bin")));
+                portrait_settings_extra_widget.set_visible(true);
+            },
+            _ => unimplemented!(),
         }
 
-        // Remember to hide the unused stuff. Otherwise, it'll be shown out of place due to parenting.
-        else {
-            table_dropdown.set_visible(false);
-            table_filter_line_edit.set_visible(false);
-        }
-
-        // What happens when we search in the filter.
-        let table_filter_line_edit = table_filter_line_edit.as_ptr();
-        let slot_table_filter_change_text = SlotOfQString::new(&dialog, move |_| {
-            let pattern = QRegExp::new_1a(&table_filter_line_edit.text());
-            table_filter.set_filter_reg_exp_q_reg_exp(&pattern);
-        });
-
-        // What happens when we hit the "Create" button.
-        create_button.released().connect(dialog.slot_accept());
-
-        // What happens when we edit the search filter.
-        table_filter_line_edit.text_changed().connect(&slot_table_filter_change_text);
-
-        // Show the Dialog and, if we hit the "Create" button, return the corresponding NewPackedFileType.
+        // Show the Dialog and, if we hit the "Ok" button, return the corresponding NewPackedFileType.
         if dialog.exec() == 1 {
-            let packed_file_name = name_line_edit.text().to_std_string();
+            let mut file_name = name_line_edit.text().to_std_string();
             match file_type {
-                FileType::AnimPack => Some(Ok(NewPackedFile::AnimPack(packed_file_name))),
+                FileType::AnimPack => {
+                    if !file_name.ends_with(animpack::EXTENSION) {
+                        file_name.push_str(animpack::EXTENSION);
+                    }
+                    Ok(Some(NewFile::AnimPack(file_name)))
+                }
+
                 FileType::DB => {
                     let table = table_dropdown.current_text().to_std_string();
                     let receiver = CENTRAL_COMMAND.send_background(Command::GetTableVersionFromDependencyPackFile(table.to_owned()));
                     let response = CentralCommand::recv(&receiver);
                     let version = match response {
                         Response::I32(data) => data,
-                        Response::Error(error) => return Some(Err(error)),
+                        Response::Error(error) => return Err(error),
                         _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                     };
-                    Some(Ok(NewPackedFile::DB(packed_file_name, table, version)))
+                    Ok(Some(NewFile::DB(file_name, table, version)))
                 },
-                FileType::Loc => Some(Ok(NewPackedFile::Loc(packed_file_name))),
-                FileType::Text => Some(Ok(NewPackedFile::Text(packed_file_name, TextFormat::Plain))),
+                FileType::Loc => {
+                    if !file_name.ends_with(loc::EXTENSION) {
+                        file_name.push_str(loc::EXTENSION);
+                    }
+                    Ok(Some(NewFile::Loc(file_name)))
+                },
+                FileType::Text => {
+                    if !text::EXTENSIONS.iter().any(|(x, _)| file_name.ends_with(x)) {
+                        file_name.push_str(".txt");
+                    }
+
+                    let text_format = if let Some((_, text_format)) = text::EXTENSIONS.iter().find(|(x, _)| file_name.ends_with(x)) {
+                        *text_format
+                    } else {
+                        TextFormat::Plain
+                    };
+
+                    Ok(Some(NewFile::Text(file_name, text_format)))
+                },
+                FileType::PortraitSettings => {
+                    if !file_name.ends_with(portrait_settings::EXTENSION) {
+                        file_name.push_str(portrait_settings::EXTENSION);
+                    }
+
+                    if !file_name.starts_with("portrait_settings_") {
+                        file_name = format!("portrait_settings_{file_name}");
+                    }
+
+                    let mut import_entries = vec![];
+                    for (checkbox, source_combo, dest_line_edit) in &portrait_settings_widgets {
+                        if checkbox.is_checked() {
+                            import_entries.push((source_combo.current_text().to_std_string(), dest_line_edit.text().to_std_string()));
+                        }
+                    }
+
+                    // Unwrap because we already check it's valid before calling this function. If it crashes here, it's a bug in the caller.
+                    Ok(Some(NewFile::PortraitSettings(file_name, GAME_SELECTED.read().unwrap().portrait_settings_version().unwrap(), import_entries)))
+                },
                 _ => unimplemented!(),
             }
         }
 
         // Otherwise, return None.
-        else { None }
+        else { Ok(None) }
     }
 
     /// This function creates the "New PackedFile's Name" dialog when creating a new QueeK PackedFile.

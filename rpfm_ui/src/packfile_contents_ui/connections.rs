@@ -53,6 +53,7 @@ pub unsafe fn set_connections(ui: &PackFileContentsUI, slots: &PackFileContentsS
     ui.context_menu_new_packed_file_anim_pack.triggered().connect(&slots.contextual_menu_new_packed_file_anim_pack);
     ui.context_menu_new_packed_file_db.triggered().connect(&slots.contextual_menu_new_packed_file_db);
     ui.context_menu_new_packed_file_loc.triggered().connect(&slots.contextual_menu_new_packed_file_loc);
+    ui.context_menu_new_packed_file_portrait_settings.triggered().connect(&slots.contextual_menu_new_packed_file_portrait_settings);
     ui.context_menu_new_packed_file_text.triggered().connect(&slots.contextual_menu_new_packed_file_text);
     ui.context_menu_new_queek_packed_file.triggered().connect(&slots.contextual_menu_new_queek_packed_file);
 

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>861</width>
-    <height>650</height>
+    <width>1032</width>
+    <height>652</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -90,7 +90,7 @@
         <number>2</number>
        </property>
        <item row="0" column="0">
-        <widget class="QGroupBox" name="main_camera_settings_groupbox">
+        <widget class="QGroupBox" name="head_camera_settings_groupbox">
          <property name="title">
           <string>GroupBox</string>
          </property>
@@ -110,65 +110,85 @@
           <property name="spacing">
            <number>2</number>
           </property>
-          <item row="5" column="1">
-           <widget class="QSpinBox" name="main_distance_body_spinbox"/>
-          </item>
           <item row="1" column="1">
-           <widget class="QDoubleSpinBox" name="main_theta_spinbox"/>
+           <widget class="QDoubleSpinBox" name="head_y_spinbox">
+            <property name="maximum">
+             <double>1000.000000000000000</double>
+            </property>
+           </widget>
           </item>
           <item row="0" column="1">
-           <widget class="QDoubleSpinBox" name="main_distance_spinbox"/>
+           <widget class="QDoubleSpinBox" name="head_z_spinbox">
+            <property name="maximum">
+             <double>1000.000000000000000</double>
+            </property>
+           </widget>
           </item>
           <item row="3" column="1">
-           <widget class="QDoubleSpinBox" name="main_fov_spinbox"/>
+           <widget class="QDoubleSpinBox" name="head_pitch_spinbox">
+            <property name="maximum">
+             <double>1000.000000000000000</double>
+            </property>
+           </widget>
           </item>
           <item row="4" column="1">
-           <widget class="QDoubleSpinBox" name="main_distance_1_spinbox"/>
+           <widget class="QDoubleSpinBox" name="head_fov_spinbox">
+            <property name="maximum">
+             <double>1000.000000000000000</double>
+            </property>
+           </widget>
           </item>
           <item row="2" column="1">
-           <widget class="QDoubleSpinBox" name="main_phi_spinbox"/>
+           <widget class="QDoubleSpinBox" name="head_yaw_spinbox">
+            <property name="maximum">
+             <double>1000.000000000000000</double>
+            </property>
+           </widget>
           </item>
           <item row="0" column="0">
-           <widget class="QLabel" name="main_distance_label">
+           <widget class="QLabel" name="head_z_label">
             <property name="text">
              <string>TextLabel</string>
             </property>
            </widget>
           </item>
           <item row="1" column="0">
-           <widget class="QLabel" name="main_theta_label">
+           <widget class="QLabel" name="head_y_label">
             <property name="text">
              <string>TextLabel</string>
             </property>
            </widget>
           </item>
           <item row="2" column="0">
-           <widget class="QLabel" name="main_phi_label">
+           <widget class="QLabel" name="head_yaw_label">
             <property name="text">
              <string>TextLabel</string>
             </property>
            </widget>
           </item>
           <item row="3" column="0">
-           <widget class="QLabel" name="main_fov_label">
+           <widget class="QLabel" name="head_pitch_label">
             <property name="text">
              <string>TextLabel</string>
             </property>
            </widget>
           </item>
           <item row="4" column="0">
-           <widget class="QLabel" name="main_distance_1_label">
+           <widget class="QLabel" name="head_fov_label">
             <property name="text">
              <string>TextLabel</string>
             </property>
            </widget>
           </item>
           <item row="5" column="0">
-           <widget class="QLabel" name="main_distance_body_label">
+           <widget class="QLabel" name="head_skeleton_node_label">
             <property name="text">
              <string>TextLabel</string>
             </property>
            </widget>
+          </item>
+          <item row="5" column="1">
+           <widget class="KLineEdit" name="head_skeleton_node_line_edit"/>
           </item>
          </layout>
         </widget>
@@ -194,6 +214,108 @@
           <property name="spacing">
            <number>2</number>
           </property>
+          <item row="0" column="2" rowspan="2" colspan="2">
+           <widget class="QWidget" name="variants_widget" native="true">
+            <layout class="QGridLayout" name="gridLayout_5" columnstretch="0,0,0,0,0">
+             <property name="leftMargin">
+              <number>2</number>
+             </property>
+             <property name="topMargin">
+              <number>2</number>
+             </property>
+             <property name="rightMargin">
+              <number>2</number>
+             </property>
+             <property name="bottomMargin">
+              <number>2</number>
+             </property>
+             <property name="spacing">
+              <number>2</number>
+             </property>
+             <item row="0" column="3">
+              <widget class="QLabel" name="mask_2_label">
+               <property name="text">
+                <string/>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="4">
+              <widget class="QLabel" name="mask_3_label">
+               <property name="text">
+                <string/>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="2">
+              <widget class="QLabel" name="mask_1_label">
+               <property name="text">
+                <string/>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="1">
+              <widget class="QLabel" name="diffuse_label">
+               <property name="text">
+                <string/>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="0">
+              <widget class="QWidget" name="widget_2" native="true"/>
+             </item>
+             <item row="1" column="0">
+              <widget class="QLabel" name="file_diffuse_label">
+               <property name="text">
+                <string>TextLabel</string>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="0">
+              <widget class="QLabel" name="file_mask_1_label">
+               <property name="text">
+                <string>TextLabel</string>
+               </property>
+              </widget>
+             </item>
+             <item row="3" column="0">
+              <widget class="QLabel" name="file_mask_2_label">
+               <property name="text">
+                <string>TextLabel</string>
+               </property>
+              </widget>
+             </item>
+             <item row="4" column="0">
+              <widget class="QLabel" name="file_mask_3_label">
+               <property name="text">
+                <string>TextLabel</string>
+               </property>
+              </widget>
+             </item>
+             <item row="4" column="1" colspan="4">
+              <widget class="KLineEdit" name="file_mask_3_line_edit"/>
+             </item>
+             <item row="3" column="1" colspan="4">
+              <widget class="KLineEdit" name="file_mask_2_line_edit"/>
+             </item>
+             <item row="2" column="1" colspan="4">
+              <widget class="KLineEdit" name="file_mask_1_line_edit"/>
+             </item>
+             <item row="1" column="1" colspan="4">
+              <widget class="KLineEdit" name="file_diffuse_line_edit"/>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLineEdit" name="variants_filter_line_edit">
+            <property name="maximumSize">
+             <size>
+              <width>300</width>
+              <height>16777215</height>
+             </size>
+            </property>
+           </widget>
+          </item>
           <item row="0" column="0">
            <widget class="QListView" name="variants_list_view">
             <property name="sizePolicy">
@@ -214,77 +336,6 @@
             <property name="alternatingRowColors">
              <bool>true</bool>
             </property>
-           </widget>
-          </item>
-          <item row="1" column="0">
-           <widget class="QLineEdit" name="variants_filter_line_edit">
-            <property name="maximumSize">
-             <size>
-              <width>300</width>
-              <height>16777215</height>
-             </size>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="1" rowspan="2" colspan="2">
-           <widget class="QWidget" name="variants_widget" native="true">
-            <layout class="QGridLayout" name="gridLayout_5" columnstretch="0,1">
-             <property name="leftMargin">
-              <number>2</number>
-             </property>
-             <property name="topMargin">
-              <number>2</number>
-             </property>
-             <property name="rightMargin">
-              <number>2</number>
-             </property>
-             <property name="bottomMargin">
-              <number>2</number>
-             </property>
-             <property name="spacing">
-              <number>2</number>
-             </property>
-             <item row="0" column="1">
-              <widget class="KLineEdit" name="file_diffuse_line_edit"/>
-             </item>
-             <item row="0" column="0">
-              <widget class="QLabel" name="file_diffuse_label">
-               <property name="text">
-                <string>TextLabel</string>
-               </property>
-              </widget>
-             </item>
-             <item row="1" column="0">
-              <widget class="QLabel" name="file_mask_1_label">
-               <property name="text">
-                <string>TextLabel</string>
-               </property>
-              </widget>
-             </item>
-             <item row="1" column="1">
-              <widget class="KLineEdit" name="file_mask_1_line_edit"/>
-             </item>
-             <item row="2" column="1">
-              <widget class="KLineEdit" name="file_mask_2_line_edit"/>
-             </item>
-             <item row="2" column="0">
-              <widget class="QLabel" name="file_mask_2_label">
-               <property name="text">
-                <string>TextLabel</string>
-               </property>
-              </widget>
-             </item>
-             <item row="3" column="1">
-              <widget class="KLineEdit" name="file_mask_3_line_edit"/>
-             </item>
-             <item row="3" column="0">
-              <widget class="QLabel" name="file_mask_3_label">
-               <property name="text">
-                <string>TextLabel</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
            </widget>
           </item>
          </layout>
@@ -317,65 +368,85 @@
           <property name="spacing">
            <number>2</number>
           </property>
-          <item row="5" column="1">
-           <widget class="QSpinBox" name="body_distance_body_spinbox"/>
-          </item>
           <item row="0" column="1">
-           <widget class="QDoubleSpinBox" name="body_distance_spinbox"/>
+           <widget class="QDoubleSpinBox" name="body_z_spinbox">
+            <property name="maximum">
+             <double>1000.000000000000000</double>
+            </property>
+           </widget>
           </item>
           <item row="2" column="1">
-           <widget class="QDoubleSpinBox" name="body_phi_spinbox"/>
+           <widget class="QDoubleSpinBox" name="body_yaw_spinbox">
+            <property name="maximum">
+             <double>1000.000000000000000</double>
+            </property>
+           </widget>
           </item>
           <item row="3" column="1">
-           <widget class="QDoubleSpinBox" name="body_fov_spinbox"/>
+           <widget class="QDoubleSpinBox" name="body_pitch_spinbox">
+            <property name="maximum">
+             <double>1000.000000000000000</double>
+            </property>
+           </widget>
           </item>
           <item row="4" column="1">
-           <widget class="QDoubleSpinBox" name="body_distance_1_spinbox"/>
+           <widget class="QDoubleSpinBox" name="body_fov_spinbox">
+            <property name="maximum">
+             <double>1000.000000000000000</double>
+            </property>
+           </widget>
           </item>
           <item row="1" column="1">
-           <widget class="QDoubleSpinBox" name="body_theta_spinbox"/>
+           <widget class="QDoubleSpinBox" name="body_y_spinbox">
+            <property name="maximum">
+             <double>1000.000000000000000</double>
+            </property>
+           </widget>
           </item>
           <item row="0" column="0">
-           <widget class="QLabel" name="body_distance_label">
+           <widget class="QLabel" name="body_z_label">
             <property name="text">
              <string>TextLabel</string>
             </property>
            </widget>
           </item>
           <item row="1" column="0">
-           <widget class="QLabel" name="body_theta_label">
+           <widget class="QLabel" name="body_y_label">
             <property name="text">
              <string>TextLabel</string>
             </property>
            </widget>
           </item>
           <item row="2" column="0">
-           <widget class="QLabel" name="body_phi_label">
+           <widget class="QLabel" name="body_yaw_label">
             <property name="text">
              <string>TextLabel</string>
             </property>
            </widget>
           </item>
           <item row="3" column="0">
-           <widget class="QLabel" name="body_fov_label">
+           <widget class="QLabel" name="body_pitch_label">
             <property name="text">
              <string>TextLabel</string>
             </property>
            </widget>
           </item>
           <item row="4" column="0">
-           <widget class="QLabel" name="body_distance_1_label">
+           <widget class="QLabel" name="body_fov_label">
             <property name="text">
              <string>TextLabel</string>
             </property>
            </widget>
           </item>
           <item row="5" column="0">
-           <widget class="QLabel" name="body_distance_body_label">
+           <widget class="QLabel" name="body_skeleton_node_label">
             <property name="text">
              <string>TextLabel</string>
             </property>
            </widget>
+          </item>
+          <item row="5" column="1">
+           <widget class="KLineEdit" name="body_skeleton_node_line_edit"/>
           </item>
          </layout>
         </widget>

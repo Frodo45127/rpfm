@@ -11,7 +11,7 @@
 //! This is a module to read/write binary Portrait Settings files.
 //!
 //! Portrait settings are files containing information about the small portrait each unit uses,
-//! tipically at the bottom left of the screen (may vary from game to game), when in battle or in campaign.
+//! tipically at the bottom left of the screen (may vary from game to game) or in the Character Screen in campaign.
 //!
 //! TODO: add format info.
 
@@ -28,7 +28,7 @@ pub const EXTENSION: &str = ".bin";
 
 mod versions;
 
-//#[cfg(test)] mod portrait_settings_test;
+#[cfg(test)] mod portrait_settings_test;
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
@@ -55,9 +55,14 @@ pub struct Entry {
     id: String,
 
     /// Settings for the head camera.
+    ///
+    /// This is the porthole camera you see in campaign, at the bottom left.
     camera_settings_head: CameraSetting,
 
     /// Settings for the body camera. Optional.
+    ///
+    /// This is the camera used for displaying the full body of the character in their details window in campaign.
+    /// This is only needed for characters. Regular units do not have access to the characters window, so it's not needed for them.
     camera_settings_body: Option<CameraSetting>,
 
     /// Variants? Need more info about this.
@@ -65,27 +70,32 @@ pub struct Entry {
 }
 
 /// This represents a Camera setting of a Portrait.
+///
+/// Note that the camera has an auto-level feature, so the camera may autorotate to compensate vertical rotation (pitch)
+/// greater than 90/-90 degrees.
 #[derive(PartialEq, Clone, Debug, Default, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct CameraSetting {
 
-    /// Distance of the camera from the character.
-    distance: f32,
+    /// Distance from the character to the camera.
+    z: f32,
 
-    /// Theta Angle of the camera.
-    theta: f32,
+    /// Vertical displacement of the camera.
+    y: f32,
 
-    /// Phi Angle of the camera.
-    phi: f32,
+    /// Rotation angle of the camera, sideways. In degrees.
+    yaw: f32,
 
-    /// Field of View of the camera.
+    /// Rotation angle of the camera, vertically. In degrees.
+    pitch: f32,
+
+    /// Field of View.
     fov: f32,
 
-    /// No clue about this.
-    distance_1: f32,
-
-    /// No clue about this.
-    distance_body: u16,
+    /// Skeleton node that the camera will use as default focus point.
+    ///
+    /// Optional. If provided, all displacementes/rotations are relative to this point.
+    skeleton_node: String,
 }
 
 /// This represents a generic variant of a Portrait.
@@ -93,8 +103,8 @@ pub struct CameraSetting {
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Variant {
 
-    /// No idea what this corresponds to.
-    id: String,
+    /// Variant Filename. Points to the column of the same name in the Variants table.
+    filename: String,
 
     /// Path of the diffuse image of the Variant.
     file_diffuse: String,

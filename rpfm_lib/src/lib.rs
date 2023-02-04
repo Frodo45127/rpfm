@@ -44,5 +44,5 @@ lazy_static! {
     pub static ref REGEX_DB: Regex = Regex::new(r"db/[^/]+_tables/[^/]+$").unwrap();
 
     /// Regex to find if a path belongs to a portrait settings file.
-    pub static ref REGEX_PORTRAIT_SETTINGS: Regex = Regex::new(r"portrait_settings_\S+.bin$").unwrap();
+    pub static ref REGEX_PORTRAIT_SETTINGS: Regex = Regex::new(r"portrait_settings\S+.bin$").unwrap();
 }

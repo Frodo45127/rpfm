@@ -79,6 +79,9 @@ pub struct GameInfo {
     /// This is the **type** of raw files the game uses. -1 is "Don't have Assembly Kit". 0 is Empire/Nappy. 1 is Shogun 2. 2 is anything newer than Shogun 2.
     raw_db_version: i16,
 
+    /// This is the version used when generating PortraitSettings files for each game.
+    portrait_settings_version: Option<u32>,
+
     /// If we can save `PackFile` files for the game.
     supports_editing: bool,
 
@@ -229,6 +232,11 @@ impl GameInfo {
     /// This function returns this Game's raw_db_version, used to identify how to process AssKit table files for this game.
     pub fn raw_db_version(&self) -> i16 {
         self.raw_db_version
+    }
+
+    /// This function returns this Game's PortraitSettings version, if any.
+    pub fn portrait_settings_version(&self) -> Option<u32> {
+        self.portrait_settings_version
     }
 
     /// This function returns whether this Game supports editing or not.

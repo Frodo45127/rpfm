@@ -366,6 +366,7 @@ context_menu_new_folder = Create Folder
 context_menu_new_packed_file_anim_pack = Create AnimPack
 context_menu_new_packed_file_db = Create DB
 context_menu_new_packed_file_loc = Create Loc
+context_menu_new_packed_file_portrait_settings = Create Portrait Settings
 context_menu_new_packed_file_text = Create Text
 context_menu_new_queek_packed_file = New Quick File
 
@@ -1257,21 +1258,21 @@ open_manual = Open RPFM Manual
 patreon_link = Support me on Patreon
 reload_style_sheet = Reload StyleSheets
 
-portrait_settings_main_camera_settings_title = Main Camera
+portrait_settings_head_camera_settings_title = Head Camera
 portrait_settings_body_camera_settings_title = Body Camera
 portrait_settings_variants_title = Variants
-portrait_settings_main_distance = Distance:
-portrait_settings_main_distance_1_label = Distance 1:
-portrait_settings_main_distance_body_label = Distance Body:
-portrait_settings_main_fov_label = Fov:
-portrait_settings_main_phi_label = Phi:
-portrait_settings_main_theta_label = Theta:
-portrait_settings_body_distance = Distance:
-portrait_settings_body_distance_1_label = Distance 1:
-portrait_settings_body_distance_body_label = Distance Body:
-portrait_settings_body_fov_label = Fov:
-portrait_settings_body_phi_label = Phi:
-portrait_settings_body_theta_label = Theta:
+portrait_settings_head_z = Z:
+portrait_settings_head_y = Y:
+portrait_settings_head_yaw = Yaw:
+portrait_settings_head_pitch = Pitch:
+portrait_settings_head_fov = Field of View:
+portrait_settings_head_skeleton_node = Skeleton Node:
+portrait_settings_body_z = Z:
+portrait_settings_body_y = Y:
+portrait_settings_body_yaw = Yaw:
+portrait_settings_body_pitch = Pitch:
+portrait_settings_body_fov = Field of View:
+portrait_settings_body_skeleton_node = Skeleton Node:
 portrait_settings_file_diffuse_label = Diffuse:
 portrait_settings_file_mask_1_label = Mask 1:
 portrait_settings_file_mask_2_label = Mask 2:
@@ -1293,16 +1294,16 @@ load_definition = Load Definition
 delete_definition = Delete Definition
 
 label_invalid_art_set_id = Invalid Art Set Id
-label_invalid_variant_id = Invalid Variant Id
+label_invalid_variant_filename = Invalid Variant Filename
 label_file_diffuse_not_found_for_variant = File Diffuse not found for Variant
 label_datacored_portrait_settings = Datacored Portrait Settings file
 invalid_art_set_id_explanation = You have an Art Set Id in a Portrait Settings file that doesn't exists in the 'campaign_character_arts' table.
 
     This may be a typo, or an unused art set id... but it's usually a typo.
 
-invalid_variant_id_explanation = You have an Art Set Id containing a Variant Id in a Portrait Settings file that doesn't exists in the 'variants' table.
+invalid_variant_filename_explanation = You have an Art Set Id containing a Variant Filename in a Portrait Settings file that doesn't exists in the 'variants' table.
 
-    This may be a typo, or an unused variant id... but it's usually a typo.
+    This may be a typo, or an unused variant filename... but it's usually a typo.
 
 file_diffuse_not_found_for_variant_explanation = You have a diffuse path (the path to the file used for a 2D Portrait) on a Portrait Settings file pointing to a non-existant file.
 
@@ -1313,3 +1314,8 @@ datacored_portrait_settings_explanation = You're overwriting/datacoring a Portra
     99% of the time you DO NOT WANT TO DO THIS, because if you do it you may cause units everywhere to not have portrait icons/image.
 
     Usually you just need to create a Portrait Settings file only for your units, not overwriting the vanilla ones.
+
+new_portrait_settings_file = New Portrait Settings file
+new_portrait_settings_copy_column = Copy values?
+new_portrait_settings_copy_from_column = Copy values from this entry
+new_portrait_settings_copy_to_column = Copy values to this entry

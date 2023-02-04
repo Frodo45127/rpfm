@@ -31,7 +31,7 @@ use rpfm_lib::games::pfh_file_type::PFHFileType;
 use rpfm_lib::integrations::{git::GitResponse, log::info};
 use rpfm_lib::schema::{Definition, DefinitionPatch, Field, Schema};
 
-use crate::app_ui::NewPackedFile;
+use crate::app_ui::NewFile;
 use crate::backend::*;
 use crate::packedfile_views::DataSource;
 use crate::updater::APIResponse;
@@ -155,7 +155,7 @@ pub enum Command {
     /// This command is used when we want to create a new `PackedFile` inside the currently open `PackFile`.
     ///
     /// It requires the path of the new PackedFile, and the `NewPackedFile` with the new PackedFile's info.
-    NewPackedFile(String, NewPackedFile),
+    NewPackedFile(String, NewFile),
 
     /// This command is used when we want to add one or more Files to our currently open `PackFile`.
     ///
@@ -197,6 +197,8 @@ pub enum Command {
 
     /// This command is used when we want to get the table names (the folder of the tables) of all DB files in our dependency PackFiles.
     GetTableListFromDependencyPackFile,
+    LocalArtSetIds,
+    DependenciesArtSetIds,
 
     /// This command is used when we want to get the version of the table provided that's compatible with the version of the game we currently have installed.
     GetTableVersionFromDependencyPackFile(String),

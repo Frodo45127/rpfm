@@ -133,7 +133,7 @@ pub struct DiagnosticsUI {
     checkbox_banned_table: QBox<QCheckBox>,
     checkbox_value_cannot_be_empty: QBox<QCheckBox>,
     checkbox_invalid_art_set_id: QBox<QCheckBox>,
-    checkbox_invalid_variant_id: QBox<QCheckBox>,
+    checkbox_invalid_variant_filename: QBox<QCheckBox>,
     checkbox_file_diffuse_not_found_for_variant: QBox<QCheckBox>,
     checkbox_datacored_portrait_settings: QBox<QCheckBox>,
 }
@@ -254,7 +254,7 @@ impl DiagnosticsUI {
         let checkbox_banned_table = QCheckBox::from_q_string_q_widget(&qtr("label_banned_table"), &sidebar_scroll_area);
         let checkbox_value_cannot_be_empty = QCheckBox::from_q_string_q_widget(&qtr("label_value_cannot_be_empty"), &sidebar_scroll_area);
         let checkbox_invalid_art_set_id = QCheckBox::from_q_string_q_widget(&qtr("label_invalid_art_set_id"), &sidebar_scroll_area);
-        let checkbox_invalid_variant_id = QCheckBox::from_q_string_q_widget(&qtr("label_invalid_variant_id"), &sidebar_scroll_area);
+        let checkbox_invalid_variant_filename = QCheckBox::from_q_string_q_widget(&qtr("label_invalid_variant_filename"), &sidebar_scroll_area);
         let checkbox_file_diffuse_not_found_for_variant = QCheckBox::from_q_string_q_widget(&qtr("label_file_diffuse_not_found_for_variant"), &sidebar_scroll_area);
         let checkbox_datacored_portrait_settings = QCheckBox::from_q_string_q_widget(&qtr("label_datacored_portrait_settings"), &sidebar_scroll_area);
 
@@ -284,7 +284,7 @@ impl DiagnosticsUI {
         checkbox_banned_table.set_checked(true);
         checkbox_value_cannot_be_empty.set_checked(true);
         checkbox_invalid_art_set_id.set_checked(true);
-        checkbox_invalid_variant_id.set_checked(true);
+        checkbox_invalid_variant_filename.set_checked(true);
         checkbox_file_diffuse_not_found_for_variant.set_checked(false);
         checkbox_datacored_portrait_settings.set_checked(false);
 
@@ -314,7 +314,7 @@ impl DiagnosticsUI {
         sidebar_grid.add_widget_1a(&checkbox_banned_table);
         sidebar_grid.add_widget_1a(&checkbox_value_cannot_be_empty);
         sidebar_grid.add_widget_1a(&checkbox_invalid_art_set_id);
-        sidebar_grid.add_widget_1a(&checkbox_invalid_variant_id);
+        sidebar_grid.add_widget_1a(&checkbox_invalid_variant_filename);
         sidebar_grid.add_widget_1a(&checkbox_file_diffuse_not_found_for_variant);
         sidebar_grid.add_widget_1a(&checkbox_datacored_portrait_settings);
 
@@ -366,7 +366,7 @@ impl DiagnosticsUI {
             checkbox_banned_table,
             checkbox_value_cannot_be_empty,
             checkbox_invalid_art_set_id,
-            checkbox_invalid_variant_id,
+            checkbox_invalid_variant_filename,
             checkbox_file_diffuse_not_found_for_variant,
             checkbox_datacored_portrait_settings,
         })
@@ -607,8 +607,8 @@ impl DiagnosticsUI {
                             let cells_affected_string = match result.report_type() {
                                 PortraitSettingsDiagnosticReportType::DatacoredPortraitSettings => String::new(),
                                 PortraitSettingsDiagnosticReportType::InvalidArtSetId(art_set_id) => art_set_id.to_owned(),
-                                PortraitSettingsDiagnosticReportType::InvalidVariantId(art_set_id, variant_id) => format!("{art_set_id}|{variant_id}"),
-                                PortraitSettingsDiagnosticReportType::FileDiffuseNotFoundForVariant(art_set_id, variant_id, _) => format!("{art_set_id}|{variant_id}"),
+                                PortraitSettingsDiagnosticReportType::InvalidVariantFilename(art_set_id, variant_filename) => format!("{art_set_id}|{variant_filename}"),
+                                PortraitSettingsDiagnosticReportType::FileDiffuseNotFoundForVariant(art_set_id, variant_filename, _) => format!("{art_set_id}|{variant_filename}"),
                             };
 
                             level.set_background(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(color))));
@@ -910,8 +910,8 @@ impl DiagnosticsUI {
                         }
 
                         if art_set_id_found {
-                            if let Some(variant_id) = data.get(1) {
-                                let q_string = QString::from_std_str(variant_id);
+                            if let Some(variant_filename) = data.get(1) {
+                                let q_string = QString::from_std_str(variant_filename);
                                 for row in 0..view.variants_list_model().row_count_0a() {
                                     let list_model_index = view.variants_list_model().index_2a(row, 0);
                                     if view.variants_list_model().data_1a(&list_model_index).to_string().compare_q_string(&q_string) == 0 {
@@ -1367,8 +1367,8 @@ impl DiagnosticsUI {
         if diagnostics_ui.checkbox_invalid_art_set_id.is_checked() {
             diagnostic_type_pattern.push_str(&format!("{}|", PortraitSettingsDiagnosticReportType::InvalidArtSetId(String::new())));
         }
-        if diagnostics_ui.checkbox_invalid_variant_id.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", PortraitSettingsDiagnosticReportType::InvalidVariantId(String::new(), String::new())));
+        if diagnostics_ui.checkbox_invalid_variant_filename.is_checked() {
+            diagnostic_type_pattern.push_str(&format!("{}|", PortraitSettingsDiagnosticReportType::InvalidVariantFilename(String::new(), String::new())));
         }
         if diagnostics_ui.checkbox_file_diffuse_not_found_for_variant.is_checked() {
             diagnostic_type_pattern.push_str(&format!("{}|", PortraitSettingsDiagnosticReportType::FileDiffuseNotFoundForVariant(String::new(), String::new(), String::new())));
@@ -1557,7 +1557,7 @@ impl DiagnosticsUI {
         let tool_tip = match report_type {
             PortraitSettingsDiagnosticReportType::DatacoredPortraitSettings => qtr("datacored_portrait_settings_explanation"),
             PortraitSettingsDiagnosticReportType::InvalidArtSetId(_) => qtr("invalid_art_set_id_explanation"),
-            PortraitSettingsDiagnosticReportType::InvalidVariantId(_, _) => qtr("invalid_variant_id_explanation"),
+            PortraitSettingsDiagnosticReportType::InvalidVariantFilename(_, _) => qtr("invalid_variant_filename_explanation"),
             PortraitSettingsDiagnosticReportType::FileDiffuseNotFoundForVariant(_, _, _) => qtr("file_diffuse_not_found_for_variant_explanation"),
         };
 
@@ -1651,8 +1651,8 @@ impl DiagnosticsUI {
         if !self.checkbox_invalid_art_set_id.is_checked() {
             diagnostics_ignored.push(PortraitSettingsDiagnosticReportType::InvalidArtSetId(String::new()).to_string());
         }
-        if !self.checkbox_invalid_variant_id.is_checked() {
-            diagnostics_ignored.push(PortraitSettingsDiagnosticReportType::InvalidVariantId(String::new(), String::new()).to_string());
+        if !self.checkbox_invalid_variant_filename.is_checked() {
+            diagnostics_ignored.push(PortraitSettingsDiagnosticReportType::InvalidVariantFilename(String::new(), String::new()).to_string());
         }
         if !self.checkbox_file_diffuse_not_found_for_variant.is_checked() {
             diagnostics_ignored.push(PortraitSettingsDiagnosticReportType::FileDiffuseNotFoundForVariant(String::new(), String::new(), String::new()).to_string());

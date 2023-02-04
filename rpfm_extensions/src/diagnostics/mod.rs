@@ -20,10 +20,9 @@ Notes on cells_affected:
 !*/
 
 use getset::{Getters, MutGetters};
-use rpfm_lib::files::portrait_settings::PortraitSettings;
-use serde_derive::{Serialize, Deserialize};
 use itertools::Itertools;
 use rayon::prelude::*;
+use serde_derive::{Serialize, Deserialize};
 
 use std::path::Path;
 use std::{fmt, fmt::Display};
@@ -241,8 +240,8 @@ impl Diagnostics {
         dependencies.generate_local_db_references(pack, &table_names);
 
         // Caches for Portrait Settings diagnostics.
-        let art_set_ids = Self::values_from_table_name_and_column_name(dependencies, pack, "campaign_character_arts_tables", "art_set_id");
-        let variant_ids = Self::values_from_table_name_and_column_name(dependencies, pack, "variants_tables", "variant_name");
+        let art_set_ids = dependencies.db_values_from_table_name_and_column_name(Some(pack), "campaign_character_arts_tables", "art_set_id", true, true);
+        let variant_filenames = dependencies.db_values_from_table_name_and_column_name(Some(pack), "variants_tables", "variant_filename", true, true);
 
         // Process the files in batches.
         self.results.append(&mut files_split.par_iter().filter_map(|(_, files)| {
@@ -290,7 +289,7 @@ impl Diagnostics {
                         )
                     },
                     FileType::Loc => Self::check_loc(file, &self.diagnostics_ignored, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields),
-                    FileType::PortraitSettings => PortraitSettingsDiagnostic::check(file, &art_set_ids, &variant_ids, dependencies, &self.diagnostics_ignored, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields),
+                    FileType::PortraitSettings => PortraitSettingsDiagnostic::check(file, &art_set_ids, &variant_filenames, dependencies, &self.diagnostics_ignored, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields),
                     _ => None,
                 };
 
@@ -897,39 +896,6 @@ impl Diagnostics {
     /// This function converts an entire diagnostics struct into a JSon string.
     pub fn json(&self) -> Result<String> {
         serde_json::to_string_pretty(self).map_err(From::from)
-    }
-
-    /// This function returns the list of values a column of a table has, across all instances of said table in the dependencies and the provided Pack.
-    fn values_from_table_name_and_column_name(dependencies: &Dependencies, pack: &Pack, table_name: &str, column_name: &str) -> HashSet<String> {
-        let mut ids = HashSet::new();
-
-        if let Ok(files) = dependencies.db_data(table_name, true, true) {
-            for file in &files {
-                if let Ok(RFileDecoded::DB(table)) = file.decoded() {
-                    if let Some(column) = table.definition().column_position_by_name(column_name) {
-                        if let Ok(data) = table.data(&None) {
-                            for row in data.iter() {
-                                ids.insert(row[column].data_to_string().to_string());
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        for file in &pack.files_by_path(&ContainerPath::Folder(format!("db/{table_name}")), true) {
-            if let Ok(RFileDecoded::DB(table)) = file.decoded() {
-                if let Some(column) = table.definition().column_position_by_name(column_name) {
-                    if let Ok(data) = table.data(&None) {
-                        for row in data.iter() {
-                            ids.insert(row[column].data_to_string().to_string());
-                        }
-                    }
-                }
-            }
-        }
-
-        ids
     }
 }
 

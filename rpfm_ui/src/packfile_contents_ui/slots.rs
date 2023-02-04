@@ -78,6 +78,7 @@ pub struct PackFileContentsSlots {
     pub contextual_menu_new_packed_file_anim_pack: QBox<SlotOfBool>,
     pub contextual_menu_new_packed_file_db: QBox<SlotOfBool>,
     pub contextual_menu_new_packed_file_loc: QBox<SlotOfBool>,
+    pub contextual_menu_new_packed_file_portrait_settings: QBox<SlotOfBool>,
     pub contextual_menu_new_packed_file_text: QBox<SlotOfBool>,
     pub contextual_menu_new_folder: QBox<SlotOfBool>,
     pub contextual_menu_new_queek_packed_file: QBox<SlotOfBool>,
@@ -195,6 +196,7 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_new_packed_file_anim_pack.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(true);
                         pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(false);
+                        pack_file_contents_ui.context_menu_new_packed_file_portrait_settings.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_packed_file_text.set_enabled(false);
                         pack_file_contents_ui.context_menu_delete.set_enabled(true);
                         pack_file_contents_ui.context_menu_extract.set_enabled(true);
@@ -243,6 +245,7 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_new_folder.set_enabled(enabled);
                         pack_file_contents_ui.context_menu_new_packed_file_anim_pack.set_enabled(enabled);
                         pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(enabled);
+                        pack_file_contents_ui.context_menu_new_packed_file_portrait_settings.set_enabled(enabled);
                         pack_file_contents_ui.context_menu_new_packed_file_text.set_enabled(enabled);
                         pack_file_contents_ui.context_menu_new_queek_packed_file.set_enabled(enabled);
                         pack_file_contents_ui.context_menu_copy_path.set_enabled(enabled);
@@ -257,6 +260,7 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_new_packed_file_anim_pack.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(true);
                         pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(false);
+                        pack_file_contents_ui.context_menu_new_packed_file_portrait_settings.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_packed_file_text.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_queek_packed_file.set_enabled(false);
                         pack_file_contents_ui.context_menu_merge_tables.set_enabled(false);
@@ -282,6 +286,7 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_new_packed_file_anim_pack.set_enabled(true);
                         pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(true);
                         pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(true);
+                        pack_file_contents_ui.context_menu_new_packed_file_portrait_settings.set_enabled(true);
                         pack_file_contents_ui.context_menu_new_packed_file_text.set_enabled(true);
                         pack_file_contents_ui.context_menu_new_queek_packed_file.set_enabled(false);
                         pack_file_contents_ui.context_menu_merge_tables.set_enabled(false);
@@ -332,6 +337,7 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_new_packed_file_anim_pack.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(true);
                         pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(false);
+                        pack_file_contents_ui.context_menu_new_packed_file_portrait_settings.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_packed_file_text.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_queek_packed_file.set_enabled(false);
                         pack_file_contents_ui.context_menu_delete.set_enabled(true);
@@ -356,6 +362,7 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_new_packed_file_anim_pack.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(true);
                         pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(false);
+                        pack_file_contents_ui.context_menu_new_packed_file_portrait_settings.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_packed_file_text.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_queek_packed_file.set_enabled(false);
                         pack_file_contents_ui.context_menu_merge_tables.set_enabled(false);
@@ -381,6 +388,7 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_new_packed_file_anim_pack.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(false);
+                        pack_file_contents_ui.context_menu_new_packed_file_portrait_settings.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_packed_file_text.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_queek_packed_file.set_enabled(false);
                         pack_file_contents_ui.context_menu_merge_tables.set_enabled(false);
@@ -842,7 +850,7 @@ impl PackFileContentsSlots {
             app_ui,
             pack_file_contents_ui => move |_| {
             info!("Triggering `New AnimPack` By Slot");
-            AppUI::new_packed_file(&app_ui, &pack_file_contents_ui, FileType::AnimPack);
+            AppUI::new_file(&app_ui, &pack_file_contents_ui, FileType::AnimPack);
         }));
 
         // What happens when we trigger the "Create DB PackedFile" Action.
@@ -850,7 +858,7 @@ impl PackFileContentsSlots {
             app_ui,
             pack_file_contents_ui => move |_| {
             info!("Triggering `New DB` By Slot");
-            AppUI::new_packed_file(&app_ui, &pack_file_contents_ui, FileType::DB);
+            AppUI::new_file(&app_ui, &pack_file_contents_ui, FileType::DB);
         }));
 
         // What happens when we trigger the "Create Loc PackedFile" Action.
@@ -858,7 +866,15 @@ impl PackFileContentsSlots {
             app_ui,
             pack_file_contents_ui => move |_| {
             info!("Triggering `New Loc` By Slot");
-            AppUI::new_packed_file(&app_ui, &pack_file_contents_ui, FileType::Loc);
+            AppUI::new_file(&app_ui, &pack_file_contents_ui, FileType::Loc);
+        }));
+
+        // What happens when we trigger the "Create Portrait Settings File" Action.
+        let contextual_menu_new_packed_file_portrait_settings = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui => move |_| {
+            info!("Triggering `New Portrait Settings` By Slot");
+            AppUI::new_file(&app_ui, &pack_file_contents_ui, FileType::PortraitSettings);
         }));
 
         // What happens when we trigger the "Create Text PackedFile" Action.
@@ -866,7 +882,7 @@ impl PackFileContentsSlots {
             app_ui,
             pack_file_contents_ui => move |_| {
             info!("Triggering `New Text` By Slot");
-            AppUI::new_packed_file(&app_ui, &pack_file_contents_ui, FileType::Text);
+            AppUI::new_file(&app_ui, &pack_file_contents_ui, FileType::Text);
         }));
 
         // What happens when we trigger the "New Folder" Action.
@@ -1201,6 +1217,7 @@ impl PackFileContentsSlots {
             contextual_menu_new_packed_file_anim_pack,
             contextual_menu_new_packed_file_db,
             contextual_menu_new_packed_file_loc,
+            contextual_menu_new_packed_file_portrait_settings,
             contextual_menu_new_packed_file_text,
             contextual_menu_new_folder,
             contextual_menu_new_queek_packed_file,

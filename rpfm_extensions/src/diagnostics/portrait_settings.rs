@@ -41,12 +41,11 @@ pub struct PortraitSettingsDiagnosticReport {
     report_type: PortraitSettingsDiagnosticReportType,
 }
 
-// TODO: Add duplicated entries check (they cannot happen in RPFM, but can happen when imported with selfie).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PortraitSettingsDiagnosticReportType {
     DatacoredPortraitSettings,
     InvalidArtSetId(String),
-    InvalidVariantId(String, String),
+    InvalidVariantFilename(String, String),
     FileDiffuseNotFoundForVariant(String, String, String),
 }
 
@@ -67,8 +66,8 @@ impl DiagnosticReport for PortraitSettingsDiagnosticReport {
         match &self.report_type {
             PortraitSettingsDiagnosticReportType::DatacoredPortraitSettings => "Datacored Portrait Settings file.".to_string(),
             PortraitSettingsDiagnosticReportType::InvalidArtSetId(art_set_id) => format!("Invalid Art Set Id '{art_set_id}' in Portrait Settings file."),
-            PortraitSettingsDiagnosticReportType::InvalidVariantId(art_set_id, variant_id) => format!("Invalid Variant Id '{variant_id}' for Art Set Id '{art_set_id}'. "),
-            PortraitSettingsDiagnosticReportType::FileDiffuseNotFoundForVariant(art_set_id, variant_id, path) => format!("File not found for Art Set Id '{art_set_id}', Variant Id '{variant_id}', File Diffuse '{path}'."),
+            PortraitSettingsDiagnosticReportType::InvalidVariantFilename(art_set_id, variant_filename) => format!("Invalid Variant Filename '{variant_filename}' for Art Set Id '{art_set_id}'. "),
+            PortraitSettingsDiagnosticReportType::FileDiffuseNotFoundForVariant(art_set_id, variant_filename, path) => format!("File not found for Art Set Id '{art_set_id}', Variant Filename '{variant_filename}', File Diffuse '{path}'."),
         }
     }
 
@@ -76,7 +75,7 @@ impl DiagnosticReport for PortraitSettingsDiagnosticReport {
         match self.report_type {
             PortraitSettingsDiagnosticReportType::DatacoredPortraitSettings => DiagnosticLevel::Warning,
             PortraitSettingsDiagnosticReportType::InvalidArtSetId(_) => DiagnosticLevel::Warning,
-            PortraitSettingsDiagnosticReportType::InvalidVariantId(_, _) => DiagnosticLevel::Warning,
+            PortraitSettingsDiagnosticReportType::InvalidVariantFilename(_, _) => DiagnosticLevel::Warning,
             PortraitSettingsDiagnosticReportType::FileDiffuseNotFoundForVariant(_, _, _) => DiagnosticLevel::Warning,
         }
     }
@@ -87,7 +86,7 @@ impl Display for PortraitSettingsDiagnosticReportType {
         Display::fmt(match self {
             Self::DatacoredPortraitSettings => "DatacoredPortraitSettings",
             Self::InvalidArtSetId(_) => "InvalidArtSetId",
-            Self::InvalidVariantId(_, _) => "InvalidVariantId",
+            Self::InvalidVariantFilename(_, _) => "InvalidVariantFilename",
             Self::FileDiffuseNotFoundForVariant(_, _, _) => "FileDiffuseNotFoundForVariant",
         }, f)
     }
@@ -105,7 +104,7 @@ impl PortraitSettingsDiagnostic {
     pub fn check(
         file: &RFile,
         art_set_ids: &HashSet<String>,
-        variant_ids: &HashSet<String>,
+        variant_filenames: &HashSet<String>,
         dependencies: &Dependencies,
         global_ignored_diagnostics: &[String],
         ignored_fields: &[String],
@@ -126,8 +125,8 @@ impl PortraitSettingsDiagnostic {
                 }
 
                 for variant in entry.variants() {
-                    if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, None, Some("InvalidVariantId"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && variant_ids.get(variant.id()).is_none()  {
-                        let result = PortraitSettingsDiagnosticReport::new(PortraitSettingsDiagnosticReportType::InvalidVariantId(entry.id().to_owned(), variant.id().to_owned()));
+                    if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, None, Some("InvalidVariantFilename"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && variant_filenames.get(variant.filename()).is_none()  {
+                        let result = PortraitSettingsDiagnosticReport::new(PortraitSettingsDiagnosticReportType::InvalidVariantFilename(entry.id().to_owned(), variant.filename().to_owned()));
                         diagnostic.results_mut().push(result);
                     }
 

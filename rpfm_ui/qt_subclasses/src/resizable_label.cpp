@@ -41,6 +41,6 @@ QPixmap ResizableLabel::scaledPixmap() const {
 
 void ResizableLabel::resizeEvent(QResizeEvent*) {
     if(!pix.isNull()) {
-        QLabel::setPixmap(scaledPixmap());
+        setPixmap(scaledPixmap());
     }
 }
