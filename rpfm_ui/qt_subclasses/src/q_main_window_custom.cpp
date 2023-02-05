@@ -6,6 +6,7 @@
 #include <QFileInfo>
 #include <QIcon>
 #include <QResource>
+#include <QMimeData>
 
 // Fuction to be able to create a custom QMainWindow.
 extern "C" QMainWindow* new_q_main_window_custom(bool (*are_you_sure) (QMainWindow* main_window, bool is_delete_my_mod), bool is_dark_theme_enabled) {
@@ -16,6 +17,8 @@ QMainWindowCustom::QMainWindowCustom(QWidget *parent, bool (*are_you_sure_fn) (Q
     are_you_sure = are_you_sure_fn;
     dark_theme_enabled = is_dark_theme_enabled;
     busyIndicator = new KBusyIndicatorWidget(this);
+
+    setAcceptDrops(true);
 
     #ifdef _WIN32
 
@@ -91,5 +94,32 @@ void QMainWindowCustom::changeEvent(QEvent* event) {
         } else {
             busyIndicator->show();
         }
+    }
+}
+
+void QMainWindowCustom::dragEnterEvent(QDragEnterEvent *event) {
+    event->accept();
+}
+
+void QMainWindowCustom::dragMoveEvent(QDragMoveEvent *event) {
+    QMainWindow::dragMoveEvent(event);
+}
+
+void QMainWindowCustom::dragLeaveEvent(QDragLeaveEvent *event) {
+    QMainWindow::dragLeaveEvent(event);
+}
+
+void QMainWindowCustom::dropEvent(QDropEvent *event) {
+
+    const QMimeData* mimeData = event->mimeData();
+    if (mimeData->hasUrls()) {
+        QStringList pathList;
+        QList<QUrl> urlList = mimeData->urls();
+
+        for (int i = 0; i < urlList.size(); ++i) {
+            pathList.append(urlList.at(i).toLocalFile());
+        }
+
+        emit openPack(pathList);
     }
 }

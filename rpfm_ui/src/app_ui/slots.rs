@@ -21,13 +21,14 @@ use qt_widgets::{QMessageBox, q_message_box};
 use qt_widgets::QPushButton;
 use qt_widgets::QTextEdit;
 use qt_widgets::SlotOfQPoint;
+use qt_widgets::SlotOfQStringList;
 
 use qt_gui::QCursor;
 use qt_gui::QDesktopServices;
 use qt_gui::QFont;
 
 use qt_core::QBox;
-use qt_core::{SlotOfBool, SlotOfInt, SlotNoArgs};
+use qt_core::{SlotNoArgs, SlotOfBool, SlotOfInt};
 use qt_core::QFlags;
 use qt_core::QPtr;
 use qt_core::QString;
@@ -52,6 +53,7 @@ use crate::diagnostics_ui::DiagnosticsUI;
 use crate::DISCORD_URL;
 use crate::GAME_SELECTED;
 use crate::GITHUB_URL;
+use crate::global_search_ui;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, tr, tre};
 use crate::MANUAL_URL;
@@ -179,6 +181,8 @@ pub struct AppUISlots {
     pub tab_bar_packed_file_next: QBox<SlotNoArgs>,
     pub tab_bar_packed_file_import_from_dependencies: QBox<SlotNoArgs>,
     pub tab_bar_packed_file_toggle_tips: QBox<SlotNoArgs>,
+
+    pub open_pack_drop: QBox<SlotOfQStringList>,
 
     //-----------------------------------------------//
     // `StatusBar` slots.
@@ -1614,6 +1618,35 @@ impl AppUISlots {
             }
         ));
 
+        let open_pack_drop = SlotOfQStringList::new(&app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui => move |paths_q| {
+            info!("Triggering `Open Pack` By Drag&Drop by Slot?");
+
+            // Check first if there has been changes in the PackFile.
+            if AppUI::are_you_sure(&app_ui, false) {
+                info!("Triggering `Open Pack` By Drag&Drop by Slot");
+
+                // Now the fun thing. We have to get all the selected files, and then open them one by one.
+                // For that we use the same logic as for the "Load All CA PackFiles" feature.
+                let mut paths = vec![];
+                for index in 0..paths_q.count_0a() {
+                    paths.push(PathBuf::from(paths_q.at(index).to_std_string()));
+                }
+
+                // Try to open it, and report it case of error.
+                if let Err(error) = AppUI::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &paths, "") {
+                    return show_dialog(&app_ui.main_window, error, false);
+                }
+
+                if setting_bool("diagnostics_trigger_on_open") {
+                    DiagnosticsUI::check(&app_ui, &diagnostics_ui);
+                }
+            }
+        }));
+
         let discord_link = SlotNoArgs::new(&app_ui.main_window, || { QDesktopServices::open_url(&QUrl::new_1a(&QString::from_std_str(DISCORD_URL))); });
         let github_link = SlotNoArgs::new(&app_ui.main_window, || { QDesktopServices::open_url(&QUrl::new_1a(&QString::from_std_str(GITHUB_URL))); });
         let patreon_link = SlotNoArgs::new(&app_ui.main_window, || { QDesktopServices::open_url(&QUrl::new_1a(&QString::from_std_str(PATREON_URL))); });
@@ -1721,6 +1754,7 @@ impl AppUISlots {
             tab_bar_packed_file_import_from_dependencies,
             tab_bar_packed_file_toggle_tips,
 
+            open_pack_drop,
             //-----------------------------------------------//
             // `StatusBar` slots.
             //-----------------------------------------------//

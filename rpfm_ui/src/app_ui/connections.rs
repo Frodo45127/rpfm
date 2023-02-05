@@ -16,6 +16,7 @@ This module is, and should stay, private, as it's only glue between the `AppUI` 
 
 use std::rc::Rc;
 
+use crate::ffi::main_window_drop_pack_signal;
 use super::{AppUI, slots::AppUISlots};
 
 /// This function connects all the actions from the provided `AppUI` with their slots in `AppUISlots`.
@@ -169,6 +170,7 @@ pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
     app_ui.tab_bar_packed_file_import_from_dependencies.triggered().connect(&slots.tab_bar_packed_file_import_from_dependencies);
     app_ui.tab_bar_packed_file_toggle_tips.triggered().connect(&slots.tab_bar_packed_file_toggle_tips);
 
+    main_window_drop_pack_signal(app_ui.main_window.static_upcast()).connect(&slots.open_pack_drop);
     //-----------------------------------------------//
     // `StatusBar` connections.
     //-----------------------------------------------//

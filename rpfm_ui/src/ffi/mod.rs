@@ -193,6 +193,17 @@ pub fn new_q_main_window_custom_safe(are_you_sure: extern fn(*mut QMainWindow, b
     unsafe { QBox::from_raw(new_q_main_window_custom(are_you_sure, is_dark_theme_enabled)) }
 }
 
+pub fn main_window_drop_pack_signal(widget: QPtr<QWidget>) -> Signal<(*const ::qt_core::QStringList,)> {
+    unsafe {
+        Signal::new(
+            ::cpp_core::Ref::from_raw(widget.as_raw_ptr()).expect("attempted to construct a null Ref"),
+            ::std::ffi::CStr::from_bytes_with_nul_unchecked(
+                b"2openPack(QStringList const &)\0",
+            ),
+        )
+    }
+}
+
 //---------------------------------------------------------------------------//
 // Spoiler stuff.
 //---------------------------------------------------------------------------//
