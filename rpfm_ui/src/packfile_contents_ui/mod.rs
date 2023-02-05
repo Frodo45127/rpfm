@@ -12,12 +12,14 @@
 Module with all the code related to the main `PackFileContentsUI`.
 !*/
 
+use qt_widgets::q_abstract_item_view::{DragDropMode, SelectionMode};
 use qt_widgets::QAction;
 use qt_widgets::QCheckBox;
 use qt_widgets::QDialog;
 use qt_widgets::{q_dialog_button_box::StandardButton, QDialogButtonBox};
 use qt_widgets::QDockWidget;
 use qt_widgets::QFileDialog;
+use qt_widgets::QGridLayout;
 use qt_widgets::QLabel;
 use qt_widgets::QLineEdit;
 use qt_widgets::QMenu;
@@ -141,7 +143,7 @@ impl PackFileContentsUI {
 
         let packfile_contents_dock_widget: QPtr<QDockWidget> = main_widget.static_downcast();
         let packfile_contents_dock_inner_widget: QPtr<QWidget> = find_widget(&main_widget.static_upcast(), "inner_widget")?;
-        let packfile_contents_tree_view: QPtr<QTreeView> = find_widget(&main_widget.static_upcast(), "tree_view")?;
+        let packfile_contents_tree_view_placeholder: QPtr<QTreeView> = find_widget(&main_widget.static_upcast(), "tree_view")?;
         let filter_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "filter_line_edit")?;
         let filter_autoexpand_matches_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "filter_autoexpand_matches_button")?;
         let filter_case_sensitive_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "filter_case_sensitive_button")?;
@@ -155,11 +157,15 @@ impl PackFileContentsUI {
         packfile_contents_dock_widget.set_object_name(&QString::from_std_str("packfile_contents_dock"));
 
         // Create and configure the `TreeView` itself.
+        let packfile_contents_tree_view = new_packed_file_treeview_safe(packfile_contents_dock_inner_widget.static_upcast());
         let packfile_contents_tree_model = new_packed_file_model_safe();
         let packfile_contents_tree_model_filter = new_treeview_filter_safe(packfile_contents_tree_view.static_upcast());
         packfile_contents_tree_model_filter.set_source_model(&packfile_contents_tree_model);
         packfile_contents_tree_model.set_parent(&packfile_contents_tree_view);
         packfile_contents_tree_view.set_model(&packfile_contents_tree_model_filter);
+
+        let layout = packfile_contents_dock_inner_widget.layout().static_downcast::<QGridLayout>();
+        layout.replace_widget_2a(packfile_contents_tree_view_placeholder.as_ptr(), packfile_contents_tree_view.as_ptr());
 
         // Apply the view's delegate.
         new_tree_item_delegate_safe(&packfile_contents_tree_view.static_upcast::<QObject>().as_ptr(), true);

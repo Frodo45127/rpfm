@@ -19,6 +19,7 @@ use qt_widgets::QLineEdit;
 use qt_widgets::QMainWindow;
 use qt_widgets::{QMessageBox, q_message_box};
 use qt_widgets::QTableView;
+use qt_widgets::QTreeView;
 use qt_widgets::QWidget;
 
 use qt_gui::QColor;
@@ -33,8 +34,10 @@ use qt_core::QByteArray;
 
 use qt_core::QBox;
 use qt_core::QListOfQObject;
+use qt_core::QModelIndex;
 use qt_core::QObject;
 use qt_core::QRegExp;
+use qt_core::Signal;
 use qt_core::QSortFilterProxyModel;
 use qt_core::QString;
 use qt_core::QStringList;
@@ -160,6 +163,22 @@ pub unsafe fn trigger_tableview_filter_safe(filter: &QSortFilterProxyModel, colu
     trigger_tableview_filter(filter, columns_qlist.into_ptr().as_raw_ptr(), patterns_qlist.into_ptr().as_raw_ptr(), case_sensitive_qlist.into_ptr().as_raw_ptr(), show_blank_cells_qlist.into_ptr().as_raw_ptr(), match_groups_qlist.into_ptr().as_raw_ptr());
 }
 
+// This function allow us to create a QTreeView compatible with draggable items
+extern "C" { fn new_packed_file_treeview(parent: *mut QWidget) -> *mut QTreeView; }
+pub fn new_packed_file_treeview_safe(parent: QPtr<QWidget>) -> QPtr<QTreeView> {
+    unsafe { QPtr::from_raw(new_packed_file_treeview(parent.as_mut_raw_ptr())) }
+}
+
+pub fn draggable_file_tree_view_drop_signal(widget: QPtr<QWidget>) -> Signal<(*const QModelIndex, i32)> {
+    unsafe {
+        Signal::new(
+            ::cpp_core::Ref::from_raw(widget.as_raw_ptr()).expect("attempted to construct a null Ref"),
+            ::std::ffi::CStr::from_bytes_with_nul_unchecked(
+                b"2itemDrop(QModelIndex const &,int)\0",
+            ),
+        )
+    }
+}
 
 // This function allow us to create a model compatible with draggable items
 extern "C" { fn new_packed_file_model() -> *mut QStandardItemModel; }

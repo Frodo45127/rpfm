@@ -4,6 +4,9 @@
 #include "qt_subclasses_global.h"
 #include <QStandardItemModel>
 #include <QStringListModel>
+#include <QDropEvent>
+#include <QDebug>
+#include <QMimeData>
 
 extern "C" QStandardItemModel* new_packed_file_model();
 

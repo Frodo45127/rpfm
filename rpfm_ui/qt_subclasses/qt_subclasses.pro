@@ -51,6 +51,7 @@ SOURCES += \
     src/text_editor.cpp \
     src/tips_item_delegate.cpp \
     src/tree_item_delegate.cpp \
+    src/treeview_draggable.cpp \
     src/treeview_filter.cpp
 
 INCLUDEPATH += include
@@ -71,6 +72,7 @@ HEADERS += \
     include/text_editor.h \
     include/tips_item_delegate.h \
     include/tree_item_delegate.h \
+    include/treeview_draggable.h \
     include/treeview_filter.h \
     include/qstring_item_delegate.h \
     include/packed_file_model.h \

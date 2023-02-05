@@ -17,7 +17,7 @@ Qt::ItemFlags PackedFileModel::flags(const QModelIndex &index) const {
     // - Drag for everything except the PackFile
     // - Drop for everything except files.
     if (index.isValid()) {
-        QStandardItem* item = PackedFileModel::itemFromIndex(index);
+        QStandardItem* item = itemFromIndex(index);
         int item_type = item->data(20).toInt();
         if (item_type == 1) {
             return Qt::ItemIsDragEnabled | defaultFlags;
@@ -29,7 +29,7 @@ Qt::ItemFlags PackedFileModel::flags(const QModelIndex &index) const {
             return Qt::ItemIsDropEnabled | defaultFlags;
         }
         else {
-            return defaultFlags ;
+            return defaultFlags;
         }
     }
 

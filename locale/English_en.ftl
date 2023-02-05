@@ -1065,7 +1065,7 @@ incorrect_game_path_explanation = RPFM detected that the Game Path you set in th
 
 generate_dependencies_cache_warn = This means RPFM will still try to generate the Dependencies Cache, but the diagnostics tool may generate a bunch of false positives.
 
-are_you_sure_rename_db_folder = <p>You are trying to break the golden rule of DB Editing: <b>NEVER RENAME THE TABLE FOLDERS</b>.</p>
+are_you_sure_rename_db_folder = <p>You are trying to break the golden rule of DB Editing: <b>NEVER RENAME/MOVE THE TABLE FOLDERS</b>.</p>
     <p>Doing so will cause your game to either not load the mod correctly, or crash on boot.</p>
 
     <p>If you're doing this because someone told you to <i>rename the tables</i>, he/she/it meant the table files, not the table folders.</p>
