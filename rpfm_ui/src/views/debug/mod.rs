@@ -71,6 +71,8 @@ impl DebugView {
 
         let (packed_file_type, text) = match packed_file {
             RFileDecoded::AnimFragment(data) => (FileType::AnimFragment, serde_json::to_string_pretty(&data)?),
+            RFileDecoded::AnimsTable(data) => (FileType::AnimsTable, serde_json::to_string_pretty(&data)?),
+            RFileDecoded::MatchedCombat(data) => (FileType::MatchedCombat, serde_json::to_string_pretty(&data)?),
             RFileDecoded::UnitVariant(data) => (FileType::UnitVariant, serde_json::to_string_pretty(&data)?),
             RFileDecoded::ESF(data) => (FileType::ESF, serde_json::to_string_pretty(&data)?),
             _ => unimplemented!(),
@@ -97,6 +99,8 @@ impl DebugView {
 
         let decoded_packed_file = match self.packed_file_type {
             FileType::AnimFragment => RFileDecoded::AnimFragment(serde_json::from_str(&string)?),
+            FileType::AnimsTable => RFileDecoded::AnimsTable(serde_json::from_str(&string)?),
+            FileType::MatchedCombat => RFileDecoded::MatchedCombat(serde_json::from_str(&string)?),
             FileType::UnitVariant => RFileDecoded::UnitVariant(serde_json::from_str(&string)?),
             FileType::ESF => RFileDecoded::ESF(serde_json::from_str(&string)?),
             _ => unimplemented!(),

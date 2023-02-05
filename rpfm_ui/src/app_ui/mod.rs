@@ -2436,7 +2436,8 @@ impl AppUI {
                     match response {
 
                         // If the file is an AnimFragment PackedFile...
-                        Response::AnimFragmentRFileInfo(data, file_info) => {
+                        Response::AnimFragmentRFileInfo(_, _a) => {}
+                        /*Response::AnimFragmentRFileInfo(data, file_info) => {
                             match PackedFileAnimFragmentView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, data) {
                                 Ok(_) => {
 
@@ -2457,7 +2458,7 @@ impl AppUI {
 
                                 Err(error) => return show_dialog(&app_ui.main_window, error, false),
                             }
-                        }
+                        }*/
 
                         Response::AnimPackRFileInfo(files_info, file_info) => {
                             match PackedFileAnimPackView::new_view(&mut tab, app_ui, pack_file_contents_ui, &file_info, &files_info) {
@@ -2483,7 +2484,8 @@ impl AppUI {
                         },
 
                         // If the file is an AnimTable PackedFile...
-                        Response::AnimsTableRFileInfo(_, ref file_info) => {
+                        Response::AnimsTableRFileInfo(_, _) => {}
+                        /*Response::AnimsTableRFileInfo(_, ref file_info) => {
                             let file_info = file_info.clone();
                             match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, response) {
                                 Ok(_) => {
@@ -2504,7 +2506,7 @@ impl AppUI {
                                 },
                                 Err(error) => return show_dialog(&app_ui.main_window, error, false),
                             }
-                        }
+                        }*/
 
                         // If the file is a DB PackedFile...
                         Response::DBRFileInfo(_, ref file_info) => {
@@ -2616,7 +2618,8 @@ impl AppUI {
                         }
 
                         // If the file is a MatchedCombat PackedFile...
-                        Response::MatchedCombatRFileInfo(_, ref file_info) => {
+                        Response::MatchedCombatRFileInfo(_, _) => {}
+                        /*Response::MatchedCombatRFileInfo(_, ref file_info) => {
                             let file_info = file_info.clone();
                             match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, response) {
                                 Ok(_) => {
@@ -2637,7 +2640,7 @@ impl AppUI {
                                 },
                                 Err(error) => return show_dialog(&app_ui.main_window, error, false),
                             }
-                        }
+                        }*/
 
                         Response::PortraitSettingsRFileInfo(mut data, file_info) => {
                             match PortraitSettingsView::new_view(&mut tab, &mut data, app_ui, pack_file_contents_ui) {
