@@ -3184,7 +3184,7 @@ dependencies = [
 [[package]]
 name = "zip-extract"
 version = "0.1.1"
-source = "git+https://github.com/MCOfficer/zip-extract/?branch=dependabot/cargo/zip-0.6.3#2e0a44b3473cc5862dfd75bee323c783527ec79a"
+source = "git+https://github.com/MCOfficer/zip-extract/?branch=dependabot/cargo/zip-0.6.4#5b0ad9904cb4fa8d214a47054aa1adaf790b86f5"
 dependencies = [
  "log",
  "thiserror",
