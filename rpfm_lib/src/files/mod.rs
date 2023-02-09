@@ -322,6 +322,9 @@ pub struct DecodeableExtraData<'a> {
     // General-purpouse config data //
     //------------------------------//
 
+    /// Key of the game.
+    game_key: Option<&'a str>,
+
     /// Name of the file we're trying to decode.
     file_name: Option<&'a str>,
 
@@ -352,6 +355,9 @@ pub struct EncodeableExtraData<'a> {
     //-----------------------//
     // Optional config data  //
     //-----------------------//
+
+    /// Key of the game.
+    game_key: Option<&'a str>,
 
     /// Path of 7z.exe. Used for compressing.
     sevenzip_path: Option<&'a Path>,

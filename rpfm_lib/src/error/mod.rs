@@ -199,6 +199,9 @@ pub enum RLibError {
     #[error("Missing extra data required to encode the file. This means the programmer messed up the code while that tries to decode files.")]
     EncodingMissingExtraData,
 
+    #[error("Invalid state participant value: {0}")]
+    InvalidStateParticipantValue(u32),
+
     #[error("There was an error while downloading/updating the following git repository: {0}.")]
     GitErrorDownloadFromRepo(String),
 
