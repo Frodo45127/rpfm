@@ -28,24 +28,22 @@ impl MatchedCombat {
         // Entries
         for _ in 0..count {
             let mut matched_entry = MatchedEntry::default();
-            matched_entry.id = data.read_sized_string_u8()?; dbg!(&matched_entry.id);
+            matched_entry.id = data.read_sized_string_u8()?;
 
             // These ones do not have participants, so we put all the bundles in a dummy Participant for compatibility.
             let mut participant = Participant::default();
 
-            let entity_bundle_count = data.read_u32()?; dbg!(&entity_bundle_count);
-            participant.uk1 = data.read_u32()?;     // No idea. Always 2. Maybe counter of json objects?
+            let entity_bundle_count = data.read_u32()?;
             for _ in 0..entity_bundle_count {
                 let mut bundle = EntityBundle::default();
-                bundle.selection_weight = data.read_f32()?; dbg!(&bundle.selection_weight);
 
                 // Entities in bundle
-                let entity_count = data.read_u32()?; dbg!(&entity_count);
+                let entity_count = data.read_u32()?;
                 for _ in 0..entity_count {
                     let mut entity = Entity::default();
 
                     let filter_count = data.read_u32()?;
-            dbg!(&filter_count);
+
                     for _ in 0..filter_count {
                         entity.filters.push(Filter {
                             filter_type: data.read_u32()?,
@@ -65,13 +63,14 @@ impl MatchedCombat {
                     entity.blend_in_time = data.read_f32()?;
                     entity.equipment_display = data.read_u32()?;
                     entity.uk = data.read_u32()?;   // No idea. Always 0 and doesn't seem to match any value in the mirror txt in 3k.
+
+                    bundle.entities.push(entity);
                 }
 
                 participant.entity_info.push(bundle);
             }
 
-            dbg!(&matched_entry);
-
+            matched_entry.participants.push(participant);
             self.entries.push(matched_entry);
         }
 
@@ -85,8 +84,9 @@ impl MatchedCombat {
 
             // There should only be one, but loop just in case.
             for participant in &entry.participants {
+                buffer.write_u32(participant.entity_info.len() as u32)?;
+
                 for bundle in &participant.entity_info {
-                    buffer.write_f32(bundle.selection_weight)?;
                     buffer.write_u32(bundle.entities.len() as u32)?;
 
                     for entity in &bundle.entities {

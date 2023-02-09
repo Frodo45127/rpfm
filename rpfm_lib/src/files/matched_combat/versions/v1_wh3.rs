@@ -49,8 +49,6 @@ impl MatchedCombat {
                 matched_entry.participants.push(participant);
             }
 
-            dbg!(&matched_entry);
-
             self.entries.push(matched_entry);
         }
 
