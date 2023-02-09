@@ -48,6 +48,7 @@ use self::decoder::PackedFileDecoderView;
 use self::dependencies_manager::DependenciesManagerView;
 use self::external::PackedFileExternalView;
 use self::image::PackedFileImageView;
+use self::matched_combat::FileMatchedCombatDebugView;
 use self::packfile::PackFileExtraView;
 use self::packfile_settings::PackFileSettingsView;
 use self::portrait_settings::PortraitSettingsView;
@@ -71,6 +72,7 @@ pub mod dependencies_manager;
 pub mod esf;
 pub mod external;
 pub mod image;
+pub mod matched_combat;
 pub mod packfile;
 pub mod packfile_settings;
 pub mod portrait_settings;
@@ -147,6 +149,7 @@ pub enum View {
     DependenciesManager(Arc<DependenciesManagerView>),
     ESF(Arc<PackedFileESFView>),
     Image(PackedFileImageView),
+    MatchedCombatDebug(Arc<FileMatchedCombatDebugView>),
     PackFile(Arc<PackFileExtraView>),
     PackSettings(Arc<PackFileSettingsView>),
     PortraitSettings(Arc<PortraitSettingsView>),
@@ -362,6 +365,7 @@ impl PackedFileView {
                             },
                             View::ESF(view) => RFileDecoded::ESF(view.save_view()),
                             View::Image(_) => return Ok(()),
+                            View::MatchedCombatDebug(_) => return Ok(()),
                             View::PackFile(_) => return Ok(()),
                             View::PackSettings(view) => {
                                 let _ = CENTRAL_COMMAND.send_background(Command::SetPackSettings(view.save_view()));
@@ -562,17 +566,14 @@ impl PackedFileView {
                             }
                         },
 
-                        /*Response::MatchedCombatRFileInfo(table, packed_file_info) => {
-                            if let View::Table(old_table) = view {
-                                let old_table = old_table.get_ref_table();
-                                old_table.reload_view(TableType::MatchedCombat(table));
-                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
-
-                            }
-                            else {
+                        Response::MatchedCombatRFileInfo(data, file_info) => {
+                            if let View::MatchedCombatDebug(old_data) = view {
+                                old_data.reload_view(data)?;
+                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), DataSource::PackFile);
+                            } else {
                                 return Err(anyhow!(RFILE_RELOAD_ERROR));
                             }
-                        },*/
+                        },
 
                         Response::PortraitSettingsRFileInfo(mut portrait_settings, packed_file_info) => {
                             if let View::PortraitSettings(old_portrait_settings) = view {

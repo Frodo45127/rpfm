@@ -12,7 +12,6 @@
 Module with all the code related to the main `PackFileContentsUI`.
 !*/
 
-use qt_widgets::q_abstract_item_view::{DragDropMode, SelectionMode};
 use qt_widgets::QAction;
 use qt_widgets::QCheckBox;
 use qt_widgets::QDialog;

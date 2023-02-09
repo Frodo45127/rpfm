@@ -534,8 +534,9 @@ pub fn background_loop() {
                     decode_extra_data.set_schema(Some(schema));
                     let extra_data = Some(decode_extra_data);
 
-                    pack_file_decoded.files_by_paths_mut(&added_paths, false).par_iter_mut().for_each(|x| {
-                        let _ = x.decode(&extra_data, true, false);
+                    let mut files = pack_file_decoded.files_by_paths_mut(&added_paths, false);
+                    files.par_iter_mut().for_each(|file| {
+                        let _ = file.decode(&extra_data, true, false);
                     });
                 }
             }
@@ -692,12 +693,17 @@ pub fn background_loop() {
                             // Find the PackedFile we want and send back the response.
                             match pack_file_decoded.files_mut().get_mut(&path) {
                                 Some(file) => {
-                dbg!(file.file_type());
+                                    dbg!(file.file_type());
                                     let mut extra_data = DecodeableExtraData::default();
                                     extra_data.set_lazy_load(setting_bool("use_lazy_loading"));
 
                                     let schema = SCHEMA.read().unwrap();
                                     extra_data.set_schema(schema.as_ref());
+
+                                    let game_key = GAME_SELECTED.read().unwrap().game_key_name();
+                                    if file.file_type() == FileType::MatchedCombat {
+                                        extra_data.set_game_key(Some(&game_key));
+                                    }
 
                                     let result = file.decode(&Some(extra_data), true, true).transpose().unwrap();
 
@@ -735,6 +741,11 @@ pub fn background_loop() {
                                 let schema = SCHEMA.read().unwrap();
                                 extra_data.set_schema(schema.as_ref());
 
+                                let game_key = GAME_SELECTED.read().unwrap().game_key_name();
+                                if file.file_type() == FileType::MatchedCombat {
+                                    extra_data.set_game_key(Some(&game_key));
+                                }
+
                                 let result = file.decode(&Some(extra_data), true, true).transpose().unwrap();
 
                                 match result {
@@ -770,6 +781,11 @@ pub fn background_loop() {
 
                                 let schema = SCHEMA.read().unwrap();
                                 extra_data.set_schema(schema.as_ref());
+
+                                let game_key = GAME_SELECTED.read().unwrap().game_key_name();
+                                if file.file_type() == FileType::MatchedCombat {
+                                    extra_data.set_game_key(Some(&game_key));
+                                }
 
                                 let result = file.decode(&Some(extra_data), true, true).transpose().unwrap();
 

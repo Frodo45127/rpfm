@@ -201,6 +201,8 @@ impl Decodeable for AnimPack {
             }
         }
 
+        anim_pack.files.par_iter_mut().map(|(_, file)| file.guess_file_type()).collect::<Result<()>>()?;
+
         check_size_mismatch(data.stream_position()? as usize - anim_pack.disk_file_offset as usize, disk_file_size as usize)?;
         Ok(anim_pack)
     }

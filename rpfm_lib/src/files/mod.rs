@@ -687,6 +687,9 @@ pub trait Container {
                 rfile.set_path_in_container_raw(&file_container_path);
             }
 
+            // Make sure to guess the file type before inserting it.
+            rfile.guess_file_type()?;
+
             if let Some(path) = self.insert(rfile)? {
                 inserted_paths.push(path);
             }

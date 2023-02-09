@@ -85,7 +85,8 @@ use crate::GAME_SELECTED;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, qtre, tre};
 use crate::pack_tree::{BuildData, icons::IconType, new_pack_file_tooltip, PackTree, TreeViewOperation};
-use crate::packedfile_views::{anim_fragment::*, animpack::*, audio::FileAudioView, DataSource, decoder::*, dependencies_manager::*, esf::*, external::*, image::*, PackedFileView, packfile::PackFileExtraView, packfile_settings::*, portrait_settings::PortraitSettingsView, SpecialView, table::*, text::*, unit_variant::*, video::*};
+use crate::packedfile_views::matched_combat::FileMatchedCombatDebugView;
+use crate::packedfile_views::{animpack::*, audio::FileAudioView, DataSource, decoder::*, dependencies_manager::*, esf::*, external::*, image::*, PackedFileView, packfile::PackFileExtraView, packfile_settings::*, portrait_settings::PortraitSettingsView, SpecialView, table::*, text::*, unit_variant::*, video::*};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::references_ui::ReferencesUI;
 use crate::RPFM_PATH;
@@ -2640,11 +2641,9 @@ impl AppUI {
                             }
                         }
 
-                        // If the file is a MatchedCombat PackedFile...
-                        Response::MatchedCombatRFileInfo(_, _) => {}
-                        /*Response::MatchedCombatRFileInfo(_, ref file_info) => {
+                        Response::MatchedCombatRFileInfo(data, ref file_info) => {
                             let file_info = file_info.clone();
-                            match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, response) {
+                            match FileMatchedCombatDebugView::new_view(&mut tab, data) {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
@@ -2663,7 +2662,7 @@ impl AppUI {
                                 },
                                 Err(error) => return show_dialog(&app_ui.main_window, error, false),
                             }
-                        }*/
+                        }
 
                         Response::PortraitSettingsRFileInfo(mut data, file_info) => {
                             match PortraitSettingsView::new_view(&mut tab, &mut data, app_ui, pack_file_contents_ui) {
