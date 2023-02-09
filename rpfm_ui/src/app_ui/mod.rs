@@ -85,7 +85,7 @@ use crate::GAME_SELECTED;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, qtre, tre};
 use crate::pack_tree::{BuildData, icons::IconType, new_pack_file_tooltip, PackTree, TreeViewOperation};
-use crate::packedfile_views::{anim_fragment::*, animpack::*, video::*, DataSource, decoder::*, dependencies_manager::*, esf::*, external::*, image::*, PackedFileView, packfile::PackFileExtraView, packfile_settings::*, portrait_settings::PortraitSettingsView, SpecialView, table::*, text::*, unit_variant::*};
+use crate::packedfile_views::{anim_fragment::*, animpack::*, audio::FileAudioView, DataSource, decoder::*, dependencies_manager::*, esf::*, external::*, image::*, PackedFileView, packfile::PackFileExtraView, packfile_settings::*, portrait_settings::PortraitSettingsView, SpecialView, table::*, text::*, unit_variant::*, video::*};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::references_ui::ReferencesUI;
 use crate::RPFM_PATH;
@@ -2507,6 +2507,29 @@ impl AppUI {
                                 Err(error) => return show_dialog(&app_ui.main_window, error, false),
                             }
                         }*/
+
+                        Response::AudioRFileInfo(data, file_info) => {
+                            match FileAudioView::new_view(&mut tab, &data) {
+                                Ok(_) => {
+
+                                    // Add the file to the 'Currently open' list and make it visible.
+                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
+                                    app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+
+                                    // Fix the tips view.
+                                    let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
+                                    layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
+
+                                    let mut open_list = UI_STATE.set_open_packedfiles();
+                                    open_list.push(tab);
+
+                                    if data_source == DataSource::PackFile {
+                                        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), data_source);
+                                    }
+                                }
+                                Err(error) => return show_dialog(&app_ui.main_window, error, false),
+                            }
+                        }
 
                         // If the file is a DB PackedFile...
                         Response::DBRFileInfo(_, ref file_info) => {

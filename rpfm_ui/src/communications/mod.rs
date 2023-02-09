@@ -26,7 +26,7 @@ use rpfm_extensions::dependencies::TableReferences;
 use rpfm_extensions::diagnostics::Diagnostics;
 use rpfm_extensions::search::{GlobalSearch, MatchHolder};
 
-use rpfm_lib::files::{anim_fragment::AnimFragment, anims_table::AnimsTable, ContainerPath, video::SupportedFormats, db::DB, esf::ESF, image::Image, loc::Loc, matched_combat::MatchedCombat, pack::PackSettings, RFile, RFileDecoded, portrait_settings::PortraitSettings, rigidmodel::RigidModel, text::Text, uic::UIC};
+use rpfm_lib::files::{anim_fragment::AnimFragment, anims_table::AnimsTable, audio::Audio, ContainerPath, video::SupportedFormats, db::DB, esf::ESF, image::Image, loc::Loc, matched_combat::MatchedCombat, pack::PackSettings, RFile, RFileDecoded, portrait_settings::PortraitSettings, rigidmodel::RigidModel, text::Text, uic::UIC};
 use rpfm_lib::games::pfh_file_type::PFHFileType;
 use rpfm_lib::integrations::{git::GitResponse, log::info};
 use rpfm_lib::schema::{Definition, DefinitionPatch, Field, Schema};
@@ -424,6 +424,7 @@ pub enum Response {
 
     /// Response to return `(AnimTable, RFileInfo)`.
     AnimsTableRFileInfo(AnimsTable, RFileInfo),
+    AudioRFileInfo(Audio, RFileInfo),
 
     /// Response to return `(CaVp8, RFileInfo)`.
     VideoInfoRFileInfo(VideoInfo, RFileInfo),

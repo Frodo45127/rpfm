@@ -27,9 +27,12 @@ use crate::error::{Result, RLibError};
 use crate::files::{DecodeableExtraData, Decodeable, EncodeableExtraData, Encodeable};
 
 /// Extensions used by ESF files.
-pub const EXTENSION_CEO: &str = ".ccd";
-pub const EXTENSION_ESF: &str = ".esf";
-pub const EXTENSION_SAVE: &str = ".save";
+pub const EXTENSIONS: [&str; 4] = [
+    ".ccd",         // CEO files.
+    ".esf",         // ESF files.
+    ".save",        // Game save files.
+    ".twc",         // Character save files.
+];
 
 /// Signatured/Magic Numbers/Whatever of a ESF file.
 pub const SIGNATURE_CAAB: &[u8; 4] = &[0xCA, 0xAB, 0x00, 0x00];

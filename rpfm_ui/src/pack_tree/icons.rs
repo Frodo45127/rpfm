@@ -21,7 +21,7 @@ use cpp_core::Ref;
 
 use std::sync::atomic::AtomicPtr;
 
-use rpfm_lib::files::{animpack, anim_fragment, anims_table, esf, FileType, image, loc, matched_combat, pack, portrait_settings, rigidmodel, soundbank, text, text::*, unit_variant, video};
+use rpfm_lib::files::{animpack, anim_fragment, anims_table, audio, esf, FileType, image, loc, matched_combat, pack, portrait_settings, rigidmodel, soundbank, text, text::*, unit_variant, video};
 use rpfm_lib::{REGEX_DB, REGEX_PORTRAIT_SETTINGS};
 
 use crate::pack_tree::{ROOT_NODE_TYPE_EDITABLE_PACKFILE, ROOT_NODE_TYPE};
@@ -51,7 +51,7 @@ pub struct Icons {
     pub animpack: AtomicPtr<QIcon>,
     pub anim_fragment: AtomicPtr<QIcon>,
     pub anims_table: AtomicPtr<QIcon>,
-    pub ceo: AtomicPtr<QIcon>,
+    pub audio: AtomicPtr<QIcon>,
     pub db: AtomicPtr<QIcon>,
     pub esf: AtomicPtr<QIcon>,
 
@@ -64,7 +64,6 @@ pub struct Icons {
     pub loc: AtomicPtr<QIcon>,
     pub matched_combat: AtomicPtr<QIcon>,
     pub portrait_settings: AtomicPtr<QIcon>,
-    pub save: AtomicPtr<QIcon>,
     pub sound_bank: AtomicPtr<QIcon>,
 
     pub text_generic: AtomicPtr<QIcon>,
@@ -99,7 +98,7 @@ impl Icons {
             animpack: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("package-x-generic"))),
             anim_fragment: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("animation-stage"))),
             anims_table: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("gnumeric-pivottable"))),
-            ceo: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("application-x-arj"))),
+            audio: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("audio-mp3"))),
             db: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("application-sql"))),
             esf: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("application-x-bzdvi"))),
 
@@ -112,7 +111,6 @@ impl Icons {
             loc: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("text-x-gettext-translation"))),
             matched_combat: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("view-table-of-contents-ltr"))),
             portrait_settings: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("x-office-contact"))),
-            save: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("document-save"))),
             sound_bank: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("view-bank"))),
 
             text_generic: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("text-x-generic"))),
@@ -174,6 +172,10 @@ impl Icons {
                     &self.video
                 }
 
+                else if audio::EXTENSIONS.iter().any(|x| path.ends_with(x)) {
+                    &self.audio
+                }
+
                 else if path.ends_with(soundbank::EXTENSION) {
                     &self.sound_bank
                 }
@@ -206,16 +208,8 @@ impl Icons {
                     &self.unit_variant
                 }
 
-                else if path.ends_with(esf::EXTENSION_CEO) {
-                    &self.ceo
-                }
-
-                else if path.ends_with(esf::EXTENSION_ESF) {
+                else if esf::EXTENSIONS.iter().any(|x| path.ends_with(*x)) {
                     &self.esf
-                }
-
-                else if path.ends_with(esf::EXTENSION_SAVE) {
-                    &self.save
                 }
 
                 // If that failed, try types that need to be in a specific path.
@@ -264,7 +258,7 @@ impl Icons {
                     FileType::AnimFragment => &self.anim_fragment,
                     FileType::AnimPack => &self.animpack,
                     FileType::AnimsTable => &self.anims_table,
-                    FileType::CEO => &self.ceo,
+                    FileType::Audio => &self.audio,
                     FileType::DB => &self.db,
                     FileType::ESF => &self.esf,
                     FileType::GroupFormations => &self.file,
@@ -282,7 +276,6 @@ impl Icons {
                     FileType::MatchedCombat => &self.matched_combat,
                     FileType::PortraitSettings => &self.portrait_settings,
                     FileType::RigidModel => &self.rigid_model,
-                    FileType::Save => &self.save,
                     FileType::SoundBank => &self.sound_bank,
                     FileType::Text => {
                         let name = item.text().to_std_string();

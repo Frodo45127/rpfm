@@ -81,6 +81,7 @@ use crate::utils::*;
 use self::anim_fragment::AnimFragment;
 use self::animpack::AnimPack;
 use self::anims_table::AnimsTable;
+use self::audio::Audio;
 use self::db::DB;
 use self::esf::ESF;
 use self::image::Image;
@@ -99,6 +100,7 @@ use self::video::Video;
 pub mod anim_fragment;
 pub mod animpack;
 pub mod anims_table;
+pub mod audio;
 pub mod db;
 pub mod esf;
 pub mod image;
@@ -207,7 +209,7 @@ pub enum RFileDecoded {
     AnimFragment(AnimFragment),
     AnimPack(AnimPack),
     AnimsTable(AnimsTable),
-    CEO(ESF),
+    Audio(Audio),
     DB(DB),
     ESF(ESF),
     GroupFormations(Unknown),
@@ -217,7 +219,6 @@ pub enum RFileDecoded {
     Pack(Pack),
     PortraitSettings(PortraitSettings),
     RigidModel(RigidModel),
-    Save(ESF),
     SoundBank(SoundBank),
     Text(Text),
     UIC(UIC),
@@ -237,7 +238,7 @@ pub enum FileType {
     AnimFragment,
     AnimPack,
     AnimsTable,
-    CEO,
+    Audio,
     DB,
     ESF,
     GroupFormations,
@@ -247,7 +248,6 @@ pub enum FileType {
     Pack,
     PortraitSettings,
     RigidModel,
-    Save,
     SoundBank,
     Text,
     UIC,
@@ -1281,7 +1281,7 @@ impl RFile {
             (FileType::AnimFragment, &RFileDecoded::AnimFragment(_)) |
             (FileType::AnimPack, &RFileDecoded::AnimPack(_)) |
             (FileType::AnimsTable, &RFileDecoded::AnimsTable(_)) |
-            (FileType::CEO, &RFileDecoded::CEO(_)) |
+            (FileType::Audio, &RFileDecoded::Audio(_)) |
             (FileType::DB, &RFileDecoded::DB(_)) |
             (FileType::ESF, &RFileDecoded::ESF(_)) |
             (FileType::GroupFormations, &RFileDecoded::GroupFormations(_)) |
@@ -1291,7 +1291,7 @@ impl RFile {
             (FileType::Pack, &RFileDecoded::Pack(_)) |
             (FileType::PortraitSettings, &RFileDecoded::PortraitSettings(_)) |
             (FileType::RigidModel, &RFileDecoded::RigidModel(_)) |
-            (FileType::Save, &RFileDecoded::Save(_)) |
+            (FileType::SoundBank, &RFileDecoded::SoundBank(_)) |
             (FileType::Text, &RFileDecoded::Text(_)) |
             (FileType::UIC, &RFileDecoded::UIC(_)) |
             (FileType::UnitVariant, &RFileDecoded::UnitVariant(_)) |
@@ -1347,7 +1347,7 @@ impl RFile {
                     FileType::AnimFragment => RFileDecoded::AnimFragment(AnimFragment::decode(&mut data, &Some(extra_data))?),
                     FileType::AnimPack => RFileDecoded::AnimPack(AnimPack::decode(&mut data, &Some(extra_data))?),
                     FileType::AnimsTable => RFileDecoded::AnimsTable(AnimsTable::decode(&mut data, &Some(extra_data))?),
-                    FileType::CEO => RFileDecoded::CEO(ESF::decode(&mut data, &Some(extra_data))?),
+                    FileType::Audio => RFileDecoded::Audio(Audio::decode(&mut data, &Some(extra_data))?),
                     FileType::DB => {
 
                         if extra_data.table_name.is_none() {
@@ -1363,7 +1363,6 @@ impl RFile {
                     FileType::Pack => RFileDecoded::Pack(Pack::decode(&mut data, &Some(extra_data))?),
                     FileType::PortraitSettings => RFileDecoded::PortraitSettings(PortraitSettings::decode(&mut data, &Some(extra_data))?),
                     FileType::RigidModel => RFileDecoded::RigidModel(RigidModel::decode(&mut data, &Some(extra_data))?),
-                    FileType::Save => RFileDecoded::Save(ESF::decode(&mut data, &Some(extra_data))?),
                     FileType::SoundBank => RFileDecoded::SoundBank(SoundBank::decode(&mut data, &Some(extra_data))?),
                     FileType::Text => RFileDecoded::Text(Text::decode(&mut data, &Some(extra_data))?),
                     FileType::UIC => RFileDecoded::UIC(UIC::decode(&mut data, &Some(extra_data))?),
@@ -1381,8 +1380,7 @@ impl RFile {
                     FileType::Anim |
                     FileType::AnimFragment |
                     FileType::AnimsTable |
-                    FileType::Video |
-                    FileType::CEO |
+                    FileType::Audio |
                     FileType::DB |
                     FileType::ESF |
                     FileType::GroupFormations |
@@ -1391,12 +1389,12 @@ impl RFile {
                     FileType::MatchedCombat |
                     FileType::PortraitSettings |
                     FileType::RigidModel |
-                    FileType::Save |
                     FileType::SoundBank |
                     FileType::Text |
                     FileType::UIC |
                     FileType::UnitVariant |
-                    FileType::Unknown => {
+                    FileType::Unknown |
+                    FileType::Video => {
 
                         // Copy the provided extra data (if any), then replace the file-specific stuff.
                         let raw_data = data.read(data.is_compressed, data.is_encrypted)?;
@@ -1414,7 +1412,7 @@ impl RFile {
                             FileType::Anim => RFileDecoded::Anim(Unknown::decode(&mut data, &Some(extra_data))?),
                             FileType::AnimFragment => RFileDecoded::AnimFragment(AnimFragment::decode(&mut data, &Some(extra_data))?),
                             FileType::AnimsTable => RFileDecoded::AnimsTable(AnimsTable::decode(&mut data, &Some(extra_data))?),
-                            FileType::CEO => RFileDecoded::CEO(ESF::decode(&mut data, &Some(extra_data))?),
+                            FileType::Audio => RFileDecoded::Audio(Audio::decode(&mut data, &Some(extra_data))?),
                             FileType::DB => {
 
                                 if extra_data.table_name.is_none() {
@@ -1429,7 +1427,6 @@ impl RFile {
                             FileType::MatchedCombat => RFileDecoded::MatchedCombat(MatchedCombat::decode(&mut data, &Some(extra_data))?),
                             FileType::PortraitSettings => RFileDecoded::PortraitSettings(PortraitSettings::decode(&mut data, &Some(extra_data))?),
                             FileType::RigidModel => RFileDecoded::RigidModel(RigidModel::decode(&mut data, &Some(extra_data))?),
-                            FileType::Save => RFileDecoded::Save(ESF::decode(&mut data, &Some(extra_data))?),
                             FileType::SoundBank => RFileDecoded::SoundBank(SoundBank::decode(&mut data, &Some(extra_data))?),
                             FileType::Text => RFileDecoded::Text(Text::decode(&mut data, &Some(extra_data))?),
                             FileType::UIC => RFileDecoded::UIC(UIC::decode(&mut data, &Some(extra_data))?),
@@ -1521,7 +1518,7 @@ impl RFile {
                     RFileDecoded::AnimFragment(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::AnimPack(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::AnimsTable(data) => data.encode(&mut buffer, extra_data)?,
-                    RFileDecoded::CEO(data) => data.encode(&mut buffer, extra_data)?,
+                    RFileDecoded::Audio(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::DB(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::ESF(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::GroupFormations(data) => data.encode(&mut buffer, extra_data)?,
@@ -1531,7 +1528,6 @@ impl RFile {
                     RFileDecoded::Pack(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::PortraitSettings(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::RigidModel(data) => data.encode(&mut buffer, extra_data)?,
-                    RFileDecoded::Save(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::SoundBank(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::Text(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::UIC(data) => data.encode(&mut buffer, extra_data)?,
@@ -1710,6 +1706,10 @@ impl RFile {
             self.file_type =  FileType::Video;
         }
 
+        else if audio::EXTENSIONS.iter().any(|x| path.ends_with(x)) {
+            self.file_type = FileType::Audio;
+        }
+
         else if path.ends_with(soundbank::EXTENSION) {
             self.file_type =  FileType::SoundBank;
         }
@@ -1726,16 +1726,8 @@ impl RFile {
             self.file_type = FileType::UnitVariant
         }
 
-        else if path.ends_with(esf::EXTENSION_CEO) {
-            self.file_type = FileType::CEO;
-        }
-
-        else if path.ends_with(esf::EXTENSION_ESF) {
+        else if esf::EXTENSIONS.iter().any(|x| path.ends_with(x)) {
             self.file_type = FileType::ESF;
-        }
-
-        else if path.ends_with(esf::EXTENSION_SAVE) {
-            self.file_type = FileType::Save;
         }
 
         // If that failed, try types that need to be in a specific path.
@@ -2132,8 +2124,7 @@ impl Display for FileType {
             FileType::AnimFragment => write!(f, "AnimFragment"),
             FileType::AnimPack => write!(f, "AnimPack"),
             FileType::AnimsTable => write!(f, "AnimsTable"),
-            FileType::Video => write!(f, "Video"),
-            FileType::CEO => write!(f, "CEO"),
+            FileType::Audio => write!(f, "Audio"),
             FileType::DB => write!(f, "DB Table"),
             FileType::ESF => write!(f, "ESF"),
             FileType::GroupFormations => write!(f, "Group Formations"),
@@ -2143,12 +2134,12 @@ impl Display for FileType {
             FileType::Pack => write!(f, "PackFile"),
             FileType::PortraitSettings => write!(f, "Portrait Settings"),
             FileType::RigidModel => write!(f, "RigidModel"),
-            FileType::Save => write!(f, "Save"),
             FileType::SoundBank => write!(f, "SoundBank"),
             FileType::Text => write!(f, "Text"),
             FileType::UIC => write!(f, "UI Component"),
             FileType::UnitVariant => write!(f, "Unit Variant"),
             FileType::Unknown => write!(f, "Unknown"),
+            FileType::Video => write!(f, "Video"),
         }
     }
 }
@@ -2161,8 +2152,7 @@ impl From<&str> for FileType {
             "AnimFragment" => FileType::AnimFragment,
             "AnimPack" => FileType::AnimPack,
             "AnimsTable" => FileType::AnimsTable,
-            "Video" => FileType::Video,
-            "CEO" => FileType::CEO,
+            "Audio" => FileType::Audio,
             "DB" => FileType::DB,
             "ESF" => FileType::ESF,
             "GroupFormations" => FileType::GroupFormations,
@@ -2172,12 +2162,12 @@ impl From<&str> for FileType {
             "Pack" => FileType::Pack,
             "PortraitSettings" => FileType::PortraitSettings,
             "RigidModel" => FileType::RigidModel,
-            "Save" => FileType::Save,
             "SoundBank" => FileType::SoundBank,
             "Text" => FileType::Text,
             "UIC" => FileType::UIC,
             "UnitVariant" => FileType::UnitVariant,
             "Unknown" => FileType::Unknown,
+            "Video" => FileType::Video,
             _ => unimplemented!(),
         }
     }
@@ -2190,8 +2180,7 @@ impl From<FileType> for String {
             FileType::AnimFragment => "AnimFragment",
             FileType::AnimPack => "AnimPack",
             FileType::AnimsTable => "AnimsTable",
-            FileType::Video => "Video",
-            FileType::CEO => "CEO",
+            FileType::Audio => "Audio",
             FileType::DB => "DB",
             FileType::ESF => "ESF",
             FileType::GroupFormations => "GroupFormations",
@@ -2201,12 +2190,12 @@ impl From<FileType> for String {
             FileType::Pack => "Pack",
             FileType::PortraitSettings => "PortraitSettings",
             FileType::RigidModel => "RigidModel",
-            FileType::Save => "Save",
             FileType::SoundBank => "SoundBank",
             FileType::Text => "Text",
             FileType::UIC => "UIC",
             FileType::UnitVariant => "UnitVariant",
             FileType::Unknown => "Unknown",
+            FileType::Video => "Video",
         }.to_owned()
     }
 }
@@ -2218,7 +2207,7 @@ impl From<&RFileDecoded> for FileType {
             RFileDecoded::AnimFragment(_) => Self::AnimFragment,
             RFileDecoded::AnimPack(_) => Self::AnimPack,
             RFileDecoded::AnimsTable(_) => Self::AnimsTable,
-            RFileDecoded::CEO(_) => Self::CEO,
+            RFileDecoded::Audio(_) => Self::Audio,
             RFileDecoded::DB(_) => Self::DB,
             RFileDecoded::ESF(_) => Self::ESF,
             RFileDecoded::GroupFormations(_) => Self::GroupFormations,
@@ -2228,7 +2217,6 @@ impl From<&RFileDecoded> for FileType {
             RFileDecoded::Pack(_) => Self::Pack,
             RFileDecoded::PortraitSettings(_) => Self::PortraitSettings,
             RFileDecoded::RigidModel(_) => Self::RigidModel,
-            RFileDecoded::Save(_) => Self::Save,
             RFileDecoded::SoundBank(_) => Self::SoundBank,
             RFileDecoded::Text(_) => Self::Text,
             RFileDecoded::UIC(_) => Self::UIC,

@@ -41,7 +41,6 @@ serde = "^1.0"
 serde_derive = "^1.0"
 serde_json = "^1.0"
 ron = "^0.8"
-#bincode = "^1.1"
 
 # Date conversion support.
 time = { version = "^0.3", features = ["formatting"] }
@@ -65,8 +64,8 @@ meval = "^0.2"
 # Float equality support.
 float_eq = "^1"
 
-# UUID Generation support.
-#uuid = { version = "^0.8", features = ["v4"] }
+# Audio playback support.
+rodio = "^0.16"
 
 # Translation support.
 fluent = "^0.16"
@@ -85,9 +84,6 @@ self_update = { version = "^0.34", features = ["archive-zip", "compression-zip-d
 tempfile = "^3.1"
 zip-extract = { git = "https://github.com/MCOfficer/zip-extract/", branch = "dependabot/cargo/zip-0.6.4" }
 reqwest = "^0.11"
-
-# Caseless matching.
-#unicase = "^2.6"
 
 # Windows resources support.
 [target.'cfg(windows)'.build-dependencies]

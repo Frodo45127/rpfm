@@ -42,6 +42,7 @@ use crate::views::table::TableType;
 
 use self::anim_fragment::{PackedFileAnimFragmentView, PackedFileAnimFragmentDebugView};
 use self::animpack::PackedFileAnimPackView;
+use self::audio::FileAudioView;
 use self::esf::PackedFileESFView;
 use self::decoder::PackedFileDecoderView;
 use self::dependencies_manager::DependenciesManagerView;
@@ -64,6 +65,7 @@ use self::unit_variant::PackedFileUnitVariantView;
 
 pub mod anim_fragment;
 pub mod animpack;
+pub mod audio;
 pub mod decoder;
 pub mod dependencies_manager;
 pub mod esf;
@@ -140,6 +142,7 @@ pub enum View {
     AnimFragment(Arc<PackedFileAnimFragmentView>),
     AnimFragmentDebug(Arc<PackedFileAnimFragmentDebugView>),
     AnimPack(Arc<PackedFileAnimPackView>),
+    Audio(Arc<FileAudioView>),
     Decoder(Arc<PackedFileDecoderView>),
     DependenciesManager(Arc<DependenciesManagerView>),
     ESF(Arc<PackedFileESFView>),
@@ -305,6 +308,7 @@ impl PackedFileView {
                             View::AnimFragment(view) => view.save_data()?,
                             View::AnimFragmentDebug(_) => return Ok(()),
                             View::AnimPack(_) => return Ok(()),
+                            View::Audio(_) => return Ok(()),
                             View::Decoder(_) => return Ok(()),
                             View::DependenciesManager(view) => {
                                 let mut entries = vec![];
@@ -502,21 +506,11 @@ impl PackedFileView {
 //                        //    }
                         //},
 
-                        Response::ESFRFileInfo(esf, packed_file_info) => {
-                            if let View::ESF(old_esf) = view {
-                                old_esf.reload_view(&esf);
+                        Response::AudioRFileInfo(audio, packed_file_info) => {
+                            if let View::Audio(old_audio) = view {
+                                old_audio.reload_view(&audio);
                                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
 
-                            }
-                            else {
-                                return Err(anyhow!(RFILE_RELOAD_ERROR));
-                            }
-                        },
-
-                        Response::VideoInfoRFileInfo(video, packed_file_info) => {
-                            if let View::Video(old_video) = view {
-                                old_video.reload_view(&video);
-                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
                             }
                             else {
                                 return Err(anyhow!(RFILE_RELOAD_ERROR));
@@ -527,6 +521,17 @@ impl PackedFileView {
                             if let View::Table(old_table) = view {
                                 let old_table = old_table.get_ref_table();
                                 old_table.reload_view(TableType::DB(table));
+                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
+
+                            }
+                            else {
+                                return Err(anyhow!(RFILE_RELOAD_ERROR));
+                            }
+                        },
+
+                        Response::ESFRFileInfo(esf, packed_file_info) => {
+                            if let View::ESF(old_esf) = view {
+                                old_esf.reload_view(&esf);
                                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
 
                             }
@@ -636,6 +641,16 @@ impl PackedFileView {
                                     }
                                 }
                                 _ => return Err(anyhow!(RFILE_RELOAD_ERROR)),
+                            }
+                        },
+
+                        Response::VideoInfoRFileInfo(video, packed_file_info) => {
+                            if let View::Video(old_video) = view {
+                                old_video.reload_view(&video);
+                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
+                            }
+                            else {
+                                return Err(anyhow!(RFILE_RELOAD_ERROR));
                             }
                         },
 
