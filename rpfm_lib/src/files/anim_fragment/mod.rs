@@ -100,7 +100,7 @@ bitflags! {
 }
 
 //---------------------------------------------------------------------------//
-//                      Implementation of MatchedCombat
+//                      Implementation of AnimFragment
 //---------------------------------------------------------------------------//
 
 impl Decodeable for AnimFragment {

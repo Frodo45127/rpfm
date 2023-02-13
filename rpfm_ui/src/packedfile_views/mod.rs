@@ -42,6 +42,7 @@ use crate::views::table::TableType;
 
 use self::anim_fragment::FileAnimFragmentDebugView;
 use self::animpack::PackedFileAnimPackView;
+use self::anims_table::FileAnimsTableDebugView;
 use self::audio::FileAudioView;
 use self::esf::PackedFileESFView;
 use self::decoder::PackedFileDecoderView;
@@ -66,6 +67,7 @@ use self::unit_variant::PackedFileUnitVariantView;
 
 pub mod anim_fragment;
 pub mod animpack;
+pub mod anims_table;
 pub mod audio;
 pub mod decoder;
 pub mod dependencies_manager;
@@ -143,6 +145,7 @@ pub enum DataSource {
 pub enum View {
     AnimFragmentDebug(Arc<FileAnimFragmentDebugView>),
     AnimPack(Arc<PackedFileAnimPackView>),
+    AnimsTableDebug(Arc<FileAnimsTableDebugView>),
     Audio(Arc<FileAudioView>),
     Decoder(Arc<PackedFileDecoderView>),
     DependenciesManager(Arc<DependenciesManagerView>),
@@ -309,6 +312,7 @@ impl PackedFileView {
                         let data = match view {
                             View::AnimFragmentDebug(_) => return Ok(()),
                             View::AnimPack(_) => return Ok(()),
+                            View::AnimsTableDebug(_) => return Ok(()),
                             View::Audio(_) => return Ok(()),
                             View::Decoder(_) => return Ok(()),
                             View::DependenciesManager(view) => {
@@ -496,17 +500,18 @@ impl PackedFileView {
                             }
                         },
 
-                        //Response::AnimsTableRFileInfo(table, packed_file_info) => {
-                        //    if let View::Table(old_table) = view {
-                        //        let old_table = old_table.get_ref_table();
-                        //        old_table.reload_view(TableType::AnimsTable(table));
-                        //        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
-//
-//                        //    }
-//                        //    else {
-//                        //        return Err(anyhow!(RFILE_RELOAD_ERROR));
-//                        //    }
-                        //},
+                        Response::AnimsTableRFileInfo(table, file_info) => {
+                            if let View::AnimsTableDebug(old_table) = view {
+                                if old_table.reload_view(table).is_err() {
+                                    return Err(anyhow!(RFILE_RELOAD_ERROR));
+                                }
+                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), DataSource::PackFile);
+
+                            }
+                            else {
+                                return Err(anyhow!(RFILE_RELOAD_ERROR));
+                            }
+                        },
 
                         Response::AudioRFileInfo(audio, packed_file_info) => {
                             if let View::Audio(old_audio) = view {

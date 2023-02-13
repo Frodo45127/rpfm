@@ -85,8 +85,7 @@ use crate::GAME_SELECTED;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, qtre, tre};
 use crate::pack_tree::{BuildData, icons::IconType, new_pack_file_tooltip, PackTree, TreeViewOperation};
-use crate::packedfile_views::matched_combat::FileMatchedCombatDebugView;
-use crate::packedfile_views::{anim_fragment::*, animpack::*, audio::FileAudioView, DataSource, decoder::*, dependencies_manager::*, esf::*, external::*, image::*, PackedFileView, packfile::PackFileExtraView, packfile_settings::*, portrait_settings::PortraitSettingsView, SpecialView, table::*, text::*, unit_variant::*, video::*};
+use crate::packedfile_views::{anim_fragment::*, animpack::*, anims_table::*, audio::FileAudioView, DataSource, decoder::*, dependencies_manager::*, esf::*, external::*, image::*, matched_combat::*, PackedFileView, packfile::PackFileExtraView, packfile_settings::*, portrait_settings::PortraitSettingsView, SpecialView, table::*, text::*, unit_variant::*, video::*};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::references_ui::ReferencesUI;
 use crate::RPFM_PATH;
@@ -2436,7 +2435,6 @@ impl AppUI {
                     let response = CentralCommand::recv(&receiver);
                     match response {
 
-                        // If the file is an AnimFragment PackedFile...
                         Response::AnimFragmentRFileInfo(data, ref file_info) => {
                             let file_info = file_info.clone();
                             match FileAnimFragmentDebugView::new_view(&mut tab, data) {
@@ -2483,11 +2481,9 @@ impl AppUI {
                             }
                         },
 
-                        // If the file is an AnimTable PackedFile...
-                        Response::AnimsTableRFileInfo(_, _) => {}
-                        /*Response::AnimsTableRFileInfo(_, ref file_info) => {
+                        Response::AnimsTableRFileInfo(data, ref file_info) => {
                             let file_info = file_info.clone();
-                            match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, response) {
+                            match FileAnimsTableDebugView::new_view(&mut tab, data) {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
@@ -2506,7 +2502,7 @@ impl AppUI {
                                 },
                                 Err(error) => return show_dialog(&app_ui.main_window, error, false),
                             }
-                        }*/
+                        },
 
                         Response::AudioRFileInfo(data, file_info) => {
                             match FileAudioView::new_view(&mut tab, &data) {
