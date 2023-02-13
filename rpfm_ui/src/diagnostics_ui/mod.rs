@@ -801,6 +801,7 @@ impl DiagnosticsUI {
 
         // If it's a table, focus on the matched cell.
         match &*model.item_2a(model_index.row(), 1).text().to_std_string() {
+            /*
             "AnimFragment" => {
 
                 if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).find(|x| *x.get_ref_path() == path) {
@@ -827,7 +828,7 @@ impl DiagnosticsUI {
                         }
                     }
                 }
-            }
+            }*/
 
             "DB" | "Loc" | "DependencyManager" => {
 
@@ -981,7 +982,7 @@ impl DiagnosticsUI {
                 // In case of tables, we have to get the logical row/column of the match and select it.
                 let internal_table_view = if let ViewType::Internal(View::Table(view)) = view.get_view() { view.get_ref_table() }
                 else if let ViewType::Internal(View::DependenciesManager(view)) = view.get_view() { view.get_ref_table() }
-                else if let ViewType::Internal(View::AnimFragment(view)) = view.get_view() { view.table_view() }
+                //else if let ViewType::Internal(View::AnimFragment(view)) = view.get_view() { view.table_view() }
                 else { return };
 
                 let table_view = internal_table_view.table_view();
@@ -1181,7 +1182,9 @@ impl DiagnosticsUI {
                     }
                     blocker.unblock();
                     table_view.viewport().repaint();
-                } else if let ViewType::Internal(View::AnimFragment(view)) = view.get_view() {
+                }
+
+               /*else if let ViewType::Internal(View::AnimFragment(view)) = view.get_view() {
                     let table_view = view.table_view().table_view_ptr();
                     let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
                     let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
@@ -1204,7 +1207,7 @@ impl DiagnosticsUI {
                     }
                     blocker.unblock();
                     table_view.viewport().repaint();
-                }
+                }*/
 
                 else if let ViewType::Internal(View::DependenciesManager(view)) = view.get_view() {
                     let table_view = view.get_ref_table().table_view();

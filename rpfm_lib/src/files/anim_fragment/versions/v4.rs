@@ -35,10 +35,10 @@ impl AnimFragment {
 
         for _ in 0..entries_count {
             let animation_id = data.read_u32()?;
-            let blend_in = data.read_f32()?;
-            let selection_weigth = data.read_f32()?;
-            let weapon_bools = data.read_u32()?;
-            let uk_bool_1 = data.read_bool()?;
+            let blend_in_time = data.read_f32()?;
+            let selection_weight = data.read_f32()?;
+            let weapon_bone = WeaponBone::from_bits_truncate(data.read_u32()?);
+            let uk_1 = data.read_bool()?;
             let refs_count = data.read_u32()?;
 
             let mut anim_refs = vec![];
@@ -56,11 +56,12 @@ impl AnimFragment {
             }
             let entry = Entry {
                 animation_id,
-                blend_in,
-                selection_weigth,
-                weapon_bools,
-                uk_bool_1,
-                anim_refs
+                blend_in_time,
+                selection_weight,
+                weapon_bone,
+                uk_1,
+                anim_refs,
+                ..Default::default()
             };
 
             self.entries.push(entry);
@@ -81,10 +82,10 @@ impl AnimFragment {
         buffer.write_u32(self.entries.len() as u32)?;
         for entry in &self.entries {
             buffer.write_u32(entry.animation_id)?;
-            buffer.write_f32(entry.blend_in)?;
-            buffer.write_f32(entry.selection_weigth)?;
-            buffer.write_u32(entry.weapon_bools)?;
-            buffer.write_bool(entry.uk_bool_1)?;
+            buffer.write_f32(entry.blend_in_time)?;
+            buffer.write_f32(entry.selection_weight)?;
+            buffer.write_u32(entry.weapon_bone.bits())?;
+            buffer.write_bool(entry.uk_1)?;
             buffer.write_u32(entry.anim_refs.len() as u32)?;
             for anim_ref in &entry.anim_refs {
                 buffer.write_sized_string_u8(&anim_ref.file_path)?;

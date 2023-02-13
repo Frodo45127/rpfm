@@ -8,6 +8,7 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
+use bitflags::bitflags;
 use getset::{Getters, Setters};
 use serde_derive::{Serialize, Deserialize};
 
@@ -31,27 +32,49 @@ mod versions;
 #[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", set = "pub")]
 pub struct AnimFragment {
+
+    // Common stuff.
     version: u32,
+    entries: Vec<Entry>,
+    skeleton_name: String,
+    uk_3: String,
+
+    // Wh3 stuff.
     subversion: u32,
     name: String,
     mount_bin: String,
     uk_string_1: String,
-    skeleton_name: String,
     locomotion_graph: String,
     uk_string_2: String,
 
-    entries: Vec<Entry>,
+    // Wh2 stuff.
+    min_id: u32,
+    max_id: u32,
 }
 
 #[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", set = "pub")]
 pub struct Entry {
+
+    // Common stuff.
     animation_id: u32,
-    blend_in: f32,
-    selection_weigth: f32,
-    weapon_bools: u32,
-    uk_bool_1: bool,
+    blend_in_time: f32,
+    selection_weight: f32,
+    weapon_bone: WeaponBone,
+
+    // Wh3 stuff
+    uk_1: bool,
     anim_refs: Vec<AnimRef>,
+
+    // Wh2 stuff.
+    slot_id: u32,
+    filename: String,
+    metadata: String,
+    metadata_sound: String,
+    skeleton_type: String,
+    uk_3: u32,
+    uk_4: String,
+    single_frame_variant: bool,
 }
 
 #[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
@@ -60,6 +83,20 @@ pub struct AnimRef {
     file_path: String,
     meta_file_path: String,
     snd_file_path: String,
+}
+
+bitflags! {
+
+    /// This represents the bitmasks of weapon_bone values.
+    #[derive(Default, Getters, Setters, Serialize, Deserialize)]
+    pub struct WeaponBone: u32 {
+        const WEAPON_BONE_1 = 0b0000_0000_0000_0001;
+        const WEAPON_BONE_2 = 0b0000_0000_0000_0010;
+        const WEAPON_BONE_3 = 0b0000_0000_0000_0100;
+        const WEAPON_BONE_4 = 0b0000_0000_0000_1000;
+        const WEAPON_BONE_5 = 0b0000_0000_0001_0000;
+        const WEAPON_BONE_6 = 0b0000_0000_0010_0000;
+    }
 }
 
 //---------------------------------------------------------------------------//
@@ -75,6 +112,7 @@ impl Decodeable for AnimFragment {
         fragment.version = version;
 
         match version {
+            2 => fragment.read_v2(data)?,
             4 => fragment.read_v4(data)?,
             _ => Err(RLibError::DecodingAnimFragmentUnsupportedVersion(version as usize))?,
         }
@@ -92,6 +130,7 @@ impl Encodeable for AnimFragment {
         buffer.write_u32(self.version)?;
 
         match self.version {
+            2 => self.write_v2(buffer)?,
             4 => self.write_v4(buffer)?,
             _ => Err(RLibError::DecodingAnimFragmentUnsupportedVersion(self.version as usize))?,
         };

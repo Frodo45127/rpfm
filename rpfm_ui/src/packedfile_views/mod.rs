@@ -26,7 +26,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 
 use rpfm_lib::integrations::log::*;
-use rpfm_lib::files::{ContainerPath, db::DB, loc::Loc, FileType, matched_combat::MatchedCombat, RFileDecoded, text::Text};
+use rpfm_lib::files::{ContainerPath, db::DB, loc::Loc, FileType, RFileDecoded, text::Text};
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
@@ -40,7 +40,7 @@ use crate::UI_STATE;
 use crate::views::table::utils::get_table_from_view;
 use crate::views::table::TableType;
 
-use self::anim_fragment::{PackedFileAnimFragmentView, PackedFileAnimFragmentDebugView};
+use self::anim_fragment::FileAnimFragmentDebugView;
 use self::animpack::PackedFileAnimPackView;
 use self::audio::FileAudioView;
 use self::esf::PackedFileESFView;
@@ -141,8 +141,7 @@ pub enum DataSource {
 
 /// This enum is used to hold in a common way all the view types we have.
 pub enum View {
-    AnimFragment(Arc<PackedFileAnimFragmentView>),
-    AnimFragmentDebug(Arc<PackedFileAnimFragmentDebugView>),
+    AnimFragmentDebug(Arc<FileAnimFragmentDebugView>),
     AnimPack(Arc<PackedFileAnimPackView>),
     Audio(Arc<FileAudioView>),
     Decoder(Arc<PackedFileDecoderView>),
@@ -308,7 +307,6 @@ impl PackedFileView {
                     ViewType::Internal(view) => {
 
                         let data = match view {
-                            View::AnimFragment(view) => view.save_data()?,
                             View::AnimFragmentDebug(_) => return Ok(()),
                             View::AnimPack(_) => return Ok(()),
                             View::Audio(_) => return Ok(()),
@@ -475,7 +473,7 @@ impl PackedFileView {
                     match response {
 
                         Response::AnimFragmentRFileInfo(fragment, packed_file_info) => {
-                            if let View::AnimFragment(old_fragment) = view {
+                            if let View::AnimFragmentDebug(old_fragment) = view {
                                 if old_fragment.reload_view(fragment).is_err() {
                                     return Err(anyhow!(RFILE_RELOAD_ERROR));
                                 }
@@ -683,9 +681,11 @@ impl PackedFileView {
                         FileType::Loc |
                         FileType::MatchedCombat => if let View::Table(view) = view {
                             view.get_ref_table().clear_markings();
-                        } else if let View::AnimFragment(view) = view {
-                            view.table_view().clear_markings();
                         }
+
+                        /*else if let View::AnimFragment(view) = view {
+                            view.table_view().clear_markings();
+                        }*/
                         _ => {},
                     }
                 }

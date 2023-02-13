@@ -17,19 +17,16 @@ use crate::binary::ReadBytes;
 use crate::files::*;
 
 use super::AnimFragment;
-/*
-#[test]
-fn test_encode_anim_fragment_frg() {
-    let path_1 = "../test_files/test_decode_anim_fragment.frg";
-    let path_2 = "../test_files/test_encode_anim_fragment.frg";
-    let mut reader = BufReader::new(File::open(path_1).unwrap());
 
-    let mut decodeable_extra_data = DecodeableExtraData::default();
-    decodeable_extra_data.file_name = Some("test_decode_anim_fragment.frg");
+#[test]
+fn test_encode_anim_fragment_wh2() {
+    let path_1 = "../test_files/test_decode_anim_fragment_wh2.frg";
+    let path_2 = "../test_files/test_encode_anim_fragment_wh2.frg";
+    let mut reader = BufReader::new(File::open(path_1).unwrap());
 
     let data_len = reader.len().unwrap();
     let before = reader.read_slice(data_len as usize, true).unwrap();
-    let mut data = AnimFragment::decode(&mut reader, &Some(decodeable_extra_data)).unwrap();
+    let mut data = AnimFragment::decode(&mut reader, &None).unwrap();
     dbg!(&data);
 
     let mut after = vec![];
@@ -39,12 +36,12 @@ fn test_encode_anim_fragment_frg() {
     writer.write_all(&after).unwrap();
 
     assert_eq!(before, after);
-}*/
+}
 
 #[test]
-fn test_encode_anim_fragment_bin_wh3() {
-    let path_1 = "../test_files/test_decode_anim_wh3.bin";
-    let path_2 = "../test_files/test_encode_anim_wh3.bin";
+fn test_encode_anim_fragment_wh3() {
+    let path_1 = "../test_files/test_decode_anim_fragment_wh3.bin";
+    let path_2 = "../test_files/test_encode_anim_fragment_wh3.bin";
     let mut reader = BufReader::new(File::open(path_1).unwrap());
 
     let data_len = reader.len().unwrap();

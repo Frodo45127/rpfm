@@ -101,18 +101,6 @@ pub struct State {
     end: StateParticipant,
 }
 
-#[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
-#[getset(get = "pub", set = "pub")]
-pub struct Entry {
-    uk1: u32,                       // team
-    uk2: u32,                       // State.start
-    uk3: u32,                       // State.end
-    uk4: u32,
-    uk5: u32,
-    file_path: String,              // animation_filename
-    mount_file_path: String,        // metadata_filenames[0]
-}
-
 #[derive(PartialEq, Clone, Copy, Debug, Default, Serialize, Deserialize)]
 pub enum StateParticipant {
     #[default] Alive,
