@@ -60,7 +60,7 @@ pub trait ReadBytes: Read + Seek {
     ///
     /// let data = vec![];
     /// let mut cursor = Cursor::new(data);
-    /// assert!(cursor.is_empty().unwrap());
+    /// assert!(ReadBytes::is_empty(&mut cursor).unwrap());
     /// ```
     fn is_empty(&mut self) -> Result<bool> {
         Ok(self.seek(SeekFrom::End(0))? == 0)
@@ -248,18 +248,18 @@ pub trait ReadBytes: Read + Seek {
     /// assert_eq!(cursor.read_cauleb128().is_err(), true);
     /// ```
     fn read_cauleb128(&mut self) -> Result<u32> {
-        let mut size: u32 = 0;
+        let mut value: u32 = 0;
         let mut byte = self.read_u8()?;
 
         while(byte & 0x80) != 0 {
-            size = (size << 7) | (byte & 0x7f) as u32;
+            value = (value << 7) | (byte & 0x7f) as u32;
 
             // Check the new byte is even valid before continuing.
             byte = self.read_u8()?;
         }
 
-        size = (size << 7) | (byte & 0x7f) as u32;
-        Ok(size)
+        value = (value << 7) | (byte & 0x7f) as u32;
+        Ok(value)
     }
 
     /// This function tries to read a signed byte value from `self`.

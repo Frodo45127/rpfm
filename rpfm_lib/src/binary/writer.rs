@@ -138,10 +138,10 @@ pub trait WriteBytes: Write {
     /// use rpfm_lib::binary::WriteBytes;
     ///
     /// let mut data = vec![];
-    /// assert!(data.write_cauleb128(10).is_ok());
+    /// assert!(data.write_cauleb128(10, 0).is_ok());
     /// assert_eq!(data, vec![10]);
     /// ```
-    fn write_cauleb128(&mut self, mut integer: u32) -> Result<()> {
+    fn write_cauleb128(&mut self, mut integer: u32, padding: usize) -> Result<()> {
         let mut data = vec![];
 
         loop {
@@ -157,6 +157,10 @@ pub trait WriteBytes: Write {
             } else {
                 break;
             }
+        }
+
+        if data.len() < padding {
+            data.resize(padding, 0x80);
         }
 
         data.reverse();

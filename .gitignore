@@ -110,6 +110,7 @@ shortcuts.ron
 /test_files/test_encode_matched_combat_wh3.bin
 /test_files/test_encode_matched_combat_3k_matched.bin
 /test_files/test_encode_matched_combat_3k_trigger.bin
+/test_files/test_encode_esf_caab.esf
 
 # Secret tokens.
 gh-token

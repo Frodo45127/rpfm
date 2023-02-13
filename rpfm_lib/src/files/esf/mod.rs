@@ -8,7 +8,7 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! This is a module to read/write ESF files.
+//! This is a module to read/write ESF (Empire Safe File) files.
 //!
 //! ESF files are special files used to hold a variety of data, ranging from trade routes info
 //! to entire campaign savestates.
@@ -40,6 +40,8 @@ pub const SIGNATURE_CEAB: &[u8; 4] = &[0xCE, 0xAB, 0x00, 0x00];
 pub const SIGNATURE_CFAB: &[u8; 4] = &[0xCF, 0xAB, 0x00, 0x00];
 
 pub mod caab;
+
+#[cfg(test)] mod esf_test;
 
 //---------------------------------------------------------------------------//
 //                              Markers, from ESFEdit

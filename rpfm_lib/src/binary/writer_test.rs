@@ -88,7 +88,7 @@ fn write_cauleb128() {
 
     // Check the writer works properly.
     let mut data = vec![];
-    assert!(data.write_cauleb128(10).is_ok());
+    assert!(data.write_cauleb128(10, 0).is_ok());
     assert_eq!(data, vec![10]);
 }
 
