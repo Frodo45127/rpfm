@@ -53,6 +53,7 @@ use cpp_core::CppBox;
 
 use anyhow::{anyhow, Result};
 use getset::Getters;
+use rayon::prelude::*;
 
 use std::collections::BTreeMap;
 use std::io::{Cursor, Seek, SeekFrom};
@@ -668,7 +669,7 @@ impl PackedFileDecoderView {
 
         cursor_dest.move_position_1a(MoveOperation::Start);
         cursor_dest.move_position_3a(MoveOperation::NextCharacter, MoveMode::MoveAnchor, selection_start);
-        cursor_dest.move_position_3a(MoveOperation::NextCharacter, MoveMode::KeepAnchor, (selection_end - selection_start));
+        cursor_dest.move_position_3a(MoveOperation::NextCharacter, MoveMode::KeepAnchor, selection_end - selection_start);
 
         // Block the signals during this, so we don't trigger an infinite loop.
         if hex {
@@ -1361,13 +1362,13 @@ impl PackedFileDecoderView {
             return Err(anyhow!("This table is empty and there is not a Definition for it. That means it cannot be decoded."));
         }
 
-        let expected_cells_bool = imported_table.definition().fields().iter().filter(|x| if let FieldType::Boolean = x.field_type() { true } else { false }).count();
-        let expected_cells_f32 = imported_table.definition().fields().iter().filter(|x| if let FieldType::F32 = x.field_type() { true } else { false }).count();
-        let expected_cells_f64 = imported_table.definition().fields().iter().filter(|x| if let FieldType::F64 = x.field_type() { true } else { false }).count();
-        let expected_cells_i32 = imported_table.definition().fields().iter().filter(|x| if let FieldType::I32 = x.field_type() { true } else { false }).count();
-        let expected_cells_i64 = imported_table.definition().fields().iter().filter(|x| if let FieldType::I64 = x.field_type() { true } else { false }).count();
-        let expected_cells_colour_rgb = imported_table.definition().fields().iter().filter(|x| if let FieldType::ColourRGB = x.field_type() { true } else { false }).count();
-        let expected_cells_string_u8 = imported_table.definition().fields().iter().filter(|x| if let FieldType::StringU8 = x.field_type() { true } else if let FieldType::OptionalStringU8 = x.field_type() { true } else { false }).count();
+        let expected_cells_bool = imported_table.definition().fields().iter().filter(|x| matches!(x.field_type(), FieldType::Boolean)).count();
+        let expected_cells_f32 = imported_table.definition().fields().iter().filter(|x| matches!(x.field_type(), FieldType::F32)).count();
+        let expected_cells_f64 = imported_table.definition().fields().iter().filter(|x| matches!(x.field_type(), FieldType::F64)).count();
+        let expected_cells_i32 = imported_table.definition().fields().iter().filter(|x| matches!(x.field_type(), FieldType::I32)).count();
+        let expected_cells_i64 = imported_table.definition().fields().iter().filter(|x| matches!(x.field_type(), FieldType::I64)).count();
+        let expected_cells_colour_rgb = imported_table.definition().fields().iter().filter(|x| matches!(x.field_type(), FieldType::ColourRGB)).count();
+        let expected_cells_string_u8 = imported_table.definition().fields().iter().filter(|x| matches!(x.field_type(), FieldType::StringU8 | FieldType::OptionalStringU8)).count();
 
         let imported_first_row = &table_data[0];
         let mut data = self.data.write().unwrap();
@@ -1396,10 +1397,14 @@ impl PackedFileDecoderView {
             }
 
             data.seek(SeekFrom::Start(self.header_size))?;
-            if data.read_string_colour_rgb().is_ok() { definitions_possible.push(vec![FieldType::ColourRGB]); }
+            if data.read_string_colour_rgb().is_ok() {
+                definitions_possible.push(vec![FieldType::ColourRGB]);
+            }
 
             data.seek(SeekFrom::Start(self.header_size))?;
-            if data.read_bool().is_ok() { definitions_possible.push(vec![FieldType::Boolean]); }
+            if data.read_bool().is_ok() {
+                definitions_possible.push(vec![FieldType::Boolean]);
+            }
 
             data.seek(SeekFrom::Start(self.header_size))?;
             if let Ok(data) = data.read_sized_string_u8() {
@@ -1414,65 +1419,60 @@ impl PackedFileDecoderView {
                     definitions_possible.push(vec![FieldType::OptionalStringU8]);
                 }
             }
-
         }
 
         data.seek(SeekFrom::Start(self.header_size))?;
 
-        return Err(anyhow!("TBF"));
-        /*
         // All the other checks are done here.
         for step in 0..raw_definition.get_non_localisable_fields(&raw_localisable_fields.fields, &raw_table.rows[0]).len() - 1 {
             println!("Possible definitions for the step {}: {}.", step, definitions_possible.len());
             if definitions_possible.is_empty() {
                 break;
-            }
+            } else {
 
-            else {
                 definitions_possible = definitions_possible.par_iter().filter_map(|base| {
                     let mut values_position = Vec::with_capacity(base.len());
                     let mut elements = vec![];
-                    let mut index = 0;
                     for field_type in base {
                         match field_type {
                             FieldType::Boolean => {
-                                let value = data.read_bool().unwrap();
+                                let value = data.clone().read_bool().unwrap();
                                 values_position.push(DecodedData::Boolean(value));
                             },
                             FieldType::F32 => {
-                                let value = data.read_f32().unwrap();
+                                let value = data.clone().read_f32().unwrap();
                                 values_position.push(DecodedData::F32(value));
                             },
                             FieldType::F64 => {
-                                let value = data.read_f64().unwrap();
+                                let value = data.clone().read_f64().unwrap();
                                 values_position.push(DecodedData::F64(value));
                             },
                             FieldType::I32 => {
-                                let value = data.read_i32().unwrap();
+                                let value = data.clone().read_i32().unwrap();
                                 values_position.push(DecodedData::I32(value));
                             },
                             FieldType::I64 => {
-                                let value = data.read_i64().unwrap();
+                                let value = data.clone().read_i64().unwrap();
                                 values_position.push(DecodedData::I64(value));
                             },
                             FieldType::ColourRGB => {
-                                let value = data.read_string_colour_rgb().unwrap();
+                                let value = data.clone().read_string_colour_rgb().unwrap();
                                 values_position.push(DecodedData::ColourRGB(value));
                             },
                             FieldType::StringU8 => {
-                                let value = data.read_sized_string_u8().unwrap();
+                                let value = data.clone().read_sized_string_u8().unwrap();
                                 values_position.push(DecodedData::StringU8(value));
                             },
                             FieldType::OptionalStringU8 => {
-                                let value = data.read_optional_string_u8().unwrap();
+                                let value = data.clone().read_optional_string_u8().unwrap();
                                 values_position.push(DecodedData::OptionalStringU8(value));
                             },
                             _ => unimplemented!()
                         }
                     }
 
-                    if base.iter().filter(|x| if let FieldType::Boolean = x { true } else { false }).count() < expected_cells_bool {
-                        if let Ok(data) = data.read_bool() {
+                    if base.iter().filter(|x| matches!(x, FieldType::Boolean)).count() < expected_cells_bool {
+                        if let Ok(data) = data.clone().read_bool() {
                             let duplicate_values_count = values_position.iter().filter(|x| if let DecodedData::Boolean(value) = x { value == &data } else { false }).count();
                             let duplicate_values_count_expected = imported_first_row.iter().filter(|x| if let DecodedData::Boolean(value) = x { value == &data } else { false }).count();
                             if duplicate_values_count < duplicate_values_count_expected {
@@ -1483,8 +1483,8 @@ impl PackedFileDecoderView {
                         }
                     }
 
-                    if base.iter().filter(|x| if let FieldType::I32 = x { true } else { false }).count() < expected_cells_i32 {
-                        if let Ok(number) = data.read_i32() {
+                    if base.iter().filter(|x| matches!(x, FieldType::I32)).count() < expected_cells_i32 {
+                        if let Ok(number) = data.clone().read_i32() {
                             let duplicate_values_count = values_position.iter().filter(|x| if let DecodedData::I32(value) = x { value == &number } else { false }).count();
                             let duplicate_values_count_expected = imported_first_row.iter().filter(|x| if let DecodedData::I32(value) = x { value == &number } else { false }).count();
                             if duplicate_values_count < duplicate_values_count_expected {
@@ -1495,8 +1495,8 @@ impl PackedFileDecoderView {
                         }
                     }
 
-                    if base.iter().filter(|x| if let FieldType::F32 = x { true } else { false }).count() < expected_cells_f32 {
-                        if let Ok(number) = data.read_f32() {
+                    if base.iter().filter(|x| matches!(x, FieldType::F32)).count() < expected_cells_f32 {
+                        if let Ok(number) = data.clone().read_f32() {
                             let duplicate_values_count = values_position.iter().filter(|x| if let DecodedData::F32(value) = x { float_eq::float_eq!(*value, number, abs <= 0.01) } else { false }).count();
                             let duplicate_values_count_expected = imported_first_row.iter().filter(|x| if let DecodedData::F32(value) = x { float_eq::float_eq!(*value, number, abs <= 0.01) } else { false }).count();
                             if duplicate_values_count < duplicate_values_count_expected {
@@ -1507,8 +1507,8 @@ impl PackedFileDecoderView {
                         }
                     }
 
-                    if base.iter().filter(|x| if let FieldType::F64 = x { true } else { false }).count() < expected_cells_f64 {
-                        if let Ok(number) = data.read_f64() {
+                    if base.iter().filter(|x| matches!(x, FieldType::F64)).count() < expected_cells_f64 {
+                        if let Ok(number) = data.clone().read_f64() {
                             let duplicate_values_count = values_position.iter().filter(|x| if let DecodedData::F64(value) = x { float_eq::float_eq!(*value, number, abs <= 0.2) } else { false }).count();
                             let duplicate_values_count_expected = imported_first_row.iter().filter(|x| if let DecodedData::F64(value) = x { float_eq::float_eq!(*value, number, abs <= 0.2) } else { false }).count();
                             if duplicate_values_count < duplicate_values_count_expected {
@@ -1519,8 +1519,8 @@ impl PackedFileDecoderView {
                         }
                     }
 
-                    if base.iter().filter(|x| if let FieldType::I64 = x { true } else { false }).count() < expected_cells_i64 {
-                        if let Ok(number) = data.read_i64() {
+                    if base.iter().filter(|x| matches!(x, FieldType::I64)).count() < expected_cells_i64 {
+                        if let Ok(number) = data.clone().read_i64() {
                             let duplicate_values_count = values_position.iter().filter(|x| if let DecodedData::I64(value) = x { value == &number } else { false }).count();
                             let duplicate_values_count_expected = imported_first_row.iter().filter(|x| if let DecodedData::I64(value) = x { value == &number } else { false }).count();
                             if duplicate_values_count < duplicate_values_count_expected {
@@ -1530,8 +1530,8 @@ impl PackedFileDecoderView {
                             }
                         }
                     }
-                    if base.iter().filter(|x| if let FieldType::ColourRGB = x { true } else { false }).count() < expected_cells_colour_rgb {
-                        if let Ok(data) = data.read_string_colour_rgb() {
+                    if base.iter().filter(|x| matches!(x, FieldType::ColourRGB)).count() < expected_cells_colour_rgb {
+                        if let Ok(data) = data.clone().read_string_colour_rgb() {
                             let duplicate_values_count = values_position.iter().filter(|x| if let DecodedData::ColourRGB(value) = x { value == &data } else { false }).count();
                             let duplicate_values_count_expected = imported_first_row.iter().filter(|x| if let DecodedData::ColourRGB(value) = x { value == &data } else { false }).count();
                             if duplicate_values_count < duplicate_values_count_expected {
@@ -1541,8 +1541,8 @@ impl PackedFileDecoderView {
                             }
                         }
                     }
-                    if base.iter().filter(|x| if let FieldType::StringU8 = x { true } else { false }).count() < expected_cells_string_u8 {
-                        if let Ok(data) = data.read_sized_string_u8() {
+                    if base.iter().filter(|x| matches!(x, FieldType::StringU8)).count() < expected_cells_string_u8 {
+                        if let Ok(data) = data.clone().read_sized_string_u8() {
                             let duplicate_values_count = values_position.iter().filter(|x| if let DecodedData::StringU8(value) = x { value == &data } else if let DecodedData::OptionalStringU8(value) = x { value == &data } else { false }).count();
                             let duplicate_values_count_expected = imported_first_row.iter().filter(|x| if let DecodedData::StringU8(value) = x { value == &data } else if let DecodedData::OptionalStringU8(value) = x { value == &data } else { false }).count();
                             if duplicate_values_count < duplicate_values_count_expected {
@@ -1552,8 +1552,8 @@ impl PackedFileDecoderView {
                             }
                         }
                     }
-                    if base.iter().filter(|x| if let FieldType::OptionalStringU8 = x { true } else { false }).count() < expected_cells_string_u8 {
-                        if let Ok(data) = data.read_optional_string_u8() {
+                    if base.iter().filter(|x| matches!(x, FieldType::OptionalStringU8)).count() < expected_cells_string_u8 {
+                        if let Ok(data) = data.clone().read_optional_string_u8() {
                             let duplicate_values_count = values_position.iter().filter(|x| if let DecodedData::OptionalStringU8(value) = x { value == &data } else if let DecodedData::StringU8(value) = x { value == &data } else { false }).count();
                             let duplicate_values_count_expected = imported_first_row.iter().filter(|x| if let DecodedData::OptionalStringU8(value) = x { value == &data } else if let DecodedData::StringU8(value) = x { value == &data } else { false }).count();
                             if duplicate_values_count < duplicate_values_count_expected {
@@ -1574,58 +1574,56 @@ impl PackedFileDecoderView {
         }
 
         // Now, match all possible definitions against the table, and for the ones that work, match them against the asskit data.
-        Ok(definitions_possible.par_iter().filter_map(|x| {
+        Ok(definitions_possible.iter().filter_map(|x| {
             let field_list = x.iter().map(|x| {
                 let mut field = Field::default();
                 field.set_field_type(x.clone());
                 field
             }).collect::<Vec<Field>>();
-            let definition = Definition::new_with_fields(self.version, &field_list, &[]);
-            let table = DB::new(&definition, None, &self.table_name, false);
+            let definition = Definition::new_with_fields(self.version, &field_list, &[], None);
+            let db = DB::new(&definition, None, &self.table_name, false);
 
-            if let Ok(table) = table.set_data(None, ) {
-                if !table.get_ref_table_data().is_empty() {
+            if let Ok(table) = db.data(&None) {
+                if !table.is_empty() {
                     let mut mapper: BTreeMap<usize, usize> = BTreeMap::new();
                     let mut decoded_columns: Vec<Vec<String>> = vec![];
-                    let fields_processed = table.definition().fields_processed();
+                    let fields_processed = db.definition().fields_processed();
 
                     // Organized in columns, not in rows, so we can match by columns.
-                    if let Ok(data) = table.data() {
-                        for row in data.iter() {
-                            for (index, field) in row.iter().enumerate() {
-                                match decoded_columns.get_mut(index) {
-                                    Some(ref mut column) => column.push(field.data_to_string()),
-                                    None => decoded_columns.push(vec![field.data_to_string()])
-                                }
+                    for row in table.iter() {
+                        for (index, field) in row.iter().enumerate() {
+                            match decoded_columns.get_mut(index) {
+                                Some(ref mut column) => column.push(field.data_to_string().to_string()),
+                                None => decoded_columns.push(vec![field.data_to_string().to_string()])
                             }
                         }
-
-                        let mut already_matched_columns = vec![];
-                        for (index, column) in decoded_columns.iter().enumerate() {
-                            match raw_columns.iter().enumerate().position(|(pos, x)| !already_matched_columns.contains(&pos) && x == column) {
-                                Some(raw_column) => {
-                                    mapper.insert(index, raw_column);
-                                    already_matched_columns.push(raw_column);
-                                },
-
-                                // If no equivalent has been found, drop the definition.
-                                None => return None,
-                            }
-                        }
-
-                        // Filter the mapped data to see if we have a common one in every cell.
-                        let fields = mapper.iter().map(|(x, y)| {
-                            let mut field: Field = From::from(raw_definition.fields.get(*y).unwrap());
-                            field.set_field_type(fields_processed[*x].get_field_type());
-                            field
-                        }).collect();
-
-                        return Some(fields);
                     }
+
+                    let mut already_matched_columns = vec![];
+                    for (index, column) in decoded_columns.iter().enumerate() {
+                        match raw_columns.iter().enumerate().position(|(pos, x)| !already_matched_columns.contains(&pos) && x == column) {
+                            Some(raw_column) => {
+                                mapper.insert(index, raw_column);
+                                already_matched_columns.push(raw_column);
+                            },
+
+                            // If no equivalent has been found, drop the definition.
+                            None => return None,
+                        }
+                    }
+
+                    // Filter the mapped data to see if we have a common one in every cell.
+                    let fields = mapper.iter().map(|(x, y)| {
+                        let mut field: Field = From::from(raw_definition.fields.get(*y).unwrap());
+                        field.set_field_type(fields_processed[*x].field_type().clone());
+                        field
+                    }).collect();
+
+                    return Some(fields);
                 }
             }
             None
-        }).collect::<Vec<Vec<Field>>>())*/
+        }).collect::<Vec<Vec<Field>>>())
     }
 
     /// This function returns the definition corresponding to the decoded Packedfile, if exists.

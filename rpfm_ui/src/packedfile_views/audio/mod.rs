@@ -19,7 +19,6 @@ use anyhow::Result;
 use getset::Getters;
 use rodio::{OutputStream, Sink};
 
-use std::io::Write;
 use std::sync::{Arc, RwLock};
 
 use rpfm_lib::files::{audio::Audio, FileType};
@@ -45,7 +44,7 @@ pub struct FileAudioView {
 
     data: Arc<RwLock<Vec<u8>>>,
     sink: Arc<RwLock<Sink>>,
-    stream: rodio::OutputStream,
+    _stream: rodio::OutputStream,
     handle: rodio::OutputStreamHandle,
 }
 
@@ -72,7 +71,7 @@ impl FileAudioView {
 
         let data = Arc::new(RwLock::new(data.data().to_vec()));
 
-        let (stream, handle) = OutputStream::try_default()?;
+        let (_stream, handle) = OutputStream::try_default()?;
         let sink = Sink::try_new(&handle)?;
 
         let view = Arc::new(Self {
@@ -81,7 +80,7 @@ impl FileAudioView {
 
             data,
             sink: Arc::new(RwLock::new(sink)),
-            stream,
+            _stream,
             handle
         });
 

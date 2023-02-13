@@ -53,7 +53,6 @@ use crate::diagnostics_ui::DiagnosticsUI;
 use crate::DISCORD_URL;
 use crate::GAME_SELECTED;
 use crate::GITHUB_URL;
-use crate::global_search_ui;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, tr, tre};
 use crate::MANUAL_URL;
