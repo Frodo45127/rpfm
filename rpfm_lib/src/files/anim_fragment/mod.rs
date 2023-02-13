@@ -37,15 +37,16 @@ pub struct AnimFragment {
     version: u32,
     entries: Vec<Entry>,
     skeleton_name: String,
-    uk_3: String,
 
     // Wh3 stuff.
     subversion: u32,
-    name: String,
-    mount_bin: String,
-    uk_string_1: String,
+
+    // Wh3/3k stuff.
+    table_name: String,
+    mount_table_name: String,
+    unmount_table_name: String,
     locomotion_graph: String,
-    uk_string_2: String,
+    uk_4: String,
 
     // Wh2 stuff.
     min_id: u32,
@@ -63,7 +64,6 @@ pub struct Entry {
     weapon_bone: WeaponBone,
 
     // Wh3 stuff
-    uk_1: bool,
     anim_refs: Vec<AnimRef>,
 
     // Wh2 stuff.
@@ -105,14 +105,21 @@ bitflags! {
 
 impl Decodeable for AnimFragment {
 
-    fn decode<R: ReadBytes>(data: &mut R, _extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
+    fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
+        let extra_data = extra_data.as_ref().ok_or(RLibError::DecodingMissingExtraData)?;
+        let game_key = extra_data.game_key.ok_or_else(|| RLibError::DecodingMissingExtraDataField("game_key".to_owned()))?;
+
         let version = data.read_u32()?;
 
         let mut fragment = Self::default();
         fragment.version = version;
 
         match version {
-            2 => fragment.read_v2(data)?,
+            2 => match game_key {
+                "warhammer_2" => fragment.read_v2_wh2(data)?,
+                "three_kingdoms" => fragment.read_v2_3k(data)?,
+                _ => Err(RLibError::DecodingMatchedCombatUnsupportedVersion(fragment.version as usize))?,
+            },
             4 => fragment.read_v4(data)?,
             _ => Err(RLibError::DecodingAnimFragmentUnsupportedVersion(version as usize))?,
         }
@@ -126,11 +133,18 @@ impl Decodeable for AnimFragment {
 
 impl Encodeable for AnimFragment {
 
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+        let extra_data = extra_data.as_ref().ok_or(RLibError::DecodingMissingExtraData)?;
+        let game_key = extra_data.game_key.ok_or_else(|| RLibError::DecodingMissingExtraDataField("game_key".to_owned()))?;
+
         buffer.write_u32(self.version)?;
 
         match self.version {
-            2 => self.write_v2(buffer)?,
+            2 => match game_key {
+                "warhammer_2" => self.write_v2_wh2(buffer)?,
+                "three_kingdoms" => self.write_v2_3k(buffer)?,
+                _ => Err(RLibError::DecodingMatchedCombatUnsupportedVersion(self.version as usize))?,
+            },
             4 => self.write_v4(buffer)?,
             _ => Err(RLibError::DecodingAnimFragmentUnsupportedVersion(self.version as usize))?,
         };

@@ -701,9 +701,7 @@ pub fn background_loop() {
                                     extra_data.set_schema(schema.as_ref());
 
                                     let game_key = GAME_SELECTED.read().unwrap().game_key_name();
-                                    if file.file_type() == FileType::MatchedCombat {
-                                        extra_data.set_game_key(Some(&game_key));
-                                    }
+                                    extra_data.set_game_key(Some(&game_key));
 
                                     let result = file.decode(&Some(extra_data), true, true).transpose().unwrap();
 
@@ -742,9 +740,7 @@ pub fn background_loop() {
                                 extra_data.set_schema(schema.as_ref());
 
                                 let game_key = GAME_SELECTED.read().unwrap().game_key_name();
-                                if file.file_type() == FileType::MatchedCombat {
-                                    extra_data.set_game_key(Some(&game_key));
-                                }
+                                extra_data.set_game_key(Some(&game_key));
 
                                 let result = file.decode(&Some(extra_data), true, true).transpose().unwrap();
 
@@ -783,9 +779,7 @@ pub fn background_loop() {
                                 extra_data.set_schema(schema.as_ref());
 
                                 let game_key = GAME_SELECTED.read().unwrap().game_key_name();
-                                if file.file_type() == FileType::MatchedCombat {
-                                    extra_data.set_game_key(Some(&game_key));
-                                }
+                                extra_data.set_game_key(Some(&game_key));
 
                                 let result = file.decode(&Some(extra_data), true, true).transpose().unwrap();
 

@@ -8,5 +8,6 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-mod v2;
+mod v2_3k;
+mod v2_wh2;
 mod v4;

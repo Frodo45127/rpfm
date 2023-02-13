@@ -102,6 +102,7 @@ shortcuts.ron
 /test_files/test_encode_matched_combat.bin
 /test_files/test_encode_anim_fragment_wh2.frg
 /test_files/test_encode_anim_fragment_wh3.bin
+/test_files/test_encode_anim_fragment_3k.bin
 /test_files/test_encode_anims_table.bin
 /test_files/test_encode_rfile.pack
 /test_files/test_encode_anim_wh3.bin

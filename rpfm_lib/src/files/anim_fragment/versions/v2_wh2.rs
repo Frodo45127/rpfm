@@ -8,7 +8,7 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! This is a module to read/write binary Anim Fragment files, v2.
+//! This is a module to read/write binary Anim Fragment files, v2 for Warhammer 2.
 //!
 //! For internal use only.
 
@@ -22,9 +22,9 @@ use crate::files::anim_fragment::*;
 
 impl AnimFragment {
 
-    pub fn read_v2<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
+    pub fn read_v2_wh2<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
         self.skeleton_name = data.read_sized_string_u8()?;
-        self.uk_3 = data.read_sized_string_u8()?;
+        self.mount_table_name = data.read_sized_string_u8()?;
 
         self.min_id = data.read_u32()?;
         self.max_id = data.read_u32()?;
@@ -64,9 +64,9 @@ impl AnimFragment {
         Ok(())
     }
 
-    pub fn write_v2<W: WriteBytes>(&self, buffer: &mut W) -> Result<()> {
+    pub fn write_v2_wh2<W: WriteBytes>(&self, buffer: &mut W) -> Result<()> {
         buffer.write_sized_string_u8(&self.skeleton_name)?;
-        buffer.write_sized_string_u8(&self.uk_3)?;
+        buffer.write_sized_string_u8(&self.mount_table_name)?;
         buffer.write_u32(self.min_id)?;
         buffer.write_u32(self.max_id)?;
 
