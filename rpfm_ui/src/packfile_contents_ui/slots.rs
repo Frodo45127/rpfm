@@ -182,7 +182,7 @@ impl PackFileContentsSlots {
                         let mut path_changes = vec![];
 
                         // TODO: Filter out reserved files with some generic logic.
-                        for path in UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).map(|x| x.get_ref_path()) {
+                        for path in UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).map(|x| x.path_read()) {
                             if !path.is_empty() {
                                 for (old_path, new_path) in &renamed_items {
 
@@ -197,9 +197,9 @@ impl PackFileContentsSlots {
                         {
                             let mut open_packedfiles = UI_STATE.set_open_packedfiles();
                             for (path_before, path_after) in &path_changes {
-                                let position = open_packedfiles.iter().position(|x| *x.get_ref_path() == *path_before && x.get_data_source() == DataSource::PackFile).unwrap();
+                                let position = open_packedfiles.iter().position(|x| *x.path_read() == *path_before && x.data_source() == DataSource::PackFile).unwrap();
                                 let data = open_packedfiles.remove(position);
-                                let widget = data.get_mut_widget();
+                                let widget = data.main_widget();
                                 let index = app_ui.tab_bar_packed_file().index_of(widget);
                                 let path_split_before = path_before.split('/').collect::<Vec<_>>();
                                 let path_split_after = path_after.split('/').collect::<Vec<_>>();
@@ -811,7 +811,7 @@ impl PackFileContentsSlots {
                                         let mut paths_to_remove = vec![];
                                         {
                                             let open_packedfiles = UI_STATE.set_open_packedfiles();
-                                            for packed_file_path in open_packedfiles.iter().filter(|x| x.get_data_source() == DataSource::PackFile).map(|x| x.get_ref_path()) {
+                                            for packed_file_path in open_packedfiles.iter().filter(|x| x.data_source() == DataSource::PackFile).map(|x| x.path_read()) {
                                                 if !packed_file_path.is_empty() && packed_file_path.starts_with(path) {
                                                     paths_to_remove.push(packed_file_path.to_owned());
                                                 }
@@ -898,7 +898,7 @@ impl PackFileContentsSlots {
                                     let mut path_changes = vec![];
 
                                     // TODO: Filter out reserved files with some generic logic.
-                                    for path in UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).map(|x| x.get_ref_path()) {
+                                    for path in UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).map(|x| x.path_read()) {
                                         if !path.is_empty() {
                                             for (old_path, new_path) in &renamed_items {
 
@@ -913,9 +913,9 @@ impl PackFileContentsSlots {
                                     {
                                         let mut open_packedfiles = UI_STATE.set_open_packedfiles();
                                         for (path_before, path_after) in &path_changes {
-                                            let position = open_packedfiles.iter().position(|x| *x.get_ref_path() == *path_before && x.get_data_source() == DataSource::PackFile).unwrap();
+                                            let position = open_packedfiles.iter().position(|x| *x.path_read() == *path_before && x.data_source() == DataSource::PackFile).unwrap();
                                             let data = open_packedfiles.remove(position);
-                                            let widget = data.get_mut_widget();
+                                            let widget = data.main_widget();
                                             let index = app_ui.tab_bar_packed_file().index_of(widget);
                                             let path_split_before = path_before.split('/').collect::<Vec<_>>();
                                             let path_split_after = path_after.split('/').collect::<Vec<_>>();
@@ -1176,7 +1176,7 @@ impl PackFileContentsSlots {
                     let mut paths_to_close = vec![];
                     {
                         let open_packedfiles = UI_STATE.set_open_packedfiles();
-                        for path in open_packedfiles.iter().filter(|x| x.get_data_source() == DataSource::PackFile).map(|x| x.get_ref_path())  {
+                        for path in open_packedfiles.iter().filter(|x| x.data_source() == DataSource::PackFile).map(|x| x.path_read())  {
                             if selected_paths.contains(&path) {
                                 paths_to_close.push(ContainerPath::File(path.to_owned()));
                             }
@@ -1233,8 +1233,8 @@ impl PackFileContentsSlots {
                 ContainerPath::File(path) => {
 
                     // First, if the PackedFile is open, save it.
-                    let close_path = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).any(|packed_file_view| {
-                        packed_file_view.get_path() == *path
+                    let close_path = UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).any(|packed_file_view| {
+                        packed_file_view.path_copy() == *path
                     });
 
                     if close_path {

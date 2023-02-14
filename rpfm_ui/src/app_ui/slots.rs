@@ -1402,14 +1402,14 @@ impl AppUISlots {
             app_ui => move |index| {
                 if index == -1 { return; }
                 for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
-                    let widget = packed_file_view.get_mut_widget();
+                    let widget = packed_file_view.main_widget();
                     if app_ui.tab_bar_packed_file.index_of(widget) == index {
 
                         // Reload the quick notes view, in case we added notes on another path that affects this one.
-                        packed_file_view.get_notes_view().load_data();
+                        packed_file_view.notes_view().load_data();
 
                         // TODO: This lags the ui on switching tabs. Move to the backend + timer.
-                        if let ViewType::Internal(View::Table(table)) = packed_file_view.get_view() {
+                        if let ViewType::Internal(View::Table(table)) = packed_file_view.view_type() {
 
                             // For tables, we have to update the dependency data, reset the dropdown's data, and recheck the entire table for errors.
                             let table = table.get_ref_table();
@@ -1442,11 +1442,11 @@ impl AppUISlots {
                 if index == -1 { return; }
 
                 for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
-                    let widget = packed_file_view.get_mut_widget();
+                    let widget = packed_file_view.main_widget();
                     if app_ui.tab_bar_packed_file.index_of(widget) == index {
-                        if packed_file_view.get_is_preview() {
+                        if packed_file_view.is_preview() {
                             packed_file_view.set_is_preview(false);
-                            let path = packed_file_view.get_ref_path();
+                            let path = packed_file_view.path_read();
                             let path_split = path.split('/').collect::<Vec<_>>();
 
                             let name = path_split.last().unwrap().to_owned();
@@ -1495,7 +1495,7 @@ impl AppUISlots {
             pack_file_contents_ui => move || {
             let index = app_ui.tab_bar_packed_file.current_index();
             let indexes = UI_STATE.get_open_packedfiles().iter().filter_map(|packed_file_view| {
-                let index_to_check = app_ui.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget());
+                let index_to_check = app_ui.tab_bar_packed_file.index_of(packed_file_view.main_widget());
                 if index_to_check != index && index_to_check != -1 {
                     Some(index_to_check)
                 } else {
@@ -1511,7 +1511,7 @@ impl AppUISlots {
             pack_file_contents_ui => move || {
             let index = app_ui.tab_bar_packed_file.current_index();
             let indexes = UI_STATE.get_open_packedfiles().iter().filter_map(|packed_file_view| {
-                let index_to_check = app_ui.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget());
+                let index_to_check = app_ui.tab_bar_packed_file.index_of(packed_file_view.main_widget());
                 if index_to_check < index {
                     Some(index_to_check)
                 } else {
@@ -1526,7 +1526,7 @@ impl AppUISlots {
             pack_file_contents_ui => move || {
             let index = app_ui.tab_bar_packed_file.current_index();
             let indexes = UI_STATE.get_open_packedfiles().iter().filter_map(|packed_file_view| {
-                let index_to_check = app_ui.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget());
+                let index_to_check = app_ui.tab_bar_packed_file.index_of(packed_file_view.main_widget());
                 if index_to_check > index {
                     Some(index_to_check)
                 } else {
@@ -1571,10 +1571,10 @@ impl AppUISlots {
                     if index != -1 {
                         let mut paths_by_source = BTreeMap::new();
                         let data_source_and_path = if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|packed_file_view| {
-                            index == app_ui.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget())
+                            index == app_ui.tab_bar_packed_file.index_of(packed_file_view.main_widget())
                         }) {
-                            let path = packed_file_view.get_ref_path();
-                            let data_source = packed_file_view.get_data_source();
+                            let path = packed_file_view.path_read();
+                            let data_source = packed_file_view.data_source();
                             paths_by_source.insert(data_source, vec![ContainerPath::File(path.to_owned())]);
                             Some((data_source, path.to_owned()))
                         } else { None };
@@ -1585,8 +1585,8 @@ impl AppUISlots {
 
                             // Make sure this uses the correct source.
                             let path_to_purge = UI_STATE.get_open_packedfiles().iter().find_map(|packed_file_view| {
-                                if *packed_file_view.get_ref_path() == path && packed_file_view.get_data_source() == DataSource::PackFile {
-                                    Some(packed_file_view.get_ref_path().to_owned())
+                                if *packed_file_view.path_read() == path && packed_file_view.data_source() == DataSource::PackFile {
+                                    Some(packed_file_view.path_read().to_owned())
                                 } else { None }
                             });
 
@@ -1607,18 +1607,18 @@ impl AppUISlots {
                 if index == -1 { return; }
 
                 for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
-                    let widget = packed_file_view.get_mut_widget();
+                    let widget = packed_file_view.main_widget();
                     if app_ui.tab_bar_packed_file.index_of(widget) == index {
 
                         // Re-add the widget with the correct row span before making it visible.
-                        if !packed_file_view.get_notes_widget().is_visible() {
-                            let layout: QPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast();
-                            layout.add_widget_5a(packed_file_view.get_notes_widget(), 0, 99, layout.row_count(), 1);
-                            packed_file_view.get_notes_widget().set_minimum_width(350);
-                            packed_file_view.get_notes_widget().set_maximum_width(350);
+                        if !packed_file_view.notes_widget().is_visible() {
+                            let layout: QPtr<QGridLayout> = packed_file_view.main_widget().layout().static_downcast();
+                            layout.add_widget_5a(packed_file_view.notes_widget(), 0, 99, layout.row_count(), 1);
+                            packed_file_view.notes_widget().set_minimum_width(350);
+                            packed_file_view.notes_widget().set_maximum_width(350);
                         }
 
-                        packed_file_view.get_notes_widget().set_visible(!packed_file_view.get_notes_widget().is_visible());
+                        packed_file_view.notes_widget().set_visible(!packed_file_view.notes_widget().is_visible());
                         break;
                     }
                 }

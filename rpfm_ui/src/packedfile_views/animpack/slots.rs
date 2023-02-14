@@ -87,7 +87,7 @@ impl PackedFileAnimPackViewSlots {
                     let item_types = view.pack_tree_view.get_item_types_from_selection_filtered();
 
                     // Save the files in question to the background, to ensure we have all their data updated.
-                    for packed_file_view in UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile) {
+                    for packed_file_view in UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile) {
                         let _ = packed_file_view.save(&app_ui, &pack_file_contents_ui);
                     }
 
@@ -149,7 +149,7 @@ impl PackedFileAnimPackViewSlots {
                             // Reload all the views belonging to overwritten files.
                             for packed_file_view in UI_STATE.set_open_packedfiles().iter_mut() {
                                 for path_ok in &paths_ok {
-                                    if path_ok.path_raw() == packed_file_view.get_path() && packed_file_view.get_data_source() == DataSource::PackFile {
+                                    if path_ok.path_raw() == packed_file_view.path_copy() && packed_file_view.data_source() == DataSource::PackFile {
                                         let _ = packed_file_view.reload(path_ok.path_raw(), &pack_file_contents_ui);
                                     }
                                 }

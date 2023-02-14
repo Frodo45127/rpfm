@@ -333,8 +333,8 @@ impl PackFileContentsUI {
                 // Try to reload all open files which data we altered, and close those that failed.
                 let failed_paths = UI_STATE.set_open_packedfiles()
                     .iter_mut()
-                    .filter(|view| view.get_data_source() == DataSource::PackFile && (paths.iter().any(|path| path.path_raw() == *view.get_ref_path() || *view.get_ref_path() == RESERVED_NAME_NOTES)))
-                    .filter_map(|view| if view.reload(&view.get_path(), pack_file_contents_ui).is_err() { Some(view.get_path()) } else { None })
+                    .filter(|view| view.data_source() == DataSource::PackFile && (paths.iter().any(|path| path.path_raw() == *view.path_read() || *view.path_read() == RESERVED_NAME_NOTES)))
+                    .filter_map(|view| if view.reload(&view.path_copy(), pack_file_contents_ui).is_err() { Some(view.path_copy()) } else { None })
                     .collect::<Vec<_>>();
 
                 for path in &failed_paths {
@@ -499,7 +499,7 @@ impl PackFileContentsUI {
         // We have to save our data from cache to the backend before extracting it. Otherwise we would extract outdated data.
         if let Err(error) = UI_STATE.get_open_packedfiles()
             .iter()
-            .filter(|x| x.get_data_source() == DataSource::PackFile)
+            .filter(|x| x.data_source() == DataSource::PackFile)
             .try_for_each(|packed_file| packed_file.save(app_ui, pack_file_contents_ui)) {
             show_dialog(app_ui.main_window(), error, false);
         }

@@ -20,7 +20,7 @@ use rpfm_lib::files::{FileType, RFileDecoded, unit_variant::UnitVariant};
 
 use crate::views::debug::DebugView;
 
-use crate::packedfile_views::PackedFileView;
+use crate::packedfile_views::FileView;
 
 use super::{ViewType, View};
 
@@ -64,7 +64,7 @@ impl PackedFileUnitVariantView {
 
     /// This function creates a new PackedFileUnitVariantView, and sets up his slots and connections.
     pub unsafe fn new_view(
-        packed_file_view: &mut PackedFileView,
+        packed_file_view: &mut FileView,
         data: RFileDecoded
     ) -> Result<()> {
 
@@ -149,17 +149,17 @@ impl PackedFileUnitVariantView {
 */
         // For now just build a debug view.
         let debug_view = DebugView::new_view(
-            packed_file_view.get_mut_widget(),
+            packed_file_view.main_widget(),
             data,
-            packed_file_view.get_path_raw(),
+            packed_file_view.path_raw(),
         )?;
 
         let packed_file_debug_view = Self {
             debug_view,
         };
 
-        packed_file_view.view = ViewType::Internal(View::UnitVariant(Arc::new(packed_file_debug_view)));
-        packed_file_view.packed_file_type = FileType::UnitVariant;
+        packed_file_view.view_type = ViewType::Internal(View::UnitVariant(Arc::new(packed_file_debug_view)));
+        packed_file_view.file_type = FileType::UnitVariant;
 
         Ok(())
     }

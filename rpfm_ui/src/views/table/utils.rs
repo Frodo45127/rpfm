@@ -816,11 +816,11 @@ pub unsafe fn get_reference_data(file_type: FileType, table_name: &str, definiti
             for (index, (table, column, lookup)) in &reference_data {
                 let mut dependency_data_visual_column = BTreeMap::new();
                 for packed_file_view in open_packedfiles.iter() {
-                    let path = packed_file_view.get_ref_path();
-                    if packed_file_view.get_data_source() == DataSource::PackFile {
+                    let path = packed_file_view.path_read();
+                    if packed_file_view.data_source() == DataSource::PackFile {
                         let path_split = path.split('/').collect::<Vec<_>>();
                         if path_split.len() == 3 && path_split[0].to_lowercase() == "db" && path_split[1].to_lowercase() == format!("{table}_tables") {
-                            if let ViewType::Internal(View::Table(table)) = packed_file_view.get_view() {
+                            if let ViewType::Internal(View::Table(table)) = packed_file_view.view_type() {
                                 let table = table.get_ref_table();
                                 let column = clean_column_names(column);
                                 let table_model = &table.table_model;

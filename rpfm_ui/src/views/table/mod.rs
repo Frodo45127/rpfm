@@ -2341,7 +2341,7 @@ impl TableView {
                     // Before finishing, reload all edited views.
                     let mut open_packedfiles = UI_STATE.set_open_packedfiles();
                     edited_paths.iter().for_each(|path| {
-                        if let Some(packed_file_view) = open_packedfiles.iter_mut().find(|x| *x.get_ref_path() == path.path_raw() && x.get_data_source() == DataSource::PackFile) {
+                        if let Some(packed_file_view) = open_packedfiles.iter_mut().find(|x| *x.path_read() == path.path_raw() && x.data_source() == DataSource::PackFile) {
                             if packed_file_view.reload(path.path_raw(), pack_file_contents_ui).is_err() {
                                 let _ = AppUI::purge_that_one_specifically(app_ui, pack_file_contents_ui, path.path_raw(), DataSource::PackFile, false);
                             }
@@ -2535,8 +2535,8 @@ impl TableView {
 
                 // Save the tables that may be the source before searching, to ensure their data is updated.
                 let ref_path = format!("db/{ref_table}");
-                UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).for_each(|packed_file_view| {
-                    if packed_file_view.get_path().starts_with(&ref_path) {
+                UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).for_each(|packed_file_view| {
+                    if packed_file_view.path_copy().starts_with(&ref_path) {
                         let _ = packed_file_view.save(app_ui, pack_file_contents_ui);
                     }
                 });
@@ -2576,15 +2576,15 @@ impl TableView {
 
                         // Set the current file as non-preview, so it doesn't close when opening the source one.
                         if let Some(packed_file_path) = self.get_packed_file_path() {
-                            if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == *packed_file_path && x.get_data_source() == self.get_data_source()) {
+                            if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.path_read() == *packed_file_path && x.data_source() == self.get_data_source()) {
                                 packed_file_view.set_is_preview(false);
                             }
                         }
 
                         // Open the table and select the cell.
                         AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui, Some(path.to_owned()), true, false, data_source);
-                        if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == path && x.get_data_source() == data_source) {
-                            if let ViewType::Internal(View::Table(view)) = packed_file_view.get_view() {
+                        if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.path_read() == path && x.data_source() == data_source) {
+                            if let ViewType::Internal(View::Table(view)) = packed_file_view.view_type() {
                                 let table_view = view.get_ref_table();
                                 let table_view = table_view.table_view_ptr();
                                 let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
@@ -2635,8 +2635,8 @@ impl TableView {
             if let FileType::DB = *self.packed_file_type {
 
                 // Save the currently open locs, to ensure the backend has the most up-to-date data.
-                UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).for_each(|packed_file_view| {
-                    if let FileType::Loc = packed_file_view.get_packed_file_type() {
+                UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).for_each(|packed_file_view| {
+                    if let FileType::Loc = packed_file_view.file_type() {
                         let _ = packed_file_view.save(app_ui, pack_file_contents_ui);
                     }
                 });
@@ -2693,15 +2693,15 @@ impl TableView {
 
                         // Set the current file as non-preview, so it doesn't close when opening the source one.
                         if let Some(packed_file_path) = self.get_packed_file_path() {
-                            if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == *packed_file_path && x.get_data_source() == self.get_data_source()) {
+                            if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.path_read() == *packed_file_path && x.data_source() == self.get_data_source()) {
                                 packed_file_view.set_is_preview(false);
                             }
                         }
 
                         // Open the table and select the cell.
                         AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui,Some(path.to_owned()), true, false, data_source);
-                        if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == path && x.get_data_source() == data_source) {
-                            if let ViewType::Internal(View::Table(view)) = packed_file_view.get_view() {
+                        if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.path_read() == path && x.data_source() == data_source) {
+                            if let ViewType::Internal(View::Table(view)) = packed_file_view.view_type() {
                                 let table_view = view.get_ref_table();
                                 let table_view = table_view.table_view_ptr();
                                 let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();

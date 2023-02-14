@@ -73,7 +73,7 @@ use crate::ffi::{new_combobox_item_delegate_safe, new_spinbox_item_delegate_safe
 use crate::FONT_MONOSPACE;
 use crate::GAME_SELECTED;
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::packedfile_views::{PackedFileView, View, ViewType};
+use crate::packedfile_views::{FileView, View, ViewType};
 use crate::SCHEMA;
 use crate::setting_bool;
 use crate::utils::*;
@@ -171,13 +171,13 @@ impl PackedFileDecoderView {
 
     /// This function creates a new Decoder View, and sets up his slots and connections.
     pub unsafe fn new_view(
-        packed_file_view: &mut PackedFileView,
+        packed_file_view: &mut FileView,
         path: &str,
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
     ) -> Result<()> {
 
-        let container_path = ContainerPath::File(packed_file_view.get_path());
+        let container_path = ContainerPath::File(packed_file_view.path_copy());
         let table_name = container_path.db_table_name_from_path()
             .ok_or_else(|| anyhow!("The decoder cannot be use for this file."))?;
 
@@ -190,13 +190,13 @@ impl PackedFileDecoderView {
         };
 
         // Create the hex view on the left side.
-        let layout: QPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast();
+        let layout: QPtr<QGridLayout> = packed_file_view.main_widget().layout().static_downcast();
 
         //---------------------------------------------//
         // Hex Data section.
         //---------------------------------------------//
 
-        let hex_view_group = QGroupBox::from_q_string_q_widget(&QString::from_std_str("PackedFile's Data"), packed_file_view.get_mut_widget());
+        let hex_view_group = QGroupBox::from_q_string_q_widget(&QString::from_std_str("PackedFile's Data"), packed_file_view.main_widget());
         let hex_view_index = QTextEdit::from_q_widget(&hex_view_group);
         let hex_view_raw = QTextEdit::from_q_widget(&hex_view_group);
         let hex_view_decoded = QTextEdit::from_q_widget(&hex_view_group);
@@ -216,7 +216,7 @@ impl PackedFileDecoderView {
         // Fields Table section.
         //---------------------------------------------//
 
-        let table_view = QTreeView::new_1a(packed_file_view.get_mut_widget());
+        let table_view = QTreeView::new_1a(packed_file_view.main_widget());
         let table_model = QStandardItemModel::new_1a(&table_view);
         table_view.set_model(&table_model);
         table_view.set_context_menu_policy(ContextMenuPolicy::CustomContextMenu);
@@ -246,7 +246,7 @@ impl PackedFileDecoderView {
         // Decoded Fields section.
         //---------------------------------------------//
 
-        let decoded_fields_frame = QGroupBox::from_q_string_q_widget(&QString::from_std_str("Current Field Decoded"), packed_file_view.get_mut_widget());
+        let decoded_fields_frame = QGroupBox::from_q_string_q_widget(&QString::from_std_str("Current Field Decoded"), packed_file_view.main_widget());
         let decoded_fields_layout = create_grid_layout(decoded_fields_frame.static_upcast());
         decoded_fields_layout.set_column_stretch(1, 10);
 
@@ -353,7 +353,7 @@ impl PackedFileDecoderView {
         // Info section.
         //---------------------------------------------//
 
-        let info_frame = QGroupBox::from_q_string_q_widget(&QString::from_std_str("PackedFile Info"), packed_file_view.get_mut_widget());
+        let info_frame = QGroupBox::from_q_string_q_widget(&QString::from_std_str("PackedFile Info"), packed_file_view.main_widget());
         let info_layout = create_grid_layout(info_frame.static_upcast());
 
         // Create stuff for the info frame.
@@ -380,7 +380,7 @@ impl PackedFileDecoderView {
         // Other Versions section.
         //---------------------------------------------//
 
-        let table_view_old_versions = QTableView::new_1a(packed_file_view.get_mut_widget());
+        let table_view_old_versions = QTableView::new_1a(packed_file_view.main_widget());
         let table_model_old_versions = QStandardItemModel::new_1a(&table_view_old_versions);
         table_view_old_versions.set_model(&table_model_old_versions);
         table_view_old_versions.set_alternating_row_colors(true);
@@ -403,7 +403,7 @@ impl PackedFileDecoderView {
         // Buttons section.
         //---------------------------------------------//
 
-        let button_box = QFrame::new_1a(packed_file_view.get_mut_widget());
+        let button_box = QFrame::new_1a(packed_file_view.main_widget());
         let button_box_layout = create_grid_layout(button_box.static_upcast());
 
         // Create the bottom Buttons.
@@ -488,7 +488,7 @@ impl PackedFileDecoderView {
             clear_definition_button,
             save_button,
 
-            packed_file_path: packed_file_view.get_path(),
+            packed_file_path: packed_file_view.path_copy(),
             data: Arc::new(RwLock::new(data)),
             table_name: table_name.to_owned(),
             version,
@@ -513,10 +513,10 @@ impl PackedFileDecoderView {
         packed_file_decoder_view.update_view(&fields, true)?;
         packed_file_decoder_view.update_rows_decoded(None, None)?;
         connections::set_connections(&packed_file_decoder_view, &packed_file_decoder_view_slots);
-        packed_file_view.view = ViewType::Internal(View::Decoder(packed_file_decoder_view));
+        packed_file_view.view_type = ViewType::Internal(View::Decoder(packed_file_decoder_view));
 
         // Update the path so the decoder is identified as a separate file.
-        let mut path = packed_file_view.get_path();
+        let mut path = packed_file_view.path_copy();
         path.push_str(DECODER_EXTENSION);
         packed_file_view.set_path(&path);
 

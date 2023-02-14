@@ -45,7 +45,7 @@ use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::qtr;
 use crate::packedfile_views::esf::esftree::*;
 use crate::packedfile_views::esf::slots::PackedFileESFViewSlots;
-use crate::packedfile_views::PackedFileView;
+use crate::packedfile_views::FileView;
 use crate::packedfile_views::PackFileContentsUI;
 use crate::references_ui::ReferencesUI;
 use crate::utils::create_grid_layout;
@@ -90,7 +90,7 @@ impl PackedFileESFView {
 
     /// This function creates a new PackedFileESFView, and sets up his slots and connections.
     pub unsafe fn new_view(
-        packed_file_view: &mut PackedFileView,
+        packed_file_view: &mut FileView,
         app_ui: &Rc<AppUI>,
         global_search_ui: &Rc<GlobalSearchUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
@@ -100,10 +100,10 @@ impl PackedFileESFView {
         data: ESF
     ) -> Result<()> {
 
-        let splitter = QSplitter::from_q_widget(packed_file_view.get_mut_widget());
+        let splitter = QSplitter::from_q_widget(packed_file_view.main_widget());
 
         // Create the TreeView for the ESF PackedFile.
-        let tree_view = QTreeView::new_1a(packed_file_view.get_mut_widget());
+        let tree_view = QTreeView::new_1a(packed_file_view.main_widget());
         let tree_model = new_packed_file_model_safe();
         let tree_filter = new_treeview_filter_safe(tree_view.static_upcast());
         tree_filter.set_source_model(&tree_model);
@@ -118,10 +118,10 @@ impl PackedFileESFView {
         tree_view.header().set_stretch_last_section(false);
 
         // Create and configure the widgets to control the `TreeView`s filter.
-        let filter_timer_delayed_updates = QTimer::new_1a(packed_file_view.get_mut_widget());
-        let filter_line_edit = QLineEdit::from_q_widget(packed_file_view.get_mut_widget());
-        let filter_autoexpand_matches_button = QPushButton::from_q_string_q_widget(&qtr("treeview_autoexpand"), packed_file_view.get_mut_widget());
-        let filter_case_sensitive_button = QPushButton::from_q_string_q_widget(&qtr("treeview_aai"), packed_file_view.get_mut_widget());
+        let filter_timer_delayed_updates = QTimer::new_1a(packed_file_view.main_widget());
+        let filter_line_edit = QLineEdit::from_q_widget(packed_file_view.main_widget());
+        let filter_autoexpand_matches_button = QPushButton::from_q_string_q_widget(&qtr("treeview_autoexpand"), packed_file_view.main_widget());
+        let filter_case_sensitive_button = QPushButton::from_q_string_q_widget(&qtr("treeview_aai"), packed_file_view.main_widget());
         filter_timer_delayed_updates.set_single_shot(true);
         filter_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
         filter_line_edit.set_clear_button_enabled(true);
@@ -144,7 +144,7 @@ impl PackedFileESFView {
         node_data_layout.set_column_stretch(1, 100);
         node_data_panel.set_minimum_width(250);
 
-        let layout: QPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast();
+        let layout: QPtr<QGridLayout> = packed_file_view.main_widget().layout().static_downcast();
         layout.add_widget_5a(&splitter, 0, 0, 1, 1);
 
         let view = Arc::new(Self {
@@ -161,7 +161,7 @@ impl PackedFileESFView {
 
             detailed_view: Arc::new(RwLock::new(ESFDetailedView::default())),
 
-            _path: packed_file_view.get_path_raw()
+            _path: packed_file_view.path_raw()
         });
 
         view.tree_view.update_treeview(true, ESFTreeViewOperation::Build(data));
@@ -177,8 +177,8 @@ impl PackedFileESFView {
         );
 
         connections::set_connections(&view, &slots);
-        packed_file_view.view = ViewType::Internal(View::ESF(view));
-        packed_file_view.packed_file_type = FileType::ESF;
+        packed_file_view.view_type = ViewType::Internal(View::Esf(view));
+        packed_file_view.file_type = FileType::ESF;
 
         Ok(())
     }

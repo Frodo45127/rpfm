@@ -18,7 +18,7 @@ use std::sync::Arc;
 
 use rpfm_lib::files::{FileType, matched_combat::MatchedCombat, RFileDecoded};
 
-use crate::packedfile_views::{PackedFileView, View, ViewType};
+use crate::packedfile_views::{FileView, View, ViewType};
 use crate::views::debug::DebugView;
 
 //-------------------------------------------------------------------------------//
@@ -36,23 +36,23 @@ pub struct FileMatchedCombatDebugView {
 impl FileMatchedCombatDebugView {
 
     pub unsafe fn new_view(
-        file_view: &mut PackedFileView,
+        file_view: &mut FileView,
         data: MatchedCombat
     ) -> Result<()> {
 
         // For now just build a debug view.
         let debug_view = DebugView::new_view(
-            file_view.get_mut_widget(),
+            file_view.main_widget(),
             RFileDecoded::MatchedCombat(data),
-            file_view.get_path_raw(),
+            file_view.path_raw(),
         )?;
 
         let view = Self {
             debug_view,
         };
 
-        file_view.view = ViewType::Internal(View::MatchedCombatDebug(Arc::new(view)));
-        file_view.packed_file_type = FileType::MatchedCombat;
+        file_view.view_type = ViewType::Internal(View::MatchedCombatDebug(Arc::new(view)));
+        file_view.file_type = FileType::MatchedCombat;
 
         Ok(())
     }

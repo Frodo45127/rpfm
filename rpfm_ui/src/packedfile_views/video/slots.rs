@@ -58,7 +58,7 @@ impl PackedFileVideoViewSlots {
             view => move || {
                 view.set_current_format(SupportedFormats::CaVp8);
                 view.format_data_label.set_text(&QString::from_std_str(format!("{:?}", SupportedFormats::CaVp8)));
-                if let Some(packed_file) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).find(|x| *x.get_ref_path() == *view.path.read().unwrap()) {
+                if let Some(packed_file) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).find(|x| *x.path_read() == *view.path.read().unwrap()) {
 
                     // This can never fail, so ignore the result.
                     let _ = packed_file.save(&app_ui, &pack_file_contents_ui);
@@ -73,7 +73,7 @@ impl PackedFileVideoViewSlots {
             view => move || {
                 view.set_current_format(SupportedFormats::Ivf);
                 view.format_data_label.set_text(&QString::from_std_str(format!("{:?}", SupportedFormats::Ivf)));
-                if let Some(packed_file) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).find(|x| *x.get_ref_path() == *view.path.read().unwrap()) {
+                if let Some(packed_file) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).find(|x| *x.path_read() == *view.path.read().unwrap()) {
 
                     // This can never fail, so ignore the result.
                     let _ = packed_file.save(&app_ui, &pack_file_contents_ui);

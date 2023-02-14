@@ -29,7 +29,7 @@ use rpfm_lib::files::FileType;
 
 use crate::app_ui::AppUI;
 use crate::locale::qtr;
-use crate::packedfile_views::{PackedFileView, ViewType};
+use crate::packedfile_views::{FileView, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use self::slots::PackedFileExternalViewSlots;
 
@@ -58,16 +58,16 @@ impl PackedFileExternalView {
     pub unsafe fn new_view(
         packed_file_path: &Rc<RefCell<String>>,
         app_ui: &Rc<AppUI>,
-        packed_file_view: &mut PackedFileView,
+        packed_file_view: &mut FileView,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         external_path: &Path,
     ) {
-        let layout: QPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast();
+        let layout: QPtr<QGridLayout> = packed_file_view.main_widget().layout().static_downcast();
 
-        let current_name_label = QLabel::from_q_string_q_widget(&qtr("external_current_path"), packed_file_view.get_mut_widget());
-        let current_name_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{:?}", external_path.display())), packed_file_view.get_mut_widget());
-        let stop_watching_button = QPushButton::from_q_string_q_widget(&qtr("stop_watching"), packed_file_view.get_mut_widget());
-        let open_folder_button = QPushButton::from_q_string_q_widget(&qtr("open_folder"), packed_file_view.get_mut_widget());
+        let current_name_label = QLabel::from_q_string_q_widget(&qtr("external_current_path"), packed_file_view.main_widget());
+        let current_name_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{:?}", external_path.display())), packed_file_view.main_widget());
+        let stop_watching_button = QPushButton::from_q_string_q_widget(&qtr("stop_watching"), packed_file_view.main_widget());
+        let open_folder_button = QPushButton::from_q_string_q_widget(&qtr("open_folder"), packed_file_view.main_widget());
 
         layout.add_widget_5a(&current_name_label, 0, 0, 1, 1);
         layout.add_widget_5a(&current_name_data_label, 0, 1, 1, 1);
@@ -88,8 +88,8 @@ impl PackedFileExternalView {
         );
 
         connections::set_connections(&packed_file_external_view, &packed_file_external_view_slots);
-        packed_file_view.view = ViewType::External(packed_file_external_view);
-        packed_file_view.packed_file_type = FileType::Unknown;
+        packed_file_view.view_type = ViewType::External(packed_file_external_view);
+        packed_file_view.file_type = FileType::Unknown;
     }
 
     /// This function returns a copy of the external path of the PackedFile.

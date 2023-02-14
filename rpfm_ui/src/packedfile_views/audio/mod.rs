@@ -23,7 +23,7 @@ use std::sync::{Arc, RwLock};
 
 use rpfm_lib::files::{audio::Audio, FileType};
 
-use crate::packedfile_views::{PackedFileView, View, ViewType};
+use crate::packedfile_views::{FileView, View, ViewType};
 use crate::utils::{find_widget, load_template};
 
 mod connections;
@@ -56,14 +56,14 @@ impl FileAudioView {
 
     /// This function creates a new Audio View.
     pub unsafe fn new_view(
-        file_view: &mut PackedFileView,
+        file_view: &mut FileView,
         data: &Audio
     ) -> Result<()> {
 
         // Load the UI Template.
         let template_path = if cfg!(debug_assertions) { VIEW_DEBUG } else { VIEW_RELEASE };
-        let main_widget = load_template(file_view.get_mut_widget(), template_path)?;
-        let layout: QPtr<QGridLayout> = file_view.get_mut_widget().layout().static_downcast();
+        let main_widget = load_template(file_view.main_widget(), template_path)?;
+        let layout: QPtr<QGridLayout> = file_view.main_widget().layout().static_downcast();
         layout.add_widget_5a(&main_widget, 0, 0, 1, 1);
 
         let play_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "play_button")?;
@@ -87,8 +87,8 @@ impl FileAudioView {
         let slots = slots::AudioSlots::new(&view);
         connections::set_connections(&view, &slots);
 
-        file_view.packed_file_type = FileType::Audio;
-        file_view.view = ViewType::Internal(View::Audio(view));
+        file_view.file_type = FileType::Audio;
+        file_view.view_type = ViewType::Internal(View::Audio(view));
 
         Ok(())
     }

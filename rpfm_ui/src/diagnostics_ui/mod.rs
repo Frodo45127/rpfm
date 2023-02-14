@@ -64,7 +64,7 @@ use crate::GAME_SELECTED;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, qtre, tr};
 use crate::pack_tree::*;
-use crate::packedfile_views::{DataSource, PackedFileView, View, ViewType, SpecialView};
+use crate::packedfile_views::{DataSource, FileView, View, ViewType, SpecialView};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::settings_ui::backend::*;
 use crate::UI_STATE;
@@ -832,10 +832,10 @@ impl DiagnosticsUI {
 
             "DB" | "Loc" | "DependencyManager" => {
 
-                if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).find(|x| *x.get_ref_path() == path) {
+                if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).find(|x| *x.path_read() == path) {
 
                     // In case of tables, we have to get the logical row/column of the match and select it.
-                    if let ViewType::Internal(View::Table(view)) = packed_file_view.get_view() {
+                    if let ViewType::Internal(View::Table(view)) = packed_file_view.view_type() {
                         let table_view = view.get_ref_table();
                         let table_view = table_view.table_view();
                         let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
@@ -856,7 +856,7 @@ impl DiagnosticsUI {
                         }
                     }
 
-                    else if let ViewType::Internal(View::DependenciesManager(view)) = packed_file_view.get_view() {
+                    else if let ViewType::Internal(View::DependenciesManager(view)) = packed_file_view.view_type() {
 
                         let table_view = view.get_ref_table();
                         let table_view = table_view.table_view();
@@ -881,8 +881,8 @@ impl DiagnosticsUI {
             }
 
             "PortraitSettings" => {
-                if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).find(|x| *x.get_ref_path() == path) {
-                    if let ViewType::Internal(View::PortraitSettings(view)) = packed_file_view.get_view() {
+                if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).find(|x| *x.path_read() == path) {
+                    if let ViewType::Internal(View::PortraitSettings(view)) = packed_file_view.view_type() {
                         let list_view = view.main_list_view();
                         let list_filter: QPtr<QSortFilterProxyModel> = list_view.model().static_downcast();
                         let list_model: QPtr<QStandardItemModel> = list_filter.source_model().static_downcast();
@@ -976,12 +976,12 @@ impl DiagnosticsUI {
             _ => return,
         };
 
-        if let Some(view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).find(|view| &view.get_path() == path) {
-            if app_ui.tab_bar_packed_file().index_of(view.get_mut_widget()) != -1 {
+        if let Some(view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).find(|view| &view.path_copy() == path) {
+            if app_ui.tab_bar_packed_file().index_of(view.main_widget()) != -1 {
 
                 // In case of tables, we have to get the logical row/column of the match and select it.
-                let internal_table_view = if let ViewType::Internal(View::Table(view)) = view.get_view() { view.get_ref_table() }
-                else if let ViewType::Internal(View::DependenciesManager(view)) = view.get_view() { view.get_ref_table() }
+                let internal_table_view = if let ViewType::Internal(View::Table(view)) = view.view_type() { view.get_ref_table() }
+                else if let ViewType::Internal(View::DependenciesManager(view)) = view.view_type() { view.get_ref_table() }
                 //else if let ViewType::Internal(View::AnimFragment(view)) = view.get_view() { view.table_view() }
                 else { return };
 
@@ -1153,13 +1153,13 @@ impl DiagnosticsUI {
     }
 
     pub unsafe fn clean_diagnostics_from_views(app_ui: &Rc<AppUI>) {
-        for view in UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile) {
+        for view in UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile) {
 
             // Only update the visible tables.
-            if app_ui.tab_bar_packed_file().index_of(view.get_mut_widget()) != -1 {
+            if app_ui.tab_bar_packed_file().index_of(view.main_widget()) != -1 {
 
                 // In case of tables, we have to get the logical row/column of the match and select it.
-                if let ViewType::Internal(View::Table(view)) = view.get_view() {
+                if let ViewType::Internal(View::Table(view)) = view.view_type() {
                     let table_view = view.get_ref_table().table_view();
                     let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
                     let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
@@ -1209,7 +1209,7 @@ impl DiagnosticsUI {
                     table_view.viewport().repaint();
                 }*/
 
-                else if let ViewType::Internal(View::DependenciesManager(view)) = view.get_view() {
+                else if let ViewType::Internal(View::DependenciesManager(view)) = view.view_type() {
                     let table_view = view.get_ref_table().table_view();
                     let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
                     let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
@@ -1264,14 +1264,14 @@ impl DiagnosticsUI {
         if diagnostics_ui.diagnostics_button_only_current_packed_file.is_checked() {
             let open_packedfiles = UI_STATE.get_open_packedfiles();
             let open_packedfiles_ref = open_packedfiles.iter()
-                .filter(|x| x.get_data_source() == DataSource::PackFile && app_ui.tab_bar_packed_file().index_of(x.get_mut_widget()) != -1)
-                .collect::<Vec<&PackedFileView>>();
+                .filter(|x| x.data_source() == DataSource::PackFile && app_ui.tab_bar_packed_file().index_of(x.main_widget()) != -1)
+                .collect::<Vec<&FileView>>();
             let mut pattern = String::new();
             for open_packedfile in &open_packedfiles_ref {
                 if !pattern.is_empty() {
                     pattern.push('|');
                 }
-                pattern.push_str(&open_packedfile.get_ref_path().to_string());
+                pattern.push_str(&open_packedfile.path_read().to_string());
             }
 
             // This makes sure the check works even if we don't have anything open.

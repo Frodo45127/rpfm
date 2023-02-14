@@ -561,7 +561,7 @@ impl PackedFileDecoderViewSlots {
                 // Save and close all PackedFiles that use our definition.
                 let mut packed_files_to_save = vec![];
                 let table_path = view.packed_file_path().replace(DECODER_EXTENSION, "");
-                for open_path in UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).map(|x| x.get_ref_path()) {
+                for open_path in UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).map(|x| x.path_read()) {
                     if *open_path == table_path {
                         packed_files_to_save.push(ContainerPath::File(open_path.to_owned()));
                     }

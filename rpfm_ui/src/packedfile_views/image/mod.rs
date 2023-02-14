@@ -30,7 +30,7 @@ use rpfm_lib::files::{FileType, image::Image};
 #[cfg(feature = "support_modern_dds")]
 use crate::ffi::get_dds_qimage;
 use crate::ffi::{new_resizable_label_safe, set_pixmap_on_resizable_label_safe};
-use crate::packedfile_views::{PackedFileView, View, ViewType};
+use crate::packedfile_views::{FileView, View, ViewType};
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -51,7 +51,7 @@ impl PackedFileImageView {
 
     /// This function creates a new Image View, and sets up his slots and connections.
     pub unsafe fn new_view(
-        packed_file_view: &mut PackedFileView,
+        packed_file_view: &mut FileView,
         data: &Image
     ) -> Result<()> {
 
@@ -86,13 +86,13 @@ impl PackedFileImageView {
         }
 
         // Get the size of the holding widget.
-        let layout: QPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast();
-        let label = new_resizable_label_safe(&packed_file_view.get_mut_widget().as_ptr(), &image.as_ptr());
+        let layout: QPtr<QGridLayout> = packed_file_view.main_widget().layout().static_downcast();
+        let label = new_resizable_label_safe(&packed_file_view.main_widget().as_ptr(), &image.as_ptr());
         label.set_alignment(QFlags::from(AlignmentFlag::AlignCenter));
         layout.add_widget_5a(&label, 0, 0, 1, 1);
 
-        packed_file_view.packed_file_type = FileType::Image;
-        packed_file_view.view = ViewType::Internal(View::Image(Self {
+        packed_file_view.file_type = FileType::Image;
+        packed_file_view.view_type = ViewType::Internal(View::Image(Self {
             label,
             image
         }));

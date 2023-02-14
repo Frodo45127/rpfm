@@ -27,7 +27,7 @@ use rpfm_lib::files::{FileType, text::*};
 use crate::app_ui::AppUI;
 use crate::ffi::{cursor_row_safe, new_text_editor_safe, scroll_to_row_safe, set_text_safe};
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::packedfile_views::{DataSource, PackedFileView, View, ViewType};
+use crate::packedfile_views::{DataSource, FileView, View, ViewType};
 use crate::packedfile_views::text::slots::PackedFileTextViewSlots;
 
 mod connections;
@@ -63,7 +63,7 @@ impl PackedFileTextView {
 
     /// This function creates a new Text View, and sets up his slots and connections.
     pub unsafe fn new_view(
-        packed_file_view: &mut PackedFileView,
+        packed_file_view: &mut FileView,
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         data: &Text,
@@ -81,23 +81,23 @@ impl PackedFileTextView {
             TextFormat::Js => QString::from_std_str(JS),
         };
 
-        let editor = new_text_editor_safe(&packed_file_view.get_mut_widget().static_upcast());
-        let layout: QPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast();
+        let editor = new_text_editor_safe(&packed_file_view.main_widget().static_upcast());
+        let layout: QPtr<QGridLayout> = packed_file_view.main_widget().layout().static_downcast();
         layout.add_widget_5a(&editor, 0, 0, 1, 1);
 
         set_text_safe(&editor.static_upcast(), &QString::from_std_str(data.contents()).as_ptr(), &highlighting_mode.as_ptr());
 
         let view = Arc::new(PackedFileTextView {
             editor,
-            packed_file_path: Some(packed_file_view.get_path_raw()),
+            packed_file_path: Some(packed_file_view.path_raw()),
             data_source: packed_file_view.data_source.clone(),
         });
 
         let slots = PackedFileTextViewSlots::new(&view, app_ui, pack_file_contents_ui);
         connections::set_connections(&view, &slots);
 
-        packed_file_view.packed_file_type = FileType::Text;
-        packed_file_view.view = ViewType::Internal(View::Text(view));
+        packed_file_view.file_type = FileType::Text;
+        packed_file_view.view_type = ViewType::Internal(View::Text(view));
     }
 
     /// This function returns a pointer to the editor widget.

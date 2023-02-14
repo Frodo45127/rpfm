@@ -52,7 +52,7 @@ impl PackFileSettingsSlots {
             app_ui,
             pack_file_contents_ui=> move || {
                 for view in &*UI_STATE.get_open_packedfiles() {
-                    if let ViewType::Internal(View::PackSettings(_)) = view.get_view() {
+                    if let ViewType::Internal(View::PackSettings(_)) = view.view_type() {
                         let _ = view.save(&app_ui, &pack_file_contents_ui);
                         break;
                     }

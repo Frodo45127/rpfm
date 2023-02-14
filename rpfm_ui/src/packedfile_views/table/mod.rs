@@ -25,7 +25,7 @@ use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::packedfile_views::{PackedFileView, View, ViewType};
+use crate::packedfile_views::{FileView, View, ViewType};
 use crate::references_ui::ReferencesUI;
 use crate::views::table::{TableView, TableType};
 
@@ -47,7 +47,7 @@ impl PackedFileTableView {
 
     /// This function creates a new Table View, and sets up his slots and connections.
     pub unsafe fn new_view(
-        packed_file_view: &mut PackedFileView,
+        packed_file_view: &mut FileView,
         app_ui: &Rc<AppUI>,
         global_search_ui: &Rc<GlobalSearchUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
@@ -72,7 +72,7 @@ impl PackedFileTableView {
         };
 
         let table_view = TableView::new_view(
-            packed_file_view.get_mut_widget(),
+            packed_file_view.main_widget(),
             app_ui,
             global_search_ui,
             pack_file_contents_ui,
@@ -80,7 +80,7 @@ impl PackedFileTableView {
             dependencies_ui,
             references_ui,
             table_data,
-            Some(packed_file_view.get_path_raw()),
+            Some(packed_file_view.path_raw()),
             packed_file_view.data_source.clone()
         )?;
 
@@ -88,8 +88,8 @@ impl PackedFileTableView {
             table_view,
         };
 
-        packed_file_view.view = ViewType::Internal(View::Table(Arc::new(packed_file_table_view)));
-        packed_file_view.packed_file_type = packed_file_type;
+        packed_file_view.view_type = ViewType::Internal(View::Table(Arc::new(packed_file_table_view)));
+        packed_file_view.file_type = packed_file_type;
 
         // Return success.
         Ok(())

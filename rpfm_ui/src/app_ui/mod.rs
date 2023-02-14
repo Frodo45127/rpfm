@@ -85,7 +85,7 @@ use crate::GAME_SELECTED;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, qtre, tre};
 use crate::pack_tree::{BuildData, icons::IconType, new_pack_file_tooltip, PackTree, TreeViewOperation};
-use crate::packedfile_views::{anim_fragment::*, animpack::*, anims_table::*, audio::FileAudioView, DataSource, decoder::*, dependencies_manager::*, esf::*, external::*, image::*, matched_combat::*, PackedFileView, packfile::PackFileExtraView, packfile_settings::*, portrait_settings::PortraitSettingsView, SpecialView, table::*, text::*, unit_variant::*, video::*};
+use crate::packedfile_views::{anim_fragment::*, animpack::*, anims_table::*, audio::FileAudioView, DataSource, decoder::*, dependencies_manager::*, esf::*, external::*, image::*, matched_combat::*, FileView, packfile::PackFileExtraView, packfile_settings::*, portrait_settings::PortraitSettingsView, SpecialView, table::*, text::*, unit_variant::*, video::*};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::references_ui::ReferencesUI;
 use crate::RPFM_PATH;
@@ -1056,10 +1056,10 @@ impl AppUI {
     ) -> Result<()> {
 
         for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
-            if save_before_deleting && packed_file_view.get_path() != RESERVED_NAME_EXTRA_PACKFILE {
+            if save_before_deleting && packed_file_view.path_copy() != RESERVED_NAME_EXTRA_PACKFILE {
                 packed_file_view.save(app_ui, pack_file_contents_ui)?;
             }
-            let widget = packed_file_view.get_mut_widget();
+            let widget = packed_file_view.main_widget();
             let index = app_ui.tab_bar_packed_file.index_of(widget);
             if index != -1 {
                 app_ui.tab_bar_packed_file.remove_tab(index);
@@ -1101,7 +1101,7 @@ impl AppUI {
         let mut did_it_worked = Ok(());
 
         // Black magic to remove widgets.
-        let position = UI_STATE.get_open_packedfiles().iter().position(|x| *x.get_ref_path() == path && x.get_data_source() == data_source);
+        let position = UI_STATE.get_open_packedfiles().iter().position(|x| *x.path_read() == path && x.data_source() == data_source);
         if let Some(position) = position {
             if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().get(position) {
 
@@ -1109,7 +1109,7 @@ impl AppUI {
                 if save_before_deleting && !path.starts_with(RESERVED_NAME_EXTRA_PACKFILE) {
                     did_it_worked = packed_file_view.save(app_ui, pack_file_contents_ui);
                 }
-                let widget = packed_file_view.get_mut_widget();
+                let widget = packed_file_view.main_widget();
                 let index = app_ui.tab_bar_packed_file.index_of(widget);
                 if index != -1 {
                     app_ui.tab_bar_packed_file.remove_tab(index);
@@ -1126,7 +1126,7 @@ impl AppUI {
                     // We check if there are more tables open. This is because we cannot change the GameSelected
                     // when there is a PackedFile using his Schema.
                     let mut enable_game_selected_menu = true;
-                    for path in UI_STATE.get_open_packedfiles().iter().map(|x| x.get_ref_path()) {
+                    for path in UI_STATE.get_open_packedfiles().iter().map(|x| x.path_read()) {
                         let path = path.to_lowercase();
                         if path.starts_with("db") {
                             enable_game_selected_menu = false;
@@ -2284,48 +2284,48 @@ impl AppUI {
 
                 // Close all preview views except the file we're opening.
                 for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
-                    let open_path = packed_file_view.get_ref_path();
-                    let index = app_ui.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget());
-                    if (data_source != packed_file_view.get_data_source() ||
-                        (data_source == packed_file_view.get_data_source() && *open_path != *path)) &&
-                        packed_file_view.get_is_preview() && index != -1 {
+                    let open_path = packed_file_view.path_read();
+                    let index = app_ui.tab_bar_packed_file.index_of(packed_file_view.main_widget());
+                    if (data_source != packed_file_view.data_source() ||
+                        (data_source == packed_file_view.data_source() && *open_path != *path)) &&
+                        packed_file_view.is_preview() && index != -1 {
                         app_ui.tab_bar_packed_file.remove_tab(index);
                     }
                 }
 
                 // If the file we want to open is already open, or it's hidden, we show it/focus it, instead of opening it again.
                 // If it was a preview, then we mark it as full. Index == -1 means it's not in a tab.
-                if let Some(tab_widget) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == *path && x.get_data_source() == data_source) {
+                if let Some(tab_widget) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.path_read() == *path && x.data_source() == data_source) {
                     if !is_external {
-                        let index = app_ui.tab_bar_packed_file.index_of(tab_widget.get_mut_widget());
+                        let index = app_ui.tab_bar_packed_file.index_of(tab_widget.main_widget());
 
                         // If we're trying to open as preview something already open as full, we don't do anything.
-                        if !(index != -1 && is_preview && !tab_widget.get_is_preview()) {
+                        if !(index != -1 && is_preview && !tab_widget.is_preview()) {
                             tab_widget.set_is_preview(is_preview);
                         }
 
                         if index == -1 {
                             let icon_type = IconType::File(path.to_owned());
                             let icon = TREEVIEW_ICONS.icon(icon_type);
-                            app_ui.tab_bar_packed_file.add_tab_3a(tab_widget.get_mut_widget(), icon, &QString::from_std_str(""));
+                            app_ui.tab_bar_packed_file.add_tab_3a(tab_widget.main_widget(), icon, &QString::from_std_str(""));
                         }
 
-                        app_ui.tab_bar_packed_file.set_current_widget(tab_widget.get_mut_widget());
+                        app_ui.tab_bar_packed_file.set_current_widget(tab_widget.main_widget());
                         Self::update_views_names(app_ui);
                         return;
                     }
                 }
 
                 // If we have a PackedFile open, but we want to open it as a external file, close it here.
-                if is_external && UI_STATE.get_open_packedfiles().iter().any(|x| *x.get_ref_path() == *path && x.get_data_source() == data_source) {
+                if is_external && UI_STATE.get_open_packedfiles().iter().any(|x| *x.path_read() == *path && x.data_source() == data_source) {
                     if let Err(error) = Self::purge_that_one_specifically(app_ui, pack_file_contents_ui, path, data_source, true) {
                         show_dialog(&app_ui.main_window, error, false);
                     }
                 }
 
-                let mut tab = PackedFileView::default();
-                tab.get_mut_widget().set_parent(&app_ui.tab_bar_packed_file);
-                tab.get_mut_widget().set_context_menu_policy(ContextMenuPolicy::CustomContextMenu);
+                let mut tab = FileView::default();
+                tab.main_widget().set_parent(&app_ui.tab_bar_packed_file);
+                tab.main_widget().set_context_menu_policy(ContextMenuPolicy::CustomContextMenu);
                 tab.set_path(path);
 
                 // Any table banned or from out of our PackFile should not be editable.
@@ -2342,7 +2342,7 @@ impl AppUI {
                 tab.set_data_source(data_source);
 
                 if !is_external {
-                    let receiver = CENTRAL_COMMAND.send_background(Command::DecodePackedFile(path.to_string(), tab.get_data_source()));
+                    let receiver = CENTRAL_COMMAND.send_background(Command::DecodePackedFile(path.to_string(), tab.data_source()));
 
                     tab.set_is_preview(is_preview);
                     let icon_type = IconType::File(path.to_owned());
@@ -2357,12 +2357,12 @@ impl AppUI {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
-                                    app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &QString::from_std_str(""));
+                                    app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
 
                                     // Fix the quick notes view.
-                                    let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
-                                    layout.add_widget_5a(tab.get_notes_widget(), 0, 99, layout.row_count(), 1);
+                                    let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
+                                    layout.add_widget_5a(tab.notes_widget(), 0, 99, layout.row_count(), 1);
 
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
@@ -2379,12 +2379,12 @@ impl AppUI {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
-                                    app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &QString::from_std_str(""));
+                                    app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
 
                                     // Fix the quick notes view.
-                                    let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
-                                    layout.add_widget_5a(tab.get_notes_widget(), 0, 99, layout.row_count(), 1);
+                                    let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
+                                    layout.add_widget_5a(tab.notes_widget(), 0, 99, layout.row_count(), 1);
 
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
@@ -2403,12 +2403,12 @@ impl AppUI {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
-                                    app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &QString::from_std_str(""));
+                                    app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
 
                                     // Fix the quick notes view.
-                                    let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
-                                    layout.add_widget_5a(tab.get_notes_widget(), 0, 99, layout.row_count(), 1);
+                                    let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
+                                    layout.add_widget_5a(tab.notes_widget(), 0, 99, layout.row_count(), 1);
 
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
@@ -2425,12 +2425,12 @@ impl AppUI {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
-                                    app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &QString::from_std_str(""));
+                                    app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
 
                                     // Fix the quick notes view.
-                                    let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
-                                    layout.add_widget_5a(tab.get_notes_widget(), 0, 99, layout.row_count(), 1);
+                                    let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
+                                    layout.add_widget_5a(tab.notes_widget(), 0, 99, layout.row_count(), 1);
 
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
@@ -2450,12 +2450,12 @@ impl AppUI {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
-                                    app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &QString::from_std_str(""));
+                                    app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
 
                                     // Fix the quick notes view.
-                                    let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
-                                    layout.add_widget_5a(tab.get_notes_widget(), 0, 99, layout.row_count(), 1);
+                                    let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
+                                    layout.add_widget_5a(tab.notes_widget(), 0, 99, layout.row_count(), 1);
 
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
@@ -2484,12 +2484,12 @@ impl AppUI {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
-                                    app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &QString::from_std_str(""));
+                                    app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
 
                                     // Fix the quick notes view.
-                                    let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
-                                    layout.add_widget_5a(tab.get_notes_widget(), 0, 99, layout.row_count(), 1);
+                                    let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
+                                    layout.add_widget_5a(tab.notes_widget(), 0, 99, layout.row_count(), 1);
 
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
@@ -2508,12 +2508,12 @@ impl AppUI {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
-                                    app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &QString::from_std_str(""));
+                                    app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
 
                                     // Fix the quick notes view.
-                                    let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
-                                    layout.add_widget_5a(tab.get_notes_widget(), 0, 99, layout.row_count(), 1);
+                                    let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
+                                    layout.add_widget_5a(tab.notes_widget(), 0, 99, layout.row_count(), 1);
 
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
@@ -2533,12 +2533,12 @@ impl AppUI {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
-                                    app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &QString::from_std_str(""));
+                                    app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
 
                                     // Fix the quick notes view.
-                                    let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
-                                    layout.add_widget_5a(tab.get_notes_widget(), 0, 99, layout.row_count(), 1);
+                                    let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
+                                    layout.add_widget_5a(tab.notes_widget(), 0, 99, layout.row_count(), 1);
 
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
@@ -2556,12 +2556,12 @@ impl AppUI {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
-                                    app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &QString::from_std_str(""));
+                                    app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
 
                                     // Fix the quick notes view.
-                                    let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
-                                    layout.add_widget_5a(tab.get_notes_widget(), 0, 99, layout.row_count(), 1);
+                                    let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
+                                    layout.add_widget_5a(tab.notes_widget(), 0, 99, layout.row_count(), 1);
 
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
@@ -2578,12 +2578,12 @@ impl AppUI {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
-                                    app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &QString::from_std_str(""));
+                                    app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
 
                                     // Fix the quick notes view.
-                                    let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
-                                    layout.add_widget_5a(tab.get_notes_widget(), 0, 99, layout.row_count(), 1);
+                                    let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
+                                    layout.add_widget_5a(tab.notes_widget(), 0, 99, layout.row_count(), 1);
 
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
@@ -2603,12 +2603,12 @@ impl AppUI {
                                         Ok(_) => {
 
                                             // Add the file to the 'Currently open' list and make it visible.
-                                            app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
-                                            app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+                                            app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &QString::from_std_str(""));
+                                            app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
 
                                             // Fix the quick notes view.
-                                            let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
-                                            layout.add_widget_5a(tab.get_notes_widget(), 0, 99, layout.row_count(), 1);
+                                            let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
+                                            layout.add_widget_5a(tab.notes_widget(), 0, 99, layout.row_count(), 1);
 
                                             let mut open_list = UI_STATE.set_open_packedfiles();
                                             open_list.push(tab);
@@ -2656,12 +2656,12 @@ impl AppUI {
                             PackedFileTextView::new_view(&mut tab, app_ui, pack_file_contents_ui, &data);
 
                             // Add the file to the 'Currently open' list and make it visible.
-                            app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
-                            app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+                            app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &QString::from_std_str(""));
+                            app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
 
                             // Fix the quick notes view.
-                            let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
-                            layout.add_widget_5a(tab.get_notes_widget(), 0, 99, layout.row_count(), 1);
+                            let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
+                            layout.add_widget_5a(tab.notes_widget(), 0, 99, layout.row_count(), 1);
 
                             let mut open_list = UI_STATE.set_open_packedfiles();
                             open_list.push(tab);
@@ -2676,12 +2676,12 @@ impl AppUI {
                             PackedFileTextView::new_view(&mut tab, app_ui, pack_file_contents_ui, &data);
 
                             // Add the file to the 'Currently open' list and make it visible.
-                            app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
-                            app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+                            app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &QString::from_std_str(""));
+                            app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
 
                             // Fix the quick notes view.
-                            let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
-                            layout.add_widget_5a(tab.get_notes_widget(), 0, 99, layout.row_count(), 1);
+                            let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
+                            layout.add_widget_5a(tab.notes_widget(), 0, 99, layout.row_count(), 1);
 
                             let mut open_list = UI_STATE.set_open_packedfiles();
                             open_list.push(tab);
@@ -2692,12 +2692,12 @@ impl AppUI {
                             PackedFileVideoView::new_view(&mut tab, app_ui, pack_file_contents_ui, &data);
 
                             // Add the file to the 'Currently open' list and make it visible.
-                            app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
-                            app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+                            app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &QString::from_std_str(""));
+                            app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
 
                             // Fix the quick notes view.
-                            let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
-                            layout.add_widget_5a(tab.get_notes_widget(), 0, 99, layout.row_count(), 1);
+                            let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
+                            layout.add_widget_5a(tab.notes_widget(), 0, 99, layout.row_count(), 1);
 
                             let mut open_list = UI_STATE.set_open_packedfiles();
                             open_list.push(tab);
@@ -2784,8 +2784,8 @@ impl AppUI {
                     PackedFileExternalView::new_view(&path, app_ui, &mut tab, pack_file_contents_ui, &external_path);
 
                     // Add the file to the 'Currently open' list and make it visible.
-                    app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
-                    app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+                    app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &QString::from_std_str(""));
+                    app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
                     let mut open_list = UI_STATE.set_open_packedfiles();
                     open_list.push(tab);
                 }
@@ -2833,30 +2833,30 @@ impl AppUI {
 
             // Close all preview views except the file we're opening. The path used for the manager is empty.
             for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
-                let open_path = packed_file_view.get_ref_path();
-                let index = app_ui.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget());
-                if !open_path.is_empty() && packed_file_view.get_is_preview() && index != -1 {
+                let open_path = packed_file_view.path_read();
+                let index = app_ui.tab_bar_packed_file.index_of(packed_file_view.main_widget());
+                if !open_path.is_empty() && packed_file_view.is_preview() && index != -1 {
                     app_ui.tab_bar_packed_file.remove_tab(index);
                 }
             }
 
             // If the manager is already open, or it's hidden, we show it/focus it, instead of opening it again.
-            if let Some(tab_widget) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).find(|x| *x.get_ref_path() == path) {
-                let index = app_ui.tab_bar_packed_file.index_of(tab_widget.get_mut_widget());
+            if let Some(tab_widget) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).find(|x| *x.path_read() == path) {
+                let index = app_ui.tab_bar_packed_file.index_of(tab_widget.main_widget());
 
                 if index == -1 {
                     let icon_type = IconType::Pack(true);
                     let icon = TREEVIEW_ICONS.icon(icon_type);
-                    app_ui.tab_bar_packed_file.add_tab_3a(tab_widget.get_mut_widget(), icon, &name);
+                    app_ui.tab_bar_packed_file.add_tab_3a(tab_widget.main_widget(), icon, &name);
                 }
 
-                app_ui.tab_bar_packed_file.set_current_widget(tab_widget.get_mut_widget());
+                app_ui.tab_bar_packed_file.set_current_widget(tab_widget.main_widget());
                 return;
             }
 
             // If it's not already open/hidden, we create it and add it as a new tab.
-            let mut tab = PackedFileView::default();
-            tab.get_mut_widget().set_parent(&app_ui.tab_bar_packed_file);
+            let mut tab = FileView::default();
+            tab.main_widget().set_parent(&app_ui.tab_bar_packed_file);
             tab.set_is_preview(false);
             tab.set_path(&path);
             let icon_type = IconType::Pack(true);
@@ -2868,8 +2868,8 @@ impl AppUI {
                         Ok(_) => {
 
                             // Add the decoder to the 'Currently open' list and make it visible.
-                            app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &name);
-                            app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+                            app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &name);
+                            app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
                             let mut open_list = UI_STATE.set_open_packedfiles();
                             open_list.push(tab);
                         },
@@ -2881,8 +2881,8 @@ impl AppUI {
                     let pathbuf = PathBuf::from(path.to_owned());
                     match PackFileExtraView::new_view(&mut tab, app_ui, pack_file_contents_ui, pathbuf) {
                         Ok(_) => {
-                            app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(path));
-                            app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+                            app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &QString::from_std_str(path));
+                            app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
                             UI_STATE.set_open_packedfiles().push(tab);
                         }
                         Err(error) => show_dialog(&app_ui.main_window, error, false),
@@ -2891,8 +2891,8 @@ impl AppUI {
                 SpecialView::PackSettings => {
                     match PackFileSettingsView::new_view(&mut tab, app_ui, pack_file_contents_ui) {
                         Ok(_) => {
-                            app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &name);
-                            app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+                            app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &name);
+                            app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
                             UI_STATE.set_open_packedfiles().push(tab);
                         },
                         Err(error) => return show_dialog(&app_ui.main_window, error, false),
@@ -2903,8 +2903,8 @@ impl AppUI {
                         Ok(_) => {
 
                             // Add the manager to the 'Currently open' list and make it visible.
-                            app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &name);
-                            app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+                            app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &name);
+                            app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
                             UI_STATE.set_open_packedfiles().push(tab);
                         },
                         Err(error) => return show_dialog(&app_ui.main_window, error, false),
@@ -3431,11 +3431,11 @@ impl AppUI {
         let mut names = HashMap::new();
         let open_packedfiles = UI_STATE.get_open_packedfiles();
         for packed_file_view in open_packedfiles.iter() {
-            let widget = packed_file_view.get_mut_widget();
+            let widget = packed_file_view.main_widget();
             if self.tab_bar_packed_file.index_of(widget) != -1 {
 
                 // Reserved PackedFiles should have special names.
-                let path = packed_file_view.get_ref_path();
+                let path = packed_file_view.path_read();
                 let path_split = path.split('/').collect::<Vec<_>>();
                 if *path == RESERVED_NAME_NOTES {
                     names.insert("Notes".to_owned(), 1);
@@ -3449,8 +3449,8 @@ impl AppUI {
         }
 
         for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
-            let widget = packed_file_view.get_mut_widget();
-            let path = packed_file_view.get_ref_path();
+            let widget = packed_file_view.main_widget();
+            let path = packed_file_view.path_read();
             let path_split = path.split('/').collect::<Vec<_>>();
             let widget_name = if *path == RESERVED_NAME_NOTES {
                 "Notes".to_owned()
@@ -3462,7 +3462,7 @@ impl AppUI {
 
             if let Some(count) = names.get(&widget_name) {
                 let mut name = String::new();
-                match packed_file_view.get_data_source() {
+                match packed_file_view.data_source() {
                     DataSource::PackFile => {},
                     DataSource::ParentFiles => name.push_str("Parent"),
                     DataSource::GameFiles => name.push_str("Game"),
@@ -3471,7 +3471,7 @@ impl AppUI {
                 }
 
                 if !name.is_empty() {
-                    if packed_file_view.get_is_read_only() {
+                    if packed_file_view.is_read_only() {
                         name.push_str("-RO:");
                     } else  {
                         name.push(':');
@@ -3484,7 +3484,7 @@ impl AppUI {
                     name.push_str(&widget_name.to_owned());
                 };
 
-                if packed_file_view.get_is_preview() {
+                if packed_file_view.is_preview() {
                     name.push_str(" (Preview)");
                 }
 
@@ -3510,10 +3510,10 @@ impl AppUI {
         let mut purge_on_delete = vec![];
 
         for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
-            let widget = packed_file_view.get_mut_widget();
+            let widget = packed_file_view.main_widget();
             let index_widget = app_ui.tab_bar_packed_file.index_of(widget);
             if indexes.contains(&index_widget) {
-                let path = packed_file_view.get_ref_path();
+                let path = packed_file_view.path_read();
                 if !path.is_empty() {
                     if path.starts_with(RESERVED_NAME_EXTRA_PACKFILE) {
                         purge_on_delete.push(path.to_owned());

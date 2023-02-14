@@ -125,7 +125,7 @@ impl TableViewSlots {
             if view.get_data_source() == DataSource::PackFile && !view.save_lock.load(Ordering::SeqCst) && !view.undo_lock.load(Ordering::SeqCst) {
                 if let Some(ref packed_file_path) = view.packed_file_path {
                     let mut paths_to_check = vec![];
-                    if let Some(packed_file) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == *packed_file_path.read().unwrap() && x.get_data_source() == DataSource::PackFile) {
+                    if let Some(packed_file) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.path_read() == *packed_file_path.read().unwrap() && x.data_source() == DataSource::PackFile) {
                         if let Err(error) = packed_file.save(&app_ui, &pack_file_contents_ui) {
                             show_dialog(&view.table_view, error, false);
                         } else if let Some(path) = view.get_packed_file_path() {
@@ -518,7 +518,7 @@ impl TableViewSlots {
                         if file_dialog.exec() == 1 {
 
                             let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
-                            if let Some(packed_file) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == *packed_file_path.read().unwrap() && x.get_data_source() == DataSource::PackFile) {
+                            if let Some(packed_file) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.path_read() == *packed_file_path.read().unwrap() && x.data_source() == DataSource::PackFile) {
                                 if let Err(error) = packed_file.save(&app_ui, &pack_file_contents_ui) {
                                     return show_dialog(&view.table_view, error, false);
                                 }

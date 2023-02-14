@@ -29,7 +29,7 @@ use rpfm_lib::files::{video::*, FileType};
 use crate::app_ui::AppUI;
 use crate::backend::VideoInfo;
 use crate::locale::qtr;
-use crate::packedfile_views::{PackedFileView, View, ViewType};
+use crate::packedfile_views::{FileView, View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
 
 use self::slots::PackedFileVideoViewSlots;
@@ -66,39 +66,39 @@ impl PackedFileVideoView {
 
     /// This function creates a new CaVp8 View, and sets up his slots and connections.
     pub unsafe fn new_view(
-        packed_file_view: &mut PackedFileView,
+        packed_file_view: &mut FileView,
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         data: &VideoInfo,
     ) {
 
-        let layout: QPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast();
+        let layout: QPtr<QGridLayout> = packed_file_view.main_widget().layout().static_downcast();
         layout.set_contents_margins_4a(4, 4, 4, 4);
         layout.set_spacing(2);
 
-        let format_label = QLabel::from_q_string_q_widget(&qtr("format"), packed_file_view.get_mut_widget());
-        let version_label = QLabel::from_q_string_q_widget(&qtr("version"), packed_file_view.get_mut_widget());
-        let codec_four_cc_label = QLabel::from_q_string_q_widget(&qtr("codec_four_cc"), packed_file_view.get_mut_widget());
-        let width_label = QLabel::from_q_string_q_widget(&qtr("width"), packed_file_view.get_mut_widget());
-        let height_label = QLabel::from_q_string_q_widget(&qtr("height"), packed_file_view.get_mut_widget());
-        let num_frames_label = QLabel::from_q_string_q_widget(&qtr("num_frames"), packed_file_view.get_mut_widget());
-        let framerate_label = QLabel::from_q_string_q_widget(&qtr("framerate"), packed_file_view.get_mut_widget());
+        let format_label = QLabel::from_q_string_q_widget(&qtr("format"), packed_file_view.main_widget());
+        let version_label = QLabel::from_q_string_q_widget(&qtr("version"), packed_file_view.main_widget());
+        let codec_four_cc_label = QLabel::from_q_string_q_widget(&qtr("codec_four_cc"), packed_file_view.main_widget());
+        let width_label = QLabel::from_q_string_q_widget(&qtr("width"), packed_file_view.main_widget());
+        let height_label = QLabel::from_q_string_q_widget(&qtr("height"), packed_file_view.main_widget());
+        let num_frames_label = QLabel::from_q_string_q_widget(&qtr("num_frames"), packed_file_view.main_widget());
+        let framerate_label = QLabel::from_q_string_q_widget(&qtr("framerate"), packed_file_view.main_widget());
 
-        let format_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{:?}.", data.format())), packed_file_view.get_mut_widget());
-        let version_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{}.", data.version())), packed_file_view.get_mut_widget());
-        let codec_four_cc_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{}.", data.codec_four_cc())), packed_file_view.get_mut_widget());
-        let width_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{} px.", data.width())), packed_file_view.get_mut_widget());
-        let height_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{} px.", data.height())), packed_file_view.get_mut_widget());
-        let num_frames_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{}", data.num_frames())), packed_file_view.get_mut_widget());
-        let framerate_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{} FPS.", data.framerate())), packed_file_view.get_mut_widget());
+        let format_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{:?}.", data.format())), packed_file_view.main_widget());
+        let version_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{}.", data.version())), packed_file_view.main_widget());
+        let codec_four_cc_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{}.", data.codec_four_cc())), packed_file_view.main_widget());
+        let width_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{} px.", data.width())), packed_file_view.main_widget());
+        let height_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{} px.", data.height())), packed_file_view.main_widget());
+        let num_frames_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{}", data.num_frames())), packed_file_view.main_widget());
+        let framerate_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{} FPS.", data.framerate())), packed_file_view.main_widget());
 
-        let convert_to_camv_button = QPushButton::from_q_string_q_widget(&qtr("convert_to_camv"), packed_file_view.get_mut_widget());
-        let convert_to_ivf_button = QPushButton::from_q_string_q_widget(&qtr("convert_to_ivf"), packed_file_view.get_mut_widget());
+        let convert_to_camv_button = QPushButton::from_q_string_q_widget(&qtr("convert_to_camv"), packed_file_view.main_widget());
+        let convert_to_ivf_button = QPushButton::from_q_string_q_widget(&qtr("convert_to_ivf"), packed_file_view.main_widget());
 
-        let instructions_label = QLabel::from_q_string_q_widget(&qtr("instructions_ca_vp8"), packed_file_view.get_mut_widget());
+        let instructions_label = QLabel::from_q_string_q_widget(&qtr("instructions_ca_vp8"), packed_file_view.main_widget());
 
-        let fill_widget = QWidget::new_1a(packed_file_view.get_mut_widget());
-        let fill_widget2 = QWidget::new_1a(packed_file_view.get_mut_widget());
+        let fill_widget = QWidget::new_1a(packed_file_view.main_widget());
+        let fill_widget2 = QWidget::new_1a(packed_file_view.main_widget());
 
         layout.add_widget_5a(&convert_to_camv_button, 0, 0, 1, 1);
         layout.add_widget_5a(&convert_to_ivf_button, 0, 1, 1, 1);
@@ -138,7 +138,7 @@ impl PackedFileVideoView {
             convert_to_camv_button,
             convert_to_ivf_button,
             current_format: Arc::new(Mutex::new(*data.format())),
-            path: packed_file_view.get_path_raw()
+            path: packed_file_view.path_raw()
         });
 
         let packed_file_ca_vp8_view_slots = PackedFileVideoViewSlots::new(
@@ -148,8 +148,8 @@ impl PackedFileVideoView {
         );
 
         connections::set_connections(&packed_file_ca_vp8_view, &packed_file_ca_vp8_view_slots);
-        packed_file_view.view = ViewType::Internal(View::Video(packed_file_ca_vp8_view));
-        packed_file_view.packed_file_type = FileType::Video;
+        packed_file_view.view_type = ViewType::Internal(View::Video(packed_file_ca_vp8_view));
+        packed_file_view.file_type = FileType::Video;
     }
 
     /// Function to reload the data of the view without having to delete the view itself.

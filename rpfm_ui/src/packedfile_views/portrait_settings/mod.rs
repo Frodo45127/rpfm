@@ -59,7 +59,7 @@ use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::ffi::*;
 use crate::locale::{qtr, tr};
-use crate::packedfile_views::{PackedFileView, View, ViewType};
+use crate::packedfile_views::{FileView, View, ViewType};
 use crate::utils::*;
 
 use self::slots::PortraitSettingsSlots;
@@ -150,7 +150,7 @@ impl PortraitSettingsView {
 
     /// This function creates a new Portrait Settings View, and sets up his slots and connections.
     pub unsafe fn new_view(
-        file_view: &mut PackedFileView,
+        file_view: &mut FileView,
         data: &mut PortraitSettings,
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
@@ -158,8 +158,8 @@ impl PortraitSettingsView {
 
         // Load the UI Template.
         let template_path = if cfg!(debug_assertions) { VIEW_DEBUG } else { VIEW_RELEASE };
-        let main_widget = load_template(file_view.get_mut_widget(), template_path)?;
-        let layout: QPtr<QGridLayout> = file_view.get_mut_widget().layout().static_downcast();
+        let main_widget = load_template(file_view.main_widget(), template_path)?;
+        let layout: QPtr<QGridLayout> = file_view.main_widget().layout().static_downcast();
         layout.add_widget_5a(&main_widget, 0, 0, 1, 1);
 
         // ListView and groupboxes.
@@ -288,8 +288,8 @@ impl PortraitSettingsView {
         timer_delayed_reload_variant_images.set_single_shot(true);
 
         let view = Arc::new(Self{
-            path: file_view.get_path_raw(),
-            data_source: Arc::new(RwLock::new(file_view.get_data_source())),
+            path: file_view.path_raw(),
+            data_source: Arc::new(RwLock::new(file_view.data_source())),
 
             version: *data.version(),
             main_list_view,
@@ -348,8 +348,8 @@ impl PortraitSettingsView {
         let slots = PortraitSettingsSlots::new(&view, app_ui, pack_file_contents_ui);
         connections::set_connections(&view, &slots);
 
-        file_view.packed_file_type = FileType::PortraitSettings;
-        file_view.view = ViewType::Internal(View::PortraitSettings(view));
+        file_view.file_type = FileType::PortraitSettings;
+        file_view.view_type = ViewType::Internal(View::PortraitSettings(view));
 
         Ok(())
     }

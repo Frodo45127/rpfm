@@ -432,7 +432,7 @@ impl GlobalSearchUI {
 
                 // Update the views of the updated PackedFiles.
                 for path in packed_files_info.iter().map(|x| x.path()) {
-                    if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| &*x.get_ref_path() == path && x.get_data_source() == DataSource::PackFile) {
+                    if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| &*x.path_read() == path && x.data_source() == DataSource::PackFile) {
                         if let Err(error) = packed_file_view.reload(path, pack_file_contents_ui) {
                             show_dialog(app_ui.main_window(), error, false);
                         }
@@ -509,7 +509,7 @@ impl GlobalSearchUI {
                 self.search(pack_file_contents_ui);
 
                 for path in packed_files_info.iter().map(|x| x.path()) {
-                    if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| &*x.get_ref_path() == path && x.get_data_source() == DataSource::PackFile) {
+                    if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| &*x.path_read() == path && x.data_source() == DataSource::PackFile) {
                         if let Err(error) = packed_file_view.reload(path, pack_file_contents_ui) {
                             show_dialog(app_ui.main_window(), error, false);
                         }
@@ -618,10 +618,10 @@ impl GlobalSearchUI {
 
         // If it's a table, focus on the matched cell.
         if is_match {
-            if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == data_source).find(|x| *x.get_ref_path() == path) {
+            if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == data_source).find(|x| *x.path_read() == path) {
 
                 // In case of tables, we have to get the logical row/column of the match and select it.
-                if let ViewType::Internal(View::Table(view)) = packed_file_view.get_view() {
+                if let ViewType::Internal(View::Table(view)) = packed_file_view.view_type() {
                     let parent = gidhora.parent();
                     let table_view = view.get_ref_table();
                     let table_view = table_view.table_view_ptr();
@@ -643,7 +643,7 @@ impl GlobalSearchUI {
                 }
 
                 // If it's a text file, scroll to the row in question.
-                else if let ViewType::Internal(View::Text(view)) = packed_file_view.get_view() {
+                else if let ViewType::Internal(View::Text(view)) = packed_file_view.view_type() {
                     let parent = gidhora.parent();
                     let row_number = parent.child_2a(model_index.row(), 2).text().to_std_string().parse::<i32>().unwrap() - 1;
                     let editor = view.get_mut_editor();

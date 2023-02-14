@@ -37,7 +37,7 @@ use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::locale::qtr;
-use crate::packedfile_views::{PackedFileView, PackFileContentsUI};
+use crate::packedfile_views::{FileView, PackFileContentsUI};
 use crate::utils::create_grid_layout;
 use self::slots::PackFileSettingsSlots;
 use super::{ViewType, View};
@@ -69,7 +69,7 @@ impl PackFileSettingsView {
     ///
     /// The view is loaded dinamically based on the settings we have.
     pub unsafe fn new_view(
-        pack_file_view: &mut PackedFileView,
+        pack_file_view: &mut FileView,
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>
     ) -> Result<()> {
@@ -82,7 +82,7 @@ impl PackFileSettingsView {
             _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
         };
 
-        let layout: QPtr<QGridLayout> = pack_file_view.get_mut_widget().layout().static_downcast();
+        let layout: QPtr<QGridLayout> = pack_file_view.main_widget().layout().static_downcast();
 
         let mut settings_text_multi_line = BTreeMap::new();
         let mut settings_text_single_line = BTreeMap::new();
@@ -91,9 +91,9 @@ impl PackFileSettingsView {
 
         let mut row = 0;
         for (key, setting) in settings.settings_text() {
-            let label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{key}_label")), pack_file_view.get_mut_widget());
-            let description_label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{key}_description_label")), pack_file_view.get_mut_widget());
-            let edit = QPlainTextEdit::from_q_string_q_widget(&QString::from_std_str(setting), pack_file_view.get_mut_widget());
+            let label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{key}_label")), pack_file_view.main_widget());
+            let description_label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{key}_description_label")), pack_file_view.main_widget());
+            let edit = QPlainTextEdit::from_q_string_q_widget(&QString::from_std_str(setting), pack_file_view.main_widget());
             description_label.set_word_wrap(true);
 
             layout.add_widget_5a(&label, row, 0, 1, 1);
@@ -106,9 +106,9 @@ impl PackFileSettingsView {
         }
 
         for (key, setting) in settings.settings_string() {
-            let label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{key}_label")), pack_file_view.get_mut_widget());
-            let _description_label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{key}_description_label")), pack_file_view.get_mut_widget());
-            let edit = QLineEdit::from_q_string_q_widget(&QString::from_std_str(setting), pack_file_view.get_mut_widget());
+            let label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{key}_label")), pack_file_view.main_widget());
+            let _description_label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{key}_description_label")), pack_file_view.main_widget());
+            let edit = QLineEdit::from_q_string_q_widget(&QString::from_std_str(setting), pack_file_view.main_widget());
 
             layout.add_widget_5a(&label, row, 0, 1, 1);
             layout.add_widget_5a(&edit, row, 1, 1, 1);
@@ -118,9 +118,9 @@ impl PackFileSettingsView {
         }
 
         for (key, setting) in settings.settings_bool() {
-            let label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{key}_label")), pack_file_view.get_mut_widget());
-            let _description_label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{key}_description_label")), pack_file_view.get_mut_widget());
-            let edit = QCheckBox::from_q_widget(pack_file_view.get_mut_widget());
+            let label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{key}_label")), pack_file_view.main_widget());
+            let _description_label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{key}_description_label")), pack_file_view.main_widget());
+            let edit = QCheckBox::from_q_widget(pack_file_view.main_widget());
             edit.set_checked(*setting);
 
             layout.add_widget_5a(&label, row, 0, 1, 1);
@@ -131,9 +131,9 @@ impl PackFileSettingsView {
         }
 
         for (key, setting) in settings.settings_number() {
-            let label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{key}_label")), pack_file_view.get_mut_widget());
-            let _description_label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{key}_description_label")), pack_file_view.get_mut_widget());
-            let edit = QSpinBox::new_1a(pack_file_view.get_mut_widget());
+            let label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{key}_label")), pack_file_view.main_widget());
+            let _description_label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{key}_description_label")), pack_file_view.main_widget());
+            let edit = QSpinBox::new_1a(pack_file_view.main_widget());
             edit.set_value(*setting);
 
             layout.add_widget_5a(&label, row, 0, 1, 1);
@@ -143,14 +143,14 @@ impl PackFileSettingsView {
             row += 1;
         }
 
-        let padding_widget = QWidget::new_1a(pack_file_view.get_mut_widget());
+        let padding_widget = QWidget::new_1a(pack_file_view.main_widget());
         layout.add_widget_5a(&padding_widget, row, 0, 1, 3);
 
         // Buttons at the bottom.
-        let button_box = QWidget::new_1a(pack_file_view.get_mut_widget());
+        let button_box = QWidget::new_1a(pack_file_view.main_widget());
         let button_box_layout = create_grid_layout(button_box.static_upcast());
 
-        let button_box_apply = QPushButton::from_q_string_q_widget(&qtr("pfs_button_apply"), pack_file_view.get_mut_widget());
+        let button_box_apply = QPushButton::from_q_string_q_widget(&qtr("pfs_button_apply"), pack_file_view.main_widget());
         button_box_layout.add_widget_5a(&button_box_apply, 0, 0, 0, 0);
 
         layout.add_widget_5a(&button_box, row + 1, 0, 1, 3);
@@ -171,7 +171,7 @@ impl PackFileSettingsView {
         );
 
         connections::set_connections(&pack_file_settings_view, &pack_file_settings_slots);
-        pack_file_view.view = ViewType::Internal(View::PackSettings(pack_file_settings_view));
+        pack_file_view.view_type = ViewType::Internal(View::PackSettings(pack_file_settings_view));
         Ok(())
     }
 

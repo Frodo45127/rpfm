@@ -25,7 +25,7 @@ use rpfm_extensions::diagnostics::Diagnostics;
 use rpfm_extensions::search::GlobalSearch;
 
 use crate::app_ui::AppUI;
-use crate::packedfile_views::PackedFileView;
+use crate::packedfile_views::FileView;
 use crate::packfile_contents_ui::PackFileContentsUI;
 
 //-------------------------------------------------------------------------------//
@@ -42,7 +42,7 @@ pub struct UIState {
     packfile_contents_read_only: AtomicBool,
 
     /// This stores the list to all the widgets of the open PackedFiles.
-    open_packedfiles: Arc<RwLock<Vec<PackedFileView>>>,
+    open_packedfiles: Arc<RwLock<Vec<FileView>>>,
 
     /// This stores the current operational mode of the application.
     operational_mode: Arc<RwLock<OperationalMode>>,
@@ -110,14 +110,14 @@ impl UIState {
     }
 
     /// This function returns the open packedfiles list with a reading lock.
-    pub fn get_open_packedfiles(&self) -> RwLockReadGuard<Vec<PackedFileView>> {
+    pub fn get_open_packedfiles(&self) -> RwLockReadGuard<Vec<FileView>> {
         self.open_packedfiles.read().unwrap()
     }
 
     /// This function returns the open packedfiles list with a writing lock. This acts kinda like a setter.
     ///
     /// Use this only if you need to perform multiple write operations with this.
-    pub fn set_open_packedfiles(&self) -> RwLockWriteGuard<Vec<PackedFileView>> {
+    pub fn set_open_packedfiles(&self) -> RwLockWriteGuard<Vec<FileView>> {
         loop {
             match self.open_packedfiles.try_write() {
                 Ok(writer) => return writer,
