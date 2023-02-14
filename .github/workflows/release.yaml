@@ -22,7 +22,7 @@ jobs:
       matrix:
 
         # We use self-hosted because this action often runs out of memory on github's own servers.
-        os: [self-hosted-windows]
+        os: [self-hosted-windows, self-hosted-linux]
         include:
 
         # Old windows configuration.
