@@ -15,8 +15,6 @@ message_only_for_the_brave = <p>This version has been marked as "Only For The Br
     </ul>
     <p>Currently in this beta, you need to be aware that some parts of the UI have not been yet updated for the new backend and do not work/crash the program. Known broken stuff is:</p>
     <ul>
-        <li>Update table: untested.</li>
-        <li>AnimFragment/AnimsTables/MatchedCombat: they "may" work, but are pending a full rewrite to support the newer game variants of these files.</li>
         <li>Tables/Rename References: works only for DB entries, not for Loc entries.</li>
         <li>Remember to clear up and update your schemas and regenerate the dependencies cache.</li>
     </ul>
