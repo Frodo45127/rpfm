@@ -61,6 +61,7 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     new_action(special_stuff_menu_actions, "generate_dependencies_cache", "Generate Dependencies Cache", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""), "database-index");
     new_action(special_stuff_menu_actions, "optimize_pack", "Optimize Pack", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""), "games-highscores");
     new_action(special_stuff_menu_actions, "patch_siege_ai", "Patch SiegeAI", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""), "selection-move-to-layer-below");
+    new_action(special_stuff_menu_actions, "live_export", "Live Export", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""), "format-align-vertical-top");
     special_stuff_menu_actions->readSettings();
 
     // About Menu actions.

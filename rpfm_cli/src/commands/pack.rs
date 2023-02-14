@@ -221,12 +221,12 @@ pub fn extract(config: &Config, schema_path: &Option<PathBuf>, pack_path: &Path,
 
     for (container_path, folder_path) in folder_path {
         let container_path = ContainerPath::Folder(container_path.to_owned());
-        pack.extract(container_path, folder_path, true, &schema)?;
+        pack.extract(container_path, folder_path, true, &schema, false)?;
     }
 
     for (container_path, file_path) in file_path {
         let container_path = ContainerPath::File(container_path.to_owned());
-        pack.extract(container_path, file_path, true, &schema)?;
+        pack.extract(container_path, file_path, true, &schema, false)?;
     }
 
     if config.verbose {

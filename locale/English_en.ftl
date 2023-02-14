@@ -110,6 +110,7 @@ game_selected_open_config_folder = Open RPFM's Config Folder
 
 special_stuff_optimize_packfile = &Optimize PackFile
 special_stuff_patch_siege_ai = &Patch Siege AI
+special_stuff_live_export = Live Export
 special_stuff_select_ak_folder = Select Assembly Kit's Folder
 special_stuff_select_raw_db_folder = Select Raw DB Folder
 
@@ -1309,3 +1310,5 @@ new_portrait_settings_file = New Portrait Settings file
 new_portrait_settings_copy_column = Copy values?
 new_portrait_settings_copy_from_column = Copy values from this entry
 new_portrait_settings_copy_to_column = Copy values to this entry
+
+live_export_success = Script and UI folders exported correctly.

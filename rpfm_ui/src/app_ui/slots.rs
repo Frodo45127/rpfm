@@ -134,6 +134,7 @@ pub struct AppUISlots {
     pub special_stuff_generate_dependencies_cache: QBox<SlotOfBool>,
     pub special_stuff_optimize_packfile: QBox<SlotOfBool>,
     pub special_stuff_patch_siege_ai: QBox<SlotOfBool>,
+    pub special_stuff_live_export: QBox<SlotNoArgs>,
     pub special_stuff_rescue_packfile: QBox<SlotOfBool>,
 
     //-----------------------------------------------//
@@ -1092,6 +1093,29 @@ impl AppUISlots {
             }
         ));
 
+        let special_stuff_live_export = SlotNoArgs::new(&app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui => move || {
+                info!("Triggering `Live Export` By Slot");
+
+                // Ask the background loop to patch the PackFile, and wait for a response.
+                app_ui.toggle_main_window(false);
+
+                let _ = AppUI::back_to_back_end_all(&app_ui, &pack_file_contents_ui);
+
+                let receiver = CENTRAL_COMMAND.send_background(Command::LiveExport);
+                let response = CENTRAL_COMMAND.recv_try(&receiver);
+                match response {
+                    Response::Success => show_message_info(app_ui.message_widget(), tr("live_export_success")),
+                    Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
+                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}")
+                }
+
+                // Re-enable the Main Window.
+                app_ui.toggle_main_window(true);
+            }
+        ));
+
         // What happens when we trigger the "Rescue PackFile" action.
         let special_stuff_rescue_packfile = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui,
@@ -1700,6 +1724,7 @@ impl AppUISlots {
             special_stuff_generate_dependencies_cache,
             special_stuff_optimize_packfile,
             special_stuff_patch_siege_ai,
+            special_stuff_live_export,
             special_stuff_rescue_packfile,
 
             //-----------------------------------------------//

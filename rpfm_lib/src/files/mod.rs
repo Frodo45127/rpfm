@@ -402,8 +402,10 @@ pub trait Container {
     ///
     /// If `keep_container_path_structure` is true, the folder structure the file in question has within the container will be replicated on disk.
     ///
+    /// The case-insensitive option only works when extracting folders. Individual file extractions are always case sensitive.
+    ///
     /// If a schema is provided, this function will try to extract any DB/Loc file as a TSV. If it fails to decode them, it'll extract them as binary files.
-    fn extract(&mut self, container_path: ContainerPath, destination_path: &Path, keep_container_path_structure: bool, schema: &Option<Schema>) -> Result<()> {
+    fn extract(&mut self, container_path: ContainerPath, destination_path: &Path, keep_container_path_structure: bool, schema: &Option<Schema>, case_insensitive: bool) -> Result<()> {
         match container_path {
             ContainerPath::File(mut container_path) => {
                 if container_path.starts_with('/') {
@@ -470,7 +472,7 @@ pub trait Container {
                     container_path.remove(0);
                 }
 
-                let mut rfiles = self.files_by_path_mut(&ContainerPath::Folder(container_path.clone()), false);
+                let mut rfiles = self.files_by_path_mut(&ContainerPath::Folder(container_path.clone()), case_insensitive);
                 for rfile in &mut rfiles {
                     let container_path = rfile.path_in_container_raw();
                     let destination_path = if keep_container_path_structure {

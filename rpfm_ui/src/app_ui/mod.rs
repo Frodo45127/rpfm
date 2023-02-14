@@ -244,6 +244,7 @@ pub struct AppUI {
     // Warhammer 3 actions.
     special_stuff_wh3_generate_dependencies_cache: QPtr<QAction>,
     special_stuff_wh3_optimize_packfile: QPtr<QAction>,
+    special_stuff_wh3_live_export: QPtr<QAction>,
 
     // Troy actions.
     special_stuff_troy_generate_dependencies_cache: QPtr<QAction>,
@@ -676,6 +677,7 @@ impl AppUI {
         // Populate the `Special Stuff` submenus.
         let special_stuff_wh3_generate_dependencies_cache = add_action_to_menu(&menu_warhammer_3, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_wh3_optimize_packfile = add_action_to_menu(&menu_warhammer_3, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
+        let special_stuff_wh3_live_export = add_action_to_menu(&menu_warhammer_3, shortcuts.as_ref(), "special_stuff_menu", "live_export", "special_stuff_live_export", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_troy_generate_dependencies_cache = add_action_to_menu(&menu_troy, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_troy_optimize_packfile = add_action_to_menu(&menu_troy, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_three_k_generate_dependencies_cache = add_action_to_menu(&menu_three_kingdoms, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
@@ -861,6 +863,7 @@ impl AppUI {
             // Warhammer 3 actions.
             special_stuff_wh3_generate_dependencies_cache,
             special_stuff_wh3_optimize_packfile,
+            special_stuff_wh3_live_export,
 
             // Troy actions.
             special_stuff_troy_generate_dependencies_cache,
@@ -1524,6 +1527,7 @@ impl AppUI {
                 KEY_WARHAMMER_3 => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(true);
                     app_ui.special_stuff_wh3_optimize_packfile.set_enabled(true);
+                    app_ui.special_stuff_wh3_live_export.set_enabled(true);
                 },
                 KEY_TROY => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(true);
@@ -1580,6 +1584,7 @@ impl AppUI {
             // Disable Warhammer 3 actions...
             app_ui.special_stuff_wh3_optimize_packfile.set_enabled(false);
             app_ui.special_stuff_wh3_generate_dependencies_cache.set_enabled(false);
+            app_ui.special_stuff_wh3_live_export.set_enabled(false);
 
             // Disable Troy actions...
             app_ui.special_stuff_troy_optimize_packfile.set_enabled(false);
@@ -1630,6 +1635,7 @@ impl AppUI {
             KEY_WARHAMMER_3 => {
                 app_ui.game_selected_open_game_assembly_kit_folder.set_enabled(true);
                 app_ui.special_stuff_wh3_generate_dependencies_cache.set_enabled(true);
+                app_ui.special_stuff_wh3_live_export.set_enabled(true);
             },
             KEY_TROY => {
                 app_ui.game_selected_open_game_assembly_kit_folder.set_enabled(true);

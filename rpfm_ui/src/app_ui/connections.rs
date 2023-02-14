@@ -123,6 +123,8 @@ pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
     app_ui.special_stuff_nap_generate_dependencies_cache.triggered().connect(&slots.special_stuff_generate_dependencies_cache);
     app_ui.special_stuff_emp_generate_dependencies_cache.triggered().connect(&slots.special_stuff_generate_dependencies_cache);
 
+    app_ui.special_stuff_wh3_live_export.triggered().connect(&slots.special_stuff_live_export);
+
     app_ui.special_stuff_rescue_packfile.triggered().connect(&slots.special_stuff_rescue_packfile);
 
     //-----------------------------------------------//

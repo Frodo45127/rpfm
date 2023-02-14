@@ -153,12 +153,12 @@ pub fn extract(config: &Config, pack_path: &Path, file_path: &[(String, PathBuf)
 
     for (container_path, folder_path) in folder_path {
         let container_path = ContainerPath::Folder(container_path.to_owned());
-        pack.extract(container_path, folder_path, true, &None)?;
+        pack.extract(container_path, folder_path, true, &None, false)?;
     }
 
     for (container_path, file_path) in file_path {
         let container_path = ContainerPath::File(container_path.to_owned());
-        pack.extract(container_path, file_path, true, &None)?;
+        pack.extract(container_path, file_path, true, &None, false)?;
     }
 
     if config.verbose {
