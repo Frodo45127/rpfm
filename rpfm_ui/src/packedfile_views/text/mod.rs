@@ -90,7 +90,7 @@ impl PackedFileTextView {
         let view = Arc::new(PackedFileTextView {
             editor,
             packed_file_path: Some(packed_file_view.get_path_raw()),
-            data_source: Arc::new(RwLock::new(packed_file_view.get_data_source())),
+            data_source: packed_file_view.data_source.clone(),
         });
 
         let slots = PackedFileTextViewSlots::new(&view, app_ui, pack_file_contents_ui);

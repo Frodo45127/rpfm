@@ -1580,10 +1580,10 @@ impl AppUISlots {
                         } else { None };
 
                         // The backend already checks for proper data source. No need to double-check here.
-                        if let Some((data_source, path)) = data_source_and_path {
+                        if let Some((_, path)) = data_source_and_path {
                             dependencies_ui.import_dependencies(paths_by_source, &app_ui, &pack_file_contents_ui);
 
-                            // TODO: MAke sure this uses the correct source.
+                            // Make sure this uses the correct source.
                             let path_to_purge = UI_STATE.get_open_packedfiles().iter().find_map(|packed_file_view| {
                                 if *packed_file_view.get_ref_path() == path && packed_file_view.get_data_source() == DataSource::PackFile {
                                     Some(packed_file_view.get_ref_path().to_owned())
@@ -1593,16 +1593,6 @@ impl AppUISlots {
                             // If we're overwriting a PackedFile already on our PackFile, remove it.
                             if let Some(path_to_purge) = path_to_purge {
                                 let _  = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, &path_to_purge, DataSource::PackFile, false);
-                            }
-
-                            if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|packed_file_view| {
-                                index == app_ui.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget())
-                            }) {
-                                packed_file_view.set_data_source(DataSource::PackFile);
-                                if let Err(error) = packed_file_view.reload(&path, &pack_file_contents_ui) {
-                                    show_dialog(&app_ui.main_window, &error, false);
-                                }
-
                             }
                         }
                     }

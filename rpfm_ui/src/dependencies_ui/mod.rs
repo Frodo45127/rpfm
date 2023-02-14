@@ -220,8 +220,6 @@ impl DependenciesUI {
 
                 UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
 
-                // TODO: Find if there is a view with this file and change its data source.
-
                 // Try to reload all open files which data we altered, and close those that failed.
                 let failed_paths = paths.iter().filter_map(|path| {
                     if let ContainerPath::File(ref path) = path {
