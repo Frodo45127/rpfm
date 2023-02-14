@@ -58,18 +58,18 @@ impl PackedFileRigidModelView {
 
         // Create the new view and populate it.
         let data = QByteArray::from_slice(data.data());
-        let editor = new_rigid_model_view_safe(&mut file_view.get_mut_widget().as_ptr());
+        let editor = new_rigid_model_view_safe(&mut file_view.main_widget().as_ptr());
         set_rigid_model_view_safe(&mut editor.as_ptr(), &data.as_ptr())?;
 
-        let layout: QPtr<QGridLayout> = file_view.get_mut_widget().layout().static_downcast();
+        let layout: QPtr<QGridLayout> = file_view.main_widget().layout().static_downcast();
         layout.add_widget_5a(&editor, 0, 0, 1, 1);
 
         let view = Arc::new(PackedFileRigidModelView{
             editor,
         });
 
-        file_view.packed_file_type = FileType::RigidModel;
-        file_view.view = ViewType::Internal(View::RigidModel(view));
+        file_view.file_type = FileType::RigidModel;
+        file_view.view_type = ViewType::Internal(View::RigidModel(view));
 
         Ok(())
     }

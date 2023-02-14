@@ -2632,12 +2632,12 @@ impl AppUI {
                                     Ok(_) => {
 
                                        // Add the file to the 'Currently open' list and make it visible.
-                                        app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
-                                        app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+                                        app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &QString::from_std_str(""));
+                                        app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
 
                                         // Fix the quick notes view.
-                                        let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
-                                        layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
+                                        let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
+                                        layout.add_widget_5a(tab.notes_widget(), 0, 99, layout.row_count(), 1);
 
                                         let mut open_list = UI_STATE.set_open_packedfiles();
                                         open_list.push(tab);
