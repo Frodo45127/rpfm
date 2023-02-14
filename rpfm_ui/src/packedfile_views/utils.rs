@@ -9,7 +9,7 @@
 //---------------------------------------------------------------------------//
 
 /*!
-Module with extra functions for `PackedFileView`.
+Module with extra functions for `FileView`.
 !*/
 
 use std::rc::Rc;

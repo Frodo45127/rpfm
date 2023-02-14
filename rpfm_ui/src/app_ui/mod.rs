@@ -1041,8 +1041,8 @@ impl AppUI {
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
     ) -> Result<()> {
 
-        for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
-            packed_file_view.save(app_ui, pack_file_contents_ui)?;
+        for file_view in UI_STATE.get_open_packedfiles().iter() {
+            file_view.save(app_ui, pack_file_contents_ui)?;
         }
         Ok(())
     }
@@ -1055,11 +1055,11 @@ impl AppUI {
         save_before_deleting: bool,
     ) -> Result<()> {
 
-        for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
-            if save_before_deleting && packed_file_view.path_copy() != RESERVED_NAME_EXTRA_PACKFILE {
-                packed_file_view.save(app_ui, pack_file_contents_ui)?;
+        for file_view in UI_STATE.get_open_packedfiles().iter() {
+            if save_before_deleting && file_view.path_copy() != RESERVED_NAME_EXTRA_PACKFILE {
+                file_view.save(app_ui, pack_file_contents_ui)?;
             }
-            let widget = packed_file_view.main_widget();
+            let widget = file_view.main_widget();
             let index = app_ui.tab_bar_packed_file.index_of(widget);
             if index != -1 {
                 app_ui.tab_bar_packed_file.remove_tab(index);
@@ -1103,13 +1103,13 @@ impl AppUI {
         // Black magic to remove widgets.
         let position = UI_STATE.get_open_packedfiles().iter().position(|x| *x.path_read() == path && x.data_source() == data_source);
         if let Some(position) = position {
-            if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().get(position) {
+            if let Some(file_view) = UI_STATE.get_open_packedfiles().get(position) {
 
                 // Do not try saving PackFiles.
                 if save_before_deleting && !path.starts_with(RESERVED_NAME_EXTRA_PACKFILE) {
-                    did_it_worked = packed_file_view.save(app_ui, pack_file_contents_ui);
+                    did_it_worked = file_view.save(app_ui, pack_file_contents_ui);
                 }
-                let widget = packed_file_view.main_widget();
+                let widget = file_view.main_widget();
                 let index = app_ui.tab_bar_packed_file.index_of(widget);
                 if index != -1 {
                     app_ui.tab_bar_packed_file.remove_tab(index);
@@ -1453,8 +1453,8 @@ impl AppUI {
         // Clean the treeview and the views from markers.
         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile);
 
-        for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
-            packed_file_view.clean();
+        for file_view in UI_STATE.get_open_packedfiles().iter() {
+            file_view.clean();
         }
 
         // Then we re-enable the main Window and return whatever we've received.
@@ -2283,12 +2283,12 @@ impl AppUI {
             if let ContainerPath::File(ref path) = item_type {
 
                 // Close all preview views except the file we're opening.
-                for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
-                    let open_path = packed_file_view.path_read();
-                    let index = app_ui.tab_bar_packed_file.index_of(packed_file_view.main_widget());
-                    if (data_source != packed_file_view.data_source() ||
-                        (data_source == packed_file_view.data_source() && *open_path != *path)) &&
-                        packed_file_view.is_preview() && index != -1 {
+                for file_view in UI_STATE.get_open_packedfiles().iter() {
+                    let open_path = file_view.path_read();
+                    let index = app_ui.tab_bar_packed_file.index_of(file_view.main_widget());
+                    if (data_source != file_view.data_source() ||
+                        (data_source == file_view.data_source() && *open_path != *path)) &&
+                        file_view.is_preview() && index != -1 {
                         app_ui.tab_bar_packed_file.remove_tab(index);
                     }
                 }
@@ -2832,10 +2832,10 @@ impl AppUI {
             };
 
             // Close all preview views except the file we're opening. The path used for the manager is empty.
-            for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
-                let open_path = packed_file_view.path_read();
-                let index = app_ui.tab_bar_packed_file.index_of(packed_file_view.main_widget());
-                if !open_path.is_empty() && packed_file_view.is_preview() && index != -1 {
+            for file_view in UI_STATE.get_open_packedfiles().iter() {
+                let open_path = file_view.path_read();
+                let index = app_ui.tab_bar_packed_file.index_of(file_view.main_widget());
+                if !open_path.is_empty() && file_view.is_preview() && index != -1 {
                     app_ui.tab_bar_packed_file.remove_tab(index);
                 }
             }
@@ -3424,18 +3424,18 @@ impl AppUI {
         else { None }
     }
 
-    /// Update the PackedFileView names, to ensure we have no collisions.
+    /// Update the FileView names, to ensure we have no collisions.
     pub unsafe fn update_views_names(&self) {
 
         // We also have to check for colliding packedfile names, so we can use their full path instead.
         let mut names = HashMap::new();
         let open_packedfiles = UI_STATE.get_open_packedfiles();
-        for packed_file_view in open_packedfiles.iter() {
-            let widget = packed_file_view.main_widget();
+        for file_view in open_packedfiles.iter() {
+            let widget = file_view.main_widget();
             if self.tab_bar_packed_file.index_of(widget) != -1 {
 
                 // Reserved PackedFiles should have special names.
-                let path = packed_file_view.path_read();
+                let path = file_view.path_read();
                 let path_split = path.split('/').collect::<Vec<_>>();
                 if *path == RESERVED_NAME_NOTES {
                     names.insert("Notes".to_owned(), 1);
@@ -3448,9 +3448,9 @@ impl AppUI {
             }
         }
 
-        for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
-            let widget = packed_file_view.main_widget();
-            let path = packed_file_view.path_read();
+        for file_view in UI_STATE.get_open_packedfiles().iter() {
+            let widget = file_view.main_widget();
+            let path = file_view.path_read();
             let path_split = path.split('/').collect::<Vec<_>>();
             let widget_name = if *path == RESERVED_NAME_NOTES {
                 "Notes".to_owned()
@@ -3462,7 +3462,7 @@ impl AppUI {
 
             if let Some(count) = names.get(&widget_name) {
                 let mut name = String::new();
-                match packed_file_view.data_source() {
+                match file_view.data_source() {
                     DataSource::PackFile => {},
                     DataSource::ParentFiles => name.push_str("Parent"),
                     DataSource::GameFiles => name.push_str("Game"),
@@ -3471,7 +3471,7 @@ impl AppUI {
                 }
 
                 if !name.is_empty() {
-                    if packed_file_view.is_read_only() {
+                    if file_view.is_read_only() {
                         name.push_str("-RO:");
                     } else  {
                         name.push(':');
@@ -3484,7 +3484,7 @@ impl AppUI {
                     name.push_str(&widget_name.to_owned());
                 };
 
-                if packed_file_view.is_preview() {
+                if file_view.is_preview() {
                     name.push_str(" (Preview)");
                 }
 
@@ -3495,7 +3495,7 @@ impl AppUI {
     }
 
     /// This function hides all the provided packedfile views.
-    pub unsafe fn packed_file_view_hide(
+    pub unsafe fn file_view_hide(
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         indexes: &[i32]
@@ -3509,11 +3509,11 @@ impl AppUI {
         // PackFile and Decoder Views must be deleted on close, so get them apart if we find one.
         let mut purge_on_delete = vec![];
 
-        for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
-            let widget = packed_file_view.main_widget();
+        for file_view in UI_STATE.get_open_packedfiles().iter() {
+            let widget = file_view.main_widget();
             let index_widget = app_ui.tab_bar_packed_file.index_of(widget);
             if indexes.contains(&index_widget) {
-                let path = packed_file_view.path_read();
+                let path = file_view.path_read();
                 if !path.is_empty() {
                     if path.starts_with(RESERVED_NAME_EXTRA_PACKFILE) {
                         purge_on_delete.push(path.to_owned());

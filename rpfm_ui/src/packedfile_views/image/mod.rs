@@ -51,7 +51,7 @@ impl PackedFileImageView {
 
     /// This function creates a new Image View, and sets up his slots and connections.
     pub unsafe fn new_view(
-        packed_file_view: &mut FileView,
+        file_view: &mut FileView,
         data: &Image
     ) -> Result<()> {
 
@@ -68,7 +68,7 @@ impl PackedFileImageView {
         if !image.load_from_data_q_byte_array(byte_array.as_ref().unwrap()) {
 
             #[cfg(feature = "support_modern_dds")] {
-                if packed_file_view.path.read().unwrap().to_lowercase().ends_with(".dds") {
+                if file_view.path.read().unwrap().to_lowercase().ends_with(".dds") {
                     let image_new = get_dds_qimage(&byte_array);
                     if !image_new.is_null() {
                         image = QPixmap::from_image_1a(image_new.as_ref().unwrap());
@@ -86,13 +86,13 @@ impl PackedFileImageView {
         }
 
         // Get the size of the holding widget.
-        let layout: QPtr<QGridLayout> = packed_file_view.main_widget().layout().static_downcast();
-        let label = new_resizable_label_safe(&packed_file_view.main_widget().as_ptr(), &image.as_ptr());
+        let layout: QPtr<QGridLayout> = file_view.main_widget().layout().static_downcast();
+        let label = new_resizable_label_safe(&file_view.main_widget().as_ptr(), &image.as_ptr());
         label.set_alignment(QFlags::from(AlignmentFlag::AlignCenter));
         layout.add_widget_5a(&label, 0, 0, 1, 1);
 
-        packed_file_view.file_type = FileType::Image;
-        packed_file_view.view_type = ViewType::Internal(View::Image(Self {
+        file_view.file_type = FileType::Image;
+        file_view.view_type = ViewType::Internal(View::Image(Self {
             label,
             image
         }));

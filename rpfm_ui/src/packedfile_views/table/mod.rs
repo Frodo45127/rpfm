@@ -47,7 +47,7 @@ impl PackedFileTableView {
 
     /// This function creates a new Table View, and sets up his slots and connections.
     pub unsafe fn new_view(
-        packed_file_view: &mut FileView,
+        file_view: &mut FileView,
         app_ui: &Rc<AppUI>,
         global_search_ui: &Rc<GlobalSearchUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
@@ -72,7 +72,7 @@ impl PackedFileTableView {
         };
 
         let table_view = TableView::new_view(
-            packed_file_view.main_widget(),
+            file_view.main_widget(),
             app_ui,
             global_search_ui,
             pack_file_contents_ui,
@@ -80,16 +80,16 @@ impl PackedFileTableView {
             dependencies_ui,
             references_ui,
             table_data,
-            Some(packed_file_view.path_raw()),
-            packed_file_view.data_source.clone()
+            Some(file_view.path_raw()),
+            file_view.data_source.clone()
         )?;
 
         let packed_file_table_view = Self {
             table_view,
         };
 
-        packed_file_view.view_type = ViewType::Internal(View::Table(Arc::new(packed_file_table_view)));
-        packed_file_view.file_type = packed_file_type;
+        file_view.view_type = ViewType::Internal(View::Table(Arc::new(packed_file_table_view)));
+        file_view.file_type = packed_file_type;
 
         // Return success.
         Ok(())

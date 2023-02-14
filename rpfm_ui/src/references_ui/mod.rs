@@ -237,8 +237,8 @@ impl ReferencesUI {
 
         // Open the table and select the cell.
         AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui,Some(reference_path.to_owned()), true, false, reference_data_source);
-        if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.path_read() == reference_path && x.data_source() == reference_data_source) {
-            if let ViewType::Internal(View::Table(view)) = packed_file_view.view_type() {
+        if let Some(file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.path_read() == reference_path && x.data_source() == reference_data_source) {
+            if let ViewType::Internal(View::Table(view)) = file_view.view_type() {
                 let table_view = view.get_ref_table();
                 let table_view = table_view.table_view_ptr();
                 let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();

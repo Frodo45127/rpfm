@@ -183,7 +183,7 @@ pub enum SpecialView {
 //                             Implementations
 //-------------------------------------------------------------------------------//
 
-/// Default implementation for `PackedFileView`.
+/// Default implementation for `FileView`.
 impl Default for FileView {
     fn default() -> Self {
         let path = Arc::new(RwLock::new(String::new()));
@@ -224,25 +224,25 @@ impl Default for FileView {
 unsafe impl Send for FileView {}
 unsafe impl Sync for FileView {}
 
-/// Implementation for `PackedFileView`.
+/// Implementation for `FileView`.
 impl FileView {
 
-    /// This function returns a copy of the path of this `PackedFileView`.
+    /// This function returns a copy of the path of this `FileView`.
     pub fn path_copy(&self) -> String {
         self.path.read().unwrap().to_owned()
     }
 
-    /// This function returns a copy of the path of this `PackedFileView`.
+    /// This function returns a copy of the path of this `FileView`.
     pub fn path_raw(&self) -> Arc<RwLock<String>> {
         self.path.clone()
     }
 
-    /// This function returns a reference to the path of this `PackedFileView`.
+    /// This function returns a reference to the path of this `FileView`.
     pub fn path_read(&self) -> RwLockReadGuard<String> {
         self.path.read().unwrap()
     }
 
-    /// This function allows you to set a `PackedFileView` as a preview or normal view.
+    /// This function allows you to set a `FileView` as a preview or normal view.
     pub fn set_path(&self, path: &str) {
         *self.path.write().unwrap() = path.to_owned();
 
@@ -260,22 +260,22 @@ impl FileView {
         *self.data_source.write().unwrap() = data_source;
     }
 
-    /// This function returns if the `PackedFileView` is a preview or not.
+    /// This function returns if the `FileView` is a preview or not.
     pub fn is_preview(&self) -> bool {
         self.is_preview.load(Ordering::SeqCst)
     }
 
-    /// This function allows you to set a `PackedFileView` as a preview or normal view.
+    /// This function allows you to set a `FileView` as a preview or normal view.
     pub fn set_is_preview(&self, is_preview: bool) {
         self.is_preview.store(is_preview, Ordering::SeqCst);
     }
 
-    /// This function returns if the `PackedFileView` is read-only or not.
+    /// This function returns if the `FileView` is read-only or not.
     pub fn is_read_only(&self) -> bool {
         self.is_read_only.load(Ordering::SeqCst)
     }
 
-    /// This function allows you to set a `PackedFileView` as a read-only or normal view.
+    /// This function allows you to set a `FileView` as a read-only or normal view.
     pub fn set_is_read_only(&self, is_read_only: bool) {
         self.is_read_only.store(is_read_only, Ordering::SeqCst);
     }
@@ -285,17 +285,17 @@ impl FileView {
         &mut self.view_type
     }
 
-    /// This function returns a mutable pointer to the `Widget` of the `PackedFileView`.
+    /// This function returns a mutable pointer to the `Widget` of the `FileView`.
     pub fn main_widget(&self) -> &QBox<QWidget> {
         &self.main_widget
     }
 
-    /// This function returns a mutable pointer to the `Widget` of the `PackedFileView`.
+    /// This function returns a mutable pointer to the `Widget` of the `FileView`.
     pub fn notes_widget(&self) -> &QBox<QWidget> {
         &self.notes_widget
     }
 
-    /// This function allows you to save a `PackedFileView` to his corresponding `PackedFile`.
+    /// This function allows you to save a `FileView` to his corresponding `PackedFile`.
     pub unsafe fn save(&self, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) -> Result<()> {
 
         // Only save non-read-only, local files.

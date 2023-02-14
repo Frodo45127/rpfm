@@ -50,7 +50,7 @@ impl DependenciesManagerView {
 
     /// This function creates a new `DependenciesManagerView`, and sets up his slots and connections.
     pub unsafe fn new_view(
-        packed_file_view: &mut FileView,
+        file_view: &mut FileView,
         app_ui: &Rc<AppUI>,
         global_search_ui: &Rc<GlobalSearchUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
@@ -68,7 +68,7 @@ impl DependenciesManagerView {
         };
 
         let table_view = TableView::new_view(
-            packed_file_view.main_widget(),
+            file_view.main_widget(),
             app_ui,
             global_search_ui,
             pack_file_contents_ui,
@@ -76,15 +76,15 @@ impl DependenciesManagerView {
             dependencies_ui,
             references_ui,
             table_data,
-            Some(packed_file_view.path_raw()),
-            packed_file_view.data_source.clone()
+            Some(file_view.path_raw()),
+            file_view.data_source.clone()
         )?;
 
         let dependencies_manager_view = Self {
             table_view,
         };
 
-        packed_file_view.view_type = ViewType::Internal(View::DependenciesManager(Arc::new(dependencies_manager_view)));
+        file_view.view_type = ViewType::Internal(View::DependenciesManager(Arc::new(dependencies_manager_view)));
 
         // Return success.
         Ok(None)

@@ -240,15 +240,15 @@ impl Tool {
         for path_type in &self.used_paths {
             match path_type {
                 ContainerPath::File(ref path) => {
-                    if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| *x.get_ref_path() == *path && x.get_data_source() == DataSource::PackFile) {
-                        if packed_file_view.reload(path, pack_file_contents_ui).is_err() {
+                    if let Some(file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| *x.get_ref_path() == *path && x.get_data_source() == DataSource::PackFile) {
+                        if file_view.reload(path, pack_file_contents_ui).is_err() {
                             paths_to_purge.push(path.to_owned());
                         }
                     }
                 },
                 ContainerPath::Folder(ref path) => {
-                    for packed_file_view in UI_STATE.set_open_packedfiles().iter_mut().filter(|x| x.get_ref_path().starts_with(path) && x.get_ref_path().len() > path.len() && x.get_data_source() == DataSource::PackFile) {
-                        if packed_file_view.reload(&packed_file_view.get_path(), pack_file_contents_ui).is_err() {
+                    for file_view in UI_STATE.set_open_packedfiles().iter_mut().filter(|x| x.get_ref_path().starts_with(path) && x.get_ref_path().len() > path.len() && x.get_data_source() == DataSource::PackFile) {
+                        if file_view.reload(&file_view.get_path(), pack_file_contents_ui).is_err() {
                             paths_to_purge.push(path.to_owned());
                         }
                     }

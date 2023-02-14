@@ -98,18 +98,18 @@ impl PackedFileAnimPackView {
 
     /// This function creates a new AnimPack View, and sets up his slots and connections.
     pub unsafe fn new_view(
-        packed_file_view: &mut FileView,
+        file_view: &mut FileView,
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         file_info: &RFileInfo,
         files_info: &[RFileInfo],
     ) -> Result<()> {
-        let layout: QPtr<QGridLayout> = packed_file_view.main_widget().layout().static_downcast();
+        let layout: QPtr<QGridLayout> = file_view.main_widget().layout().static_downcast();
 
         // Load the UI Template.
         let template_path = if cfg!(debug_assertions) { VIEW_DEBUG } else { VIEW_RELEASE };
-        let main_widget_left = load_template(packed_file_view.main_widget(), template_path)?;
-        let main_widget_right = load_template(packed_file_view.main_widget(), template_path)?;
+        let main_widget_left = load_template(file_view.main_widget(), template_path)?;
+        let main_widget_right = load_template(file_view.main_widget(), template_path)?;
 
         let pack_tree_view: QPtr<QTreeView> = find_widget(&main_widget_left.static_upcast(), "tree_view")?;
         let pack_filter_line_edit: QPtr<QLineEdit> = find_widget(&main_widget_left.static_upcast(), "filter_line_edit")?;
@@ -122,9 +122,9 @@ impl PackedFileAnimPackView {
         let anim_pack_filter_case_sensitive_button: QPtr<QToolButton> = find_widget(&main_widget_right.static_upcast(), "filter_case_sensitive_button")?;
 
         // Create and configure the left `TreeView`, AKA the open PackFile.
-        let instructions = QLabel::from_q_string_q_widget(&qtr("animpack_view_instructions"), packed_file_view.main_widget());
+        let instructions = QLabel::from_q_string_q_widget(&qtr("animpack_view_instructions"), file_view.main_widget());
         let tree_model = pack_file_contents_ui.packfile_contents_tree_model();
-        let pack_tree_model_filter = new_treeview_filter_safe(packed_file_view.main_widget().static_upcast());
+        let pack_tree_model_filter = new_treeview_filter_safe(file_view.main_widget().static_upcast());
         pack_tree_model_filter.set_source_model(tree_model);
         pack_tree_view.set_model(&pack_tree_model_filter);
         pack_tree_view.set_expands_on_double_click(false);
@@ -143,8 +143,8 @@ impl PackedFileAnimPackView {
         layout.add_widget_5a(&main_widget_right, 1, 1, 1, 1);
 
         // Create and configure the right `TreeView`, AKA the AnimPack.
-        let anim_pack_tree_model = QStandardItemModel::new_1a(packed_file_view.main_widget());
-        let anim_pack_tree_model_filter = new_treeview_filter_safe(packed_file_view.main_widget().static_upcast());
+        let anim_pack_tree_model = QStandardItemModel::new_1a(file_view.main_widget());
+        let anim_pack_tree_model_filter = new_treeview_filter_safe(file_view.main_widget().static_upcast());
         anim_pack_tree_model_filter.set_source_model(&anim_pack_tree_model);
         anim_pack_tree_view.set_model(&anim_pack_tree_model_filter);
         anim_pack_tree_view.set_expands_on_double_click(false);
@@ -165,8 +165,8 @@ impl PackedFileAnimPackView {
         let anim_pack_delete = add_action_to_widget(app_ui.shortcuts().as_ref(), "anim_pack_tree_context_menu", "delete", Some(anim_pack_tree_view.static_upcast()));
 
         let packed_file_animpack_view = Arc::new(PackedFileAnimPackView {
-            path: packed_file_view.path_raw(),
-            data_source: packed_file_view.data_source.clone(),
+            path: file_view.path_raw(),
+            data_source: file_view.data_source.clone(),
 
             pack_tree_view,
             pack_tree_model_filter,
@@ -198,8 +198,8 @@ impl PackedFileAnimPackView {
         );
 
         connections::set_connections(&packed_file_animpack_view, &packed_file_animpack_view_slots);
-        packed_file_view.view_type = ViewType::Internal(View::AnimPack(packed_file_animpack_view));
-        packed_file_view.file_type = FileType::AnimPack;
+        file_view.view_type = ViewType::Internal(View::AnimPack(packed_file_animpack_view));
+        file_view.file_type = FileType::AnimPack;
 
         Ok(())
     }

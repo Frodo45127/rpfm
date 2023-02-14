@@ -31,7 +31,7 @@ use rpfm_lib::files::FileType;
 use rpfm_lib::files::rigidmodel::RigidModel;
 
 use crate::ffi::*;
-use crate::packedfile_views::{PackedFileView, View, ViewType};
+use crate::packedfile_views::{FileView, View, ViewType};
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -52,24 +52,24 @@ impl PackedFileRigidModelView {
 
     /// This function creates a new RigidModel View, and sets up his slots and connections.
     pub unsafe fn new_view(
-        packed_file_view: &mut PackedFileView,
+        file_view: &mut FileView,
         data: &RigidModel,
     ) -> Result<()> {
 
         // Create the new view and populate it.
         let data = QByteArray::from_slice(data.data());
-        let editor = new_rigid_model_view_safe(&mut packed_file_view.get_mut_widget().as_ptr());
+        let editor = new_rigid_model_view_safe(&mut file_view.get_mut_widget().as_ptr());
         set_rigid_model_view_safe(&mut editor.as_ptr(), &data.as_ptr())?;
 
-        let layout: QPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast();
+        let layout: QPtr<QGridLayout> = file_view.get_mut_widget().layout().static_downcast();
         layout.add_widget_5a(&editor, 0, 0, 1, 1);
 
         let view = Arc::new(PackedFileRigidModelView{
             editor,
         });
 
-        packed_file_view.packed_file_type = FileType::RigidModel;
-        packed_file_view.view = ViewType::Internal(View::RigidModel(view));
+        file_view.packed_file_type = FileType::RigidModel;
+        file_view.view = ViewType::Internal(View::RigidModel(view));
 
         Ok(())
     }

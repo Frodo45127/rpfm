@@ -63,7 +63,7 @@ impl PackedFileTextView {
 
     /// This function creates a new Text View, and sets up his slots and connections.
     pub unsafe fn new_view(
-        packed_file_view: &mut FileView,
+        file_view: &mut FileView,
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         data: &Text,
@@ -81,23 +81,23 @@ impl PackedFileTextView {
             TextFormat::Js => QString::from_std_str(JS),
         };
 
-        let editor = new_text_editor_safe(&packed_file_view.main_widget().static_upcast());
-        let layout: QPtr<QGridLayout> = packed_file_view.main_widget().layout().static_downcast();
+        let editor = new_text_editor_safe(&file_view.main_widget().static_upcast());
+        let layout: QPtr<QGridLayout> = file_view.main_widget().layout().static_downcast();
         layout.add_widget_5a(&editor, 0, 0, 1, 1);
 
         set_text_safe(&editor.static_upcast(), &QString::from_std_str(data.contents()).as_ptr(), &highlighting_mode.as_ptr());
 
         let view = Arc::new(PackedFileTextView {
             editor,
-            packed_file_path: Some(packed_file_view.path_raw()),
-            data_source: packed_file_view.data_source.clone(),
+            packed_file_path: Some(file_view.path_raw()),
+            data_source: file_view.data_source.clone(),
         });
 
         let slots = PackedFileTextViewSlots::new(&view, app_ui, pack_file_contents_ui);
         connections::set_connections(&view, &slots);
 
-        packed_file_view.file_type = FileType::Text;
-        packed_file_view.view_type = ViewType::Internal(View::Text(view));
+        file_view.file_type = FileType::Text;
+        file_view.view_type = ViewType::Internal(View::Text(view));
     }
 
     /// This function returns a pointer to the editor widget.

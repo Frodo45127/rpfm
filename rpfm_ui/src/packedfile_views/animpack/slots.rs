@@ -87,8 +87,8 @@ impl PackedFileAnimPackViewSlots {
                     let item_types = view.pack_tree_view.get_item_types_from_selection_filtered();
 
                     // Save the files in question to the background, to ensure we have all their data updated.
-                    for packed_file_view in UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile) {
-                        let _ = packed_file_view.save(&app_ui, &pack_file_contents_ui);
+                    for file_view in UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile) {
+                        let _ = file_view.save(&app_ui, &pack_file_contents_ui);
                     }
 
                     // Ask the Background Thread to copy the files, and send him the path.
@@ -147,10 +147,10 @@ impl PackedFileAnimPackViewSlots {
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
 
                             // Reload all the views belonging to overwritten files.
-                            for packed_file_view in UI_STATE.set_open_packedfiles().iter_mut() {
+                            for file_view in UI_STATE.set_open_packedfiles().iter_mut() {
                                 for path_ok in &paths_ok {
-                                    if path_ok.path_raw() == packed_file_view.path_copy() && packed_file_view.data_source() == DataSource::PackFile {
-                                        let _ = packed_file_view.reload(path_ok.path_raw(), &pack_file_contents_ui);
+                                    if path_ok.path_raw() == file_view.path_copy() && file_view.data_source() == DataSource::PackFile {
+                                        let _ = file_view.reload(path_ok.path_raw(), &pack_file_contents_ui);
                                     }
                                 }
                             }

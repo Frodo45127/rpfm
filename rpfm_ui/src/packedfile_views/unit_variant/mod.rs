@@ -64,20 +64,20 @@ impl PackedFileUnitVariantView {
 
     /// This function creates a new PackedFileUnitVariantView, and sets up his slots and connections.
     pub unsafe fn new_view(
-        packed_file_view: &mut FileView,
+        file_view: &mut FileView,
         data: RFileDecoded
     ) -> Result<()> {
 
         /*
-        let layout: QPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast();
+        let layout: QPtr<QGridLayout> = file_view.get_mut_widget().layout().static_downcast();
 
-        let info_frame = QGroupBox::from_q_string_q_widget(&qtr("info_title"), packed_file_view.get_mut_widget());
+        let info_frame = QGroupBox::from_q_string_q_widget(&qtr("info_title"), file_view.get_mut_widget());
         let info_layout = create_grid_layout(info_frame.static_upcast());
 
         let version_label = QLabel::from_q_string_q_widget(&QString::from_std_str(&format!("Version: {}", data.get_ref_version())), &info_frame);
         let unknown_1_label = QLabel::from_q_string_q_widget(&QString::from_std_str(&format!("Unknown value: {}", data.get_ref_unknown_1())), &info_frame);
 
-        let scroll_area = QScrollArea::new_1a(packed_file_view.get_mut_widget());
+        let scroll_area = QScrollArea::new_1a(file_view.get_mut_widget());
         let categories_widget = QWidget::new_1a(&scroll_area);
         let categories_layout = create_grid_layout(categories_widget.static_upcast());
         scroll_area.set_widget(&categories_widget);
@@ -149,17 +149,17 @@ impl PackedFileUnitVariantView {
 */
         // For now just build a debug view.
         let debug_view = DebugView::new_view(
-            packed_file_view.main_widget(),
+            file_view.main_widget(),
             data,
-            packed_file_view.path_raw(),
+            file_view.path_raw(),
         )?;
 
         let packed_file_debug_view = Self {
             debug_view,
         };
 
-        packed_file_view.view_type = ViewType::Internal(View::UnitVariant(Arc::new(packed_file_debug_view)));
-        packed_file_view.file_type = FileType::UnitVariant;
+        file_view.view_type = ViewType::Internal(View::UnitVariant(Arc::new(packed_file_debug_view)));
+        file_view.file_type = FileType::UnitVariant;
 
         Ok(())
     }

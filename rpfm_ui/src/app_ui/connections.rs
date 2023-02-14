@@ -150,7 +150,7 @@ pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
     app_ui.debug_reload_style_sheet.triggered().connect(&slots.debug_reload_style_sheet);
 
     //-----------------------------------------------//
-    // `PackedFileView` connections.
+    // `FileView` connections.
     //-----------------------------------------------//
     app_ui.tab_bar_packed_file.tab_close_requested().connect(&slots.packed_file_hide);
     app_ui.tab_bar_packed_file.current_changed().connect(&slots.packed_file_update);

@@ -804,10 +804,10 @@ impl DiagnosticsUI {
             /*
             "AnimFragment" => {
 
-                if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).find(|x| *x.get_ref_path() == path) {
+                if let Some(file_view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).find(|x| *x.get_ref_path() == path) {
 
                     // In case of tables, we have to get the logical row/column of the match and select it.
-                    if let ViewType::Internal(View::AnimFragment(view)) = packed_file_view.get_view() {
+                    if let ViewType::Internal(View::AnimFragment(view)) = file_view.get_view() {
                         let table_view = view.table_view();
                         let table_view = table_view.table_view();
                         let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
@@ -832,10 +832,10 @@ impl DiagnosticsUI {
 
             "DB" | "Loc" | "DependencyManager" => {
 
-                if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).find(|x| *x.path_read() == path) {
+                if let Some(file_view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).find(|x| *x.path_read() == path) {
 
                     // In case of tables, we have to get the logical row/column of the match and select it.
-                    if let ViewType::Internal(View::Table(view)) = packed_file_view.view_type() {
+                    if let ViewType::Internal(View::Table(view)) = file_view.view_type() {
                         let table_view = view.get_ref_table();
                         let table_view = table_view.table_view();
                         let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
@@ -856,7 +856,7 @@ impl DiagnosticsUI {
                         }
                     }
 
-                    else if let ViewType::Internal(View::DependenciesManager(view)) = packed_file_view.view_type() {
+                    else if let ViewType::Internal(View::DependenciesManager(view)) = file_view.view_type() {
 
                         let table_view = view.get_ref_table();
                         let table_view = table_view.table_view();
@@ -881,8 +881,8 @@ impl DiagnosticsUI {
             }
 
             "PortraitSettings" => {
-                if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).find(|x| *x.path_read() == path) {
-                    if let ViewType::Internal(View::PortraitSettings(view)) = packed_file_view.view_type() {
+                if let Some(file_view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).find(|x| *x.path_read() == path) {
+                    if let ViewType::Internal(View::PortraitSettings(view)) = file_view.view_type() {
                         let list_view = view.main_list_view();
                         let list_filter: QPtr<QSortFilterProxyModel> = list_view.model().static_downcast();
                         let list_model: QPtr<QStandardItemModel> = list_filter.source_model().static_downcast();

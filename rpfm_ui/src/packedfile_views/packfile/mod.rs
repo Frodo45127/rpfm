@@ -11,8 +11,8 @@
 /*!
 Module with all the code for managing the temporal PackFile TreeView used when adding PackedFiles from another PackFile.
 
-This is here because we're going to treat it as another PackedFileView, though it isn't.
-But this allow us to integrate it into the main PackedFileView system, so it's ok.
+This is here because we're going to treat it as another FileView, though it isn't.
+But this allow us to integrate it into the main FileView system, so it's ok.
 !*/
 
 use qt_widgets::QAction;
@@ -84,7 +84,7 @@ pub struct PackFileExtraView {
 /// Implementation for `PackFileExtraView`.
 impl PackFileExtraView {
 
-    /// This function creates a new PackedFileView, and sets up his slots and connections.
+    /// This function creates a new FileView, and sets up his slots and connections.
     pub unsafe fn new_view(
         pack_file_view: &mut FileView,
         app_ui: &Rc<AppUI>,
@@ -105,7 +105,7 @@ impl PackFileExtraView {
 
         // Load the UI Template.
         let template_path = if cfg!(debug_assertions) { VIEW_DEBUG } else { VIEW_RELEASE };
-        let main_widget = load_template(pack_file_view.main_widget(), &template_path)?;
+        let main_widget = load_template(pack_file_view.main_widget(), template_path)?;
 
         // Add everything to the main widget's Layout.
         let layout: QPtr<QGridLayout> = pack_file_view.main_widget().layout().static_downcast();

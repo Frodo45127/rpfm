@@ -1233,8 +1233,8 @@ impl PackFileContentsSlots {
                 ContainerPath::File(path) => {
 
                     // First, if the PackedFile is open, save it.
-                    let close_path = UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).any(|packed_file_view| {
-                        packed_file_view.path_copy() == *path
+                    let close_path = UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).any(|file_view| {
+                        file_view.path_copy() == *path
                     });
 
                     if close_path {

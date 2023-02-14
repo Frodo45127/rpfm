@@ -37,7 +37,7 @@ use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::locale::qtr;
-use crate::packedfile_views::{PackedFileView, PackFileContentsUI};
+use crate::packedfile_views::{FileView, PackFileContentsUI};
 use crate::utils::create_grid_layout;
 use super::{ViewType, View};
 
@@ -61,12 +61,12 @@ impl PackedFileUICView {
 
     /// This function creates a new PackedFileUICView, and sets up his slots and connections.
     pub unsafe fn new_view(
-        packed_file_view: &mut PackedFileView,
+        file_view: &mut FileView,
         _app_ui: &Rc<AppUI>,
         _pack_file_contents_ui: &Rc<PackFileContentsUI>
     ) -> Result<Option<RFileInfo>> {
 
-        let receiver = CENTRAL_COMMAND.send_background(Command::DecodePackedFile(packed_file_view.get_path()));
+        let receiver = CENTRAL_COMMAND.send_background(Command::DecodePackedFile(file_view.get_path()));
         let response = CentralCommand::recv(&receiver);
         let (data, packed_file_info) = match response {
             Response::UICRFileInfo((data, packed_file_info)) => (data, packed_file_info),
@@ -75,9 +75,9 @@ impl PackedFileUICView {
             _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
         };
 
-        let layout: QPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast();
-        let scene = QGraphicsScene::from_q_object(packed_file_view.get_mut_widget());
-        let viewer = QGraphicsView::from_q_widget(packed_file_view.get_mut_widget());
+        let layout: QPtr<QGridLayout> = file_view.get_mut_widget().layout().static_downcast();
+        let scene = QGraphicsScene::from_q_object(file_view.get_mut_widget());
+        let viewer = QGraphicsView::from_q_widget(file_view.get_mut_widget());
         viewer.set_scene(&scene);
         viewer.set_drag_mode(DragMode::ScrollHandDrag);
 
@@ -85,7 +85,7 @@ impl PackedFileUICView {
         let flags = QFlags::from(qt_widgets::q_graphics_item::GraphicsItemFlag::ItemIsMovable.to_int());
         test_item.as_ptr().static_upcast::<QGraphicsItem>().set_flags(flags);
 
-        let properties = QWidget::new_1a(packed_file_view.get_mut_widget());
+        let properties = QWidget::new_1a(file_view.get_mut_widget());
         let properties_layout = create_grid_layout(properties.static_upcast());
 
         let test_label = QLabel::from_q_string_q_widget(&qtr("format"), &properties);
@@ -107,8 +107,8 @@ impl PackedFileUICView {
         //);
 
         //connections::set_connections(&pack_file_settings_view, &pack_file_settings_slots);
-        packed_file_view.packed_file_type = PackedFileType::UIC;
-        packed_file_view.view = ViewType::Internal(View::UIC(view));
+        file_view.packed_file_type = PackedFileType::UIC;
+        file_view.view = ViewType::Internal(View::UIC(view));
         Ok(Some(packed_file_info))
     }
 
