@@ -2710,60 +2710,6 @@ impl AppUI {
                         Response::Error(error) => return show_dialog(&app_ui.main_window, error, false),
                         _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                     };
-                    /*
-                    let packed_file_type = get_packed_file_type(path);
-
-                    match packed_file_type {
-
-
-
-
-
-
-
-                        // If the file is a UI Component...
-                        #[cfg(feature = "support_uic")]
-                        FileType::UIC => {
-                            match PackedFileUICView::new_view(&mut tab, app_ui, pack_file_contents_ui) {
-                                Ok(packed_file_info) => {
-
-                                    // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
-                                    app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
-
-                                    // Fix the quick notes view.
-                                    let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
-                                    layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
-
-                                    let mut open_list = UI_STATE.set_open_packedfiles();
-                                    open_list.push(tab);
-
-                                    if let Some(packed_file_info) = packed_file_info {
-                                        if data_source == DataSource::PackFile {
-                                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), data_source);
-                                        }
-                                    }
-                                },
-                                Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::UICDecode(format!("{}", error)), false),
-                            }
-                        }
-
-                        FileType::PackFile => {
-                            let path_str = &tab.get_path()[1..].join("/");
-                            let path = PathBuf::from(path_str.to_owned());
-                            match PackFileExtraView::new_view(&mut tab, app_ui, pack_file_contents_ui, path) {
-                                Ok(_) => {
-                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(&path_str));
-                                    app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
-                                    UI_STATE.set_open_packedfiles().push(tab);
-                                }
-                                Err(error) => show_dialog(&app_ui.main_window, error, false),
-                            }
-                        }
-
-                        // Ignore anything else.
-                        _ => {}
-                    }*/
                 }
 
                 // If it's external, we just create a view with just one button: "Stop Watching External File".

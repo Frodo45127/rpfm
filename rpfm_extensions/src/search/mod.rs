@@ -148,7 +148,7 @@ impl Default for GlobalSearch {
             matches_db: vec![],
             matches_loc: vec![],
             matches_text: vec![],
-            matches_schema: SchemaMatches::new(),
+            matches_schema: SchemaMatches::default(),
         }
     }
 }
@@ -197,7 +197,7 @@ impl GlobalSearch {
         };
 
         // Schema matches do not support "update search".
-        self.matches_schema = SchemaMatches::new();
+        self.matches_schema = SchemaMatches::default();
 
         let pattern = self.pattern.to_owned();
         if !self.case_sensitive {

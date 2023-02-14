@@ -1795,7 +1795,7 @@ pub fn background_loop() {
 
             Command::LiveExport => match live_export(&mut pack_file_decoded) {
                 Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
             },
 
             // These two belong to the network thread, not to this one!!!!

@@ -816,7 +816,7 @@ pub trait ReadBytes: Read + Seek {
 
         // Padding to 8 zeros so we don't lose the first one, then remove the last two zeros (alpha?).
         // REMEMBER, FORMAT ENCODED IS BBGGRR00.
-        Ok(format!("{:06X?}", value))
+        Ok(format!("{value:06X?}"))
     }
 }
 

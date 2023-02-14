@@ -25,7 +25,7 @@ use super::{MatchingMode, Searchable};
 //-------------------------------------------------------------------------------//
 
 /// This struct represents all the matches of the global search within a Schema.
-#[derive(Debug, Clone, Getters, MutGetters)]
+#[derive(Debug, Default, Clone, Getters, MutGetters)]
 #[getset(get = "pub", get_mut = "pub")]
 pub struct SchemaMatches {
 
@@ -60,7 +60,7 @@ impl Searchable for Schema {
 
     /// This function performs a search over the provided Text PackedFile.
     fn search(&self, _file_path: &str, pattern_to_search: &str, case_sensitive: bool, matching_mode: &MatchingMode) -> SchemaMatches {
-        let mut matches = SchemaMatches::new();
+        let mut matches = SchemaMatches::default();
 
         for (table_name, definitions) in self.definitions() {
             match matching_mode {
@@ -115,18 +115,6 @@ impl Searchable for Schema {
     }
 }
 
-/// Implementation of `SchemaMatches`.
-impl SchemaMatches {
-
-    /// This function creates a new `SchemaMatches` for the provided path.
-    pub fn new() -> Self {
-        Self {
-            matches: vec![],
-        }
-    }
-}
-
-/// Implementation of `SchemaMatch`.
 impl SchemaMatch {
 
     /// This function creates a new `SchemaMatch` with the provided data.
