@@ -37,6 +37,7 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use rpfm_lib::files::{ContainerPath, FileType, pack::PFHFlags};
+use rpfm_lib::integrations::log::error;
 use rpfm_lib::utils::*;
 
 use crate::backend::*;
@@ -1388,6 +1389,12 @@ impl PackTree for QPtr<QTreeView> {
                             // Get the parent of the item, and kill the item in a cruel way.
                             index = i;
                             let parent = item.parent();
+
+                            // Not sure what the fuck causes this, but sometimes parent is null.
+                            if parent.is_null() {
+                                error!("Parent null passed for path {:?}. Breaking loop to avoid crash (god knows what will happen next).", path);
+                                break;
+                            }
                             parent.remove_row(item.row());
 
                             parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_MODIFIED), ITEM_STATUS);
