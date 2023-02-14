@@ -88,7 +88,6 @@ pub unsafe fn set_tips(settings_ui: &Rc<SettingsUI>) {
     let debug_check_for_missing_table_definitions_tip = qtr("tt_debug_check_for_missing_table_definitions_tip");
     let debug_spoof_ca_authoring_tool_tip = qtr("tt_settings_debug_spoof_ca_authoring_tool");
     let debug_enable_rigidmodel_editor = qtr("tt_settings_debug_enable_rigidmodel_editor");
-    let debug_enable_esf_editor = qtr("tt_settings_debug_enable_esf_editor");
     let debug_enable_unit_editor = qtr("tt_settings_debug_enable_unit_editor");
 
     let debug_clear_dependencies_cache = qtr("tt_settings_debug_clear_dependencies_cache_folder");
@@ -102,8 +101,6 @@ pub unsafe fn set_tips(settings_ui: &Rc<SettingsUI>) {
     settings_ui.debug_spoof_ca_authoring_tool_checkbox.set_tool_tip(&debug_spoof_ca_authoring_tool_tip);
     settings_ui.debug_enable_rigidmodel_editor_label.set_tool_tip(&debug_enable_rigidmodel_editor);
     settings_ui.debug_enable_rigidmodel_editor_checkbox.set_tool_tip(&debug_enable_rigidmodel_editor);
-    settings_ui.debug_enable_esf_editor_label.set_tool_tip(&debug_enable_esf_editor);
-    settings_ui.debug_enable_esf_editor_checkbox.set_tool_tip(&debug_enable_esf_editor);
     settings_ui.debug_enable_unit_editor_label.set_tool_tip(&debug_enable_unit_editor);
     settings_ui.debug_enable_unit_editor_checkbox.set_tool_tip(&debug_enable_unit_editor);
 

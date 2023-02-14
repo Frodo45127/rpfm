@@ -34,14 +34,8 @@ QTipsItemDelegate::QTipsItemDelegate(QObject *parent, bool is_dark_theme_enabled
     d_pointerheight = 17;
     d_widthfraction = 0.7;
 
-    QSettings* q_settings = new QSettings("FrodoWazEre", "rpfm");
-
     // TODO: Move this to the main stylesheet or palette.
-    if (dark_theme) {
-        colour = QColor(q_settings->value("#363636").toString());
-    } else {
-        colour = QColor(q_settings->value("#363636").toString());
-    }
+    colour = QColor("#363636");
 }
 
 // Function for the delegate to showup properly.
@@ -52,11 +46,6 @@ void QTipsItemDelegate::paint(QPainter *painter, const QStyleOptionViewItem &opt
         QStandardItem* item = standardModel->itemFromIndex(filterModel->mapToSource(index));
 
         if (item != nullptr) {
-            bool is_remote = item->data(30).toBool();
-            QString user = item->data(31).toString();
-            qulonglong timestamp = item->data(32).toULongLong();
-            QString url = item->data(33).toString();
-
             QTextDocument bodydoc;
             QTextOption textOption(bodydoc.defaultTextOption());
             textOption.setWrapMode(QTextOption::WrapAtWordBoundaryOrAnywhere);
@@ -74,7 +63,7 @@ void QTipsItemDelegate::paint(QPainter *painter, const QStyleOptionViewItem &opt
             painter->translate(option.rect.left() + d_horizontalmargin, option.rect.top() + ((item->row() == 0) ? d_verticalmargin : 0));
 
             // background color for chat bubble
-            QColor bgcolor = (is_remote) ? remote_colour : local_colour;
+            QColor bgcolor = colour;
 
             // create chat bubble
             QPainterPath pointie;
@@ -102,31 +91,16 @@ void QTipsItemDelegate::paint(QPainter *painter, const QStyleOptionViewItem &opt
             pointie.lineTo(0 + d_pointerwidth, bodyheight + d_toppadding + d_bottompadding - d_pointerheight);
             pointie.closeSubpath();
 
-            // rotate bubble for outgoing messages
-            if (is_remote) {
-              painter->translate(option.rect.width() - pointie.boundingRect().width() - d_horizontalmargin - d_pointerwidth, 0);
-              painter->translate(pointie.boundingRect().center());
-              painter->rotate(180);
-              painter->translate(-pointie.boundingRect().center());
-            }
-
             // now paint it!
             painter->setPen(QPen(bgcolor));
             painter->drawPath(pointie);
             painter->fillPath(pointie, QBrush(bgcolor));
 
-            // rotate back or painter is going to paint the text rotated...
-            if (is_remote) {
-              painter->translate(pointie.boundingRect().center());
-              painter->rotate(-180);
-              painter->translate(-pointie.boundingRect().center());
-            }
-
             // set text color used to draw message body
             QAbstractTextDocumentLayout::PaintContext ctx;
 
             // draw body text
-            painter->translate((is_remote ? 0 : d_pointerwidth) + d_leftpadding, 0);
+            painter->translate(d_pointerwidth + d_leftpadding, 0);
             bodydoc.documentLayout()->draw(painter, ctx);
 
             painter->restore();

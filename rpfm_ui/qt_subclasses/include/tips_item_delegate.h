@@ -33,7 +33,6 @@ protected:
     int d_pointerwidth;
     int d_pointerheight;
     float d_widthfraction;
-    QColor local_colour = "#FFFFFF";
-    QColor remote_colour = "#DDDDDD";
+    QColor colour = "#FFFFFF";
 };
 #endif // TIPS_ITEM_DELEGATE_H

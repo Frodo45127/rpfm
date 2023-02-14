@@ -127,7 +127,6 @@ pub unsafe fn init_settings(app_ui: &AppUI) {
     set_setting_if_new_bool(&q_settings, "enable_debug_menu", false);
     set_setting_if_new_bool(&q_settings, "spoof_ca_authoring_tool", false);
     set_setting_if_new_bool(&q_settings, "enable_rigidmodel_editor", true);
-    set_setting_if_new_bool(&q_settings, "enable_esf_editor", false);
     set_setting_if_new_bool(&q_settings, "enable_unit_editor", false);
 
     // Diagnostics Settings

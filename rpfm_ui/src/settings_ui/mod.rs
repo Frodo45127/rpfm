@@ -165,8 +165,6 @@ pub struct SettingsUI {
     debug_spoof_ca_authoring_tool_checkbox: QBox<QCheckBox>,
     debug_enable_rigidmodel_editor_label: QBox<QLabel>,
     debug_enable_rigidmodel_editor_checkbox: QBox<QCheckBox>,
-    debug_enable_esf_editor_label: QBox<QLabel>,
-    debug_enable_esf_editor_checkbox: QBox<QCheckBox>,
     debug_enable_unit_editor_label: QBox<QLabel>,
     debug_enable_unit_editor_checkbox: QBox<QCheckBox>,
 
@@ -600,14 +598,12 @@ impl SettingsUI {
         let debug_enable_debug_menu_label = QLabel::from_q_string_q_widget(&qtr("settings_debug_enable_debug_menu"), &debug_frame);
         let debug_spoof_ca_authoring_tool_label = QLabel::from_q_string_q_widget(&qtr("settings_debug_spoof_ca_authoring_tool"), &debug_frame);
         let debug_enable_rigidmodel_editor_label = QLabel::from_q_string_q_widget(&qtr("settings_enable_rigidmodel_editor"), &debug_frame);
-        let debug_enable_esf_editor_label = QLabel::from_q_string_q_widget(&qtr("settings_enable_esf_editor"), &debug_frame);
         let debug_enable_unit_editor_label = QLabel::from_q_string_q_widget(&qtr("settings_enable_unit_editor"), &debug_frame);
 
         let debug_check_for_missing_table_definitions_checkbox = QCheckBox::from_q_widget(&debug_frame);
         let debug_enable_debug_menu_checkbox = QCheckBox::from_q_widget(&debug_frame);
         let debug_spoof_ca_authoring_tool_checkbox = QCheckBox::from_q_widget(&debug_frame);
         let debug_enable_rigidmodel_editor_checkbox = QCheckBox::from_q_widget(&debug_frame);
-        let debug_enable_esf_editor_checkbox = QCheckBox::from_q_widget(&debug_frame);
         let debug_enable_unit_editor_checkbox = QCheckBox::from_q_widget(&debug_frame);
 
         let extra_packfile_use_lazy_loading_label = QLabel::from_q_string_q_widget(&qtr("settings_use_lazy_loading"), &debug_frame);
@@ -629,9 +625,6 @@ impl SettingsUI {
 
         debug_grid.add_widget_5a(&debug_enable_rigidmodel_editor_label, 3, 0, 1, 2);
         debug_grid.add_widget_5a(&debug_enable_rigidmodel_editor_checkbox, 3, 2, 1, 1);
-
-        debug_grid.add_widget_5a(&debug_enable_esf_editor_label, 4, 0, 1, 2);
-        debug_grid.add_widget_5a(&debug_enable_esf_editor_checkbox, 4, 2, 1, 1);
 
         debug_grid.add_widget_5a(&debug_enable_unit_editor_label, 5, 0, 1, 2);
         debug_grid.add_widget_5a(&debug_enable_unit_editor_checkbox, 5, 2, 1, 1);
@@ -793,8 +786,6 @@ impl SettingsUI {
             debug_spoof_ca_authoring_tool_checkbox,
             debug_enable_rigidmodel_editor_label,
             debug_enable_rigidmodel_editor_checkbox,
-            debug_enable_esf_editor_label,
-            debug_enable_esf_editor_checkbox,
             debug_enable_unit_editor_label,
             debug_enable_unit_editor_checkbox,
 
@@ -940,7 +931,6 @@ impl SettingsUI {
         self.debug_enable_debug_menu_checkbox.set_checked(setting_bool("enable_debug_menu"));
         self.debug_spoof_ca_authoring_tool_checkbox.set_checked(setting_bool("spoof_ca_authoring_tool"));
         self.debug_enable_rigidmodel_editor_checkbox.set_checked(setting_bool("enable_rigidmodel_editor"));
-        self.debug_enable_esf_editor_checkbox.set_checked(setting_bool("enable_esf_editor"));
         self.debug_enable_unit_editor_checkbox.set_checked(setting_bool("enable_unit_editor"));
 
         // Load the Diagnostics Stuff.
@@ -1028,7 +1018,6 @@ impl SettingsUI {
         set_setting_bool_to_q_setting(&q_settings, "enable_debug_menu", self.debug_enable_debug_menu_checkbox.is_checked());
         set_setting_bool_to_q_setting(&q_settings, "spoof_ca_authoring_tool", self.debug_spoof_ca_authoring_tool_checkbox.is_checked());
         set_setting_bool_to_q_setting(&q_settings, "enable_rigidmodel_editor", self.debug_enable_rigidmodel_editor_checkbox.is_checked());
-        set_setting_bool_to_q_setting(&q_settings, "enable_esf_editor", self.debug_enable_esf_editor_checkbox.is_checked());
         set_setting_bool_to_q_setting(&q_settings, "enable_unit_editor", self.debug_enable_unit_editor_checkbox.is_checked());
 
         // Get the Diagnostics Settings.
