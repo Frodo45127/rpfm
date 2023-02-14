@@ -29,6 +29,7 @@ use rpfm_extensions::search::{GlobalSearch, MatchHolder};
 use rpfm_lib::files::{anim_fragment::AnimFragment, anims_table::AnimsTable, audio::Audio, ContainerPath, video::SupportedFormats, db::DB, esf::ESF, image::Image, loc::Loc, matched_combat::MatchedCombat, pack::PackSettings, RFile, RFileDecoded, portrait_settings::PortraitSettings, rigidmodel::RigidModel, text::Text, uic::UIC};
 use rpfm_lib::games::pfh_file_type::PFHFileType;
 use rpfm_lib::integrations::{git::GitResponse, log::info};
+use rpfm_lib::notes::Note;
 use rpfm_lib::schema::{Definition, DefinitionPatch, Field, Schema};
 
 use crate::app_ui::NewFile;
@@ -322,23 +323,8 @@ pub enum Command {
     /// This command is used to get all the file names under a path in all dependencies.
     GetPackedFilesNamesStartingWitPathFromAllSources(ContainerPath),
 
-    /// This command is used to request all tips under a path, no matter their source.
-    //GetTipsForPath(Vec<String>),
-
-    // This command is used to add a tip to the list of local tips.
-    //AddTipToLocalTips(Tip),
-
-    /// This command is used to delete a tip with an specific id.
-    //DeleteTipById(u64),
-
-    /// This command is used to check if there are message updates available.
-    CheckMessageUpdates,
-
-    /// This command is used to download new message updates.
-    UpdateMessages,
-
-    /// This command is used to publish a tip to github.
-    //PublishTipById(u64),
+    /// This command is used to request all notes under a path, no matter their source.
+    NotesForPath(String),
 
     /// This command is used to upload a schema patch.
     UploadSchemaPatch(String, HashMap<String, DefinitionPatch>),
@@ -357,6 +343,9 @@ pub enum Command {
 
     /// This command is used to initialize a MyMod Folder.
     InitializeMyModFolder(String, String, bool, bool, Option<String>),
+
+    AddNote(Note),
+    DeleteNote(String, u64),
 }
 
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.
@@ -516,6 +505,8 @@ pub enum Response {
     Diagnostics(Diagnostics),
     //DiagnosticsVecRFileInfo(Diagnostics, Vec<RFileInfo>),
     Definition(Definition),
+    VecNote(Vec<Note>),
+    Note(Note),
     //VecTipVecTip(Vec<Tip>, Vec<Tip>),
     HashSetString(HashSet<String>),
     //StringHashSetString(String, HashSet<String>),

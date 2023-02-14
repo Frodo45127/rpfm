@@ -34,8 +34,8 @@ pub mod error;
 pub mod files;
 pub mod games;
 pub mod integrations;
+pub mod notes;
 pub mod schema;
-pub mod tips;
 pub mod utils;
 
 lazy_static! {

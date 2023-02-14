@@ -50,12 +50,12 @@ use self::dependencies_manager::DependenciesManagerView;
 use self::external::PackedFileExternalView;
 use self::image::PackedFileImageView;
 use self::matched_combat::FileMatchedCombatDebugView;
+use self::notes::NotesView;
 use self::packfile::PackFileExtraView;
 use self::packfile_settings::PackFileSettingsView;
 use self::portrait_settings::PortraitSettingsView;
 use self::table::PackedFileTableView;
 use self::text::PackedFileTextView;
-//use self::tips::TipsView;
 use self::video::PackedFileVideoView;
 
 #[cfg(feature = "support_rigidmodel")]
@@ -75,6 +75,7 @@ pub mod esf;
 pub mod external;
 pub mod image;
 pub mod matched_combat;
+pub mod notes;
 pub mod packfile;
 pub mod packfile_settings;
 pub mod portrait_settings;
@@ -83,7 +84,6 @@ pub mod portrait_settings;
 pub mod rigidmodel;
 pub mod table;
 pub mod text;
-//pub mod tips;
 
 #[cfg(feature = "support_uic")]
 pub mod uic;
@@ -102,8 +102,8 @@ const RFILE_RELOAD_ERROR: &str = "The PackedFile you added is not the same type 
 pub struct PackedFileView {
     path: Arc<RwLock<String>>,
     main_widget: Arc<QBox<QWidget>>,
-    tips_widget: Arc<QBox<QWidget>>,
-    //tips_view: Arc<TipsView>,
+    notes_widget: Arc<QBox<QWidget>>,
+    notes_view: Arc<NotesView>,
     is_preview: AtomicBool,
     is_read_only: AtomicBool,
     data_source: Arc<RwLock<DataSource>>,
@@ -173,7 +173,6 @@ pub enum SpecialView {
     Pack(String),
     PackSettings,
     PackDependencies,
-    //Notes,
 }
 
 //-------------------------------------------------------------------------------//
@@ -189,14 +188,14 @@ impl Default for PackedFileView {
         let main_layout = unsafe { create_grid_layout(main_widget_ptr.static_upcast()) };
         let main_widget = Arc::new(main_widget_ptr);
 
-        let tips_widget_ptr = unsafe { QWidget::new_0a() };
-        unsafe { create_grid_layout(tips_widget_ptr.static_upcast()); }
-        unsafe { main_layout.add_widget_5a(&tips_widget_ptr, 0, 99, 1, 1); }
-        let tips_widget = Arc::new(tips_widget_ptr);
-        //let tips_view = unsafe { TipsView::new_view(&tips_widget, &[]) };
+        let notes_widget_ptr = unsafe { QWidget::new_0a() };
+        unsafe { create_grid_layout(notes_widget_ptr.static_upcast()); }
+        unsafe { main_layout.add_widget_5a(&notes_widget_ptr, 0, 99, 1, 1); }
+        let notes_widget = Arc::new(notes_widget_ptr);
+        let notes_view = unsafe { NotesView::new_view(&notes_widget, path.clone()) };
 
         // Hide it by default.
-        unsafe { tips_widget.set_visible(false) };
+        unsafe { notes_widget.set_visible(false) };
 
         let is_preview = AtomicBool::new(false);
         let is_read_only = AtomicBool::new(false);
@@ -206,8 +205,8 @@ impl Default for PackedFileView {
         Self {
             path,
             main_widget,
-            tips_widget,
-            //tips_view,
+            notes_widget,
+            notes_view,
             is_preview,
             is_read_only,
             data_source,
@@ -242,7 +241,9 @@ impl PackedFileView {
     /// This function allows you to set a `PackedFileView` as a preview or normal view.
     pub fn set_path(&self, path: &str) {
         *self.path.write().unwrap() = path.to_owned();
-        //unsafe { self.tips_view.load_data(path) };
+
+        // TODO: Move notes on this exact path to the new path.
+        unsafe { self.notes_view.load_data() };
     }
 
     /// This function returns a mutable pointer to the `Widget` of the `PackedFileView`.
@@ -251,8 +252,12 @@ impl PackedFileView {
     }
 
     /// This function returns a mutable pointer to the `Widget` of the `PackedFileView`.
-    pub fn get_tips_widget(&self) -> &QBox<QWidget> {
-        &self.tips_widget
+    pub fn get_notes_widget(&self) -> &QBox<QWidget> {
+        &self.notes_widget
+    }
+
+    pub fn get_notes_view(&self) -> &Arc<NotesView> {
+        &self.notes_view
     }
 
     /// This function returns if the `PackedFileView` is a preview or not.
@@ -383,11 +388,6 @@ impl PackedFileView {
                             View::Table(view) => {
                                 let new_table = get_table_from_view(&view.get_ref_table().table_model_ptr().static_upcast(), &view.get_ref_table().table_definition())?;
                                 match self.packed_file_type {
-                                    //FileType::AnimsTable => {
-                                    //    let table = AnimsTable::from(new_table);
-                                    //    RFileDecoded::AnimsTable(table)
-                                    //}
-
                                     FileType::DB => {
 
                                         // If this crashes, it's a bug somewhere else.
@@ -400,10 +400,6 @@ impl PackedFileView {
                                         let table = Loc::from(new_table);
                                         RFileDecoded::Loc(table)
                                     }
-                                    //FileType::MatchedCombat => {
-                                    //    let table = MatchedCombat::from(new_table);
-                                    //    RFileDecoded::MatchedCombat(table)
-                                    //}
                                     _ => return Err(anyhow!("{}{}", RFILE_SAVED_ERROR, self.get_path()))
                                 }
                             },

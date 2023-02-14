@@ -54,9 +54,4 @@ pub unsafe fn set_connections(settings_ui: &SettingsUI, slots: &SettingsUISlots)
     settings_ui.ui_table_colour_dark_diagnostic_error_button.released().connect(&slots.select_colour_dark_diagnostic_error);
     settings_ui.ui_table_colour_dark_diagnostic_warning_button.released().connect(&slots.select_colour_dark_diagnostic_warning);
     settings_ui.ui_table_colour_dark_diagnostic_info_button.released().connect(&slots.select_colour_dark_diagnostic_info);
-
-    settings_ui.debug_colour_light_local_tip_button.released().connect(&slots.select_colour_light_local_tip);
-    settings_ui.debug_colour_light_remote_tip_button.released().connect(&slots.select_colour_light_remote_tip);
-    settings_ui.debug_colour_dark_local_tip_button.released().connect(&slots.select_colour_dark_local_tip);
-    settings_ui.debug_colour_dark_remote_tip_button.released().connect(&slots.select_colour_dark_remote_tip);
 }

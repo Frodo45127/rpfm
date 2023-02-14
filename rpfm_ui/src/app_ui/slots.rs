@@ -149,7 +149,6 @@ pub struct AppUISlots {
     pub about_about_rpfm: QBox<SlotOfBool>,
     pub about_check_updates: QBox<SlotOfBool>,
     pub about_check_schema_updates: QBox<SlotOfBool>,
-    pub about_check_message_updates: QBox<SlotOfBool>,
     pub about_check_lua_autogen_updates: QBox<SlotOfBool>,
 
     //-----------------------------------------------//
@@ -179,7 +178,7 @@ pub struct AppUISlots {
     pub tab_bar_packed_file_prev: QBox<SlotNoArgs>,
     pub tab_bar_packed_file_next: QBox<SlotNoArgs>,
     pub tab_bar_packed_file_import_from_dependencies: QBox<SlotNoArgs>,
-    pub tab_bar_packed_file_toggle_tips: QBox<SlotNoArgs>,
+    pub tab_bar_packed_file_toggle_quick_notes: QBox<SlotNoArgs>,
 
     pub open_pack_drop: QBox<SlotOfQStringList>,
 
@@ -1291,14 +1290,6 @@ impl AppUISlots {
         ));
 
         // What happens when we trigger the "Check Schema Update" action.
-        let about_check_message_updates = SlotOfBool::new(&app_ui.main_window, clone!(
-            app_ui => move |_| {
-                info!("Triggering `Check Schema Updates` By Slot");
-                AppUI::check_message_updates(&app_ui, true);
-            }
-        ));
-
-        // What happens when we trigger the "Check Schema Update" action.
         let about_check_lua_autogen_updates = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
                 info!("Triggering `Check Lua Autogen Updates` By Slot");
@@ -1383,7 +1374,6 @@ impl AppUISlots {
             }
         ));
 
-        // TODO: This lags the ui on switching tabs. Move to the backend + timer.
         let packed_file_update = SlotOfInt::new(&app_ui.main_window, clone!(
             app_ui => move |index| {
                 if index == -1 { return; }
@@ -1391,6 +1381,10 @@ impl AppUISlots {
                     let widget = packed_file_view.get_mut_widget();
                     if app_ui.tab_bar_packed_file.index_of(widget) == index {
 
+                        // Reload the quick notes view, in case we added notes on another path that affects this one.
+                        packed_file_view.get_notes_view().load_data();
+
+                        // TODO: This lags the ui on switching tabs. Move to the backend + timer.
                         if let ViewType::Internal(View::Table(table)) = packed_file_view.get_view() {
 
                             // For tables, we have to update the dependency data, reset the dropdown's data, and recheck the entire table for errors.
@@ -1593,7 +1587,7 @@ impl AppUISlots {
             }
         ));
 
-        let tab_bar_packed_file_toggle_tips = SlotNoArgs::new(&app_ui.main_window, clone!(
+        let tab_bar_packed_file_toggle_quick_notes = SlotNoArgs::new(&app_ui.main_window, clone!(
             app_ui => move || {
                 let index = app_ui.tab_bar_packed_file.current_index();
                 if index == -1 { return; }
@@ -1603,14 +1597,14 @@ impl AppUISlots {
                     if app_ui.tab_bar_packed_file.index_of(widget) == index {
 
                         // Re-add the widget with the correct row span before making it visible.
-                        if !packed_file_view.get_tips_widget().is_visible() {
+                        if !packed_file_view.get_notes_widget().is_visible() {
                             let layout: QPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast();
-                            layout.add_widget_5a(packed_file_view.get_tips_widget(), 0, 99, layout.row_count(), 1);
-                            packed_file_view.get_tips_widget().set_minimum_width(350);
-                            packed_file_view.get_tips_widget().set_maximum_width(350);
+                            layout.add_widget_5a(packed_file_view.get_notes_widget(), 0, 99, layout.row_count(), 1);
+                            packed_file_view.get_notes_widget().set_minimum_width(350);
+                            packed_file_view.get_notes_widget().set_maximum_width(350);
                         }
 
-                        packed_file_view.get_tips_widget().set_visible(!packed_file_view.get_tips_widget().is_visible());
+                        packed_file_view.get_notes_widget().set_visible(!packed_file_view.get_notes_widget().is_visible());
                         break;
                     }
                 }
@@ -1721,7 +1715,6 @@ impl AppUISlots {
             about_about_rpfm,
             about_check_updates,
             about_check_schema_updates,
-            about_check_message_updates,
             about_check_lua_autogen_updates,
 
             //-----------------------------------------------//
@@ -1751,7 +1744,7 @@ impl AppUISlots {
             tab_bar_packed_file_prev,
             tab_bar_packed_file_next,
             tab_bar_packed_file_import_from_dependencies,
-            tab_bar_packed_file_toggle_tips,
+            tab_bar_packed_file_toggle_quick_notes,
 
             open_pack_drop,
             //-----------------------------------------------//

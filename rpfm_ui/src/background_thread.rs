@@ -35,7 +35,6 @@ use rpfm_lib::files::{animpack::AnimPack, Container, ContainerPath, db::DB, Deco
 use rpfm_lib::games::{GameInfo, LUA_REPO, LUA_BRANCH, LUA_REMOTE, pfh_file_type::PFHFileType};
 use rpfm_lib::integrations::{assembly_kit::*, git::*, log::*};
 use rpfm_lib::schema::*;
-use rpfm_lib::tips::*;
 use rpfm_lib::utils::*;
 
 use crate::app_ui::NewFile;
@@ -684,7 +683,7 @@ pub fn background_loop() {
                         if path == RESERVED_NAME_NOTES {
                             let mut note = Text::default();
                             note.set_format(TextFormat::Markdown);
-                            note.set_contents(pack_file_decoded.notes().to_owned());
+                            note.set_contents(pack_file_decoded.notes().pack_notes().to_owned());
                             CentralCommand::send_back(&sender, Response::Text(note));
                         }
 
@@ -827,7 +826,7 @@ pub fn background_loop() {
             Command::SavePackedFileFromView(path, file_decoded) => {
                 if path == RESERVED_NAME_NOTES {
                     if let RFileDecoded::Text(data) = file_decoded {
-                        pack_file_decoded.set_notes(data.contents().to_owned());
+                        pack_file_decoded.notes_mut().set_pack_notes(data.contents().to_owned());
                     }
                 }
                 else if let Some(file) = pack_file_decoded.files_mut().get_mut(&path) {
@@ -1167,20 +1166,6 @@ pub fn background_loop() {
                                     CentralCommand::send_back(&sender, Response::Success)
                                 }
                             },
-                            Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
-                        }
-                    },
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
-                }
-            }
-
-            // When we want to update our messages...
-            Command::UpdateMessages => {
-                match remote_tips_path() {
-                    Ok(local_path) => {
-                        let git_integration = GitIntegration::new(&local_path, TIPS_REPO, MASTER, TIPS_REMOTE_FOLDER);
-                        match git_integration.update_repo() {
-                            Ok(_) => CentralCommand::send_back(&sender, Response::Success),
                             Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                         }
                     },
@@ -1651,35 +1636,10 @@ pub fn background_loop() {
                     None => CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected."))),
                 }
             },
-            /*
-            Command::GetTipsForPath(path) => {
-                let local_tips = tips.get_local_tips_for_path(&path);
-                let remote_tips = tips.get_remote_tips_for_path(&path);
-                CentralCommand::send_back(&sender, Response::VecTipVecTip(local_tips, remote_tips));
-            }
 
-            Command::AddTipToLocalTips(tip) => {
-                tips.add_tip_to_local_tips(tip);
-                match tips.save() {
-                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
-                }
-            }
-
-            Command::DeleteTipById(id) => {
-                tips.delete_tip_by_id(id);
-                match tips.save() {
-                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
-                }
-            }
-
-            Command::PublishTipById(id) => {
-                match tips.publish_tip_by_id(id) {
-                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
-                }
-            }*/
+            Command::NotesForPath(path) => CentralCommand::send_back(&sender, Response::VecNote(pack_file_decoded.notes().notes_by_path(&path))),
+            Command::AddNote(note) => CentralCommand::send_back(&sender, Response::Note(pack_file_decoded.notes_mut().add_note(note))),
+            Command::DeleteNote(path, id) => pack_file_decoded.notes_mut().delete_note(&path, id),
 
             Command::UploadSchemaPatch(table_name, patch) => {
                 let filename = "definitionpatch.json";
@@ -1832,7 +1792,7 @@ pub fn background_loop() {
             }
 
             // These two belong to the network thread, not to this one!!!!
-            Command::CheckUpdates | Command::CheckSchemaUpdates | Command::CheckMessageUpdates | Command::CheckLuaAutogenUpdates => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+            Command::CheckUpdates | Command::CheckSchemaUpdates | Command::CheckLuaAutogenUpdates => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
         }
     }
 }

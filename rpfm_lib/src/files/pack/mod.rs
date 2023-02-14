@@ -28,6 +28,7 @@ use crate::compression::Compressible;
 use crate::error::{RLibError, Result};
 use crate::files::{Container, ContainerPath, Decodeable, DecodeableExtraData, Encodeable, EncodeableExtraData, FileType, Loc, RFile, RFileDecoded, table::DecodedData};
 use crate::games::{GameInfo, pfh_file_type::PFHFileType, pfh_version::PFHVersion};
+use crate::notes::Note;
 use crate::utils::{current_time, last_modified_time_from_file};
 
 #[cfg(test)]
@@ -159,7 +160,7 @@ pub struct Pack {
     files: HashMap<String, RFile>,
 
     /// Notes added to the Pack. Exclusive of this lib.
-    notes: String,
+    notes: PackNotes,
 
     /// Settings stored in the Pack itself, to be able to share them between installations.
     settings: PackSettings,
@@ -245,6 +246,20 @@ pub struct PackSettings {
     settings_number: BTreeMap<String, i32>,
 }
 
+/// This struct hold Pack-specific notes, including both, Pack notes and file-specific notes.
+///
+/// These notes are baked into a file in the Pack when saving, so they can be shared across multiple instances.
+#[derive(Clone, Debug, PartialEq, Eq, Default, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct PackNotes {
+
+    /// Pack-specific notes. The're just a markdown text.
+    pack_notes: String,
+
+    /// File-specific notes.
+    file_notes: HashMap<String, Vec<Note>>,
+}
+
 //---------------------------------------------------------------------------//
 //                           Structs Implementations
 //---------------------------------------------------------------------------//
@@ -255,14 +270,14 @@ impl Container for Pack {
     ///
     /// [Pack] implementation extracts the [PackSettings] of the provided Pack and its associated notes.
     fn extract_metadata(&mut self, destination_path: &Path) -> Result<()> {
-        if !self.notes.is_empty() {
-            let mut data = vec![];
-            data.write_string_u8(&self.notes)?;
-            let path = destination_path.join(RESERVED_NAME_NOTES_EXTRACTED);
-            let mut file = BufWriter::new(File::create(path)?);
-            file.write_all(&data)?;
-            file.flush()?;
-        }
+        let mut data = vec![];
+        data.write_all(to_string_pretty(&self.notes)?.as_bytes())?;
+        data.extend_from_slice(b"\n"); // Add newline to the end of the file
+
+        let path = destination_path.join(RESERVED_NAME_NOTES_EXTRACTED);
+        let mut file = BufWriter::new(File::create(path)?);
+        file.write_all(&data)?;
+        file.flush()?;
 
         let mut data = vec![];
         data.write_all(to_string_pretty(&self.settings)?.as_bytes())?;
@@ -282,11 +297,7 @@ impl Container for Pack {
         let path_container = file.path_in_container();
         let path = file.path_in_container_raw();
         if path == RESERVED_NAME_NOTES_EXTRACTED {
-            let mut data = Cursor::new(file.encode(&None, false, false, true)?.unwrap());
-            let data_len = data.len()?;
-            if let Ok(data) = data.read_string_u8(data_len as usize) {
-                self.notes = data;
-            }
+            self.notes = PackNotes::load(&file.encode(&None, false, false, true)?.unwrap())?;
             Ok(None)
         } else if path == RESERVED_NAME_SETTINGS_EXTRACTED {
             self.settings = PackSettings::load(&file.encode(&None, false, false, true)?.unwrap())?;
@@ -488,9 +499,18 @@ impl Pack {
         if let Some(mut notes) = pack.files.remove(RESERVED_NAME_NOTES) {
             notes.load()?;
             let data = notes.cached()?;
-            let len = data.len();
-            let mut data = Cursor::new(data);
-            pack.notes = data.read_string_u8(len)?;
+
+            // Migration logic from 3.X to 4.X notes: iff we detect old notes, we don't fail.
+            // We instead generate a new 4.X note and fill the pack message with the old 3.X note.
+            match PackNotes::load(data) {
+                Ok(notes) => pack.notes = notes,
+                Err(_) => {
+                    let len = data.len();
+                    let mut data = Cursor::new(data);
+                    pack.notes = PackNotes::default();
+                    pack.notes.pack_notes = data.read_string_u8(len)?;
+                }
+            }
         }
 
         if let Some(mut settings) = pack.files.remove(RESERVED_NAME_SETTINGS) {
@@ -532,12 +552,10 @@ impl Pack {
             if self.header.pfh_file_type == PFHFileType::Mod || self.header.pfh_file_type == PFHFileType::Movie {
 
                 // Save notes, if needed.
-                if !self.notes.is_empty() {
-                    let mut data = vec![];
-                    data.write_string_u8(&self.notes)?;
-                    let file = RFile::new_from_vec(&data, FileType::Text, 0, RESERVED_NAME_NOTES);
-                    self.files.insert(RESERVED_NAME_NOTES.to_owned(), file);
-                }
+                let mut data = vec![];
+                data.write_all(to_string_pretty(&self.notes)?.as_bytes())?;
+                let file = RFile::new_from_vec(&data, FileType::Text, 0, RESERVED_NAME_NOTES);
+                self.files.insert(RESERVED_NAME_NOTES.to_owned(), file);
 
                 // Saving Pack settings.
                 let mut data = vec![];
@@ -937,6 +955,74 @@ impl Pack {
         // And finally, if we got some files patched and some deleted, report it too.
         else {
             Ok((format!("{} files patched.\n{} files deleted.", files_patched, files_to_delete.len()), files_to_delete))
+        }
+    }
+}
+
+impl PackNotes {
+
+    /// This function tries to load the notes from the current Pack and return them.
+    pub fn load(data: &[u8]) -> Result<Self> {
+        from_slice(data).map_err(From::from)
+    }
+
+    /// This function returns all notes afecting the provided path.
+    pub fn notes_by_path(&self, path: &str) -> Vec<Note> {
+        let path_lower = path.to_lowercase();
+        self.file_notes()
+            .iter()
+            .filter(|(path, _)| path.is_empty() || path_lower.starts_with(*path) || &&path_lower == path)
+            .flat_map(|(_, notes)| notes.to_vec())
+            .collect()
+    }
+
+    /// This function adds a note for an specific path.
+    ///
+    /// Note: for DB tables, notes are added for all tables with the same table name instead of specific tables.
+    pub fn add_note(&mut self, mut note: Note) -> Note {
+
+        // For tables, share notes between same-type tables.
+        let mut path = note.path().to_lowercase();
+        if path.starts_with("db/") {
+            let mut new_path = path.split('/').collect::<Vec<_>>();
+            if new_path.len() == 3 {
+                new_path.pop();
+            }
+            path = new_path.join("/");
+        }
+        note.set_path(path.to_owned());
+
+        match self.file_notes_mut().get_mut(&path) {
+            Some(notes) => {
+
+                // If it already has an id greater than 0, we're trying to replace and existing note if found.
+                if *note.id() == 0 {
+                    let id = notes.iter().map(|note| note.id()).max().unwrap();
+                    note.set_id(*id + 1);
+                } else {
+                    notes.retain(|x| x.id() != note.id());
+                }
+
+                notes.push(note.clone());
+                note
+            },
+            None => {
+                let notes = vec![note.clone()];
+                self.file_notes_mut().insert(path.to_owned(), notes);
+                note
+            }
+        }
+    }
+
+    /// This function deletes a note with the specified path and id.
+    pub fn delete_note(&mut self, path: &str, id: u64) {
+        let path_lower = path.to_lowercase();
+
+        if let Some(notes) = self.file_notes_mut().get_mut(&path_lower) {
+            notes.retain(|note| note.id() != &id);
+            if notes.is_empty() {
+                self.file_notes_mut().remove(&path_lower);
+            }
         }
     }
 }

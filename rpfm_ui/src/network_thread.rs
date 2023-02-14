@@ -21,7 +21,6 @@ use std::path::PathBuf;
 use rpfm_lib::integrations::{git::*, log::*};
 use rpfm_lib::games::{LUA_REPO, LUA_REMOTE, LUA_BRANCH};
 use rpfm_lib::schema::*;
-use rpfm_lib::tips::{TIPS_REPO, REMOTE as TIPS_REMOTE, MASTER as TIPS_BRANCH};
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
@@ -63,20 +62,6 @@ pub fn network_loop() {
                 match schemas_path() {
                     Ok(local_path) => {
                         let git_integration = GitIntegration::new(&local_path, SCHEMA_REPO, SCHEMA_BRANCH, SCHEMA_REMOTE);
-                        match git_integration.check_update() {
-                            Ok(response) => CentralCommand::send_back(&sender, Response::APIResponseGit(response)),
-                            Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
-                        }
-                    }
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
-                }
-            }
-
-            // When we want to check if there is a message update available...
-            Command::CheckMessageUpdates => {
-                match remote_tips_path() {
-                    Ok(local_path) => {
-                        let git_integration = GitIntegration::new(&local_path, TIPS_REPO, TIPS_BRANCH, TIPS_REMOTE);
                         match git_integration.check_update() {
                             Ok(response) => CentralCommand::send_back(&sender, Response::APIResponseGit(response)),
                             Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),

@@ -138,7 +138,6 @@ pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
     app_ui.about_about_rpfm.triggered().connect(&slots.about_about_rpfm);
     app_ui.about_check_updates.triggered().connect(&slots.about_check_updates);
     app_ui.about_check_schema_updates.triggered().connect(&slots.about_check_schema_updates);
-    app_ui.about_check_message_updates.triggered().connect(&slots.about_check_message_updates);
     app_ui.about_check_lua_autogen_updates.triggered().connect(&slots.about_check_lua_autogen_updates);
 
     //-----------------------------------------------//
@@ -168,7 +167,7 @@ pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
     app_ui.tab_bar_packed_file_prev.triggered().connect(&slots.tab_bar_packed_file_prev);
     app_ui.tab_bar_packed_file_next.triggered().connect(&slots.tab_bar_packed_file_next);
     app_ui.tab_bar_packed_file_import_from_dependencies.triggered().connect(&slots.tab_bar_packed_file_import_from_dependencies);
-    app_ui.tab_bar_packed_file_toggle_tips.triggered().connect(&slots.tab_bar_packed_file_toggle_tips);
+    app_ui.tab_bar_packed_file_toggle_quick_notes.triggered().connect(&slots.tab_bar_packed_file_toggle_quick_notes);
 
     main_window_drop_pack_signal(app_ui.main_window.static_upcast()).connect(&slots.open_pack_drop);
     //-----------------------------------------------//

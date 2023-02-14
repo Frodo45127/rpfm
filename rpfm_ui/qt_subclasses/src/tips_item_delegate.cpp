@@ -36,13 +36,11 @@ QTipsItemDelegate::QTipsItemDelegate(QObject *parent, bool is_dark_theme_enabled
 
     QSettings* q_settings = new QSettings("FrodoWazEre", "rpfm");
 
+    // TODO: Move this to the main stylesheet or palette.
     if (dark_theme) {
-        local_colour = QColor(q_settings->value("colour_dark_local_tip").toString());
-        remote_colour = QColor(q_settings->value("colour_dark_remote_tip").toString());
-
+        colour = QColor(q_settings->value("#363636").toString());
     } else {
-        local_colour = QColor(q_settings->value("colour_light_local_tip").toString());
-        remote_colour = QColor(q_settings->value("colour_light_remote_tip").toString());
+        colour = QColor(q_settings->value("#363636").toString());
     }
 }
 

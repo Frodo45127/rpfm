@@ -35,7 +35,6 @@ use std::path::{Path, PathBuf};
 use rpfm_lib::error::RLibError;
 use rpfm_lib::games::{*, supported_games::*};
 use rpfm_lib::schema::SCHEMA_FOLDER;
-use rpfm_lib::tips::TIPS_REMOTE_FOLDER;
 
 use crate::app_ui::AppUI;
 use crate::GAME_SELECTED;
@@ -106,7 +105,6 @@ pub unsafe fn init_settings(app_ui: &AppUI) {
     set_setting_if_new_bool(&q_settings, "allow_editing_of_ca_packfiles", false);
     set_setting_if_new_bool(&q_settings, "check_updates_on_start", true);
     set_setting_if_new_bool(&q_settings, "check_schema_updates_on_start", true);
-    set_setting_if_new_bool(&q_settings, "check_message_updates_on_start", false);
     set_setting_if_new_bool(&q_settings, "check_lua_autogen_updates_on_start", true);
     set_setting_if_new_bool(&q_settings, "use_lazy_loading", true);
     set_setting_if_new_bool(&q_settings, "optimize_not_renamed_packedfiles", false);
@@ -147,11 +145,6 @@ pub unsafe fn init_settings(app_ui: &AppUI) {
     set_setting_if_new_string(&q_settings, "colour_dark_diagnostic_error", "#ff0000");
     set_setting_if_new_string(&q_settings, "colour_dark_diagnostic_warning", "#cece67");
     set_setting_if_new_string(&q_settings, "colour_dark_diagnostic_info", "#55aaff");
-
-    set_setting_if_new_string(&q_settings, "colour_light_local_tip", "#363636");
-    set_setting_if_new_string(&q_settings, "colour_light_remote_tip", "#7e7e7e");
-    set_setting_if_new_string(&q_settings, "colour_dark_local_tip", "#363636");
-    set_setting_if_new_string(&q_settings, "colour_dark_remote_tip", "#7e7e7e");
 
     q_settings.sync();
 }
@@ -343,15 +336,11 @@ pub fn init_config_path() -> Result<()> {
     let autosaves_path = config_path.join("autosaves");
     let error_path = config_path.join("error");
     let schemas_path = config_path.join("schemas");
-    let tips_local_path = config_path.join("tips/local");
-    let tips_remote_path = config_path.join("tips/remote");
 
     DirBuilder::new().recursive(true).create(&autosaves_path)?;
     DirBuilder::new().recursive(true).create(&config_path)?;
     DirBuilder::new().recursive(true).create(error_path)?;
     DirBuilder::new().recursive(true).create(schemas_path)?;
-    DirBuilder::new().recursive(true).create(tips_local_path)?;
-    DirBuilder::new().recursive(true).create(tips_remote_path)?;
 
     // Init autosave files if they're not yet initialized. Minimum 1.
     let mut max_autosaves = setting_int("autosave_amount");
@@ -399,11 +388,6 @@ pub fn lua_autogen_game_path(game: &GameInfo) -> Result<PathBuf> {
         Some(folder) => Ok(config_path()?.join(LUA_AUTOGEN_FOLDER).join(folder)),
         None => Err(anyhow!("Lua Autogen not available for this game."))
     }
-}
-
-/// This function returns the remote tips path.
-pub fn remote_tips_path() -> Result<PathBuf> {
-    Ok(config_path()?.join(TIPS_REMOTE_FOLDER))
 }
 
 /// This function returns the autosave path.

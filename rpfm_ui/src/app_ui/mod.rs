@@ -303,7 +303,6 @@ pub struct AppUI {
     about_about_rpfm: QPtr<QAction>,
     about_check_updates: QPtr<QAction>,
     about_check_schema_updates: QPtr<QAction>,
-    about_check_message_updates: QPtr<QAction>,
     about_check_lua_autogen_updates: QPtr<QAction>,
 
     //-------------------------------------------------------------------------------//
@@ -326,7 +325,7 @@ pub struct AppUI {
     tab_bar_packed_file_prev: QPtr<QAction>,
     tab_bar_packed_file_next: QPtr<QAction>,
     tab_bar_packed_file_import_from_dependencies: QPtr<QAction>,
-    tab_bar_packed_file_toggle_tips: QPtr<QAction>,
+    tab_bar_packed_file_toggle_quick_notes: QPtr<QAction>,
 
     focused_widget: Rc<RwLock<Option<QPtr<QWidget>>>>,
     disabled_counter: Rc<RwLock<u32>>,
@@ -423,7 +422,7 @@ impl AppUI {
         let tab_bar_packed_file_prev = add_action_to_menu(&tab_bar_packed_file_context_menu.static_upcast(), shortcuts.as_ref(), "file_tab", "previus_tab", "prev_tab", Some(tab_bar_packed_file.static_upcast::<qt_widgets::QWidget>()));
         let tab_bar_packed_file_next = add_action_to_menu(&tab_bar_packed_file_context_menu.static_upcast(), shortcuts.as_ref(), "file_tab", "next_tab", "next_tab", Some(tab_bar_packed_file.static_upcast::<qt_widgets::QWidget>()));
         let tab_bar_packed_file_import_from_dependencies = add_action_to_menu(&tab_bar_packed_file_context_menu.static_upcast(), shortcuts.as_ref(), "file_tab", "import_from_dependencies", "import_from_dependencies", Some(tab_bar_packed_file.static_upcast::<qt_widgets::QWidget>()));
-        let tab_bar_packed_file_toggle_tips = add_action_to_menu(&tab_bar_packed_file_context_menu.static_upcast(), shortcuts.as_ref(), "file_tab", "toggle_tips", "toggle_tips", Some(tab_bar_packed_file.static_upcast::<qt_widgets::QWidget>()));
+        let tab_bar_packed_file_toggle_quick_notes = add_action_to_menu(&tab_bar_packed_file_context_menu.static_upcast(), shortcuts.as_ref(), "file_tab", "toggle_quick_notes", "toggle_quick_notes", Some(tab_bar_packed_file.static_upcast::<qt_widgets::QWidget>()));
 
         tab_bar_packed_file_close.set_enabled(true);
         tab_bar_packed_file_close_all.set_enabled(true);
@@ -432,7 +431,7 @@ impl AppUI {
         tab_bar_packed_file_prev.set_enabled(true);
         tab_bar_packed_file_next.set_enabled(true);
         tab_bar_packed_file_import_from_dependencies.set_enabled(true);
-        tab_bar_packed_file_toggle_tips.set_enabled(true);
+        tab_bar_packed_file_toggle_quick_notes.set_enabled(true);
 
         tab_bar_packed_file_context_menu.insert_separator(&tab_bar_packed_file_prev);
         tab_bar_packed_file_context_menu.insert_separator(&tab_bar_packed_file_import_from_dependencies);
@@ -720,7 +719,6 @@ impl AppUI {
         let about_about_rpfm = add_action_to_menu(&menu_bar_about, shortcuts.as_ref(), "about_menu", "about_rpfm", "about_about_rpfm", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let about_check_updates = add_action_to_menu(&menu_bar_about, shortcuts.as_ref(), "about_menu", "check_updates", "about_check_updates", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let about_check_schema_updates = add_action_to_menu(&menu_bar_about, shortcuts.as_ref(), "about_menu", "check_schema_updates", "about_check_schema_updates", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let about_check_message_updates = add_action_to_menu(&menu_bar_about, shortcuts.as_ref(), "about_menu", "check_message_updates", "about_check_message_updates", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let about_check_lua_autogen_updates = add_action_to_menu(&menu_bar_about, shortcuts.as_ref(), "about_menu", "check_tw_autogen_updates", "about_check_lua_autogen_updates", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
 
         //-----------------------------------------------//
@@ -922,7 +920,6 @@ impl AppUI {
             about_about_rpfm,
             about_check_updates,
             about_check_schema_updates,
-            about_check_message_updates,
             about_check_lua_autogen_updates,
 
             //-------------------------------------------------------------------------------//
@@ -945,7 +942,7 @@ impl AppUI {
             tab_bar_packed_file_prev,
             tab_bar_packed_file_next,
             tab_bar_packed_file_import_from_dependencies,
-            tab_bar_packed_file_toggle_tips,
+            tab_bar_packed_file_toggle_quick_notes,
 
             focused_widget: Rc::new(RwLock::new(None)),
             disabled_counter: Rc::new(RwLock::new(0)),
@@ -2149,93 +2146,6 @@ impl AppUI {
         }
     }
 
-    /// This function checks if there is any newer version of RPFM's messages released.
-    ///
-    /// If the `use_dialog` is false, we only show a dialog in case of update available. Useful for checks at start.
-    pub unsafe fn check_message_updates(app_ui: &Rc<Self>, use_dialog: bool) {
-        let receiver = CENTRAL_COMMAND.send_network(Command::CheckMessageUpdates);
-
-        // Create the dialog to show the response and configure it.
-        let dialog = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
-            q_message_box::Icon::Information,
-            &qtr("update_messages_checker"),
-            &qtr("update_searching"),
-            QFlags::from(q_message_box::StandardButton::Close),
-            &app_ui.main_window,
-        );
-
-        let close_button = dialog.button(q_message_box::StandardButton::Close);
-        let update_button = dialog.add_button_q_string_button_role(&qtr("update_button"), q_message_box::ButtonRole::AcceptRole);
-        update_button.set_enabled(false);
-
-        dialog.set_modal(true);
-        if use_dialog {
-            dialog.show();
-        }
-
-        // When we get a response, act depending on the kind of response we got.
-        let response_thread = CENTRAL_COMMAND.recv_try(&receiver);
-        let message = match response_thread {
-            Response::APIResponseGit(ref response) => {
-                match response {
-                    GitResponse::NewUpdate |
-                    GitResponse::Diverged => {
-                        update_button.set_enabled(true);
-                        qtr("messages_new_update")
-                    }
-                    GitResponse::NoUpdate => {
-                        if !use_dialog { return; }
-                        qtr("messages_no_update")
-                    }
-                    GitResponse::NoLocalFiles => {
-                        update_button.set_enabled(true);
-                        qtr("update_no_local_messages")
-                    }
-                }
-            }
-
-            Response::Error(error) => {
-                if !use_dialog { return; }
-                qtre("api_response_error", &[&error.to_string()])
-            }
-            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response_thread:?}"),
-        };
-
-        // If we hit "Update", try to update the messages.
-        if use_dialog {
-            dialog.set_text(&message);
-            if dialog.exec() == 0 {
-                let receiver = CENTRAL_COMMAND.send_background(Command::UpdateMessages);
-
-                dialog.show();
-                dialog.set_text(&qtr("update_in_prog"));
-                update_button.set_enabled(false);
-                close_button.set_enabled(false);
-
-                let response = CENTRAL_COMMAND.recv_try(&receiver);
-                match response {
-                    Response::Success => {
-                        dialog.set_text(&qtr("messages_update_success"));
-                        close_button.set_enabled(true);
-                    },
-                    Response::Error(error) => {
-                        dialog.set_text(&QString::from_std_str(error.to_string()));
-                        close_button.set_enabled(true);
-                    }
-                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-                }
-            }
-        } else {
-            let receiver = CENTRAL_COMMAND.send_background(Command::UpdateMessages);
-            let response = CENTRAL_COMMAND.recv_try(&receiver);
-            match response {
-                Response::Success => log_to_status_bar("messages_update_success"),
-                Response::Error(error) => log_to_status_bar(&error.to_string()),
-                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-            }
-        }
-    }
-
     /// This function checks if there is any newer version of RPFM's schemas released.
     ///
     /// If the `use_dialog` is false, we only show a dialog in case of update available. Useful for checks at start.
@@ -2444,9 +2354,9 @@ impl AppUI {
                                     app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
                                     app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
 
-                                    // Fix the tips view.
+                                    // Fix the quick notes view.
                                     let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
-                                    layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
+                                    layout.add_widget_5a(tab.get_notes_widget(), 0, 99, layout.row_count(), 1);
 
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
@@ -2466,9 +2376,9 @@ impl AppUI {
                                     app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
                                     app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
 
-                                    // Fix the tips view.
+                                    // Fix the quick notes view.
                                     let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
-                                    layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
+                                    layout.add_widget_5a(tab.get_notes_widget(), 0, 99, layout.row_count(), 1);
 
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
@@ -2490,9 +2400,9 @@ impl AppUI {
                                     app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
                                     app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
 
-                                    // Fix the tips view.
+                                    // Fix the quick notes view.
                                     let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
-                                    layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
+                                    layout.add_widget_5a(tab.get_notes_widget(), 0, 99, layout.row_count(), 1);
 
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
@@ -2512,9 +2422,9 @@ impl AppUI {
                                     app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
                                     app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
 
-                                    // Fix the tips view.
+                                    // Fix the quick notes view.
                                     let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
-                                    layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
+                                    layout.add_widget_5a(tab.get_notes_widget(), 0, 99, layout.row_count(), 1);
 
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
@@ -2537,9 +2447,9 @@ impl AppUI {
                                     app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
                                     app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
 
-                                    // Fix the tips view.
+                                    // Fix the quick notes view.
                                     let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
-                                    layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
+                                    layout.add_widget_5a(tab.get_notes_widget(), 0, 99, layout.row_count(), 1);
 
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
@@ -2572,9 +2482,9 @@ impl AppUI {
                                         app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
                                         app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
 
-                                        // Fix the tips view.
+                                        // Fix the quick notes view.
                                         let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
-                                        layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
+                                        layout.add_widget_5a(tab.get_notes_widget(), 0, 99, layout.row_count(), 1);
 
                                         let mut open_list = UI_STATE.set_open_packedfiles();
                                         open_list.push(tab);
@@ -2597,9 +2507,9 @@ impl AppUI {
                                     app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
                                     app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
 
-                                    // Fix the tips view.
+                                    // Fix the quick notes view.
                                     let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
-                                    layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
+                                    layout.add_widget_5a(tab.get_notes_widget(), 0, 99, layout.row_count(), 1);
 
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
@@ -2622,9 +2532,9 @@ impl AppUI {
                                     app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
                                     app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
 
-                                    // Fix the tips view.
+                                    // Fix the quick notes view.
                                     let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
-                                    layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
+                                    layout.add_widget_5a(tab.get_notes_widget(), 0, 99, layout.row_count(), 1);
 
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
@@ -2645,9 +2555,9 @@ impl AppUI {
                                     app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
                                     app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
 
-                                    // Fix the tips view.
+                                    // Fix the quick notes view.
                                     let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
-                                    layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
+                                    layout.add_widget_5a(tab.get_notes_widget(), 0, 99, layout.row_count(), 1);
 
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
@@ -2667,9 +2577,9 @@ impl AppUI {
                                     app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
                                     app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
 
-                                    // Fix the tips view.
+                                    // Fix the quick notes view.
                                     let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
-                                    layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
+                                    layout.add_widget_5a(tab.get_notes_widget(), 0, 99, layout.row_count(), 1);
 
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
@@ -2692,9 +2602,9 @@ impl AppUI {
                                             app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
                                             app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
 
-                                            // Fix the tips view.
+                                            // Fix the quick notes view.
                                             let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
-                                            layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
+                                            layout.add_widget_5a(tab.get_notes_widget(), 0, 99, layout.row_count(), 1);
 
                                             let mut open_list = UI_STATE.set_open_packedfiles();
                                             open_list.push(tab);
@@ -2721,7 +2631,7 @@ impl AppUI {
                                         app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
                                         app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
 
-                                        // Fix the tips view.
+                                        // Fix the quick notes view.
                                         let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
                                         layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
 
@@ -2745,9 +2655,9 @@ impl AppUI {
                             app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
                             app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
 
-                            // Fix the tips view.
+                            // Fix the quick notes view.
                             let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
-                            layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
+                            layout.add_widget_5a(tab.get_notes_widget(), 0, 99, layout.row_count(), 1);
 
                             let mut open_list = UI_STATE.set_open_packedfiles();
                             open_list.push(tab);
@@ -2765,9 +2675,9 @@ impl AppUI {
                             app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
                             app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
 
-                            // Fix the tips view.
+                            // Fix the quick notes view.
                             let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
-                            layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
+                            layout.add_widget_5a(tab.get_notes_widget(), 0, 99, layout.row_count(), 1);
 
                             let mut open_list = UI_STATE.set_open_packedfiles();
                             open_list.push(tab);
@@ -2781,9 +2691,9 @@ impl AppUI {
                             app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
                             app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
 
-                            // Fix the tips view.
+                            // Fix the quick notes view.
                             let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
-                            layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
+                            layout.add_widget_5a(tab.get_notes_widget(), 0, 99, layout.row_count(), 1);
 
                             let mut open_list = UI_STATE.set_open_packedfiles();
                             open_list.push(tab);
@@ -2817,7 +2727,7 @@ impl AppUI {
                                     app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
                                     app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
 
-                                    // Fix the tips view.
+                                    // Fix the quick notes view.
                                     let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
                                     layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
 

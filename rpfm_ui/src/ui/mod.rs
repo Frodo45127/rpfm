@@ -219,9 +219,6 @@ impl UI {
         // If we have it enabled in the prefs, check if there are schema updates.
         if setting_bool("check_schema_updates_on_start") { AppUI::check_schema_updates(&app_ui, false) };
 
-        // If we have it enabled in the prefs, check if there are message updates.
-        if setting_bool("check_message_updates_on_start") { AppUI::check_message_updates(&app_ui, false) };
-
         // If we have it enabled in the prefs, check if there are lua autogen updates.
         if setting_bool("check_lua_autogen_updates_on_start") { AppUI::check_lua_autogen_updates(&app_ui, false) };
 
