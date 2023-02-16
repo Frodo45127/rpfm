@@ -3166,7 +3166,7 @@ impl AppUI {
                 let response = CentralCommand::recv(&receiver);
                 let mut tables = if let Response::VecString(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
                 tables.sort();
-                tables.iter().for_each(|x| table_dropdown.add_item_q_string(&QString::from_std_str(x)));
+                tables.iter().for_each(|x| table_model.append_row_q_standard_item(QStandardItem::from_q_string(&QString::from_std_str(x)).into_ptr()));
 
                 name_line_edit.set_text(&QString::from_std_str(&pack_name));
                 table_extra_widget.set_visible(true);
@@ -3212,6 +3212,9 @@ impl AppUI {
             },
             _ => unimplemented!(),
         }
+
+        // Force resize down to fix issues with certain modes.
+        dialog.resize_2a(500, 100);
 
         // Show the Dialog and, if we hit the "Ok" button, return the corresponding NewPackedFileType.
         if dialog.exec() == 1 {
