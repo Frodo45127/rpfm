@@ -161,7 +161,7 @@ pub fn background_loop() {
 
             // In case we want to "Save a PackFile"...
             Command::SavePackFile => {
-                match pack_file_decoded.save(None) {
+                match pack_file_decoded.save(None, &GAME_SELECTED.read().unwrap()) {
                     Ok(_) => CentralCommand::send_back(&sender, Response::ContainerInfo(From::from(&pack_file_decoded))),
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(anyhow!("Error while trying to save the currently open PackFile: {}", error))),
                 }
@@ -169,7 +169,7 @@ pub fn background_loop() {
 
             // In case we want to "Save a PackFile As"...
             Command::SavePackFileAs(path) => {
-                match pack_file_decoded.save(Some(&path)) {
+                match pack_file_decoded.save(Some(&path), &GAME_SELECTED.read().unwrap()) {
                     Ok(_) => CentralCommand::send_back(&sender, Response::ContainerInfo(From::from(&pack_file_decoded))),
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(anyhow!("Error while trying to save the currently open PackFile: {}", error))),
                 }
@@ -178,7 +178,7 @@ pub fn background_loop() {
             // If you want to perform a clean&save over a PackFile...
             Command::CleanAndSavePackFileAs(path) => {
                 pack_file_decoded.clean_undecoded();
-                match pack_file_decoded.save(Some(&path)) {
+                match pack_file_decoded.save(Some(&path), &GAME_SELECTED.read().unwrap()) {
                     Ok(_) => CentralCommand::send_back(&sender, Response::ContainerInfo(From::from(&pack_file_decoded))),
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(anyhow!("Error while trying to save the currently open PackFile: {}", error))),
                 }
@@ -1205,7 +1205,7 @@ pub fn background_loop() {
                 // Note: we no longer notify the UI of success or error to not hang it up.
                 if let Ok(Some(file)) = oldest_file_in_folder(&backup_autosave_path().unwrap()) {
                     if pack_file_decoded.pfh_file_type() == PFHFileType::Mod {
-                        let _ = pack_file_decoded.clone().save(Some(&file));
+                        let _ = pack_file_decoded.clone().save(Some(&file), &GAME_SELECTED.read().unwrap());
                     }
                 }
             }
