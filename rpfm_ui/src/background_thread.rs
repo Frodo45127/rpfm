@@ -1009,8 +1009,9 @@ pub fn background_loop() {
             // In case we want to clean the cache of one or more PackedFiles...
             Command::CleanCache(paths) => {
                 let mut files = pack_file_decoded.files_by_paths_mut(&paths, false);
+                let extra_data = Some(EncodeableExtraData::new_from_game_info(&GAME_SELECTED.read().unwrap()));
                 files.iter_mut().for_each(|file| {
-                    let _ = file.encode(&None, true, true, false);
+                    let _ = file.encode(&extra_data, true, true, false);
                 });
             }
 
@@ -1139,7 +1140,8 @@ pub fn background_loop() {
 
                                 // Encode the decoded tables with the old schema, then re-decode them with the new one.
                                 let mut tables = pack_file_decoded.files_by_type_mut(&[FileType::DB]);
-                                tables.par_iter_mut().for_each(|x| { let _ = x.encode(&None, true, true, false); });
+                                let extra_data = Some(EncodeableExtraData::new_from_game_info(&GAME_SELECTED.read().unwrap()));
+                                tables.par_iter_mut().for_each(|x| { let _ = x.encode(&extra_data, true, true, false); });
 
                                 *SCHEMA.write().unwrap() = Schema::load(&schema_path).ok();
 
@@ -1507,9 +1509,12 @@ pub fn background_loop() {
                                 Ok(data) => CentralCommand::send_back(&sender, Response::VecU8(data.to_vec())),
 
                                 // If we don't have binary data, it may be decoded. Encode it and return the binary data.
-                                Err(_) =>  match rfile.encode(&None, false, false, true) {
-                                    Ok(data) => CentralCommand::send_back(&sender, Response::VecU8(data.unwrap())),
-                                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                                Err(_) =>  {
+                                    let extra_data = Some(EncodeableExtraData::new_from_game_info(&GAME_SELECTED.read().unwrap()));
+                                    match rfile.encode(&extra_data, false, false, true) {
+                                        Ok(data) => CentralCommand::send_back(&sender, Response::VecU8(data.unwrap())),
+                                        Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                                    }
                                 },
                             },
                             Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
@@ -1860,7 +1865,7 @@ fn load_schemas(sender: &Sender<Response>, pack: &mut Pack, game: &GameInfo) {
 
     // Before loading the schema, make sure we don't have tables with definitions from the current schema.
     let mut files = pack.files_by_type_mut(&[FileType::DB]);
-    let extra_data = Some(EncodeableExtraData::default());
+    let extra_data = Some(EncodeableExtraData::new_from_game_info(&GAME_SELECTED.read().unwrap()));
     files.par_iter_mut().for_each(|file| {
         let _ = file.encode(&extra_data, true, true, false);
     });

@@ -71,6 +71,7 @@ impl Default for SupportedGames {
 
         // Warhammer 3
         game_list.insert(KEY_WARHAMMER_3, GameInfo {
+            key: KEY_WARHAMMER_3,
             display_name: DISPLAY_NAME_WARHAMMER_3,
             pfh_versions: {
                 let mut data = HashMap::new();
@@ -162,6 +163,7 @@ impl Default for SupportedGames {
 
         // Troy
         game_list.insert(KEY_TROY, GameInfo {
+            key: KEY_TROY,
             display_name: DISPLAY_NAME_TROY,
             pfh_versions: {
                 let mut data = HashMap::new();
@@ -239,6 +241,7 @@ impl Default for SupportedGames {
 
         // Three Kingdoms
         game_list.insert(KEY_THREE_KINGDOMS, GameInfo {
+            key: KEY_THREE_KINGDOMS,
             display_name: DISPLAY_NAME_THREE_KINGDOMS,
             pfh_versions: {
                 let mut data = HashMap::new();
@@ -417,6 +420,7 @@ impl Default for SupportedGames {
         });
         // Warhammer 2
         game_list.insert(KEY_WARHAMMER_2, GameInfo {
+            key: KEY_WARHAMMER_2,
             display_name: DISPLAY_NAME_WARHAMMER_2,
             pfh_versions: {
                 let mut data = HashMap::new();
@@ -832,6 +836,7 @@ impl Default for SupportedGames {
 
         // Warhammer
         game_list.insert(KEY_WARHAMMER, GameInfo {
+            key: KEY_WARHAMMER,
             display_name: DISPLAY_NAME_WARHAMMER,
             pfh_versions: {
                 let mut data = HashMap::new();
@@ -989,6 +994,7 @@ impl Default for SupportedGames {
 
         // Thrones of Britannia
         game_list.insert(KEY_THRONES_OF_BRITANNIA, GameInfo {
+            key: KEY_THRONES_OF_BRITANNIA,
             display_name: DISPLAY_NAME_THRONES_OF_BRITANNIA,
             pfh_versions: {
                 let mut data = HashMap::new();
@@ -1094,6 +1100,7 @@ impl Default for SupportedGames {
 
         // Attila
         game_list.insert(KEY_ATTILA, GameInfo {
+            key: KEY_ATTILA,
             display_name: DISPLAY_NAME_ATTILA,
             pfh_versions: {
                 let mut data = HashMap::new();
@@ -1170,6 +1177,7 @@ impl Default for SupportedGames {
 
         // Rome 2
         game_list.insert(KEY_ROME_2, GameInfo {
+            key: KEY_ROME_2,
             display_name: DISPLAY_NAME_ROME_2,
             pfh_versions: {
                 let mut data = HashMap::new();
@@ -1235,6 +1243,7 @@ impl Default for SupportedGames {
         // Shogun 2
         // TODO: Ensure the PFHVersions of this one are correct.
         game_list.insert(KEY_SHOGUN_2, GameInfo {
+            key: KEY_SHOGUN_2,
             display_name: DISPLAY_NAME_SHOGUN_2,
             pfh_versions: {
                 let mut data = HashMap::new();
@@ -1311,6 +1320,7 @@ impl Default for SupportedGames {
 
         // Napoleon
         game_list.insert(KEY_NAPOLEON, GameInfo {
+            key: KEY_NAPOLEON,
             display_name: DISPLAY_NAME_NAPOLEON,
             pfh_versions: {
                 let mut data = HashMap::new();
@@ -1399,6 +1409,7 @@ impl Default for SupportedGames {
 
         // Empire
         game_list.insert(KEY_EMPIRE, GameInfo {
+            key: KEY_EMPIRE,
             display_name: DISPLAY_NAME_EMPIRE,
             pfh_versions: {
                 let mut data = HashMap::new();
@@ -1566,6 +1577,7 @@ impl Default for SupportedGames {
         // Otherwise, stuff that uses this list will probably break.
         // Arena
         game_list.insert(KEY_ARENA, GameInfo {
+            key: KEY_ARENA,
             display_name: DISPLAY_NAME_ARENA,
             pfh_versions: {
                 let mut data = HashMap::new();

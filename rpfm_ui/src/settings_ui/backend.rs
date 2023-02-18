@@ -79,7 +79,7 @@ pub unsafe fn init_settings(app_ui: &AppUI) {
             game_key != KEY_NAPOLEON &&
             game_key != KEY_ARENA {
 
-            set_setting_if_new_string(&q_settings, &(game_key + "_assembly_kit"), "");
+            set_setting_if_new_string(&q_settings, &(game_key.to_owned() + "_assembly_kit"), "");
         }
     }
 

@@ -63,6 +63,9 @@ pub const LUA_BRANCH: &str = "main";
 #[derive(Clone, Debug)]
 pub struct GameInfo {
 
+    /// This is the internal key of the game.
+    key: &'static str,
+
     /// This is the name it'll show up for the user. The *pretty name*. For example, in a dropdown (Warhammer 2).
     display_name: &'static str,
 
@@ -197,8 +200,8 @@ impl GameInfo {
     //---------------------------------------------------------------------------//
 
     /// This function returns the "Key" name of the Game, meaning in lowercase and without spaces.
-    pub fn game_key_name(&self) -> String {
-        self.display_name.to_lowercase().replace(' ', "_")
+    pub fn game_key_name(&self) -> &str {
+        self.key
     }
 
     /// This function returns the "Display" name of the Game, meaning properly written.

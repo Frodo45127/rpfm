@@ -73,7 +73,7 @@ use crate::binary::{ReadBytes, WriteBytes};
 use crate::compression::Decompressible;
 use crate::encryption::Decryptable;
 use crate::error::{Result, RLibError};
-use crate::games::pfh_version::PFHVersion;
+use crate::games::{GameInfo, pfh_version::PFHVersion};
 use crate::{REGEX_DB, REGEX_PORTRAIT_SETTINGS};
 use crate::schema::{Schema, Definition};
 use crate::utils::*;
@@ -2238,3 +2238,12 @@ impl From<&RFileDecoded> for FileType {
     }
 }
 
+impl<'a> EncodeableExtraData<'a> {
+
+    /// This functions generates an EncodeableExtraData for a specific game.
+    pub fn new_from_game_info(game_info: &'a GameInfo) -> Self {
+        let mut extra_data = Self::default();
+        extra_data.set_game_key(Some(game_info.game_key_name()));
+        extra_data
+    }
+}
