@@ -580,11 +580,6 @@ impl PackTree for QPtr<QTreeView> {
         let path = path.path_raw();
         let count = path.split('/').count() - 1;
 
-        // If path is empty, is the Pack or a mislabeled path.
-        if count == 0 {
-            return item;
-        }
-
         for (index, path_element) in path.split('/').enumerate() {
             let children_count = item.row_count();
 
