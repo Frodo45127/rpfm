@@ -304,7 +304,21 @@ pub enum CommandsPack {
         /// You can specify multiple packs to perform a diagnostics check over all of them.
         #[arg(short, long, required = true, num_args = 1.., value_name = "PACK_PATH")]
         pack_path: Vec<PathBuf>,
-    }
+    },
+
+    /// Merges all the Packs provided into a single Pack and saves it to the provided save path.
+    Merge {
+
+        /// Path where the merged Pack will be saved.
+        #[arg(short, long, required = true, value_name = "SAVE_PACK_PATH")]
+        save_pack_path: PathBuf,
+
+        /// Path of the Packs this operation will use.
+        ///
+        /// Priority for conflicting files is determined by the order of the Packs in the command.
+        #[arg(short, long, required = true, num_args = 1.., value_name = "SOURCE_PACK_PATHS")]
+        source_pack_paths: Vec<PathBuf>,
+    },
 }
 
 #[derive(Subcommand)]

@@ -301,3 +301,23 @@ pub fn diagnose(config: &Config, game_path: &Path, pak_path: &Path, schema_path:
         None => Err(anyhow!("No Game provided.")),
     }
 }
+
+/// This function merges the provided Packs into a new one, and saves it to the provided save path.
+pub fn merge(config: &Config, save_pack_path: &Path, source_pack_paths: &[PathBuf]) -> Result<()> {
+    if config.verbose {
+        info!("Creating new Merged Mod Pack at {}.", save_pack_path.to_string_lossy().to_string());
+        info!("Packs ready to be merged:");
+        for source_pack_path in source_pack_paths {
+            info!(" - {}", source_pack_path.to_string_lossy().to_string());
+        }
+    }
+
+    match &config.game {
+        Some(game) => {
+            let mut pack = Pack::read_and_merge(source_pack_paths, true, false)?;
+            pack.save(Some(save_pack_path), game)?;
+            Ok(())
+        }
+        None => Err(anyhow!("No Game provided.")),
+    }
+}

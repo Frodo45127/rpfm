@@ -69,6 +69,7 @@ fn main() {
             CommandsPack::Extract { pack_path, tables_as_tsv, file_path, folder_path } => crate::commands::pack::extract(&config, &tables_as_tsv, &pack_path, &file_path, &folder_path),
             CommandsPack::SetFileType { pack_path, file_type } => crate::commands::pack::set_pack_type(&config, &pack_path, file_type),
             CommandsPack::Diagnose { game_path, pak_path, schema_path, pack_path } => crate::commands::pack::diagnose(&config, &game_path, &pak_path, &schema_path, &pack_path),
+            CommandsPack::Merge { save_pack_path, source_pack_paths } => crate::commands::pack::merge(&config, &save_pack_path, &source_pack_paths),
         }
 
         Commands::Schemas { commands } => match commands {
