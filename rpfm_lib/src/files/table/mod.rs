@@ -498,10 +498,10 @@ impl Table {
         positions.sort_by_key(|x| x.1);
 
         // Then, we create the new data using the old one and the column changes.
-        let mut new_entries: Vec<Vec<DecodedData>> = vec![];
         match self.table_data {
             TableData::Local(ref mut entries) => {
-                for row in entries {
+                let mut new_entries: Vec<Vec<DecodedData>> = Vec::with_capacity(entries.len());
+                for row in entries.iter() {
                     let mut entry = vec![];
                     for (old_pos, new_pos) in &positions {
 
@@ -527,6 +527,8 @@ impl Table {
                     }
                     new_entries.push(entry);
                 }
+
+                *entries = new_entries;
             },
             TableData::Sql(_) => todo!("Support updating definition in SQL Backend"),
         }
