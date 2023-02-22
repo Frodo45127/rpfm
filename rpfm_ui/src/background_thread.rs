@@ -1366,16 +1366,11 @@ pub fn background_loop() {
                 }
 
                 if !found {
-                    let dependencies = dependencies.read().unwrap();
-                    let tables = dependencies.asskit_only_db_tables();
-                    for (table_name, table) in tables {
-                        if table.table_name() == table_name {
-                            if let Some((column_index, row_index)) = table.table().rows_containing_data(&ref_column, &ref_data) {
-                                let path = format!("{}/ak_data", &table_folder);
-                                CentralCommand::send_back(&sender, Response::DataSourceStringUsizeUsize(DataSource::AssKitFiles, path, column_index, row_index[0]));
-                                found = true;
-                                break;
-                            }
+                    if let Some(table) = dependencies.read().unwrap().asskit_only_db_tables().get(&table_name) {
+                        if let Some((column_index, row_index)) = table.table().rows_containing_data(&ref_column, &ref_data) {
+                            let path = format!("{}/ak_data", &table_folder);
+                            CentralCommand::send_back(&sender, Response::DataSourceStringUsizeUsize(DataSource::AssKitFiles, path, column_index, row_index[0]));
+                            found = true;
                         }
                     }
                 }
