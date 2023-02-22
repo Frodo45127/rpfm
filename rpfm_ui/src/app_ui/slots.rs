@@ -30,7 +30,10 @@ use qt_gui::QFont;
 use qt_core::QBox;
 use qt_core::{SlotNoArgs, SlotOfBool, SlotOfInt};
 use qt_core::QFlags;
+use qt_core::q_item_selection_model::SelectionFlag;
+use qt_core::QObject;
 use qt_core::QPtr;
+use qt_core::QSignalBlocker;
 use qt_core::QString;
 use qt_core::QUrl;
 use qt_core::WidgetAttribute;
@@ -1438,7 +1441,9 @@ impl AppUISlots {
         ));
 
         let packed_file_unpreview = SlotOfInt::new(&app_ui.main_window, clone!(
-            app_ui => move |index| {
+            app_ui,
+            pack_file_contents_ui,
+            dependencies_ui => move |index| {
                 if index == -1 { return; }
 
                 for file_view in UI_STATE.get_open_packedfiles().iter() {
@@ -1452,6 +1457,57 @@ impl AppUISlots {
                             let name = path_split.last().unwrap().to_owned();
                             app_ui.tab_bar_packed_file.set_tab_text(index, &QString::from_std_str(name));
                         }
+
+                        // Find it in the relevant TreeView and select it.
+                        match file_view.data_source() {
+                            DataSource::PackFile => {
+                                let tree_index = pack_file_contents_ui.packfile_contents_tree_view().expand_treeview_to_item(&file_view.path_read(), DataSource::PackFile);
+
+                                // Manually select the open PackedFile, then open it. This means we can open PackedFiles nor in out filter.
+                                UI_STATE.set_packfile_contents_read_only(true);
+
+                                if let Some(ref tree_index) = tree_index {
+                                    if tree_index.is_valid() {
+                                        pack_file_contents_ui.packfile_contents_tree_view().scroll_to_1a(tree_index.as_ref().unwrap());
+                                        pack_file_contents_ui.packfile_contents_tree_view().selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
+                                    }
+                                }
+
+                                UI_STATE.set_packfile_contents_read_only(false);
+                            },
+
+                            DataSource::ParentFiles => {
+                                let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(&file_view.path_read(), DataSource::ParentFiles);
+                                if let Some(ref tree_index) = tree_index {
+                                    if tree_index.is_valid() {
+                                        let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view().static_upcast::<QObject>());
+                                        dependencies_ui.dependencies_tree_view().scroll_to_1a(tree_index.as_ref().unwrap());
+                                        dependencies_ui.dependencies_tree_view().selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
+                                    }
+                                }
+                            },
+                            DataSource::GameFiles => {
+                                let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(&file_view.path_read(), DataSource::GameFiles);
+                                if let Some(ref tree_index) = tree_index {
+                                    if tree_index.is_valid() {
+                                        let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view().static_upcast::<QObject>());
+                                        dependencies_ui.dependencies_tree_view().scroll_to_1a(tree_index.as_ref().unwrap());
+                                        dependencies_ui.dependencies_tree_view().selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
+                                    }
+                                }
+                            },
+                            DataSource::AssKitFiles => {
+                                let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(&file_view.path_read(), DataSource::AssKitFiles);
+                                if let Some(ref tree_index) = tree_index {
+                                    if tree_index.is_valid() {
+                                        let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view().static_upcast::<QObject>());
+                                        dependencies_ui.dependencies_tree_view().scroll_to_1a(tree_index.as_ref().unwrap());
+                                        dependencies_ui.dependencies_tree_view().selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
+                                    }
+                                }
+                            },
+                            DataSource::ExternalFile => {},
+                        };
                         break;
                     }
                 }
