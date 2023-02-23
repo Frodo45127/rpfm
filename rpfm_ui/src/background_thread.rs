@@ -19,6 +19,7 @@ use crossbeam::channel::Sender;
 use itertools::Itertools;
 use open::that;
 use rayon::prelude::*;
+use time::OffsetDateTime;
 
 use std::collections::{BTreeMap, HashMap, hash_map::DefaultHasher, HashSet};
 use std::env::temp_dir;
@@ -27,6 +28,7 @@ use std::hash::{Hash, Hasher};
 use std::io::{BufReader, BufWriter, Cursor, Read, Write};
 use std::path::PathBuf;
 use std::sync::{Arc, atomic::Ordering, RwLock};
+use std::time::SystemTime;
 use std::thread;
 
 use rpfm_extensions::dependencies::Dependencies;
@@ -44,6 +46,7 @@ use crate::{backend::*, SENTRY_GUARD};
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::FIRST_GAME_CHANGE_DONE;
+use crate::FULL_DATE_FORMAT;
 use crate::GAME_SELECTED;
 use crate::initialize_pack_settings;
 use crate::locale::tr;
@@ -1244,9 +1247,25 @@ pub fn background_loop() {
             Command::TriggerBackupAutosave => {
 
                 // Note: we no longer notify the UI of success or error to not hang it up.
-                if let Ok(Some(file)) = oldest_file_in_folder(&backup_autosave_path().unwrap()) {
+                let folder = backup_autosave_path().unwrap().join(pack_file_decoded.disk_file_name());
+                let _ = DirBuilder::new().recursive(true).create(&folder);
+                if folder.is_dir() {
+                    let date = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
+                    let date_formatted = OffsetDateTime::from_unix_timestamp(date as i64).unwrap().format(&FULL_DATE_FORMAT).unwrap();
+                    let new_name = format!("{date_formatted}.pack");
+                    let new_path = folder.join(new_name);
                     if pack_file_decoded.pfh_file_type() == PFHFileType::Mod {
-                        let _ = pack_file_decoded.clone().save(Some(&file), &GAME_SELECTED.read().unwrap());
+                        let _ = pack_file_decoded.clone().save(Some(&new_path), &GAME_SELECTED.read().unwrap());
+                    }
+
+                    // If we have more than the limit, delete the older one.
+                    if let Ok(files) = files_in_folder_from_newest_to_oldest(&folder) {
+                        let max_files = setting_int("autosave_amount") as usize;
+                        for (index, file) in files.iter().enumerate() {
+                            if index >= max_files {
+                                let _ = std::fs::remove_file(file);
+                            }
+                        }
                     }
                 }
             }

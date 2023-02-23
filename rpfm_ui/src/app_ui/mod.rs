@@ -63,6 +63,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::env::current_exe;
 use std::ffi::OsStr;
+use std::fs::DirBuilder;
 use std::path::{Path, PathBuf};
 use std::process::{Command as SystemCommand, exit};
 use std::rc::Rc;
@@ -1825,40 +1826,46 @@ impl AppUI {
 
         // Get the path of every PackFile in the autosave folder, sorted by modification date, and make an action for each one of them.
         if let Ok(autosave_paths) = backup_autosave_path() {
-            let autosave_paths = files_in_folder_from_newest_to_oldest(&autosave_paths);
-            if let Ok(ref paths) = autosave_paths {
-                for path in paths {
+            if pack_file_contents_ui.packfile_contents_tree_model().row_count_0a() > 0 {
+                let pack_name = pack_file_contents_ui.packfile_contents_tree_model().index_2a(0, 0).data_0a().to_string().to_std_string();
+                let pack_autosave_paths = autosave_paths.join(pack_name);
+                if pack_autosave_paths.is_dir() {
+                    let autosave_paths = files_in_folder_from_newest_to_oldest(&pack_autosave_paths);
+                    if let Ok(ref paths) = autosave_paths {
+                        for path in paths {
 
-                    // That means our file is a valid PackFile and it needs to be added to the menu.
-                    let mod_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
-                    let open_mod_action = app_ui.packfile_open_from_autosave.add_action_q_string(&QString::from_std_str(mod_name));
+                            // That means our file is a valid PackFile and it needs to be added to the menu.
+                            let mod_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
+                            let open_mod_action = app_ui.packfile_open_from_autosave.add_action_q_string(&QString::from_std_str(mod_name));
 
-                    // Create the slot for that action.
-                    let slot_open_mod = SlotOfBool::new(&open_mod_action, clone!(
-                        app_ui,
-                        pack_file_contents_ui,
-                        global_search_ui,
-                        diagnostics_ui,
-                        path => move |_| {
-                        if Self::are_you_sure(&app_ui, false) {
-                            if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path.to_path_buf()], "") {
-                                return show_dialog(&app_ui.main_window, error, false);
-                            }
+                            // Create the slot for that action.
+                            let slot_open_mod = SlotOfBool::new(&open_mod_action, clone!(
+                                app_ui,
+                                pack_file_contents_ui,
+                                global_search_ui,
+                                diagnostics_ui,
+                                path => move |_| {
+                                if Self::are_you_sure(&app_ui, false) {
+                                    if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path.to_path_buf()], "") {
+                                        return show_dialog(&app_ui.main_window, error, false);
+                                    }
 
-                            if setting_bool("diagnostics_trigger_on_open") {
+                                    if setting_bool("diagnostics_trigger_on_open") {
 
-                                // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
-                                app_ui.menu_bar_packfile.set_enabled(false);
+                                        // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
+                                        app_ui.menu_bar_packfile.set_enabled(false);
 
-                                DiagnosticsUI::check(&app_ui, &diagnostics_ui);
+                                        DiagnosticsUI::check(&app_ui, &diagnostics_ui);
 
-                                app_ui.menu_bar_packfile.set_enabled(true);
-                            }
+                                        app_ui.menu_bar_packfile.set_enabled(true);
+                                    }
+                                }
+                            }));
+
+                            // Connect the slot and store it.
+                            open_mod_action.triggered().connect(&slot_open_mod);
                         }
-                    }));
-
-                    // Connect the slot and store it.
-                    open_mod_action.triggered().connect(&slot_open_mod);
+                    }
                 }
             }
         }
