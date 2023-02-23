@@ -225,6 +225,12 @@ impl AppUISlots {
             global_search_ui,
             diagnostics_ui => move || {
                 info!("Triggering `Open PackFile Menu` By Slot");
+
+                let receiver = CENTRAL_COMMAND.send_background(Command::IsThereADependencyDatabase(false));
+                let response = CentralCommand::recv(&receiver);
+                let generated = if let Response::Bool(generated) = response { generated } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}") };
+                app_ui.packfile_load_all_ca_packfiles().set_enabled(!generated);
+
                 AppUI::build_open_from_submenus(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
             }
         ));
