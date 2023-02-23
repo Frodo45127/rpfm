@@ -76,7 +76,7 @@ pub fn update_main_program() -> Result<()> {
     let last_release = last_release(update_channel)?;
 
     // Get the download for our architecture.
-    let asset = last_release.asset_for(get_target()).ok_or_else(|| anyhow!("No download available for your architecture."))?;
+    let asset = last_release.asset_for(get_target(), None).ok_or_else(|| anyhow!("No download available for your architecture."))?;
     let mut tmp_path = std::env::current_exe().unwrap();
     tmp_path.pop();
     let tmp_dir = Builder::new()
