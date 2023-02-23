@@ -10,6 +10,7 @@
 
 //! TableView submodule to provide Search & Replace functionality.
 
+use qt_widgets::QCheckBox;
 use qt_widgets::QComboBox;
 use qt_widgets::QGridLayout;
 use qt_widgets::QLineEdit;
@@ -50,6 +51,7 @@ const VIEW_RELEASE: &str = "ui/table_filter_groupbox.ui";
 #[getset(get = "pub")]
 pub struct FilterView {
     main_widget: QBox<QWidget>,
+    not_checkbox: QPtr<QCheckBox>,
     filter_line_edit: QPtr<QLineEdit>,
     case_sensitive_button: QPtr<QToolButton>,
     show_blank_cells_button: QPtr<QToolButton>,
@@ -74,6 +76,7 @@ impl FilterView {
         let template_path = if cfg!(debug_assertions) { VIEW_DEBUG } else { VIEW_RELEASE };
         let main_widget = load_template(parent, template_path)?;
 
+        let not_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "not_checkbox")?;
         let filter_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "filter_line_edit")?;
         let case_sensitive_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "case_sensitive_button")?;
         let show_blank_cells_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "show_blank_cells_button")?;
@@ -121,12 +124,13 @@ impl FilterView {
 
         let filter = Arc::new(Self {
             main_widget,
-            group_combobox,
+            not_checkbox,
+            filter_line_edit,
             case_sensitive_button,
             show_blank_cells_button,
+            group_combobox,
             column_combobox,
             timer_delayed_updates,
-            filter_line_edit,
             add_button,
             remove_button,
         });

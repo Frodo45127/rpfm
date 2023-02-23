@@ -32,7 +32,7 @@
    <property name="spacing">
     <number>0</number>
    </property>
-   <item row="2" column="7">
+   <item row="2" column="8">
     <widget class="QToolButton" name="remove_button">
      <property name="enabled">
       <bool>false</bool>
@@ -41,7 +41,8 @@
       <string>...</string>
      </property>
      <property name="icon">
-      <iconset theme="list-remove"/>
+      <iconset theme="list-remove">
+       <normaloff>.</normaloff>.</iconset>
      </property>
      <property name="iconSize">
       <size>
@@ -54,7 +55,7 @@
      </property>
     </widget>
    </item>
-   <item row="2" column="5">
+   <item row="2" column="6">
     <widget class="QComboBox" name="group_combobox">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
@@ -64,7 +65,7 @@
      </property>
     </widget>
    </item>
-   <item row="2" column="4">
+   <item row="2" column="5">
     <widget class="QComboBox" name="column_combobox">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
@@ -74,23 +75,34 @@
      </property>
     </widget>
    </item>
-   <item row="2" column="0">
-    <widget class="QLineEdit" name="filter_line_edit">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
+   <item row="2" column="2">
+    <widget class="QToolButton" name="case_sensitive_button">
+     <property name="text">
+      <string/>
+     </property>
+     <property name="icon">
+      <iconset theme="format-text-uppercase">
+       <normaloff>.</normaloff>.</iconset>
+     </property>
+     <property name="iconSize">
+      <size>
+       <width>22</width>
+       <height>22</height>
+      </size>
+     </property>
+     <property name="checkable">
+      <bool>true</bool>
      </property>
     </widget>
    </item>
-   <item row="2" column="6">
+   <item row="2" column="7">
     <widget class="QToolButton" name="add_button">
      <property name="text">
       <string/>
      </property>
      <property name="icon">
-      <iconset theme="list-add"/>
+      <iconset theme="list-add">
+       <normaloff>.</normaloff>.</iconset>
      </property>
      <property name="iconSize">
       <size>
@@ -100,13 +112,14 @@
      </property>
     </widget>
    </item>
-   <item row="2" column="2">
+   <item row="2" column="3">
     <widget class="QToolButton" name="show_blank_cells_button">
      <property name="text">
       <string/>
      </property>
      <property name="icon">
-      <iconset theme="markasblank"/>
+      <iconset theme="markasblank">
+       <normaloff>.</normaloff>.</iconset>
      </property>
      <property name="iconSize">
       <size>
@@ -120,21 +133,19 @@
     </widget>
    </item>
    <item row="2" column="1">
-    <widget class="QToolButton" name="case_sensitive_button">
+    <widget class="QLineEdit" name="filter_line_edit">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="0">
+    <widget class="QCheckBox" name="not_checkbox">
      <property name="text">
-      <string/>
-     </property>
-     <property name="icon">
-      <iconset theme="format-text-uppercase"/>
-     </property>
-     <property name="iconSize">
-      <size>
-       <width>22</width>
-       <height>22</height>
-      </size>
-     </property>
-     <property name="checkable">
-      <bool>true</bool>
+      <string>!</string>
      </property>
     </widget>
    </item>

@@ -20,6 +20,7 @@ pub unsafe fn set_connections_filter(ui: &FilterView, slots: &FilterViewSlots) {
     ui.filter_line_edit.text_changed().connect(&slots.filter_line_edit);
     ui.filter_line_edit.text_changed().connect(&slots.filter_check_regex);
 
+    ui.not_checkbox.toggled().connect(&slots.filter_not_checkbox);
     ui.group_combobox.current_index_changed().connect(&slots.filter_match_group_selector);
     ui.column_combobox.current_index_changed().connect(&slots.filter_column_selector);
     ui.case_sensitive_button.toggled().connect(&slots.filter_case_sensitive_button);

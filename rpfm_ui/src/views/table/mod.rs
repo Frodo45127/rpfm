@@ -909,7 +909,12 @@ impl TableView {
                 // Check if we should filter out blank cells or not.
                 show_blank_cells.push(filter.show_blank_cells_button().is_checked());
 
-                patterns.push(filter.filter_line_edit().text().into_ptr());
+                let mut pattern = filter.filter_line_edit().text().to_std_string();
+                if filter.not_checkbox().is_checked() {
+                    pattern = format!("^((?!{pattern}).)*$")
+                }
+
+                patterns.push(QString::from_std_str(pattern).into_ptr());
                 match_groups.push(filter.group_combobox().current_index());
             }
         }

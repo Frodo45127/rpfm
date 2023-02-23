@@ -28,6 +28,7 @@ use super::*;
 /// This struct contains the slots of the view of a table filter.
 pub struct FilterViewSlots {
     pub filter_line_edit: QBox<SlotOfQString>,
+    pub filter_not_checkbox: QBox<SlotNoArgs>,
     pub filter_match_group_selector: QBox<SlotNoArgs>,
     pub filter_column_selector: QBox<SlotOfInt>,
     pub filter_case_sensitive_button: QBox<SlotNoArgs>,
@@ -62,6 +63,11 @@ impl FilterViewSlots {
 
         let filter_column_selector = SlotOfInt::new(&view.main_widget, clone!(
             parent_view => move |_| {
+            parent_view.filter_table();
+        }));
+
+        let filter_not_checkbox = SlotNoArgs::new(&view.main_widget, clone!(
+            parent_view => move || {
             parent_view.filter_table();
         }));
 
@@ -109,6 +115,7 @@ impl FilterViewSlots {
             filter_line_edit,
             filter_match_group_selector,
             filter_column_selector,
+            filter_not_checkbox,
             filter_case_sensitive_button,
             filter_show_blank_cells_button,
             filter_trigger,
