@@ -42,6 +42,7 @@ use anyhow::Result;
 use getset::Getters;
 
 use std::cmp::Ordering;
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::rc::Rc;
 
@@ -505,7 +506,9 @@ impl PackFileContentsUI {
         }
 
         else {
-            let receiver = CENTRAL_COMMAND.send_background(Command::ExtractPackedFiles(items_to_extract, extraction_path, extract_tables_as_tsv));
+            let mut paths_by_source = BTreeMap::new();
+            paths_by_source.insert(DataSource::PackFile, items_to_extract);
+            let receiver = CENTRAL_COMMAND.send_background(Command::ExtractPackedFiles(paths_by_source, extraction_path, extract_tables_as_tsv));
             app_ui.toggle_main_window(false);
             let response = CENTRAL_COMMAND.recv_try(&receiver);
             match response {

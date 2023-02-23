@@ -54,6 +54,7 @@ pub struct DependenciesUISlots {
 
     pub contextual_menu: QBox<SlotOfQPoint>,
     pub contextual_menu_enabler: QBox<SlotNoArgs>,
+    pub contextual_menu_extract: QBox<SlotNoArgs>,
     pub contextual_menu_import: QBox<SlotOfBool>,
     pub contextual_menu_copy_path: QBox<SlotOfBool>,
 
@@ -147,9 +148,11 @@ impl DependenciesUISlots {
 
                     match root_node_type {
                         DataSource::PackFile => {
+                            dependencies_ui.context_menu_extract.set_enabled(true);
                             dependencies_ui.context_menu_import.set_enabled(false);
                         },
                         DataSource::ParentFiles => {
+                            dependencies_ui.context_menu_extract.set_enabled(true);
                             if pack_file_contents_ui.packfile_contents_tree_model().row_count_0a() > 0 {
                                 dependencies_ui.context_menu_import.set_enabled(true);
                             } else {
@@ -157,6 +160,7 @@ impl DependenciesUISlots {
                             }
                         },
                         DataSource::GameFiles => {
+                            dependencies_ui.context_menu_extract.set_enabled(true);
                             if pack_file_contents_ui.packfile_contents_tree_model().row_count_0a() > 0 {
                                 dependencies_ui.context_menu_import.set_enabled(true);
                             } else {
@@ -164,13 +168,24 @@ impl DependenciesUISlots {
                             }
                         },
                         DataSource::AssKitFiles => {
+                            dependencies_ui.context_menu_extract.set_enabled(false);
                             dependencies_ui.context_menu_import.set_enabled(false);
                         },
                         DataSource::ExternalFile => {
+                            dependencies_ui.context_menu_extract.set_enabled(false);
                             dependencies_ui.context_menu_import.set_enabled(false);
                         },
                     }
                 }
+            }
+        ));
+
+        // What happens when we trigger the "Extract" action in the Contextual Menu.
+        let contextual_menu_extract = SlotNoArgs::new(&dependencies_ui.dependencies_dock_widget, clone!(
+            app_ui,
+            dependencies_ui => move || {
+                info!("Triggering `Extract Dependencies` from context menu By Slot");
+                dependencies_ui.extract(&app_ui)
             }
         ));
 
@@ -230,6 +245,7 @@ impl DependenciesUISlots {
 
             contextual_menu,
             contextual_menu_enabler,
+            contextual_menu_extract,
             contextual_menu_import,
             contextual_menu_copy_path,
 

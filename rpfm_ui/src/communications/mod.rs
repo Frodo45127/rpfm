@@ -185,7 +185,7 @@ pub enum Command {
     DeletePackedFiles(Vec<ContainerPath>),
 
     // This command is used when we want to extract one or more PackedFiles from a PackFile. It contains the ContainerPaths to extract and the extraction path, and a bool to know if tables must be exported to tsv on extract or not.
-    ExtractPackedFiles(Vec<ContainerPath>, PathBuf, bool),
+    ExtractPackedFiles(BTreeMap<DataSource, Vec<ContainerPath>>, PathBuf, bool),
 
     // This command is used when we want to rename one or more PackedFiles in a PackFile. It contains a Vec with their original ContainerPath and their new name.
     RenamePackedFiles(Vec<(ContainerPath, ContainerPath)>),

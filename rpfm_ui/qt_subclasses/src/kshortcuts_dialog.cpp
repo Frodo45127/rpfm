@@ -128,6 +128,7 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     new_action(dependencies_tree_actions, "expand_all", "Expand All", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl++"), "expand-all-symbolic");
     new_action(dependencies_tree_actions, "collapsse_all", "Collapse All", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+-"), "collapse-all-symbolic");
     new_action(dependencies_tree_actions, "import_from_dependencies", "Import From Dependencies", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString(""), "document-import-ocal");
+    new_action(dependencies_tree_actions, "extract_from_dependencies", "Extract From Dependencies", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString(""), "archive-extract");
     dependencies_tree_actions->readSettings();
 
     // AnimPack Tree Context actions.

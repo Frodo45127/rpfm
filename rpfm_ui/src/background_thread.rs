@@ -847,16 +847,57 @@ pub fn background_loop() {
                 let schema = SCHEMA.read().unwrap();
                 let schema = if extract_tables_to_tsv { &*schema } else { &None };
                 let mut errors = 0;
-                for container_path in container_paths {
-                    if pack_file_decoded.extract(container_path, &path, true, schema, false).is_err() {
-                        errors += 1;
+
+                // Pack extraction.
+                if let Some(container_paths) = container_paths.get(&DataSource::PackFile) {
+                    for container_path in container_paths {
+                        if pack_file_decoded.extract(container_path.clone(), &path, true, schema, false).is_err() {
+                            errors += 1;
+                        }
+                    }
+
+                    if errors == 0 {
+                        CentralCommand::send_back(&sender, Response::String(tr("files_extracted_success")));
+                    } else {
+                        CentralCommand::send_back(&sender, Response::Error(anyhow!("There were {} errors while extracting.", errors)));
                     }
                 }
 
-                if errors == 0 {
-                    CentralCommand::send_back(&sender, Response::String(tr("files_extracted_success")));
-                } else {
-                    CentralCommand::send_back(&sender, Response::Error(anyhow!("There were {} errors while extracting.", errors)));
+                // Dependencies extraction.
+                else {
+
+                    let dependencies = dependencies.read().unwrap();
+                    let mut game_files = if let Some(container_paths) = container_paths.get(&DataSource::GameFiles) {
+                        dependencies.files_by_path(container_paths, true, false, false)
+                    } else {
+                        HashMap::new()
+                    };
+                    let parent_files = if let Some(container_paths) = container_paths.get(&DataSource::ParentFiles) {
+                        dependencies.files_by_path(container_paths, false, true, false)
+                    } else {
+                        HashMap::new()
+                    };
+
+                    game_files.extend(parent_files);
+
+                    let mut pack = Pack::default();
+                    for (path_raw, file) in game_files {
+                        if pack.insert(file.clone()).is_err() {
+                            errors += 1;
+                            continue;
+                        }
+
+                        let container_path = ContainerPath::File(path_raw);
+                        if pack.extract(container_path, &path, true, schema, false).is_err() {
+                            errors += 1;
+                        }
+                    }
+
+                    if errors == 0 {
+                        CentralCommand::send_back(&sender, Response::String(tr("files_extracted_success")));
+                    } else {
+                        CentralCommand::send_back(&sender, Response::Error(anyhow!("There were {} errors while extracting.", errors)));
+                    }
                 }
             }
 

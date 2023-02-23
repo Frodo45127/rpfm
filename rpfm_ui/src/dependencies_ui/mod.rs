@@ -14,6 +14,7 @@ Module with all the code related to the main `DependenciesUI`.
 
 use qt_widgets::QAction;
 use qt_widgets::QDockWidget;
+use qt_widgets::QFileDialog;
 use qt_widgets::QLineEdit;
 use qt_widgets::QMenu;
 use qt_widgets::QToolButton;
@@ -35,6 +36,7 @@ use anyhow::{anyhow, Result};
 use getset::Getters;
 
 use std::collections::BTreeMap;
+use std::path::PathBuf;
 use std::rc::Rc;
 
 use rpfm_lib::files::ContainerPath;
@@ -83,6 +85,7 @@ pub struct DependenciesUI {
     // Contextual menu for the Dependencies TreeView.
     //-------------------------------------------------------------------------------//
     dependencies_tree_view_context_menu: QBox<QMenu>,
+    context_menu_extract: QPtr<QAction>,
     context_menu_import: QPtr<QAction>,
     context_menu_copy_path: QPtr<QAction>,
 
@@ -145,10 +148,14 @@ impl DependenciesUI {
         // Populate the `Contextual Menu` for the `Dependencies` TreeView.
         let dependencies_tree_view_context_menu = QMenu::from_q_widget(&dependencies_dock_inner_widget);
 
+        let context_menu_extract = add_action_to_menu(&dependencies_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "dependencies_context_menu", "extract_from_dependencies", "context_menu_extract", Some(dependencies_dock_widget.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_import = add_action_to_menu(&dependencies_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "dependencies_context_menu", "import_from_dependencies", "context_menu_import", Some(dependencies_dock_widget.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_copy_path = add_action_to_menu(&dependencies_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "dependencies_context_menu", "copy_path", "context_menu_copy_path", Some(dependencies_dock_widget.static_upcast::<qt_widgets::QWidget>()));
         let dependencies_tree_view_expand_all = add_action_to_menu(&dependencies_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "dependencies_context_menu", "expand_all", "treeview_expand_all", Some(dependencies_dock_widget.static_upcast::<qt_widgets::QWidget>()));
         let dependencies_tree_view_collapse_all = add_action_to_menu(&dependencies_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "dependencies_context_menu", "collapsse_all", "treeview_collapse_all", Some(dependencies_dock_widget.static_upcast::<qt_widgets::QWidget>()));
+
+        context_menu_extract.set_enabled(false);
+        context_menu_import.set_enabled(false);
 
         // Create ***Da monsta***.
         Ok(Self {
@@ -168,9 +175,8 @@ impl DependenciesUI {
             //-------------------------------------------------------------------------------//
             // Contextual menu for the Dependencies TreeView.
             //-------------------------------------------------------------------------------//
-
             dependencies_tree_view_context_menu,
-
+            context_menu_extract,
             context_menu_import,
             context_menu_copy_path,
 
@@ -247,6 +253,40 @@ impl DependenciesUI {
         }
 
         // Re-enable the Main Window.
+        app_ui.toggle_main_window(true);
+    }
+
+    pub unsafe fn extract(&self, app_ui: &Rc<AppUI>) {
+        let paths = self.dependencies_tree_view.get_item_types_and_data_source_from_selection(true);
+        let parent_paths = paths.iter().filter_map(|(path, source)| if let DataSource::ParentFiles = source { Some(path.to_owned()) } else { None }).collect::<Vec<ContainerPath>>();
+        let game_paths = paths.iter().filter_map(|(path, source)| if let DataSource::GameFiles = source { Some(path.to_owned()) } else { None }).collect::<Vec<ContainerPath>>();
+
+        let mut paths_by_source = BTreeMap::new();
+        if !parent_paths.is_empty() {
+            paths_by_source.insert(DataSource::ParentFiles, parent_paths);
+        }
+
+        if !game_paths.is_empty() {
+            paths_by_source.insert(DataSource::GameFiles, game_paths);
+        }
+
+        let extraction_path = QFileDialog::get_existing_directory_2a(
+            app_ui.main_window(),
+            &qtr("context_menu_extract_packfile"),
+        );
+
+        let extraction_path = if !extraction_path.is_empty() {
+            PathBuf::from(extraction_path.to_std_string())
+        } else { return };
+
+        let receiver = CENTRAL_COMMAND.send_background(Command::ExtractPackedFiles(paths_by_source, extraction_path, true));
+        app_ui.toggle_main_window(false);
+        let response = CENTRAL_COMMAND.recv_try(&receiver);
+        match response {
+            Response::String(result) => show_message_info(app_ui.message_widget(), result),
+            Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
+            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+        }
         app_ui.toggle_main_window(true);
     }
 }
