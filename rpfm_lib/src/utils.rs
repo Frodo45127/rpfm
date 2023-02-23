@@ -110,7 +110,7 @@ pub fn files_in_folder_from_newest_to_oldest(current_path: &Path) -> Result<Vec<
             if let Ok(b) = File::open(b) {
                 if let Ok(a) = last_modified_time_from_file(&a) {
                     if let Ok(b) = last_modified_time_from_file(&b) {
-                        a.cmp(&b)
+                        b.cmp(&a)
                     } else { Ordering::Equal}
                 } else { Ordering::Equal}
             } else { Ordering::Equal}
