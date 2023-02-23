@@ -1270,7 +1270,7 @@ impl AppUI {
                         PFHVersion::PFH6 => {
 
                             // If we have Warhammer selected, we keep Warhammer. If we have Attila, we keep Attila. That's the logic.
-                            match &*game_selected {
+                            match game_selected {
                                 KEY_TROY => app_ui.game_selected_troy.trigger(),
                                 _ => {
                                     show_message_warning(&app_ui.message_widget, tre("game_selected_changed_on_opening", &[DISPLAY_NAME_TROY]));
@@ -1289,7 +1289,7 @@ impl AppUI {
 
                             // Otherwise, it's from Three Kingdoms, Warhammer 2, Troy or Warhammer 3.
                             else {
-                                match &*game_selected {
+                                match game_selected {
                                     KEY_WARHAMMER_3 => app_ui.game_selected_warhammer_3.trigger(),
                                     KEY_TROY => app_ui.game_selected_troy.trigger(),
                                     KEY_THREE_KINGDOMS => app_ui.game_selected_three_kingdoms.trigger(),
@@ -1306,7 +1306,7 @@ impl AppUI {
                         PFHVersion::PFH4 => {
 
                             // If we have Warhammer selected, we keep Warhammer. If we have Attila, we keep Attila. That's the logic.
-                            match &*game_selected {
+                            match game_selected {
                                 KEY_WARHAMMER => app_ui.game_selected_warhammer.trigger(),
                                 KEY_THRONES_OF_BRITANNIA => app_ui.game_selected_thrones_of_britannia.trigger(),
                                 KEY_ATTILA => app_ui.game_selected_attila.trigger(),
@@ -1320,7 +1320,7 @@ impl AppUI {
 
                         // PFH3/2 is for Shogun 2.
                         PFHVersion::PFH3 | PFHVersion::PFH2 => {
-                            match &*game_selected {
+                            match game_selected {
                                 KEY_SHOGUN_2 => app_ui.game_selected_shogun_2.trigger(),
                                 _ => {
                                     show_message_warning(&app_ui.message_widget, tre("game_selected_changed_on_opening", &[DISPLAY_NAME_SHOGUN_2]));
@@ -1331,7 +1331,7 @@ impl AppUI {
 
                         // PFH0 is for Napoleon/Empire.
                         PFHVersion::PFH0 => {
-                            match &*game_selected {
+                            match game_selected {
                                 KEY_NAPOLEON => app_ui.game_selected_napoleon.trigger(),
                                 KEY_EMPIRE => app_ui.game_selected_empire.trigger(),
                                 _ => {
@@ -1405,7 +1405,7 @@ impl AppUI {
 
             // In case we have a default path for the Game Selected and that path is valid,
             // we use his data folder as base path for saving our PackFile.
-            else if let Ok(ref path) = GAME_SELECTED.read().unwrap().local_mods_path(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name())) {
+            else if let Ok(ref path) = GAME_SELECTED.read().unwrap().local_mods_path(&setting_path(GAME_SELECTED.read().unwrap().game_key_name())) {
                 if path.is_dir() { file_dialog.set_directory_q_string(&QString::from_std_str(path.to_string_lossy().as_ref())); }
             }
 
@@ -1492,13 +1492,13 @@ impl AppUI {
 
             // Ensure it's a file and it's not in data before proceeding.
             let enable_install = if !pack_path.is_file() { false }
-            else if let Ok(game_data_path) = GAME_SELECTED.read().unwrap().local_mods_path(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name())) {
+            else if let Ok(game_data_path) = GAME_SELECTED.read().unwrap().local_mods_path(&setting_path(GAME_SELECTED.read().unwrap().game_key_name())) {
                 game_data_path.is_dir() && !pack_path.starts_with(&game_data_path)
             } else { false };
             app_ui.packfile_install.set_enabled(enable_install);
 
             let enable_uninstall = if !pack_path.is_file() { false }
-            else if let Ok(mut game_data_path) = GAME_SELECTED.read().unwrap().local_mods_path(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name())) {
+            else if let Ok(mut game_data_path) = GAME_SELECTED.read().unwrap().local_mods_path(&setting_path(GAME_SELECTED.read().unwrap().game_key_name())) {
                 if !game_data_path.is_dir() || pack_path.starts_with(&game_data_path) { false }
                 else {
                     game_data_path.push(pack_path.file_name().unwrap().to_string_lossy().to_string());
@@ -1523,7 +1523,7 @@ impl AppUI {
         if enable {
 
             // Check the Game Selected and enable the actions corresponding to out game.
-            match &*game_selected {
+            match game_selected {
                 KEY_WARHAMMER_3 => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(true);
                     app_ui.special_stuff_wh3_optimize_packfile.set_enabled(true);
@@ -1631,7 +1631,7 @@ impl AppUI {
 
         // The assembly kit thing should only be available for Rome 2 and later games.
         // And dependencies generation should be enabled for the current game.
-        match &*game_selected {
+        match game_selected {
             KEY_WARHAMMER_3 => {
                 app_ui.game_selected_open_game_assembly_kit_folder.set_enabled(true);
                 app_ui.special_stuff_wh3_generate_dependencies_cache.set_enabled(true);
@@ -1746,7 +1746,7 @@ impl AppUI {
         }
 
         // Get the path of every PackFile in the content folder (if the game's path it's configured) and make an action for each one of them.
-        let mut content_paths = GAME_SELECTED.read().unwrap().content_packs_paths(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name()));
+        let mut content_paths = GAME_SELECTED.read().unwrap().content_packs_paths(&setting_path(GAME_SELECTED.read().unwrap().game_key_name()));
         if let Some(ref mut paths) = content_paths {
             paths.sort_unstable_by_key(|x| x.file_name().unwrap().to_string_lossy().as_ref().to_owned());
             for path in paths {
@@ -1785,7 +1785,7 @@ impl AppUI {
         }
 
         // Get the path of every PackFile in the data folder (if the game's path it's configured) and make an action for each one of them.
-        let mut data_paths = GAME_SELECTED.read().unwrap().data_packs_paths(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name()));
+        let mut data_paths = GAME_SELECTED.read().unwrap().data_packs_paths(&setting_path(GAME_SELECTED.read().unwrap().game_key_name()));
         if let Some(ref mut paths) = data_paths {
             paths.sort_unstable_by_key(|x| x.file_name().unwrap().to_string_lossy().as_ref().to_owned());
             for path in paths {
