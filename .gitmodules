@@ -1,0 +1,3 @@
+[submodule "install/arch/rpfm-bin"]
+	path = install/arch/rpfm-bin
+	url = ssh://aur@aur.archlinux.org/rpfm-bin.git
