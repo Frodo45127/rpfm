@@ -851,10 +851,14 @@ pub fn background_loop() {
                 let schema = if extract_tables_to_tsv { &*schema } else { &None };
                 let mut errors = 0;
 
+                let mut extra_data = EncodeableExtraData::default();
+                extra_data.set_game_key(Some(GAME_SELECTED.read().unwrap().game_key_name()));
+                let extra_data = Some(extra_data);
+
                 // Pack extraction.
                 if let Some(container_paths) = container_paths.get(&DataSource::PackFile) {
                     for container_path in container_paths {
-                        if pack_file_decoded.extract(container_path.clone(), &path, true, schema, false).is_err() {
+                        if pack_file_decoded.extract(container_path.clone(), &path, true, schema, false, &extra_data).is_err() {
                             errors += 1;
                         }
                     }
@@ -891,7 +895,7 @@ pub fn background_loop() {
                         }
 
                         let container_path = ContainerPath::File(path_raw);
-                        if pack.extract(container_path, &path, true, schema, false).is_err() {
+                        if pack.extract(container_path, &path, true, schema, false, &extra_data).is_err() {
                             errors += 1;
                         }
                     }
@@ -1120,7 +1124,11 @@ pub fn background_loop() {
                 match data_source {
                     DataSource::PackFile => {
                         let folder = temp_dir().join(format!("rpfm_{}", pack_file_decoded.disk_file_name()));
-                        match pack_file_decoded.extract(path.clone(), &folder, true, &SCHEMA.read().unwrap(), false) {
+                        let mut extra_data = EncodeableExtraData::default();
+                        extra_data.set_game_key(Some(GAME_SELECTED.read().unwrap().game_key_name()));
+                        let extra_data = Some(extra_data);
+
+                        match pack_file_decoded.extract(path.clone(), &folder, true, &SCHEMA.read().unwrap(), false, &extra_data) {
                             Ok(_) => {
 
                                 let mut extracted_path = folder.to_path_buf();
@@ -1872,6 +1880,10 @@ fn live_export(pack: &mut Pack) -> Result<()> {
         return Err(anyhow!("No files to export."));
     }
 
+    let mut extra_data = EncodeableExtraData::default();
+    extra_data.set_game_key(Some(GAME_SELECTED.read().unwrap().game_key_name()));
+    let extra_data = Some(extra_data);
+
     let game_path = setting_path(&GAME_SELECTED.read().unwrap().game_key_name());
     let data_path = GAME_SELECTED.read().unwrap().data_path(&game_path)?;
 
@@ -1900,7 +1912,7 @@ fn live_export(pack: &mut Pack) -> Result<()> {
         // To avoid duplicating logic, we insert these files into the pack, extract them, then delete them from the Pack.
         let container_path = file.path_in_container();
         pack.insert(file)?;
-        pack.extract(container_path.clone(), &data_path, true, &None, false)?;
+        pack.extract(container_path.clone(), &data_path, true, &None, false, &extra_data)?;
 
         pack.remove(&container_path);
     }

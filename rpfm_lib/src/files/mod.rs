@@ -405,7 +405,7 @@ pub trait Container {
     /// The case-insensitive option only works when extracting folders. Individual file extractions are always case sensitive.
     ///
     /// If a schema is provided, this function will try to extract any DB/Loc file as a TSV. If it fails to decode them, it'll extract them as binary files.
-    fn extract(&mut self, container_path: ContainerPath, destination_path: &Path, keep_container_path_structure: bool, schema: &Option<Schema>, case_insensitive: bool) -> Result<()> {
+    fn extract(&mut self, container_path: ContainerPath, destination_path: &Path, keep_container_path_structure: bool, schema: &Option<Schema>, case_insensitive: bool, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         match container_path {
             ContainerPath::File(mut container_path) => {
                 if container_path.starts_with('/') {
@@ -448,14 +448,14 @@ pub trait Container {
                             }
 
                             let mut file = BufWriter::new(File::create(&destination_path)?);
-                            let data = rfile.encode(&None, false, false, true)?.unwrap();
+                            let data = rfile.encode(extra_data, false, false, true)?.unwrap();
                             file.write_all(&data).map_err(From::from)
                         } else {
                             result
                         }
                     } else {
                         let mut file = BufWriter::new(File::create(&destination_path)?);
-                        let data = rfile.encode(&None, false, false, true)?.unwrap();
+                        let data = rfile.encode(extra_data, false, false, true)?.unwrap();
                         file.write_all(&data).map_err(From::from)
                     }
                 }
@@ -463,7 +463,7 @@ pub trait Container {
                 // Otherwise, just write the binary data to disk.
                 else {
                     let mut file = BufWriter::new(File::create(&destination_path)?);
-                    let data = rfile.encode(&None, false, false, true)?.unwrap();
+                    let data = rfile.encode(extra_data, false, false, true)?.unwrap();
                     file.write_all(&data).map_err(From::from)
                 }
             }
@@ -509,12 +509,12 @@ pub trait Container {
                                 }
 
                                 let mut file = BufWriter::new(File::create(&destination_path)?);
-                                let data = rfile.encode(&None, false, false, true)?.unwrap();
+                                let data = rfile.encode(extra_data, false, false, true)?.unwrap();
                                 file.write_all(&data)?;
                             }
                         } else {
                             let mut file = BufWriter::new(File::create(&destination_path)?);
-                            let data = rfile.encode(&None, false, false, true)?.unwrap();
+                            let data = rfile.encode(extra_data, false, false, true)?.unwrap();
                             file.write_all(&data)?;
                         }
                     }
@@ -522,7 +522,7 @@ pub trait Container {
                     // Otherwise, just write the binary data to disk.
                     else {
                         let mut file = BufWriter::new(File::create(&destination_path)?);
-                        let data = rfile.encode(&None, false, false, true)?.unwrap();
+                        let data = rfile.encode(extra_data, false, false, true)?.unwrap();
                         file.write_all(&data)?;
                     }
 

@@ -22,7 +22,7 @@ use rpfm_extensions::dependencies::Dependencies;
 use rpfm_extensions::diagnostics::Diagnostics;
 
 use rpfm_lib::binary::ReadBytes;
-use rpfm_lib::files::{ContainerPath, Container, Decodeable, DecodeableExtraData, Encodeable, FileType, pack::Pack};
+use rpfm_lib::files::{ContainerPath, Container, Decodeable, DecodeableExtraData, Encodeable, EncodeableExtraData, FileType, pack::Pack};
 use rpfm_lib::games::pfh_file_type::PFHFileType;
 use rpfm_lib::integrations::log::*;
 use rpfm_lib::schema::Schema;
@@ -218,15 +218,21 @@ pub fn extract(config: &Config, schema_path: &Option<PathBuf>, pack_path: &Path,
     extra_data.set_data_size(reader.len()?);
 
     let mut pack = Pack::decode(&mut reader, &Some(extra_data))?;
+    let mut extra_data = EncodeableExtraData::default();
+    if let Some(game) = &config.game {
+        extra_data.set_game_key(Some(game.game_key_name()));
+    }
+
+    let extra_data = Some(extra_data);
 
     for (container_path, folder_path) in folder_path {
         let container_path = ContainerPath::Folder(container_path.to_owned());
-        pack.extract(container_path, folder_path, true, &schema, false)?;
+        pack.extract(container_path, folder_path, true, &schema, false, &extra_data)?;
     }
 
     for (container_path, file_path) in file_path {
         let container_path = ContainerPath::File(container_path.to_owned());
-        pack.extract(container_path, file_path, true, &schema, false)?;
+        pack.extract(container_path, file_path, true, &schema, false, &extra_data)?;
     }
 
     if config.verbose {
