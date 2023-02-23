@@ -80,10 +80,18 @@ pub fn add(config: &Config, pack_path: &Path, file_path: &[(PathBuf, String)], f
     let mut pack = AnimPack::decode(&mut reader, &Some(extra_data))?;
 
     for (folder_path, container_path) in folder_path {
+        if config.verbose {
+            info!("Adding folder: {}", container_path);
+        }
+
         pack.insert_folder(folder_path, container_path, &None, &None)?;
     }
 
     for (file_path, container_path) in file_path {
+        if config.verbose {
+            info!("Adding file: {}", container_path);
+        }
+
         pack.insert_file(file_path, container_path, &None)?;
     }
 
@@ -120,6 +128,10 @@ pub fn delete(config: &Config, pack_path: &Path, file_path: &[String], folder_pa
     let container_paths = ContainerPath::dedup(&container_paths);
 
     for container_path in container_paths {
+        if config.verbose {
+            info!("Deleting path: {}", container_path.path_raw());
+        }
+
         pack.remove(&container_path);
     }
 
@@ -158,11 +170,19 @@ pub fn extract(config: &Config, pack_path: &Path, file_path: &[(String, PathBuf)
     let extra_data = Some(extra_data);
 
     for (container_path, folder_path) in folder_path {
+        if config.verbose {
+            info!("Extracting folder: {}", container_path);
+        }
+
         let container_path = ContainerPath::Folder(container_path.to_owned());
         pack.extract(container_path, folder_path, true, &None, false, &extra_data)?;
     }
 
     for (container_path, file_path) in file_path {
+        if config.verbose {
+            info!("Extracting file: {}", container_path);
+        }
+
         let container_path = ContainerPath::File(container_path.to_owned());
         pack.extract(container_path, file_path, true, &None, false, &extra_data)?;
     }
