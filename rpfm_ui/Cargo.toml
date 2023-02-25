@@ -17,7 +17,7 @@ support_uic = ["rpfm_lib/support_uic"]
 enable_tools = []
 only_for_the_brave = []
 
-default = ["only_for_the_brave"]
+default = []
 
 [dependencies]
 
