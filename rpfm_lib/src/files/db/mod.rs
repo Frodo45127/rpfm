@@ -52,7 +52,7 @@ use std::io::SeekFrom;
 
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{RLibError, Result};
-use crate::files::{Container, ContainerPath, DecodeableExtraData, Decodeable, EncodeableExtraData, Encodeable, table::{DecodedData, Table}, pack::Pack, RFileDecoded};
+use crate::files::{Container, ContainerPath, DecodeableExtraData, Decodeable, EncodeableExtraData, Encodeable, FileType, table::{DecodedData, Table}, pack::Pack, RFileDecoded};
 #[cfg(test)] use crate::schema::FieldType;
 use crate::schema::{Definition, DefinitionPatch, Field, Schema};
 use crate::utils::check_size_mismatch;
@@ -367,6 +367,12 @@ impl DB {
     ///
     /// It returns the list of ContainerPath where said reference has been found and updated.
     pub fn cascade_edition(pack: &mut Pack, schema: &Option<Schema>, table_name: &str, field: &Field, definition: &Definition, value_before: &str, value_after: &str) -> Vec<ContainerPath> {
+
+        // So, how does this work:
+        // - First, we need to calculate all related tables/columns. This includes the parent columns if this is a reference, and all references to this field.
+        // - Second, we need to calculate all related loc fields corresponding to the edited fiels.
+        // - Third, we edit the table entries.
+        // - Fourth, we edit the loc entries.
         let mut edited_paths = vec![];
 
         // If we're not changing anything, don't bother performing an edition.
@@ -374,110 +380,143 @@ impl DB {
             return vec![];
         }
 
+        // Just in case we're in a reference field, find the source, and trigger the edition from there.
+        let mut definition = definition.clone();
+        let mut field = field.clone();
+        let mut table_name = table_name.to_owned();
+        while let Some((ref_table, ref_column)) = field.is_reference() {
+            let ref_table_name = format!("{ref_table}_tables");
+            let table_folder = format!("db/{ref_table_name}");
+            let parent_files = pack.files_by_type_and_paths_mut(&[FileType::DB], &[ContainerPath::Folder(table_folder.to_owned())], true);
+            if !parent_files.is_empty() {
+                if let Ok(RFileDecoded::DB(table)) = parent_files[0].decoded() {
+                    if let Some(index) = table.definition().column_position_by_name(ref_column) {
+                        definition = table.definition().clone();
+                        field = definition.fields_processed()[index].clone();
+                        table_name = table.table_name().to_owned();
+                    }
+                }
+            }
+        }
+
         // Get the tables/rows that need to be edited.
         let fields_processed = definition.fields_processed();
         let fields_localised = definition.localised_fields();
-        let referenced_tables = Table::tables_and_columns_referencing_our_own(schema, table_name, field.name(), &fields_processed, fields_localised);
+        let referenced_tables = Table::tables_and_columns_referencing_our_own(schema, &table_name, field.name(), &fields_processed, fields_localised);
+        if let Some((mut ref_table_data, _)) = referenced_tables {
 
-        // This little boy is the one that contains the list of precalculated tables to edit.
-        // Get the ones for the column we're currently editing, then get all the tables we need to edit.
-        if let Some((ref_table_data, has_loc_fields)) = referenced_tables {
+            // Add the source table and column to the list to edit.
+            ref_table_data.insert(table_name, vec![field.name().to_owned()]);
+
             let container_paths = ref_table_data.keys().map(|ref_table_name| ContainerPath::Folder("db/".to_owned() + ref_table_name)).collect::<Vec<_>>();
             let mut files = pack.files_by_paths_mut(&container_paths, true);
+            let mut loc_keys: Vec<(String, String)> = vec![];
 
             for file in files.iter_mut() {
                 let path = file.path_in_container();
                 if let Ok(RFileDecoded::DB(table)) = file.decoded_mut() {
                     let fields_processed = table.definition().fields_processed();
+                    let fields_localised = table.definition().localised_fields().to_vec();
+                    let localised_order = table.definition().localised_key_order().to_vec();
+                    let patches = table.definition().patches().clone();
                     let table_name = table.table_name().to_owned();
-
-                    // Optimization.
+                    let table_name_no_tables = table.table_name_without_tables();
                     let table_data = table.data_mut().unwrap();
 
+                    let mut keys_edited = vec![];
+
                     // Find the column to edit within the table.
-                    for ref_column_name in &ref_table_data[&table_name] {
-                        if let Some(column) = fields_processed.iter().position(|x| x.name() == ref_column_name) {
+                    let column_indexes = fields_processed.iter()
+                        .enumerate()
+                        .filter_map(|(index, field)| if ref_table_data[&table_name].iter().any(|name| name == field.name()) { Some(index) } else { None })
+                        .collect::<Vec<usize>>();
 
-                            // Then, only if the data has changed, go through all the rows and perform the edits.
-                            for row in table_data.iter_mut() {
-                                if let Some(field_data) = row.get_mut(column) {
-                                    match field_data {
-                                        DecodedData::StringU8(field_data) |
-                                        DecodedData::StringU16(field_data) |
-                                        DecodedData::OptionalStringU8(field_data) |
-                                        DecodedData::OptionalStringU16(field_data) => {
+                    // Then, go through all the rows and perform the edits.
+                    for row in table_data.iter_mut() {
+                        for column in &column_indexes {
 
-                                            // Only edit exact matches.
-                                            if field_data == value_before {
-                                                *field_data = value_after.to_owned();
+                            // TODO: FIX THIS SHIT. It duplicates ALL DATA IN ALL TABLES CHECK.
+                            let row_copy = row.to_vec();
 
-                                                if !edited_paths.contains(&path) {
-                                                    edited_paths.push(path.clone());
+                            if let Some(field_data) = row.get_mut(*column) {
+                                match field_data {
+                                    DecodedData::StringU8(field_data) |
+                                    DecodedData::StringU16(field_data) |
+                                    DecodedData::OptionalStringU8(field_data) |
+                                    DecodedData::OptionalStringU16(field_data) => {
+
+                                        // Only edit exact matches.
+                                        if field_data == value_before {
+                                            let mut locs_edited = vec![];
+
+                                            // If it's a key, calculate the relevant before and after loc keys.
+                                            let is_key = fields_processed[*column].is_key(Some(&patches));
+                                            if is_key {
+                                                for loc_field in &fields_localised {
+                                                    let loc_key = localised_order.iter().map(|pos| row_copy[*pos as usize].data_to_string()).collect::<Vec<_>>().join("");
+                                                    locs_edited.push(format!("{}_{}_{}", table_name_no_tables, loc_field.name(), loc_key));
                                                 }
                                             }
+
+                                            *field_data = value_after.to_owned();
+
+                                            if !locs_edited.is_empty() {
+                                                for (index, loc_field) in fields_localised.iter().enumerate() {
+                                                    if let Some(key_old) = locs_edited.get(index) {
+                                                        let loc_key = localised_order.iter().map(|pos| row[*pos as usize].data_to_string()).collect::<Vec<_>>().join("");
+                                                        let key_new = format!("{}_{}_{}", table_name_no_tables, loc_field.name(), loc_key);
+                                                        keys_edited.push((key_old.to_owned(), key_new.to_owned()))
+                                                    }
+                                                }
+                                            }
+
+                                            if !edited_paths.contains(&path) {
+                                                edited_paths.push(path.clone());
+                                            }
                                         }
-                                        _ => continue
+                                    }
+                                    _ => continue
+                                }
+                            }
+                        }
+                    }
+
+                    // If we edited a key field in the table, check if we need to edit any relevant loc field.
+                    if !keys_edited.is_empty() {
+                        loc_keys.append(&mut keys_edited);
+                    }
+                }
+            }
+
+            // Now, we find and replace all the loc keys we have to change.
+            let mut loc_files = pack.files_by_type_mut(&[FileType::Loc]);
+            for file in &mut loc_files {
+                let path = file.path_in_container();
+                if let Ok(RFileDecoded::Loc(data)) = file.decoded_mut() {
+                    let data = data.data_mut().unwrap();
+                    for row in data.iter_mut() {
+                        if let Some(field_data) = row.get_mut(0) {
+                            match field_data {
+                                DecodedData::StringU8(field_data) |
+                                DecodedData::StringU16(field_data) |
+                                DecodedData::OptionalStringU8(field_data) |
+                                DecodedData::OptionalStringU16(field_data) => {
+                                    for (key_old, key_new) in &loc_keys {
+                                        if field_data == key_old {
+                                            *field_data = key_new.to_owned();
+
+                                            if !edited_paths.contains(&path) {
+                                                edited_paths.push(path.clone());
+                                            }
+                                        }
                                     }
                                 }
+                                _ => {}
                             }
                         }
                     }
                 }
             }
-
-            // Now, with locs. First, this is done only if our definition has localised fields and we edited the "key" field of our table.
-
-            /*
-            // Now, with locs. First, this is done only if our definition has localised fields and we edited the "key" field of our table.
-            if let Some(field) = self.edited_table_definition().fields_processed().get(*column as usize) {
-                if field.is_key() || field.name().to_lowercase() == "key" {
-                    if !self.edited_table_definition().localised_fields().is_empty() {
-
-                        for packed_file in pack.get_ref_mut_packed_files_by_type(FileType::Loc, false) {
-                            let path = packed_file.get_path().to_vec();
-                            if let RFileDecoded::Loc(table) = packed_file.get_ref_mut_decoded() {
-                                let mut table_data = table.data(&None).unwrap();
-                                for row in &mut table_data {
-                                    for (old_data, new_data) in data_changes {
-
-                                        // Same as with the tables, but here the column is always 0 and the entry structure is:
-                                        // "tablenamewithout_tables"_"localisedcolumnname"_"editedkey".
-                                        for loc_field in self.edited_table_definition().localised_fields() {
-                                            let short_table_name = if self.edited_table_name().ends_with("_tables") {
-                                                self.edited_table_name().split_at(self.edited_table_name().len() - 7).0
-                                            } else { self.edited_table_name() };
-
-                                            let old_localised_key = format!("{}_{}_{}", short_table_name, loc_field.name(), &old_data);
-                                            let new_localised_key = format!("{}_{}_{}", short_table_name, loc_field.name(), &new_data);
-
-                                            if old_localised_key != new_localised_key {
-                                                match &mut row[0] {
-                                                    DecodedData::StringU8(field_data) |
-                                                    DecodedData::StringU16(field_data) |
-                                                    DecodedData::OptionalStringU8(field_data) |
-                                                    DecodedData::OptionalStringU16(field_data) => {
-                                                        if *field_data == old_localised_key {
-                                                            *field_data = new_localised_key;
-
-                                                            if !edited_paths.contains(&path) {
-                                                                edited_paths.push(path.to_vec());
-                                                            }
-                                                        }
-                                                    }
-                                                    _ => continue
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-
-                                let _ = table.set_data(&table_data);
-
-                            }
-                        }
-                    }
-                }
-            }*/
         }
 
         edited_paths
