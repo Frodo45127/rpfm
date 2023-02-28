@@ -63,8 +63,7 @@ The basic structure of an `Schema` is:
 Inside the schema there are `VersionedFile` variants of different types, with a Vec of `Definition`, one for each version of that PackedFile supported.
 !*/
 
-use std::fmt::Display;
-use std::fmt;
+use getset::*;
 use rayon::prelude::*;
 use ron::de::{from_bytes, from_str};
 use ron::ser::{to_string_pretty, PrettyConfig};
@@ -74,13 +73,10 @@ use serde_derive::{Serialize, Deserialize};
 
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap};
+use std::{fmt, fmt::Display};
 use std::fs::{DirBuilder, File};
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::Path;
-
-use getset::*;
-//use crate::integrations::assembly_kit::{localisable_fields::RawLocalisableField, table_definition::{RawDefinition, RawField}};
-//use crate::dependencies::Dependencies;
 
 #[cfg(feature = "integration_assembly_kit")]use crate::integrations::assembly_kit::localisable_fields::RawLocalisableField;
 #[cfg(feature = "integration_assembly_kit")]use crate::integrations::assembly_kit::table_definition::RawDefinition;
