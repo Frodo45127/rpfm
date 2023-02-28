@@ -521,13 +521,12 @@ impl AppUISlots {
                 info!("Triggering `Change PackFile Type` By Slot");
                 // TODO: Replace this with the libs function.
                 // Get the currently selected PackFile's Type.
-                let packfile_type = match &*(app_ui.change_packfile_type_group
-                    .checked_action().text().to_std_string()) {
-                    "&Boot" => PFHFileType::Boot,
-                    "&Release" => PFHFileType::Release,
-                    "&Patch" => PFHFileType::Patch,
-                    "&Mod" => PFHFileType::Mod,
-                    "Mo&vie" => PFHFileType::Movie,
+                let packfile_type = match &*(app_ui.change_packfile_type_group.checked_action().text().remove_q_string(&QString::from_std_str("&")).to_std_string()) {
+                    "Boot" => PFHFileType::Boot,
+                    "Release" => PFHFileType::Release,
+                    "Patch" => PFHFileType::Patch,
+                    "Mod" => PFHFileType::Mod,
+                    "Movie" => PFHFileType::Movie,
                     _ => unreachable!()
                 };
 
