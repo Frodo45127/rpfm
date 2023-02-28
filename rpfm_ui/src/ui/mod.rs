@@ -289,7 +289,7 @@ impl GameSelectedIcons {
 
     /// This function sets the main window icon according to the currently selected game.
     pub unsafe fn set_game_selected_icon(app_ui: &Rc<AppUI>) {
-        let (icon, big_icon) = match &*GAME_SELECTED.read().unwrap().game_key_name() {
+        let (icon, big_icon) = match GAME_SELECTED.read().unwrap().game_key_name() {
             KEY_WARHAMMER_3 => &GAME_SELECTED_ICONS.warhammer_3,
             KEY_TROY => &GAME_SELECTED_ICONS.troy,
             KEY_THREE_KINGDOMS => &GAME_SELECTED_ICONS.three_kingdoms,

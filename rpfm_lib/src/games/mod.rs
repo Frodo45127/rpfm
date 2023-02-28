@@ -665,7 +665,7 @@ impl GameInfo {
 
     /// This function gets the version number of the exe for the current GameSelected, if it exists.
     pub fn game_version_number(&self, game_path: &Path) -> Option<u32> {
-        match &*self.game_key_name() {
+        match self.game_key_name() {
             KEY_TROY => {
                 let exe_path = self.executable_path(game_path)?;
                 if exe_path.is_file() {

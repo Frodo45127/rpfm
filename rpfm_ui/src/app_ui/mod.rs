@@ -63,7 +63,6 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::env::current_exe;
 use std::ffi::OsStr;
-use std::fs::DirBuilder;
 use std::path::{Path, PathBuf};
 use std::process::{Command as SystemCommand, exit};
 use std::rc::Rc;
@@ -2604,30 +2603,27 @@ impl AppUI {
 
                         // Generic files logic.
                         Response::RFileDecodedRFileInfo(data, file_info) => {
-                            match file_info.file_type() {
-                                FileType::UnitVariant => {
-                                    match PackedFileUnitVariantView::new_view(&mut tab, data) {
-                                        Ok(_) => {
+                            if file_info.file_type() == &FileType::UnitVariant {
+                                match PackedFileUnitVariantView::new_view(&mut tab, data) {
+                                    Ok(_) => {
 
-                                            // Add the file to the 'Currently open' list and make it visible.
-                                            app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &QString::from_std_str(""));
-                                            app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
+                                        // Add the file to the 'Currently open' list and make it visible.
+                                        app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &QString::from_std_str(""));
+                                        app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
 
-                                            // Fix the quick notes view.
-                                            let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
-                                            layout.add_widget_5a(tab.notes_widget(), 0, 99, layout.row_count(), 1);
+                                        // Fix the quick notes view.
+                                        let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
+                                        layout.add_widget_5a(tab.notes_widget(), 0, 99, layout.row_count(), 1);
 
-                                            let mut open_list = UI_STATE.set_open_packedfiles();
-                                            open_list.push(tab);
+                                        let mut open_list = UI_STATE.set_open_packedfiles();
+                                        open_list.push(tab);
 
-                                            if data_source == DataSource::PackFile {
-                                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), data_source);
-                                            }
+                                        if data_source == DataSource::PackFile {
+                                            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), data_source);
                                         }
-                                        Err(error) => return show_dialog(&app_ui.main_window, error, false),
                                     }
+                                    Err(error) => return show_dialog(&app_ui.main_window, error, false),
                                 }
-                                _ => {},
                             }
                         }
 

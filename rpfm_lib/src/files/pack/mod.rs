@@ -676,7 +676,7 @@ impl Pack {
         self.files.iter_mut().try_for_each(|(_, file)| file.load())?;
 
         let mut file = BufWriter::new(File::create(&self.disk_file_path)?);
-        let extra_data = Some(EncodeableExtraData::new_from_game_info(&game_info));
+        let extra_data = Some(EncodeableExtraData::new_from_game_info(game_info));
 
         self.encode(&mut file, &extra_data)
     }

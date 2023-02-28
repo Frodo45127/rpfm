@@ -115,7 +115,7 @@ pub fn add(config: &Config, schema_path: &Option<PathBuf>, pack_path: &Path, fil
         if schema_path.is_file() {
 
             // Quick fix so we can load old schemas. To be removed once 4.0 lands.
-            let _ = Schema::update(schema_path, &PathBuf::from("schemas/patches.ron"), &config.game.as_ref().unwrap().game_key_name());
+            let _ = Schema::update(schema_path, &PathBuf::from("schemas/patches.ron"), config.game.as_ref().unwrap().game_key_name());
             Some(Schema::load(schema_path)?)
         } else {
             warn!("Schema path provided, but it doesn't point to a valid schema. Disabling `TSV to Binary`.");
@@ -213,7 +213,7 @@ pub fn extract(config: &Config, schema_path: &Option<PathBuf>, pack_path: &Path,
         if schema_path.is_file() {
 
             // Quick fix so we can load old schemas. To be removed once 4.0 lands.
-            let _ = Schema::update(schema_path, &PathBuf::from("schemas/patches.ron"), &config.game.as_ref().unwrap().game_key_name());
+            let _ = Schema::update(schema_path, &PathBuf::from("schemas/patches.ron"), config.game.as_ref().unwrap().game_key_name());
             Some(Schema::load(schema_path)?)
         } else {
             warn!("Schema path provided, but it doesn't point to a valid schema. Disabling `Table as TSV`.");
@@ -273,7 +273,7 @@ pub fn diagnose(config: &Config, game_path: &Path, pak_path: &Path, schema_path:
     }
 
     // Quick fix so we can load old schemas. To be removed once 4.0 lands.
-    let _ = Schema::update(schema_path, &PathBuf::from("schemas/patches.ron"), &config.game.as_ref().unwrap().game_key_name());
+    let _ = Schema::update(schema_path, &PathBuf::from("schemas/patches.ron"), config.game.as_ref().unwrap().game_key_name());
 
     // Load both, the schema and the Packs to memory.
     let schema = Schema::load(schema_path)?;

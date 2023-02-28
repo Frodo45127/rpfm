@@ -73,7 +73,7 @@ pub unsafe fn init_settings(app_ui: &AppUI) {
 
     for game in &SUPPORTED_GAMES.games() {
         let game_key = game.game_key_name();
-        set_setting_if_new_string(&q_settings, &game_key, "");
+        set_setting_if_new_string(&q_settings, game_key, "");
 
         if game_key != KEY_EMPIRE &&
             game_key != KEY_NAPOLEON &&

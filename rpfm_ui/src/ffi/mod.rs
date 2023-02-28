@@ -22,17 +22,13 @@ use qt_widgets::QTableView;
 use qt_widgets::QTreeView;
 use qt_widgets::QWidget;
 
-use qt_gui::QColor;
-
-#[cfg(feature = "support_modern_dds")]
-use qt_gui::QImage;
+#[cfg(feature = "enable_tools")] use qt_gui::QColor;
+#[cfg(feature = "support_modern_dds")] use qt_gui::QImage;
 use qt_gui::QPixmap;
 use qt_gui::QStandardItemModel;
 
-#[cfg(any(feature = "support_rigidmodel", feature = "support_modern_dds"))]
-use qt_core::QByteArray;
-
 use qt_core::QBox;
+#[cfg(any(feature = "support_rigidmodel", feature = "support_modern_dds"))] use qt_core::QByteArray;
 use qt_core::QListOfQObject;
 use qt_core::QModelIndex;
 use qt_core::QObject;
@@ -46,7 +42,7 @@ use qt_core::QTimer;
 use qt_core::QListOfInt;
 use qt_core::CaseSensitivity;
 
-use cpp_core::CppBox;
+#[cfg(any(feature = "support_rigidmodel", feature = "enable_tools"))] use cpp_core::CppBox;
 use cpp_core::Ptr;
 
 #[cfg(feature = "support_rigidmodel")]
@@ -290,14 +286,14 @@ pub fn cursor_row_safe(parent: &Ptr<QWidget>) -> u64 {
 //---------------------------------------------------------------------------//
 
 // This function allow us to get the QColor from the provided KColorCombo.
-extern "C" { fn get_color(view: *mut QWidget) -> u32; }
-pub fn get_color_safe(view: &Ptr<QWidget>) -> CppBox<QColor> {
+#[cfg(feature = "enable_tools")] extern "C" { fn get_color(view: *mut QWidget) -> u32; }
+#[cfg(feature = "enable_tools")] pub fn get_color_safe(view: &Ptr<QWidget>) -> CppBox<QColor> {
     unsafe { QColor::from_rgba(get_color(view.as_mut_raw_ptr())) }
 }
 
 // This function allow us to set the QColor of the provided KColorCombo.
-extern "C" { fn set_color(view: *mut QWidget, color: *mut QColor); }
-pub fn set_color_safe(view: &Ptr<QWidget>, color: &Ptr<QColor>) {
+#[cfg(feature = "enable_tools")] extern "C" { fn set_color(view: *mut QWidget, color: *mut QColor); }
+#[cfg(feature = "enable_tools")] pub fn set_color_safe(view: &Ptr<QWidget>, color: &Ptr<QColor>) {
     unsafe { set_color(view.as_mut_raw_ptr(), color.as_mut_raw_ptr()) }
 }
 

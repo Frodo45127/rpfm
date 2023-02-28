@@ -338,7 +338,7 @@ impl AppUISlots {
                     return show_dialog(&app_ui.main_window, "Pack to install not found on disk.", false);
                 }
 
-                if let Ok(mut game_local_mods_path) = GAME_SELECTED.read().unwrap().local_mods_path(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name())) {
+                if let Ok(mut game_local_mods_path) = GAME_SELECTED.read().unwrap().local_mods_path(&setting_path(GAME_SELECTED.read().unwrap().game_key_name())) {
                     if !game_local_mods_path.is_dir() {
                         return show_dialog(&app_ui.main_window, "Game Path not configured. Go to <i>'PackFile/Preferences'</i> and configure it.", false);
                     }
@@ -351,7 +351,7 @@ impl AppUISlots {
                         game_local_mods_path.push(mod_name);
 
                         // Check if the PackFile is not a CA one before installing.
-                        let ca_paths = match GAME_SELECTED.read().unwrap().ca_packs_paths(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name())) {
+                        let ca_paths = match GAME_SELECTED.read().unwrap().ca_packs_paths(&setting_path(GAME_SELECTED.read().unwrap().game_key_name())) {
                             Ok(paths) => paths,
                             Err(_) => return show_dialog(&app_ui.main_window, "You can't do that to a CA PackFile, you monster!", false),
                         };
@@ -396,7 +396,7 @@ impl AppUISlots {
                     return show_dialog(&app_ui.main_window, "Pack to install not found on disk.", false);
                 }
 
-                if let Ok(mut game_local_mods_path) = GAME_SELECTED.read().unwrap().local_mods_path(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name())) {
+                if let Ok(mut game_local_mods_path) = GAME_SELECTED.read().unwrap().local_mods_path(&setting_path(GAME_SELECTED.read().unwrap().game_key_name())) {
                     if !game_local_mods_path.is_dir() {
                         return show_dialog(&app_ui.main_window, "Game Path not configured. Go to <i>'PackFile/Preferences'</i> and configure it.", false);
                     }
@@ -408,7 +408,7 @@ impl AppUISlots {
                     if let Some(ref mod_name) = pack_path.file_name() {
                         game_local_mods_path.push(mod_name);
 
-                        let ca_paths = match GAME_SELECTED.read().unwrap().ca_packs_paths(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name())) {
+                        let ca_paths = match GAME_SELECTED.read().unwrap().ca_packs_paths(&setting_path(GAME_SELECTED.read().unwrap().game_key_name())) {
                             Ok(paths) => paths,
                             Err(_) => return show_dialog(&app_ui.main_window, "You can't do that to a CA PackFile, you monster!", false),
                         };
@@ -480,7 +480,7 @@ impl AppUISlots {
                         build_data.editable = true;
                         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
 
-                        match &*GAME_SELECTED.read().unwrap().game_key_name() {
+                        match GAME_SELECTED.read().unwrap().game_key_name() {
                             KEY_WARHAMMER_3 => app_ui.game_selected_warhammer_3.trigger(),
                             KEY_TROY => app_ui.game_selected_troy.trigger(),
                             KEY_THREE_KINGDOMS => app_ui.game_selected_three_kingdoms.trigger(),
@@ -567,7 +567,7 @@ impl AppUISlots {
 
                 let game_key = GAME_SELECTED.read().unwrap().game_key_name();
                 let mymod_path_old = setting_path(MYMOD_BASE_PATH);
-                let game_path_old = setting_path(&game_key);
+                let game_path_old = setting_path(game_key);
                 let ak_path_old = setting_path(&format!("{game_key}_assembly_kit"));
                 let dark_theme_old = setting_bool("use_dark_theme");
                 let font_name_old = setting_string("font_name");
@@ -577,7 +577,7 @@ impl AppUISlots {
                     Ok(saved) => {
                         if saved {
                             let mymod_path_new = setting_path(MYMOD_BASE_PATH);
-                            let game_path_new = setting_path(&game_key);
+                            let game_path_new = setting_path(game_key);
                             let ak_path_new = setting_path(&format!("{game_key}_assembly_kit"));
 
                             // If we changed the "MyMod's Folder" path, disable the MyMod mode and set it so the MyMod menu will be re-built
@@ -918,7 +918,7 @@ impl AppUISlots {
         // What happens when we trigger the "Launch Game" action.
         let game_selected_launch_game = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
-            match GAME_SELECTED.read().unwrap().game_launch_command(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name())) {
+            match GAME_SELECTED.read().unwrap().game_launch_command(&setting_path(GAME_SELECTED.read().unwrap().game_key_name())) {
                 Ok(command) => { let _ = open::that(command); },
                 _ => show_dialog(&app_ui.main_window, "The currently selected game cannot be launched from Steam.", false),
             }
@@ -927,7 +927,7 @@ impl AppUISlots {
         // What happens when we trigger the "Open Game's Data Folder" action.
         let game_selected_open_game_data_folder = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
-            if let Ok(path) = GAME_SELECTED.read().unwrap().data_path(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name())) {
+            if let Ok(path) = GAME_SELECTED.read().unwrap().data_path(&setting_path(GAME_SELECTED.read().unwrap().game_key_name())) {
                 let _ = open::that(path);
             } else {
                 show_dialog(&app_ui.main_window, "Game Path not configured. Go to <i>'PackFile/Preferences'</i> and configure it.", false);

@@ -474,11 +474,11 @@ impl SearchView {
 
                     // We need to do an extra check to ensure the new text can be in the field.
                     match fields_processed[model_index.column() as usize].field_type() {
-                        //FieldType::Boolean => if parse_str_as_bool(&replaced_text).is_err() { return show_dialog(&parent.table_view, ErrorKind::DBTableReplaceInvalidData, false) }
-                        //FieldType::F32 => if replaced_text.parse::<f32>().is_err() { return show_dialog(&parent.table_view, ErrorKind::DBTableReplaceInvalidData, false) }
-                        //FieldType::I16 => if replaced_text.parse::<i16>().is_err() { return show_dialog(&parent.table_view, ErrorKind::DBTableReplaceInvalidData, false) }
-                        //FieldType::I32 => if replaced_text.parse::<i32>().is_err() { return show_dialog(&parent.table_view, ErrorKind::DBTableReplaceInvalidData, false) }
-                        //FieldType::I64 => if replaced_text.parse::<i64>().is_err() { return show_dialog(&parent.table_view, ErrorKind::DBTableReplaceInvalidData, false) }
+                        FieldType::Boolean => if parse_str_as_bool(&replaced_text).is_err() { return show_dialog(&parent.table_view, "Error replacing data of a cell, because the data is not a valid Boolean.", false) }
+                        FieldType::F32 => if replaced_text.parse::<f32>().is_err() { return show_dialog(&parent.table_view, "Error replacing data of a cell, because the data is not a valid F32.", false) }
+                        FieldType::I16 => if replaced_text.parse::<i16>().is_err() { return show_dialog(&parent.table_view, "Error replacing data of a cell, because the data is not a valid I16.", false) }
+                        FieldType::I32 => if replaced_text.parse::<i32>().is_err() { return show_dialog(&parent.table_view, "Error replacing data of a cell, because the data is not a valid I32.", false) }
+                        FieldType::I64 => if replaced_text.parse::<i64>().is_err() { return show_dialog(&parent.table_view, "Error replacing data of a cell, because the data is not a valid I64.", false) }
                         _ =>  {}
                     }
                 } else { return }
@@ -556,11 +556,11 @@ impl SearchView {
 
                         // We need to do an extra check to ensure the new text can be in the field.
                         match fields_processed[model_index.column() as usize].field_type() {
-                            //FieldType::Boolean => if parse_str_as_bool(&replaced_text).is_err() { return show_dialog(&parent.table_view, ErrorKind::DBTableReplaceInvalidData, false) }
-                            //FieldType::F32 => if replaced_text.parse::<f32>().is_err() { return show_dialog(&parent.table_view, ErrorKind::DBTableReplaceInvalidData, false) }
-                            //FieldType::I16 => if replaced_text.parse::<i16>().is_err() { return show_dialog(&parent.table_view, ErrorKind::DBTableReplaceInvalidData, false) }
-                            //FieldType::I32 => if replaced_text.parse::<i32>().is_err() { return show_dialog(&parent.table_view, ErrorKind::DBTableReplaceInvalidData, false) }
-                            //FieldType::I64 => if replaced_text.parse::<i64>().is_err() { return show_dialog(&parent.table_view, ErrorKind::DBTableReplaceInvalidData, false) }
+                            FieldType::Boolean => if parse_str_as_bool(&replaced_text).is_err() { return show_dialog(&parent.table_view, "Error replacing data of a cell, because the data is not a valid Boolean.", false) }
+                            FieldType::F32 => if replaced_text.parse::<f32>().is_err() { return show_dialog(&parent.table_view, "Error replacing data of a cell, because the data is not a valid F32.", false) }
+                            FieldType::I16 => if replaced_text.parse::<i16>().is_err() { return show_dialog(&parent.table_view, "Error replacing data of a cell, because the data is not a valid I16.", false) }
+                            FieldType::I32 => if replaced_text.parse::<i32>().is_err() { return show_dialog(&parent.table_view, "Error replacing data of a cell, because the data is not a valid I32.", false) }
+                            FieldType::I64 => if replaced_text.parse::<i64>().is_err() { return show_dialog(&parent.table_view, "Error replacing data of a cell, because the data is not a valid I64.", false) }
                             _ =>  {}
                         }
 

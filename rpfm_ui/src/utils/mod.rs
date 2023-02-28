@@ -254,7 +254,7 @@ pub unsafe fn show_undecoded_table_report_dialog(parent: Ptr<QWidget>, table_nam
     dialog.resize_2a(400, 50);
 
     let main_grid = create_grid_layout(dialog.static_upcast());
-    let explanation_label = QLabel::from_q_string_q_widget(&qtre("send_table_for_decoding_explanation", &[&GAME_SELECTED.read().unwrap().game_key_name(), &table_name]), &dialog);
+    let explanation_label = QLabel::from_q_string_q_widget(&qtre("send_table_for_decoding_explanation", &[(GAME_SELECTED.read().unwrap().game_key_name()), &table_name]), &dialog);
     let cancel_button = QPushButton::from_q_string(&qtr("cancel"));
     let accept_button = QPushButton::from_q_string(&qtr("send"));
 
@@ -298,7 +298,7 @@ pub unsafe fn add_action_to_widget(shortcuts: Ref<QListOfQObject>, action_group:
 }
 
 /// This function deletes all widgets from a widget's layout.
-pub unsafe fn clear_layout(widget: &QPtr<QWidget>) {
+#[cfg(feature = "enable_tools")] pub unsafe fn clear_layout(widget: &QPtr<QWidget>) {
     let layout = widget.layout();
     while !layout.is_empty() {
         let item = layout.take_at(0);

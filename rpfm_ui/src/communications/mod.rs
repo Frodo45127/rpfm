@@ -26,7 +26,8 @@ use rpfm_extensions::dependencies::TableReferences;
 use rpfm_extensions::diagnostics::Diagnostics;
 use rpfm_extensions::search::{GlobalSearch, MatchHolder};
 
-use rpfm_lib::files::{anim_fragment::AnimFragment, anims_table::AnimsTable, audio::Audio, ContainerPath, video::SupportedFormats, db::DB, esf::ESF, image::Image, loc::Loc, matched_combat::MatchedCombat, pack::PackSettings, RFile, RFileDecoded, portrait_settings::PortraitSettings, rigidmodel::RigidModel, text::Text, uic::UIC};
+use rpfm_lib::files::{anim_fragment::AnimFragment, anims_table::AnimsTable, audio::Audio, ContainerPath, video::SupportedFormats, db::DB, esf::ESF, image::Image, loc::Loc, matched_combat::MatchedCombat, pack::PackSettings, RFile, RFileDecoded, portrait_settings::PortraitSettings, text::Text, uic::UIC};
+#[cfg(feature = "enable_tools")] use rpfm_lib::files::rigidmodel::RigidModel;
 use rpfm_lib::games::pfh_file_type::PFHFileType;
 use rpfm_lib::integrations::{git::GitResponse, log::info};
 use rpfm_lib::notes::Note;
@@ -205,7 +206,7 @@ pub enum Command {
     GetTableVersionFromDependencyPackFile(String),
 
     // This command is used when we want to get the definition of the table provided that's compatible with the version of the game we currently have installed.
-    GetTableDefinitionFromDependencyPackFile(String),
+    #[cfg(feature = "enable_tools")] GetTableDefinitionFromDependencyPackFile(String),
 
     /// This command is used when we want to merge multiple compatible tables into one. The contents of this are as follows:
     /// - Vec<Vec<String>>: List of paths to merge.
@@ -222,10 +223,6 @@ pub enum Command {
     /// This command is used when we want to replace all matches in a Global Search.
     GlobalSearchReplaceAll(GlobalSearch),
 
-    /// This command is used when we want to add entire folders to the PackFile. It contains their path in disk and their starting path in the PackFile,
-    /// the list of paths to ignore, if any, and if any tsv found should be imported as tables.
-    //AddPackedFilesFromFolder(Vec<(PathBuf, String)>, Option<Vec<PathBuf>>, bool),
-
     /// This command is used to decode all tables referenced by columns in the provided definition and return their data.
     /// It requires the table name, the definition of the table to get the reference data from and the list of PackedFiles to ignore.
     GetReferenceDataFromDefinition(String, Definition),
@@ -235,9 +232,6 @@ pub enum Command {
 
     /// This command is used to set the list of PackFiles that are marked as dependency of our PackFile.
     SetDependencyPackFilesList(Vec<String>),
-
-    /// This command is used to get a full PackedFile to the UI. Requires the path of the PackedFile.
-    FileFromLocalPack(String),
 
     // This command is used to get a full list of PackedFile from all known sources to the UI. Requires the path of the PackedFile.
     GetRFilesFromAllSources(Vec<ContainerPath>),
@@ -318,10 +312,10 @@ pub enum Command {
     ImportDependenciesToOpenPackFile(BTreeMap<DataSource, Vec<ContainerPath>>),
 
     /// This command is used to save all provided PackedFiles into the current PackFile, then merge them and optimize them if possible.
-    SavePackedFilesToPackFileAndClean(Vec<RFile>),
+    #[cfg(feature = "enable_tools")] SavePackedFilesToPackFileAndClean(Vec<RFile>),
 
     /// This command is used to get all the file names under a path in all dependencies.
-    GetPackedFilesNamesStartingWitPathFromAllSources(ContainerPath),
+    #[cfg(feature = "enable_tools")] GetPackedFilesNamesStartingWitPathFromAllSources(ContainerPath),
 
     /// This command is used to request all notes under a path, no matter their source.
     NotesForPath(String),
@@ -439,7 +433,7 @@ pub enum Response {
     PortraitSettingsRFileInfo(PortraitSettings, RFileInfo),
 
     /// Response to return `(RigidModel, RFileInfo)`.
-    RigidModelRFileInfo(RigidModel, RFileInfo),
+    #[cfg(feature = "support_rigidmodel")] RigidModelRFileInfo(RigidModel, RFileInfo),
 
     /// Response to return `(UIC, RFileInfo)`.
     UICRFileInfo(UIC, RFileInfo),
@@ -455,10 +449,6 @@ pub enum Response {
     /// Response to return `Unknown`.
     Unknown,
 
-    /// Response to return `(Vec<Vec<String>>, Vec<Vec<String>>)`.
-    //VecStringVecString(Vec<String>, Vec<String>),
-    VecContainerPathHashSetString(Vec<ContainerPath>, HashSet<String>),
-
     /// Response to return `Vec<String>`.
     VecString(Vec<String>),
 
@@ -468,17 +458,8 @@ pub enum Response {
     /// Response to return `BTreeMap<i32, DependencyData>`.
     HashMapI32TableReferences(HashMap<i32, TableReferences>),
 
-    /// Response to return `Option<RFile>`.
-    OptionRFile(Option<RFile>),
-
-    /// Response to return `TableType`.
-    //TableType(TableType),
-
     /// Response to return `PackFileSettings`.
     PackSettings(PackSettings),
-
-    /// Response to return `Vec<Vec<String>>, Vec<RFileInfo>`.
-    //VecVecStringVecRFileInfo(Vec<Vec<String>>, Vec<RFileInfo>),
 
     /// Response to return `DataSource, Vec<String>, usize, usize`.
     DataSourceStringUsizeUsize(DataSource, String, usize, usize),
@@ -488,9 +469,6 @@ pub enum Response {
 
     /// Response to return `Option<(String, String, String)>`.
     OptionStringStringString(Option<(String, String, String)>),
-
-    /// Response to return `FileType`.
-    //FileType(FileType),
 
     /// Response to return `Vec<u8>`.
     VecU8(Vec<u8>),
@@ -502,18 +480,17 @@ pub enum Response {
 
     /// Response to return `HashMap<DataSource, HashMap<Vec<String>, PackedFile>>`.
     HashMapDataSourceHashMapStringRFile(HashMap<DataSource, HashMap<String, RFile>>),
-    HashMapDataSourceHashSetContainerPath(HashMap<DataSource, HashSet<ContainerPath>>),
     Diagnostics(Diagnostics),
-    //DiagnosticsVecRFileInfo(Diagnostics, Vec<RFileInfo>),
-    Definition(Definition),
+
+    #[cfg(feature = "enable_tools")] Definition(Definition),
+    #[cfg(feature = "enable_tools")] HashMapDataSourceHashSetContainerPath(HashMap<DataSource, HashSet<ContainerPath>>),
+    #[cfg(feature = "enable_tools")] VecContainerPathVecContainerPath(Vec<ContainerPath>, Vec<ContainerPath>),
+
     VecNote(Vec<Note>),
     Note(Note),
-    //VecTipVecTip(Vec<Tip>, Vec<Tip>),
     HashSetString(HashSet<String>),
-    //StringHashSetString(String, HashSet<String>),
     StringVecContainerPath(String, Vec<ContainerPath>),
     VecContainerPathVecRFileInfo(Vec<ContainerPath>, Vec<RFileInfo>),
-    VecContainerPathVecContainerPath(Vec<ContainerPath>, Vec<ContainerPath>)
 }
 
 //-------------------------------------------------------------------------------//
