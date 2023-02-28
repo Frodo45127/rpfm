@@ -55,7 +55,11 @@ const RAW_DEFINITION_IGNORED_FILES_V2: [&str; 5] = [
 const RAW_DEFINITION_EXTENSION_V0: &str = ".xsd";
 //const RAW_DATA_EXTENSION_V0: &str = RAW_DATA_EXTENSION_V2;
 
-const BLACKLISTED_TABLES: [&str; 1] = ["translated_texts.xml"];
+
+/// Theses tables are blacklisted because:
+/// - "translated_texts.xml": just translations.
+/// - "TWaD_form_descriptions.xml": it's not a table.
+const BLACKLISTED_TABLES: [&str; 2] = ["translated_texts.xml", "TWaD_form_descriptions.xml"];
 
 //---------------------------------------------------------------------------//
 // Functions to process the Raw DB Tables from the Assembly Kit.
