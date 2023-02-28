@@ -8,23 +8,87 @@ If you're looking for the changes included in the latest beta (against the lates
 
 ## [Unreleased]
 ### Added
-- Add/Extract features now automatically add/extract tables as TSV.
+- Fully rewritten RPFM CLI tool.
+- Fully rewritten RPFM lib to be a proper library, fully independant from the UI.
+- Large performance improvements.
+- Ram usage improvements.
+- Split "rpfm_lib" into "rpfm_lib" and "rpfm_extensions".
+- UI largely refactored from hardcoded versbose UI to a more template-based iconic UI.
+- Added ArchLinux PKGBUILD for rpfm-bin (precompiled stable releases) and rpfm-git (latest git builds).
+- Added diagnostics over Portrait Settings files.
+- Added message widget on main window (used by a few messages for now).
+- ESF Editor is out of beta and can be used without changing settings.
+- Implemented support for Anim Fragments for Wh2, Wh3 and 3k.
+- Implemented support for Anims Tables for Wh2.
+- Implemented support for creating Portrait Settings files
+- Implemented support for Gif files.
+- Implemented support for Matched Combat tables for Wh2, Wh3 and 3k.
+- Implemented support for MP3 files.
+- Implemented support for Portrait Settings files
+- Implemented support for SoundBanks (lib-only, incomplete and unusable for now).
+- Implemented support for TWC (character saves) files.
+- Implemented support for Warhammer 3, Linux version.
+- Implemented support for Drag&Drop opening Packs.
+- Implemented support for Drag&Drop moving files/folders on an open Pack.
+- Implemented support for "Global Replace" for Text files.
+- Implemented support for the following Text files:
+    - ".code-snippets"
+    - ".code-workspace"
+    - ".css"
+    - ".js"
+    - ".kfa"
+    - ".kfe"
+    - ".kfl"
+    - ".kfsl"
+    - ".kfp"
+    - ".kfcs"
+    - ".twui"
+    - ".material"
+- Implemented "Extract from Dependencies" feature.
+- Implemented "Live Export" feature (for scripting).
+- Implemented "Not" or "!" checkbox for table filters.
+- Implemented "Reload Style-Sheets" debug option.
+- Implemented Status Bar icons.
 
 ### Changed
-- Rewritten the whole rpfm_cli from scratch.
-- Rewritten the whole rpfm_lib from scratch.
-- Split rpfm_lib into rpfm_lib and rpfm_extensions.
-- Removed rpfm.exe, as it's no longer needed for program restarts.
-- Improved performance all over the place.
-- Reduced general RAM usage.
-- Updated schema format.
-- Min rust version updated to 1.64.
-- Updated dependencies.
+- "Add" now automatically adds tables as TSV if a valid schema is present.
+- "Extract" now automatically extracts tables as TSV if a valid schema is present.
+- "New MyMod" dialog now offers a more granular configuration.
+- Autosaves are now per-pack, with the date they're made as name.
+- Dark Theme now works on linux.
 - Disabled "Path invalid" diagnostic by default due to performance issues.
+- Double-clicking the file header now causes the TreeViews to scroll to the files, if they're not filtered out.
+- Extracted dark theme's stylesheet to an editable "dark-theme.qss" plain text file.
+- File/Folder icons updated, with more file-type specific icons.
+- Global Search UI now use a merged TreeView for results instead of one per file-type.
+- Load All CA Packs is now disabled if you have dependencies generated.
+- Minimal Rust version updated to 1.64.
+- Reimplemented remains of the old Tips system into a proper Quick Notes system, integrated in the Packs similar to normal notes.
+- Rename is now Rename/Move and has been refactored to allow moving files and folders.
+- Replacing a Global Search match no longer closes the expanded results.
+- Reworked how schema patches are managed internally, so they actually affect more than simple table views.
+- Updated dependencies.
 
 ### Fixed
+- Fixed "Generate Loc Data" generating incorrect loc keys for multikeyed tables.
+- Fixed "Rename References" not working properly when used on references.
+- Fixed AnimPacks from dependencies not importing files correctly.
+- Fixed CTD when reloading ESF files.
+- Fixed CTD when deleting files.
+- Fixed CTD when renaming files.
+- Fixed faction painter failing to load the correct localisation data for each faction.
+- Fixed files not saving if edited right after importing them from dependencies.
+- Fixed focus being lost from focused widgets when an operation disables the main window.
+- Fixed issues with incorrect localisation dependencies under Linux.
 - Fixed missing icons on text view and text settings.
+- Fixed operations that try to guess a loc key from multikeyed tables.
 - Fixed schema having invalid reference values.
+
+### Removed
+- Removed local/remote tips system.
+- Removed Mass-Import and Mass-Export TSV.
+- Removed rpfm.exe, as it's no longer needed for program restarts.
+- Removed settings related to disabling automatic git repo and project files when generating a MyMod.
 
 ## [3.0.16]
 ### Changed
