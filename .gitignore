@@ -79,6 +79,7 @@ shortcuts.ron
 # Subclasses lib compilation files.
 *.pro.user
 **/Makefile
+**/Makefile.*
 **/.qmake.stash
 **/.qtc_clangd/
 **/*.rs.bk
