@@ -344,8 +344,8 @@ pub unsafe fn check_regex(pattern: &str, widget: QPtr<QWidget>) {
 pub fn get_feature_flags() -> String {
     let mut feature_flags = String::new();
 
-    #[cfg(feature = "support_modern_dds")] {
-        feature_flags.push_str("support_modern_dds");
+    #[cfg(feature = "strict_subclasses_compilation")] {
+        feature_flags.push_str("strict_subclasses_compilation");
     }
 
     #[cfg(feature = "support_rigidmodel")] {
@@ -353,6 +353,34 @@ pub fn get_feature_flags() -> String {
             feature_flags.push_str(", ");
         }
         feature_flags.push_str("support_rigidmodel");
+    }
+
+    #[cfg(feature = "support_modern_dds")] {
+        if !feature_flags.is_empty() {
+            feature_flags.push_str(", ");
+        }
+        feature_flags.push_str("support_modern_dds");
+    }
+
+    #[cfg(feature = "support_uic")] {
+        if !feature_flags.is_empty() {
+            feature_flags.push_str(", ");
+        }
+        feature_flags.push_str("support_uic");
+    }
+
+    #[cfg(feature = "enable_tools")] {
+        if !feature_flags.is_empty() {
+            feature_flags.push_str(", ");
+        }
+        feature_flags.push_str("enable_tools");
+    }
+
+    #[cfg(feature = "only_for_the_brave")] {
+        if !feature_flags.is_empty() {
+            feature_flags.push_str(", ");
+        }
+        feature_flags.push_str("only_for_the_brave");
     }
 
     if feature_flags.is_empty() {
