@@ -34,7 +34,7 @@ open_packfile = &打开 Pack 文件
 save_packfile = &保存 Pack 文件
 save_packfile_as = 保存 Pack 文件&为...
 load_all_ca_packfiles = &载入所有 CA Pack 文件
-preferences = &偏好设置
+settings = &偏好设置
 quit = &退出
 open_from_content = 从MOD目录打开
 open_from_data = 从Data目录打开
@@ -143,7 +143,7 @@ tt_packfile_open_packfile = 打开一个现有的 Pack 文件, 或将多个 Pack
 tt_packfile_save_packfile = 保存对当前打开的 Pack 文件的所有更改.
 tt_packfile_save_packfile_as = 将当前打开的 Pack 文件保存为一个新文件,而不是覆盖原文件.
 tt_packfile_load_all_ca_packfiles = 尝试使用延迟加载打开所有的CA原始Pack文件,并同时加载到RPFM.请注意,如果尝试保存,则你的电脑可能会死机.
-tt_packfile_preferences = 打开设置界面.
+tt_packfile_settings = 打开设置界面.
 tt_packfile_quit = 退出程序.
 
 tt_change_packfile_type_boot = 更改 Pack 文件类型为 Boot. 永远不要使用该功能.

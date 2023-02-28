@@ -47,7 +47,7 @@ pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
     app_ui.change_packfile_type_index_includes_timestamp.triggered().connect(&slots.packfile_index_includes_timestamp);
     app_ui.change_packfile_type_data_is_compressed.triggered().connect(&slots.packfile_data_is_compressed);
 
-    app_ui.packfile_preferences.triggered().connect(&slots.packfile_preferences);
+    app_ui.packfile_settings.triggered().connect(&slots.packfile_settings);
     app_ui.packfile_quit.triggered().connect(&slots.packfile_quit);
 
     //-----------------------------------------------//

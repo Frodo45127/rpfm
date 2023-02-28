@@ -99,7 +99,7 @@ pub struct AppUISlots {
     pub packfile_change_packfile_type: QBox<SlotOfBool>,
     pub packfile_index_includes_timestamp: QBox<SlotOfBool>,
     pub packfile_data_is_compressed: QBox<SlotOfBool>,
-    pub packfile_preferences: QBox<SlotOfBool>,
+    pub packfile_settings: QBox<SlotOfBool>,
     pub packfile_quit: QBox<SlotOfBool>,
 
     //-----------------------------------------------//
@@ -558,7 +558,7 @@ impl AppUISlots {
         ));
 
         // What happens when we trigger the "Preferences" action.
-        let packfile_preferences = SlotOfBool::new(&app_ui.main_window, clone!(
+        let packfile_settings = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui,
             diagnostics_ui,
@@ -1738,7 +1738,7 @@ impl AppUISlots {
             packfile_change_packfile_type,
             packfile_index_includes_timestamp,
             packfile_data_is_compressed,
-            packfile_preferences,
+            packfile_settings,
             packfile_quit,
 
             //-----------------------------------------------//

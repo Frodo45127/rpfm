@@ -30,7 +30,7 @@ pub unsafe fn set_tips(app_ui: &Rc<AppUI>) {
     app_ui.packfile_install.set_status_tip(&qtr("tt_packfile_install"));
     app_ui.packfile_uninstall.set_status_tip(&qtr("tt_packfile_uninstall"));
     app_ui.packfile_load_all_ca_packfiles.set_status_tip(&qtr("tt_packfile_load_all_ca_packfiles"));
-    app_ui.packfile_preferences.set_status_tip(&qtr("tt_packfile_preferences"));
+    app_ui.packfile_settings.set_status_tip(&qtr("tt_packfile_settings"));
     app_ui.packfile_quit.set_status_tip(&qtr("tt_packfile_quit"));
 
     app_ui.change_packfile_type_boot.set_status_tip(&qtr("tt_change_packfile_type_boot"));

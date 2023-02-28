@@ -161,7 +161,7 @@ pub struct AppUI {
     packfile_open_from_data: QBox<QMenu>,
     packfile_open_from_autosave: QBox<QMenu>,
     packfile_load_all_ca_packfiles: QPtr<QAction>,
-    packfile_preferences: QPtr<QAction>,
+    packfile_settings: QPtr<QAction>,
     packfile_quit: QPtr<QAction>,
 
     // "Change PackFile Type" submenu.
@@ -475,7 +475,7 @@ impl AppUI {
         let packfile_change_packfile_type = QMenu::from_q_string_q_widget(&qtr("change_packfile_type"), &menu_bar_packfile);
 
         let packfile_load_all_ca_packfiles = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "load_all_ca_packs", "load_all_ca_packfiles", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let packfile_preferences = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "settings", "preferences", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
+        let packfile_settings = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "settings", "settings", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let packfile_quit = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "quit", "quit", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
 
         // Add the "Open..." submenus. These needs to be here because they have to be inserted in specific positions of the menu.
@@ -485,9 +485,9 @@ impl AppUI {
         menu_bar_packfile.insert_menu(&packfile_load_all_ca_packfiles, &packfile_open_from_autosave);
 
         menu_bar_packfile.insert_separator(packfile_open_recent.menu_action());
-        menu_bar_packfile.insert_separator(&packfile_preferences);
-        menu_bar_packfile.insert_menu(&packfile_preferences, &packfile_change_packfile_type);
-        menu_bar_packfile.insert_separator(&packfile_preferences);
+        menu_bar_packfile.insert_separator(&packfile_settings);
+        menu_bar_packfile.insert_menu(&packfile_settings, &packfile_change_packfile_type);
+        menu_bar_packfile.insert_separator(&packfile_settings);
 
         // `Change PackFile Type` submenu.
         let change_packfile_type_boot = packfile_change_packfile_type.add_action_q_string(&qtr("packfile_type_boot"));
@@ -780,7 +780,7 @@ impl AppUI {
             packfile_open_from_data,
             packfile_open_from_autosave,
             packfile_load_all_ca_packfiles,
-            packfile_preferences,
+            packfile_settings,
             packfile_quit,
 
             // "Change PackFile Type" submenu.

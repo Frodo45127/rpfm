@@ -39,45 +39,45 @@ trololol = queek_headtaker_yes_yes
 
 ## Menu Bar
 
-menu_bar_packfile = &PackFile
-menu_bar_view = &View
-menu_bar_mymod = &MyMod
-menu_bar_game_selected = &Game Selected
-menu_bar_special_stuff = &Special Stuff
+menu_bar_packfile = PackFile
+menu_bar_view = View
+menu_bar_mymod = MyMod
+menu_bar_game_selected = Game Selected
+menu_bar_special_stuff = Special Stuff
 menu_bar_templates = Templates
-menu_bar_about = &About
-menu_bar_debug = &Debug
+menu_bar_about = About
+menu_bar_debug = Debug
 
 ## PackFile Menu
 
-new_packfile = &New PackFile
-open_packfile = &Open PackFile
-save_packfile = &Save PackFile
-save_packfile_as = Save PackFile &As…
-packfile_install = &Install
-packfile_uninstall = &Uninstall
-load_all_ca_packfiles = &Load All CA PackFiles
-preferences = &Preferences
-quit = &Quit
+new_packfile = New PackFile
+open_packfile = Open PackFile
+save_packfile = Save PackFile
+save_packfile_as = Save PackFile As…
+packfile_install = Install
+packfile_uninstall = Uninstall
+load_all_ca_packfiles = Load All CA PackFiles
+settings = Settings
+quit = Quit
 open_recent = Open Recent
 open_from_content = Open From Content
 open_from_data = Open From Data
-change_packfile_type = &Change PackFile Type
+change_packfile_type = Change PackFile Type
 
 ## Change Packfile Type Menu
 
-packfile_type_boot = &Boot
-packfile_type_release = &Release
-packfile_type_patch = &Patch
-packfile_type_mod = &Mod
-packfile_type_movie = Mo&vie
-packfile_type_other = &Other
+packfile_type_boot = Boot
+packfile_type_release = Release
+packfile_type_patch = Patch
+packfile_type_mod = Mod
+packfile_type_movie = Movie
+packfile_type_other = Other
 
-change_packfile_type_header_is_extended = &Header Is Extended
-change_packfile_type_index_includes_timestamp = &Index Includes Timestamp
-change_packfile_type_index_is_encrypted = Index Is &Encrypted
-change_packfile_type_data_is_encrypted = &Data Is Encrypted
-change_packfile_type_data_is_compressed = Data Is &Compressed
+change_packfile_type_header_is_extended = Header Is Extended
+change_packfile_type_index_includes_timestamp = Index Includes Timestamp
+change_packfile_type_index_is_encrypted = Index Is Encrypted
+change_packfile_type_data_is_encrypted = Data Is Encrypted
+change_packfile_type_data_is_compressed = Data Is Compressed
 
 ## MyMod Menu
 
@@ -92,7 +92,7 @@ mymod_game = Game of the Mod:
 
 ## View Menu
 
-view_toggle_packfile_contents = Toggle &PackFile Contents
+view_toggle_packfile_contents = Toggle PackFile Contents
 view_toggle_global_search_panel = Toggle Global Search Window
 view_toggle_diagnostics_panel = Toggle Diagnostics Window
 view_toggle_dependencies_panel = Toggle Dependencies Window
@@ -106,8 +106,8 @@ game_selected_open_config_folder = Open RPFM's Config Folder
 
 ## Special Stuff
 
-special_stuff_optimize_packfile = &Optimize PackFile
-special_stuff_patch_siege_ai = &Patch Siege AI
+special_stuff_optimize_packfile = Optimize PackFile
+special_stuff_patch_siege_ai = Patch Siege AI
 special_stuff_live_export = Live Export
 special_stuff_select_ak_folder = Select Assembly Kit's Folder
 special_stuff_select_raw_db_folder = Select Raw DB Folder
@@ -121,10 +121,10 @@ templates_load_official_template_to_packfile = Load Official Templates to PackFi
 
 ## About Menu
 
-about_about_qt = About &Qt
+about_about_qt = About Qt
 about_about_rpfm = About RPFM
-about_check_updates = &Check Updates
-about_check_schema_updates = Check Schema &Updates
+about_check_updates = Check Updates
+about_check_schema_updates = Check Schema Updates
 
 ## Debug Menu
 
@@ -139,7 +139,7 @@ update_checker = Update Checker
 update_schema_checker = Update Schema Checker
 update_template_checker = Update Template Checker
 update_searching = Searching for updates…
-update_button = &Update
+update_button = Update
 update_in_prog = <p>Downloading updates, don't close this window…</p> <p>This may take a while.</p>
 update_no_local_schema = <p>No local schemas found. Do you want to download the latest ones?</p><p><b>NOTE:</b> Schemas are needed for opening tables, locs and other PackedFiles. No schemas means you cannot edit tables.</p>
 update_no_local_template = <p>No local templates found. Do you want to download the latest ones?</p><p><b>NOTE:</b> Templates are useful to bootstraps mods in a few clicks.</p>
@@ -181,7 +181,7 @@ tt_packfile_save_packfile_as = Save the currently open PackFile as a new PackFil
 tt_packfile_install = Copy the currently selected PackFile into the data folder of the GameSelected.
 tt_packfile_uninstall = Removes the currently selected PackFile from the data folder of the GameSelected.
 tt_packfile_load_all_ca_packfiles = Try to load every PackedFile from every vanilla PackFile of the selected game into RPFM at the same time, using lazy-loading to load the PackedFiles. Keep in mind that if you try to save it, your PC may die.
-tt_packfile_preferences = Open the Preferences/Settings dialog.
+tt_packfile_settings = Open the Settings dialog.
 tt_packfile_quit = Exit the Program.
 
 tt_change_packfile_type_boot = Changes the PackFile's Type to Boot. You should never use it.
@@ -288,8 +288,8 @@ open_packedfile_dialog_2 = One or more of the PackedFiles you want to replace/de
 
 treeview_aai = AaI
 treeview_autoexpand = Auto-Expand Matches
-treeview_expand_all = &Expand All
-treeview_collapse_all = &Collapse All
+treeview_expand_all = Expand All
+treeview_collapse_all = Collapse All
 
 ## TreeView Tips
 
@@ -349,15 +349,15 @@ table_enable_lookups = Use Lookups
 
 ### Contextual Menu for TreeView
 
-context_menu_add = &Add…
-context_menu_create = &Create…
-context_menu_open = &Open…
+context_menu_add = Add…
+context_menu_create = Create…
+context_menu_open = Open…
 
-context_menu_add_file = &Add File
+context_menu_add_file = Add File
 context_menu_add_files = Add File/s
-context_menu_add_folder = Add &Folder
+context_menu_add_folder = Add Folder
 context_menu_add_folders = Add Folder/s
-context_menu_add_from_packfile = Add from &PackFile
+context_menu_add_from_packfile = Add from PackFile
 context_menu_select_packfile = Select PackFile
 context_menu_extract_packfile = Extract PackFile
 
@@ -376,15 +376,15 @@ context_menu_move = Rename/Move
 context_menu_delete = Delete
 context_menu_extract = Extract
 
-context_menu_open_decoder = &Open with Decoder
-context_menu_open_dependency_manager = Open &Dependency Manager
-context_menu_open_containing_folder = Open &Containing Folder
-context_menu_open_with_external_program = Open with &External Program
-context_menu_open_notes = Open &Notes
+context_menu_open_decoder = Open with Decoder
+context_menu_open_dependency_manager = Open Dependency Manager
+context_menu_open_containing_folder = Open Containing Folder
+context_menu_open_with_external_program = Open with External Program
+context_menu_open_notes = Open Notes
 
-context_menu_check_tables = &Check Tables
-context_menu_merge_tables = &Merge Tables
-context_menu_update_table = &Update Table
+context_menu_check_tables = Check Tables
+context_menu_merge_tables = Merge Tables
+context_menu_update_table = Update Table
 
 ### Shortcuts
 
@@ -406,7 +406,7 @@ shortcut_section_action = Section/Action
 
 ### Settings
 
-settings_title = Preferences
+settings_title = Settings
 
 settings_game_paths_title = Game Paths
 settings_extra_paths_title = Extra Paths
@@ -607,28 +607,28 @@ rewrite_selection_is_math = Is a math operation?
 rewrite_selection_placeholder = Write here whatever you want.
 rewrite_selection_accept = Accept
 
-context_menu_apply_submenu = A&pply…
-context_menu_clone_submenu = &Clone…
-context_menu_copy_submenu = &Copy…
-context_menu_add_rows = &Add Row
-context_menu_insert_rows = &Insert Row
-context_menu_delete_rows = &Delete Row
-context_menu_rewrite_selection = &Rewrite Selection
-context_menu_clone_and_insert = &Clone and Insert
-context_menu_clone_and_append = Clone and &Append
+context_menu_apply_submenu = Apply…
+context_menu_clone_submenu = Clone…
+context_menu_copy_submenu = Copy…
+context_menu_add_rows = Add Row
+context_menu_insert_rows = Insert Row
+context_menu_delete_rows = Delete Row
+context_menu_rewrite_selection = Rewrite Selection
+context_menu_clone_and_insert = Clone and Insert
+context_menu_clone_and_append = Clone and Append
 context_menu_copy = Copy
 context_menu_copy_as_lua_table = Copy as LUA Table
 context_menu_copy_to_filter_value = Copy to filter value
-context_menu_paste = &Paste
-context_menu_search = &Search
-context_menu_sidebar = Si&debar
-context_menu_import_tsv = &Import TSV
-context_menu_export_tsv = &Export TSV
-context_menu_invert_selection = Inver&t Selection
-context_menu_reset_selection = Reset &Selection
+context_menu_paste = Paste
+context_menu_search = Search
+context_menu_sidebar = Sidebar
+context_menu_import_tsv = Import TSV
+context_menu_export_tsv = Export TSV
+context_menu_invert_selection = Invert Selection
+context_menu_reset_selection = Reset Selection
 context_menu_resize_columns = Resize Columns
-context_menu_undo = &Undo
-context_menu_redo = &Redo
+context_menu_undo = Undo
+context_menu_redo = Redo
 context_menu_cascade_edition = Rename References
 
 header_column = <b><i>Column Name</i></b>

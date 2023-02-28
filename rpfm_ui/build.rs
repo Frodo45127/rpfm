@@ -32,7 +32,7 @@ fn main() {
     }
 
     // This compiles the custom widgets lib.
-    match Command::new("nmake").current_dir("qt_subclasses/").output() {
+    match Command::new("nmake").current_dir("./../3rdparty/src/qt_rpfm_extensions/").output() {
         Ok(output) => {
             stdout().write_all(&output.stdout).unwrap();
             stderr().write_all(&output.stderr).unwrap();
@@ -68,7 +68,7 @@ fn main() {
     common_config();
 
     // This compiles the custom widgets lib.
-    match Command::new("make").current_dir("qt_subclasses/").output() {
+    match Command::new("make").current_dir("./../3rdparty/src/qt_rpfm_extensions/").output() {
         Ok(output) => {
             stdout().write_all(&output.stdout).unwrap();
             stderr().write_all(&output.stderr).unwrap();
@@ -94,7 +94,7 @@ fn main() {
     common_config();
 
     // This compiles the custom widgets lib.
-    match Command::new("gmake").current_dir("qt_subclasses/").output() {
+    match Command::new("gmake").current_dir("./../3rdparty/src/qt_rpfm_extensions/").output() {
         Ok(output) => {
             stdout().write_all(&output.stdout).unwrap();
             stderr().write_all(&output.stderr).unwrap();
@@ -118,8 +118,8 @@ fn main() {
 fn common_config() {
 
     // This is to make RPFM able to see the extra libs we need while building.
-    println!("cargo:rustc-link-search=native=./libs");
-    println!("cargo:rustc-link-lib=dylib=qt_subclasses");
+    println!("cargo:rustc-link-search=native=./3rdparty/builds");
+    println!("cargo:rustc-link-lib=dylib=qt_rpfm_extensions");
     println!("cargo:rustc-link-lib=dylib=KF5Completion");
     println!("cargo:rustc-link-lib=dylib=KF5IconThemes");
     println!("cargo:rustc-link-lib=dylib=KF5TextEditor");
@@ -127,16 +127,16 @@ fn common_config() {
     println!("cargo:rustc-link-lib=dylib=KF5WidgetsAddons");
 
     // Force cargo to rerun this script if any of these files is changed.
-    println!("cargo:rerun-if-changed=./libs/*");
+    println!("cargo:rerun-if-changed=./3rdparty/builds/*");
+    println!("cargo:rerun-if-changed=./3rdparty/src/qt_rpfm_extensions/*");
     println!("cargo:rerun-if-changed=./rpfm_ui/build.rs");
-    println!("cargo:rerun-if-changed=./rpfm_ui/qt_subclasses/*");
 
     // This creates the makefile for the custom widget lib.
     match Command::new("qmake")
         .arg("-o")
         .arg("Makefile")
-        .arg("qt_subclasses.pro")
-        .current_dir("qt_subclasses/").output() {
+        .arg("qt_rpfm_extensions.pro")
+        .current_dir("./../3rdparty/src/qt_rpfm_extensions/").output() {
         Ok(output) => {
             stdout().write_all(&output.stdout).unwrap();
             stderr().write_all(&output.stderr).unwrap();

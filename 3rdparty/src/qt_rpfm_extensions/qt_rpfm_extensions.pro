@@ -10,14 +10,14 @@ QT       += KTextEditor
 QT       += KWidgetsAddons
 QT       += KCompletion
 
-TARGET = qt_subclasses
+TARGET = qt_rpfm_extensions
 TEMPLATE = lib
 
 # We only want the release version, as this lib is not going to get "advanced" stuff.
 # In case you want to build the debug version, change the following line, removing the "release".
 CONFIG += staticlib release
 
-DEFINES += QT_SUBCLASSES_LIBRARY
+DEFINES += QT_RPFM_EXTENSIONS_LIBRARY
 
 # The following define makes your compiler emit warnings if you use
 # any feature of Qt which has been marked as deprecated (the exact warnings
@@ -113,10 +113,10 @@ unix {
 }
 
 # This means we generate all the artifacts in target and drop the final lib in libs.
-DESTDIR         = ../../libs
-BASEDIR         = ../../target/qt_subclasses
-MOC_DIR         = ../../target/qt_subclasses/moc
-OBJECTS_DIR     = ../../target/qt_subclasses/obj
+DESTDIR         = ../../builds
+BASEDIR         = ../../../target/qt_rpfm_extensions
+MOC_DIR         = ../../../target/qt_rpfm_extensions/moc
+OBJECTS_DIR     = ../../../target/qt_rpfm_extensions/obj
 
 # Fix for make failing due to missing folders.
 commands = ; $(MKDIR -p) BASEDIR; $(MKDIR -p) $MOC_DIR; $(MKDIR -p) $OBJECTS_DIR

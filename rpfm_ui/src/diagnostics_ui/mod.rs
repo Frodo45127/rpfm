@@ -954,7 +954,7 @@ impl DiagnosticsUI {
                             _ => {}
                         }
                     }
-                    "IncorrectGamePath" => app_ui.packfile_preferences().trigger(),
+                    "IncorrectGamePath" => app_ui.packfile_settings().trigger(),
                     _ => {}
                 }
             }

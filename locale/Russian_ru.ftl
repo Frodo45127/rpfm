@@ -996,7 +996,7 @@ save_packfile_as = Сохранить { -packfile(capitalization: "capitalized")
 packfile_install = &Установить
 packfile_uninstall = Уда&лить
 load_all_ca_packfiles = &Загрузить все { -packfile(number: "other") } от { -CA(case: "genitive") }
-preferences = Нас&тройки
+settings = Нас&тройки
 quit = &Выход
 open_recent = Недавние
 open_from_content = Открыть из содержимого
@@ -1187,7 +1187,7 @@ tt_packfile_save_packfile_as = Сохранить открытый { -packfile(c
 tt_packfile_install = Скопировать выбранный { -packfile(capitalization: "lower") } в папку { -Data(capitalization: "lower") } активной игры.
 tt_packfile_uninstall = Удалить выбранный { -packfile(capitalization: "lower") } из папки { -Data(capitalization: "lower") } активной игры.
 tt_packfile_load_all_ca_packfiles = Попробовать одновременно загрузить все { -packedfile(case: "accusative", number: "other", capitalization: "lower") } из каждого заводского { -packfile(case: "genitive", number: "one", capitalization: "lower") } текущей игры в { -app }, используя метод ленивой загрузки { -packedfile(case: "genitive", number: "other", capitalization: "lower") }. Помните, что при попытке сохранить такой { -packfile(number: "one", capitalization: "lower") } Ваш компьютер может взорваться.
-tt_packfile_preferences = Открыть диалоговое окно «Параметры» / «Настройки».
+tt_packfile_settings = Открыть диалоговое окно «Параметры» / «Настройки».
 tt_packfile_quit = Выйти из { -app }.
 
 -changes-type = Меняет тип { -packfile(case: "genitive", capitalization: "lower") } на
