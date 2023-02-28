@@ -1,6 +1,6 @@
 # Maintainer: Ismael Gutiérrez González <frodo_gv@hotmail.com>
 pkgname=('rpfm-git')
-pkgver=3.99.106.2813.g3af6da7c
+pkgver=3.99.118.3074.g040c623e
 pkgrel=1
 pkgdesc="A modding tool for modern (since Empire) Total War games. Development version."
 arch=('x86_64')
@@ -30,26 +30,26 @@ package() {
     install -D -m755 "$srcdir/$_programname/target/release/rpfm_cli" "$pkgdir/usr/bin/rpfm_cli"
 
     # The icons.
-    cd "$srcdir/usr/share/$_programname/icons/"
+    cd "$srcdir/$_programname/icons/"
     for icon in *; do
         install -D -m644 $icon "$pkgdir/usr/share/$_programname/icons/$icon"
     done
 
     # The language files.
-    cd "$srcdir/usr/share/$_programname/locale/"
+    cd "$srcdir/$_programname/locale/"
     for locale in *; do
         install -D -m644 $locale "$pkgdir/usr/share/$_programname/locale/$locale"
     done
 
     # The UI files.
-    cd "$srcdir/usr/share/$_programname/ui/"
+    cd "$srcdir/$_programname/rpfm_ui/ui_templates/"
     for ui_template in *; do
         install -D -m644 $ui_template "$pkgdir/usr/share/$_programname/ui/$ui_template"
     done
 
     # Shortcut.
-    install -D -m644 "$srcdir/usr/share/applications/rpfm.desktop" "$pkgdir/usr/share/applications/rpfm.desktop"
+    install -D -m644 "$srcdir/$_programname/install/arch/rpfm.desktop" "$pkgdir/usr/share/applications/rpfm.desktop"
 
     # License.
-    install -D -m644 "$srcdir/usr/share/licenses/$_programname/LICENSE" "$pkgdir/usr/share/licenses/$_programname/LICENSE"
+    install -D -m644 "$srcdir/$_programname/LICENSE" "$pkgdir/usr/share/licenses/$_programname/LICENSE"
 }
