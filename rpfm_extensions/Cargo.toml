@@ -1,10 +1,11 @@
 [package]
 name = "rpfm_extensions"
 description = "This crate contains extended functionality (dependencies manager, global search,...) over the `rpfm_lib` crate, meaning stuff that didn't fit in there, it's here."
-license-file = "../LICENSE"
+license-file = "MIT"
 repository = "https://github.com/Frodo45127/rpfm"
 categories = ["games"]
 keywords = ["totalwar", "modding"]
+readme = "../README.md"
 
 version.workspace = true
 authors.workspace = true

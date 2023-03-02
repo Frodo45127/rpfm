@@ -2,10 +2,11 @@
 name = "rpfm_cli"
 build = "build.rs"
 description = "A CLI tool to automate all your Total War modding needs."
-license-file = "../LICENSE"
+license-file = "MIT"
 repository = "https://github.com/Frodo45127/rpfm"
 categories = ["command-line-utilities", "games"]
 keywords = ["totalwar", "modding", "cli"]
+readme = "../README.md"
 
 version.workspace = true
 authors.workspace = true
