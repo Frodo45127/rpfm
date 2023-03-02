@@ -1,0 +1,85 @@
+name: Post-Release updates
+
+on:
+  release:
+    types: [published]
+
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  publish_aur_package:
+    name: Publish AUR package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Check Version Format in Tag
+        id: check_version_format
+        uses: nowsprinting/check-version-format-action@v3.2.4
+
+      - name: Check the release type
+        id: check_version_format_bash
+        shell: bash
+        run: |
+          if [[ ${{ steps.check_version_format.outputs.patch }} -gt 99 ]]; then
+            echo "is_beta=1" >> $GITHUB_OUTPUT
+          else
+            echo "is_beta=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Publish AUR package
+        uses: anas-elgarhy/aur-release-action@v4.1
+        if: steps.check_version_format_bash.outputs.is_beta == 1
+        with:
+          package_name: rpfm-bin # Use this if the package name in AUR is different from the repository name
+          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }} # The private SSH key to use to push the changes to the AUR
+          github_token: ${{ secrets.COMMIT_TOKEN }} # The GitHub token to use to update the PKGBUILD file and the AUR submodule
+          pkgbuild_path: install/arch/rpfm-bin/PKGBUILD # Use this if the PKGBUILD file is not in the root directory
+          aur_submodule_path: install/arch/rpfm-bin
+          git_username: ${{ secrets.AUR_USERNAME }} # Use this if you want to change the git username (recommended)
+          git_email: ${{ secrets.AUR_EMAIL }} # Use this if you want to change the git email (recommended)
+          commit_message: ${{ github.ref }}
+
+  publish_cargo_crate:
+    name: Publish Cargo crate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Version Format in Tag
+        id: check_version_format
+        uses: nowsprinting/check-version-format-action@v3.2.4
+
+      - name: Check the release type
+        id: check_version_format_bash
+        shell: bash
+        run: |
+          if [[ ${{ steps.check_version_format.outputs.patch }} -gt 99 ]]; then
+            echo "is_beta=1" >> $GITHUB_OUTPUT
+          else
+            echo "is_beta=0" >> $GITHUB_OUTPUT
+          fi
+
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - uses: katyo/publish-crates@v2
+        if: steps.check_version_format_bash.outputs.is_beta == 1
+        with:
+          path: './rpfm_lib'
+          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+      - uses: katyo/publish-crates@v2
+        if: steps.check_version_format_bash.outputs.is_beta == 1
+        with:
+          path: './rpfm_extensions'
+          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+      - uses: katyo/publish-crates@v2
+        if: steps.check_version_format_bash.outputs.is_beta == 1
+        with:
+          path: './rpfm_cli'
+          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
