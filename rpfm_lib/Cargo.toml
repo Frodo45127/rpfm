@@ -1,6 +1,10 @@
 [package]
 name = "rpfm_lib"
 description = "This crate contains the basic functionality for interacting with Total War files."
+license-file = "../LICENSE"
+repository = "https://github.com/Frodo45127/rpfm"
+categories = ["games"]
+keywords = ["totalwar", "modding"]
 
 version.workspace = true
 authors.workspace = true

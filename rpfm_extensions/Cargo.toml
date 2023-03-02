@@ -1,6 +1,10 @@
 [package]
 name = "rpfm_extensions"
-description = "This crate contains extended functionality over the RPFM Lib crate, meaning stuff that didn't fit in there, it's here."
+description = "This crate contains extended functionality (dependencies manager, global search,...) over the `rpfm_lib` crate, meaning stuff that didn't fit in there, it's here."
+license-file = "../LICENSE"
+repository = "https://github.com/Frodo45127/rpfm"
+categories = ["games"]
+keywords = ["totalwar", "modding"]
 
 version.workspace = true
 authors.workspace = true
@@ -10,7 +14,7 @@ rust-version.workspace = true
 [dependencies]
 
 # Internal dependencies.
-rpfm_lib = { path = "../rpfm_lib", features = ["integration_log", "integration_assembly_kit", "support_error_bincode"] }
+rpfm_lib = { path = "../rpfm_lib", version = "3.99.118", features = ["integration_log", "integration_assembly_kit", "support_error_bincode"] }
 
 # Basic get/set support.
 getset = "^0.1"

@@ -1,7 +1,11 @@
 [package]
 name = "rpfm_cli"
 build = "build.rs"
-description = "A CLI tool to automate all your modding needs."
+description = "A CLI tool to automate all your Total War modding needs."
+license-file = "../LICENSE"
+repository = "https://github.com/Frodo45127/rpfm"
+categories = ["command-line-utilities", "games"]
+keywords = ["totalwar", "modding", "cli"]
 
 version.workspace = true
 authors.workspace = true
@@ -11,8 +15,8 @@ rust-version.workspace = true
 [dependencies]
 
 # Internal dependencies.
-rpfm_lib = { path = "../rpfm_lib", features = ["integration_log", "integration_git"] }
-rpfm_extensions = { path = "../rpfm_extensions" }
+rpfm_lib = { path = "../rpfm_lib", version = "3.99.118", features = ["integration_log", "integration_git"] }
+rpfm_extensions = { path = "../rpfm_extensions", version = "3.99.118" }
 
 # Error managing.
 anyhow = "1.0"
