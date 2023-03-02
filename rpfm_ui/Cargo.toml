@@ -2,7 +2,7 @@
 name = "rpfm_ui"
 build = "build.rs"
 description = "A modding tool for Total War games."
-license-file = "MIT"
+license = "MIT"
 repository = "https://github.com/Frodo45127/rpfm"
 categories = ["games"]
 keywords = ["totalwar", "modding"]
