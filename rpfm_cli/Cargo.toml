@@ -6,7 +6,7 @@ license = "MIT"
 repository = "https://github.com/Frodo45127/rpfm"
 categories = ["command-line-utilities", "games"]
 keywords = ["totalwar", "modding", "cli"]
-readme = "../README.md"
+readme = "README.md"
 
 version.workspace = true
 authors.workspace = true
