@@ -78,6 +78,20 @@ impl GitIntegration {
         file.write_all(contents.as_bytes()).map_err(From::from)
     }
 
+    /// This function switches the branch of a `GitIntegration` to the provided refspec.
+    pub fn checkout_branch(&self, repo: &Repository, refs: &str) -> Result<()> {
+        let head = repo.head().unwrap();
+        let oid = head.target().unwrap();
+        let commit = repo.find_commit(oid)?;
+        let branch_name = refs.splitn(3, "/").collect::<Vec<_>>()[2].to_owned();
+        let _ = repo.branch(&branch_name, &commit, false);
+
+        let branch_object = repo.revparse_single(&refs)?;
+        repo.checkout_tree(&branch_object, None)?;
+        repo.set_head(&refs)?;
+        Ok(())
+    }
+
     /// This function checks if there is a new update for the current repo.
     pub fn check_update(&self) -> Result<GitResponse> {
         let mut repo = match Repository::open(&self.local_path) {
@@ -97,7 +111,7 @@ impl GitIntegration {
 
         // In case we're not in master, checkout the master branch.
         if current_branch_name != master_refname {
-            repo.set_head(&master_refname)?;
+            self.checkout_branch(&repo, &master_refname)?;
         }
 
         // Fetch the info of the master branch.
@@ -110,8 +124,9 @@ impl GitIntegration {
 
         // Reset the repo to his original state after the check
         if current_branch_name != master_refname {
-            let _ = repo.set_head(&current_branch_name);
+            self.checkout_branch(&repo, &current_branch_name)?;
         }
+
         if stash_id.is_ok() {
             let _ = repo.stash_pop(0, None);
         }
@@ -147,7 +162,7 @@ impl GitIntegration {
                 let _ = std::fs::remove_dir_all(&self.local_path);
                 DirBuilder::new().recursive(true).create(&self.local_path)?;
                 match Repository::clone(&self.url, &self.local_path) {
-                    Ok(_) => return Ok(()),
+                    Ok(repo) => repo,
                     Err(_) => return Err(RLibError::GitErrorDownloadFromRepo(self.url.to_owned())),
                 }
             }
@@ -163,7 +178,7 @@ impl GitIntegration {
 
         // In case we're not in master, checkout the master branch.
         if current_branch_name != master_refname {
-            repo.set_head(&master_refname)?;
+            self.checkout_branch(&repo, &master_refname)?;
         }
 
         // If it worked, now we have to do a pull from master. Sadly, git2-rs does not support pull.
@@ -180,7 +195,7 @@ impl GitIntegration {
 
             // Reset the repo to his original state after the check
             if current_branch_name != master_refname {
-                let _ = repo.set_head(&current_branch_name);
+                self.checkout_branch(&repo, &current_branch_name)?;
             }
             if stash_id.is_ok() {
                 let _ = repo.stash_pop(0, None);
@@ -214,7 +229,7 @@ impl GitIntegration {
 
             // Reset the repo to his original state after the check
             if current_branch_name != master_refname {
-                let _ = repo.set_head(&current_branch_name);
+                self.checkout_branch(&repo, &current_branch_name)?;
             }
             if stash_id.is_ok() {
                 let _ = repo.stash_pop(0, None);
