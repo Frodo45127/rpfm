@@ -24,7 +24,7 @@ integration_log = ["dep:backtrace", "dep:log", "dep:os_info", "dep:sentry", "dep
 integration_sqlite = ["dep:rusqlite", "dep:r2d2_sqlite", "dep:r2d2"]
 
 support_rigidmodel = []
-support_uic = []
+support_uic = ["dep:content_inspector"]
 
 [dependencies]
 

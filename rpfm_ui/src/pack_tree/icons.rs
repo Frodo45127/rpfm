@@ -21,7 +21,7 @@ use cpp_core::Ref;
 
 use std::sync::atomic::AtomicPtr;
 
-use rpfm_lib::files::{animpack, anim_fragment, anims_table, audio, esf, FileType, image, loc, matched_combat, pack, portrait_settings, rigidmodel, soundbank, text, text::*, unit_variant, video};
+use rpfm_lib::files::{animpack, anim_fragment, anims_table, audio, esf, FileType, image, loc, matched_combat, pack, portrait_settings, rigidmodel, soundbank, text, text::*, unit_variant, video, uic};
 use rpfm_lib::{REGEX_DB, REGEX_PORTRAIT_SETTINGS};
 
 use crate::pack_tree::{ROOT_NODE_TYPE_EDITABLE_PACKFILE, ROOT_NODE_TYPE};
@@ -80,6 +80,7 @@ pub struct Icons {
 
     pub rigid_model: AtomicPtr<QIcon>,
     pub unit_variant: AtomicPtr<QIcon>,
+    pub uic: AtomicPtr<QIcon>,
     pub video: AtomicPtr<QIcon>,
 }
 
@@ -127,6 +128,7 @@ impl Icons {
 
             rigid_model: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("application-x-blender"))),
             unit_variant: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("application-vnd.openxmlformats-officedocument.spreadsheetml.sheet"))),
+            uic: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("application-x-designer"))),
             video: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("video-webm"))),
         }
     }
@@ -188,6 +190,10 @@ impl Icons {
                     else if path.ends_with(".png") { &self.image_png }
                     else if path.ends_with(".gif") { &self.image_gif }
                     else { &self.image_generic }
+                }
+
+                else if cfg!(feature = "support_uic") && path.starts_with(uic::BASE_PATH) && uic::EXTENSIONS.iter().any(|x| path.ends_with(x) || !path.contains('.')) {
+                    &self.uic
                 }
 
                 else if let Some((_, text_type)) = text::EXTENSIONS.iter().find(|(extension, _)| path.ends_with(extension)) {
@@ -296,7 +302,7 @@ impl Icons {
                             None => &self.text_generic,
                         }
                     },
-                    FileType::UIC => &self.file,
+                    FileType::UIC => &self.uic,
                     FileType::UnitVariant => &self.unit_variant,
                     FileType::Video => &self.video,
                     FileType::Unknown => &self.file,

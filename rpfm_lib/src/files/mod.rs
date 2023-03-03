@@ -1693,9 +1693,7 @@ impl RFile {
         let path = self.path.to_lowercase();
 
         // TODO: Add autodetection to these, somehow
-        //--Anim,
         //--GroupFormations,
-        //--UIC,
 
         if path.ends_with(pack::EXTENSION) {
             self.file_type = FileType::Pack;
@@ -1727,6 +1725,10 @@ impl RFile {
 
         else if image::EXTENSIONS.iter().any(|x| path.ends_with(x)) {
             self.file_type =  FileType::Image;
+        }
+
+        else if cfg!(feature = "support_uic") && path.starts_with(uic::BASE_PATH) && uic::EXTENSIONS.iter().any(|x| path.ends_with(x) || !path.contains('.')) {
+            self.file_type =  FileType::UIC;
         }
 
         else if text::EXTENSIONS.iter().any(|(x, _)| path.ends_with(x)) {

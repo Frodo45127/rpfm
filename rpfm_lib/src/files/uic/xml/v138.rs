@@ -8,104 +8,90 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! This is a module to read/write binary UIC (UI Component) files.
+//! This is a module to read/write UIC layouts, v138, xml format.
 //!
-//! UIC files define the layout and functionality of the UI. Binaries until 3k.
-//! From there onwards they're in xml format.
-//!
-//! Unifinished module, do not use.
+//! For internal use only.
 
 use serde_derive::{Serialize, Deserialize};
 
 use std::collections::HashMap;
-use std::io::SeekFrom;
 
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::Result;
-use crate::files::{DecodeableExtraData, Decodeable, EncodeableExtraData, Encodeable};
-
-pub const BASE_PATH: &str = "ui";
-
-/// Extension of UIC files in some games (they don't have extensions in some games).
-pub const EXTENSIONS: [&str; 2] = [".cml", ".xml"];
-
-mod xml;
-
-//#[cfg(test)] mod uic_test;
+use crate::files::{DecodeableExtraData, Decodeable, EncodeableExtraData, Encodeable, uic::UIC};
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
-/// This holds an entire UI Component decoded in memory.
 #[derive(PartialEq, Clone, Debug, Default, Serialize, Deserialize)]
-pub struct UIC {
+#[serde(rename = "layout")]
+pub struct XmlLayout {
     version: u32,
-    source_is_xml: bool,
     comment: String,
     precache_condition: String,
-    hierarchy: HashMap<String, HierarchyItem>,
-    components: HashMap<String, Component>,
+    hierarchy: HashMap<String, XmlHierarchyItem>,
+    components: HashMap<String, XmlComponent>,
 }
 
 #[derive(PartialEq, Clone, Debug, Default, Serialize, Deserialize)]
-pub struct HierarchyItem {
+pub struct XmlHierarchyItem {
     this: String,
-    childs: HashMap<String, HierarchyItem>,
+    #[serde(rename = "$value")] childs: Option<Vec<Self>>,
 }
 
 #[derive(PartialEq, Clone, Debug, Default, Serialize, Deserialize)]
-pub struct Component {
+pub struct XmlComponent {
     this: String,
     id: String,
     allowhorizontalresize: Option<bool>,
     priority: Option<u8>,
     tooltipslocalised: Option<bool>,
     uniqueguid: String, // Same as this
-    update_when_not_visible: Option<bool>,
-    current_state: Option<String>, //="B99323DE-629E-4A03-B0AC63E5D0C26CCC"
-    default_state: Option<String>, //="B99323DE-629E-4A03-B0AC63E5D0C26CCC">
+    updatewhennotvisible: Option<bool>,
+    currentstate: Option<String>, //="B99323DE-629E-4A03-B0AC63E5D0C26CCC"
+    defaultstate: Option<String>, //="B99323DE-629E-4A03-B0AC63E5D0C26CCC">
 
-    callbackwithcontextlist: Option<HashMap<String, CallbackWithContext>>,
-    componentimages: Option<HashMap<String, ComponentImage>>,
-    states: Option<HashMap<String, State>>,
-    animations: Option<HashMap<String, Animation>>,
-    layout_engine: Option<LayoutEngine>,
+    callbackwithcontextlist: Option<HashMap<String, XmlCallbackWithContext>>,
+    componentimages: Option<HashMap<String, XmlComponentImage>>,
+    states: Option<HashMap<String, XmlState>>,
+    animations: Option<HashMap<String, XmlAnimation>>,
+    #[serde(rename = "LayoutEngine")] layout_engine: Option<XmlLayoutEngine>,
 }
 
 #[derive(PartialEq, Clone, Debug, Default, Serialize, Deserialize)]
-pub struct CallbackWithContext {
+pub struct XmlCallbackWithContext {
     callback_id: String,
     context_object_id: Option<String>,
     context_function_id: Option<String>,
 
-    child_m_user_properties: Option<HashMap<String, Property>>,
+    child_m_user_properties: Option<HashMap<String, XmlProperty>>,
 }
 
 #[derive(PartialEq, Clone, Debug, Default, Serialize, Deserialize)]
-pub struct Property {
+pub struct XmlProperty {
     name: String,
     value: String,
 }
 
 #[derive(PartialEq, Clone, Debug, Default, Serialize, Deserialize)]
-pub struct ComponentImage {
+pub struct XmlComponentImage {
     this: String,
     uniqueguid: String,
     imagepath: Option<String>,
 }
 
 #[derive(PartialEq, Clone, Debug, Default, Serialize, Deserialize)]
-pub struct State {
+pub struct XmlState {
     this: String,
     name: String,
     width: Option<u32>,
     text: Option<String>,
-    text_h_align: Option<String>,
-    text_y_offset: Option<String>,
-    text_h_behaviour: Option<String>,
-    text_localised: Option<bool>,
-    text_label: Option<String>,
+    texthalign: Option<String>,
+    textyoffset: Option<String>,
+    texthbehaviour: Option<String>,
+    textlocalised: Option<bool>,
+    textlabel: Option<String>,
     font_m_font_name: Option<String>,
     font_m_size: Option<u8>,
     font_m_colour: Option<String>,
@@ -113,11 +99,11 @@ pub struct State {
     fontcat_name: Option<String>,
     interactive: Option<bool>,
     uniqueguid: String, // Same as this
-    imagemetrics: Option<HashMap<String, Image>>,
+    imagemetrics: Option<HashMap<String, XmlImage>>,
 }
 
 #[derive(PartialEq, Clone, Debug, Default, Serialize, Deserialize)]
-pub struct Image {
+pub struct XmlImage {
     this: String,
     uniqueguid: String,
     componentimage: String,
@@ -131,13 +117,13 @@ pub struct Image {
 }
 
 #[derive(PartialEq, Clone, Debug, Default, Serialize, Deserialize)]
-pub struct Animation {
+pub struct XmlAnimation {
     id: String,
-    frames: Vec<Frame>,
+    frames: Vec<XmlFrame>,
 }
 
 #[derive(PartialEq, Clone, Debug, Default, Serialize, Deserialize)]
-pub struct Frame {
+pub struct XmlFrame {
     interpolationtime: Option<u32>,
     interpolationpropertymask: Option<u8>,
     targetmetrics_m_height: Option<i32>,
@@ -145,42 +131,44 @@ pub struct Frame {
 }
 
 #[derive(PartialEq, Clone, Debug, Default, Serialize, Deserialize)]
-pub struct LayoutEngine {
-    r#type: String,
-    spacing: String,
+pub struct XmlLayoutEngine {
+    #[serde(rename = "type")] layout_type: String,
+    spacing: Option<String>,
     sizetocontent: bool,
-    margins: String,
-    columnwidths: Vec<i32>,
+    margins: Option<String>,
+    columnwidths: Option<HashMap<String, XmlLayoutEngineColumn>>,
+}
+
+#[derive(PartialEq, Clone, Debug, Default, Serialize, Deserialize)]
+pub struct XmlLayoutEngineColumn {
+    width: i32,
 }
 
 //---------------------------------------------------------------------------//
-//                           Implementation of Text
+//                           Implementation
 //---------------------------------------------------------------------------//
 
-impl Decodeable for UIC {
+impl Decodeable for XmlLayout {
 
-    fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
-        let mut data_local = vec![];
-        let read = data.read_to_end(&mut data_local)?;
-        data.seek(SeekFrom::Current(-(read as i64)))?;
-
-        // TODO: Unhardcode this version.
-        if content_inspector::inspect(&data_local).is_text() {
-            Ok(Self::from(xml::v138::XmlLayout::decode(data, extra_data)?))
-        } else {
-            todo!()
-        }
+    fn decode<R: ReadBytes>(data: &mut R, _extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
+        serde_xml_rs::from_reader(data).map_err(From::from)
     }
 }
 
-impl Encodeable for UIC {
+impl Encodeable for XmlLayout {
 
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
-        if self.source_is_xml {
-            //xml::v138::XmlLayout::encode(&mut self, buffer, extra_data)
-            todo!()
-        } else {
-            todo!()
-        }
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+        serde_xml_rs::to_writer(buffer, self).map_err(From::from)
+    }
+}
+
+impl From<XmlLayout> for UIC {
+    fn from(value: XmlLayout) -> Self {
+        let mut uic = Self::default();
+        uic.source_is_xml = true;
+        uic.version = value.version;
+        uic.comment = value.comment;
+        uic.precache_condition = value.precache_condition;
+        uic
     }
 }

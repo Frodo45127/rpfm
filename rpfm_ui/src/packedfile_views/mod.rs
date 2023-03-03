@@ -63,7 +63,7 @@ use self::video::PackedFileVideoView;
 use self::rigidmodel::PackedFileRigidModelView;
 
 #[cfg(feature = "support_uic")]
-use self::uic::PackedFileUICView;
+use self::uic::FileUICView;
 use self::unit_variant::PackedFileUnitVariantView;
 
 pub mod anim_fragment;
@@ -164,9 +164,9 @@ pub enum View {
     RigidModel(Arc<PackedFileRigidModelView>),
     Table(Arc<PackedFileTableView>),
     Text(Arc<PackedFileTextView>),
-/*
+
     #[cfg(feature = "support_uic")]
-    UIC(Arc<PackedFileUICView>),*/
+    UIC(Arc<FileUICView>),
     UnitVariant(Arc<PackedFileUnitVariantView>),
     Video(Arc<PackedFileVideoView>),
     None,

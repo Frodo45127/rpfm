@@ -24,75 +24,60 @@ use qt_core::QBox;
 use qt_core::QFlags;
 use qt_core::QPtr;
 
-use std::rc::Rc;
+use anyhow::Result;
+use getset::Getters;
+
 use std::sync::Arc;
 
-use rpfm_error::{ErrorKind, Result};
+use rpfm_lib::files::{FileType, uic::UIC};
 
-use rpfm_lib::packedfile::PackedFileType;
-use rpfm_lib::packedfile::uic::UIC;
-use rpfm_lib::packfile::packedfile::RFileInfo;
-
-use crate::app_ui::AppUI;
-use crate::CENTRAL_COMMAND;
-use crate::communications::*;
 use crate::locale::qtr;
-use crate::packedfile_views::{FileView, PackFileContentsUI};
-use crate::utils::create_grid_layout;
+use crate::packedfile_views::FileView;
+use crate::utils::*;
 use super::{ViewType, View};
+
+const VIEW_DEBUG: &str = "rpfm_ui/ui_templates/uic_view.ui";
+const VIEW_RELEASE: &str = "ui/uic_view.ui";
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
-/// This struct contains the view of the PackFile Settings.
-pub struct PackedFileUICView {
-    viewer: QBox<QGraphicsView>,
+#[derive(Getters)]
+#[getset(get = "pub")]
+pub struct FileUICView {
+    viewer: QPtr<QGraphicsView>,
     scene: QBox<QGraphicsScene>,
-    properties: QBox<QWidget>,
+    properties: QPtr<QWidget>,
 }
 
 //-------------------------------------------------------------------------------//
 //                             Implementations
 //-------------------------------------------------------------------------------//
 
-/// Implementation for `PackedFileUICView`.
-impl PackedFileUICView {
+impl FileUICView {
 
-    /// This function creates a new PackedFileUICView, and sets up his slots and connections.
+    /// This function creates a new FileUICView, and sets up his slots and connections.
     pub unsafe fn new_view(
         file_view: &mut FileView,
-        _app_ui: &Rc<AppUI>,
-        _pack_file_contents_ui: &Rc<PackFileContentsUI>
-    ) -> Result<Option<RFileInfo>> {
+        data: &UIC,
+    ) -> Result<()> {
 
-        let receiver = CENTRAL_COMMAND.send_background(Command::DecodePackedFile(file_view.get_path()));
-        let response = CentralCommand::recv(&receiver);
-        let (data, packed_file_info) = match response {
-            Response::UICRFileInfo((data, packed_file_info)) => (data, packed_file_info),
-            Response::Error(error) => return Err(error),
-            Response::Unknown => return Err(ErrorKind::PackedFileTypeUnknown.into()),
-            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-        };
-
-        let layout: QPtr<QGridLayout> = file_view.get_mut_widget().layout().static_downcast();
-        let scene = QGraphicsScene::from_q_object(file_view.get_mut_widget());
-        let viewer = QGraphicsView::from_q_widget(file_view.get_mut_widget());
+        let template_path = if cfg!(debug_assertions) { VIEW_DEBUG } else { VIEW_RELEASE };
+        let main_widget = load_template(file_view.main_widget(), template_path)?;
+        let viewer: QPtr<QGraphicsView> = find_widget(&main_widget.static_upcast(), "viewer_graphics_view")?;
+        let properties: QPtr<QWidget> = find_widget(&main_widget.static_upcast(), "properties_widget")?;
+        let scene = QGraphicsScene::from_q_object(&main_widget);
         viewer.set_scene(&scene);
         viewer.set_drag_mode(DragMode::ScrollHandDrag);
 
-        let test_item = scene.add_text_1a(&qt_core::QString::from_std_str(&format!("{:?}", data)));
+        let test_item = scene.add_text_1a(&qt_core::QString::from_std_str(format!("{data:?}")));
         let flags = QFlags::from(qt_widgets::q_graphics_item::GraphicsItemFlag::ItemIsMovable.to_int());
         test_item.as_ptr().static_upcast::<QGraphicsItem>().set_flags(flags);
 
-        let properties = QWidget::new_1a(file_view.get_mut_widget());
-        let properties_layout = create_grid_layout(properties.static_upcast());
-
+        let properties_layout: QPtr<QGridLayout> = properties.layout().static_downcast();
         let test_label = QLabel::from_q_string_q_widget(&qtr("format"), &properties);
         properties_layout.add_widget_5a(&test_label, 0, 0, 1, 1);
-
-        layout.add_widget_5a(&viewer, 0, 0, 1, 1);
-        layout.add_widget_5a(&properties, 0, 1, 1, 1);
 
         let view = Arc::new(Self {
             scene,
@@ -100,19 +85,11 @@ impl PackedFileUICView {
             properties,
         });
 
-        //let pack_file_settings_slots = PackFileSettingsSlots::new(
-        //    &pack_file_settings_view,
-        //    app_ui,
-        //    pack_file_contents_ui
-        //);
-
-        //connections::set_connections(&pack_file_settings_view, &pack_file_settings_slots);
-        file_view.packed_file_type = PackedFileType::UIC;
-        file_view.view = ViewType::Internal(View::UIC(view));
-        Ok(Some(packed_file_info))
+        file_view.file_type = FileType::UIC;
+        file_view.view_type = ViewType::Internal(View::UIC(view));
+        Ok(())
     }
 
-    /// This function saves a PackFileSettingsView into a PackFileSetting.
     pub unsafe fn save_view(&self) -> UIC {
         let uic = UIC::default();
 
