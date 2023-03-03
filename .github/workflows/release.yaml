@@ -65,7 +65,7 @@ jobs:
           ${{ matrix.DDISK }}:\Craft\craft\craftenv.ps1
 
           # TODO: Build this from tag.
-          cp C:\QtRMV2Widget.lib C:\actions-runner\_work\rpfm\rpfm\libs\
+          cp C:\QtRMV2Widget.lib C:\actions-runner\_work\rpfm\rpfm\3rdparty\builds\
           cd C:\actions-runner\_work\rpfm\rpfm
 
           # First build every executable one by one, so we can speed up compilation.
@@ -137,7 +137,7 @@ jobs:
 
           mkdir imageformats
           cp ${{ matrix.DDISK }}:\Craft\plugins\imageformats\*.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\imageformats\
-          cp C:\actions-runner\_work\rpfm\rpfm/libs/qdds.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\imageformats\
+          cp C:\actions-runner\_work\rpfm\rpfm/3rdparty/builds/qdds.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\imageformats\
 
           # TODO: Check if we have to copy the kf5 folder.
 
