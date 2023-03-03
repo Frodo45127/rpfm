@@ -15,6 +15,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - Split "rpfm_lib" into "rpfm_lib" and "rpfm_extensions".
 - UI largely refactored from hardcoded versbose UI to a more template-based iconic UI.
 - Added ArchLinux PKGBUILD for rpfm-bin (precompiled stable releases) and rpfm-git (latest git builds).
+- Added rpfm_lib, rpfm_extensions and rpfm_cli to crates.io.
 - Added diagnostics over Portrait Settings files.
 - Added message widget on main window (used by a few messages for now).
 - ESF Editor is out of beta and can be used without changing settings.
