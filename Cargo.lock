@@ -3665,8 +3665,9 @@ dependencies = [
 
 [[package]]
 name = "zip-extract"
-version = "0.1.1"
-source = "git+https://github.com/MCOfficer/zip-extract/?branch=dependabot/cargo/zip-0.6.4#5b0ad9904cb4fa8d214a47054aa1adaf790b86f5"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bb654964c003959ed64cbd0d7b329bcdcbd9690facd50c8617748d3622543972"
 dependencies = [
  "log",
  "thiserror",

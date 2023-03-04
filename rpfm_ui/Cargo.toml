@@ -86,7 +86,7 @@ itertools = "^0.10"
 # Autoupdate support.
 self_update = { version = "^0.36", features = ["archive-zip", "compression-zip-deflate", "compression-zip-bzip2", "compression-flate2"] }
 tempfile = "^3.1"
-zip-extract = { git = "https://github.com/MCOfficer/zip-extract/", branch = "dependabot/cargo/zip-0.6.4" }
+zip-extract = "^0.1"
 reqwest = "^0.11"
 
 # Windows resources support.
