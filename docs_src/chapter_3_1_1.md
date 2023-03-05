@@ -7,18 +7,17 @@ Here, we can find the *basic* actions:
 - `Open PackFile`: Opens one or more PackFiles in RPFM.
 - `Save PackFile`: Saves the changes done in a PackFile to disk.
 - `Save PackFile As`: Saves the current PackFile with another name.
-- `Preferences`: Open the Preferences window.
+- `Settings`: Open the Settings window.
 - `Quit`: Makes you enter in a lottery. Seriously.
 
 And some more... *specific* ones:
 - `Install`: Copies the currently open PackFile to the data folder of the game.
 - `Unistall`: Removes the currently open PackFile from the data folder of the game.
 - `Open Recent…/xxx.pack`: Open a recently open PackFile.
-- `Open Recent…/xxx.pack`: Open a recently open PackFile.
 - `Open From Content…/xxx.pack`: Open the selected PackFile from the *Content* folder (Workshop mods) of the game. Requires the game's path to be configured.
 - `Open From Data…/xxx.pack`: Open the selected PackFile from the *Data* folder of the game. Requires the game's path to be configured.
-- `Open From Autosave…/xxx.pack`: Open the selected PackFile from the *Autosave* folder. The autosaves are sorted from newest to oldest, so if you want to load the last autosave done, pick the first one.
-- `Load All CA PackFiles`: Creates a fake PackFile in memory and tries to load into it all the data from every Vanilla PackFile of the game. Keep in mind that this takes a while.
+- `Open From Autosave…/xxx.pack`: Open the selected PackFile from the *Autosave* folder. The autosaves are Per-Pack and sorted from newest to oldest, so if you want to load the last autosave done, pick the first one.
+- `Load All CA PackFiles`: Creates a fake PackFile in memory and tries to load into it all the data from every Vanilla PackFile of the game. Keep in mind that this takes a while. Disabled if you have dependencies loaded in the dependencies panel.
 - `Change PackFile Type`: Allows you to change the open PackFile's Type and configure some options for it.
 
 About the **PackFile Types**, it's what the game uses to *load in order* all the data of the game. There are the following types, in *the order the game will load them*:

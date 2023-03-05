@@ -9,5 +9,6 @@ This menu contains... special features implemented for specific games. Basically
     - **Loc**: Removes unchanged rows from vanilla.
     - **Xml**: Removes xml files under the `terrain/tiles` folder, as those are leftovers of Terry's exports..
 - `Generate Dependencies Cache`: generates a cache used for things like dependency checking, diagnostics, .... Doesn't work for Empire and Napoleon, yet.
+- `Live Export`: Exports all script and ui files from the open Pack to the game's data folder with a random number attached, and puts all path mappings into a file in the exe's folder. That way you can, ingame, load that file and it should allow you to load said scripts and ui files without restarting the game.
 
 There's also a `Rescue PackFile` feature that you SHOULD NOT USE UNLESS INSTRUCTED.

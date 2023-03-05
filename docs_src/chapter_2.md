@@ -4,12 +4,13 @@
 
 After we start RPFM for the first time, we have to configure a couple of things.
 
-First, it should promt you to update your schemas/templates. Hit yes. Schemas and templates some extra files used for some features of RPFM, which we'll explain later. For now, just remember you should always have them up-to-date.
+First, it should promt you to update your schemas. Hit yes. Schemas are files used to be able to edit tables, so you need them. Just remember you should always have them up-to-date.
 
-Then, we need to go to `PackFile/Preferences`, and the window above this will popup. It seems like a lot of new stuff to know, but it's really simple. First the paths:
-- `XXX folder`: These are the folders where your games are. Not where /data is, but **WHERE THE .EXE IS!!!** RPFM uses them for plenty of things, so remember to set them for the games you have.
+Then, we need to go to `Pack/Settings`, and the window above this will popup. It seems like a lot of new stuff to know, but it's really simple. First the paths:
+- `Game folder`: These are the folders where your games are. Not where /data is, but **WHERE THE .EXE IS!!!** RPFM uses them for plenty of things, so remember to set them for the games you have.
+- `Assembly Kit folder`: These are the folders where the Assembly Kit for each game is installed, if any.
 - `MyMod's folder`: it's the path where your ***MyMod*** will be stored. ***MyMod*** are explained in a later chapter of this documentation, so for now you just need to know that it's a path RPFM will use to store stuff for your mods. Set it pointing to an empty folder.
-- `7-Zip Folder`: if you have 7-Zip installed, put here the folder where the 7-Zip exe is. This is needed to support compression. Without it, if you try to compress a PackFile, it'll fail.
+- `7-Zip Folder`: if you have 7-Zip installed, put here the folder where the 7-Zip exe is. This is needed to support compression. Without it, if you try to compress a Pack, it'll fail.
 
 Next, all those checkboxes. You can get an explanation about what they do just by hovering them with the mouse, like this.
 
