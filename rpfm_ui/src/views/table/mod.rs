@@ -483,7 +483,7 @@ impl TableView {
         let label_all = QLabel::from_q_string_q_widget(&qtr("all"), &sidebar_widget);
         let sidebar_hide_checkboxes_all = QCheckBox::from_q_widget(&sidebar_widget);
         let sidebar_freeze_checkboxes_all = QCheckBox::from_q_widget(&sidebar_widget);
-        //sidebar_freeze_checkboxes_all.set_enabled(false);
+        sidebar_freeze_checkboxes_all.set_enabled(false);
 
         sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&sidebar_hide_checkboxes_all, QFlags::from(AlignmentFlag::AlignHCenter));
         sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&sidebar_freeze_checkboxes_all, QFlags::from(AlignmentFlag::AlignHCenter));
@@ -498,7 +498,7 @@ impl TableView {
             let column_name = QLabel::from_q_string_q_widget(&QString::from_std_str(utils::clean_column_names(column.name())), &sidebar_widget);
             let hide_show_checkbox = QCheckBox::from_q_widget(&sidebar_widget);
             let freeze_unfreeze_checkbox = QCheckBox::from_q_widget(&sidebar_widget);
-            //freeze_unfreeze_checkbox.set_enabled(false);
+            freeze_unfreeze_checkbox.set_enabled(false);
 
             sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&hide_show_checkbox, QFlags::from(AlignmentFlag::AlignHCenter));
             sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&freeze_unfreeze_checkbox, QFlags::from(AlignmentFlag::AlignHCenter));
