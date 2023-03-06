@@ -28,6 +28,9 @@ anyhow = "1.0"
 # Qt dependencies.
 cpp_core = "^0.6"
 qt_core = "^0.5"
+qt_gui = "^0.5"
+qt_widgets = "^0.5"
+qt_ui_tools = "^0.5"
 
 # Translation support.
 fluent = "^0.16"

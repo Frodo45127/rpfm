@@ -25,6 +25,8 @@ use std::sync::Arc;
 
 use rpfm_lib::integrations::log::info;
 
+use rpfm_ui_common::clone;
+
 use crate::app_ui::AppUI;
 use crate::packedfile_views::{DataSource, utils::set_modified};
 use crate::packfile_contents_ui::PackFileContentsUI;

@@ -17,6 +17,40 @@ use crate::settings::*;
 
 pub mod locale;
 pub mod settings;
+pub mod utils;
+
+/// This macro is used to clone the variables into the closures without the compiler complaining.
+///
+/// Mainly for use with UI stuff, but you can use it with anything clonable.
+#[macro_export]
+macro_rules! clone {
+    (@param _) => ( _ );
+    (@param $x:ident) => ( $x );
+    ($($n:ident),+ => move || $body:expr) => (
+        {
+            $( let $n = $n.clone(); )+
+            move || $body
+        }
+    );
+    ($($y:ident $n:ident),+ => move || $body:expr) => (
+        {
+            $( #[allow(unused_mut)] let mut $n = $n.clone(); )+
+            move || $body
+        }
+    );
+    ($($n:ident),+ => move |$($p:tt),+| $body:expr) => (
+        {
+            $( let $n = $n.clone(); )+
+            move |$(clone!(@param $p),)+| $body
+        }
+    );
+    ($($y:ident $n:ident),+ => move |$($p:tt),+| $body:expr) => (
+        {
+            $( #[allow(unused_mut)] let mut $n = $n.clone(); )+
+            move |$(clone!(@param $p),)+| $body
+        }
+    );
+}
 
 lazy_static!{
     pub static ref QUALIFIER: Arc<RwLock<String>> = Arc::new(RwLock::new("com".to_owned()));

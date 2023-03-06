@@ -30,6 +30,8 @@ use rpfm_lib::error::RLibError;
 use rpfm_lib::files::{ContainerPath, Decodeable, DecodeableExtraData, db::DB};
 use rpfm_lib::schema::{Definition, FieldType};
 
+use rpfm_ui_common::clone;
+
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};

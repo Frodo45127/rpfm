@@ -17,6 +17,7 @@ use qt_core::SlotNoArgs;
 
 use std::sync::Arc;
 
+use rpfm_ui_common::clone;
 use rpfm_ui_common::locale::tr;
 
 use crate::CENTRAL_COMMAND;

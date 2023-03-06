@@ -57,37 +57,6 @@ use crate::ui::*;
 use crate::ui_state::UIState;
 use crate::utils::*;
 
-/// This macro is used to clone the variables into the closures without the compiler complaining.
-/// This should be BEFORE the `mod xxx` stuff, so submodules can use it too.
-macro_rules! clone {
-    (@param _) => ( _ );
-    (@param $x:ident) => ( $x );
-    ($($n:ident),+ => move || $body:expr) => (
-        {
-            $( let $n = $n.clone(); )+
-            move || $body
-        }
-    );
-    ($($y:ident $n:ident),+ => move || $body:expr) => (
-        {
-            $( #[allow(unused_mut)] let mut $n = $n.clone(); )+
-            move || $body
-        }
-    );
-    ($($n:ident),+ => move |$($p:tt),+| $body:expr) => (
-        {
-            $( let $n = $n.clone(); )+
-            move |$(clone!(@param $p),)+| $body
-        }
-    );
-    ($($y:ident $n:ident),+ => move |$($p:tt),+| $body:expr) => (
-        {
-            $( #[allow(unused_mut)] let mut $n = $n.clone(); )+
-            move |$(clone!(@param $p),)+| $body
-        }
-    );
-}
-
 mod app_ui;
 mod backend;
 mod background_thread;

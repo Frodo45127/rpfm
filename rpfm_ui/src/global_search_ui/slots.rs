@@ -17,6 +17,8 @@ use qt_core::{SlotOfBool, SlotOfQModelIndex, SlotNoArgs, SlotOfQString};
 
 use rpfm_lib::integrations::log::*;
 
+use rpfm_ui_common::clone;
+
 use std::rc::Rc;
 
 use crate::app_ui::AppUI;

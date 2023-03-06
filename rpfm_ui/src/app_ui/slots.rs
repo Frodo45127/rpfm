@@ -47,6 +47,7 @@ use rpfm_lib::files::ContainerPath;
 use rpfm_lib::games::{pfh_file_type::PFHFileType, supported_games::*};
 use rpfm_lib::integrations::log::*;
 
+use rpfm_ui_common::clone;
 use rpfm_ui_common::locale::{qtr, tr, tre};
 
 use crate::app_ui::AppUI;

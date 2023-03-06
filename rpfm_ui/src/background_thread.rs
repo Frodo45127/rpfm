@@ -42,6 +42,7 @@ use rpfm_lib::integrations::{assembly_kit::*, git::*, log::*};
 use rpfm_lib::schema::*;
 use rpfm_lib::utils::*;
 
+use rpfm_ui_common::clone;
 use rpfm_ui_common::locale::tr;
 use rpfm_ui_common::PROGRAM_PATH;
 

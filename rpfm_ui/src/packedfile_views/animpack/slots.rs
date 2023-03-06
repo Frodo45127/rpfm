@@ -20,6 +20,8 @@ use std::sync::Arc;
 
 use rpfm_lib::files::ContainerPath;
 
+use rpfm_ui_common::clone;
+
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;

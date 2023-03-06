@@ -13,6 +13,8 @@ use qt_core::{SlotNoArgs, SlotOfQString};
 
 use rpfm_lib::integrations::log::*;
 
+use rpfm_ui_common::clone;
+
 use crate::utils::check_regex as check_regex_string;
 
 use super::*;

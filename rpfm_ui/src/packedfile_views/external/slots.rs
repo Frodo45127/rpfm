@@ -22,6 +22,8 @@ use std::env::temp_dir;
 use std::rc::Rc;
 use std::sync::Arc;
 
+use rpfm_ui_common::clone;
+
 use crate::app_ui::AppUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::{DataSource, PackedFileExternalView};

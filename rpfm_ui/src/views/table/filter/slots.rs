@@ -17,6 +17,8 @@ use qt_core::{SlotOfInt, SlotNoArgs, SlotOfQString};
 
 use std::sync::Arc;
 
+use rpfm_ui_common::clone;
+
 use crate::utils::check_regex;
 
 use super::*;

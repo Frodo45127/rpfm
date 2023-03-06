@@ -30,6 +30,7 @@ use std::fs::remove_dir_all;
 use std::rc::Rc;
 use std::process::Command as SystemCommand;
 
+use rpfm_ui_common::clone;
 use rpfm_ui_common::locale::tr;
 
 use crate::app_ui::AppUI;

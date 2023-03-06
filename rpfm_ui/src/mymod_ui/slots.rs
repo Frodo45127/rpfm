@@ -17,6 +17,8 @@ use qt_core::SlotNoArgs;
 
 use std::rc::Rc;
 
+use rpfm_ui_common::clone;
+
 use crate::mymod_ui::MyModUI;
 
 //-------------------------------------------------------------------------------//

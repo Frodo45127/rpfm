@@ -18,6 +18,8 @@ use qt_core::SlotNoArgs;
 use std::rc::Rc;
 use std::sync::Arc;
 
+use rpfm_ui_common::clone;
+
 use crate::app_ui::AppUI;
 use crate::packedfile_views::{ViewType, View};
 use crate::packfile_contents_ui::PackFileContentsUI;

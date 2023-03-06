@@ -33,6 +33,7 @@ use rpfm_lib::files::{ContainerPath, FileType, pack::*};
 use rpfm_lib::integrations::log::*;
 use rpfm_lib::utils::*;
 
+use rpfm_ui_common::clone;
 use rpfm_ui_common::locale::{qtr, tre};
 
 use crate::app_ui::AppUI;

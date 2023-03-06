@@ -33,7 +33,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --verbose --lib
+          args: --workspace --lib --exclude rpfm_ui_common
       
       - name: Build rpfm-cli
         uses: actions-rs/cargo@v1
@@ -45,4 +45,4 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --verbose --lib
+          args: --workspace --lib --exclude rpfm_ui_common

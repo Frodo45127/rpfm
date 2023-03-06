@@ -33,6 +33,8 @@ use std::sync::{Arc, atomic::Ordering, RwLock};
 use rpfm_lib::files::{ContainerPath, RFileDecoded, table::Table};
 use rpfm_lib::integrations::log::*;
 
+use rpfm_ui_common::clone;
+
 use crate::app_ui::AppUI;
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;

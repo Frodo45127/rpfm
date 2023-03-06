@@ -15,10 +15,12 @@ Module with the slots for Text Views.
 use qt_core::QBox;
 use qt_core::SlotNoArgs;
 
-use rpfm_lib::integrations::log::*;
-
 use std::rc::Rc;
 use std::sync::Arc;
+
+use rpfm_lib::integrations::log::*;
+
+use rpfm_ui_common::clone;
 
 use crate::app_ui::AppUI;
 use crate::packedfile_views::{DataSource, utils::set_modified};

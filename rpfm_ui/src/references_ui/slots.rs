@@ -15,9 +15,11 @@ Module with all the code related to the main `ReferencesUISlots`.
 use qt_core::QBox;
 use qt_core::SlotOfQModelIndex;
 
+use std::rc::Rc;
+
 use rpfm_lib::integrations::log::*;
 
-use std::rc::Rc;
+use rpfm_ui_common::clone;
 
 use crate::app_ui::AppUI;
 use crate::dependencies_ui::DependenciesUI;

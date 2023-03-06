@@ -19,6 +19,8 @@ use rodio::{Decoder, Sink};
 use std::io::Cursor;
 use std::sync::Arc;
 
+use rpfm_ui_common::clone;
+
 use super::FileAudioView;
 
 //-------------------------------------------------------------------------------//

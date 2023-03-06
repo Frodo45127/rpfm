@@ -24,6 +24,8 @@ use std::sync::Arc;
 
 use rpfm_lib::files::esf::NodeType;
 
+use rpfm_ui_common::clone;
+
 use crate::app_ui::AppUI;
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;

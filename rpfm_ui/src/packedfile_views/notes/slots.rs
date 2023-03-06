@@ -20,6 +20,8 @@ use getset::Getters;
 
 use std::sync::Arc;
 
+use rpfm_ui_common::clone;
+
 use crate::utils::show_dialog;
 
 use super::NotesView;

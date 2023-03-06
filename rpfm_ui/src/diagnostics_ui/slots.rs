@@ -23,6 +23,8 @@ use std::rc::Rc;
 
 use rpfm_lib::files::ContainerPath;
 
+use rpfm_ui_common::clone;
+
 use crate::app_ui::AppUI;
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;

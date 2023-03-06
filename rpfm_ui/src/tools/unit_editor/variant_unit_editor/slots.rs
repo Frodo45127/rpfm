@@ -23,6 +23,8 @@ use qt_core::SlotOfQString;
 
 use std::rc::Rc;
 
+use rpfm_ui_common::clone;
+
 use super::*;
 
 //-------------------------------------------------------------------------------//
