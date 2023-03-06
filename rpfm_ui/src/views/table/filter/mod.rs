@@ -29,7 +29,8 @@ use getset::Getters;
 
 use std::sync::Arc;
 
-use crate::locale::*;
+use rpfm_ui_common::locale::*;
+
 use crate::views::table::clean_column_names;
 use crate::utils::*;
 

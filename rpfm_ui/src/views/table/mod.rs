@@ -78,7 +78,9 @@ use rpfm_extensions::dependencies::TableReferences;
 use rpfm_lib::files::{FileType, db::DB, loc::Loc, table::*};
 use rpfm_lib::schema::{Definition, Field, FieldType, Schema};
 
-use crate::ASSETS_PATH;
+use rpfm_ui_common::ASSETS_PATH;
+use rpfm_ui_common::locale::{qtr, qtre, tr};
+
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
@@ -87,7 +89,6 @@ use crate::diagnostics_ui::DiagnosticsUI;
 use crate::GAME_SELECTED;
 use crate::ffi::*;
 use crate::global_search_ui::GlobalSearchUI;
-use crate::locale::{qtr, qtre, tr};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::{DataSource, utils::set_modified, View, ViewType};
 use crate::pack_tree::*;

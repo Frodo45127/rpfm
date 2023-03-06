@@ -48,11 +48,12 @@ use std::rc::Rc;
 
 use rpfm_lib::files::{ContainerPath, pack::RESERVED_NAME_NOTES};
 
+use rpfm_ui_common::locale::qtr;
+
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi::*;
-use crate::locale::qtr;
 use crate::packedfile_views::DataSource;
 use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::settings_ui::backend::*;

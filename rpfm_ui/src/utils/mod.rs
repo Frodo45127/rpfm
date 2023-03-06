@@ -55,9 +55,11 @@ use std::fs::File;
 use std::io::{BufReader, Read};
 use std::sync::atomic::{AtomicPtr, Ordering};
 
-use crate::{ASSETS_PATH, DARK_PALETTE, GAME_SELECTED, LIGHT_PALETTE, LIGHT_STYLE_SHEET, SENTRY_GUARD};
+use rpfm_ui_common::ASSETS_PATH;
+use rpfm_ui_common::locale::{qtr, qtre};
+
+use crate::{DARK_PALETTE, GAME_SELECTED, LIGHT_PALETTE, LIGHT_STYLE_SHEET, SENTRY_GUARD};
 use crate::ffi::*;
-use crate::locale::{qtr, qtre};
 use crate::setting_bool;
 use crate::STATUS_BAR;
 use crate::pack_tree::{get_color_correct, get_color_wrong, get_color_clean};

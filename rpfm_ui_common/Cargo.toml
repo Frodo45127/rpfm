@@ -1,0 +1,35 @@
+[package]
+name = "rpfm_ui_common"
+description = "This crate contains basic functionality shared between ui applications."
+license = "MIT"
+repository = "https://github.com/Frodo45127/rpfm"
+categories = ["games"]
+keywords = ["totalwar", "modding"]
+readme = "README.md"
+
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+
+# Internal dependencies.
+rpfm_lib = { path = "../rpfm_lib", version = "3.99.119", features = ["integration_log", "integration_git"] }
+rpfm_extensions = { path = "../rpfm_extensions", version = "3.99.119" }
+
+# Config dependencies.
+directories = "^4.0"
+lazy_static = "^1.2"
+
+# Error managing.
+anyhow = "1.0"
+
+# Qt dependencies.
+cpp_core = "^0.6"
+qt_core = "^0.5"
+
+# Translation support.
+fluent = "^0.16"
+fluent-bundle = "^0.15"
+unic-langid = { version = "^0.9", features = ["unic-langid-macros"] }

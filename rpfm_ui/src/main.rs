@@ -51,7 +51,6 @@ use rpfm_lib::integrations::log::*;
 use rpfm_lib::schema::Schema;
 
 use crate::communications::{CentralCommand, Command, Response};
-use crate::locale::Locale;
 use crate::pack_tree::icons::Icons;
 use crate::settings_ui::backend::*;
 use crate::ui::*;
@@ -97,7 +96,6 @@ mod dependencies_ui;
 mod diagnostics_ui;
 mod ffi;
 mod global_search_ui;
-mod locale;
 mod mymod_ui;
 mod network_thread;
 mod pack_tree;
@@ -138,35 +136,6 @@ lazy_static! {
         init_config_path().expect("Error while trying to initialize config path. We're fucked.");
         error_path().unwrap_or_else(|_| PathBuf::from("."))
     }, true, true).unwrap()));
-
-    /// Path were the stuff used by RPFM (settings, schemas,...) is. In debug mode, we just take the current path
-    /// (so we don't break debug builds). In Release mode, we take the `.exe` path.
-    #[derive(Debug)]
-    static ref RPFM_PATH: PathBuf = if cfg!(debug_assertions) {
-        std::env::current_dir().unwrap()
-    } else {
-        let mut path = std::env::current_exe().unwrap();
-        path.pop();
-        path
-    };
-
-    /// Path that contains the extra assets we need, like images.
-    #[derive(Debug)]
-    static ref ASSETS_PATH: PathBuf = if cfg!(debug_assertions) {
-        RPFM_PATH.to_path_buf()
-    } else {
-        // For release builds:
-        // - Windows: Same as RFPM exe.
-        // - Linux: /usr/share/rpfm.
-        // - MacOs: Who knows?
-        if cfg!(target_os = "linux") {
-            PathBuf::from("/usr/share/rpfm")
-        }
-        //if cfg!(target_os = "windows") {
-        else {
-            RPFM_PATH.to_path_buf()
-        }
-    };
 
     /// Icons for the PackFile TreeView.
     static ref TREEVIEW_ICONS: Icons = unsafe { Icons::new() };
@@ -219,24 +188,6 @@ lazy_static! {
 
         atomic_from_cpp_box(palette)
     }};
-
-    /// Variable to keep the locale fallback data (english locales) used by the UI loaded and available.
-    static ref LOCALE_FALLBACK: Locale = {
-        match Locale::initialize_fallback() {
-            Ok(locale) => locale,
-            Err(_) => Locale::initialize_empty(),
-        }
-    };
-
-    /// Variable to keep the locale data used by the UI loaded and available. If we fail to load the selected locale data, copy the english one instead.
-    static ref LOCALE: Locale = {
-        let language = setting_string("language");
-        if !language.is_empty() {
-            Locale::initialize(&language).unwrap_or_else(|_| LOCALE_FALLBACK.clone())
-        } else {
-            LOCALE_FALLBACK.clone()
-        }
-    };
 
     /// Global variable to hold the sender/receivers used to comunicate between threads.
     static ref CENTRAL_COMMAND: CentralCommand<Response> = CentralCommand::default();

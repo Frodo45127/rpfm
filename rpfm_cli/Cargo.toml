@@ -16,8 +16,8 @@ rust-version.workspace = true
 [dependencies]
 
 # Internal dependencies.
-rpfm_lib = { path = "../rpfm_lib", version = "3.99.118", features = ["integration_log", "integration_git"] }
-rpfm_extensions = { path = "../rpfm_extensions", version = "3.99.118" }
+rpfm_lib = { path = "../rpfm_lib", version = "3.99.119", features = ["integration_log", "integration_git"] }
+rpfm_extensions = { path = "../rpfm_extensions", version = "3.99.119" }
 
 # Error managing.
 anyhow = "1.0"

@@ -49,10 +49,11 @@ use std::collections::HashMap;
 use rpfm_lib::files::{ContainerPath, db::DB, RFileDecoded, table::DecodedData};
 use rpfm_lib::games::supported_games::KEY_WARHAMMER_3;
 
+use rpfm_ui_common::locale::{tr, qtr};
+
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi::*;
-use crate::locale::{tr, qtr};
 
 use self::slots::ToolFactionPainterSlots;
 use super::*;

@@ -46,8 +46,9 @@ use std::rc::Rc;
 
 use rpfm_lib::games::supported_games::*;
 
+use rpfm_ui_common::locale::{Locale, qtr, qtre};
+
 use crate::app_ui::AppUI;
-use crate::{Locale, locale::{qtr, qtre}};
 use crate::ffi::*;
 use crate::SUPPORTED_GAMES;
 use crate::utils::create_grid_layout;

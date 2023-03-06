@@ -45,9 +45,10 @@ use std::collections::HashMap;
 
 use rpfm_lib::files::{ContainerPath, FileType};
 
+use rpfm_ui_common::locale::tr;
+
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
-use crate::locale::tr;
 use crate::views::table::utils::get_reference_data;
 use self::slots::SubToolVariantUnitEditorSlots;
 use super::*;

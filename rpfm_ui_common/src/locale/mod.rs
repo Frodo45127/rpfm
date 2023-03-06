@@ -8,13 +8,6 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*!
-Module with all the code related to the localisation of rpfm_ui.
-
-This module contains all the code needed to initialize/localize the entire UI, or at least the strings
-on this program (the ones from the rpfm_lib/error are another story.
-!*/
-
 use qt_core::QString;
 
 use cpp_core::CppBox;
@@ -51,7 +44,6 @@ pub struct Locale(Arc<RwLock<FluentBundle<FluentResource>>>);
 /// Wacky fix for the "You cannot put a pointer in a static" problem.
 unsafe impl Sync for Locale {}
 
-/// Implementation of `Locale`.
 impl Locale {
 
     /// This function initializes the localisation for the provided language, if exists.
@@ -161,7 +153,6 @@ pub fn tr(key: &str) -> String {
 /// replacing certain parts of the translation with the replacements provided.
 ///
 /// If the key doesn't exists, it returns the equivalent from the english localisation. If it fails to find it there too, returns a warning.
-#[allow(unused)]
 pub fn tre(key: &str, replacements: &[&str]) -> String {
     let mut translation = Locale::tr(key);
     replacements.iter().for_each(|x| translation = translation.replacen(REPLACE_SEQUENCE, x, 1));

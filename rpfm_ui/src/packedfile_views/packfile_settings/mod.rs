@@ -33,10 +33,11 @@ use std::sync::Arc;
 
 use rpfm_lib::files::pack::PackSettings;
 
+use rpfm_ui_common::locale::qtr;
+
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
-use crate::locale::qtr;
 use crate::packedfile_views::{FileView, PackFileContentsUI};
 use crate::utils::create_grid_layout;
 use self::slots::PackFileSettingsSlots;

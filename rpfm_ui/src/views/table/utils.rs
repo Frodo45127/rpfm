@@ -50,8 +50,9 @@ use rpfm_lib::files::table::Table;
 use rpfm_lib::integrations::log::error;
 use rpfm_lib::schema::{Definition, Field, FieldType};
 
+use rpfm_ui_common::locale::{qtr, tr, tre};
+
 use crate::ffi::*;
-use crate::locale::{qtr, tr, tre};
 use crate::packedfile_views::DataSource;
 use crate::utils::*;
 use crate::UI_STATE;

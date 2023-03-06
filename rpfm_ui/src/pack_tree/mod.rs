@@ -40,11 +40,12 @@ use rpfm_lib::files::{ContainerPath, FileType, pack::PFHFlags};
 use rpfm_lib::integrations::log::error;
 use rpfm_lib::utils::*;
 
+use rpfm_ui_common::locale::qtr;
+
 use crate::backend::*;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::FULL_DATE_FORMAT;
-use crate::locale::qtr;
 use crate::packedfile_views::DataSource;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::settings_ui::backend::*;

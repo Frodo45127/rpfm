@@ -31,7 +31,8 @@ use std::sync::Arc;
 
 use rpfm_lib::files::{FileType, uic::UIC};
 
-use crate::locale::qtr;
+use rpfm_ui_common::locale::qtr;
+
 use crate::packedfile_views::FileView;
 use crate::utils::*;
 use super::{ViewType, View};

@@ -16,39 +16,26 @@ settings are saved in the config folder, in a file called `settings.ron`, in cas
 to change them manually.
 !*/
 
-use qt_core::QBox;
-use qt_core::QByteArray;
-use qt_core::QSettings;
-use qt_core::QString;
-use qt_core::QVariant;
+use qt_widgets::QApplication;
+use qt_widgets::QMainWindow;
 
-use cpp_core::CppBox;
-use cpp_core::Ref;
+use qt_core::QPtr;
 
 use anyhow::{anyhow, Result};
-use directories::ProjectDirs;
-use qt_widgets::QApplication;
 
-use std::fs::{DirBuilder, File};
-use std::path::{Path, PathBuf};
+use std::fs::DirBuilder;
+use std::path::PathBuf;
 
 use rpfm_lib::error::RLibError;
 use rpfm_lib::games::{*, supported_games::*};
 use rpfm_lib::schema::SCHEMA_FOLDER;
 
-use crate::app_ui::AppUI;
+use rpfm_ui_common::*;
+pub use rpfm_ui_common::settings::*;
+
 use crate::GAME_SELECTED;
 use crate::SUPPORTED_GAMES;
 use crate::updater::STABLE;
-
-/// Qualifier for the config folder. Only affects MacOS.
-const QUALIFIER: &str = "com";
-
-/// Organisation for the config folder. Only affects Windows and MacOS.
-const ORGANISATION: &str = "FrodoWazEre";
-
-/// Name of the config folder.
-const PROGRAM_NAME: &str = "rpfm";
 
 /// Key of the 7Zip path in the settings";
 pub const ZIP_PATH: &str = "7zip_path";
@@ -62,11 +49,11 @@ const DEPENDENCIES_FOLDER: &str = "dependencies";
 //                         Setting-related functions
 //-------------------------------------------------------------------------------//
 
-pub unsafe fn init_settings(app_ui: &AppUI) {
+pub unsafe fn init_settings(main_window: &QPtr<QMainWindow>) {
     let q_settings = settings();
 
-    set_setting_if_new_q_byte_array(&q_settings, "originalGeometry", app_ui.main_window().save_geometry().as_ref());
-    set_setting_if_new_q_byte_array(&q_settings, "originalWindowState", app_ui.main_window().save_state_0a().as_ref());
+    set_setting_if_new_q_byte_array(&q_settings, "originalGeometry", main_window.save_geometry().as_ref());
+    set_setting_if_new_q_byte_array(&q_settings, "originalWindowState", main_window.save_state_0a().as_ref());
 
     set_setting_if_new_string(&q_settings, MYMOD_BASE_PATH, "");
     set_setting_if_new_string(&q_settings, ZIP_PATH, "");
@@ -148,179 +135,6 @@ pub unsafe fn init_settings(app_ui: &AppUI) {
     q_settings.sync();
 }
 
-pub fn settings() -> QBox<QSettings> {
-    unsafe { QSettings::from_2_q_string(&QString::from_std_str(ORGANISATION), &QString::from_std_str(PROGRAM_NAME)) }
-}
-
-#[allow(dead_code)]
-pub fn setting_from_q_setting_variant(q_settings: &QBox<QSettings>, setting: &str) -> CppBox<QVariant> {
-    unsafe {
-        q_settings.value_1a(&QString::from_std_str(setting))
-    }
-}
-
-#[allow(dead_code)]
-pub fn setting_path(setting: &str) -> PathBuf {
-    unsafe {
-        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(ORGANISATION), &QString::from_std_str(PROGRAM_NAME));
-        PathBuf::from(q_settings.value_1a(&QString::from_std_str(setting)).to_string().to_std_string())
-    }
-}
-
-#[allow(dead_code)]
-pub fn setting_string(setting: &str) -> String {
-    unsafe {
-        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(ORGANISATION), &QString::from_std_str(PROGRAM_NAME));
-        q_settings.value_1a(&QString::from_std_str(setting)).to_string().to_std_string()
-    }
-}
-
-#[allow(dead_code)]
-pub fn setting_int(setting: &str) -> i32 {
-    unsafe {
-        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(ORGANISATION), &QString::from_std_str(PROGRAM_NAME));
-        q_settings.value_1a(&QString::from_std_str(setting)).to_int_0a()
-    }
-}
-
-#[allow(dead_code)]
-pub fn setting_bool(setting: &str) -> bool {
-    unsafe {
-        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(ORGANISATION), &QString::from_std_str(PROGRAM_NAME));
-        q_settings.value_1a(&QString::from_std_str(setting)).to_bool()
-    }
-}
-
-#[allow(dead_code)]
-pub fn setting_byte_array(setting: &str) -> CppBox<QByteArray> {
-    unsafe {
-        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(ORGANISATION), &QString::from_std_str(PROGRAM_NAME));
-        q_settings.value_1a(&QString::from_std_str(setting)).to_byte_array()
-    }
-}
-
-#[allow(dead_code)]
-pub fn set_setting_path(setting: &str, value: &Path) {
-    set_setting_string(setting, &value.to_string_lossy())
-}
-
-#[allow(dead_code)]
-pub fn set_setting_string(setting: &str, value: &str) {
-    unsafe {
-        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(ORGANISATION), &QString::from_std_str(PROGRAM_NAME));
-        q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_q_string(&QString::from_std_str(value)));
-        q_settings.sync();
-    }
-}
-
-#[allow(dead_code)]
-pub fn set_setting_int(setting: &str, value: i32) {
-    unsafe {
-        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(ORGANISATION), &QString::from_std_str(PROGRAM_NAME));
-        q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_int(value));
-        q_settings.sync();
-    }
-}
-
-#[allow(dead_code)]
-pub fn set_setting_bool(setting: &str, value: bool) {
-    unsafe {
-        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(ORGANISATION), &QString::from_std_str(PROGRAM_NAME));
-        q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_bool(value));
-        q_settings.sync();
-    }
-}
-
-#[allow(dead_code)]
-pub fn set_setting_q_byte_array(setting: &str, value: Ref<QByteArray>) {
-    unsafe {
-        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(ORGANISATION), &QString::from_std_str(PROGRAM_NAME));
-        q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_q_byte_array(value));
-        q_settings.sync();
-    }
-}
-
-#[allow(dead_code)]
-pub fn set_setting_variant_to_q_setting(q_settings: &QBox<QSettings>, setting: &str, value: Ref<QVariant>) {
-    unsafe {
-        q_settings.set_value(&QString::from_std_str(setting), value);
-    }
-}
-
-#[allow(dead_code)]
-pub fn set_setting_path_to_q_setting(q_settings: &QBox<QSettings>, setting: &str, value: &Path) {
-    set_setting_string_to_q_setting(q_settings, setting, &value.to_string_lossy())
-}
-
-#[allow(dead_code)]
-pub fn set_setting_string_to_q_setting(q_settings: &QBox<QSettings>, setting: &str, value: &str) {
-    unsafe {
-        q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_q_string(&QString::from_std_str(value)));
-    }
-}
-
-#[allow(dead_code)]
-pub fn set_setting_int_to_q_setting(q_settings: &QBox<QSettings>, setting: &str, value: i32) {
-    unsafe {
-        q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_int(value));
-    }
-}
-
-#[allow(dead_code)]
-pub fn set_setting_bool_to_q_setting(q_settings: &QBox<QSettings>, setting: &str, value: bool) {
-    unsafe {
-        q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_bool(value));
-    }
-}
-
-#[allow(dead_code)]
-pub fn set_setting_q_byte_array_to_q_setting(q_settings: &QBox<QSettings>, setting: &str, value: Ref<QByteArray>) {
-    unsafe {
-        q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_q_byte_array(value));
-    }
-}
-
-#[allow(dead_code)]
-pub fn set_setting_if_new_path(q_settings: &QBox<QSettings>, setting: &str, value: &Path) {
-    set_setting_if_new_string(q_settings, setting, &value.to_string_lossy())
-}
-
-#[allow(dead_code)]
-pub fn set_setting_if_new_string(q_settings: &QBox<QSettings>, setting: &str, value: &str) {
-    unsafe {
-        if !q_settings.value_1a(&QString::from_std_str(setting)).is_valid() {
-            q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_q_string(&QString::from_std_str(value)));
-        }
-    }
-}
-
-#[allow(dead_code)]
-pub fn set_setting_if_new_int(q_settings: &QBox<QSettings>, setting: &str, value: i32) {
-    unsafe {
-        if !q_settings.value_1a(&QString::from_std_str(setting)).is_valid() {
-            q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_int(value));
-        }
-    }
-}
-
-#[allow(dead_code)]
-pub fn set_setting_if_new_bool(q_settings: &QBox<QSettings>, setting: &str, value: bool) {
-    unsafe {
-        if !q_settings.value_1a(&QString::from_std_str(setting)).is_valid() {
-            q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_bool(value));
-        }
-    }
-}
-
-#[allow(dead_code)]
-pub fn set_setting_if_new_q_byte_array(q_settings: &QBox<QSettings>, setting: &str, value: Ref<QByteArray>) {
-    unsafe {
-        if !q_settings.value_1a(&QString::from_std_str(setting)).is_valid() {
-            q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_q_byte_array(value));
-        }
-    }
-}
-
 //-------------------------------------------------------------------------------//
 //                             Extra Helpers
 //-------------------------------------------------------------------------------//
@@ -331,44 +145,16 @@ pub fn set_setting_if_new_q_byte_array(q_settings: &QBox<QSettings>, setting: &s
 #[must_use = "Many things depend on this folder existing. So better check this worked."]
 pub fn init_config_path() -> Result<()> {
 
-    let config_path = config_path()?;
-    let autosaves_path = config_path.join("autosaves");
-    let error_path = config_path.join("error");
-    let schemas_path = config_path.join("schemas");
+    *QUALIFIER.write().unwrap() = "com".to_owned();
+    *ORGANISATION.write().unwrap() = "FrodoWazEre".to_owned();
+    *PROGRAM_NAME.write().unwrap() = "rpfm".to_owned();
 
-    DirBuilder::new().recursive(true).create(&autosaves_path)?;
-    DirBuilder::new().recursive(true).create(&config_path)?;
-    DirBuilder::new().recursive(true).create(error_path)?;
-    DirBuilder::new().recursive(true).create(schemas_path)?;
-
-    // Init autosave files if they're not yet initialized. Minimum 1.
-    let mut max_autosaves = setting_int("autosave_amount");
-    if max_autosaves < 1 { max_autosaves = 1; }
-    (1..=max_autosaves).for_each(|x| {
-        let path = autosaves_path.join(format!("autosave_{x:02?}.pack"));
-        if !path.is_file() {
-            let _ = File::create(path);
-        }
-    });
+    DirBuilder::new().recursive(true).create(config_path()?)?;
+    DirBuilder::new().recursive(true).create(backup_autosave_path()?)?;
+    DirBuilder::new().recursive(true).create(error_path()?)?;
+    DirBuilder::new().recursive(true).create(schemas_path()?)?;
 
     Ok(())
-}
-
-/// This function returns the current config path, or an error if said path is not available.
-///
-/// Note: On `Debug´ mode this project is the project from where you execute one of RPFM's programs, which should be the root of the repo.
-pub fn config_path() -> Result<PathBuf> {
-    if cfg!(debug_assertions) { std::env::current_dir().map_err(From::from) } else {
-        match ProjectDirs::from(QUALIFIER, ORGANISATION, PROGRAM_NAME) {
-            Some(proj_dirs) => Ok(proj_dirs.config_dir().to_path_buf()),
-            None => Err(anyhow!("Failed to get the config path."))
-        }
-    }
-}
-
-/// This function returns the path where crash logs are stored.
-pub fn error_path() -> Result<PathBuf> {
-    Ok(config_path()?.join("error"))
 }
 
 /// This function returns the schema path.

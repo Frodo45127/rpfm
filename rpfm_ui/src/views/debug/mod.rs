@@ -25,8 +25,9 @@ use std::sync::{Arc, RwLock};
 
 use rpfm_lib::files::{FileType, RFileDecoded};
 
+use rpfm_ui_common::locale::qtr;
+
 use crate::ffi::{new_text_editor_safe, set_text_safe, get_text_safe};
-use crate::locale::qtr;
 use crate::views::debug::slots::DebugViewSlots;
 
 use crate::QString;

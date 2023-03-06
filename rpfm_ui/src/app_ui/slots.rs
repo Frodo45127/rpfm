@@ -47,6 +47,8 @@ use rpfm_lib::files::ContainerPath;
 use rpfm_lib::games::{pfh_file_type::PFHFileType, supported_games::*};
 use rpfm_lib::integrations::log::*;
 
+use rpfm_ui_common::locale::{qtr, tr, tre};
+
 use crate::app_ui::AppUI;
 use crate::backend::*;
 use crate::CENTRAL_COMMAND;
@@ -57,7 +59,6 @@ use crate::DISCORD_URL;
 use crate::GAME_SELECTED;
 use crate::GITHUB_URL;
 use crate::global_search_ui::GlobalSearchUI;
-use crate::locale::{qtr, tr, tre};
 use crate::MANUAL_URL;
 use crate::mymod_ui::MyModUI;
 use crate::pack_tree::*;

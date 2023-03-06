@@ -4,6 +4,7 @@ members = [
     # Libs
     "rpfm_lib",
     "rpfm_extensions",
+    "rpfm_ui_common",
 
     # Executables
     "rpfm_cli",

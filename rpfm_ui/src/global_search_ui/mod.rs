@@ -54,6 +54,7 @@ use std::rc::Rc;
 
 use rpfm_extensions::search::{GlobalSearch, MatchHolder, SearchSource, schema::SchemaMatches, table::{TableMatches, TableMatch}, text::{TextMatches, TextMatch}};
 use rpfm_lib::files::FileType;
+use rpfm_ui_common::locale::qtr;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
@@ -61,7 +62,6 @@ use crate::communications::{CentralCommand, Command, Response};
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::{kline_edit_configure_safe, new_treeview_filter_safe, scroll_to_row_safe, trigger_treeview_filter_safe};
-use crate::locale::qtr;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::packedfile_views::{DataSource, View, ViewType};

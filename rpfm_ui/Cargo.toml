@@ -26,8 +26,9 @@ default = []
 [dependencies]
 
 # Internal dependencies.
-rpfm_lib = { path = "../rpfm_lib", version = "3.99.118", features = ["integration_log", "integration_git"] }
-rpfm_extensions = { path = "../rpfm_extensions", version = "3.99.118" }
+rpfm_lib = { path = "../rpfm_lib", version = "3.99.119", features = ["integration_log", "integration_git"] }
+rpfm_extensions = { path = "../rpfm_extensions", version = "3.99.119" }
+rpfm_ui_common = { path = "../rpfm_ui_common", version = "3.99.119" }
 
 # Config dependencies.
 directories = "^4.0"
@@ -70,11 +71,6 @@ float_eq = "^1"
 
 # Audio playback support.
 rodio = "^0.17"
-
-# Translation support.
-fluent = "^0.16"
-fluent-bundle = "^0.15"
-unic-langid = { version = "^0.9", features = ["unic-langid-macros"] }
 
 # Improved multi-thread Support.
 crossbeam = "^0.8" # Maybe replace it with flume?

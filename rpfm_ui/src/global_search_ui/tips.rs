@@ -14,7 +14,8 @@ Module with all the code to setup the tips (in the `StatusBar`) for the actions 
 
 use std::rc::Rc;
 
-use crate::locale::qtr;
+use rpfm_ui_common::locale::qtr;
+
 use super::GlobalSearchUI;
 
 /// This function sets the status bar tip for all the actions in the provided `GlobalSearchUI`.

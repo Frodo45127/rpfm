@@ -33,13 +33,14 @@ use rpfm_lib::files::{ContainerPath, FileType, pack::*};
 use rpfm_lib::integrations::log::*;
 use rpfm_lib::utils::*;
 
+use rpfm_ui_common::locale::{qtr, tre};
+
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::global_search_ui::GlobalSearchUI;
-use crate::locale::{qtr, tre};
 use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::{DataSource, SpecialView};

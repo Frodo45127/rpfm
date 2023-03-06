@@ -43,12 +43,15 @@ use std::sync::atomic::AtomicPtr;
 use rpfm_lib::games::supported_games::*;
 use rpfm_lib::integrations::log::*;
 
+use rpfm_ui_common::ASSETS_PATH;
+#[cfg(feature = "only_for_the_brave")] use rpfm_ui_common::locale::qtr;
+use rpfm_ui_common::PROGRAM_PATH;
+
 #[cfg(feature = "only_for_the_brave")]
 use crate::VERSION;
 use crate::app_ui;
 use crate::app_ui::AppUI;
 use crate::app_ui::slots::{AppUITempSlots, AppUISlots};
-use crate::ASSETS_PATH;
 use crate::dependencies_ui;
 use crate::dependencies_ui::DependenciesUI;
 use crate::dependencies_ui::slots::DependenciesUISlots;
@@ -64,14 +67,9 @@ use crate::references_ui;
 use crate::references_ui::ReferencesUI;
 use crate::references_ui::slots::ReferencesUISlots;
 use crate::SUPPORTED_GAMES;
-
-#[cfg(feature = "only_for_the_brave")]
-use crate::locale::qtr;
-
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packfile_contents_ui;
 use crate::packfile_contents_ui::slots::PackFileContentsSlots;
-use crate::RPFM_PATH;
 use crate::settings_ui::backend::*;
 use crate::UI_STATE;
 use crate::utils::*;
@@ -148,7 +146,7 @@ impl UI {
         references_ui::connections::set_connections(&references_ui, &references_slots);
 
         // Initialize settings.
-        init_settings(&app_ui);
+        init_settings(&app_ui.main_window().static_upcast());
 
         // Apply last ui state.
         app_ui.main_window().restore_geometry(&setting_byte_array("geometry"));
@@ -224,7 +222,7 @@ impl UI {
 
         // Clean up folders from previous updates, if they exist.
         if !cfg!(debug_assertions) {
-            if let Ok(folders) = read_dir(&*RPFM_PATH) {
+            if let Ok(folders) = read_dir(&*PROGRAM_PATH) {
                 for folder in folders.flatten() {
                     let folder_path = folder.path();
                     if folder_path.is_dir() && folder_path.file_name().unwrap().to_string_lossy().starts_with("update") {

@@ -37,11 +37,12 @@ use std::sync::{Arc, RwLock};
 use anyhow::Result;
 use getset::Getters;
 
+use rpfm_ui_common::locale::qtr;
+
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::ffi::{new_treeview_filter_safe, trigger_treeview_filter_safe};
-use crate::locale::qtr;
 use crate::packedfile_views::{BuildData, DataSource, FileView, View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::{PackTree, TreeViewOperation};

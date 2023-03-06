@@ -32,10 +32,11 @@ use getset::Getters;
 
 use std::rc::Rc;
 
+use rpfm_ui_common::locale::{qtr, tr};
+
 use crate::app_ui::AppUI;
 use crate::ffi::*;
 use crate::GAME_SELECTED;
-use crate::locale::{qtr, tr};
 use crate::settings_ui::backend::*;
 use crate::SUPPORTED_GAMES;
 use crate::utils::*;

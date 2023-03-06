@@ -45,12 +45,12 @@ use qt_core::CaseSensitivity;
 #[cfg(any(feature = "support_rigidmodel", feature = "enable_tools"))] use cpp_core::CppBox;
 use cpp_core::Ptr;
 
-#[cfg(feature = "support_rigidmodel")]
-use anyhow::{anyhow, Result};
-#[cfg(feature = "support_rigidmodel")]
-use rpfm_lib::integrations::log;
+#[cfg(feature = "support_rigidmodel")] use anyhow::{anyhow, Result};
 
-use crate::locale::qtr;
+#[cfg(feature = "support_rigidmodel")] use rpfm_lib::integrations::log;
+
+use rpfm_ui_common::locale::qtr;
+
 use crate::settings_ui::backend::*;
 use crate::UI_STATE;
 

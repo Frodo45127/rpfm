@@ -73,7 +73,10 @@ use rpfm_lib::games::{pfh_file_type::*, pfh_version::*, supported_games::*};
 use rpfm_lib::integrations::{git::*, log::*};
 use rpfm_lib::utils::*;
 
-use crate::ASSETS_PATH;
+use rpfm_ui_common::ASSETS_PATH;
+use rpfm_ui_common::locale::{qtr, qtre, tre};
+use rpfm_ui_common::PROGRAM_PATH;
+
 use crate::backend::*;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
@@ -83,12 +86,10 @@ use crate::ffi::*;
 use crate::FIRST_GAME_CHANGE_DONE;
 use crate::GAME_SELECTED;
 use crate::global_search_ui::GlobalSearchUI;
-use crate::locale::{qtr, qtre, tre};
 use crate::pack_tree::{BuildData, icons::IconType, new_pack_file_tooltip, PackTree, TreeViewOperation};
 use crate::packedfile_views::{anim_fragment::*, animpack::*, anims_table::*, audio::FileAudioView, DataSource, decoder::*, dependencies_manager::*, esf::*, external::*, image::*, matched_combat::*, FileView, packfile::PackFileExtraView, packfile_settings::*, portrait_settings::PortraitSettingsView, SpecialView, table::*, text::*, unit_variant::*, video::*};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::references_ui::ReferencesUI;
-use crate::RPFM_PATH;
 use crate::SCHEMA;
 use crate::settings_ui::backend::*;
 use crate::STATUS_BAR;
@@ -2054,7 +2055,7 @@ impl AppUI {
                 Response::Success => {
                     let restart_button = dialog.add_button_q_string_button_role(&qtr("restart_button"), q_message_box::ButtonRole::ApplyRole);
 
-                    let changelog_path = RPFM_PATH.join(CHANGELOG_FILE);
+                    let changelog_path = PROGRAM_PATH.join(CHANGELOG_FILE);
                     dialog.set_text(&qtre("update_success_main_program", &[&changelog_path.to_string_lossy()]));
                     restart_button.set_enabled(true);
                     close_button.set_enabled(true);

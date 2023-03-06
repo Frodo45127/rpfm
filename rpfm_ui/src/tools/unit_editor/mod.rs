@@ -54,9 +54,10 @@ use std::sync::RwLock;
 use rpfm_lib::files::{ContainerPath, FileType, RFile, text::{Text, TextFormat}};
 use rpfm_lib::integrations::log;
 
+use rpfm_ui_common::locale::{qtr, tr};
+
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
-use crate::locale::{qtr, tr};
 use crate::tools::unit_editor::variant_unit_editor::SubToolVariantUnitEditor;
 use crate::views::table::utils::{clean_column_names, get_reference_data};
 

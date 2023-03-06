@@ -26,9 +26,10 @@ use std::sync::{Arc, Mutex, RwLock};
 
 use rpfm_lib::files::{video::*, FileType};
 
+use rpfm_ui_common::locale::qtr;
+
 use crate::app_ui::AppUI;
 use crate::backend::VideoInfo;
-use crate::locale::qtr;
 use crate::packedfile_views::{FileView, View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
 

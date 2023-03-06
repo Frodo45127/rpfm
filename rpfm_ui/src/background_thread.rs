@@ -42,6 +42,9 @@ use rpfm_lib::integrations::{assembly_kit::*, git::*, log::*};
 use rpfm_lib::schema::*;
 use rpfm_lib::utils::*;
 
+use rpfm_ui_common::locale::tr;
+use rpfm_ui_common::PROGRAM_PATH;
+
 use crate::app_ui::NewFile;
 use crate::{backend::*, SENTRY_GUARD};
 use crate::CENTRAL_COMMAND;
@@ -50,9 +53,7 @@ use crate::FIRST_GAME_CHANGE_DONE;
 use crate::FULL_DATE_FORMAT;
 use crate::GAME_SELECTED;
 use crate::initialize_pack_settings;
-use crate::locale::tr;
 use crate::packedfile_views::DataSource;
-use crate::RPFM_PATH;
 use crate::SCHEMA;
 use crate::settings_ui::backend::*;
 use crate::SUPPORTED_GAMES;
@@ -1354,7 +1355,7 @@ pub fn background_loop() {
                 }
 
                 // Try to save the file. And I mean "try". Someone seems to love crashing here...
-                let path = RPFM_PATH.to_path_buf().join(PathBuf::from("missing_table_definitions.txt"));
+                let path = PROGRAM_PATH.to_path_buf().join(PathBuf::from("missing_table_definitions.txt"));
 
                 if let Ok(file) = File::create(path) {
                     let mut file = BufWriter::new(file);

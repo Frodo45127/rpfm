@@ -55,6 +55,8 @@ use rpfm_lib::files::ContainerPath;
 use rpfm_lib::games::supported_games::*;
 use rpfm_lib::integrations::log::info;
 
+use rpfm_ui_common::locale::{qtr, qtre, tr};
+
 use crate::app_ui::AppUI;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::CENTRAL_COMMAND;
@@ -62,7 +64,6 @@ use crate::dependencies_ui::DependenciesUI;
 use crate::ffi::{new_tableview_filter_safe, trigger_tableview_filter_safe};
 use crate::GAME_SELECTED;
 use crate::global_search_ui::GlobalSearchUI;
-use crate::locale::{qtr, qtre, tr};
 use crate::pack_tree::*;
 use crate::packedfile_views::{DataSource, FileView, View, ViewType, SpecialView};
 use crate::packfile_contents_ui::PackFileContentsUI;

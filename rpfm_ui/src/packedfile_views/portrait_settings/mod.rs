@@ -53,12 +53,13 @@ use std::sync::{Arc, RwLock};
 
 use rpfm_lib::files::{ContainerPath, FileType, portrait_settings::*, RFile, RFileDecoded};
 
+use rpfm_ui_common::locale::{qtr, tr};
+
 use crate::app_ui::AppUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::ffi::*;
-use crate::locale::{qtr, tr};
 use crate::packedfile_views::{FileView, View, ViewType};
 use crate::utils::*;
 

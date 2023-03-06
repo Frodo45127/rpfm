@@ -30,12 +30,11 @@ use std::fs::remove_dir_all;
 use std::rc::Rc;
 use std::process::Command as SystemCommand;
 
-use crate::settings_ui::backend::*;
+use rpfm_ui_common::locale::tr;
 
 use crate::app_ui::AppUI;
 use crate::ffi;
-use crate::locale::tr;
-use crate::settings_ui::SettingsUI;
+use crate::settings_ui::{backend::*, SettingsUI};
 use crate::utils::show_dialog;
 
 //-------------------------------------------------------------------------------//
@@ -108,7 +107,7 @@ impl SettingsUISlots {
 
                 q_settings.sync();
 
-                init_settings(&app_ui);
+                init_settings(&app_ui.main_window().static_upcast());
                 if let Err(error) = ui.load() {
                     return show_dialog(&ui.dialog, error, false);
                 }

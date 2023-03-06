@@ -2449,8 +2449,6 @@ dependencies = [
  "crossbeam",
  "directories",
  "float_eq",
- "fluent",
- "fluent-bundle",
  "getset",
  "itertools 0.10.5",
  "lazy_static",
@@ -2467,6 +2465,7 @@ dependencies = [
  "ron",
  "rpfm_extensions",
  "rpfm_lib",
+ "rpfm_ui_common",
  "self_update",
  "serde",
  "serde_derive",
@@ -2474,9 +2473,24 @@ dependencies = [
  "tempfile",
  "thiserror",
  "time",
- "unic-langid",
  "winres",
  "zip-extract",
+]
+
+[[package]]
+name = "rpfm_ui_common"
+version = "3.99.119"
+dependencies = [
+ "anyhow",
+ "cpp_core",
+ "directories",
+ "fluent",
+ "fluent-bundle",
+ "lazy_static",
+ "qt_core",
+ "rpfm_extensions",
+ "rpfm_lib",
+ "unic-langid",
 ]
 
 [[package]]

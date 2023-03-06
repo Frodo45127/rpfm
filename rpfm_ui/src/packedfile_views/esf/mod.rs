@@ -37,12 +37,13 @@ use anyhow::Result;
 
 use rpfm_lib::files::{esf::ESF, FileType};
 
+use rpfm_ui_common::locale::qtr;
+
 use crate::app_ui::AppUI;
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::*;
 use crate::global_search_ui::GlobalSearchUI;
-use crate::locale::qtr;
 use crate::packedfile_views::esf::esftree::*;
 use crate::packedfile_views::esf::slots::PackedFileESFViewSlots;
 use crate::packedfile_views::FileView;

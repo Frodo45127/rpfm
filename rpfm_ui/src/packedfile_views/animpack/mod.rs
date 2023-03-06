@@ -35,11 +35,12 @@ use std::sync::{Arc, RwLock};
 
 use rpfm_lib::files::FileType;
 
+use rpfm_ui_common::locale::qtr;
+
 use crate::app_ui::AppUI;
 use crate::backend::RFileInfo;
 use crate::communications::*;
 use crate::ffi::*;
-use crate::locale::qtr;
 use crate::pack_tree::PackTree;
 use crate::packedfile_views::{BuildData, DataSource, FileView, TreeViewOperation, View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;

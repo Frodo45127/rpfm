@@ -12,8 +12,9 @@
 Module with all the code to setup the tips (in the `StatusBar`) for the actions in `DependenciesUI`.
 !*/
 
-use crate::locale::qtr;
 use std::rc::Rc;
+
+use rpfm_ui_common::locale::qtr;
 
 use super::DependenciesUI;
 

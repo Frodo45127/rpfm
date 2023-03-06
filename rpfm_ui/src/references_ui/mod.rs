@@ -42,12 +42,13 @@ use getset::Getters;
 
 use std::rc::Rc;
 
+use rpfm_ui_common::locale::qtr;
+
 use crate::app_ui::AppUI;
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::new_tableview_filter_safe;
 use crate::global_search_ui::GlobalSearchUI;
-use crate::locale::qtr;
 use crate::pack_tree::PackTree;
 use crate::packedfile_views::{DataSource, View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
