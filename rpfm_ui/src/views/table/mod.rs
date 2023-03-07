@@ -925,6 +925,10 @@ impl TableView {
 
         // Update the line count.
         self.update_line_counter();
+
+        // Update the left-side header. This is to workaround a bug that causes said header to vanish on filter.
+        self.table_view().vertical_header().set_visible(false);
+        self.table_view().vertical_header().set_visible(true);
     }
 
     /// This function enables/disables showing the lookup values instead of the real ones in the columns that support it.
