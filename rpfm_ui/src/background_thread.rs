@@ -43,6 +43,7 @@ use rpfm_lib::schema::*;
 use rpfm_lib::utils::*;
 
 use rpfm_ui_common::clone;
+use rpfm_ui_common::FULL_DATE_FORMAT;
 use rpfm_ui_common::locale::tr;
 use rpfm_ui_common::PROGRAM_PATH;
 
@@ -51,7 +52,6 @@ use crate::{backend::*, SENTRY_GUARD};
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::FIRST_GAME_CHANGE_DONE;
-use crate::FULL_DATE_FORMAT;
 use crate::GAME_SELECTED;
 use crate::initialize_pack_settings;
 use crate::packedfile_views::DataSource;

@@ -1,6 +1,6 @@
 [package]
 name = "rpfm_ui_common"
-description = "This crate contains basic functionality shared between ui applications."
+description = "This crate contains basic functionality shared between UI applications using Qt and the RPFM libs."
 license = "MIT"
 repository = "https://github.com/Frodo45127/rpfm"
 categories = ["games"]
@@ -36,3 +36,6 @@ qt_ui_tools = "^0.5"
 fluent = "^0.16"
 fluent-bundle = "^0.15"
 unic-langid = { version = "^0.9", features = ["unic-langid-macros"] }
+
+# Date conversion support.
+time = { version = "^0.3", features = ["formatting"] }

@@ -8,8 +8,10 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-use std::path::PathBuf;
 use lazy_static::lazy_static;
+use time::format_description::{parse, FormatItem};
+
+use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
 use crate::locale::Locale;
@@ -101,4 +103,7 @@ lazy_static!{
             LOCALE_FALLBACK.clone()
         }
     };
+
+    /// Formatted date, so we can reuse it instead of re-parsing it on each use.
+    pub static ref FULL_DATE_FORMAT: Vec<FormatItem<'static>> = parse("[year]-[month]-[day] [hour]:[minute]:[second]").unwrap();
 }

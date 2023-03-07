@@ -2493,6 +2493,7 @@ dependencies = [
  "qt_widgets",
  "rpfm_extensions",
  "rpfm_lib",
+ "time",
  "unic-langid",
 ]
 
