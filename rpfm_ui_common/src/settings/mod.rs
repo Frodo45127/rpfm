@@ -34,14 +34,6 @@ pub fn settings() -> QBox<QSettings> {
     unsafe { QSettings::from_2_q_string(&QString::from_std_str(&*ORGANISATION.read().unwrap()), &QString::from_std_str(&*PROGRAM_NAME.read().unwrap())) }
 }
 
-#[allow(dead_code)]
-pub fn setting_from_q_setting_variant(q_settings: &QBox<QSettings>, setting: &str) -> CppBox<QVariant> {
-    unsafe {
-        q_settings.value_1a(&QString::from_std_str(setting))
-    }
-}
-
-#[allow(dead_code)]
 pub fn setting_path(setting: &str) -> PathBuf {
     unsafe {
         let q_settings = QSettings::from_2_q_string(&QString::from_std_str(&*ORGANISATION.read().unwrap()), &QString::from_std_str(&*PROGRAM_NAME.read().unwrap()));
@@ -49,7 +41,6 @@ pub fn setting_path(setting: &str) -> PathBuf {
     }
 }
 
-#[allow(dead_code)]
 pub fn setting_string(setting: &str) -> String {
     unsafe {
         let q_settings = QSettings::from_2_q_string(&QString::from_std_str(&*ORGANISATION.read().unwrap()), &QString::from_std_str(&*PROGRAM_NAME.read().unwrap()));
@@ -57,7 +48,6 @@ pub fn setting_string(setting: &str) -> String {
     }
 }
 
-#[allow(dead_code)]
 pub fn setting_int(setting: &str) -> i32 {
     unsafe {
         let q_settings = QSettings::from_2_q_string(&QString::from_std_str(&*ORGANISATION.read().unwrap()), &QString::from_std_str(&*PROGRAM_NAME.read().unwrap()));
@@ -65,7 +55,6 @@ pub fn setting_int(setting: &str) -> i32 {
     }
 }
 
-#[allow(dead_code)]
 pub fn setting_bool(setting: &str) -> bool {
     unsafe {
         let q_settings = QSettings::from_2_q_string(&QString::from_std_str(&*ORGANISATION.read().unwrap()), &QString::from_std_str(&*PROGRAM_NAME.read().unwrap()));
@@ -73,7 +62,6 @@ pub fn setting_bool(setting: &str) -> bool {
     }
 }
 
-#[allow(dead_code)]
 pub fn setting_byte_array(setting: &str) -> CppBox<QByteArray> {
     unsafe {
         let q_settings = QSettings::from_2_q_string(&QString::from_std_str(&*ORGANISATION.read().unwrap()), &QString::from_std_str(&*PROGRAM_NAME.read().unwrap()));
@@ -81,12 +69,46 @@ pub fn setting_byte_array(setting: &str) -> CppBox<QByteArray> {
     }
 }
 
-#[allow(dead_code)]
+pub fn setting_variant_from_q_setting(q_settings: &QBox<QSettings>, setting: &str) -> CppBox<QVariant> {
+    unsafe {
+        q_settings.value_1a(&QString::from_std_str(setting))
+    }
+}
+
+pub fn setting_path_from_q_setting(q_settings: &QBox<QSettings>, setting: &str) -> PathBuf {
+    unsafe {
+        PathBuf::from(q_settings.value_1a(&QString::from_std_str(setting)).to_string().to_std_string())
+    }
+}
+
+pub fn setting_string_from_q_setting(q_settings: &QBox<QSettings>, setting: &str) -> String {
+    unsafe {
+        q_settings.value_1a(&QString::from_std_str(setting)).to_string().to_std_string()
+    }
+}
+
+pub fn setting_int_from_q_setting(q_settings: &QBox<QSettings>, setting: &str) -> i32 {
+    unsafe {
+        q_settings.value_1a(&QString::from_std_str(setting)).to_int_0a()
+    }
+}
+
+pub fn setting_bool_from_q_setting(q_settings: &QBox<QSettings>, setting: &str) -> bool {
+    unsafe {
+        q_settings.value_1a(&QString::from_std_str(setting)).to_bool()
+    }
+}
+
+pub fn setting_byte_array_from_q_setting(q_settings: &QBox<QSettings>, setting: &str) -> CppBox<QByteArray> {
+    unsafe {
+        q_settings.value_1a(&QString::from_std_str(setting)).to_byte_array()
+    }
+}
+
 pub fn set_setting_path(setting: &str, value: &Path) {
     set_setting_string(setting, &value.to_string_lossy())
 }
 
-#[allow(dead_code)]
 pub fn set_setting_string(setting: &str, value: &str) {
     unsafe {
         let q_settings = QSettings::from_2_q_string(&QString::from_std_str(&*ORGANISATION.read().unwrap()), &QString::from_std_str(&*PROGRAM_NAME.read().unwrap()));
@@ -95,7 +117,6 @@ pub fn set_setting_string(setting: &str, value: &str) {
     }
 }
 
-#[allow(dead_code)]
 pub fn set_setting_int(setting: &str, value: i32) {
     unsafe {
         let q_settings = QSettings::from_2_q_string(&QString::from_std_str(&*ORGANISATION.read().unwrap()), &QString::from_std_str(&*PROGRAM_NAME.read().unwrap()));
@@ -104,7 +125,6 @@ pub fn set_setting_int(setting: &str, value: i32) {
     }
 }
 
-#[allow(dead_code)]
 pub fn set_setting_bool(setting: &str, value: bool) {
     unsafe {
         let q_settings = QSettings::from_2_q_string(&QString::from_std_str(&*ORGANISATION.read().unwrap()), &QString::from_std_str(&*PROGRAM_NAME.read().unwrap()));
@@ -113,7 +133,6 @@ pub fn set_setting_bool(setting: &str, value: bool) {
     }
 }
 
-#[allow(dead_code)]
 pub fn set_setting_q_byte_array(setting: &str, value: Ref<QByteArray>) {
     unsafe {
         let q_settings = QSettings::from_2_q_string(&QString::from_std_str(&*ORGANISATION.read().unwrap()), &QString::from_std_str(&*PROGRAM_NAME.read().unwrap()));
@@ -122,52 +141,44 @@ pub fn set_setting_q_byte_array(setting: &str, value: Ref<QByteArray>) {
     }
 }
 
-#[allow(dead_code)]
 pub fn set_setting_variant_to_q_setting(q_settings: &QBox<QSettings>, setting: &str, value: Ref<QVariant>) {
     unsafe {
         q_settings.set_value(&QString::from_std_str(setting), value);
     }
 }
 
-#[allow(dead_code)]
 pub fn set_setting_path_to_q_setting(q_settings: &QBox<QSettings>, setting: &str, value: &Path) {
     set_setting_string_to_q_setting(q_settings, setting, &value.to_string_lossy())
 }
 
-#[allow(dead_code)]
 pub fn set_setting_string_to_q_setting(q_settings: &QBox<QSettings>, setting: &str, value: &str) {
     unsafe {
         q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_q_string(&QString::from_std_str(value)));
     }
 }
 
-#[allow(dead_code)]
 pub fn set_setting_int_to_q_setting(q_settings: &QBox<QSettings>, setting: &str, value: i32) {
     unsafe {
         q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_int(value));
     }
 }
 
-#[allow(dead_code)]
 pub fn set_setting_bool_to_q_setting(q_settings: &QBox<QSettings>, setting: &str, value: bool) {
     unsafe {
         q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_bool(value));
     }
 }
 
-#[allow(dead_code)]
 pub fn set_setting_q_byte_array_to_q_setting(q_settings: &QBox<QSettings>, setting: &str, value: Ref<QByteArray>) {
     unsafe {
         q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_q_byte_array(value));
     }
 }
 
-#[allow(dead_code)]
 pub fn set_setting_if_new_path(q_settings: &QBox<QSettings>, setting: &str, value: &Path) {
     set_setting_if_new_string(q_settings, setting, &value.to_string_lossy())
 }
 
-#[allow(dead_code)]
 pub fn set_setting_if_new_string(q_settings: &QBox<QSettings>, setting: &str, value: &str) {
     unsafe {
         if !q_settings.value_1a(&QString::from_std_str(setting)).is_valid() {
@@ -176,7 +187,6 @@ pub fn set_setting_if_new_string(q_settings: &QBox<QSettings>, setting: &str, va
     }
 }
 
-#[allow(dead_code)]
 pub fn set_setting_if_new_int(q_settings: &QBox<QSettings>, setting: &str, value: i32) {
     unsafe {
         if !q_settings.value_1a(&QString::from_std_str(setting)).is_valid() {
@@ -185,7 +195,6 @@ pub fn set_setting_if_new_int(q_settings: &QBox<QSettings>, setting: &str, value
     }
 }
 
-#[allow(dead_code)]
 pub fn set_setting_if_new_bool(q_settings: &QBox<QSettings>, setting: &str, value: bool) {
     unsafe {
         if !q_settings.value_1a(&QString::from_std_str(setting)).is_valid() {
@@ -194,7 +203,6 @@ pub fn set_setting_if_new_bool(q_settings: &QBox<QSettings>, setting: &str, valu
     }
 }
 
-#[allow(dead_code)]
 pub fn set_setting_if_new_q_byte_array(q_settings: &QBox<QSettings>, setting: &str, value: Ref<QByteArray>) {
     unsafe {
         if !q_settings.value_1a(&QString::from_std_str(setting)).is_valid() {

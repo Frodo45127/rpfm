@@ -823,33 +823,33 @@ impl SettingsUI {
         let q_settings = settings();
 
         // Load the MyMod and 7Zip paths, if exists.
-        self.paths_mymod_line_edit.set_text(&QString::from_std_str(setting_string(MYMOD_BASE_PATH)));
-        self.paths_zip_line_edit.set_text(&QString::from_std_str(setting_string(ZIP_PATH)));
+        self.paths_mymod_line_edit.set_text(&QString::from_std_str(setting_string_from_q_setting(&q_settings, MYMOD_BASE_PATH)));
+        self.paths_zip_line_edit.set_text(&QString::from_std_str(setting_string_from_q_setting(&q_settings, ZIP_PATH)));
 
         // Load the Game Paths, if they exists.
         for (key, path) in self.paths_games_line_edits.iter() {
             if let Some(spoiler) = self.paths_spoilers.get(key) {
-                let stored_path = setting_string(key);
+                let stored_path = setting_string_from_q_setting(&q_settings, key);
                 if !stored_path.is_empty() {
-                    path.set_text(&QString::from_std_str(setting_string(key)));
+                    path.set_text(&QString::from_std_str(setting_string_from_q_setting(&q_settings, key)));
                     toggle_animated_safe(&spoiler.as_ptr());
                 }
             }
         }
 
         for (key, path) in self.paths_asskit_line_edits.iter() {
-            path.set_text(&QString::from_std_str(setting_string(&(key.to_owned() + "_assembly_kit"))));
+            path.set_text(&QString::from_std_str(setting_string_from_q_setting(&q_settings, &(key.to_owned() + "_assembly_kit"))));
         }
 
         // Get the default game.
         for (index, game) in SUPPORTED_GAMES.games().iter().enumerate() {
-            if game.game_key_name() == setting_string("default_game") {
+            if game.game_key_name() == setting_string_from_q_setting(&q_settings, "default_game") {
                 self.extra_global_default_game_combobox.set_current_index(index as i32);
                 break;
             }
         }
 
-        let language_selected = setting_string("language");
+        let language_selected = setting_string_from_q_setting(&q_settings, "language");
         let language_selected_split = language_selected.split('_').collect::<Vec<&str>>()[0];
         for (index, (language,_)) in Locale::get_available_locales()?.iter().enumerate() {
             if *language == language_selected_split {
@@ -865,33 +865,33 @@ impl SettingsUI {
             }
         }
 
-        *self.font_data.borrow_mut() = (setting_string("font_name"), setting_int("font_size"));
+        *self.font_data.borrow_mut() = (setting_string_from_q_setting(&q_settings, "font_name"), setting_int_from_q_setting(&q_settings, "font_size"));
 
         // Load the General Stuff.
-        self.extra_packfile_autosave_amount_spinbox.set_value(setting_int("autosave_amount"));
-        self.extra_packfile_autosave_interval_spinbox.set_value(setting_int("autosave_interval"));
-        self.ui_global_use_dark_theme_checkbox.set_checked(setting_bool("use_dark_theme"));
-        self.ui_window_start_maximized_checkbox.set_checked(setting_bool("start_maximized"));
-        self.ui_window_hide_background_icon_checkbox.set_checked(setting_bool("hide_background_icon"));
-        self.extra_network_check_updates_on_start_checkbox.set_checked(setting_bool("check_updates_on_start"));
-        self.extra_network_check_schema_updates_on_start_checkbox.set_checked(setting_bool("check_schema_updates_on_start"));
-        self.extra_network_check_lua_autogen_updates_on_start_checkbox.set_checked(setting_bool("check_lua_autogen_updates_on_start"));
-        self.extra_packfile_allow_editing_of_ca_packfiles_checkbox.set_checked(setting_bool("allow_editing_of_ca_packfiles"));
-        self.extra_packfile_optimize_not_renamed_packedfiles_checkbox.set_checked(setting_bool("optimize_not_renamed_packedfiles"));
-        self.extra_packfile_use_lazy_loading_checkbox.set_checked(setting_bool("use_lazy_loading"));
-        self.extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox.set_checked(setting_bool("disable_uuid_regeneration_on_db_tables"));
-        self.extra_packfile_disable_file_previews_checkbox.set_checked(setting_bool("disable_file_previews"));
-        self.general_packfile_treeview_resize_to_fit_checkbox.set_checked(setting_bool("packfile_treeview_resize_to_fit"));
-        self.general_packfile_treeview_expand_treeview_when_adding_items_checkbox.set_checked(setting_bool("expand_treeview_when_adding_items"));
+        self.extra_packfile_autosave_amount_spinbox.set_value(setting_int_from_q_setting(&q_settings, "autosave_amount"));
+        self.extra_packfile_autosave_interval_spinbox.set_value(setting_int_from_q_setting(&q_settings, "autosave_interval"));
+        self.ui_global_use_dark_theme_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "use_dark_theme"));
+        self.ui_window_start_maximized_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "start_maximized"));
+        self.ui_window_hide_background_icon_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "hide_background_icon"));
+        self.extra_network_check_updates_on_start_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "check_updates_on_start"));
+        self.extra_network_check_schema_updates_on_start_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "check_schema_updates_on_start"));
+        self.extra_network_check_lua_autogen_updates_on_start_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "check_lua_autogen_updates_on_start"));
+        self.extra_packfile_allow_editing_of_ca_packfiles_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "allow_editing_of_ca_packfiles"));
+        self.extra_packfile_optimize_not_renamed_packedfiles_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "optimize_not_renamed_packedfiles"));
+        self.extra_packfile_use_lazy_loading_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "use_lazy_loading"));
+        self.extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "disable_uuid_regeneration_on_db_tables"));
+        self.extra_packfile_disable_file_previews_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "disable_file_previews"));
+        self.general_packfile_treeview_resize_to_fit_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "packfile_treeview_resize_to_fit"));
+        self.general_packfile_treeview_expand_treeview_when_adding_items_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "expand_treeview_when_adding_items"));
 
         // Load the Table Stuff.
-        self.ui_table_adjust_columns_to_content_checkbox.set_checked(setting_bool("adjust_columns_to_content"));
-        self.ui_table_disable_combos_checkbox.set_checked(setting_bool("disable_combos_on_tables"));
-        self.ui_table_extend_last_column_checkbox.set_checked(setting_bool("extend_last_column_on_tables"));
-        self.ui_table_tight_table_mode_checkbox.set_checked(setting_bool("tight_table_mode"));
-        self.ui_table_resize_on_edit_checkbox.set_checked(setting_bool("table_resize_on_edit"));
-        self.ui_table_use_old_column_order_checkbox.set_checked(setting_bool("tables_use_old_column_order"));
-        self.ui_table_use_right_size_markers_checkbox.set_checked(setting_bool("use_right_size_markers"));
+        self.ui_table_adjust_columns_to_content_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "adjust_columns_to_content"));
+        self.ui_table_disable_combos_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "disable_combos_on_tables"));
+        self.ui_table_extend_last_column_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "extend_last_column_on_tables"));
+        self.ui_table_tight_table_mode_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "tight_table_mode"));
+        self.ui_table_resize_on_edit_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "table_resize_on_edit"));
+        self.ui_table_use_old_column_order_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "tables_use_old_column_order"));
+        self.ui_table_use_right_size_markers_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "use_right_size_markers"));
 
         // Load colours.
         let colour_light_table_added = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_light_table_added")).to_string());
@@ -928,15 +928,15 @@ impl SettingsUI {
         self.ui_table_colour_dark_diagnostic_info_button.set_style_sheet(&QString::from_std_str(format!("background-color: {}", colour_dark_diagnostic_info.name_1a(NameFormat::HexArgb).to_std_string())));
 
         // Load the Debug Stuff.
-        self.debug_check_for_missing_table_definitions_checkbox.set_checked(setting_bool("check_for_missing_table_definitions"));
-        self.debug_enable_debug_menu_checkbox.set_checked(setting_bool("enable_debug_menu"));
-        self.debug_spoof_ca_authoring_tool_checkbox.set_checked(setting_bool("spoof_ca_authoring_tool"));
-        self.debug_enable_rigidmodel_editor_checkbox.set_checked(setting_bool("enable_rigidmodel_editor"));
-        self.debug_enable_unit_editor_checkbox.set_checked(setting_bool("enable_unit_editor"));
+        self.debug_check_for_missing_table_definitions_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "check_for_missing_table_definitions"));
+        self.debug_enable_debug_menu_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "enable_debug_menu"));
+        self.debug_spoof_ca_authoring_tool_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "spoof_ca_authoring_tool"));
+        self.debug_enable_rigidmodel_editor_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "enable_rigidmodel_editor"));
+        self.debug_enable_unit_editor_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "enable_unit_editor"));
 
         // Load the Diagnostics Stuff.
-        self.diagnostics_diagnostics_trigger_on_open_checkbox.set_checked(setting_bool("diagnostics_trigger_on_open"));
-        self.diagnostics_diagnostics_trigger_on_table_edit_checkbox.set_checked(setting_bool("diagnostics_trigger_on_table_edit"));
+        self.diagnostics_diagnostics_trigger_on_open_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "diagnostics_trigger_on_open"));
+        self.diagnostics_diagnostics_trigger_on_table_edit_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "diagnostics_trigger_on_table_edit"));
 
         Ok(())
     }

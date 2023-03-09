@@ -93,7 +93,7 @@ impl SettingsUISlots {
 
                 let mut old_settings = HashMap::new();
                 for i in 0..keys.count_0a() {
-                    old_settings.insert(keys.at(i).to_std_string(), setting_from_q_setting_variant(&q_settings, &keys.at(i).to_std_string()));
+                    old_settings.insert(keys.at(i).to_std_string(), setting_variant_from_q_setting(&q_settings, &keys.at(i).to_std_string()));
                 }
 
                 // Fonts are a bit special. Init picks them up from the running app, not from a fixed value,
