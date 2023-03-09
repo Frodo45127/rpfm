@@ -24,12 +24,18 @@
         - `InvalidEscape` => Invalid escape.
         - `DuplicatedRow` => Duplicated row.
         - `InvalidLocKey` => Invalid Loc Key.
-        - `TableNameEndsInNumber` => Table name ends in number.
-        - `TableNameHasSpace` => Table name has spaces.
-        - `TableIsDataCoring` => Table is datacoring.
-        - `FieldWithPathNotFound` => Path/File in field not found.
-        - `InvalidDependencyPackFileName` => Invalid dependency PackFile.
-        - `InvalidPackFileName` => Invalid PackFile Name.
+        - `TableNameEndsInNumber` => Table Name ends in number.
+        - `TableNameHasSpace` => Table name has space.
+        - `TableIsDataCoring` => Table is data-coring.
+        - `FieldWithPathNotFound` => Path/File in Field not found.
+        - `BannedTable` => Banned Table detected.
+        - `ValueCannotBeEmpty` => Value Cannot be Empty.
+        - `InvalidDependencyPackName` => Invalid Dependecy PackFile
+        - `InvalidPackName` => Invalid Pack Name
+        - `DatacoredPortraitSettings` => Datacored Portrait Settings file.
+        - `InvalidArtSetId` => Invalid Art Set Id
+        - `InvalidVariantFilename` => Invalid Variant Filename
+        - `FileDiffuseNotFoundForVariant` => File Diffuse not found for Variant.
 
 - **Files to Ignore when Importing**: Paths here will be ignored when importing into a MyMod.
 - **Disable Autosaves for this PackFile**: For big PackFiles.

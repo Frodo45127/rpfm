@@ -32,6 +32,7 @@ These are all the actions available for DB Tables:
 - `Clone…/Clone and Append`: Creates a duplicate of every row with a selected cell and appends the duplicates at the end of the table.
 - `Copy …/Copy`: It copies whatever is selected to the Clipboard, in a format compatible with Excel, LibreOffice Calc and others.
 - `Copy …/Copy as LUA Table`: It copies the entire table as a Lua "Map\<String, Vector\<data\>\>" if the table has a key field, or as a series of Vectors if it hasn't, ready to paste it in a script. For scripters.
+- `Copy …/Copy as filter value`: It copies whatever is selected to the Clipboard, in a format which can be pasted in the filter input.
 - `Go To …/Go To Definition`: If the first cell of the selection is a reference to another table, it tries to open the referenced table. If Dependencies cache has been generated, it'll even open tables from data.pack or equivalent in read-only views.
 - `Go To …/Go To Loc Entry`: It tries to open the loc file containing the loc entry relevant for the selected row, if exists. If Dependencies cache has been generated, it'll even open locs from /data in read-only views.
 - `Paste`: It tries to paste whatever is in the Clipboard to the selected cells. It does some clever things while pasting:
@@ -48,7 +49,9 @@ These are all the actions available for DB Tables:
 - `Export TSV`: Allows you to export the table as a TSV File, compatible with Excel, Calc….
 - `Search`: Open the *Search & Replace* panel, that you can use to search any text pattern you want in the table, and replace it if you want. It works in combination with the filter, so you can even do more precise searches combining them!
 - `Sidebar`: Open a sidebar where you can select what columns hide/show and freeze/unfreeze.
+- `Find References`: Performs a reference search for the value in the cell.
 - `Rename References`: Allows you to rename in cascade all references to a key at once.
+- `Patch Column Definition`: Patches a column definition with extended data.
 - `Undo`: Allows you to undo… almost every action done in the table. Even TSV Imports.
 - `Redo`: Allows you to undo every undo action. This goes deeper into the rabbit hole…
 

@@ -1,0 +1,3 @@
+# Portrait Settings
+
+Portrait Settings are files that contain info about the different portraits (head/recruitment panel/details panel) a unit can use.
