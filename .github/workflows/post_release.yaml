@@ -35,7 +35,7 @@ jobs:
           package_name: rpfm-bin # Use this if the package name in AUR is different from the repository name
           ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }} # The private SSH key to use to push the changes to the AUR
           github_token: ${{ secrets.COMMIT_TOKEN }} # The GitHub token to use to update the PKGBUILD file and the AUR submodule
-          pkgbuild_path: install/arch/rpfm-bin/PKGBUILD # Use this if the PKGBUILD file is not in the root directory
+          pkgbuild_path: install/arch/rpfm-bin-local/PKGBUILD # Use this if the PKGBUILD file is not in the root directory
           aur_submodule_path: install/arch/rpfm-bin
           git_username: ${{ secrets.AUR_USERNAME }} # Use this if you want to change the git username (recommended)
           git_email: ${{ secrets.AUR_EMAIL }} # Use this if you want to change the git email (recommended)
