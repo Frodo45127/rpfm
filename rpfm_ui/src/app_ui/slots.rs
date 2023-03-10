@@ -1293,7 +1293,6 @@ impl AppUISlots {
                             <li>RigidModel module since v2.4.99 by: <b>Phazer</b>.</li>
 
                             <li>TW: Arena research and coding: <b>Trolldemorted</b>.</li>
-                            <li>TreeView Icons made by <a href=\"https://www.flaticon.com/authors/smashicons\" title=\"Smashicons\">Smashicons</a> from <a href=\"https://www.flaticon.com/\" title=\"Flaticon\">www.flaticon.com</a>. Licensed under <a href=\"http://creativecommons.org/licenses/by/3.0/\" title=\"Creative Commons BY 3.0\" target=\"_blank\">CC 3.0 BY</a>
                         </ul>
 
                         <h3>Special thanks</h3>

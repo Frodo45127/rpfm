@@ -30,7 +30,7 @@ jobs:
 
       - name: Publish AUR package
         uses: anas-elgarhy/aur-release-action@v4.1
-        if: steps.check_version_format_bash.outputs.is_beta == 1
+        if: steps.check_version_format_bash.outputs.is_beta == 0
         with:
           package_name: rpfm-bin # Use this if the package name in AUR is different from the repository name
           ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }} # The private SSH key to use to push the changes to the AUR
@@ -66,19 +66,19 @@ jobs:
           override: true
 
       - uses: katyo/publish-crates@v2
-        if: steps.check_version_format_bash.outputs.is_beta == 1
+        if: steps.check_version_format_bash.outputs.is_beta == 0
         with:
           path: './rpfm_lib'
           registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
       - uses: katyo/publish-crates@v2
-        if: steps.check_version_format_bash.outputs.is_beta == 1
+        if: steps.check_version_format_bash.outputs.is_beta == 0
         with:
           path: './rpfm_extensions'
           registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
       - uses: katyo/publish-crates@v2
-        if: steps.check_version_format_bash.outputs.is_beta == 1
+        if: steps.check_version_format_bash.outputs.is_beta == 0
         with:
           path: './rpfm_cli'
           registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
