@@ -1719,7 +1719,7 @@ impl RFile {
             self.file_type = FileType::Audio;
         }
 
-        else if path.ends_with(soundbank::EXTENSION) {
+        else if cfg!(feature = "support_soundbank") && path.ends_with(soundbank::EXTENSION) {
             self.file_type =  FileType::SoundBank;
         }
 

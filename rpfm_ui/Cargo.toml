@@ -18,6 +18,7 @@ strict_subclasses_compilation = []
 support_rigidmodel = ["rpfm_lib/support_rigidmodel"]
 support_modern_dds = []
 support_uic = ["rpfm_lib/support_uic"]
+support_soundbank = ["rpfm_lib/support_soundbank"]
 enable_tools = []
 only_for_the_brave = []
 

@@ -178,7 +178,7 @@ impl Icons {
                     &self.audio
                 }
 
-                else if path.ends_with(soundbank::EXTENSION) {
+                else if cfg!(feature = "support_soundbank") && path.ends_with(soundbank::EXTENSION) {
                     &self.sound_bank
                 }
 
