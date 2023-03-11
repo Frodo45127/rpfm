@@ -131,8 +131,8 @@ impl Pack {
 
         // We need our files sorted before trying to write them. But we don't want to duplicate
         // them on memory. And we also need to load them to memory on the pack. So...  we do this.
-        let mut sorted_files = self.files.iter_mut().collect::<Vec<(&String, &mut RFile)>>();
-        sorted_files.sort_unstable_by_key(|(path, _)| path.to_lowercase());
+        let mut sorted_files = self.files.iter_mut().map(|(key, file)| (key.replace("/", "\\"), file)).collect::<Vec<(String, &mut RFile)>>();
+        sorted_files.sort_unstable_by(|a, b| a.0.cmp(&b.0));
 
         // Optimization: we process the sorted files in parallel, so we can speedup loading/compression.
         // Sadly, this requires us to make a double iterator to actually catch the errors.
@@ -169,7 +169,7 @@ impl Pack {
                 }
 
                 file_index_entry.write_bool(self.compress && file.is_compressible())?;
-                file_index_entry.write_string_u8_0terminated(&path.replace('/', "\\"))?;
+                file_index_entry.write_string_u8_0terminated(&path)?;
                 Ok((file_index_entry, data))
             }).collect::<Result<Vec<(Vec<u8>, Vec<u8>)>>>()?
             .into_par_iter()

@@ -233,11 +233,11 @@ impl Encodeable for AnimPack {
     fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         buffer.write_u32(self.files.len() as u32)?;
 
-        let mut sorted_files = self.files.iter_mut().collect::<Vec<(&String, &mut RFile)>>();
-        sorted_files.sort_unstable_by_key(|(path, _)| path.to_lowercase());
+        let mut sorted_files = self.files.iter_mut().map(|(key, file)| (key.replace("/", "\\"), file)).collect::<Vec<(String, &mut RFile)>>();
+        sorted_files.sort_unstable_by(|a, b| a.0.cmp(&b.0));
 
         for (path, file) in sorted_files {
-            buffer.write_sized_string_u8(path)?;
+            buffer.write_sized_string_u8(&path)?;
 
             let data = file.encode(extra_data, false, false, true)?.unwrap();
 
