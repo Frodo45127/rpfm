@@ -271,7 +271,12 @@ impl Schema {
     /// This function adds a definition for a table into the currently loaded schema.
     pub fn add_definition(&mut self, table_name: &str, definition: &Definition) {
         match self.definitions.get_mut(table_name) {
-            Some(definitions) => definitions.push(definition.to_owned()),
+            Some(definitions) => {
+                match definitions.iter_mut().find(|def| def.version() == definition.version()) {
+                    Some(def) => *def = definition.to_owned(),
+                    None => definitions.push(definition.to_owned()),
+                }
+            },
             None => { self.definitions.insert(table_name.to_owned(), vec![definition.to_owned()]); },
         }
     }
