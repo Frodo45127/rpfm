@@ -591,7 +591,11 @@ impl Pack {
     /// This needs a [GameInfo] to get the Packs from, and a game path to search the Packs on.
     pub fn read_and_merge_ca_packs(game: &GameInfo, game_path: &Path) -> Result<Self> {
         let paths = game.ca_packs_paths(game_path)?;
-        Self::read_and_merge(&paths, true, true)
+        let mut pack = Self::read_and_merge(&paths, true, true)?;
+
+        // Make sure it's not mod type.
+        pack.header_mut().set_pfh_file_type(PFHFileType::Release);
+        Ok(pack)
     }
 
     /// Convenience function to open multiple Packs as one, taking care of overwriting files when needed.
