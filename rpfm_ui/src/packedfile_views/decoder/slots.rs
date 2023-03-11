@@ -529,6 +529,7 @@ impl PackedFileDecoderViewSlots {
                 let mut extra_data = DecodeableExtraData::default();
                 extra_data.set_schema(Some(&schema));
                 extra_data.set_return_incomplete(true);
+                extra_data.set_table_name(Some(view.table_name()));
                 let extra_data = Some(extra_data);
 
                  match DB::decode(&mut *view.data.write().unwrap(), &extra_data) {
