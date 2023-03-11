@@ -69,17 +69,20 @@ jobs:
         if: steps.check_version_format_bash.outputs.is_beta == 0
         with:
           path: './rpfm_lib'
+          args: --no-verify
           registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
       - uses: katyo/publish-crates@v2
         if: steps.check_version_format_bash.outputs.is_beta == 0
         with:
           path: './rpfm_extensions'
+          args: --no-verify
           registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
       - uses: katyo/publish-crates@v2
         if: steps.check_version_format_bash.outputs.is_beta == 0
         with:
           path: './rpfm_cli'
+          args: --no-verify
           registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
