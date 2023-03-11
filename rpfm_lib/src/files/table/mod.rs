@@ -842,9 +842,9 @@ impl Table {
 
         // Get the colour positions of the tables, if any.
         let combined_colour_positions = fields.iter().filter_map(|field| {
-            if field.is_part_of_colour().is_some() {
+            if let Some(colour_group) = field.is_part_of_colour() {
                 let colour_split = field.name().rsplitn(2, '_').collect::<Vec<&str>>();
-                let colour_field_name: String = if colour_split.len() == 2 { format!("{}{}", colour_split[1].to_lowercase(), MERGE_COLOUR_POST) } else { MERGE_COLOUR_NO_NAME.to_lowercase() };
+                let colour_field_name: String = if colour_split.len() == 2 { format!("{}{}", colour_split[1].to_lowercase(), MERGE_COLOUR_POST) } else { format!("{}_{}", MERGE_COLOUR_NO_NAME.to_lowercase(), colour_group) };
 
                 self.definition.column_position_by_name(&colour_field_name).map(|x| (colour_field_name, x))
             } else { None }
@@ -863,14 +863,14 @@ impl Table {
             for field in fields {
 
                 // First special situation: join back split colour columns, if the field is a split colour.
-                if field.is_part_of_colour().is_some() {
+                if let Some(colour_group) = field.is_part_of_colour() {
                     let field_name = field.name().to_lowercase();
                     let colour_split = field_name.rsplitn(2, '_').collect::<Vec<&str>>();
                     let colour_channel = colour_split[0];
                     let colour_field_name = if colour_split.len() == 2 {
                         format!("{}{}", colour_split[1], MERGE_COLOUR_POST)
                     } else {
-                        MERGE_COLOUR_NO_NAME.to_owned()
+                        format!("{}_{}", MERGE_COLOUR_NO_NAME.to_lowercase(), colour_group)
                     };
 
                     if let Some(data_column) = combined_colour_positions.get(&colour_field_name) {
