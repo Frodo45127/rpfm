@@ -471,7 +471,7 @@ impl Dependencies {
     /// This function loads all the parent [Packs](rpfm_lib::files::pack::Pack) provided as `parent_pack_names` as dependencies,
     /// taking care of also loading all dependencies of all of them, if they're not already loaded.
     fn load_parent_packs(&mut self, parent_pack_names: &[String], game_info: &GameInfo, game_path: &Path) -> Result<()> {
-        let data_packs_paths = game_info.ca_packs_paths(game_path)?;
+        let data_packs_paths = game_info.data_packs_paths(game_path).unwrap_or(vec![]);
         let content_packs_paths = game_info.content_packs_paths(game_path);
         let mut loaded_packfiles = vec![];
 
