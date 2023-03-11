@@ -286,7 +286,6 @@ jobs:
         id: changelog_reader
         uses: mindsers/changelog-reader-action@v2
         with:
-          version: Unreleased
           path: ./Changelog.md
 
       - name: Check Version Format in Tag
