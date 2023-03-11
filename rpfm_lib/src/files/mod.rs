@@ -642,7 +642,7 @@ pub trait Container {
         let file_paths = files_from_subdir(source_path, true)?;
         let mut inserted_paths = Vec::with_capacity(file_paths.len());
         for file_path in file_paths {
-            let trimmed_path = file_path.strip_prefix(source_path)?.to_string_lossy().to_string();
+            let trimmed_path = file_path.strip_prefix(source_path)?.to_string_lossy().replace('\\', "/");
             let file_container_path = container_path_folder.to_owned() + &trimmed_path;
 
             if let Some(ignored_paths) = ignored_paths {
