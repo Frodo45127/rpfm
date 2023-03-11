@@ -492,23 +492,23 @@ impl Dependencies {
         // Do not process Packs twice.
         if !already_loaded.contains(&pack_name.to_owned()) {
 
-            // First, if the game has an external path (not in /data) for Packs, we load the external Packs.
-            if let Some(ref paths) = external_path {
+            // First check in /data. If we have packs there, do not bother checking for external Packs.
+            if let Some(path) = data_paths.iter().find(|x| x.file_name().unwrap().to_string_lossy() == pack_name) {
+                if let Ok(pack) = Pack::read_and_merge(&[path.to_path_buf()], true, false) {
+                    already_loaded.push(pack_name.to_owned());
+                    pack.dependencies().iter().for_each(|pack_name| self.load_parent_pack(pack_name, already_loaded, data_paths, external_path));
+                    self.parent_files.extend(pack.files().clone());
+                }
+            }
+
+            // If the Packs are not found in data, check in content.
+            else if let Some(ref paths) = external_path {
                 if let Some(path) = paths.iter().find(|x| x.file_name().unwrap().to_string_lossy() == pack_name) {
                     if let Ok(pack) = Pack::read_and_merge(&[path.to_path_buf()], true, false) {
                         already_loaded.push(pack_name.to_owned());
                         pack.dependencies().iter().for_each(|pack_name| self.load_parent_pack(pack_name, already_loaded, data_paths, external_path));
                         self.parent_files.extend(pack.files().clone());
                     }
-                }
-            }
-
-            // Then we load the Packs from /data, so they take priority over the other ones when overwriting.
-            if let Some(path) = data_paths.iter().find(|x| x.file_name().unwrap().to_string_lossy() == pack_name) {
-                if let Ok(pack) = Pack::read_and_merge(&[path.to_path_buf()], true, false) {
-                    already_loaded.push(pack_name.to_owned());
-                    pack.dependencies().iter().for_each(|pack_name| self.load_parent_pack(pack_name, already_loaded, data_paths, external_path));
-                    self.parent_files.extend(pack.files().clone());
                 }
             }
         }
