@@ -159,6 +159,19 @@ pub fn background_loop() {
                 match Pack::read_and_merge_ca_packs(&game_selected, &setting_path(game_selected.game_key_name())) {
                     Ok(pack) => {
                         pack_file_decoded = pack;
+
+                        // Force decoding of table/locs, so they're in memory for the diagnostics to work.
+                        if let Some(ref schema) = *SCHEMA.read().unwrap() {
+                            let mut decode_extra_data = DecodeableExtraData::default();
+                            decode_extra_data.set_schema(Some(schema));
+                            let extra_data = Some(decode_extra_data);
+
+                            let mut files = pack_file_decoded.files_by_type_mut(&[FileType::DB, FileType::Loc]);
+                            files.par_iter_mut().for_each(|file| {
+                                let _ = file.decode(&extra_data, true, false);
+                            });
+                        }
+
                         CentralCommand::send_back(&sender, Response::ContainerInfo(ContainerInfo::from(&pack_file_decoded)));
                     }
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
