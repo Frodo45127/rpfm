@@ -148,6 +148,7 @@ impl GitIntegration {
 
     /// This function downloads the latest revision of the current repository.
     pub fn update_repo(&self) -> Result<()> {
+        let mut new_repo = false;
         let mut repo = match Repository::open(&self.local_path) {
             Ok(repo) => repo,
             Err(_) => {
@@ -162,7 +163,10 @@ impl GitIntegration {
                 let _ = std::fs::remove_dir_all(&self.local_path);
                 DirBuilder::new().recursive(true).create(&self.local_path)?;
                 match Repository::clone(&self.url, &self.local_path) {
-                    Ok(repo) => repo,
+                    Ok(repo) => {
+                        new_repo = true;
+                        repo
+                    },
                     Err(_) => return Err(RLibError::GitErrorDownloadFromRepo(self.url.to_owned())),
                 }
             }
@@ -179,6 +183,11 @@ impl GitIntegration {
         // In case we're not in master, checkout the master branch.
         if current_branch_name != master_refname {
             self.checkout_branch(&repo, &master_refname)?;
+        }
+
+        // If we just cloned a new repo and changed branches, return.
+        if new_repo {
+            return Ok(());
         }
 
         // If it worked, now we have to do a pull from master. Sadly, git2-rs does not support pull.
