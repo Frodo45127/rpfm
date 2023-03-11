@@ -486,7 +486,7 @@ impl Diagnostics {
                                 else if !cell_data.is_empty() && !ref_data.data().contains_key(&*cell_data) {
 
                                     // Numeric cells with 0 are "empty" references and should not be checked.
-                                    let is_number = *field.field_type() == FieldType::I32 || *field.field_type() == FieldType::I64;
+                                    let is_number = *field.field_type() == FieldType::I32 || *field.field_type() == FieldType::I64 || *field.field_type() == FieldType::OptionalI32 || *field.field_type() == FieldType::OptionalI64;
                                     let is_valid_reference = if is_number { cell_data != "0" } else { true };
                                     if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field.name()), Some("InvalidReference"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && is_valid_reference {
                                         let result = TableDiagnosticReport::new(TableDiagnosticReportType::InvalidReference(cell_data.to_string(), field.name().to_string()), &[(row as i32, column as i32)]);
