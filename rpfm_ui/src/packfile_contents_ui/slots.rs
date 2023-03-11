@@ -839,7 +839,7 @@ impl PackFileContentsSlots {
             app_ui,
             pack_file_contents_ui => move |_| {
                 info!("Triggering `Extract` By Slot");
-                PackFileContentsUI::extract_packed_files(&app_ui, &pack_file_contents_ui, None, false);
+                PackFileContentsUI::extract_packed_files(&app_ui, &pack_file_contents_ui, None, true);
             }
         ));
 
