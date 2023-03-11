@@ -1388,7 +1388,9 @@ impl PackTree for QPtr<QTreeView> {
 
                             // Not sure what the fuck causes this, but sometimes parent is null.
                             if parent.is_null() {
-                                error!("Parent null passed for path {:?}. Breaking loop to avoid crash (god knows what will happen next).", path);
+
+                                // TODO: Investigate this, as it shouldn't happen.
+                                //error!("Parent null passed for path {:?}. Breaking loop to avoid crash (god knows what will happen next).", path);
                                 break;
                             }
                             parent.remove_row(item.row());
