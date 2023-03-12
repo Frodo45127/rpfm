@@ -175,9 +175,9 @@ impl Encodeable for DB {
         if table_has_guid {
             buffer.write_all(GUID_MARKER)?;
             if regenerate_table_guid && !self.guid.is_empty() {
-                buffer.write_sized_string_u16(&self.guid)?;
-            } else {
                 buffer.write_sized_string_u16(&Uuid::new_v4().to_string())?;
+            } else {
+                buffer.write_sized_string_u16(&self.guid)?;
             }
         }
 
