@@ -6,6 +6,16 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [4.0.3]
+### Fixed
+- Fixed error when successfuly updating the schemas after a cleanup.
+- Fixed tables not being searchable when using "Load All CA Packs".
+- Fixed "Add from Folder" not adding the files correctly.
+- Fixed "Load All CA Packs" autosaving when it shouldn't.
+- Fixed CTD when clicking on bnk files.
+- Fixed small issue regarding Pack Encoding order.
+- Fixed multiple instances of certain settings related with file encodings not working.
+
 ## [4.0.2]
 ### Fixed
 - Fixed parent mods not loading properly from /data.
@@ -846,7 +856,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.0.2...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.0.3...HEAD
+[4.0.3]: https://github.com/Frodo45127/rpfm/compare/v4.0.2...v4.0.3
 [4.0.2]: https://github.com/Frodo45127/rpfm/compare/v4.0.1...v4.0.2
 [4.0.1]: https://github.com/Frodo45127/rpfm/compare/v4.0.0...v4.0.1
 [4.0.0]: https://github.com/Frodo45127/rpfm/compare/v3.0.16...v4.0.0
