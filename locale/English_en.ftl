@@ -2,8 +2,8 @@
 
 ## These two need to be changed for special builds, so they go first.
 
-title_only_for_the_brave = Only For The Brave
-message_only_for_the_brave = <p>This version has been marked as "Only For The Brave". This means its a beta version containing certain highly unstable/untested features that may cause issues for people using it. But… you can check features before anyone else.</p>
+title_only_for_the_brave_old = Only For The Brave
+message_only_for_the_brave_old = <p>This version has been marked as "Only For The Brave". This means its a beta version containing certain highly unstable/untested features that may cause issues for people using it. But… you can check features before anyone else.</p>
 
     <p>If you don't want the risk, please change the update channel back to stable and check for updates. That should revert your RPFM installation back to the latest stable version. Also, you'll need to go to Preferences and clear the dependencies and schemas folders.</p>
 
@@ -19,6 +19,15 @@ message_only_for_the_brave = <p>This version has been marked as "Only For The Br
         <li>Remember to clear up and update your schemas and regenerate the dependencies cache.</li>
     </ul>
     <p>Everything else should work... in theory.</p>
+
+title_only_for_the_brave = Important Info
+message_only_for_the_brave = <p>If you're coming from a 3.X version of RPFM, there are some things you must be wary about:</p>
+    <ul>
+        <li>"No Packs Provided" error on start: delete rpfm.exe, and use rpfm_ui.exe instead.</li>
+        <li>Tables wont open/wont appear on searches: Go to Pack/Settings, hit Clear Scheam Folder, and then go to About/Check Schema Updates and update them. Restart RPFM after that.</li>
+        <li>"Load All CA Packs" is not clickable: That's because you have the dependencies cache generated, which already loads all ca packs to the dependencies panel. Makes no sense to use load all CA packs when you already have them loaded.</li>
+        <li>Settings are gone! 4.0 uses a different setting system. You'll to configure it again.</li>
+    </ul>
 
 ## General Localization
 
