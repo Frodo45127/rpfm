@@ -9,6 +9,7 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [4.0.4]
 ### Fixed
 - Fixed mods with uppercased tables crashing the game.
+- Fixed CTD when hitting Delete or Clone on variant list of Portrait Settings when nothing is selected..
 
 ## [4.0.3]
 ### Fixed
