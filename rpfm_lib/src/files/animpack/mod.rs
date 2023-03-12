@@ -234,7 +234,7 @@ impl Encodeable for AnimPack {
         buffer.write_u32(self.files.len() as u32)?;
 
         let mut sorted_files = self.files.iter_mut().map(|(key, file)| (key.replace("/", "\\"), file)).collect::<Vec<(String, &mut RFile)>>();
-        sorted_files.sort_unstable_by(|a, b| a.0.cmp(&b.0));
+        sorted_files.sort_unstable_by_key(|(path, _)| path.to_lowercase());
 
         for (path, file) in sorted_files {
             buffer.write_sized_string_u8(&path)?;
