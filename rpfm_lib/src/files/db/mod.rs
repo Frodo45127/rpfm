@@ -336,6 +336,8 @@ impl DB {
         fields.push(Field::new("merged_colours_2_g".to_owned(), FieldType::I32, false, Some("CD".to_string()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), Some(1)));
         fields.push(Field::new("merged_colours_2_b".to_owned(), FieldType::I32, false, Some("EF".to_string()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), Some(1)));
 
+        // TODO: add combined colour columns for testing.
+
         definition.set_fields(fields);
         definition
     }
