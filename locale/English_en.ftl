@@ -27,6 +27,7 @@ message_only_for_the_brave = <p>If you're coming from a 3.X version of RPFM, the
         <li>Tables wont open/wont appear on searches: Go to Pack/Settings, hit Clear Scheam Folder, and then go to About/Check Schema Updates and update them. Restart RPFM after that.</li>
         <li>"Load All CA Packs" is not clickable: That's because you have the dependencies cache generated, which already loads all ca packs to the dependencies panel. Makes no sense to use load all CA packs when you already have them loaded.</li>
         <li>Settings are gone! 4.0 uses a different setting system. You'll to configure it again.</li>
+        <li>Mass-export has been merged into the add/extract functions. If you want to mass-import/export tables, just add/extract them and they will be converted on the fly to/from tsv.</li>
     </ul>
 
 ## General Localization
