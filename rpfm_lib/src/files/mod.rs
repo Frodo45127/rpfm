@@ -360,7 +360,7 @@ pub struct EncodeableExtraData<'a> {
     game_key: Option<&'a str>,
 
     /// Path of 7z.exe. Used for compressing.
-    sevenzip_path: Option<&'a Path>,
+    sevenzip_path: Option<PathBuf>,
 
     /// SQLite Database Pool. For allowing connections to the database.
     #[cfg(feature = "integration_sqlite")]
@@ -2246,6 +2246,7 @@ impl<'a> EncodeableExtraData<'a> {
     pub fn new_from_game_info(game_info: &'a GameInfo) -> Self {
         let mut extra_data = Self::default();
         extra_data.set_game_key(Some(game_info.game_key_name()));
+        extra_data.set_table_has_guid(game_info.db_tables_have_guid());
         extra_data
     }
 }

@@ -671,7 +671,7 @@ impl Pack {
     /// Convenience function to easily save a Pack to disk.
     ///
     /// If a path is provided, the Pack will be saved to that path. Otherwise, it'll use whatever path it had set before.
-    pub fn save(&mut self, path: Option<&Path>, game_info: &GameInfo) -> Result<()> {
+    pub fn save(&mut self, path: Option<&Path>, game_info: &GameInfo, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         if let Some(path) = path {
             self.disk_file_path = path.to_string_lossy().to_string();
         }
@@ -680,7 +680,11 @@ impl Pack {
         self.files.iter_mut().try_for_each(|(_, file)| file.load())?;
 
         let mut file = BufWriter::new(File::create(&self.disk_file_path)?);
-        let extra_data = Some(EncodeableExtraData::new_from_game_info(game_info));
+        let extra_data = if extra_data.is_some() {
+            extra_data.clone()
+        } else {
+            Some(EncodeableExtraData::new_from_game_info(game_info))
+        };
 
         self.encode(&mut file, &extra_data)
     }

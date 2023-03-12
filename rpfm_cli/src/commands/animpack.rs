@@ -164,7 +164,7 @@ pub fn extract(config: &Config, pack_path: &Path, file_path: &[(String, PathBuf)
     let mut pack = AnimPack::decode(&mut reader, &Some(extra_data))?;
     let mut extra_data = EncodeableExtraData::default();
     if let Some(game) = &config.game {
-        extra_data.set_game_key(Some(game.game_key_name()));
+        extra_data = EncodeableExtraData::new_from_game_info(game);
     }
 
     let extra_data = Some(extra_data);

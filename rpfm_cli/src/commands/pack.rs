@@ -232,7 +232,7 @@ pub fn extract(config: &Config, schema_path: &Option<PathBuf>, pack_path: &Path,
     let mut pack = Pack::decode(&mut reader, &Some(extra_data))?;
     let mut extra_data = EncodeableExtraData::default();
     if let Some(game) = &config.game {
-        extra_data.set_game_key(Some(game.game_key_name()));
+        extra_data = EncodeableExtraData::new_from_game_info(game);
     }
 
     let extra_data = Some(extra_data);
@@ -341,7 +341,7 @@ pub fn merge(config: &Config, save_pack_path: &Path, source_pack_paths: &[PathBu
     match &config.game {
         Some(game) => {
             let mut pack = Pack::read_and_merge(source_pack_paths, true, false)?;
-            pack.save(Some(save_pack_path), game)?;
+            pack.save(Some(save_pack_path), game, &None)?;
             Ok(())
         }
         None => Err(anyhow!("No Game provided.")),

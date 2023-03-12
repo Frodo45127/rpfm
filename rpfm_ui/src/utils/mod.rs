@@ -36,16 +36,18 @@ use cpp_core::Ref;
 use anyhow::Result;
 use regex::Regex;
 
-use rpfm_lib::files::pack::PackSettings;
-use rpfm_lib::integrations::log::*;
-
 use std::convert::AsRef;
 use std::fmt::Display;
 use std::fs::File;
 use std::io::Read;
 
+use rpfm_lib::files::{EncodeableExtraData, pack::PackSettings};
+use rpfm_lib::games::GameInfo;
+use rpfm_lib::integrations::log::*;
+
 use rpfm_ui_common::ASSETS_PATH;
 use rpfm_ui_common::locale::{qtr, qtre};
+use rpfm_ui_common::settings::setting_path;
 pub use rpfm_ui_common::utils::*;
 
 use crate::{DARK_PALETTE, GAME_SELECTED, LIGHT_PALETTE, LIGHT_STYLE_SHEET, SENTRY_GUARD};
@@ -53,6 +55,7 @@ use crate::ffi::*;
 use crate::setting_bool;
 use crate::STATUS_BAR;
 use crate::pack_tree::{get_color_correct, get_color_wrong, get_color_clean};
+use crate::ZIP_PATH;
 
 // Colors used all over the program for theming and stuff.
 pub const MEDIUM_DARKER_GREY: &str = "#262626";          // Medium-Darker Grey.
@@ -373,4 +376,16 @@ pub fn initialize_pack_settings() -> PackSettings {
     pack_settings.settings_text_mut().insert("import_files_to_ignore".to_owned(), "".to_owned());
     pack_settings.settings_bool_mut().insert("disable_autosaves".to_owned(), false);
     pack_settings
+}
+
+pub fn initialize_encodeable_extra_data(game_info: &GameInfo) -> EncodeableExtraData {
+    let mut extra_data = EncodeableExtraData::new_from_game_info(&game_info);
+    extra_data.set_regenerate_table_guid(!setting_bool("disable_uuid_regeneration_on_db_tables"));
+
+    let zip_path = setting_path(ZIP_PATH);
+    if zip_path.is_file() {
+        extra_data.set_sevenzip_path(Some(zip_path));
+    }
+
+    extra_data
 }

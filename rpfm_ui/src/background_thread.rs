@@ -36,7 +36,7 @@ use rpfm_extensions::dependencies::Dependencies;
 use rpfm_extensions::diagnostics::Diagnostics;
 use rpfm_extensions::optimizer::OptimizableContainer;
 
-use rpfm_lib::files::{animpack::AnimPack, Container, ContainerPath, db::DB, DecodeableExtraData, EncodeableExtraData, FileType, loc::Loc, pack::*, portrait_settings::PortraitSettings, RFile, RFileDecoded, text::*};
+use rpfm_lib::files::{animpack::AnimPack, Container, ContainerPath, db::DB, DecodeableExtraData, FileType, loc::Loc, pack::*, portrait_settings::PortraitSettings, RFile, RFileDecoded, text::*};
 use rpfm_lib::games::{GameInfo, LUA_REPO, LUA_BRANCH, LUA_REMOTE, pfh_file_type::PFHFileType};
 use rpfm_lib::integrations::{assembly_kit::*, git::*, log::*};
 use rpfm_lib::schema::*;
@@ -58,6 +58,7 @@ use crate::packedfile_views::DataSource;
 use crate::SCHEMA;
 use crate::settings_ui::backend::*;
 use crate::SUPPORTED_GAMES;
+use crate::utils::initialize_encodeable_extra_data;
 
 /// This is the background loop that's going to be executed in a parallel thread to the UI. No UI or "Unsafe" stuff here.
 ///
@@ -180,7 +181,9 @@ pub fn background_loop() {
 
             // In case we want to "Save a PackFile"...
             Command::SavePackFile => {
-                match pack_file_decoded.save(None, &GAME_SELECTED.read().unwrap()) {
+                let game_selected = GAME_SELECTED.read().unwrap();
+                let extra_data = Some(initialize_encodeable_extra_data(&game_selected));
+                match pack_file_decoded.save(None, &game_selected, &extra_data) {
                     Ok(_) => CentralCommand::send_back(&sender, Response::ContainerInfo(From::from(&pack_file_decoded))),
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(anyhow!("Error while trying to save the currently open PackFile: {}", error))),
                 }
@@ -188,7 +191,9 @@ pub fn background_loop() {
 
             // In case we want to "Save a PackFile As"...
             Command::SavePackFileAs(path) => {
-                match pack_file_decoded.save(Some(&path), &GAME_SELECTED.read().unwrap()) {
+                let game_selected = GAME_SELECTED.read().unwrap();
+                let extra_data = Some(initialize_encodeable_extra_data(&game_selected));
+                match pack_file_decoded.save(Some(&path), &game_selected, &extra_data) {
                     Ok(_) => CentralCommand::send_back(&sender, Response::ContainerInfo(From::from(&pack_file_decoded))),
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(anyhow!("Error while trying to save the currently open PackFile: {}", error))),
                 }
@@ -197,7 +202,10 @@ pub fn background_loop() {
             // If you want to perform a clean&save over a PackFile...
             Command::CleanAndSavePackFileAs(path) => {
                 pack_file_decoded.clean_undecoded();
-                match pack_file_decoded.save(Some(&path), &GAME_SELECTED.read().unwrap()) {
+
+                let game_selected = GAME_SELECTED.read().unwrap();
+                let extra_data = Some(initialize_encodeable_extra_data(&game_selected));
+                match pack_file_decoded.save(Some(&path), &game_selected, &extra_data) {
                     Ok(_) => CentralCommand::send_back(&sender, Response::ContainerInfo(From::from(&pack_file_decoded))),
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(anyhow!("Error while trying to save the currently open PackFile: {}", error))),
                 }
@@ -867,9 +875,7 @@ pub fn background_loop() {
                 let schema = if extract_tables_to_tsv { &*schema } else { &None };
                 let mut errors = 0;
 
-                let mut extra_data = EncodeableExtraData::default();
-                extra_data.set_game_key(Some(GAME_SELECTED.read().unwrap().game_key_name()));
-                let extra_data = Some(extra_data);
+                let extra_data = Some(initialize_encodeable_extra_data(&GAME_SELECTED.read().unwrap()));
 
                 // Pack extraction.
                 if let Some(container_paths) = container_paths.get(&DataSource::PackFile) {
@@ -1069,7 +1075,8 @@ pub fn background_loop() {
             // In case we want to clean the cache of one or more PackedFiles...
             Command::CleanCache(paths) => {
                 let mut files = pack_file_decoded.files_by_paths_mut(&paths, false);
-                let extra_data = Some(EncodeableExtraData::new_from_game_info(&GAME_SELECTED.read().unwrap()));
+                let extra_data = Some(initialize_encodeable_extra_data(&GAME_SELECTED.read().unwrap()));
+
                 files.iter_mut().for_each(|file| {
                     let _ = file.encode(&extra_data, true, true, false);
                 });
@@ -1136,9 +1143,7 @@ pub fn background_loop() {
                 match data_source {
                     DataSource::PackFile => {
                         let folder = temp_dir().join(format!("rpfm_{}", pack_file_decoded.disk_file_name()));
-                        let mut extra_data = EncodeableExtraData::default();
-                        extra_data.set_game_key(Some(GAME_SELECTED.read().unwrap().game_key_name()));
-                        let extra_data = Some(extra_data);
+                        let extra_data = Some(initialize_encodeable_extra_data(&GAME_SELECTED.read().unwrap()));
 
                         match pack_file_decoded.extract(path.clone(), &folder, true, &SCHEMA.read().unwrap(), false, &extra_data) {
                             Ok(_) => {
@@ -1204,7 +1209,8 @@ pub fn background_loop() {
 
                                 // Encode the decoded tables with the old schema, then re-decode them with the new one.
                                 let mut tables = pack_file_decoded.files_by_type_mut(&[FileType::DB]);
-                                let extra_data = Some(EncodeableExtraData::new_from_game_info(&GAME_SELECTED.read().unwrap()));
+                                let extra_data = Some(initialize_encodeable_extra_data(&GAME_SELECTED.read().unwrap()));
+
                                 tables.par_iter_mut().for_each(|x| { let _ = x.encode(&extra_data, true, true, false); });
 
                                 *SCHEMA.write().unwrap() = Schema::load(&schema_path).ok();
@@ -1275,7 +1281,9 @@ pub fn background_loop() {
                     let new_name = format!("{date_formatted}.pack");
                     let new_path = folder.join(new_name);
                     if pack_file_decoded.pfh_file_type() == PFHFileType::Mod {
-                        let _ = pack_file_decoded.clone().save(Some(&new_path), &GAME_SELECTED.read().unwrap());
+                        let game_selected = GAME_SELECTED.read().unwrap();
+                        let extra_data = Some(initialize_encodeable_extra_data(&game_selected));
+                        let _ = pack_file_decoded.clone().save(Some(&new_path), &game_selected, &extra_data);
                     }
 
                     // If we have more than the limit, delete the older one.
@@ -1585,7 +1593,7 @@ pub fn background_loop() {
 
                                 // If we don't have binary data, it may be decoded. Encode it and return the binary data.
                                 Err(_) =>  {
-                                    let extra_data = Some(EncodeableExtraData::new_from_game_info(&GAME_SELECTED.read().unwrap()));
+                                    let extra_data = Some(initialize_encodeable_extra_data(&GAME_SELECTED.read().unwrap()));
                                     match rfile.encode(&extra_data, false, false, true) {
                                         Ok(data) => CentralCommand::send_back(&sender, Response::VecU8(data.unwrap())),
                                         Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
@@ -1892,10 +1900,7 @@ fn live_export(pack: &mut Pack) -> Result<()> {
         return Err(anyhow!("No files to export."));
     }
 
-    let mut extra_data = EncodeableExtraData::default();
-    extra_data.set_game_key(Some(GAME_SELECTED.read().unwrap().game_key_name()));
-    let extra_data = Some(extra_data);
-
+    let extra_data = Some(initialize_encodeable_extra_data(&GAME_SELECTED.read().unwrap()));
     let game_path = setting_path(GAME_SELECTED.read().unwrap().game_key_name());
     let data_path = GAME_SELECTED.read().unwrap().data_path(&game_path)?;
 
@@ -1944,7 +1949,8 @@ fn load_schemas(sender: &Sender<Response>, pack: &mut Pack, game: &GameInfo) {
 
     // Before loading the schema, make sure we don't have tables with definitions from the current schema.
     let mut files = pack.files_by_type_mut(&[FileType::DB]);
-    let extra_data = Some(EncodeableExtraData::new_from_game_info(&GAME_SELECTED.read().unwrap()));
+    let extra_data = Some(initialize_encodeable_extra_data(game));
+
     files.par_iter_mut().for_each(|file| {
         let _ = file.encode(&extra_data, true, true, false);
     });

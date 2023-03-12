@@ -131,9 +131,9 @@ impl Pack {
     /// This function writes a `Pack` of version 5 into the provided buffer.
     pub(crate) fn write_pfh5<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         let (sevenzip_exe_path, test_mode) = if let Some(extra_data) = extra_data {
-            (extra_data.sevenzip_path, extra_data.test_mode)
+            (&extra_data.sevenzip_path, extra_data.test_mode)
         } else {
-            (None, false)
+            (&None, false)
         };
 
         // We need our files sorted before trying to write them. But we don't want to duplicate
@@ -151,7 +151,7 @@ impl Pack {
 
                 if self.compress && file.is_compressible() {
                     if let Some(sevenzip_exe_path) = sevenzip_exe_path {
-                        data = data.compress(sevenzip_exe_path)?;
+                        data = data.compress(&sevenzip_exe_path)?;
                     }
                 }
 

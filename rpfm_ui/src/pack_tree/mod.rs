@@ -37,7 +37,6 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use rpfm_lib::files::{ContainerPath, FileType, pack::PFHFlags};
-use rpfm_lib::integrations::log::error;
 use rpfm_lib::utils::*;
 
 use rpfm_ui_common::FULL_DATE_FORMAT;
