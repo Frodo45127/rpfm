@@ -476,6 +476,10 @@ impl PortraitSettingsView {
         self.variants_list_model.clear();
         self.variants_widget.set_enabled(false);
 
+        // Disable these on load so they cannot be trigger with no selection.
+        self.variants_list_clone.set_enabled(false);
+        self.variants_list_delete.set_enabled(false);
+
         data.variants_mut().sort_by(|a, b| a.filename().cmp(b.filename()));
         for variant in data.variants() {
             let item = QStandardItem::from_q_string(&QString::from_std_str(variant.filename())).into_ptr();
