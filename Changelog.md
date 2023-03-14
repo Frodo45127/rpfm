@@ -17,6 +17,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - Fixed rare CTD when marking items as modified
 - Fixed mods with uppercased tables crashing the game.
 - Fixed table UUID failing to generate on new tables.
+- Fixed error after compressing packs.
 
 ## [4.0.4]
 ### Fixed
