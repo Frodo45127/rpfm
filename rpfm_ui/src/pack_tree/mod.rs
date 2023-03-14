@@ -1447,6 +1447,11 @@ impl PackTree for QPtr<QTreeView> {
                     let cycles = if !path_split.is_empty() { path_split.len() - 1 } else { 0 };
                     let mut parent = item.parent();
                     for _ in 0..cycles {
+                        if parent.is_null() || !parent.data_1a(ITEM_STATUS).is_valid() {
+                            // TODO: Investigate this, as it shouldn't happen.
+                            //error!("Parent or data null passed for path {:?} when modifying Breaking loop to avoid crash (god knows what will happen next).", path);
+                            break;
+                        }
 
                         // Get the status and mark them as needed.
                         match parent.data_1a(ITEM_STATUS).to_int_0a() {
@@ -1549,23 +1554,6 @@ impl PackTree for QPtr<QTreeView> {
                                 }
                             }
                         }
-
-                        // This one is a bit special. We need to check, not only him, but all his children too.
-                        /*ContainerPath::PackFile => {
-                            let item = model.item_2a(0, 0);
-                            let mut packfile_is_modified = false;
-                            for row in 0..item.row_count() {
-                                let child = item.child_2a(row, 0);
-                                if child.data_1a(ITEM_STATUS).to_int_0a() != ITEM_STATUS_PRISTINE {
-                                    packfile_is_modified = true;
-                                    break;
-                                }
-                            }
-
-                            if !packfile_is_modified {
-                                item.set_data_2a(&QVariant::from_int(ITEM_STATUS_PRISTINE), ITEM_STATUS);
-                            }
-                        }*/
                     }
                 }
             }
