@@ -49,6 +49,8 @@ use rpfm_lib::games::{GameInfo, supported_games::{SupportedGames, KEY_WARHAMMER_
 use rpfm_lib::integrations::log::*;
 use rpfm_lib::schema::Schema;
 
+use rpfm_ui_common::locale::*;
+
 use crate::communications::{CentralCommand, Command, Response};
 use crate::pack_tree::icons::Icons;
 use crate::settings_ui::backend::*;
@@ -183,8 +185,13 @@ const GITHUB_URL: &str = "https://github.com/Frodo45127/rpfm";
 const PATREON_URL: &str = "https://www.patreon.com/RPFM";
 const DISCORD_URL: &str = "https://discord.gg/moddingden";
 
+const FALLBACK_LOCALE_EN: &str = include_str!("../../locale/English_en.ftl");
+
 /// Main function.
 fn main() {
+
+    // Setup the fallback locale before anything else.
+    *FALLBACK_LOCALE.write().unwrap() = FALLBACK_LOCALE_EN.to_string();
 
     // Access the guard to make sure it gets initialized.
     if SENTRY_GUARD.read().unwrap().is_enabled() {

@@ -20,7 +20,7 @@ edition = "2021"
 
 [profile.dev]
 incremental = true
-opt-level = 3         #For performance debugging, check this. Makes compile times longer, but it gives way more accurate-with-release speeds.
+#opt-level = 3         #For performance debugging, check this. Makes compile times longer, but it gives way more accurate-with-release speeds.
 
 [profile.release]
 lto = true

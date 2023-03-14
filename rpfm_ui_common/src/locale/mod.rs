@@ -14,6 +14,7 @@ use cpp_core::CppBox;
 
 use anyhow::{anyhow, Result};
 use fluent_bundle::{FluentResource, FluentBundle};
+use lazy_static::lazy_static;
 use unic_langid::{langid, LanguageIdentifier, subtags::Language};
 
 use std::fs::File;
@@ -34,8 +35,11 @@ const LOCALE_FOLDER: &str = "locale";
 /// Replace sequence used to insert data into the translations.
 const REPLACE_SEQUENCE: &str = "{}";
 
-/// Include by default the english localisation, to avoid problems with idiots deleting files.
-const FALLBACK_LOCALE: &str = include_str!("../../../locale/English_en.ftl");
+lazy_static! {
+
+    /// Include by default the english localisation, to avoid problems with idiots deleting files.
+    pub static ref FALLBACK_LOCALE: Arc<RwLock<String>> = Arc::new(RwLock::new(String::new()));
+}
 
 /// This struct contains a localisation use in RPFM.
 #[derive(Clone)]
@@ -81,7 +85,7 @@ impl Locale {
 
    /// This function initializes the fallback localisation included in the binary.
     pub fn initialize_fallback() -> Result<Self> {
-        let resource = FluentResource::try_new(FALLBACK_LOCALE.to_owned()).map_err(|_| anyhow!("Failed to initialize fluent fallback resource."))?;
+        let resource = FluentResource::try_new(FALLBACK_LOCALE.read().unwrap().to_owned()).map_err(|_| anyhow!("Failed to initialize fluent fallback resource."))?;
         let mut bundle = FluentBundle::new(vec![langid!["en"]]);
         bundle.add_resource(resource).map_err(|_| anyhow!("Failed to add fluent fallback resource."))?;
         Ok(Self(Arc::new(RwLock::new(bundle))))
