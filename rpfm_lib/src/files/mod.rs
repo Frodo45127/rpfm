@@ -87,7 +87,7 @@ use self::esf::ESF;
 use self::image::Image;
 use self::loc::Loc;
 use self::matched_combat::MatchedCombat;
-use self::pack::Pack;
+use self::pack::{Pack, RESERVED_NAME_SETTINGS, RESERVED_NAME_NOTES};
 use self::portrait_settings::PortraitSettings;
 use self::rigidmodel::RigidModel;
 use self::soundbank::SoundBank;
@@ -1689,7 +1689,7 @@ impl RFile {
 
     /// This function returns if the RFile can be compressed or not.
     pub fn is_compressible(&self) -> bool {
-        !matches!(self.file_type, FileType::DB | FileType::Loc)
+        !matches!(self.file_type, FileType::DB | FileType::Loc) && self.file_name() != Some(RESERVED_NAME_SETTINGS) && self.file_name() != Some(RESERVED_NAME_NOTES)
     }
 
     /// This function guesses the [`FileType`] of the provided RFile and stores it on it for later queries.
