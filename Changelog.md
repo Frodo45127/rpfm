@@ -6,10 +6,22 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [4.0.5]
+### Added
+- Added a setting to add the base folder when using "Add From Folder".
+
+### Changed
+- When drag&droping to the db folder, you'll now receive a warning.
+
+### Fixed
+- Fixed rare CTD when marking items as modified
+- Fixed mods with uppercased tables crashing the game.
+- Fixed table UUID failing to generate on new tables.
+
 ## [4.0.4]
 ### Fixed
 - Fixed mods with uppercased tables crashing the game.
-- Fixed CTD when hitting Delete or Clone on variant list of Portrait Settings when nothing is selected..
+- Fixed CTD when hitting Delete or Clone on variant list of Portrait Settings when nothing is selected.
 
 ## [4.0.3]
 ### Fixed
@@ -861,7 +873,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.0.4...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.0.5...HEAD
+[4.0.5]: https://github.com/Frodo45127/rpfm/compare/v4.0.4...v4.0.5
 [4.0.4]: https://github.com/Frodo45127/rpfm/compare/v4.0.3...v4.0.4
 [4.0.3]: https://github.com/Frodo45127/rpfm/compare/v4.0.2...v4.0.3
 [4.0.2]: https://github.com/Frodo45127/rpfm/compare/v4.0.1...v4.0.2
