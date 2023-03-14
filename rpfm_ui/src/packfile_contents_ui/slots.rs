@@ -161,6 +161,11 @@ impl PackFileContentsSlots {
                     new_base_path.push('/');
                 }
 
+                // Warn people before moving things to the db folder.
+                if new_base_path.to_lowercase().starts_with("db/") && !AppUI::are_you_sure_edition(&app_ui, "are_you_sure_rename_db_folder") {
+                    return;
+                }
+
                 // Prepare the new paths using the rename sequence.
                 let mut renaming_data_background: Vec<(ContainerPath, ContainerPath)> = vec![];
                 for item_type in &selected_items {
