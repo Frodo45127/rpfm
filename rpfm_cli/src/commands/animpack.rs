@@ -84,7 +84,7 @@ pub fn add(config: &Config, pack_path: &Path, file_path: &[(PathBuf, String)], f
             info!("Adding folder: {}", container_path);
         }
 
-        pack.insert_folder(folder_path, container_path, &None, &None)?;
+        pack.insert_folder(folder_path, container_path, &None, &None, false)?;
     }
 
     for (file_path, container_path) in file_path {

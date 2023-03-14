@@ -106,6 +106,7 @@ pub struct SettingsUI {
     ui_global_use_dark_theme_label: QBox<QLabel>,
     ui_window_start_maximized_label: QBox<QLabel>,
     general_packfile_treeview_expand_treeview_when_adding_items_label: QBox<QLabel>,
+    include_base_folder_on_add_from_folder_label: QBox<QLabel>,
 
     general_language_combobox: QBox<QComboBox>,
     extra_global_default_game_combobox: QBox<QComboBox>,
@@ -125,6 +126,7 @@ pub struct SettingsUI {
     ui_window_hide_background_icon_checkbox: QBox<QCheckBox>,
     general_packfile_treeview_resize_to_fit_checkbox: QBox<QCheckBox>,
     general_packfile_treeview_expand_treeview_when_adding_items_checkbox: QBox<QCheckBox>,
+    include_base_folder_on_add_from_folder_checkbox: QBox<QCheckBox>,
 
     font_data: Rc<RefCell<(String, i32)>>,
 
@@ -419,6 +421,9 @@ impl SettingsUI {
         let general_packfile_treeview_expand_treeview_when_adding_items_label = QLabel::from_q_string_q_widget(&qtr("settings_expand_treeview_when_adding_items"), &general_frame);
         let general_packfile_treeview_expand_treeview_when_adding_items_checkbox = QCheckBox::from_q_widget(&general_frame);
 
+        let include_base_folder_on_add_from_folder_label = QLabel::from_q_string_q_widget(&qtr("include_base_folder_on_add_from_folder"), &general_frame);
+        let include_base_folder_on_add_from_folder_checkbox = QCheckBox::from_q_widget(&general_frame);
+
         // Adding to the grid.
         general_grid.add_widget_5a(&general_language_label, 0, 0, 1, 1);
         general_grid.add_widget_5a(&general_language_combobox, 0, 1, 1, 1);
@@ -467,6 +472,9 @@ impl SettingsUI {
 
         general_grid.add_widget_5a(&general_packfile_treeview_expand_treeview_when_adding_items_label, 17, 0, 1, 1);
         general_grid.add_widget_5a(&general_packfile_treeview_expand_treeview_when_adding_items_checkbox, 17, 1, 1, 1);
+
+        general_grid.add_widget_5a(&include_base_folder_on_add_from_folder_label, 18, 0, 1, 1);
+        general_grid.add_widget_5a(&include_base_folder_on_add_from_folder_checkbox, 18, 1, 1, 1);
 
         settings_grid.add_widget_5a(&general_frame, 2, 0, 2, 1);
 
@@ -727,6 +735,7 @@ impl SettingsUI {
             ui_global_use_dark_theme_label,
             ui_window_start_maximized_label,
             general_packfile_treeview_expand_treeview_when_adding_items_label,
+            include_base_folder_on_add_from_folder_label,
 
             general_language_combobox,
             extra_global_default_game_combobox,
@@ -746,6 +755,7 @@ impl SettingsUI {
             ui_window_hide_background_icon_checkbox,
             general_packfile_treeview_resize_to_fit_checkbox,
             general_packfile_treeview_expand_treeview_when_adding_items_checkbox,
+            include_base_folder_on_add_from_folder_checkbox,
 
             font_data: Rc::new(RefCell::new((String::new(), -1))),
 
@@ -883,6 +893,7 @@ impl SettingsUI {
         self.extra_packfile_disable_file_previews_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "disable_file_previews"));
         self.general_packfile_treeview_resize_to_fit_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "packfile_treeview_resize_to_fit"));
         self.general_packfile_treeview_expand_treeview_when_adding_items_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "expand_treeview_when_adding_items"));
+        self.include_base_folder_on_add_from_folder_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "include_base_folder_on_add_from_folder"));
 
         // Load the Table Stuff.
         self.ui_table_adjust_columns_to_content_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "adjust_columns_to_content"));
@@ -992,6 +1003,7 @@ impl SettingsUI {
         set_setting_bool_to_q_setting(&q_settings, "disable_file_previews", self.extra_packfile_disable_file_previews_checkbox.is_checked());
         set_setting_bool_to_q_setting(&q_settings, "packfile_treeview_resize_to_fit", self.general_packfile_treeview_resize_to_fit_checkbox.is_checked());
         set_setting_bool_to_q_setting(&q_settings, "expand_treeview_when_adding_items", self.general_packfile_treeview_expand_treeview_when_adding_items_checkbox.is_checked());
+        set_setting_bool_to_q_setting(&q_settings, "include_base_folder_on_add_from_folder", self.include_base_folder_on_add_from_folder_checkbox.is_checked());
 
         // Get the Table Settings.
         set_setting_bool_to_q_setting(&q_settings, "adjust_columns_to_content", self.ui_table_adjust_columns_to_content_checkbox.is_checked());

@@ -623,13 +623,15 @@ pub trait Container {
     /// This method allow us to insert an entire folder from disk, including subfolders and files,
     /// into an specific path within a Container, replacing any old [RFile] in a path collision.
     ///
+    /// By default it doesn't insert the folder itself, but its contents. If you want to include the folder, pass include_base_folder as true.
+    ///
     /// If a [Schema](crate::schema::Schema) is provided, this function will attempt to import any tsv files it finds into binary files.
     /// If it fails to convert a file, it'll import it as a normal file instead.
     ///
     /// If ignored paths are provided, paths that match them (as in relative path with the Container as root) will not be included in the Container.
     ///
     /// Returns the list of [ContainerPath] inserted.
-    fn insert_folder(&mut self, source_path: &Path, container_path_folder: &str, ignored_paths: &Option<Vec<&str>>, schema: &Option<Schema>) -> Result<Vec<ContainerPath>> {
+    fn insert_folder(&mut self, source_path: &Path, container_path_folder: &str, ignored_paths: &Option<Vec<&str>>, schema: &Option<Schema>, include_base_folder: bool) -> Result<Vec<ContainerPath>> {
         let mut container_path_folder = container_path_folder.replace('\\', "/");
         if !container_path_folder.is_empty() && !container_path_folder.ends_with('/') {
             container_path_folder.push('/');
@@ -639,10 +641,18 @@ pub trait Container {
             container_path_folder.remove(0);
         }
 
+        let mut source_path_without_base_folder = source_path.to_path_buf();
+        source_path_without_base_folder.pop();
+
         let file_paths = files_from_subdir(source_path, true)?;
         let mut inserted_paths = Vec::with_capacity(file_paths.len());
         for file_path in file_paths {
-            let trimmed_path = file_path.strip_prefix(source_path)?.to_string_lossy().replace('\\', "/");
+            let trimmed_path = if include_base_folder {
+                file_path.strip_prefix(&source_path_without_base_folder)?
+            } else {
+                file_path.strip_prefix(source_path)?
+            }.to_string_lossy().replace('\\', "/");
+
             let file_container_path = container_path_folder.to_owned() + &trimmed_path;
 
             if let Some(ignored_paths) = ignored_paths {

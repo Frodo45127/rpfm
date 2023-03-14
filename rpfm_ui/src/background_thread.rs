@@ -540,7 +540,7 @@ pub fn background_loop() {
 
                         // TODO: See what should we do with the ignored paths.
                         ContainerPath::Folder(destination_path) => {
-                            match pack_file_decoded.insert_folder(source_path, destination_path, &None, &schema) {
+                            match pack_file_decoded.insert_folder(source_path, destination_path, &None, &schema, setting_bool("include_base_folder_on_add_from_folder")) {
                                 Ok(mut paths) => added_paths.append(&mut paths),
                                 Err(error) => it_broke = Some(error),
                             }

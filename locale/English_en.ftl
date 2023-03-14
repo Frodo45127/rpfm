@@ -1320,3 +1320,4 @@ new_portrait_settings_copy_from_column = Copy values from this entry
 new_portrait_settings_copy_to_column = Copy values to this entry
 
 live_export_success = Script and UI folders exported correctly.
+include_base_folder_on_add_from_folder = Include Parent Folder when Adding a Folder

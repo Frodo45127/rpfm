@@ -138,7 +138,7 @@ pub fn add(config: &Config, schema_path: &Option<PathBuf>, pack_path: &Path, fil
             info!("Adding folder: {}", container_path);
         }
 
-        pack.insert_folder(folder_path, container_path, &None, &schema)?;
+        pack.insert_folder(folder_path, container_path, &None, &schema, false)?;
     }
 
     for (file_path, container_path) in file_path {
