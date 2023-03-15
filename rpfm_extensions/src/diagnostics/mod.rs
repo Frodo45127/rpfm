@@ -167,6 +167,7 @@ impl Diagnostics {
         if let Some(diagnostics) = Self::check_config(dependencies, game_info, game_path) {
             let is_diagnostic_blocking = if let DiagnosticType::Config(ref diagnostic) = diagnostics {
                 diagnostic.results().iter().any(|diagnostic| matches!(diagnostic.report_type(),
+                    ConfigDiagnosticReportType::IncorrectGamePath |
                     ConfigDiagnosticReportType::DependenciesCacheNotGenerated |
                     ConfigDiagnosticReportType::DependenciesCacheOutdated |
                     ConfigDiagnosticReportType::DependenciesCacheCouldNotBeLoaded(_)))
