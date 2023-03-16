@@ -22,6 +22,10 @@ rpfm_extensions = { path = "../rpfm_extensions", version = "4.0.5" }
 # Error managing.
 anyhow = "1.0"
 
+# Config dependencies.
+directories = "^4.0"
+lazy_static = "^1.2"
+
 # CLI parsing, formatting and color support.
 clap = { version = "^4", features = ["derive", "wrap_help"] }
 

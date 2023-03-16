@@ -14,21 +14,48 @@
 
 use anyhow::Result;
 use clap::Parser;
+use lazy_static::lazy_static;
 
 use std::path::PathBuf;
 use std::process::exit;
+use std::sync::{Arc, RwLock};
 
 use rpfm_lib::integrations::log::*;
 
 use crate::app::{Cli, Commands, CommandsAnimPack, CommandsDependencies, CommandsPack, CommandsSchemas};
-use crate::config::Config;
+use crate::config::*;
 
 mod app;
 mod commands;
 mod config;
 
+// Statics, so we don't need to pass them everywhere to use them.
+lazy_static! {
+    pub static ref QUALIFIER: Arc<RwLock<String>> = Arc::new(RwLock::new("com".to_owned()));
+    pub static ref ORGANISATION: Arc<RwLock<String>> = Arc::new(RwLock::new("FrodoWazEre".to_owned()));
+    pub static ref PROGRAM_NAME: Arc<RwLock<String>> = Arc::new(RwLock::new("rpfm".to_owned()));
+
+    /// Sentry client guard, so we can reuse it later on and keep it in scope for the entire duration of the program.
+    static ref SENTRY_GUARD: Arc<RwLock<ClientInitGuard>> = Arc::new(RwLock::new(Logger::init(&{
+        init_config_path().expect("Error while trying to initialize config path. We're fucked.");
+        error_path().unwrap_or_else(|_| PathBuf::from("."))
+    }, true, true).unwrap()));
+}
+
+const SENTRY_DSN_KEY: &str = "https://1bee0e6bab154cd988b309096df932b8@o152833.ingest.sentry.io/4504850526699520";
+
 /// Guess you know what this function does....
 fn main() {
+
+    // Setup sentry's dsn for error reporting.
+    *SENTRY_DSN.write().unwrap() = SENTRY_DSN_KEY.to_owned();
+
+    // Access the guard to make sure it gets initialized.
+    if SENTRY_GUARD.read().unwrap().is_enabled() {
+        info!("Sentry Logging support enabled. Starting...");
+    } else {
+        info!("Sentry Logging support disabled. Starting...");
+    }
 
     // Parse the entire cli command.
     let cli = Cli::parse();

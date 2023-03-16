@@ -2373,6 +2373,8 @@ dependencies = [
  "anyhow",
  "clap",
  "csv",
+ "directories",
+ "lazy_static",
  "rayon",
  "rpfm_extensions",
  "rpfm_lib",
