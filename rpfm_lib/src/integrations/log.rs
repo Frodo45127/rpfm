@@ -20,6 +20,7 @@ Otherwise, none of them will work.
 !*/
 
 use backtrace::Backtrace;
+use lazy_static::lazy_static;
 pub use log::{error, info, warn};
 pub use sentry::{ClientInitGuard, Envelope, integrations::log::SentryLogger, protocol::*};
 use serde_derive::Serialize;
@@ -29,6 +30,7 @@ use std::fs::{DirBuilder, File};
 use std::io::{BufWriter, Write};
 use std::{panic, panic::PanicInfo};
 use std::path::Path;
+use std::sync::{Arc, RwLock};
 
 use crate::error::Result;
 use crate::utils::current_time;
@@ -36,8 +38,11 @@ use crate::utils::current_time;
 /// Current version of the crate.
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// This is the DSN needed for Sentry reports to work. Don't change it.
-const SENTRY_DSN: &str = "https://a8bf0a98ed43467d841ec433fb3d75a8@sentry.io/1205298";
+lazy_static! {
+
+    /// This is the DSN needed for Sentry reports to work. Don't change it.
+    pub static ref SENTRY_DSN: Arc<RwLock<String>> = Arc::new(RwLock::new(String::new()));
+}
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -107,7 +112,7 @@ impl Logger {
         }
 
         // Initialize Sentry's guard, for remote reporting. Only for release mode.
-        let dsn = if cfg!(debug_assertions) { "" } else { SENTRY_DSN };
+        let dsn = if cfg!(debug_assertions) { String::new() } else { SENTRY_DSN.read().unwrap().to_string() };
         let sentry_guard = sentry::init((dsn, sentry::ClientOptions {
             release: sentry::release_name!(),
             sample_rate: 1.0,
