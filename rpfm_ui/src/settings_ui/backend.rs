@@ -100,7 +100,7 @@ pub unsafe fn init_settings(main_window: &QPtr<QMainWindow>) {
     set_setting_if_new_bool(&q_settings, "expand_treeview_when_adding_items", true);
     set_setting_if_new_bool(&q_settings, "use_right_size_markers", false);
     set_setting_if_new_bool(&q_settings, "disable_file_previews", false);
-    set_setting_if_new_bool(&q_settings, "include_base_folder_on_add_from_folder", false);
+    set_setting_if_new_bool(&q_settings, "include_base_folder_on_add_from_folder", true);
 
     // Table Settings.
     set_setting_if_new_bool(&q_settings, "adjust_columns_to_content", true);
