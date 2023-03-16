@@ -27,8 +27,8 @@ default = ["only_for_the_brave"]
 [dependencies]
 
 # Internal dependencies.
-rpfm_lib = { path = "../rpfm_lib", version = "4.0.5", features = ["integration_log", "integration_git"] }
-rpfm_extensions = { path = "../rpfm_extensions", version = "4.0.5" }
+rpfm_lib = { path = "../rpfm_lib", version = "4.0.6", features = ["integration_log", "integration_git"] }
+rpfm_extensions = { path = "../rpfm_extensions", version = "4.0.6" }
 rpfm_ui_common = { path = "../rpfm_ui_common" }
 
 # Config dependencies.

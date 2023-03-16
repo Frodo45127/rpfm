@@ -6,6 +6,19 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [4.0.6]
+### Changed
+- "Include Parent Folder when Adding a Folder" setting is now enabled by default.
+
+### Fixed
+- Fixed diagnostics being able to trigger when no game path has been configured, leading to false positives.
+- Fixed (hopefully) error about adding files to an animpack being detected as modified and failing to save.
+- Fixed missing tooltip in "Include Parent Folder when Adding a Folder" setting.
+- Fixed CLI crashes failing to be logged.
+- Fixed incorrect error message after renaming an open file.
+- Fixed renamed previews losing the "preview" status.
+- Fixed "Data is Compressed" checkbox not being enabled when loading a Pack with compressed files.
+
 ## [4.0.5]
 ### Added
 - Added a setting to add the base folder when using "Add From Folder".
@@ -874,7 +887,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.0.5...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.0.6...HEAD
+[4.0.6]: https://github.com/Frodo45127/rpfm/compare/v4.0.5...v4.0.6
 [4.0.5]: https://github.com/Frodo45127/rpfm/compare/v4.0.4...v4.0.5
 [4.0.4]: https://github.com/Frodo45127/rpfm/compare/v4.0.3...v4.0.4
 [4.0.3]: https://github.com/Frodo45127/rpfm/compare/v4.0.2...v4.0.3
