@@ -878,6 +878,7 @@ impl PackTree for QPtr<QTreeView> {
 
         // Make sure we don't try to update the view until the model is done.
         self.set_updates_enabled(false);
+        self.selection_model().block_signals(true);
 
         // We act depending on the operation requested.
         match operation {
@@ -961,6 +962,7 @@ impl PackTree for QPtr<QTreeView> {
                             (big_parent.into_ptr(), packed_files_data)
                         } else {
                             self.set_updates_enabled(true);
+                            self.selection_model().block_signals(false);
                             return
                         }
                     },
@@ -995,6 +997,7 @@ impl PackTree for QPtr<QTreeView> {
                             (big_parent.into_ptr(), packed_files_data)
                         } else {
                             self.set_updates_enabled(true);
+                            self.selection_model().block_signals(false);
                             return
                         }
                     },
@@ -1029,6 +1032,7 @@ impl PackTree for QPtr<QTreeView> {
                             (big_parent.into_ptr(), packed_files_data)
                         } else {
                             self.set_updates_enabled(true);
+                            self.selection_model().block_signals(false);
                             return
                         }
                     },
@@ -1580,6 +1584,7 @@ impl PackTree for QPtr<QTreeView> {
 
         // Re-enable the view.
         self.set_updates_enabled(true);
+        self.selection_model().block_signals(false);
     }
 }
 
