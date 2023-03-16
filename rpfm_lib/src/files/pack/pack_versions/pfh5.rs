@@ -99,6 +99,7 @@ impl Pack {
 
             // Get if the file is compressed or not.
             let is_compressed = buffer_mem.read_bool()?;
+            self.compress |= is_compressed;
 
             // Get the file's path. If it's encrypted, decrypt it first.
             let path = if self.header.bitmask.contains(PFHFlags::HAS_ENCRYPTED_INDEX) {
