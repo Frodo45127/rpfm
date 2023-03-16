@@ -1,6 +1,8 @@
 [submodule "schemas"]
 	path = schemas
 	url = git@github.com:Frodo45127/rpfm-schemas.git
+    update = "none"
 [submodule "3rdparty/src/qt_dds_library"]
 	path = 3rdparty/src/qt_dds_library
 	url = git@github.com:Frodo45127/qt_dds_library.git
+    update = "none"
