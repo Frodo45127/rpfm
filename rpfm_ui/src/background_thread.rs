@@ -606,7 +606,7 @@ pub fn background_loop() {
 
                         // Try to decode it using lazy_load if enabled.
                         let mut extra_data = DecodeableExtraData::default();
-                        extra_data.set_lazy_load(setting_bool("use_lazy_loading"));
+                        //extra_data.set_lazy_load(setting_bool("use_lazy_loading"));
                         let _ = file.decode(&Some(extra_data), true, false);
 
                         match file.decoded_mut() {
@@ -643,7 +643,7 @@ pub fn background_loop() {
 
                         // Try to decode it using lazy_load if enabled.
                         let mut extra_data = DecodeableExtraData::default();
-                        extra_data.set_lazy_load(setting_bool("use_lazy_loading"));
+                        //extra_data.set_lazy_load(setting_bool("use_lazy_loading"));
                         let _ = file.decode(&Some(extra_data), true, false);
 
                         match file.decoded_mut() {
@@ -682,7 +682,7 @@ pub fn background_loop() {
 
                         // Try to decode it using lazy_load if enabled.
                         let mut extra_data = DecodeableExtraData::default();
-                        extra_data.set_lazy_load(setting_bool("use_lazy_loading"));
+                        //extra_data.set_lazy_load(setting_bool("use_lazy_loading"));
                         let _ = file.decode(&Some(extra_data), true, false);
 
                         match file.decoded_mut() {
@@ -723,7 +723,7 @@ pub fn background_loop() {
                                 Some(file) => {
                                     dbg!(file.file_type());
                                     let mut extra_data = DecodeableExtraData::default();
-                                    extra_data.set_lazy_load(setting_bool("use_lazy_loading"));
+                                    //extra_data.set_lazy_load(setting_bool("use_lazy_loading"));
 
                                     let schema = SCHEMA.read().unwrap();
                                     extra_data.set_schema(schema.as_ref());
