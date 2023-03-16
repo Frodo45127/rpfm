@@ -762,7 +762,7 @@ pub fn background_loop() {
                         match dependencies.write().unwrap().file_mut(&path, false, true) {
                             Ok(file) => {
                                 let mut extra_data = DecodeableExtraData::default();
-                                extra_data.set_lazy_load(setting_bool("use_lazy_loading"));
+                                //extra_data.set_lazy_load(setting_bool("use_lazy_loading"));
 
                                 let schema = SCHEMA.read().unwrap();
                                 extra_data.set_schema(schema.as_ref());
@@ -801,7 +801,7 @@ pub fn background_loop() {
                             Ok(file) => {
                                 dbg!(file.file_type());
                                 let mut extra_data = DecodeableExtraData::default();
-                                extra_data.set_lazy_load(setting_bool("use_lazy_loading"));
+                                //extra_data.set_lazy_load(setting_bool("use_lazy_loading"));
 
                                 let schema = SCHEMA.read().unwrap();
                                 extra_data.set_schema(schema.as_ref());
