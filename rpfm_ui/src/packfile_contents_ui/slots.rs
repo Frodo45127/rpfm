@@ -929,6 +929,11 @@ impl PackFileContentsSlots {
                                             let old_name = path_split_before.last().unwrap();
                                             let new_name = path_split_after.last().unwrap();
                                             if old_name != new_name {
+                                                let mut new_name = new_name.to_string();
+                                                if data.is_preview() {
+                                                    new_name.push_str(" (Preview)");
+                                                }
+
                                                 app_ui.tab_bar_packed_file().set_tab_text(index, &QString::from_std_str(new_name));
                                             }
 
