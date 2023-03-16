@@ -605,7 +605,7 @@ pub fn background_loop() {
                     Some(file) => {
 
                         // Try to decode it using lazy_load if enabled.
-                        let mut extra_data = DecodeableExtraData::default();
+                        let extra_data = DecodeableExtraData::default();
                         //extra_data.set_lazy_load(setting_bool("use_lazy_loading"));
                         let _ = file.decode(&Some(extra_data), true, false);
 
@@ -642,7 +642,7 @@ pub fn background_loop() {
                     Some(file) => {
 
                         // Try to decode it using lazy_load if enabled.
-                        let mut extra_data = DecodeableExtraData::default();
+                        let extra_data = DecodeableExtraData::default();
                         //extra_data.set_lazy_load(setting_bool("use_lazy_loading"));
                         let _ = file.decode(&Some(extra_data), true, false);
 
@@ -681,7 +681,7 @@ pub fn background_loop() {
                     Some(file) => {
 
                         // Try to decode it using lazy_load if enabled.
-                        let mut extra_data = DecodeableExtraData::default();
+                        let extra_data = DecodeableExtraData::default();
                         //extra_data.set_lazy_load(setting_bool("use_lazy_loading"));
                         let _ = file.decode(&Some(extra_data), true, false);
 
