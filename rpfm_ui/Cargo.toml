@@ -55,7 +55,7 @@ time = { version = "^0.3", features = ["formatting"] }
 regex = "^1"
 
 # Support for open files in a native way.
-open = "^3"
+open = "^4"
 
 # Qt dependencies.
 cpp_core = "^0.6"
