@@ -371,9 +371,15 @@ impl Container for Pack {
                         return Err(RLibError::EmptyDestiny);
                     }
 
+                    // Fix to avoid false positives.
+                    let mut source_path_end = source_path.to_owned();
+                    if !source_path_end.ends_with('/') {
+                        source_path_end.push('/');
+                    }
+
                     let moved_paths = self.files()
                         .par_iter()
-                        .filter_map(|(path, _)| if path.starts_with(source_path) { Some(path.to_owned()) } else { None })
+                        .filter_map(|(path, _)| if path.starts_with(&source_path_end) { Some(path.to_owned()) } else { None })
                         .collect::<Vec<_>>();
 
                     let moved = moved_paths.iter()
