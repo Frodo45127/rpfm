@@ -795,7 +795,17 @@ pub trait Container {
         if path.is_empty() {
            false
         } else {
-            self.files().keys().any(|x| x.starts_with(path) && x.len() > path.len())
+
+            // Make sure we don't trigger false positives due to similarly started files/folders.
+            let path = if path.ends_with('/') {
+                path.to_string()
+            } else {
+                let mut path = path.to_string();
+                path.push('/');
+                path
+            };
+
+            self.files().keys().any(|x| x.starts_with(&path) && x.len() > path.len())
         }
     }
 
