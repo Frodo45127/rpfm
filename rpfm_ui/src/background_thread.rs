@@ -1745,7 +1745,10 @@ pub fn background_loop() {
                 match *SCHEMA.write().unwrap() {
                     Some(ref mut schema) => {
                         schema.add_patch(patch);
-                        CentralCommand::send_back(&sender, Response::Success);
+                        match schema.save(&schemas_path().unwrap().join(GAME_SELECTED.read().unwrap().schema_file_name())) {
+                            Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                        }
                     }
                     None => CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected."))),
                 }
