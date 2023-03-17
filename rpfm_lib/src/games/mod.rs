@@ -343,6 +343,13 @@ impl GameInfo {
         Ok(game_path.join(install_data.data_path()))
     }
 
+    /// This function gets the `/contents` path or equivalent of the game selected, if said game it's configured in the settings.
+    pub fn content_path(&self, game_path: &Path) -> Result<PathBuf> {
+        let install_type = self.install_type(game_path)?;
+        let install_data = self.install_data.get(&install_type).ok_or_else(|| RLibError::GameInstallTypeNotSupported(self.display_name.to_string(), install_type.to_string()))?;
+        Ok(game_path.join(install_data.downloaded_mods_path()))
+    }
+
     /// This function gets the `language.txt` path of the game selected, if said game uses it and it's configured in the settings.
     pub fn language_path(&self, game_path: &Path) -> Result<PathBuf> {
 
