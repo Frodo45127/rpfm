@@ -18,6 +18,8 @@ use qt_core::SlotOfQItemSelectionQItemSelection;
 
 use std::rc::Rc;
 
+use rpfm_lib::integrations::log::*;
+
 use rpfm_ui_common::clone;
 
 use super::*;
@@ -51,12 +53,14 @@ impl ToolFactionPainterSlots {
 
         let delayed_updates = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
+                info!("Triggering 'delayed_updates' for faction painter.");
                 ui.filter_list();
             }
         ));
 
         let load_data_to_detailed_view = SlotOfQItemSelectionQItemSelection::new(ui.tool.main_widget(), clone!(
             ui => move |after, before| {
+                info!("Triggering 'load_data_to_detailed_view' for faction painter.");
 
                 // Save the previous data if needed.
                 if before.count_0a() == 1 {
@@ -76,30 +80,35 @@ impl ToolFactionPainterSlots {
 
         let filter_edited = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
+                info!("Triggering 'filter_edited' for faction painter.");
                 ui.start_delayed_updates_timer();
             }
         ));
 
         let banner_restore_initial_values = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
+                info!("Triggering 'banner_restore_initial_values' for faction painter.");
                 ui.banner_restore_initial_values();
             }
         ));
 
         let banner_restore_vanilla_values = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
+                info!("Triggering 'banner_restore_vanilla_values' for faction painter.");
                 ui.banner_restore_vanilla_values();
             }
         ));
 
         let uniform_restore_initial_values = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
+                info!("Triggering 'uniform_restore_initial_values' for faction painter.");
                 ui.uniform_restore_initial_values();
             }
         ));
 
         let uniform_restore_vanilla_values = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
+                info!("Triggering 'uniform_restore_vanilla_values' for faction painter.");
                 ui.uniform_restore_vanilla_values();
             }
         ));
