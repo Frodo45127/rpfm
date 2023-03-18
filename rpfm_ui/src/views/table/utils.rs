@@ -47,7 +47,7 @@ use std::sync::{atomic::AtomicPtr, RwLock};
 use rpfm_extensions::dependencies::TableReferences;
 
 use rpfm_lib::files::table::Table;
-use rpfm_lib::integrations::log::error;
+use rpfm_lib::integrations::log::*;
 use rpfm_lib::schema::{Definition, Field, FieldType};
 
 use rpfm_ui_common::locale::{qtr, tr, tre};
@@ -992,7 +992,11 @@ pub unsafe fn get_table_from_view(
 
                 // Sequences in the UI are not yet supported.
                 FieldType::SequenceU16(_) => DecodedData::SequenceU16(serde_json::from_str(&model.item_2a(row, column as i32).data_1a(ITEM_SEQUENCE_DATA).to_string().to_std_string()).unwrap()),
-                FieldType::SequenceU32(_) => DecodedData::SequenceU32(serde_json::from_str(&model.item_2a(row, column as i32).data_1a(ITEM_SEQUENCE_DATA).to_string().to_std_string()).unwrap()),
+                FieldType::SequenceU32(_) => {
+                    let data = model.item_2a(row, column as i32).data_1a(ITEM_SEQUENCE_DATA).to_string().to_std_string();
+                    info!("Sequence data: {}", data);
+                    DecodedData::SequenceU32(serde_json::from_str(&data).unwrap())
+                }
             };
             new_row.push(item);
         }
