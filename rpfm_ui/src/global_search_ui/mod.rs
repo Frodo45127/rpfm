@@ -1008,7 +1008,7 @@ impl GlobalSearchUI {
                                 let column_number = item.child_2a(row, 3).text().to_std_string().parse::<u64>().unwrap();
                                 let row_number = item.child_2a(row, 2).text().to_std_string().parse::<i64>().unwrap() - 1;
                                 let text = item.child_2a(row, 0).text().to_std_string();
-                                let lenght = item.child_2a(item.row(), 4).text().to_std_string().parse().unwrap();
+                                let lenght = item.child_2a(row, 4).text().to_std_string().parse().unwrap();
                                 let match_entry = TextMatch::new(column_number, row_number as u64, lenght, text);
                                 match_file.matches_mut().push(match_entry);
                             }
