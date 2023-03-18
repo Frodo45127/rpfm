@@ -174,7 +174,7 @@ impl Decodeable for AnimPack {
         };
 
         for _ in 0..file_count {
-            let path_in_container = data.read_sized_string_u8()?;
+            let path_in_container = data.read_sized_string_u8()?.replace('\\', "/");
             let size = data.read_u32()?;
 
             // Encrypted files cannot be lazy-loaded. They must be read in-place.
@@ -233,7 +233,7 @@ impl Encodeable for AnimPack {
     fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         buffer.write_u32(self.files.len() as u32)?;
 
-        let mut sorted_files = self.files.iter_mut().map(|(key, file)| (key.replace("/", "\\"), file)).collect::<Vec<(String, &mut RFile)>>();
+        let mut sorted_files = self.files.iter_mut().map(|(key, file)| (key.replace('/', "\\"), file)).collect::<Vec<(String, &mut RFile)>>();
         sorted_files.sort_unstable_by_key(|(path, _)| path.to_lowercase());
 
         for (path, file) in sorted_files {
