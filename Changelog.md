@@ -6,6 +6,15 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [4.0.7]
+### Fixed
+- Fixed false positives of path matches when creating a new folder.
+- Fixed false positives of path matches when renaming/moving folders.
+- Fixed schema patch importer not saving schema after an import.
+- Fixed incorrect path parsing in animpacks.
+- Fixed CTD when using global replace on Text matches.
+- Fixed optimizer and tool save not actually saving the optimized files.
+
 ## [4.0.6]
 ### Changed
 - "Include Parent Folder when Adding a Folder" setting is now enabled by default.
@@ -887,7 +896,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.0.6...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.0.7...HEAD
+[4.0.7]: https://github.com/Frodo45127/rpfm/compare/v4.0.6...v4.0.7
 [4.0.6]: https://github.com/Frodo45127/rpfm/compare/v4.0.5...v4.0.6
 [4.0.5]: https://github.com/Frodo45127/rpfm/compare/v4.0.4...v4.0.5
 [4.0.4]: https://github.com/Frodo45127/rpfm/compare/v4.0.3...v4.0.4
