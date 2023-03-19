@@ -90,9 +90,9 @@ impl OptimizableContainer for Pack {
         }).collect());
         */
 
-        let mut extra_data = DecodeableExtraData::default();
-        extra_data.set_schema(Some(schema));
-        let extra_data = Some(extra_data);
+        //let mut extra_data = DecodeableExtraData::default();
+        //extra_data.set_schema(Some(schema));
+        //let extra_data = Some(extra_data);
 
         // Then, do a second pass, this time over the decodeable files that we can optimize.
         files_to_delete.extend(self.files_mut().iter_mut().filter_map(|(path, rfile)| {
@@ -106,7 +106,7 @@ impl OptimizableContainer for Pack {
                         // Unless we specifically wanted to, ignore the same-name-as-vanilla-or-parent files,
                         // as those are probably intended to overwrite vanilla files, not to be optimized.
                         if optimize_datacored_tables || !dependencies.file_exists(path, true, true, true) {
-                            if let Ok(Some(RFileDecoded::DB(mut db))) = rfile.decode(&extra_data, false, true) {
+                            if let Ok(RFileDecoded::DB(db)) = rfile.decoded_mut() {
                                 if db.optimize(dependencies) {
                                     return Some(path.to_owned());
                                 }
@@ -118,7 +118,7 @@ impl OptimizableContainer for Pack {
 
                         // Same as with tables, don't optimize them if they're overwriting.
                         if optimize_datacored_tables || !dependencies.file_exists(path, true, true, true) {
-                            if let Ok(Some(RFileDecoded::Loc(mut loc))) = rfile.decode(&extra_data, false, true) {
+                            if let Ok(RFileDecoded::Loc(loc)) = rfile.decoded_mut() {
                                 if loc.optimize(dependencies) {
                                     return Some(path.to_owned());
                                 }
@@ -187,6 +187,8 @@ impl Optimizable for DB {
                                 let json = x.iter().map(|data|
                                     if let DecodedData::F32(value) = data {
                                         DecodedData::StringU8(format!("{value:.4}"))
+                                    } else if let DecodedData::F64(value) = data {
+                                        DecodedData::StringU8(format!("{value:.4}"))
                                     } else {
                                         data.to_owned()
                                     }
@@ -199,6 +201,8 @@ impl Optimizable for DB {
                         let new_row = self.new_row().iter().map(|data|
                             if let DecodedData::F32(value) = data {
                                 DecodedData::StringU8(format!("{value:.4}"))
+                            } else if let DecodedData::F64(value) = data {
+                                DecodedData::StringU8(format!("{value:.4}"))
                             } else {
                                 data.to_owned()
                             }
@@ -207,6 +211,8 @@ impl Optimizable for DB {
                         entries.retain(|entry| {
                             let entry_json = entry.iter().map(|data|
                                 if let DecodedData::F32(value) = data {
+                                    DecodedData::StringU8(format!("{value:.4}"))
+                                } else if let DecodedData::F64(value) = data {
                                     DecodedData::StringU8(format!("{value:.4}"))
                                 } else {
                                     data.to_owned()
@@ -219,6 +225,12 @@ impl Optimizable for DB {
                         entries.par_sort_by(|a, b| {
                             let ordering = if let DecodedData::F32(x) = a[first_key] {
                                 if let DecodedData::F32(y) = b[first_key] {
+                                    if float_eq::float_eq!(x, y, abs <= 0.0001) {
+                                        Some(Ordering::Equal)
+                                    } else { None }
+                                } else { None }
+                            } else if let DecodedData::F64(x) = a[first_key] {
+                                if let DecodedData::F64(y) = b[first_key] {
                                     if float_eq::float_eq!(x, y, abs <= 0.0001) {
                                         Some(Ordering::Equal)
                                     } else { None }
