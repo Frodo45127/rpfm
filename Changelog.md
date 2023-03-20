@@ -6,6 +6,11 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [4.0.8]
+### Fixed
+- Fixed a bug where compressing an uncompress file without a 7zip path set could lead to a corrupted Pack.
+- Fixed a bug that caused RPFM to generate PFH6 Packs with part of the header missing.
+
 ## [4.0.7]
 ### Fixed
 - Fixed false positives of path matches when creating a new folder.
@@ -896,7 +901,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.0.7...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.0.8...HEAD
+[4.0.8]: https://github.com/Frodo45127/rpfm/compare/v4.0.7...v4.0.8
 [4.0.7]: https://github.com/Frodo45127/rpfm/compare/v4.0.6...v4.0.7
 [4.0.6]: https://github.com/Frodo45127/rpfm/compare/v4.0.5...v4.0.6
 [4.0.5]: https://github.com/Frodo45127/rpfm/compare/v4.0.4...v4.0.5
