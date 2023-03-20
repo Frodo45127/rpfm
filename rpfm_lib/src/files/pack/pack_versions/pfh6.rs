@@ -216,7 +216,21 @@ impl Pack {
         header.write_u32(self.header.game_version)?;
         header.write_u32(self.header.build_number)?;
         header.write_string_u8_0padded(&self.header.authoring_tool, 8, false)?;
-        header.write_all(&self.header.extra_subheader_data)?;
+
+        // Make sure the extra data is always 256 bytes.
+        let extra_subheader_data = if self.header.extra_subheader_data.len() == 256 {
+            self.header.extra_subheader_data.to_vec()
+        } else if self.header.extra_subheader_data.len() < 256 {
+            let mut extra_subheader_data = self.header.extra_subheader_data.to_vec();
+            extra_subheader_data.append(&mut vec![0; 256 - extra_subheader_data.len()]);
+            extra_subheader_data
+        } else {
+            let mut extra_subheader_data = self.header.extra_subheader_data.to_vec();
+            let _ = extra_subheader_data.split_off(256);
+            extra_subheader_data
+        };
+
+        header.write_all(&extra_subheader_data)?;
 
         // Finally, write everything in one go.
         buffer.write_all(&header)?;
