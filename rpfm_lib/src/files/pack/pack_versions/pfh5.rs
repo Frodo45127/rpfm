@@ -137,6 +137,15 @@ impl Pack {
             (&None, false)
         };
 
+        // If we want compression, make sure the 7zip path is valid.
+        if *self.compress() &&
+            (sevenzip_exe_path.is_none() ||
+            !sevenzip_exe_path.as_ref().unwrap().is_file() ||
+            sevenzip_exe_path.as_ref().unwrap().file_name().is_none() ||
+            sevenzip_exe_path.as_ref().unwrap().file_name().unwrap() != "7z.exe") {
+            return Err(RLibError::PackSaveCompressionEnabledButInvalidOrNotFound7ZipPath)
+        }
+
         // We need our files sorted before trying to write them. But we don't want to duplicate
         // them on memory. And we also need to load them to memory on the pack. So...  we do this.
         let mut sorted_files = self.files.iter_mut().map(|(key, file)| (key.replace("/", "\\"), file)).collect::<Vec<(String, &mut RFile)>>();
