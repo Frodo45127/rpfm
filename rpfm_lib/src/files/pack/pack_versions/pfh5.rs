@@ -150,9 +150,11 @@ impl Pack {
                 // This unwrap is actually safe.
                 let mut data = file.encode(extra_data, false, false, true)?.unwrap();
 
+                let mut has_been_compressed = false;
                 if self.compress && file.is_compressible() {
                     if let Some(sevenzip_exe_path) = sevenzip_exe_path {
                         data = data.compress(&sevenzip_exe_path)?;
+                        has_been_compressed = true;
                     }
                 }
 
@@ -176,7 +178,7 @@ impl Pack {
                     file_index_entry.write_u32(file.timestamp().unwrap_or(0) as u32)?;
                 }
 
-                file_index_entry.write_bool(self.compress && file.is_compressible())?;
+                file_index_entry.write_bool(has_been_compressed)?;
                 file_index_entry.write_string_u8_0terminated(&path)?;
                 Ok((file_index_entry, data))
             }).collect::<Result<Vec<(Vec<u8>, Vec<u8>)>>>()?
