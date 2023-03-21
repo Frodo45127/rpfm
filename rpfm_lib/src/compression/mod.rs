@@ -38,7 +38,7 @@
 use xz2::{read::XzDecoder, stream::Stream};
 
 use std::env::temp_dir;
-use std::fs::File;
+use std::fs::{File, remove_file};
 use std::io::{BufReader, prelude::*, Read, SeekFrom};
 use std::path::Path;
 use std::process::Command;
@@ -83,8 +83,9 @@ impl Compressible for [u8] {
         // Prepare both paths, uncompressed and compressed.
         let mut uncompressed_path = temp_dir();
         let mut compressed_path = temp_dir();
-        uncompressed_path.push("frodo_best_waifu");
-        compressed_path.push("frodo_bestest_waifu.7z");
+        let file_name = format!("frodo_best_waifu_{}", rand::random::<u64>());
+        uncompressed_path.push(&file_name);
+        compressed_path.push(file_name + ".7z");
 
         // Get the data into the uncompressed file, and launch 7z.
         File::create(&uncompressed_path)?.write_all(self)?;
@@ -102,6 +103,10 @@ impl Compressible for [u8] {
         let mut compressed_data = vec![0; compressed_data_length as usize];
         reader.seek(SeekFrom::Start(32))?;
         reader.read_exact(&mut compressed_data)?;
+
+        // Keep the temp folder clean to avoid filling it with data.
+        let _ = remove_file(uncompressed_path);
+        let _ = remove_file(compressed_path);
 
         let mut fixed_data = vec![];
         fixed_data.write_i32(self.len() as i32)?;
