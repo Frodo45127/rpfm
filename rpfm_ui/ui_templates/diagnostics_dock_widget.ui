@@ -169,8 +169,7 @@
           <string/>
          </property>
          <property name="icon">
-          <iconset theme="emblem-error">
-           <normaloff>.</normaloff>.</iconset>
+          <iconset theme="data-error"/>
          </property>
          <property name="iconSize">
           <size>
@@ -192,8 +191,7 @@
           <string/>
          </property>
          <property name="icon">
-          <iconset theme="emblem-warning">
-           <normaloff>.</normaloff>.</iconset>
+          <iconset theme="data-warning"/>
          </property>
          <property name="iconSize">
           <size>
@@ -235,8 +233,7 @@
           <string>...</string>
          </property>
          <property name="icon">
-          <iconset theme="emblem-information">
-           <normaloff>.</normaloff>.</iconset>
+          <iconset theme="data-information"/>
          </property>
          <property name="iconSize">
           <size>
