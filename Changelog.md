@@ -6,6 +6,13 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [4.0.9]
+### Changed
+- Replaced diagnostic tool icons to make the checkable buttons more visible.
+
+### Fixed
+- Fixed a bug compression will fail if the Pack had 2 or more compressible files.
+
 ## [4.0.8]
 ### Fixed
 - Fixed a bug where compressing an uncompress file without a 7zip path set could lead to a corrupted Pack.
@@ -901,7 +908,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.0.8...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.0.9...HEAD
+[4.0.9]: https://github.com/Frodo45127/rpfm/compare/v4.0.8...v4.0.9
 [4.0.8]: https://github.com/Frodo45127/rpfm/compare/v4.0.7...v4.0.8
 [4.0.7]: https://github.com/Frodo45127/rpfm/compare/v4.0.6...v4.0.7
 [4.0.6]: https://github.com/Frodo45127/rpfm/compare/v4.0.5...v4.0.6
