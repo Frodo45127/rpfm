@@ -16,7 +16,7 @@ use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 
 use rpfm_lib::error::{RLibError, Result};
-use rpfm_lib::files::{Container, ContainerPath, DecodeableExtraData, db::DB, FileType, loc::Loc, pack::Pack, RFileDecoded, table::DecodedData};
+use rpfm_lib::files::{Container, ContainerPath, db::DB, FileType, loc::Loc, pack::Pack, RFileDecoded, table::DecodedData};
 use rpfm_lib::schema::Schema;
 
 use crate::dependencies::Dependencies;
@@ -64,7 +64,7 @@ impl OptimizableContainer for Pack {
     /// Not yet working:
     /// - Remove XML files in map folders.
     /// - Remove files identical to Parent/Vanilla files (if is identical to vanilla, but a parent mod overwrites it, it ignores it).
-    fn optimize(&mut self, dependencies: &mut Dependencies, schema: &Schema, optimize_datacored_tables: bool) -> Result<HashSet<String>> {
+    fn optimize(&mut self, dependencies: &mut Dependencies, _schema: &Schema, optimize_datacored_tables: bool) -> Result<HashSet<String>> {
 
         // We can only optimize if we have vanilla data available.
         if !dependencies.is_vanilla_data_loaded(true) {
