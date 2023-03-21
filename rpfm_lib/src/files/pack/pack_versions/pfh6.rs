@@ -13,6 +13,7 @@
 //! All the functions here are internal, so they should be either private or
 //! public only within this crate.
 
+use std::cmp::Ordering;
 use std::io::{BufReader, Cursor};
 
 use crate::binary::{ReadBytes, WriteBytes};
@@ -141,7 +142,7 @@ impl Pack {
 
         // We need our files sorted before trying to write them. But we don't want to duplicate
         // them on memory. And we also need to load them to memory on the pack. So...  we do this.
-        let mut sorted_files = self.files.iter_mut().map(|(key, file)| (key.replace("/", "\\"), file)).collect::<Vec<(String, &mut RFile)>>();
+        let mut sorted_files = self.files.iter_mut().map(|(key, file)| (key.replace('/', "\\"), file)).collect::<Vec<(String, &mut RFile)>>();
         sorted_files.sort_unstable_by_key(|(path, _)| path.to_lowercase());
 
         // Optimization: we process the sorted files in parallel, so we can speedup loading/compression.
@@ -155,7 +156,7 @@ impl Pack {
                 let mut has_been_compressed = false;
                 if self.compress && file.is_compressible() {
                     if let Some(sevenzip_exe_path) = sevenzip_exe_path {
-                        data = data.compress(&sevenzip_exe_path)?;
+                        data = data.compress(sevenzip_exe_path)?;
                         has_been_compressed = true;
                     }
                 }
@@ -181,7 +182,7 @@ impl Pack {
                 }
 
                 file_index_entry.write_bool(has_been_compressed)?;
-                file_index_entry.write_string_u8_0terminated(&path)?;
+                file_index_entry.write_string_u8_0terminated(path)?;
                 Ok((file_index_entry, data))
             }).collect::<Result<Vec<(Vec<u8>, Vec<u8>)>>>()?
             .into_par_iter()
@@ -218,16 +219,18 @@ impl Pack {
         header.write_string_u8_0padded(&self.header.authoring_tool, 8, false)?;
 
         // Make sure the extra data is always 256 bytes.
-        let extra_subheader_data = if self.header.extra_subheader_data.len() == 256 {
-            self.header.extra_subheader_data.to_vec()
-        } else if self.header.extra_subheader_data.len() < 256 {
-            let mut extra_subheader_data = self.header.extra_subheader_data.to_vec();
-            extra_subheader_data.append(&mut vec![0; 256 - extra_subheader_data.len()]);
-            extra_subheader_data
-        } else {
-            let mut extra_subheader_data = self.header.extra_subheader_data.to_vec();
-            let _ = extra_subheader_data.split_off(256);
-            extra_subheader_data
+        let extra_subheader_data = match self.header.extra_subheader_data.len().cmp(&256) {
+            Ordering::Less => {
+                let mut extra_subheader_data = self.header.extra_subheader_data.to_vec();
+                extra_subheader_data.append(&mut vec![0; 256 - extra_subheader_data.len()]);
+                extra_subheader_data
+            },
+            Ordering::Equal => self.header.extra_subheader_data.to_vec(),
+            Ordering::Greater => {
+                let mut extra_subheader_data = self.header.extra_subheader_data.to_vec();
+                let _ = extra_subheader_data.split_off(256);
+                extra_subheader_data
+            },
         };
 
         header.write_all(&extra_subheader_data)?;

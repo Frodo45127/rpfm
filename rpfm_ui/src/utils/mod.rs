@@ -379,7 +379,7 @@ pub fn initialize_pack_settings() -> PackSettings {
 }
 
 pub fn initialize_encodeable_extra_data(game_info: &GameInfo) -> EncodeableExtraData {
-    let mut extra_data = EncodeableExtraData::new_from_game_info(&game_info);
+    let mut extra_data = EncodeableExtraData::new_from_game_info(game_info);
     extra_data.set_regenerate_table_guid(!setting_bool("disable_uuid_regeneration_on_db_tables"));
 
     let zip_path = setting_path(ZIP_PATH);

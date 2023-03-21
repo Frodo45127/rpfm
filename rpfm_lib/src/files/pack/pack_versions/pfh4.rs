@@ -115,7 +115,7 @@ impl Pack {
 
         // We need our files sorted before trying to write them. But we don't want to duplicate
         // them on memory. And we also need to load them to memory on the pack. So...  we do this.
-        let mut sorted_files = self.files.iter_mut().map(|(key, file)| (key.replace("/", "\\"), file)).collect::<Vec<(String, &mut RFile)>>();
+        let mut sorted_files = self.files.iter_mut().map(|(key, file)| (key.replace('/', "\\"), file)).collect::<Vec<(String, &mut RFile)>>();
         sorted_files.sort_unstable_by_key(|(path, _)| path.to_lowercase());
 
         // Optimization: we process the sorted files in parallel, so we can speedup loading/compression.
@@ -146,7 +146,7 @@ impl Pack {
                     file_index_entry.write_u32(file.timestamp().unwrap_or(0) as u32)?;
                 }
 
-                file_index_entry.write_string_u8_0terminated(&path)?;
+                file_index_entry.write_string_u8_0terminated(path)?;
                 Ok((file_index_entry, data))
             }).collect::<Result<Vec<(Vec<u8>, Vec<u8>)>>>()?
             .into_par_iter()

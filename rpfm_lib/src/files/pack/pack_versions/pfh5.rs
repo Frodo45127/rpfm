@@ -148,7 +148,7 @@ impl Pack {
 
         // We need our files sorted before trying to write them. But we don't want to duplicate
         // them on memory. And we also need to load them to memory on the pack. So...  we do this.
-        let mut sorted_files = self.files.iter_mut().map(|(key, file)| (key.replace("/", "\\"), file)).collect::<Vec<(String, &mut RFile)>>();
+        let mut sorted_files = self.files.iter_mut().map(|(key, file)| (key.replace('/', "\\"), file)).collect::<Vec<(String, &mut RFile)>>();
         sorted_files.sort_unstable_by_key(|(path, _)| path.to_lowercase());
 
         // Optimization: we process the sorted files in parallel, so we can speedup loading/compression.
@@ -162,7 +162,7 @@ impl Pack {
                 let mut has_been_compressed = false;
                 if self.compress && file.is_compressible() {
                     if let Some(sevenzip_exe_path) = sevenzip_exe_path {
-                        data = data.compress(&sevenzip_exe_path)?;
+                        data = data.compress(sevenzip_exe_path)?;
                         has_been_compressed = true;
                     }
                 }
@@ -188,7 +188,7 @@ impl Pack {
                 }
 
                 file_index_entry.write_bool(has_been_compressed)?;
-                file_index_entry.write_string_u8_0terminated(&path)?;
+                file_index_entry.write_string_u8_0terminated(path)?;
                 Ok((file_index_entry, data))
             }).collect::<Result<Vec<(Vec<u8>, Vec<u8>)>>>()?
             .into_par_iter()

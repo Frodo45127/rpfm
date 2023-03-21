@@ -83,12 +83,12 @@ impl GitIntegration {
         let head = repo.head().unwrap();
         let oid = head.target().unwrap();
         let commit = repo.find_commit(oid)?;
-        let branch_name = refs.splitn(3, "/").collect::<Vec<_>>()[2].to_owned();
+        let branch_name = refs.splitn(3, '/').collect::<Vec<_>>()[2].to_owned();
         let _ = repo.branch(&branch_name, &commit, false);
 
-        let branch_object = repo.revparse_single(&refs)?;
+        let branch_object = repo.revparse_single(refs)?;
         repo.checkout_tree(&branch_object, None)?;
-        repo.set_head(&refs)?;
+        repo.set_head(refs)?;
         Ok(())
     }
 
