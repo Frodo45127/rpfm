@@ -1315,7 +1315,11 @@ impl Table {
                                     FieldType::OptionalI16 => DecodedData::OptionalI16(field.parse::<i16>().map_err(|_| RLibError::ImportTSVIncorrectRow(row, column))?),
                                     FieldType::OptionalI32 => DecodedData::OptionalI32(field.parse::<i32>().map_err(|_| RLibError::ImportTSVIncorrectRow(row, column))?),
                                     FieldType::OptionalI64 => DecodedData::OptionalI64(field.parse::<i64>().map_err(|_| RLibError::ImportTSVIncorrectRow(row, column))?),
-                                    FieldType::ColourRGB => DecodedData::ColourRGB(u32::from_str_radix(field, 16).map(|x| x.to_string()).map_err(|_| RLibError::ImportTSVIncorrectRow(row, column))?),
+                                    FieldType::ColourRGB => DecodedData::ColourRGB(if u32::from_str_radix(field, 16).is_ok() {
+                                        field.to_owned()
+                                    } else {
+                                        Err(RLibError::ImportTSVIncorrectRow(row, column))?
+                                    }),
                                     FieldType::StringU8 => DecodedData::StringU8(field.to_owned()),
                                     FieldType::StringU16 => DecodedData::StringU16(field.to_owned()),
                                     FieldType::OptionalStringU8 => DecodedData::OptionalStringU8(field.to_owned()),
