@@ -1382,14 +1382,17 @@ pub fn background_loop() {
                     extra_data.set_schema(Some(schema));
                     let extra_data = Some(extra_data);
 
-                    for packed_file in pack_file_decoded.files_by_type_mut(&[FileType::DB]) {
-                        if packed_file.decode(&extra_data, false, false).is_err() && packed_file.load().is_ok() {
-                            if let Ok(raw_data) = packed_file.cached() {
+                    let mut files = pack_file_decoded.files_by_type_mut(&[FileType::DB]);
+                    files.sort_by_key(|file| file.path_in_container_raw().to_lowercase());
+
+                    for file in files {
+                        if file.decode(&extra_data, false, false).is_err() && file.load().is_ok() {
+                            if let Ok(raw_data) = file.cached() {
                                 let mut reader = Cursor::new(raw_data);
                                 if let Ok((_, _, _, entry_count)) = DB::read_header(&mut reader) {
                                     if entry_count > 0 {
                                         counter += 1;
-                                        table_list.push_str(&format!("{}, {:?}\n", counter, packed_file.path_in_container_raw()))
+                                        table_list.push_str(&format!("{}, {:?}\n", counter, file.path_in_container_raw()))
                                     }
                                 }
                             }
