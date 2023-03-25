@@ -460,14 +460,17 @@ impl PackedFileDecoderViewSlots {
                     }
 
                     // Get the new definition.
-                    let definition = view.definition().unwrap();
+                    let schema = SCHEMA.read().unwrap();
+                    if let Some(ref schema) = *schema {
+                        let definition = schema.definition_by_name_and_version(view.table_name(), version).unwrap();
 
-                    // Reset the definition we have.
-                    view.table_model.clear();
-                    let _ = view.data.write().unwrap().seek(SeekFrom::Start(view.header_size));
+                        // Reset the definition we have.
+                        view.table_model.clear();
+                        let _ = view.data.write().unwrap().seek(SeekFrom::Start(view.header_size));
 
-                    // Update the decoder view.
-                    let _ = view.update_view(definition.fields(), true);
+                        // Update the decoder view.
+                        let _ = view.update_view(definition.fields(), true);
+                    }
                 }
 
                 let _ = view.update_rows_decoded(None, None);
