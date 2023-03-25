@@ -62,7 +62,7 @@ use std::sync::{Arc, RwLock};
 
 use rpfm_lib::binary::ReadBytes;
 use rpfm_lib::integrations::assembly_kit::{get_raw_definition_paths, table_definition::RawDefinition, table_data::RawTable, localisable_fields::RawLocalisableFields};
-use rpfm_lib::files::{ContainerPath, db::DB, table::DecodedData};
+use rpfm_lib::files::{ContainerPath, db::DB, Decodeable, DecodeableExtraData, table::DecodedData};
 use rpfm_lib::schema::*;
 
 use crate::app_ui::AppUI;
@@ -712,23 +712,23 @@ impl PackedFileDecoderView {
             }
         }
 
-        let mut data = self.data.write().unwrap();
+        let data = self.data.write().unwrap();
 
-        let decoded_bool = Self::decode_data_by_fieldtype(&mut *data, &FieldType::Boolean);
-        let decoded_f32 = Self::decode_data_by_fieldtype(&mut *data, &FieldType::F32);
-        let decoded_f64 = Self::decode_data_by_fieldtype(&mut *data, &FieldType::F64);
-        let decoded_i16 = Self::decode_data_by_fieldtype(&mut *data, &FieldType::I16);
-        let decoded_i32 = Self::decode_data_by_fieldtype(&mut *data, &FieldType::I32);
-        let decoded_i64 = Self::decode_data_by_fieldtype(&mut *data, &FieldType::I64);
-        let decoded_optional_i16 = Self::decode_data_by_fieldtype(&mut *data, &FieldType::OptionalI16);
-        let decoded_optional_i32 = Self::decode_data_by_fieldtype(&mut *data, &FieldType::OptionalI32);
-        let decoded_optional_i64 = Self::decode_data_by_fieldtype(&mut *data, &FieldType::OptionalI64);
-        let decoded_colour_rgb = Self::decode_data_by_fieldtype(&mut *data, &FieldType::ColourRGB);
-        let decoded_string_u8 = Self::decode_data_by_fieldtype(&mut *data, &FieldType::StringU8);
-        let decoded_string_u16 = Self::decode_data_by_fieldtype(&mut *data, &FieldType::StringU16);
-        let decoded_optional_string_u8 = Self::decode_data_by_fieldtype(&mut *data, &FieldType::OptionalStringU8);
-        let decoded_optional_string_u16 = Self::decode_data_by_fieldtype(&mut *data, &FieldType::OptionalStringU16);
-        let decoded_sequence_u32 = Self::decode_data_by_fieldtype(&mut *data, &FieldType::SequenceU32(Box::new(Definition::new(-100, None))));
+        let decoded_bool = Self::decode_data_by_fieldtype(&mut data.clone(), &FieldType::Boolean);
+        let decoded_f32 = Self::decode_data_by_fieldtype(&mut data.clone(), &FieldType::F32);
+        let decoded_f64 = Self::decode_data_by_fieldtype(&mut data.clone(), &FieldType::F64);
+        let decoded_i16 = Self::decode_data_by_fieldtype(&mut data.clone(), &FieldType::I16);
+        let decoded_i32 = Self::decode_data_by_fieldtype(&mut data.clone(), &FieldType::I32);
+        let decoded_i64 = Self::decode_data_by_fieldtype(&mut data.clone(), &FieldType::I64);
+        let decoded_optional_i16 = Self::decode_data_by_fieldtype(&mut data.clone(), &FieldType::OptionalI16);
+        let decoded_optional_i32 = Self::decode_data_by_fieldtype(&mut data.clone(), &FieldType::OptionalI32);
+        let decoded_optional_i64 = Self::decode_data_by_fieldtype(&mut data.clone(), &FieldType::OptionalI64);
+        let decoded_colour_rgb = Self::decode_data_by_fieldtype(&mut data.clone(), &FieldType::ColourRGB);
+        let decoded_string_u8 = Self::decode_data_by_fieldtype(&mut data.clone(), &FieldType::StringU8);
+        let decoded_string_u16 = Self::decode_data_by_fieldtype(&mut data.clone(), &FieldType::StringU16);
+        let decoded_optional_string_u8 = Self::decode_data_by_fieldtype(&mut data.clone(), &FieldType::OptionalStringU8);
+        let decoded_optional_string_u16 = Self::decode_data_by_fieldtype(&mut data.clone(), &FieldType::OptionalStringU16);
+        let decoded_sequence_u32 = Self::decode_data_by_fieldtype(&mut data.clone(), &FieldType::SequenceU32(Box::new(Definition::new(-100, None))));
 
         // We update all the decoded entries here.
         self.bool_line_edit.set_text(&QString::from_std_str(decoded_bool));
@@ -1433,38 +1433,39 @@ impl PackedFileDecoderView {
                 definitions_possible = definitions_possible.par_iter().filter_map(|base| {
                     let mut values_position = Vec::with_capacity(base.len());
                     let mut elements = vec![];
+                    let mut data = data.clone();
                     for field_type in base {
                         match field_type {
                             FieldType::Boolean => {
-                                let value = data.clone().read_bool().unwrap();
+                                let value = data.read_bool().unwrap();
                                 values_position.push(DecodedData::Boolean(value));
                             },
                             FieldType::F32 => {
-                                let value = data.clone().read_f32().unwrap();
+                                let value = data.read_f32().unwrap();
                                 values_position.push(DecodedData::F32(value));
                             },
                             FieldType::F64 => {
-                                let value = data.clone().read_f64().unwrap();
+                                let value = data.read_f64().unwrap();
                                 values_position.push(DecodedData::F64(value));
                             },
                             FieldType::I32 => {
-                                let value = data.clone().read_i32().unwrap();
+                                let value = data.read_i32().unwrap();
                                 values_position.push(DecodedData::I32(value));
                             },
                             FieldType::I64 => {
-                                let value = data.clone().read_i64().unwrap();
+                                let value = data.read_i64().unwrap();
                                 values_position.push(DecodedData::I64(value));
                             },
                             FieldType::ColourRGB => {
-                                let value = data.clone().read_string_colour_rgb().unwrap();
+                                let value = data.read_string_colour_rgb().unwrap();
                                 values_position.push(DecodedData::ColourRGB(value));
                             },
                             FieldType::StringU8 => {
-                                let value = data.clone().read_sized_string_u8().unwrap();
+                                let value = data.read_sized_string_u8().unwrap();
                                 values_position.push(DecodedData::StringU8(value));
                             },
                             FieldType::OptionalStringU8 => {
-                                let value = data.clone().read_optional_string_u8().unwrap();
+                                let value = data.read_optional_string_u8().unwrap();
                                 values_position.push(DecodedData::OptionalStringU8(value));
                             },
                             _ => unimplemented!()
@@ -1573,6 +1574,8 @@ impl PackedFileDecoderView {
             }
         }
 
+        let _ = data.rewind()?;
+
         // Now, match all possible definitions against the table, and for the ones that work, match them against the asskit data.
         Ok(definitions_possible.iter().filter_map(|x| {
             let field_list = x.iter().map(|x| {
@@ -1581,45 +1584,55 @@ impl PackedFileDecoderView {
                 field
             }).collect::<Vec<Field>>();
             let definition = Definition::new_with_fields(self.version, &field_list, &[], None);
-            let db = DB::new(&definition, None, &self.table_name, false);
 
-            if let Ok(table) = db.data(&None) {
-                if !table.is_empty() {
-                    let mut mapper: BTreeMap<usize, usize> = BTreeMap::new();
-                    let mut decoded_columns: Vec<Vec<String>> = vec![];
-                    let fields_processed = db.definition().fields_processed();
+            let mut schema = Schema::default();
+            schema.add_definition(&self.table_name, &definition);
 
-                    // Organized in columns, not in rows, so we can match by columns.
-                    for row in table.iter() {
-                        for (index, field) in row.iter().enumerate() {
-                            match decoded_columns.get_mut(index) {
-                                Some(ref mut column) => column.push(field.data_to_string().to_string()),
-                                None => decoded_columns.push(vec![field.data_to_string().to_string()])
+            let mut extra_data = DecodeableExtraData::default();
+            extra_data.set_table_name(Some(&self.table_name));
+            extra_data.set_schema(Some(&schema));
+
+            let mut data = data.clone();
+            let db = DB::decode(&mut data, &Some(extra_data));
+            if let Ok(db) = db {
+                if let Ok(table) = db.data(&None) {
+                    if !table.is_empty() {
+                        let mut mapper: BTreeMap<usize, usize> = BTreeMap::new();
+                        let mut decoded_columns: Vec<Vec<String>> = vec![];
+                        let fields_processed = db.definition().fields_processed();
+
+                        // Organized in columns, not in rows, so we can match by columns.
+                        for row in table.iter() {
+                            for (index, field) in row.iter().enumerate() {
+                                match decoded_columns.get_mut(index) {
+                                    Some(ref mut column) => column.push(field.data_to_string().to_string()),
+                                    None => decoded_columns.push(vec![field.data_to_string().to_string()])
+                                }
                             }
                         }
-                    }
 
-                    let mut already_matched_columns = vec![];
-                    for (index, column) in decoded_columns.iter().enumerate() {
-                        match raw_columns.iter().enumerate().position(|(pos, x)| !already_matched_columns.contains(&pos) && x == column) {
-                            Some(raw_column) => {
-                                mapper.insert(index, raw_column);
-                                already_matched_columns.push(raw_column);
-                            },
+                        let mut already_matched_columns = vec![];
+                        for (index, column) in decoded_columns.iter().enumerate() {
+                            match raw_columns.iter().enumerate().position(|(pos, x)| !already_matched_columns.contains(&pos) && x == column) {
+                                Some(raw_column) => {
+                                    mapper.insert(index, raw_column);
+                                    already_matched_columns.push(raw_column);
+                                },
 
-                            // If no equivalent has been found, drop the definition.
-                            None => return None,
+                                // If no equivalent has been found, drop the definition.
+                                None => return None,
+                            }
                         }
+
+                        // Filter the mapped data to see if we have a common one in every cell.
+                        let fields = mapper.iter().map(|(x, y)| {
+                            let mut field: Field = From::from(raw_definition.fields.get(*y).unwrap());
+                            field.set_field_type(fields_processed[*x].field_type().clone());
+                            field
+                        }).collect();
+
+                        return Some(fields);
                     }
-
-                    // Filter the mapped data to see if we have a common one in every cell.
-                    let fields = mapper.iter().map(|(x, y)| {
-                        let mut field: Field = From::from(raw_definition.fields.get(*y).unwrap());
-                        field.set_field_type(fields_processed[*x].field_type().clone());
-                        field
-                    }).collect();
-
-                    return Some(fields);
                 }
             }
             None
