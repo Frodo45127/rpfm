@@ -183,6 +183,13 @@ pub fn background_loop() {
             Command::SavePackFile => {
                 let game_selected = GAME_SELECTED.read().unwrap();
                 let extra_data = Some(initialize_encodeable_extra_data(&game_selected));
+
+                let pack_type = *pack_file_decoded.header().pfh_file_type();
+                if !setting_bool("allow_editing_of_ca_packfiles") && pack_type != PFHFileType::Mod && pack_type != PFHFileType::Movie {
+                    CentralCommand::send_back(&sender, Response::Error(anyhow!("Pack cannot be saved due to being of CA-Only type. Either change the Pack Type or enable \"Allow Edition of CA Packs\" in the settings.")));
+                    continue;
+                }
+
                 match pack_file_decoded.save(None, &game_selected, &extra_data) {
                     Ok(_) => CentralCommand::send_back(&sender, Response::ContainerInfo(From::from(&pack_file_decoded))),
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(anyhow!("Error while trying to save the currently open PackFile: {}", error))),
@@ -193,6 +200,13 @@ pub fn background_loop() {
             Command::SavePackFileAs(path) => {
                 let game_selected = GAME_SELECTED.read().unwrap();
                 let extra_data = Some(initialize_encodeable_extra_data(&game_selected));
+
+                let pack_type = *pack_file_decoded.header().pfh_file_type();
+                if !setting_bool("allow_editing_of_ca_packfiles") && pack_type != PFHFileType::Mod && pack_type != PFHFileType::Movie {
+                    CentralCommand::send_back(&sender, Response::Error(anyhow!("Pack cannot be saved due to being of CA-Only type. Either change the Pack Type or enable \"Allow Edition of CA Packs\" in the settings.")));
+                    continue;
+                }
+
                 match pack_file_decoded.save(Some(&path), &game_selected, &extra_data) {
                     Ok(_) => CentralCommand::send_back(&sender, Response::ContainerInfo(From::from(&pack_file_decoded))),
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(anyhow!("Error while trying to save the currently open PackFile: {}", error))),
@@ -1283,6 +1297,13 @@ pub fn background_loop() {
                     if pack_file_decoded.pfh_file_type() == PFHFileType::Mod {
                         let game_selected = GAME_SELECTED.read().unwrap();
                         let extra_data = Some(initialize_encodeable_extra_data(&game_selected));
+
+                        let pack_type = *pack_file_decoded.header().pfh_file_type();
+                        if !setting_bool("allow_editing_of_ca_packfiles") && pack_type != PFHFileType::Mod && pack_type != PFHFileType::Movie {
+                            CentralCommand::send_back(&sender, Response::Error(anyhow!("Pack cannot be saved due to being of CA-Only type. Either change the Pack Type or enable \"Allow Edition of CA Packs\" in the settings.")));
+                            continue;
+                        }
+
                         let _ = pack_file_decoded.clone().save(Some(&new_path), &game_selected, &extra_data);
                     }
 
