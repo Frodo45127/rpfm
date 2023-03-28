@@ -600,6 +600,7 @@ impl Dependencies {
             let mut files = HashMap::new();
             match file_path {
                 ContainerPath::Folder(folder_path) => {
+                    let folder_path = folder_path.to_owned() + "/";
 
                     if include_vanilla {
                         if folder_path.is_empty() {
@@ -610,9 +611,9 @@ impl Dependencies {
                             files.extend(self.vanilla_files.par_iter()
                                 .filter(|(path, _)| {
                                     if case_insensitive {
-                                        starts_with_case_insensitive(path, folder_path)
+                                        starts_with_case_insensitive(path, &folder_path)
                                     } else {
-                                        path.starts_with(folder_path)
+                                        path.starts_with(&folder_path)
                                     }
                                 })
                                 .map(|(path, file)| (path.to_owned(), file))
@@ -624,9 +625,9 @@ impl Dependencies {
                         files.extend(self.parent_files.par_iter()
                             .filter(|(path, _)| {
                                 if case_insensitive {
-                                    starts_with_case_insensitive(path, folder_path)
+                                    starts_with_case_insensitive(path, &folder_path)
                                 } else {
-                                    path.starts_with(folder_path)
+                                    path.starts_with(&folder_path)
                                 }
                             })
                             .map(|(path, file)| (path.to_owned(), file))
