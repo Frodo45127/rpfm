@@ -164,8 +164,6 @@ pub struct SettingsUI {
     debug_check_for_missing_table_definitions_label: QBox<QLabel>,
     debug_check_for_missing_table_definitions_checkbox: QBox<QCheckBox>,
     debug_enable_debug_menu_checkbox: QBox<QCheckBox>,
-    debug_spoof_ca_authoring_tool_label: QBox<QLabel>,
-    debug_spoof_ca_authoring_tool_checkbox: QBox<QCheckBox>,
     debug_enable_rigidmodel_editor_label: QBox<QLabel>,
     debug_enable_rigidmodel_editor_checkbox: QBox<QCheckBox>,
     debug_enable_unit_editor_label: QBox<QLabel>,
@@ -605,13 +603,11 @@ impl SettingsUI {
 
         let debug_check_for_missing_table_definitions_label = QLabel::from_q_string_q_widget(&qtr("settings_debug_missing_table"), &debug_frame);
         let debug_enable_debug_menu_label = QLabel::from_q_string_q_widget(&qtr("settings_debug_enable_debug_menu"), &debug_frame);
-        let debug_spoof_ca_authoring_tool_label = QLabel::from_q_string_q_widget(&qtr("settings_debug_spoof_ca_authoring_tool"), &debug_frame);
         let debug_enable_rigidmodel_editor_label = QLabel::from_q_string_q_widget(&qtr("settings_enable_rigidmodel_editor"), &debug_frame);
         let debug_enable_unit_editor_label = QLabel::from_q_string_q_widget(&qtr("settings_enable_unit_editor"), &debug_frame);
 
         let debug_check_for_missing_table_definitions_checkbox = QCheckBox::from_q_widget(&debug_frame);
         let debug_enable_debug_menu_checkbox = QCheckBox::from_q_widget(&debug_frame);
-        let debug_spoof_ca_authoring_tool_checkbox = QCheckBox::from_q_widget(&debug_frame);
         let debug_enable_rigidmodel_editor_checkbox = QCheckBox::from_q_widget(&debug_frame);
         let debug_enable_unit_editor_checkbox = QCheckBox::from_q_widget(&debug_frame);
 
@@ -628,9 +624,6 @@ impl SettingsUI {
 
         debug_grid.add_widget_5a(&debug_enable_debug_menu_label, 1, 0, 1, 2);
         debug_grid.add_widget_5a(&debug_enable_debug_menu_checkbox, 1, 2, 1, 1);
-
-        debug_grid.add_widget_5a(&debug_spoof_ca_authoring_tool_label, 2, 0, 1, 2);
-        debug_grid.add_widget_5a(&debug_spoof_ca_authoring_tool_checkbox, 2, 2, 1, 1);
 
         debug_grid.add_widget_5a(&debug_enable_rigidmodel_editor_label, 3, 0, 1, 2);
         debug_grid.add_widget_5a(&debug_enable_rigidmodel_editor_checkbox, 3, 2, 1, 1);
@@ -793,8 +786,6 @@ impl SettingsUI {
             debug_check_for_missing_table_definitions_label,
             debug_check_for_missing_table_definitions_checkbox,
             debug_enable_debug_menu_checkbox,
-            debug_spoof_ca_authoring_tool_label,
-            debug_spoof_ca_authoring_tool_checkbox,
             debug_enable_rigidmodel_editor_label,
             debug_enable_rigidmodel_editor_checkbox,
             debug_enable_unit_editor_label,
@@ -941,7 +932,6 @@ impl SettingsUI {
         // Load the Debug Stuff.
         self.debug_check_for_missing_table_definitions_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "check_for_missing_table_definitions"));
         self.debug_enable_debug_menu_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "enable_debug_menu"));
-        self.debug_spoof_ca_authoring_tool_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "spoof_ca_authoring_tool"));
         self.debug_enable_rigidmodel_editor_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "enable_rigidmodel_editor"));
         self.debug_enable_unit_editor_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "enable_unit_editor"));
 
@@ -1029,7 +1019,6 @@ impl SettingsUI {
         // Get the Debug Settings.
         set_setting_bool_to_q_setting(&q_settings, "check_for_missing_table_definitions", self.debug_check_for_missing_table_definitions_checkbox.is_checked());
         set_setting_bool_to_q_setting(&q_settings, "enable_debug_menu", self.debug_enable_debug_menu_checkbox.is_checked());
-        set_setting_bool_to_q_setting(&q_settings, "spoof_ca_authoring_tool", self.debug_spoof_ca_authoring_tool_checkbox.is_checked());
         set_setting_bool_to_q_setting(&q_settings, "enable_rigidmodel_editor", self.debug_enable_rigidmodel_editor_checkbox.is_checked());
         set_setting_bool_to_q_setting(&q_settings, "enable_unit_editor", self.debug_enable_unit_editor_checkbox.is_checked());
 
