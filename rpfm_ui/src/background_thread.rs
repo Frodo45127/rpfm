@@ -27,7 +27,7 @@ use std::env::temp_dir;
 use std::fs::{DirBuilder, File};
 use std::hash::{Hash, Hasher};
 use std::io::{BufReader, BufWriter, Cursor, Read, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, atomic::Ordering, RwLock};
 use std::time::SystemTime;
 use std::thread;
@@ -1176,34 +1176,8 @@ pub fn background_loop() {
 
             // When we want to save a PackedFile from the external view....
             Command::SavePackedFileFromExternalView(path, external_path) => {
-
-                // We do it manually instead of using insert_file because insert_file replaces the file's metadata.
-                match File::open(external_path) {
-                    Ok(file) => {
-                        let mut file = BufReader::new(file);
-                        let mut data = vec![];
-                        match file.read_to_end(&mut data) {
-                            Ok(_) => {
-                                match pack_file_decoded.file_mut(&path) {
-                                    Some(file) => {
-                                        file.set_cached(&data);
-                                        if file.file_type() == FileType::DB || file.file_type() == FileType::Loc {
-                                            if let Some(ref schema) = *SCHEMA.read().unwrap() {
-                                                let mut extra_data = DecodeableExtraData::default();
-                                                extra_data.set_schema(Some(schema));
-                                                let extra_data = Some(extra_data);
-                                                let _ = file.decode(&extra_data, true, false);
-                                            }
-                                        }
-
-                                        CentralCommand::send_back(&sender, Response::Success)
-                                    },
-                                    None => CentralCommand::send_back(&sender, Response::Error(anyhow!("Failed to find file with path {} on Pack.", path))),
-                                }
-                            }
-                            Err(error) => CentralCommand::send_back(&sender, Response::Error(anyhow!("Failed to save the file {} open externally due to the following error: ", error))),
-                        }
-                    },
+                match save_files_from_external_path(&mut pack_file_decoded, &path, &external_path) {
+                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                 }
             }
@@ -1998,4 +1972,51 @@ fn load_schemas(sender: &Sender<Response>, pack: &mut Pack, game: &GameInfo) {
     // Send a response, so the UI continues working while we finish things here.
     info!("Sending success after game selected change.");
     CentralCommand::send_back(sender, Response::Success);
+}
+
+/// Function to save files from external paths, so it's easier to use in the big loop.
+///
+/// NOTE: If TSV is detected and fails to import, this returns an error.
+fn save_files_from_external_path(pack: &mut Pack, internal_path: &str, external_path: &Path) -> Result<()> {
+
+    // We do it manually instead of using insert_file because insert_file replaces the file's metadata.
+    let mut file = BufReader::new(File::open(external_path)?);
+    let mut data = vec![];
+    file.read_to_end(&mut data)?;
+    match pack.file_mut(&internal_path) {
+        Some(file) => {
+
+            // If we're dealing with a TSV, make sure to import it before setting up the data.
+            match external_path.extension() {
+                Some(extension) => {
+                    if extension.to_string_lossy() == "tsv" {
+                        if let Some(ref schema) = *SCHEMA.read().unwrap() {
+                            let rfile = RFile::tsv_import_from_path(external_path, schema)?;
+                            file.set_decoded(rfile.decoded()?.clone())?;
+                        } else {
+                            file.set_cached(&data);
+                        }
+                    } else {
+                        file.set_cached(&data);
+                    }
+                }
+                None => {
+                    file.set_cached(&data);
+                }
+            }
+
+            // If they're tables, make sure they're left decoded.
+            if file.file_type() == FileType::DB || file.file_type() == FileType::Loc {
+                if let Some(ref schema) = *SCHEMA.read().unwrap() {
+                    let mut extra_data = DecodeableExtraData::default();
+                    extra_data.set_schema(Some(schema));
+                    let extra_data = Some(extra_data);
+                    let _ = file.decode(&extra_data, true, false);
+                }
+            }
+
+            Ok(())
+        }
+        None => Err(anyhow!("Failed to find file with path in pack: {}", internal_path)),
+    }
 }
