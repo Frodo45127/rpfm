@@ -14,8 +14,9 @@ Build script for the RPFM UI.
 Here it goes all linking/cross-language compilation/platform-specific stuff that's needed in order to compile the RPFM UI.
 !*/
 
-use std::process::{Command, exit};
+use std::fs::{copy, DirBuilder};
 use std::io::{stderr, stdout, Write};
+use std::process::{Command, exit};
 
 /// Windows Build Script.
 #[cfg(target_os = "windows")]
@@ -60,6 +61,12 @@ fn main() {
     res.set("LegalCopyright","Copyright (c) - Ismael Gutiérrez González");
     res.set("ProductName","Rusted PackFile Manager");
     if let Err(error) = res.compile() { println!("Error: {}", error); }
+
+    // Copy the icon theme so it can be accessed by debug builds.
+    DirBuilder::new().recursive(true).create("./../target/debug/data/icons/breeze/").unwrap();
+    DirBuilder::new().recursive(true).create("./../target/debug/data/icons/breeze-dark/").unwrap();
+    copy("./../icons/breeze-icons.rcc", "./../target/debug/data/icons/breeze/breeze-icons.rcc").unwrap();
+    copy("./../icons/breeze-icons-dark.rcc", "./../target/debug/data/icons/breeze-dark/breeze-icons-dark.rcc").unwrap();
 }
 
 /// Linux Build Script.
