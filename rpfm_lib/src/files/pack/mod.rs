@@ -269,12 +269,14 @@ impl Container for Pack {
     /// This method allows us to extract the metadata associated to the provided container as `.json` or `.md` files.
     ///
     /// [Pack] implementation extracts the [PackSettings] of the provided Pack and its associated notes.
-    fn extract_metadata(&mut self, destination_path: &Path) -> Result<()> {
+    fn extract_metadata(&mut self, destination_path: &Path) -> Result<Vec<PathBuf>> {
+        let mut paths = vec![];
         let mut data = vec![];
         data.write_all(to_string_pretty(&self.notes)?.as_bytes())?;
         data.extend_from_slice(b"\n"); // Add newline to the end of the file
 
         let path = destination_path.join(RESERVED_NAME_NOTES_EXTRACTED);
+        paths.push(path.to_owned());
         let mut file = BufWriter::new(File::create(path)?);
         file.write_all(&data)?;
         file.flush()?;
@@ -284,11 +286,12 @@ impl Container for Pack {
         data.extend_from_slice(b"\n"); // Add newline to the end of the file
 
         let path = destination_path.join(RESERVED_NAME_SETTINGS_EXTRACTED);
+        paths.push(path.to_owned());
         let mut file = BufWriter::new(File::create(path)?);
         file.write_all(&data)?;
         file.flush()?;
 
-        Ok(())
+        Ok(paths)
     }
 
     fn insert(&mut self, mut file: RFile) -> Result<Option<ContainerPath>> {

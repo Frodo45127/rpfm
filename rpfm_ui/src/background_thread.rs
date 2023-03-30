@@ -890,12 +890,14 @@ pub fn background_loop() {
                 let mut errors = 0;
 
                 let extra_data = Some(initialize_encodeable_extra_data(&GAME_SELECTED.read().unwrap()));
+                let mut extracted_paths = vec![];
 
                 // Pack extraction.
                 if let Some(container_paths) = container_paths.get(&DataSource::PackFile) {
                     for container_path in container_paths {
-                        if pack_file_decoded.extract(container_path.clone(), &path, true, schema, false, &extra_data).is_err() {
-                            errors += 1;
+                        match pack_file_decoded.extract(container_path.clone(), &path, true, schema, false, &extra_data) {
+                            Ok(mut extracted_path) => extracted_paths.append(&mut extracted_path),
+                            Err(_) => errors += 1,
                         }
                     }
 
@@ -931,13 +933,14 @@ pub fn background_loop() {
                         }
 
                         let container_path = ContainerPath::File(path_raw);
-                        if pack.extract(container_path, &path, true, schema, false, &extra_data).is_err() {
-                            errors += 1;
+                        match pack.extract(container_path, &path, true, schema, false, &extra_data) {
+                            Ok(mut extracted_path) => extracted_paths.append(&mut extracted_path),
+                            Err(_) => errors += 1,
                         }
                     }
 
                     if errors == 0 {
-                        CentralCommand::send_back(&sender, Response::String(tr("files_extracted_success")));
+                        CentralCommand::send_back(&sender, Response::StringVecPathBuf(tr("files_extracted_success"), extracted_paths));
                     } else {
                         CentralCommand::send_back(&sender, Response::Error(anyhow!("There were {} errors while extracting.", errors)));
                     }
@@ -1160,15 +1163,9 @@ pub fn background_loop() {
                         let extra_data = Some(initialize_encodeable_extra_data(&GAME_SELECTED.read().unwrap()));
 
                         match pack_file_decoded.extract(path.clone(), &folder, true, &SCHEMA.read().unwrap(), false, &extra_data) {
-                            Ok(_) => {
-
-                                let mut extracted_path = folder.to_path_buf();
-                                if let ContainerPath::File(path) = path {
-                                    extracted_path.push(path);
-                                }
-
-                                let _ = that(&extracted_path);
-                                CentralCommand::send_back(&sender, Response::PathBuf(extracted_path));
+                            Ok(extracted_path) => {
+                                let _ = that(&extracted_path[0]);
+                                CentralCommand::send_back(&sender, Response::PathBuf(extracted_path[0].to_owned()));
                             }
                             Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                         }

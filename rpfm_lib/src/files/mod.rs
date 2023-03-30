@@ -405,7 +405,8 @@ pub trait Container {
     /// The case-insensitive option only works when extracting folders. Individual file extractions are always case sensitive.
     ///
     /// If a schema is provided, this function will try to extract any DB/Loc file as a TSV. If it fails to decode them, it'll extract them as binary files.
-    fn extract(&mut self, container_path: ContainerPath, destination_path: &Path, keep_container_path_structure: bool, schema: &Option<Schema>, case_insensitive: bool, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+    fn extract(&mut self, container_path: ContainerPath, destination_path: &Path, keep_container_path_structure: bool, schema: &Option<Schema>, case_insensitive: bool, extra_data: &Option<EncodeableExtraData>) -> Result<Vec<PathBuf>> {
+        let mut extracted_paths = vec![];
         match container_path {
             ContainerPath::File(mut container_path) => {
                 if container_path.starts_with('/') {
@@ -447,24 +448,28 @@ pub trait Container {
                                 warn!("File with path {} failed to extract as TSV. Extracting it as binary.", rfile.path_in_container_raw());
                             }
 
+                            extracted_paths.push(destination_path.to_owned());
                             let mut file = BufWriter::new(File::create(&destination_path)?);
                             let data = rfile.encode(extra_data, false, false, true)?.unwrap();
-                            file.write_all(&data).map_err(From::from)
+                            file.write_all(&data)?;
                         } else {
-                            result
+                            extracted_paths.push(destination_path_tsv);
+                            result?;
                         }
                     } else {
+                        extracted_paths.push(destination_path.to_owned());
                         let mut file = BufWriter::new(File::create(&destination_path)?);
                         let data = rfile.encode(extra_data, false, false, true)?.unwrap();
-                        file.write_all(&data).map_err(From::from)
+                        file.write_all(&data)?;
                     }
                 }
 
                 // Otherwise, just write the binary data to disk.
                 else {
+                    extracted_paths.push(destination_path.to_owned());
                     let mut file = BufWriter::new(File::create(&destination_path)?);
                     let data = rfile.encode(extra_data, false, false, true)?.unwrap();
-                    file.write_all(&data).map_err(From::from)
+                    file.write_all(&data)?;
                 }
             }
             ContainerPath::Folder(mut container_path) => {
@@ -508,11 +513,16 @@ pub trait Container {
                                     warn!("File with path {} failed to extract as TSV. Extracting it as binary.", rfile.path_in_container_raw());
                                 }
 
+                                extracted_paths.push(destination_path.to_owned());
                                 let mut file = BufWriter::new(File::create(&destination_path)?);
                                 let data = rfile.encode(extra_data, false, false, true)?.unwrap();
                                 file.write_all(&data)?;
+                            } else {
+                                extracted_paths.push(destination_path_tsv);
+                                result?;
                             }
                         } else {
+                            extracted_paths.push(destination_path.to_owned());
                             let mut file = BufWriter::new(File::create(&destination_path)?);
                             let data = rfile.encode(extra_data, false, false, true)?.unwrap();
                             file.write_all(&data)?;
@@ -521,6 +531,7 @@ pub trait Container {
 
                     // Otherwise, just write the binary data to disk.
                     else {
+                        extracted_paths.push(destination_path.to_owned());
                         let mut file = BufWriter::new(File::create(&destination_path)?);
                         let data = rfile.encode(extra_data, false, false, true)?.unwrap();
                         file.write_all(&data)?;
@@ -530,19 +541,19 @@ pub trait Container {
 
                 // If we're extracting the whole container, also extract any relevant metadata file associated with it.
                 if container_path.is_empty() {
-                    self.extract_metadata(destination_path)?;
+                    extracted_paths.append(&mut self.extract_metadata(destination_path)?);
                 }
-
-                Ok(())
             }
         }
+
+        Ok(extracted_paths)
     }
 
     /// This method allows us to extract the metadata associated to the provided container as `.json` files.
     ///
     /// Default implementation does nothing.
-    fn extract_metadata(&mut self, _destination_path: &Path) -> Result<()> {
-        Ok(())
+    fn extract_metadata(&mut self, _destination_path: &Path) -> Result<Vec<PathBuf>> {
+        Ok(vec![])
     }
 
     /// This method allow us to insert an [RFile] within a Container, replacing any old [RFile]

@@ -284,7 +284,7 @@ impl DependenciesUI {
         app_ui.toggle_main_window(false);
         let response = CENTRAL_COMMAND.recv_try(&receiver);
         match response {
-            Response::String(result) => show_message_info(app_ui.message_widget(), result),
+            Response::StringVecPathBuf(result, _) => show_message_info(app_ui.message_widget(), result),
             Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
             _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
         }

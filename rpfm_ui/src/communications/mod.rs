@@ -491,6 +491,7 @@ pub enum Response {
     HashSetString(HashSet<String>),
     StringVecContainerPath(String, Vec<ContainerPath>),
     VecContainerPathVecRFileInfo(Vec<ContainerPath>, Vec<RFileInfo>),
+    StringVecPathBuf(String, Vec<PathBuf>),
 }
 
 //-------------------------------------------------------------------------------//
