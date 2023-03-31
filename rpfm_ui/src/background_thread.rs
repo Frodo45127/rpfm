@@ -902,7 +902,7 @@ pub fn background_loop() {
                     }
 
                     if errors == 0 {
-                        CentralCommand::send_back(&sender, Response::String(tr("files_extracted_success")));
+                        CentralCommand::send_back(&sender, Response::StringVecPathBuf(tr("files_extracted_success"), extracted_paths));
                     } else {
                         CentralCommand::send_back(&sender, Response::Error(anyhow!("There were {} errors while extracting.", errors)));
                     }
