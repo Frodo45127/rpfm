@@ -247,6 +247,11 @@ jobs:
           cd ${{ matrix.DDISK }}:\deploy\rpfm-release-assets
           windeployqt rpfm_ui.exe
 
+          # Remove extra files that are not really needed for execution.
+          rm -fo ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\vc_redist.x64.exe
+          rm -fo ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\icons\breeze-icons.rcc
+          rm -fo ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\icons\breeze-icons-dark.rcc
+
           7z a rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }} .\**
 
       - name: Upload build artifact (Linux)
