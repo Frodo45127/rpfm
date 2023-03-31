@@ -6,6 +6,20 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [4.0.11]
+### Changed
+- Removed a few unused files from releases to reduce their size.
+
+### Fixed
+- Fixed CTD when trying to load a definition in the decoder.
+- Fixed multiple decoder bugs.
+- Fixed autosaves being done on packs they shouldn't be done.
+- Fixed weird issues when deleting and readding a filter.
+- Fixed import from dependencies importing files it shouldn't.
+- Fixed open with external tools not working on dbs.
+- Fixed open with external tools corrupting tables when used incorrectly.
+- Fixed treeview ordering failing in very rare situations.
+
 ## [4.0.10]
 ### Fixed
 - Fixed a bug that caused TSV tables with colour columns to receive a wrong value in their colour columns.
@@ -912,7 +926,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.0.10...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.0.11...HEAD
+[4.0.11]: https://github.com/Frodo45127/rpfm/compare/v4.0.10...v4.0.11
 [4.0.10]: https://github.com/Frodo45127/rpfm/compare/v4.0.9...v4.0.10
 [4.0.9]: https://github.com/Frodo45127/rpfm/compare/v4.0.8...v4.0.9
 [4.0.8]: https://github.com/Frodo45127/rpfm/compare/v4.0.7...v4.0.8
