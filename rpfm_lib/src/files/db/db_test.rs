@@ -67,6 +67,7 @@ fn test_encode_db_no_sqlite() {
 }
 
 #[test]
+#[cfg(feature = "integration_sqlite")]
 fn test_encode_db_sqlite() {
     let pool = crate::integrations::sqlite::init_database().unwrap();
 

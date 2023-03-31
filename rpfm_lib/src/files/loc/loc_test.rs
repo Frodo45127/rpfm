@@ -40,6 +40,7 @@ fn test_encode_loc_no_sqlite() {
 }
 
 #[test]
+#[cfg(feature = "integration_sqlite")]
 fn test_encode_loc_sqlite() {
     let pool = crate::integrations::sqlite::init_database().unwrap();
 

@@ -38,8 +38,8 @@
 
 use csv::{StringRecordsIter, Writer};
 use getset::Getters;
-use r2d2::Pool;
-use r2d2_sqlite::SqliteConnectionManager;
+#[cfg(feature = "integration_sqlite")] use r2d2::Pool;
+#[cfg(feature = "integration_sqlite")] use r2d2_sqlite::SqliteConnectionManager;
 use rayon::prelude::*;
 use serde_derive::{Serialize, Deserialize};
 use uuid::Uuid;

@@ -17,8 +17,8 @@ This module contains the struct `Table`, used to manage the decoded data of a ta
 use csv::{StringRecordsIter, Writer};
 use float_eq::float_eq;
 use getset::*;
-use r2d2::Pool;
-use r2d2_sqlite::SqliteConnectionManager;
+#[cfg(feature = "integration_sqlite")] use r2d2::Pool;
+#[cfg(feature = "integration_sqlite")] use r2d2_sqlite::SqliteConnectionManager;
 use serde_derive::{Serialize, Deserialize};
 
 use std::borrow::Cow;
