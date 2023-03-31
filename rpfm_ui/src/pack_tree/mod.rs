@@ -1881,12 +1881,12 @@ fn sort_folders_before_files_alphabetically_paths(a_path: &str, b_path: &str) ->
     if a_len == b_len {
         a_path.cmp(b_path)
     } else if a_len > b_len {
-        if a_path.starts_with(&b_path[..b_last_split]) {
+        if a_path.starts_with(&b_path[..=b_last_split]) {
             Ordering::Less
         } else {
             a_path.cmp(b_path)
         }
-    } else if b_path.starts_with(&a_path[..a_last_split]) {
+    } else if b_path.starts_with(&a_path[..=a_last_split]) {
         Ordering::Greater
     } else {
         a_path.cmp(b_path)
