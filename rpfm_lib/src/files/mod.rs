@@ -1935,7 +1935,7 @@ impl RFile {
     ///
     /// All files must be of the same type and said type must support merging.
     pub fn merge(sources: &[&Self], path: &str) -> Result<Self> {
-        if sources.len() == 1 {
+        if sources.len() <= 1 {
             return Err(RLibError::RFileMergeOnlyOneFileProvided);
         }
 
