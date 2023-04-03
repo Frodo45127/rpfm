@@ -495,7 +495,7 @@ impl AppUISlots {
                             KEY_NAPOLEON => app_ui.game_selected_napoleon.trigger(),
                             KEY_EMPIRE => app_ui.game_selected_empire.trigger(),
                             KEY_ARENA => app_ui.game_selected_arena.trigger(),
-                            _ => unreachable!(),
+                            _ => unreachable!("load_all_ca_packs with game selected {}", GAME_SELECTED.read().unwrap().game_key_name()),
                         }
 
                         UI_STATE.set_operational_mode(&app_ui, None);
@@ -529,7 +529,7 @@ impl AppUISlots {
                     "Patch" => PFHFileType::Patch,
                     "Mod" => PFHFileType::Mod,
                     "Movie" => PFHFileType::Movie,
-                    _ => unreachable!()
+                    _ => unreachable!("change_pack_type with string {}", app_ui.change_packfile_type_group.checked_action().text().remove_q_string(&QString::from_std_str("&")).to_std_string())
                 };
 
                 // Send the type to the Background Thread, and update the UI.

@@ -365,10 +365,10 @@ impl Container for Pack {
                         None => Vec::with_capacity(0),
                     })
                 },
-                ContainerPath::Folder(_) => unreachable!(),
+                ContainerPath::Folder(_) => unreachable!("move_path_pack_1"),
             },
             ContainerPath::Folder(source_path) => match destination_path {
-                ContainerPath::File(_) => unreachable!(),
+                ContainerPath::File(_) => unreachable!("move_path_pack_2"),
                 ContainerPath::Folder(destination_path) => {
                     if destination_path.is_empty() {
                         return Err(RLibError::EmptyDestiny);

@@ -426,7 +426,7 @@ impl PackFileContentsUI {
                     rewrite_sequence_line_edit.set_text(&QString::from_std_str("{x}"));
                 }
             }
-            Ordering::Less => unreachable!(),
+            Ordering::Less => unreachable!("create rename dialog"),
         }
 
         let button_box: QPtr<QDialogButtonBox> = find_widget(&main_widget.static_upcast(), "button_box")?;
