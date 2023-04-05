@@ -653,7 +653,10 @@ pub unsafe fn build_columns(
         let item = QStandardItem::from_q_string(&QString::from_std_str(name));
         if let Some(ref tooltip) = tooltips.get(index) {
             item.set_tool_tip(&QString::from_std_str(tooltip));
-        }
+            if !field.description().is_empty() {
+                item.set_icon(&qt_gui::QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/description_icon.png", ASSETS_PATH.to_string_lossy()))));
+            }
+        }   
         model.set_horizontal_header_item(index as i32, item.into_ptr());
 
         // Depending on his type, set one width or another.
