@@ -14,7 +14,7 @@ Build script for the RPFM UI.
 Here it goes all linking/cross-language compilation/platform-specific stuff that's needed in order to compile the RPFM UI.
 !*/
 
-use std::fs::{copy, DirBuilder};
+#[cfg(target_os = "windows")] use std::fs::{copy, DirBuilder};
 use std::io::{stderr, stdout, Write};
 use std::process::{Command, exit};
 
