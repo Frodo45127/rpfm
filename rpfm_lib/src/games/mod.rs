@@ -8,20 +8,18 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*!
-Module that contains the GameInfo definition and stuff related with it.
+//! Module that contains the GameInfo definition and stuff related with it.
 
-!*/
-
+use directories::UserDirs;
+use getset::*;
+#[cfg(feature = "integration_log")] use log::{info, warn};
+use serde_derive::Deserialize;
 
 use std::collections::HashMap;
 use std::{fmt, fmt::Display};
 use std::fs::{DirBuilder, File};
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
-
-use getset::*;
-#[cfg(feature = "integration_log")] use log::{info, warn};
 
 use crate::error::{RLibError, Result};
 use crate::utils::*;
@@ -159,10 +157,13 @@ struct InstallData {
     use_manifest: bool,
 
     /// StoreID of the game.
-    store_id: i64,
+    store_id: u64,
 
     /// Name of the executable of the game, including extension if it has it.
     executable: String,
+
+    /// Name of the folder that forms the root of the game. Mainly used for detecting game installations.
+    root_folder_name: String,
 
     /// /data path of the game, or equivalent. Relative to the game's path.
     data_path: String,
@@ -175,6 +176,17 @@ struct InstallData {
 
     /// Folder where downloaded (other peoples's) mods are stored. Relative to the game's path.
     downloaded_mods_path: String,
+}
+
+#[derive(Getters, Clone, Debug, Deserialize)]
+pub struct LibraryFolders {
+    libraries: HashMap<u64, Library>,
+}
+
+#[derive(Getters, Clone, Debug, Deserialize)]
+pub struct Library {
+    path: PathBuf,
+    apps: HashMap<u64, u64>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -706,5 +718,49 @@ impl GameInfo {
 
             _ => None,
         }
+    }
+
+    /// This function searches for installed total war games.
+    ///
+    /// NOTE: Only works for steam-installed games, on Windows and Linux.
+    pub fn find_game_install_location(&self) -> Result<Option<PathBuf>> {
+        let library_file = if cfg!(target_os = "windows") {
+            // TODO: Get this from window's registry.
+            return Ok(None);
+        } else {
+            let user_dirs = UserDirs::new();
+            match user_dirs {
+                Some(user_dirs) => user_dirs.home_dir().join(".steam/steam/steamapps/libraryfolders.vdf"),
+                None => return Ok(None),
+            }
+        };
+
+        // Steam search.
+        let mut file = File::open(library_file)?;
+        let mut data = String::new();
+        file.read_to_string(&mut data)?;
+
+        if let Ok(library) = keyvalues_serde::from_str::<HashMap<u64, Library>>(&data) {
+
+            // Steam install data. We don't care if it's windows or linux, as the data we want is the same in both.
+            let install_data = if let Some(install_data) = self.install_data.get(&InstallType::WinSteam) {
+                install_data
+            } else if let Some(install_data) = self.install_data.get(&InstallType::LnxSteam) {
+                install_data
+            } else {
+                return Ok(None);
+            };
+
+            // Find in what library is installed, and form the full path to the game folder.
+            for library in library.values() {
+                if library.apps.get(install_data.store_id()).is_some() {
+                    let mut install_path = library.path.join("steamapps/common");
+                    install_path.push(install_data.root_folder_name());
+                    return Ok(Some(install_path));
+                }
+            }
+        }
+
+        Ok(None)
     }
 }
