@@ -36,21 +36,22 @@ QCheckBox::indicator:unchecked {
     border-width: 1px;
     border-color: #BBBBBB;
 }
-/* Disabled due to the evanesce check bug.
-QCheckBox::indicator:checked {
-    height: 12px;
-    width: 12px;
-    border-style: solid;
-    border-width: 1px;
-    border-color: #BBBBBB;
-    image:url({assets_path}/icons/checkbox_check.png);
-}
+
 QCheckBox::indicator:hover {
     border-style: solid;
     border-width: 1px;
     border-color: #E67E22;
 }
-*/
+
+QCheckBox::indicator:checked {
+    width: 18px;
+    height: 18px;
+    border-style: solid;
+    border-width: 1px;
+    border-color: #3ba4dc;
+    background-color: #264d62;
+    image:url({assets_path}/icons/checkbox_check.png);
+}
 
 /* Tweaked TableView, so the Checkboxes are white and easy to see. */
 
@@ -61,19 +62,21 @@ QTableView::indicator:unchecked {
     border-color: #BBBBBB;
 }
 
-/* Disabled due to the evanesce check bug.
 QTableView::indicator:hover {
     border-style: solid;
     border-width: 1px;
     border-color: #E67E22;
 }
 QTableView::indicator:checked {
+    width: 18px;
+    height: 18px;
     border-style: solid;
     border-width: 1px;
-    border-color: #BBBBBB;
+    border-color: #3ba4dc;
+    background-color: #264d62;
     image:url({assets_path}/icons/checkbox_check.png);
 }
-*/
+
 /* Normal LineEdits, with no rounded corners, dark background (darker when enabled), and colored borders. */
 
 QLineEdit {
