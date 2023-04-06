@@ -179,11 +179,6 @@ struct InstallData {
 }
 
 #[derive(Getters, Clone, Debug, Deserialize)]
-pub struct LibraryFolders {
-    libraries: HashMap<u64, Library>,
-}
-
-#[derive(Getters, Clone, Debug, Deserialize)]
 pub struct Library {
     path: PathBuf,
     apps: HashMap<u64, u64>,
