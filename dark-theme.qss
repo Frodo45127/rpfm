@@ -32,12 +32,16 @@ QPushButton:disabled {
 
 /* Normal checkboxes */
 QCheckBox::indicator:unchecked {
+    width: 18px;
+    height: 18px;
     border-style: solid;
     border-width: 1px;
     border-color: #BBBBBB;
 }
 
 QCheckBox::indicator:hover {
+    width: 18px;
+    height: 18px;
     border-style: solid;
     border-width: 1px;
     border-color: #E67E22;
@@ -57,17 +61,48 @@ QCheckBox::indicator:checked {
 
 /* Checkboxes */
 QTableView::indicator:unchecked {
+    width: 18px;
+    height: 18px;
     border-style: solid;
     border-width: 1px;
     border-color: #BBBBBB;
 }
 
 QTableView::indicator:hover {
+    width: 18px;
+    height: 18px;
     border-style: solid;
     border-width: 1px;
     border-color: #E67E22;
 }
 QTableView::indicator:checked {
+    width: 18px;
+    height: 18px;
+    border-style: solid;
+    border-width: 1px;
+    border-color: #3ba4dc;
+    background-color: #264d62;
+    image:url({assets_path}/icons/checkbox_check.png);
+}
+
+/* Tweaked TreeView, so the Checkboxes are white and easy to see. */
+
+QTreeView::indicator:unchecked {
+    width: 18px;
+    height: 18px;
+    border-style: solid;
+    border-width: 1px;
+    border-color: #BBBBBB;
+}
+
+QTreeView::indicator:hover {
+    width: 18px;
+    height: 18px;
+    border-style: solid;
+    border-width: 1px;
+    border-color: #E67E22;
+}
+QTreeView::indicator:checked {
     width: 18px;
     height: 18px;
     border-style: solid;
