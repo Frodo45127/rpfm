@@ -131,7 +131,7 @@ impl ESFDetailedView {
         dependencies_ui: &Rc<DependenciesUI>,
         references_ui: &Rc<ReferencesUI>,
         parent_widget: &QBox<QWidget>,
-        tree_view: &QBox<QTreeView>,
+        tree_view: &QPtr<QTreeView>,
         nodes: &[NodeType],
         item: Ptr<QStandardItem>
     ) {
@@ -149,7 +149,7 @@ impl ESFDetailedView {
 
         let filter: QPtr<QSortFilterProxyModel> = tree_view.model().static_downcast();
         let model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
-        let item_path = <QBox<QTreeView> as ESFTree>::get_path_from_item(item, &model);
+        let item_path = <QPtr<QTreeView> as ESFTree>::get_path_from_item(item, &model);
 
         *self.path.write().unwrap() = item_path;
 
@@ -747,12 +747,12 @@ impl ESFDetailedView {
     }
 
     /// This function saves the subnodes of a detailed view into their item in the TreeView.
-    pub unsafe fn save_to_tree_node(&self, tree_view: &QBox<QTreeView>) {
+    pub unsafe fn save_to_tree_node(&self, tree_view: &QPtr<QTreeView>) {
         if !self.path.read().unwrap().is_empty() {
             let filter: QPtr<QSortFilterProxyModel> = tree_view.model().static_downcast();
             let model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
-            let item = <QBox<QTreeView> as ESFTree>::get_item_from_path(&self.path.read().unwrap(), &model);
-            let data = <QBox<QTreeView> as ESFTree>::get_child_nodes_from_item(&item);
+            let item = <QPtr<QTreeView> as ESFTree>::get_item_from_path(&self.path.read().unwrap(), &model);
+            let data = <QPtr<QTreeView> as ESFTree>::get_child_nodes_from_item(&item);
 
             if !data.is_empty() {
                 let mut nodes: Vec<NodeType> = serde_json::from_str(&data).unwrap();
