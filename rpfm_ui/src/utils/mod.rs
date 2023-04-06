@@ -22,6 +22,8 @@ use qt_widgets::QPushButton;
 use qt_widgets::QWidget;
 use qt_widgets::QMainWindow;
 
+use qt_gui::QIcon;
+
 use qt_core::QCoreApplication;
 use qt_core::QFlags;
 use qt_core::QListOfQObject;
@@ -50,6 +52,7 @@ use rpfm_ui_common::locale::{qtr, qtre};
 use rpfm_ui_common::settings::setting_path;
 pub use rpfm_ui_common::utils::*;
 
+use crate::app_ui::AppUI;
 use crate::{DARK_PALETTE, GAME_SELECTED, LIGHT_PALETTE, LIGHT_STYLE_SHEET, SENTRY_GUARD};
 use crate::ffi::*;
 use crate::setting_bool;
@@ -320,7 +323,7 @@ pub fn dark_stylesheet() -> Result<String> {
 }
 
 /// This function is used to load/reload a theme live.
-pub unsafe fn reload_theme() {
+pub unsafe fn reload_theme(app_ui: &AppUI) {
     let app = QCoreApplication::instance();
     let qapp = app.static_downcast::<QApplication>();
     let use_dark_theme = setting_bool("use_dark_theme");
@@ -338,10 +341,14 @@ pub unsafe fn reload_theme() {
             if let Ok(dark_stylesheet) = dark_stylesheet() {
                 qapp.set_style_sheet(&QString::from_std_str(dark_stylesheet));
             }
+
+            app_ui.github_button().set_icon(&QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/github-dark.svg", ASSETS_PATH.to_string_lossy()))));
         } else {
             QApplication::set_style_q_string(&QString::from_std_str("windowsvista"));
             QApplication::set_palette_1a(light_palette);
             qapp.set_style_sheet(light_style_sheet);
+
+            app_ui.github_button().set_icon(&QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/github.svg", ASSETS_PATH.to_string_lossy()))));
         }
     }
 

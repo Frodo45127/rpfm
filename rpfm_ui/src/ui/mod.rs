@@ -167,7 +167,7 @@ impl UI {
             app_ui.main_window().set_window_state(QFlags::from(WindowState::WindowMaximized));
         }
 
-        reload_theme();
+        reload_theme(&app_ui);
 
         // Show the Main Window...
         app_ui.main_window().show();
