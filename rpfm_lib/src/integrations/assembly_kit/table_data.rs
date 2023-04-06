@@ -205,7 +205,25 @@ impl TryFrom<&RawTable> for Table {
 
                 // If the field doesn't exist, we create it empty.
                 if !exists {
-                    entry.push(DecodedData::OptionalStringU8(String::new()));
+                    entry.push(match field_def.field_type() {
+                        FieldType::Boolean => DecodedData::Boolean(false),
+                        FieldType::F32 => DecodedData::F32(0.0),
+                        FieldType::F64 => DecodedData::F64(0.0),
+                        FieldType::I16 => DecodedData::I16(0),
+                        FieldType::I32 => DecodedData::I32(0),
+                        FieldType::I64 => DecodedData::I64(0),
+                        FieldType::OptionalI16 => DecodedData::OptionalI16(0),
+                        FieldType::OptionalI32 => DecodedData::OptionalI32(0),
+                        FieldType::OptionalI64 => DecodedData::OptionalI64(0),
+                        FieldType::ColourRGB => DecodedData::ColourRGB(String::new()),
+                        FieldType::StringU8 => DecodedData::StringU8(String::new()),
+                        FieldType::StringU16 => DecodedData::StringU16(String::new()),
+                        FieldType::OptionalStringU8 => DecodedData::OptionalStringU8(String::new()),
+                        FieldType::OptionalStringU16 => DecodedData::OptionalStringU16(String::new()),
+
+                        // This type is not used in the raw tables so, if we find it, we skip it.
+                        FieldType::SequenceU16(_) | FieldType::SequenceU32(_) => unimplemented!("Does this ever happen?"),
+                    });
                 }
             }
             entries.push(entry);
