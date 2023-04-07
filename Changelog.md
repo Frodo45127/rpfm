@@ -6,6 +6,20 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [4.0.13]
+### Added
+- RPFM will now autodetect games installed through steam if a path for them has not been specified.
+
+### Changed
+- ESF editor now use the updated filterable tree.
+- Checkboxes should be more visible when using the dark theme.
+
+### Fixed
+- Fixed rare CTD when merging files.
+- Fixed barely visible github icon.
+- Fixed Shogun 2 AK not being properly used when generating dependencies.
+- Fixed animpacks saved not opening on Assed.
+
 ## [4.0.12]
 ### Fixed
 - Fixed CTD when extracting files.
@@ -930,7 +944,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.0.12...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.0.13...HEAD
+[4.0.13]: https://github.com/Frodo45127/rpfm/compare/v4.0.12...v4.0.13
 [4.0.12]: https://github.com/Frodo45127/rpfm/compare/v4.0.11...v4.0.12
 [4.0.11]: https://github.com/Frodo45127/rpfm/compare/v4.0.10...v4.0.11
 [4.0.10]: https://github.com/Frodo45127/rpfm/compare/v4.0.9...v4.0.10
