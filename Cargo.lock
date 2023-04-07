@@ -679,7 +679,27 @@ version = "5.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "74be3be809c18e089de43bdc504652bb2bc473fca8756131f8689db8cf079ba9"
 dependencies = [
- "dirs-sys",
+ "dirs-sys 0.4.0",
+]
+
+[[package]]
+name = "dirs"
+version = "3.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "30baa043103c9d0c2a57cf537cc2f35623889dc0d405e6c3cccfadbc81c71309"
+dependencies = [
+ "dirs-sys 0.3.7",
+]
+
+[[package]]
+name = "dirs-sys"
+version = "0.3.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1b1d1d91c932ef41c0f2663aa8b0ca0342d444d842c06914aa0a7e352d0bada6"
+dependencies = [
+ "libc",
+ "redox_users",
+ "winapi 0.3.9",
 ]
 
 [[package]]
@@ -2557,14 +2577,12 @@ dependencies = [
  "caseless",
  "content_inspector",
  "csv",
- "directories",
  "encoding_rs",
  "float_eq",
  "fraction",
  "getset",
  "git2",
  "itertools 0.10.5",
- "keyvalues-serde",
  "lazy_static",
  "log",
  "memchr",
@@ -2583,6 +2601,7 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "simplelog",
+ "steamlocate",
  "thiserror",
  "toml 0.7.3",
  "uuid",
@@ -3057,6 +3076,19 @@ checksum = "64a4a911eed85daf18834cfaa86a79b7d266ff93ff5ba14005426219480ed662"
 dependencies = [
  "libc",
  "winapi 0.3.9",
+]
+
+[[package]]
+name = "steamlocate"
+version = "2.0.0-alpha.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2b1568c4a70a26c4373fe1131ffa4eff055459631b6e40c6bc118615f2d870c3"
+dependencies = [
+ "dirs",
+ "keyvalues-parser",
+ "keyvalues-serde",
+ "serde",
+ "winreg",
 ]
 
 [[package]]
