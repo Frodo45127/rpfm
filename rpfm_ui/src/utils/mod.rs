@@ -342,13 +342,13 @@ pub unsafe fn reload_theme(app_ui: &AppUI) {
                 qapp.set_style_sheet(&QString::from_std_str(dark_stylesheet));
             }
 
-            app_ui.github_button().set_icon(&QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/github-dark.svg", ASSETS_PATH.to_string_lossy()))));
+            app_ui.github_button().set_icon(&QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/github.svg", ASSETS_PATH.to_string_lossy()))));
         } else {
             QApplication::set_style_q_string(&QString::from_std_str("windowsvista"));
             QApplication::set_palette_1a(light_palette);
             qapp.set_style_sheet(light_style_sheet);
 
-            app_ui.github_button().set_icon(&QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/github.svg", ASSETS_PATH.to_string_lossy()))));
+            app_ui.github_button().set_icon(&QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/github-dark.svg", ASSETS_PATH.to_string_lossy()))));
         }
     }
 
