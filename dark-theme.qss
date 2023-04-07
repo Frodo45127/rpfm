@@ -60,6 +60,14 @@ QCheckBox::indicator:checked {
 /* Tweaked TableView, so the Checkboxes are white and easy to see. */
 
 /* Checkboxes */
+QTableView::indicator {
+    width: 18px;
+    height: 18px;
+    border-style: solid;
+    border-width: 1px;
+    border-color: #BBBBBB;
+}
+
 QTableView::indicator:unchecked {
     width: 18px;
     height: 18px;
@@ -87,24 +95,32 @@ QTableView::indicator:checked {
 
 /* Tweaked TreeView, so the Checkboxes are white and easy to see. */
 
+QTreeView::indicator {
+    width: 14px;
+    height: 14px;
+    border-style: solid;
+    border-width: 1px;
+    border-color: #BBBBBB;
+}
+
 QTreeView::indicator:unchecked {
-    width: 18px;
-    height: 18px;
+    width: 14px;
+    height: 14px;
     border-style: solid;
     border-width: 1px;
     border-color: #BBBBBB;
 }
 
 QTreeView::indicator:hover {
-    width: 18px;
-    height: 18px;
+    width: 14px;
+    height: 14px;
     border-style: solid;
     border-width: 1px;
     border-color: #E67E22;
 }
 QTreeView::indicator:checked {
-    width: 18px;
-    height: 18px;
+    width: 14px;
+    height: 14px;
     border-style: solid;
     border-width: 1px;
     border-color: #3ba4dc;
