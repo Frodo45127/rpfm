@@ -319,7 +319,7 @@ pub fn dark_stylesheet() -> Result<String> {
     let mut file = File::open(ASSETS_PATH.join("dark-theme.qss"))?;
     let mut string = String::new();
     file.read_to_string(&mut string)?;
-    Ok(string.replace("{assets_path}", &ASSETS_PATH.to_string_lossy()))
+    Ok(string.replace("{assets_path}", &ASSETS_PATH.to_string_lossy().replace("\\", "/")))
 }
 
 /// This function is used to load/reload a theme live.
