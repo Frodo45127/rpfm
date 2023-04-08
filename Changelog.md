@@ -6,6 +6,10 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [4.0.14]
+### Fixed
+- Fixed CTD when opening RPFM without having steam installed.
+
 ## [4.0.13]
 ### Added
 - RPFM will now autodetect games installed through steam if a path for them has not been specified.
@@ -944,7 +948,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.0.13...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.0.14...HEAD
+[4.0.14]: https://github.com/Frodo45127/rpfm/compare/v4.0.13...v4.0.14
 [4.0.13]: https://github.com/Frodo45127/rpfm/compare/v4.0.12...v4.0.13
 [4.0.12]: https://github.com/Frodo45127/rpfm/compare/v4.0.11...v4.0.12
 [4.0.11]: https://github.com/Frodo45127/rpfm/compare/v4.0.10...v4.0.11
