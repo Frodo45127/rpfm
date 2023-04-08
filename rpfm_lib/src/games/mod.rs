@@ -719,10 +719,13 @@ impl GameInfo {
             return Ok(None);
         };
 
-        let mut steamdir = SteamDir::locate().unwrap();
-        match steamdir.apps().get(&(*install_data.store_id() as u32)) {
-            Some(Some(app)) => Ok(Some(app.path.to_owned())),
-            _ => Ok(None)
+        if let Some(mut steamdir) = SteamDir::locate() {
+            return match steamdir.apps().get(&(*install_data.store_id() as u32)) {
+                Some(Some(app)) => Ok(Some(app.path.to_owned())),
+                _ => Ok(None)
+            }
         }
+
+        Ok(None)
     }
 }
