@@ -8,20 +8,17 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*!
-Module that contains the GameInfo definition and stuff related with it.
+//! Module that contains the GameInfo definition and stuff related with it.
 
-!*/
-
+use getset::*;
+#[cfg(feature = "integration_log")] use log::{info, warn};
+use steamlocate::SteamDir;
 
 use std::collections::HashMap;
 use std::{fmt, fmt::Display};
 use std::fs::{DirBuilder, File};
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
-
-use getset::*;
-#[cfg(feature = "integration_log")] use log::{info, warn};
 
 use crate::error::{RLibError, Result};
 use crate::utils::*;
@@ -159,7 +156,7 @@ struct InstallData {
     use_manifest: bool,
 
     /// StoreID of the game.
-    store_id: i64,
+    store_id: u64,
 
     /// Name of the executable of the game, including extension if it has it.
     executable: String,
@@ -706,5 +703,29 @@ impl GameInfo {
 
             _ => None,
         }
+    }
+
+    /// This function searches for installed total war games.
+    ///
+    /// NOTE: Only works for steam-installed games.
+    pub fn find_game_install_location(&self) -> Result<Option<PathBuf>> {
+
+        // Steam install data. We don't care if it's windows or linux, as the data we want is the same in both.
+        let install_data = if let Some(install_data) = self.install_data.get(&InstallType::WinSteam) {
+            install_data
+        } else if let Some(install_data) = self.install_data.get(&InstallType::LnxSteam) {
+            install_data
+        } else {
+            return Ok(None);
+        };
+
+        if let Some(mut steamdir) = SteamDir::locate() {
+            return match steamdir.apps().get(&(*install_data.store_id() as u32)) {
+                Some(Some(app)) => Ok(Some(app.path.to_owned())),
+                _ => Ok(None)
+            }
+        }
+
+        Ok(None)
     }
 }

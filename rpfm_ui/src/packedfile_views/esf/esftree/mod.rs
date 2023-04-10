@@ -14,21 +14,20 @@ Module with all the code for the ESFTree, the tree used for the ESF Views.
 It's similar to the PackTree, but modified for the requirements of the ESF files.
 !*/
 
-use qt_widgets::QTreeView;
 use qt_widgets::q_header_view::ResizeMode;
+use qt_widgets::QTreeView;
 
 use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;
 use qt_gui::QListOfQStandardItem;
 
-use qt_core::QModelIndex;
-use qt_core::QVariant;
-use qt_core::QBox;
 use qt_core::ItemFlag;
 use qt_core::QFlags;
+use qt_core::QModelIndex;
+use qt_core::QPtr;
 use qt_core::QSortFilterProxyModel;
 use qt_core::QString;
-use qt_core::QPtr;
+use qt_core::QVariant;
 
 use cpp_core::CppBox;
 use cpp_core::Ptr;
@@ -87,7 +86,7 @@ pub enum ESFTreeViewOperation {
 //-------------------------------------------------------------------------------//
 
 /// Implementation of `ESFTree` for `QPtr<QTreeView>.
-impl ESFTree for QBox<QTreeView> {
+impl ESFTree for QPtr<QTreeView> {
 
     unsafe fn get_items_from_selection(&self, has_filter: bool) -> Vec<Ptr<QStandardItem>> {
         let filter: Option<QPtr<QSortFilterProxyModel>> = if has_filter { Some(self.model().static_downcast()) } else { None };

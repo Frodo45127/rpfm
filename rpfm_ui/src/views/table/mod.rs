@@ -521,7 +521,9 @@ impl TableView {
         timer_delayed_updates.set_single_shot(true);
 
         // Get the reference data for this table, to speedup reference searching.
-        let reference_map = if let Some(schema) = &*SCHEMA.read().unwrap() {
+        let reference_map = if let TableType::NormalTable(_) = table_data {
+            HashMap::new()
+        } else if let Some(schema) = &*SCHEMA.read().unwrap() {
             if let Some(table_name) = table_name {
                 schema.referencing_columns_for_table(table_name, &table_definition)
             } else {

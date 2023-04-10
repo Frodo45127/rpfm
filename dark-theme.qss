@@ -32,48 +32,102 @@ QPushButton:disabled {
 
 /* Normal checkboxes */
 QCheckBox::indicator:unchecked {
+    width: 18px;
+    height: 18px;
     border-style: solid;
     border-width: 1px;
     border-color: #BBBBBB;
 }
-/* Disabled due to the evanesce check bug.
-QCheckBox::indicator:checked {
-    height: 12px;
-    width: 12px;
-    border-style: solid;
-    border-width: 1px;
-    border-color: #BBBBBB;
-    image:url({assets_path}/icons/checkbox_check.png);
-}
+
 QCheckBox::indicator:hover {
+    width: 18px;
+    height: 18px;
     border-style: solid;
     border-width: 1px;
     border-color: #E67E22;
 }
-*/
+
+QCheckBox::indicator:checked {
+    width: 18px;
+    height: 18px;
+    border-style: solid;
+    border-width: 1px;
+    border-color: #3ba4dc;
+    background-color: #264d62;
+    image:url({assets_path}/icons/checkbox_check.png);
+}
 
 /* Tweaked TableView, so the Checkboxes are white and easy to see. */
 
 /* Checkboxes */
-QTableView::indicator:unchecked {
+QTableView::indicator {
+    width: 18px;
+    height: 18px;
     border-style: solid;
     border-width: 1px;
     border-color: #BBBBBB;
 }
 
-/* Disabled due to the evanesce check bug.
+QTableView::indicator:unchecked {
+    width: 18px;
+    height: 18px;
+    border-style: solid;
+    border-width: 1px;
+    border-color: #BBBBBB;
+}
+
 QTableView::indicator:hover {
+    width: 18px;
+    height: 18px;
     border-style: solid;
     border-width: 1px;
     border-color: #E67E22;
 }
 QTableView::indicator:checked {
+    width: 18px;
+    height: 18px;
+    border-style: solid;
+    border-width: 1px;
+    border-color: #3ba4dc;
+    background-color: #264d62;
+    image:url({assets_path}/icons/checkbox_check.png);
+}
+
+/* Tweaked TreeView, so the Checkboxes are white and easy to see. */
+
+QTreeView::indicator {
+    width: 14px;
+    height: 14px;
     border-style: solid;
     border-width: 1px;
     border-color: #BBBBBB;
+}
+
+QTreeView::indicator:unchecked {
+    width: 14px;
+    height: 14px;
+    border-style: solid;
+    border-width: 1px;
+    border-color: #BBBBBB;
+}
+
+QTreeView::indicator:hover {
+    width: 14px;
+    height: 14px;
+    border-style: solid;
+    border-width: 1px;
+    border-color: #E67E22;
+}
+QTreeView::indicator:checked {
+    width: 14px;
+    height: 14px;
+    border-style: solid;
+    border-width: 1px;
+    border-color: #3ba4dc;
+    background-color: #264d62;
     image:url({assets_path}/icons/checkbox_check.png);
 }
-*/
+
 /* Normal LineEdits, with no rounded corners, dark background (darker when enabled), and colored borders. */
 
 QLineEdit {

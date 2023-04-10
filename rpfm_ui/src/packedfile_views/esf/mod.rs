@@ -14,10 +14,10 @@ Module with all the code for managing the ESF Views.
 
 use qt_widgets::q_abstract_item_view::SelectionMode;
 use qt_widgets::QLineEdit;
-use qt_widgets::QPushButton;
 use qt_widgets::QGridLayout;
 use qt_widgets::QSplitter;
 use qt_widgets::QTreeView;
+use qt_widgets::QToolButton;
 use qt_widgets::QWidget;
 
 use qt_gui::QStandardItemModel;
@@ -38,6 +38,7 @@ use anyhow::Result;
 use rpfm_lib::files::{esf::ESF, FileType};
 
 use rpfm_ui_common::locale::qtr;
+use rpfm_ui_common::utils::{load_template, find_widget};
 
 use crate::app_ui::AppUI;
 use crate::dependencies_ui::DependenciesUI;
@@ -60,19 +61,22 @@ mod esftree;
 mod esf_detailed_view;
 mod slots;
 
+const VIEW_DEBUG: &str = "rpfm_ui/ui_templates/filterable_tree_widget.ui";
+const VIEW_RELEASE: &str = "ui/filterable_tree_widget.ui";
+
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
 /// This struct contains the view of the ESF PackedFile.
 pub struct PackedFileESFView {
-    tree_view: QBox<QTreeView>,
+    tree_view: QPtr<QTreeView>,
     _tree_model: QBox<QStandardItemModel>,
     tree_filter: QBox<QSortFilterProxyModel>,
 
-    filter_line_edit: QBox<QLineEdit>,
-    filter_autoexpand_matches_button: QBox<QPushButton>,
-    filter_case_sensitive_button: QBox<QPushButton>,
+    filter_line_edit: QPtr<QLineEdit>,
+    filter_autoexpand_matches_button: QPtr<QToolButton>,
+    filter_case_sensitive_button: QPtr<QToolButton>,
     filter_timer_delayed_updates: QBox<QTimer>,
 
     node_data_panel: QBox<QWidget>,
@@ -101,10 +105,18 @@ impl PackedFileESFView {
         data: ESF
     ) -> Result<()> {
 
+        // Load the UI Template.
         let splitter = QSplitter::from_q_widget(file_view.main_widget());
+        let template_path = if cfg!(debug_assertions) { VIEW_DEBUG } else { VIEW_RELEASE };
+        let main_widget = load_template(&splitter, template_path)?;
+        main_widget.set_minimum_width(200);
+
+        let tree_view: QPtr<QTreeView> = find_widget(&main_widget.static_upcast(), "tree_view")?;
+        let filter_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "filter_line_edit")?;
+        let filter_autoexpand_matches_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "filter_autoexpand_matches_button")?;
+        let filter_case_sensitive_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "filter_case_sensitive_button")?;
 
         // Create the TreeView for the ESF PackedFile.
-        let tree_view = QTreeView::new_1a(file_view.main_widget());
         let tree_model = new_packed_file_model_safe();
         let tree_filter = new_treeview_filter_safe(tree_view.static_upcast());
         tree_filter.set_source_model(&tree_model);
@@ -120,24 +132,11 @@ impl PackedFileESFView {
 
         // Create and configure the widgets to control the `TreeView`s filter.
         let filter_timer_delayed_updates = QTimer::new_1a(file_view.main_widget());
-        let filter_line_edit = QLineEdit::from_q_widget(file_view.main_widget());
-        let filter_autoexpand_matches_button = QPushButton::from_q_string_q_widget(&qtr("treeview_autoexpand"), file_view.main_widget());
-        let filter_case_sensitive_button = QPushButton::from_q_string_q_widget(&qtr("treeview_aai"), file_view.main_widget());
         filter_timer_delayed_updates.set_single_shot(true);
         filter_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
         filter_line_edit.set_clear_button_enabled(true);
         filter_autoexpand_matches_button.set_checkable(true);
         filter_case_sensitive_button.set_checkable(true);
-
-        let tree_panel = QWidget::new_1a(&splitter);
-        let tree_layout = create_grid_layout(tree_panel.static_upcast());
-        tree_panel.set_minimum_width(200);
-
-        // Add everything to the `TreeView`s Layout.
-        tree_layout.add_widget_5a(&tree_view, 0, 0, 1, 2);
-        tree_layout.add_widget_5a(&filter_line_edit, 1, 0, 1, 2);
-        tree_layout.add_widget_5a(&filter_autoexpand_matches_button, 2, 0, 1, 1);
-        tree_layout.add_widget_5a(&filter_case_sensitive_button, 2, 1, 1, 1);
 
         let node_data_panel = QWidget::new_1a(&splitter);
         let node_data_layout = create_grid_layout(node_data_panel.static_upcast());

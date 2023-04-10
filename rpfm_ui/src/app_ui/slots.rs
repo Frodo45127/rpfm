@@ -495,7 +495,7 @@ impl AppUISlots {
                             KEY_NAPOLEON => app_ui.game_selected_napoleon.trigger(),
                             KEY_EMPIRE => app_ui.game_selected_empire.trigger(),
                             KEY_ARENA => app_ui.game_selected_arena.trigger(),
-                            _ => unreachable!(),
+                            _ => unreachable!("load_all_ca_packs with game selected {}", GAME_SELECTED.read().unwrap().game_key_name()),
                         }
 
                         UI_STATE.set_operational_mode(&app_ui, None);
@@ -529,7 +529,7 @@ impl AppUISlots {
                     "Patch" => PFHFileType::Patch,
                     "Mod" => PFHFileType::Mod,
                     "Movie" => PFHFileType::Movie,
-                    _ => unreachable!()
+                    _ => unreachable!("change_pack_type with string {}", app_ui.change_packfile_type_group.checked_action().text().remove_q_string(&QString::from_std_str("&")).to_std_string())
                 };
 
                 // Send the type to the Background Thread, and update the UI.
@@ -597,7 +597,7 @@ impl AppUISlots {
                             // If we detect a change in theme, reload it.
                             let dark_theme_new = setting_bool("use_dark_theme");
                             if dark_theme_old != dark_theme_new {
-                                crate::utils::reload_theme();
+                                crate::utils::reload_theme(&app_ui);
                             }
 
                             // If we detect a change in the saved font, trigger a font change.
@@ -1392,10 +1392,12 @@ impl AppUISlots {
             }
         ));
 
-        let debug_reload_style_sheet = SlotNoArgs::new(&app_ui.main_window, move || {
-            info!("Triggering `Reload StyleSheets` By Slot");
-            reload_theme();
-        });
+        let debug_reload_style_sheet = SlotNoArgs::new(&app_ui.main_window, clone!(
+            app_ui => move || {
+                info!("Triggering `Reload StyleSheets` By Slot");
+                reload_theme(&app_ui);
+            }
+        ));
 
         //-----------------------------------------------//
         // `FileView` logic.

@@ -705,7 +705,7 @@ impl From<&str> for DataSource {
             "ParentFiles" => Self::ParentFiles,
             "AssKitFiles" => Self::AssKitFiles,
             "ExternalFile" => Self::ExternalFile,
-            _ => unreachable!()
+            _ => unreachable!("from data source {}", value)
         }
     }
 }

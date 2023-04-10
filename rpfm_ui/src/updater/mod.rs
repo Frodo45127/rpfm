@@ -203,7 +203,7 @@ pub fn check_updates_rpfm() -> Result<APIResponse> {
         }
 
         // This means both are the same, and the checks will never reach this place thanks to the parent if.
-        else { unreachable!() }
+        else { unreachable!("check_updates") }
     }
     else {
         Ok(APIResponse::NoUpdate)

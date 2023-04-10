@@ -741,7 +741,7 @@ impl PackTree for QPtr<QTreeView> {
             ITEM_TYPE_FILE => ContainerPath::File(Self::get_path_from_item(item, model)),
             ITEM_TYPE_FOLDER => ContainerPath::Folder(Self::get_path_from_item(item, model)),
             ITEM_TYPE_PACKFILE => ContainerPath::Folder(String::new()),
-            _ => unreachable!()
+            _ => unreachable!("from_type {}", item.data_1a(ITEM_TYPE).to_int_0a())
         }
     }
 

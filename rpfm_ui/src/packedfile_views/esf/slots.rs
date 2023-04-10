@@ -15,6 +15,7 @@ Module with the slots for ESF Views.
 use qt_widgets::QTreeView;
 
 use qt_core::QBox;
+use qt_core::QPtr;
 use qt_core::SlotNoArgs;
 use qt_core::SlotOfQString;
 use qt_core::SlotOfBool;
@@ -111,7 +112,7 @@ impl PackedFileESFViewSlots {
             view => move || {
                 let items = view.tree_view.get_items_from_selection(true);
                 if items.len() == 1 {
-                    let data = <QBox<QTreeView> as ESFTree>::get_child_nodes_from_item(&items[0]);
+                    let data = <QPtr<QTreeView> as ESFTree>::get_child_nodes_from_item(&items[0]);
                     if !data.is_empty() {
                         let nodes: Vec<NodeType> = serde_json::from_str(&data).unwrap();
                         view.detailed_view.write().unwrap().load_subnodes_to_details_view(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, &dependencies_ui, &references_ui, &view.node_data_panel, &view.tree_view, &nodes, items[0]);

@@ -649,7 +649,7 @@ pub fn background_loop() {
                     DataSource::GameFiles => dependencies.file_mut(&anim_pack_path, true, false).ok(),
                     DataSource::ParentFiles => dependencies.file_mut(&anim_pack_path, false, true).ok(),
                     DataSource::AssKitFiles |
-                    DataSource::ExternalFile => unreachable!(),
+                    DataSource::ExternalFile => unreachable!("add_files_to_animpack"),
                 };
 
                 let files = match anim_pack_file {

@@ -1110,10 +1110,10 @@ pub trait Container {
                         None => Vec::with_capacity(0)
                     })
                 },
-                ContainerPath::Folder(_) => unreachable!(),
+                ContainerPath::Folder(_) => unreachable!("move_path_1"),
             },
             ContainerPath::Folder(source_path) => match destination_path {
-                ContainerPath::File(_) => unreachable!(),
+                ContainerPath::File(_) => unreachable!("move_path_2"),
                 ContainerPath::Folder(destination_path) => {
                     if destination_path.is_empty() {
                         return Err(RLibError::EmptyDestiny);
@@ -1483,7 +1483,7 @@ impl RFile {
                             FileType::Video => RFileDecoded::Video(Video::decode(&mut data, &Some(extra_data))?),
 
                             FileType::AnimPack |
-                            FileType::Pack => unreachable!()
+                            FileType::Pack => unreachable!("decode")
                         }
                     },
 
@@ -1510,7 +1510,7 @@ impl RFile {
                             match self.file_type {
                                 FileType::AnimPack => RFileDecoded::AnimPack(AnimPack::decode(&mut data, &Some(extra_data))?),
                                 FileType::Pack => RFileDecoded::Pack(Pack::decode(&mut data, &Some(extra_data))?),
-                                _ => unreachable!()
+                                _ => unreachable!("decode_2")
                             }
                         }
 
@@ -1522,7 +1522,7 @@ impl RFile {
                             match self.file_type {
                                 FileType::AnimPack => RFileDecoded::AnimPack(AnimPack::decode(&mut data, &Some(extra_data))?),
                                 FileType::Pack => RFileDecoded::Pack(Pack::decode(&mut data, &Some(extra_data))?),
-                                _ => unreachable!()
+                                _ => unreachable!("decode_3")
                             }
                         }
                     }
@@ -1935,7 +1935,7 @@ impl RFile {
     ///
     /// All files must be of the same type and said type must support merging.
     pub fn merge(sources: &[&Self], path: &str) -> Result<Self> {
-        if sources.len() == 1 {
+        if sources.len() <= 1 {
             return Err(RLibError::RFileMergeOnlyOneFileProvided);
         }
 

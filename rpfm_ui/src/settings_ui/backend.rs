@@ -60,7 +60,19 @@ pub unsafe fn init_settings(main_window: &QPtr<QMainWindow>) {
 
     for game in &SUPPORTED_GAMES.games() {
         let game_key = game.game_key_name();
-        set_setting_if_new_string(&q_settings, game_key, "");
+        let game_path = if let Ok(Some(game_path)) = game.find_game_install_location() {
+            game_path.to_string_lossy().to_string()
+        } else {
+            String::new()
+        };
+
+        // If we got a path and we don't have it saved yet, save it automatically.
+        let current_path = setting_string_from_q_setting(&q_settings, game_key);
+        if current_path.is_empty() && !game_path.is_empty() {
+            set_setting_string_to_q_setting(&q_settings, game_key, &game_path);
+        } else {
+            set_setting_if_new_string(&q_settings, game_key, &game_path);
+        }
 
         if game_key != KEY_EMPIRE &&
             game_key != KEY_NAPOLEON &&
