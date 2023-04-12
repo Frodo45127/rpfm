@@ -292,7 +292,7 @@ tt_global_search_search_on_schemas_checkbox = Include the currently loaded Schem
 ## Open PackedFile Dialog
 
 open_packedfile_dialog_1 = Are you sure?
-open_packedfile_dialog_2 = One or more of the PackedFiles you want to replace/delete is open. Are you sure you want to do it? Hitting yes will close it.
+open_packedfile_dialog_2 = One or more of the PackedFiles you want to replace/delete is open. Are you sure you want to close it?
 
 ## TreeView Text/Filter
 
@@ -538,8 +538,8 @@ game_selected_changed_on_opening = Game Selected changed to {"{"}{"}"}, as the P
 ### Extra stuff I don't remember where it goes.
 
 rpfm_title = Rusted PackFile Manager
-delete_mymod_0 = <p>You are about to delete this <i>'MyMod'</i> from your disk.</p><p>There is no way to recover it after that.</p><p>Are you sure?</p>
-delete_mymod_1 = <p>There are some changes yet to be saved.</p><p>Are you sure?</p>
+delete_mymod_0 = <p>Are you sure to delete this <i>'MyMod'</i> from your disk.</p><p>There is no way to recover it after that.</p>
+delete_mymod_1 = <p>There are some changes yet to be saved.</p><p>Are you sure to exit?</p>
 
 api_response_success_new_stable_update = <h4>New major stable update found: {"{"}{"}"}</h4> <p>Please, make sure to save your work in progress before hitting 'Update', or you may lose it.</p>
 api_response_success_new_beta_update = <h4>New beta update found: {"{"}{"}"}</h4><p>Please, make sure to save your work in progress before hitting 'Update', or you may lose it.</p>
@@ -923,7 +923,7 @@ generate_ids_instructions = It's simple, write the initial id in the box below a
 generate_ids_accept = Accept
 
 context_menu_delete_filtered_out_rows = Delete Filtered-out Rows
-are_you_sure_delete_filtered_out_rows = This will delete all filtered-out rows. Are you sure?
+are_you_sure_delete_filtered_out_rows = Are you sure to delete all filtered-out rows?
 
 context_menu_go_to = Go To…
 context_menu_go_to_definition = Go To Definition
