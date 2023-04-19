@@ -98,7 +98,7 @@ impl DiagnosticReport for TableDiagnosticReport {
             TableDiagnosticReportType::DuplicatedCombinedKeys(combined_keys) => format!("Duplicated combined keys: {}.", &combined_keys),
             TableDiagnosticReportType::NoReferenceTableFound(field_name) => format!("No reference table found for column \"{field_name}\"."),
             TableDiagnosticReportType::NoReferenceTableNorColumnFoundPak(field_name) => format!("No reference column found in referenced table for column \"{field_name}\". Maybe a problem with the schema?"),
-            TableDiagnosticReportType::NoReferenceTableNorColumnFoundNoPak(field_name) => format!("No reference column found in referenced table for column \"{field_name}\". Did you forgot to generate the Dependencies Cache, or did you generated it before installing the Assembly kit?"),
+            TableDiagnosticReportType::NoReferenceTableNorColumnFoundNoPak(field_name) => format!("No reference column found in referenced table for column \"{field_name}\". Did you forget to generate the Dependencies Cache, or did you generate it before installing the Assembly kit?"),
             TableDiagnosticReportType::InvalidEscape => "Invalid line jump/tabulation detected in loc entry. Use \\\\n or \\\\t instead.".to_owned(),
             TableDiagnosticReportType::DuplicatedRow(combined_keys) => format!("Duplicated row: {combined_keys}."),
             TableDiagnosticReportType::InvalidLocKey => "Invalid localisation key.".to_owned(),
