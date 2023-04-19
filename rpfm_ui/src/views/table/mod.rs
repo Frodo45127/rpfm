@@ -1324,12 +1324,20 @@ impl TableView {
 
     /// This function pastes the row in the clipboard in every selected row that has the same amount of items selected as items in the clipboard we have.
     unsafe fn paste_same_row_for_all(&self, text: &[&str], indexes: &[Ref<QModelIndex>], app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
-
+        let mut column = 0;
         let real_cells = indexes.iter().filter_map(|index| {
             if index.column() == -1 {
                 None
             } else {
-                text.get(index.column() as usize).map(|text| (self.table_filter.map_to_source(*index), *text))
+                let data = text.get(column as usize).map(|text| (self.table_filter.map_to_source(*index), *text));
+
+                if column == text.len() - 1 {
+                    column = 0;
+                } else {
+                    column += 1;
+                }
+
+                data
             }
         }).collect::<Vec<(CppBox<QModelIndex>, &str)>>();
 
