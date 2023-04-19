@@ -39,30 +39,29 @@ pub fn update(config: &Config, schema_path: &Path) -> Result<()> {
     Ok(())
 }
 
-/*
-pub fn to_json(config: &Config) -> Result<()> {
-    if config.verbosity_level > 0 {
+pub fn to_json(config: &Config, schemas_path: &Path) -> Result<()> {
+    if config.verbose {
         info!("Converting schemas to Json…");
     }
 
 
-    let result = Schema::export_to_json();
-    if config.verbosity_level > 0 {
+    let result = Schema::export_to_json(schemas_path).map_err(From::from);
+    if config.verbose {
         info!("Schemas converted to Json.");
     }
     result
 }
-
+/*
 pub fn to_xml(config: &Config) -> Result<()> {
-    if config.verbosity_level > 0 {
+    if config.verbose {
         info!("Converting schemas to XML…");
     }
 
 
     let result = Schema::export_to_xml();
-    if config.verbosity_level > 0 {
+    if config.verbose {
         info!("Schemas converted to XML.");
     }
     result
-}
-*/
+}*/
+

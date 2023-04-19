@@ -85,6 +85,7 @@ use std::path::Path;
 
 use crate::error::Result;
 use crate::files::table::DecodedData;
+use crate::games::supported_games::SupportedGames;
 
 // Legacy Schemas, to keep backwards compatibility during updates.
 pub(crate) mod v4;
@@ -429,25 +430,24 @@ impl Schema {
         Ok(())
     }
 
-/*
-
-    /// This function exports all the schema files from the `schemas/` folder to `.json`.
+    /// This function exports all the schema files from the provided folder to `.json`.
     ///
     /// For compatibility purposes.
-    pub fn export_to_json() -> Result<()> {
-        for schema_file in SUPPORTED_GAMES.get_games().iter().map(|x| x.get_schema_name()) {
-            let schema = Schema::load(schema_file)?;
+    pub fn export_to_json(schema_folder_path: &Path) -> Result<()> {
+        let games = SupportedGames::default();
 
-            let mut file_path = get_config_path()?.join(SCHEMA_FOLDER);
-            file_path.push(schema_file);
-            file_path.set_extension("json");
+        games.games_sorted().par_iter().map(|x| x.schema_file_name()).try_for_each(|schema_file| {
+            let mut schema_path = schema_folder_path.to_owned();
+            schema_path.push(schema_file);
 
-            let mut file = File::create(&file_path)?;
-            file.write_all(serde_json::to_string_pretty(&schema)?.as_bytes())?;
-        }
-        Ok(())
+            let mut schema = Schema::load(&schema_path)?;
+            schema_path.set_extension("json");
+            schema.save_json(&schema_path)?;
+            Ok(())
+        })
     }
 
+    /*
     /// This function exports all the schema files from the `schemas/` folder to `.xml`.
     ///
     /// For compatibility purposes.

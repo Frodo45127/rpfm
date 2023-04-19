@@ -330,6 +330,14 @@ pub enum CommandsSchemas {
         /// Path where the schemas will be downloaded.
         #[arg(short, long, required = true, value_name = "SCHEMA_PATH")]
         schema_path: PathBuf,
+    },
+
+    /// Convert all the schemas in the provided folder from Ron to Json.
+    ToJson {
+
+        /// Path where the schemas are located.
+        #[arg(short, long, required = true, value_name = "SCHEMAS_PATH")]
+        schemas_path: PathBuf,
     }
 }
 
