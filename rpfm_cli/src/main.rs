@@ -101,6 +101,7 @@ fn main() {
 
         Commands::Schemas { commands } => match commands {
             CommandsSchemas::Update { schema_path } => crate::commands::schema::update(&config, &schema_path),
+            CommandsSchemas::ToJson { schemas_path } => crate::commands::schema::to_json(&config, &schemas_path),
         }
     };
 
