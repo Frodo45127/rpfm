@@ -1208,16 +1208,16 @@ impl PackFileContentsSlots {
                     path_to_add.push('/');
                     path_to_add.push_str(&name);
 
-                    let receiver = CENTRAL_COMMAND.send_background(Command::MergeFiles(paths_to_close.to_vec(), path_to_add, delete_source_files));
+                    let selected_paths_cont = selected_paths.iter().map(|x| ContainerPath::File(x.to_owned())).collect::<Vec<_>>();
+                    let receiver = CENTRAL_COMMAND.send_background(Command::MergeFiles(selected_paths_cont.to_vec(), path_to_add, delete_source_files));
                     let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::String(path_to_add) => {
 
                             // If we want to delete the sources, do it now. Oh, and close them manually first, or the autocleanup will try to save them and fail miserably.
                             if delete_source_files {
-                                let items_to_remove = selected_paths.iter().map(|x| ContainerPath::File(x.to_owned())).collect();
                                 selected_paths.iter().for_each(|x| { let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, x, DataSource::PackFile, false); });
-                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(items_to_remove, true), DataSource::PackFile);
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(selected_paths_cont, true), DataSource::PackFile);
                             }
 
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![ContainerPath::File(path_to_add); 1]), DataSource::PackFile);
