@@ -58,6 +58,7 @@ use anyhow::Result;
 use getset::Getters;
 use itertools::Itertools;
 use self_update::cargo_crate_version;
+use time::OffsetDateTime;
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -75,6 +76,7 @@ use rpfm_lib::utils::*;
 
 use rpfm_ui_common::ASSETS_PATH;
 use rpfm_ui_common::clone;
+use rpfm_ui_common::FULL_DATE_FORMAT;
 use rpfm_ui_common::locale::{qtr, qtre, tre};
 use rpfm_ui_common::PROGRAM_PATH;
 
@@ -1837,34 +1839,40 @@ impl AppUI {
 
                             // That means our file is a valid PackFile and it needs to be added to the menu.
                             let mod_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
-                            let open_mod_action = app_ui.packfile_open_from_autosave.add_action_q_string(&QString::from_std_str(mod_name));
+                            let mod_name_no_pack = mod_name.replace(".pack", "");
+                            if let Ok(date_numeric) = mod_name_no_pack.parse::<i64>() {
+                                if let Ok(date_formatted) = OffsetDateTime::from_unix_timestamp(date_numeric) {
+                                    let date_formatted = date_formatted.format(&FULL_DATE_FORMAT).unwrap();
+                                    let open_mod_action = app_ui.packfile_open_from_autosave.add_action_q_string(&QString::from_std_str(date_formatted));
 
-                            // Create the slot for that action.
-                            let slot_open_mod = SlotOfBool::new(&open_mod_action, clone!(
-                                app_ui,
-                                pack_file_contents_ui,
-                                global_search_ui,
-                                diagnostics_ui,
-                                path => move |_| {
-                                if Self::are_you_sure(&app_ui, false) {
-                                    if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path.to_path_buf()], "") {
-                                        return show_dialog(&app_ui.main_window, error, false);
-                                    }
+                                    // Create the slot for that action.
+                                    let slot_open_mod = SlotOfBool::new(&open_mod_action, clone!(
+                                        app_ui,
+                                        pack_file_contents_ui,
+                                        global_search_ui,
+                                        diagnostics_ui,
+                                        path => move |_| {
+                                        if Self::are_you_sure(&app_ui, false) {
+                                            if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path.to_path_buf()], "") {
+                                                return show_dialog(&app_ui.main_window, error, false);
+                                            }
 
-                                    if setting_bool("diagnostics_trigger_on_open") {
+                                            if setting_bool("diagnostics_trigger_on_open") {
 
-                                        // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
-                                        app_ui.menu_bar_packfile.set_enabled(false);
+                                                // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
+                                                app_ui.menu_bar_packfile.set_enabled(false);
 
-                                        DiagnosticsUI::check(&app_ui, &diagnostics_ui);
+                                                DiagnosticsUI::check(&app_ui, &diagnostics_ui);
 
-                                        app_ui.menu_bar_packfile.set_enabled(true);
-                                    }
+                                                app_ui.menu_bar_packfile.set_enabled(true);
+                                            }
+                                        }
+                                    }));
+
+                                    // Connect the slot and store it.
+                                    open_mod_action.triggered().connect(&slot_open_mod);
                                 }
-                            }));
-
-                            // Connect the slot and store it.
-                            open_mod_action.triggered().connect(&slot_open_mod);
+                            }
                         }
                     }
                 }

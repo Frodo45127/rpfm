@@ -19,7 +19,6 @@ use crossbeam::channel::Sender;
 use itertools::Itertools;
 use open::that;
 use rayon::prelude::*;
-use time::OffsetDateTime;
 
 use std::collections::{BTreeMap, HashMap, hash_map::DefaultHasher};
 #[cfg(feature = "enable_tools")] use std::collections::HashSet;
@@ -43,7 +42,6 @@ use rpfm_lib::schema::*;
 use rpfm_lib::utils::*;
 
 use rpfm_ui_common::clone;
-use rpfm_ui_common::FULL_DATE_FORMAT;
 use rpfm_ui_common::locale::tr;
 use rpfm_ui_common::PROGRAM_PATH;
 
@@ -1262,19 +1260,13 @@ pub fn background_loop() {
                 let _ = DirBuilder::new().recursive(true).create(&folder);
                 if folder.is_dir() {
                     let date = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
-                    let date_formatted = OffsetDateTime::from_unix_timestamp(date as i64).unwrap().format(&FULL_DATE_FORMAT).unwrap();
-                    let new_name = format!("{date_formatted}.pack");
+                    //let date_formatted = OffsetDateTime::from_unix_timestamp(date as i64).unwrap().format(&FULL_DATE_FORMAT).unwrap();
+                    let new_name = format!("{date}.pack");
                     let new_path = folder.join(new_name);
-                    if pack_file_decoded.pfh_file_type() == PFHFileType::Mod {
+                    let pack_type = *pack_file_decoded.header().pfh_file_type();
+                    if setting_bool("allow_editing_of_ca_packfiles") || pack_type == PFHFileType::Mod || pack_type == PFHFileType::Movie {
                         let game_selected = GAME_SELECTED.read().unwrap();
                         let extra_data = Some(initialize_encodeable_extra_data(&game_selected));
-
-                        let pack_type = *pack_file_decoded.header().pfh_file_type();
-                        if !setting_bool("allow_editing_of_ca_packfiles") && pack_type != PFHFileType::Mod && pack_type != PFHFileType::Movie {
-                            CentralCommand::send_back(&sender, Response::Error(anyhow!("Pack cannot be saved due to being of CA-Only type. Either change the Pack Type or enable \"Allow Edition of CA Packs\" in the settings.")));
-                            continue;
-                        }
-
                         let _ = pack_file_decoded.clone().save(Some(&new_path), &game_selected, &extra_data);
                     }
 
