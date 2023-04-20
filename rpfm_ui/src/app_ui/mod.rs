@@ -3365,7 +3365,7 @@ impl AppUI {
     pub unsafe fn merge_tables_dialog(app_ui: &Rc<Self>) -> Option<(String, bool)> {
 
         let dialog = QDialog::new_1a(&app_ui.main_window);
-        dialog.set_window_title(&qtr("packedfile_merge_tables"));
+        dialog.set_window_title(&qtr("merge_tables"));
         dialog.set_modal(true);
 
         // Create the main Grid.
