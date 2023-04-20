@@ -29,7 +29,7 @@ const FILE_TYPE_MOVIE: isize = 4;
 ///
 /// The types here are sorted in the same order they'll load when the game starts.
 /// The number in their docs is their numeric value when read from a PackFile.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum PFHFileType {
 
     /// **(0)**: Used in CA PackFiles, not useful for modding.
