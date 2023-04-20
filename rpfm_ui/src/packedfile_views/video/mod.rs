@@ -30,7 +30,7 @@ use rpfm_ui_common::locale::qtr;
 
 use crate::app_ui::AppUI;
 use crate::backend::VideoInfo;
-use crate::packedfile_views::{FileView, View, ViewType};
+use crate::packedfile_views::{DataSource, FileView, View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
 
 use self::slots::PackedFileVideoViewSlots;
@@ -70,7 +70,7 @@ impl PackedFileVideoView {
         file_view: &mut FileView,
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
-        data: &VideoInfo,
+        data: &VideoInfo
     ) {
 
         let layout: QPtr<QGridLayout> = file_view.main_widget().layout().static_downcast();
@@ -95,6 +95,11 @@ impl PackedFileVideoView {
 
         let convert_to_camv_button = QPushButton::from_q_string_q_widget(&qtr("convert_to_camv"), file_view.main_widget());
         let convert_to_ivf_button = QPushButton::from_q_string_q_widget(&qtr("convert_to_ivf"), file_view.main_widget());
+
+        if *file_view.data_source.read().unwrap() != DataSource::PackFile {
+            convert_to_camv_button.set_enabled(false);
+            convert_to_ivf_button.set_enabled(false);
+        }
 
         let instructions_label = QLabel::from_q_string_q_widget(&qtr("instructions_ca_vp8"), file_view.main_widget());
 
