@@ -200,7 +200,7 @@ pub enum TreeViewOperation {
     Add(Vec<ContainerPath>),
 
     /// Remove the files/folders corresponding to the `Vec<ContainerPath>` we provide from the `TreeView`.
-    Delete(Vec<ContainerPath>),
+    Delete(Vec<ContainerPath>, bool),
 
     /// Set the provided paths as *modified*. It requires the `Vec<ContainerPath>` of whatever you want to mark as modified.
     Modify(Vec<ContainerPath>),
@@ -534,12 +534,14 @@ impl PackTree for QPtr<QTreeView> {
             match item_type {
                  ContainerPath::File(_) => item_types.push(item_type.clone()),
                  ContainerPath::Folder(_) => {
+                    item_types.push(item_type.clone());
                     let item = Self::item_from_path(item_type, &model);
                     self.visible_children_of_item(&item, &mut item_types);
                  }
             }
         }
 
+        item_types = ContainerPath::dedup(&item_types);
         item_types
     }
 
@@ -1329,7 +1331,7 @@ impl PackTree for QPtr<QTreeView> {
             },
 
             // If we want to delete something from the TreeView.
-            TreeViewOperation::Delete(paths) => {
+            TreeViewOperation::Delete(paths, remove_empty_parents) => {
                 let paths = ContainerPath::dedup(&paths);
                 let pack = model.item_1a(0);
 
@@ -1382,12 +1384,50 @@ impl PackTree for QPtr<QTreeView> {
                             }
                         }
 
-                        // Begin the endless cycle of war and dead.
-                        let mut index = 0;
-                        for i in 0..count {
+                        if remove_empty_parents {
 
-                            // Get the parent of the item, and kill the item in a cruel way.
-                            index = i;
+                            // Begin the endless cycle of war and dead.
+                            let mut index = 0;
+                            for i in 0..count {
+
+                                // Get the parent of the item, and kill the item in a cruel way.
+                                index = i;
+                                let parent = item.parent();
+
+                                // Not sure what the fuck causes this, but sometimes parent is null.
+                                if parent.is_null() {
+
+                                    // TODO: Investigate this, as it shouldn't happen.
+                                    //error!("Parent null passed for path {:?}. Breaking loop to avoid crash (god knows what will happen next).", path);
+                                    break;
+                                }
+                                parent.remove_row(item.row());
+
+                                parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_MODIFIED), ITEM_STATUS);
+                                if !parent.data_1a(ITEM_IS_FOREVER_MODIFIED).to_bool() {
+                                    parent.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
+                                }
+
+                                // If the parent has more children, or we reached the PackFile, we're done. Otherwise, we update our item.
+                                item = parent;
+                                if parent.has_children() || !pack.has_children() {
+                                    break;
+                                }
+                            }
+
+                            // Mark all the parents left, up to the Pack.
+                            for _ in 0..index {
+                                if !item.is_null() {
+                                    item.set_data_2a(&QVariant::from_int(ITEM_STATUS_MODIFIED), ITEM_STATUS);
+                                    item.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
+                                    item = item.parent();
+                                }
+                            }
+                        }
+
+                        // In this path, we delete the item we want to delete, then mark everything until we hit a null as modified.
+                        else {
+
                             let parent = item.parent();
 
                             // Not sure what the fuck causes this, but sometimes parent is null.
@@ -1404,16 +1444,10 @@ impl PackTree for QPtr<QTreeView> {
                                 parent.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
                             }
 
-                            // If the parent has more children, or we reached the PackFile, we're done. Otherwise, we update our item.
                             item = parent;
-                            if parent.has_children() || !pack.has_children() {
-                                break;
-                            }
-                        }
 
-                        // Mark all the parents left, up to the Pack.
-                        for _ in 0..index {
-                            if !item.is_null() {
+                            // If the parent has more children, or we reached the PackFile, we're done. Otherwise, we update our item.
+                            while !item.parent().is_null() {
                                 item.set_data_2a(&QVariant::from_int(ITEM_STATUS_MODIFIED), ITEM_STATUS);
                                 item.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
                                 item = item.parent();
@@ -1505,7 +1539,7 @@ impl PackTree for QPtr<QTreeView> {
                 }
 
                 // Remove the now empty folders.
-                self.update_treeview(has_filter, TreeViewOperation::Delete(base_folders), source);
+                self.update_treeview(has_filter, TreeViewOperation::Delete(base_folders, setting_bool("delete_empty_folders_on_delete")), source);
             },
 
             // If you want to mark an item so it can't lose his modified state...

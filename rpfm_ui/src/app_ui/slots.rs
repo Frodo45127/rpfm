@@ -1056,7 +1056,7 @@ impl AppUISlots {
                         Response::HashSetString(response) => {
                             let response = response.iter().map(|x| ContainerPath::File(x.to_owned())).collect::<Vec<ContainerPath>>();
 
-                            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Delete(response), DataSource::PackFile);
+                            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Delete(response, true), DataSource::PackFile);
                             show_dialog(&app_ui.main_window, tr("optimize_packfile_success"), true);
                         }
                         Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
@@ -1089,7 +1089,7 @@ impl AppUISlots {
                 let response = CENTRAL_COMMAND.recv_try(&receiver);
                 match response {
                     Response::StringVecContainerPath(message, paths) => {
-                        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Delete(paths), DataSource::PackFile);
+                        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Delete(paths, true), DataSource::PackFile);
                         show_dialog(&app_ui.main_window, message, true);
                     }
 

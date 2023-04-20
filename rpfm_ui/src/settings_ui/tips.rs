@@ -35,6 +35,7 @@ pub unsafe fn set_tips(settings_ui: &Rc<SettingsUI>) {
     let ui_window_start_maximized_tip = qtr("tt_ui_window_start_maximized_tip");
     let settings_expand_treeview_when_adding_items_tip = qtr("settings_expand_treeview_when_adding_items_tip");
     let include_base_folder_on_add_from_folder = qtr("settings_include_base_folder_on_add_from_folder");
+    let delete_empty_folders_on_delete = qtr("settings_delete_empty_folders_on_delete");
 
     settings_ui.ui_global_use_dark_theme_label.set_tool_tip(&ui_global_use_dark_theme_tip);
     settings_ui.ui_global_use_dark_theme_checkbox.set_tool_tip(&ui_global_use_dark_theme_tip);
@@ -54,6 +55,8 @@ pub unsafe fn set_tips(settings_ui: &Rc<SettingsUI>) {
     settings_ui.general_packfile_treeview_expand_treeview_when_adding_items_checkbox.set_tool_tip(&settings_expand_treeview_when_adding_items_tip);
     settings_ui.include_base_folder_on_add_from_folder_label.set_tool_tip(&include_base_folder_on_add_from_folder);
     settings_ui.include_base_folder_on_add_from_folder_checkbox.set_tool_tip(&include_base_folder_on_add_from_folder);
+    settings_ui.delete_empty_folders_on_delete_label.set_tool_tip(&delete_empty_folders_on_delete);
+    settings_ui.delete_empty_folders_on_delete_checkbox.set_tool_tip(&delete_empty_folders_on_delete);
 
     //-----------------------------------------------//
     // `Extra` tips.

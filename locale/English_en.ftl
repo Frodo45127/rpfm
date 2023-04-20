@@ -1322,3 +1322,5 @@ new_portrait_settings_copy_to_column = Copy values to this entry
 live_export_success = Script and UI folders exported correctly.
 include_base_folder_on_add_from_folder = Include Parent Folder when Adding a Folder
 settings_include_base_folder_on_add_from_folder = When using Add From Folder, it adds the selected folder instead of it's parent contents to the Pack.
+delete_empty_folders_on_delete = Delete empty folders after moving/deleting its contents
+settings_delete_empty_folders_on_delete = If this is enabled, after certain operations that left empty folders, said folders will be automatically removed.

@@ -800,13 +800,16 @@ impl PackFileContentsSlots {
                 if AppUI::are_you_sure_edition(&app_ui, "are_you_sure_delete") {
                     info!("Triggering `Delete` By Slot");
 
-                    let selected_items = <QPtr<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
+                    let mut selected_items = <QPtr<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
 
-                    let receiver = CENTRAL_COMMAND.send_background(Command::DeletePackedFiles(selected_items));
+                    let receiver = CENTRAL_COMMAND.send_background(Command::DeletePackedFiles(selected_items.clone()));
                     let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::VecContainerPath(items) => {
-                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(items.to_vec()), DataSource::PackFile);
+
+                            selected_items.extend_from_slice(&items);
+                            let items = ContainerPath::dedup(&selected_items);
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(items.to_vec(), setting_bool("delete_empty_folders_on_delete")), DataSource::PackFile);
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(items.to_vec()), DataSource::PackFile);
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
 
@@ -1214,7 +1217,7 @@ impl PackFileContentsSlots {
                             if delete_source_files {
                                 let items_to_remove = selected_paths.iter().map(|x| ContainerPath::File(x.to_owned())).collect();
                                 selected_paths.iter().for_each(|x| { let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, x, DataSource::PackFile, false); });
-                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(items_to_remove), DataSource::PackFile);
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(items_to_remove, true), DataSource::PackFile);
                             }
 
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![ContainerPath::File(path_to_add); 1]), DataSource::PackFile);
