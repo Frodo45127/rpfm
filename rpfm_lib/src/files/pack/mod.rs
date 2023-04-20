@@ -674,6 +674,9 @@ impl Pack {
         dependencies.dedup();
         pack_new.set_dependencies(dependencies);
 
+        // Fix the pack version.
+        pack_new.set_pfh_file_type(packs[0].pfh_file_type());
+
         Ok(pack_new)
     }
 
