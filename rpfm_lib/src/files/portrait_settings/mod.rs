@@ -159,3 +159,14 @@ impl Encodeable for PortraitSettings {
     }
 }
 
+
+impl PortraitSettings {
+
+    pub fn from_json(data: &str) -> Result<Self> {
+        serde_json::from_str(data).map_err(From::from)
+    }
+
+    pub fn to_json(&self) -> Result<String> {
+        serde_json::to_string_pretty(&self).map_err(From::from)
+    }
+}

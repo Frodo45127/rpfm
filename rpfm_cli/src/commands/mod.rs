@@ -13,4 +13,5 @@
 pub mod animpack;
 pub mod dependencies;
 pub mod pack;
+pub mod portrait_settings;
 pub mod schema;

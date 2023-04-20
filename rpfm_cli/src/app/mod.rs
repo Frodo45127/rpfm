@@ -69,6 +69,13 @@ pub enum Commands {
         #[clap(subcommand)]
         commands: CommandsSchemas,
     },
+
+    /// Command to perform operations over PortraitSettings files.
+    PortraitSettings {
+
+        #[clap(subcommand)]
+        commands: CommandsPortraitSettings,
+    },
 }
 
 #[derive(Subcommand)]
@@ -338,6 +345,34 @@ pub enum CommandsSchemas {
         /// Path where the schemas are located.
         #[arg(short, long, required = true, value_name = "SCHEMAS_PATH")]
         schemas_path: PathBuf,
+    }
+}
+
+#[derive(Subcommand)]
+pub enum CommandsPortraitSettings {
+
+    /// Convert a JSon file to a binary Portrait Settings.
+    FromJson {
+
+        /// Path of the Json file.
+        #[arg(short, long, required = true, value_name = "JSON_PATH")]
+        json_path: PathBuf,
+
+        /// Path of the resulting PortraitSettings file.
+        #[arg(short, long, required = true, value_name = "BIN_PATH")]
+        bin_path: PathBuf,
+    },
+
+    /// Convert a binary Portrait Settings file to JSon.
+    ToJson {
+
+        /// Path of the PortraitSettings file.
+        #[arg(short, long, required = true, value_name = "BIN_PATH")]
+        bin_path: PathBuf,
+
+        /// Path of the resulting Json file.
+        #[arg(short, long, required = true, value_name = "JSON_PATH")]
+        json_path: PathBuf,
     }
 }
 

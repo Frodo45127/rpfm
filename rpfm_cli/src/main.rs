@@ -22,7 +22,7 @@ use std::sync::{Arc, RwLock};
 
 use rpfm_lib::integrations::log::*;
 
-use crate::app::{Cli, Commands, CommandsAnimPack, CommandsDependencies, CommandsPack, CommandsSchemas};
+use crate::app::{Cli, Commands, CommandsAnimPack, CommandsDependencies, CommandsPack, CommandsPortraitSettings, CommandsSchemas};
 use crate::config::*;
 
 mod app;
@@ -102,6 +102,11 @@ fn main() {
         Commands::Schemas { commands } => match commands {
             CommandsSchemas::Update { schema_path } => crate::commands::schema::update(&config, &schema_path),
             CommandsSchemas::ToJson { schemas_path } => crate::commands::schema::to_json(&config, &schemas_path),
+        }
+
+        Commands::PortraitSettings { commands } => match commands {
+            CommandsPortraitSettings::FromJson { json_path, bin_path } => crate::commands::portrait_settings::from_json(&config, &json_path, &bin_path),
+            CommandsPortraitSettings::ToJson { bin_path, json_path } => crate::commands::portrait_settings::to_json(&config, &bin_path, &json_path),
         }
     };
 
