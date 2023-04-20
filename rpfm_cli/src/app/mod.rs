@@ -310,13 +310,13 @@ pub enum CommandsPack {
     Merge {
 
         /// Path where the merged Pack will be saved.
-        #[arg(short, long, required = true, value_name = "SAVE_PACK_PATH")]
+        #[arg(short = 'p', long, required = true, value_name = "SAVE_PACK_PATH")]
         save_pack_path: PathBuf,
 
         /// Path of the Packs this operation will use.
         ///
         /// Priority for conflicting files is determined by the order of the Packs in the command.
-        #[arg(short, long, required = true, num_args = 1.., value_name = "SOURCE_PACK_PATHS")]
+        #[arg(short = 's', long, required = true, num_args = 1.., value_name = "SOURCE_PACK_PATHS")]
         source_pack_paths: Vec<PathBuf>,
     },
 }
