@@ -174,7 +174,6 @@ pub struct AppUI {
     change_packfile_type_patch: QPtr<QAction>,
     change_packfile_type_mod: QPtr<QAction>,
     change_packfile_type_movie: QPtr<QAction>,
-    change_packfile_type_other: QPtr<QAction>,
 
     change_packfile_type_header_is_extended: QPtr<QAction>,
     change_packfile_type_index_includes_timestamp: QPtr<QAction>,
@@ -499,7 +498,6 @@ impl AppUI {
         let change_packfile_type_patch = packfile_change_packfile_type.add_action_q_string(&qtr("packfile_type_patch"));
         let change_packfile_type_mod = packfile_change_packfile_type.add_action_q_string(&qtr("packfile_type_mod"));
         let change_packfile_type_movie = packfile_change_packfile_type.add_action_q_string(&qtr("packfile_type_movie"));
-        let change_packfile_type_other = packfile_change_packfile_type.add_action_q_string(&qtr("packfile_type_other"));
         let change_packfile_type_header_is_extended = packfile_change_packfile_type.add_action_q_string(&qtr("change_packfile_type_header_is_extended"));
         let change_packfile_type_index_includes_timestamp = packfile_change_packfile_type.add_action_q_string(&qtr("change_packfile_type_index_includes_timestamp"));
         let change_packfile_type_index_is_encrypted = packfile_change_packfile_type.add_action_q_string(&qtr("change_packfile_type_index_is_encrypted"));
@@ -514,13 +512,11 @@ impl AppUI {
         change_packfile_type_group.add_action_q_action(&change_packfile_type_patch);
         change_packfile_type_group.add_action_q_action(&change_packfile_type_mod);
         change_packfile_type_group.add_action_q_action(&change_packfile_type_movie);
-        change_packfile_type_group.add_action_q_action(&change_packfile_type_other);
         change_packfile_type_boot.set_checkable(true);
         change_packfile_type_release.set_checkable(true);
         change_packfile_type_patch.set_checkable(true);
         change_packfile_type_mod.set_checkable(true);
         change_packfile_type_movie.set_checkable(true);
-        change_packfile_type_other.set_checkable(true);
 
         // These ones are individual, but they need to be checkable and not editable.
         change_packfile_type_data_is_encrypted.set_checkable(true);
@@ -535,7 +531,6 @@ impl AppUI {
         change_packfile_type_data_is_compressed.set_enabled(false);
 
         // Put separators in the SubMenu.
-        packfile_change_packfile_type.insert_separator(&change_packfile_type_other);
         packfile_change_packfile_type.insert_separator(&change_packfile_type_header_is_extended);
         packfile_change_packfile_type.insert_separator(&change_packfile_type_data_is_compressed);
 
@@ -793,7 +788,6 @@ impl AppUI {
             change_packfile_type_patch,
             change_packfile_type_mod,
             change_packfile_type_movie,
-            change_packfile_type_other,
 
             change_packfile_type_header_is_extended,
             change_packfile_type_index_includes_timestamp,

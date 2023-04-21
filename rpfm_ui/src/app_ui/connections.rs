@@ -43,7 +43,6 @@ pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
     app_ui.change_packfile_type_patch.triggered().connect(&slots.packfile_change_packfile_type);
     app_ui.change_packfile_type_mod.triggered().connect(&slots.packfile_change_packfile_type);
     app_ui.change_packfile_type_movie.triggered().connect(&slots.packfile_change_packfile_type);
-    app_ui.change_packfile_type_other.triggered().connect(&slots.packfile_change_packfile_type);
     app_ui.change_packfile_type_index_includes_timestamp.triggered().connect(&slots.packfile_index_includes_timestamp);
     app_ui.change_packfile_type_data_is_compressed.triggered().connect(&slots.packfile_data_is_compressed);
 

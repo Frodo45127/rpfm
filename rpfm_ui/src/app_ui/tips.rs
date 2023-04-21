@@ -39,7 +39,6 @@ pub unsafe fn set_tips(app_ui: &Rc<AppUI>) {
     app_ui.change_packfile_type_patch.set_status_tip(&qtr("tt_change_packfile_type_patch"));
     app_ui.change_packfile_type_mod.set_status_tip(&qtr("tt_change_packfile_type_mod"));
     app_ui.change_packfile_type_movie.set_status_tip(&qtr("tt_change_packfile_type_movie"));
-    app_ui.change_packfile_type_other.set_status_tip(&qtr("tt_change_packfile_type_other"));
 
     app_ui.change_packfile_type_data_is_encrypted.set_status_tip(&qtr("tt_change_packfile_type_data_is_encrypted"));
     app_ui.change_packfile_type_index_includes_timestamp.set_status_tip(&qtr("tt_change_packfile_type_index_includes_timestamp"));
