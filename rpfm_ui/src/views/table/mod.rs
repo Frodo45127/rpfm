@@ -2486,6 +2486,11 @@ impl TableView {
 
         // Launch.
         if dialog.exec() == 1 {
+            if explanation_text_edit.to_plain_text().to_std_string() == "" {
+                show_dialog(&self.table_view, tr("schema_patch_submitted_with_empty_explanation"), false);
+                return Ok(())
+            }
+
             let mut column_data = HashMap::new();
 
             column_data.insert("default_value".to_owned(), default_value_line_edit.text().to_std_string());
