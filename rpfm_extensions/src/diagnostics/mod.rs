@@ -142,7 +142,7 @@ impl DiagnosticType {
 impl Diagnostics {
 
     /// This function performs a search over the parts of a `PackFile` you specify it, storing his results.
-    pub fn check(&mut self, pack: &Pack, dependencies: &mut Dependencies, game_info: &GameInfo, game_path: &Path, paths_to_check: &[ContainerPath], schema: &Schema) {
+    pub fn check(&mut self, pack: &Pack, dependencies: &mut Dependencies, game_info: &GameInfo, game_path: &Path, paths_to_check: &[ContainerPath], schema: &Schema, check_ak_only_refs: bool) {
 
         // Clear the diagnostics first if we're doing a full check, or only the config ones and the ones for the path to update if we're doing a partial check.
         if paths_to_check.is_empty() {
@@ -287,6 +287,7 @@ impl Diagnostics {
                             &local_file_path_list,
                             &local_folder_path_list,
                             &table_references,
+                            check_ak_only_refs,
                         )
                     },
                     FileType::Loc => Self::check_loc(file, &self.diagnostics_ignored, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields),
@@ -335,7 +336,8 @@ impl Diagnostics {
         schema: &Schema,
         local_path_list: &HashSet<&str>,
         local_folder_list: &HashSet<String>,
-        dependency_data: &HashMap<i32, TableReferences>
+        dependency_data: &HashMap<i32, TableReferences>,
+        check_ak_only_refs: bool,
     ) ->Option<DiagnosticType> {
         if let Ok(RFileDecoded::DB(table)) = file.decoded() {
             let mut diagnostic = TableDiagnostic::new(file.path_in_container_raw());
@@ -468,7 +470,7 @@ impl Diagnostics {
                         match dependency_data.get(&(column as i32)) {
                             Some(ref_data) => {
 
-                                if *ref_data.referenced_column_is_localised() || *ref_data.referenced_table_is_ak_only() {
+                                if *ref_data.referenced_column_is_localised() {
                                     // TODO: report missing loc data here.
                                 }
                                 /*
@@ -484,7 +486,7 @@ impl Diagnostics {
                                 }
 
                                 // Check for non-empty cells with reference data, but the data in the cell is not in the reference data list.
-                                else if !cell_data.is_empty() && !ref_data.data().contains_key(&*cell_data) {
+                                else if !cell_data.is_empty() && !ref_data.data().contains_key(&*cell_data) && (!*ref_data.referenced_table_is_ak_only() || check_ak_only_refs) {
 
                                     // Numeric cells with 0 are "empty" references and should not be checked.
                                     let is_number = *field.field_type() == FieldType::I32 || *field.field_type() == FieldType::I64 || *field.field_type() == FieldType::OptionalI32 || *field.field_type() == FieldType::OptionalI64;

@@ -120,8 +120,8 @@
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>346</width>
-         <height>328</height>
+         <width>348</width>
+         <height>340</height>
         </rect>
        </property>
        <layout class="QVBoxLayout" name="verticalLayout">
@@ -169,7 +169,8 @@
           <string/>
          </property>
          <property name="icon">
-          <iconset theme="data-error"/>
+          <iconset theme="data-error">
+           <normaloff>.</normaloff>.</iconset>
          </property>
          <property name="iconSize">
           <size>
@@ -185,29 +186,7 @@
          </property>
         </widget>
        </item>
-       <item row="1" column="0">
-        <widget class="QToolButton" name="warning_button">
-         <property name="text">
-          <string/>
-         </property>
-         <property name="icon">
-          <iconset theme="data-warning"/>
-         </property>
-         <property name="iconSize">
-          <size>
-           <width>22</width>
-           <height>22</height>
-          </size>
-         </property>
-         <property name="checkable">
-          <bool>true</bool>
-         </property>
-         <property name="checked">
-          <bool>true</bool>
-         </property>
-        </widget>
-       </item>
-       <item row="4" column="0">
+       <item row="5" column="0">
         <widget class="QToolButton" name="more_filters_button">
          <property name="text">
           <string/>
@@ -227,13 +206,57 @@
          </property>
         </widget>
        </item>
+       <item row="4" column="0">
+        <widget class="QToolButton" name="only_open_button">
+         <property name="text">
+          <string/>
+         </property>
+         <property name="icon">
+          <iconset theme="quickopen-file">
+           <normaloff>.</normaloff>.</iconset>
+         </property>
+         <property name="iconSize">
+          <size>
+           <width>22</width>
+           <height>22</height>
+          </size>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="0">
+        <widget class="QToolButton" name="warning_button">
+         <property name="text">
+          <string/>
+         </property>
+         <property name="icon">
+          <iconset theme="data-warning">
+           <normaloff>.</normaloff>.</iconset>
+         </property>
+         <property name="iconSize">
+          <size>
+           <width>22</width>
+           <height>22</height>
+          </size>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
        <item row="2" column="0">
         <widget class="QToolButton" name="info_button">
          <property name="text">
           <string>...</string>
          </property>
          <property name="icon">
-          <iconset theme="data-information"/>
+          <iconset theme="data-information">
+           <normaloff>.</normaloff>.</iconset>
          </property>
          <property name="iconSize">
           <size>
@@ -247,13 +270,12 @@
         </widget>
        </item>
        <item row="3" column="0">
-        <widget class="QToolButton" name="only_open_button">
+        <widget class="QToolButton" name="check_ak_only_refs">
          <property name="text">
-          <string/>
+          <string>...</string>
          </property>
          <property name="icon">
-          <iconset theme="quickopen-file">
-           <normaloff>.</normaloff>.</iconset>
+          <iconset theme="data-error"/>
          </property>
          <property name="iconSize">
           <size>

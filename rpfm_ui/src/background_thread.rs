@@ -1283,7 +1283,7 @@ pub fn background_loop() {
             }
 
             // In case we want to perform a diagnostics check...
-            Command::DiagnosticsCheck(diagnostics_ignored) => {
+            Command::DiagnosticsCheck(diagnostics_ignored, check_ak_only_refs) => {
 
                 // Spawn a separate thread so the UI can keep working.
                 thread::spawn(clone!(
@@ -1298,7 +1298,7 @@ pub fn background_loop() {
                     if let Some(schema) = &*SCHEMA.read().unwrap() {
                         if pack_file_decoded.pfh_file_type() == PFHFileType::Mod ||
                             pack_file_decoded.pfh_file_type() == PFHFileType::Movie {
-                            diagnostics.check(&pack_file_decoded, &mut dependencies.write().unwrap(), &game_selected, &game_path, &[], schema);
+                            diagnostics.check(&pack_file_decoded, &mut dependencies.write().unwrap(), &game_selected, &game_path, &[], schema, check_ak_only_refs);
                         }
 
                         info!("Checking diagnostics: done.");
@@ -1308,7 +1308,7 @@ pub fn background_loop() {
                 }));
             }
 
-            Command::DiagnosticsUpdate(mut diagnostics, path_types) => {
+            Command::DiagnosticsUpdate(mut diagnostics, path_types, check_ak_only_refs) => {
 
                 // Spawn a separate thread so the UI can keep working.
                 thread::spawn(clone!(
@@ -1320,7 +1320,7 @@ pub fn background_loop() {
                     if let Some(schema) = &*SCHEMA.read().unwrap() {
                         if pack_file_decoded.pfh_file_type() == PFHFileType::Mod ||
                             pack_file_decoded.pfh_file_type() == PFHFileType::Movie {
-                            diagnostics.check(&pack_file_decoded, &mut dependencies.write().unwrap(), &game_selected, &game_path, &path_types, schema);
+                            diagnostics.check(&pack_file_decoded, &mut dependencies.write().unwrap(), &game_selected, &game_path, &path_types, schema, check_ak_only_refs);
                         }
 
                         info!("Checking diagnostics (update): done.");

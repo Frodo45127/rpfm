@@ -1325,3 +1325,4 @@ settings_include_base_folder_on_add_from_folder = When using Add From Folder, it
 delete_empty_folders_on_delete = Delete empty folders after moving/deleting its contents
 settings_delete_empty_folders_on_delete = If this is enabled, after certain operations that left empty folders, said folders will be automatically removed.
 schema_patch_submitted_with_empty_explanation = Patch not submitted because the explanation was empty.
+diagnostics_check_ak_only_refs = Check AK Only References (may trigger false positives)

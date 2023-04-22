@@ -267,10 +267,10 @@ pub enum Command {
     TriggerBackupAutosave,
 
     /// This command is used to trigger a full diagnostics check over the open PackFile.
-    DiagnosticsCheck(Vec<String>),
+    DiagnosticsCheck(Vec<String>, bool),
 
     // This command is used to trigger a partial diagnostics check over the open PackFile.
-    DiagnosticsUpdate(Diagnostics, Vec<ContainerPath>),
+    DiagnosticsUpdate(Diagnostics, Vec<ContainerPath>, bool),
 
     /// This command is used to get the settings of the currently open PackFile.
     GetPackSettings,

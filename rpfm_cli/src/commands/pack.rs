@@ -306,7 +306,7 @@ pub fn diagnose(config: &Config, game_path: &Path, pak_path: &Path, schema_path:
 
             // Trigger a diagnostics check.
             let mut diagnostics = Diagnostics::default();
-            diagnostics.check(&pack, &mut dependencies, game_info, game_path, &[], &schema);
+            diagnostics.check(&pack, &mut dependencies, game_info, game_path, &[], &schema, false);
 
             if config.verbose {
                 info!("Diagnosed problems in the following Packs:");

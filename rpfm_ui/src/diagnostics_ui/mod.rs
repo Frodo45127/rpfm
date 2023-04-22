@@ -106,6 +106,7 @@ pub struct DiagnosticsUI {
     diagnostics_button_info: QPtr<QToolButton>,
     diagnostics_button_only_current_packed_file: QPtr<QToolButton>,
     diagnostics_button_show_more_filters: QPtr<QToolButton>,
+    diagnostics_button_check_ak_only_refs: QPtr<QToolButton>,
 
     sidebar_scroll_area: QPtr<QScrollArea>,
     checkbox_all: QBox<QCheckBox>,
@@ -164,6 +165,7 @@ impl DiagnosticsUI {
         let diagnostics_button_info: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "info_button")?;
         let diagnostics_button_only_current_packed_file: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "only_open_button")?;
         let diagnostics_button_show_more_filters: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "more_filters_button")?;
+        let diagnostics_button_check_ak_only_refs: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "check_ak_only_refs")?;
 
         diagnostics_button_check_packfile.set_tool_tip(&qtr("diagnostics_button_check_packfile"));
         diagnostics_button_check_current_packed_file.set_tool_tip(&qtr("diagnostics_button_check_current_packed_file"));
@@ -172,6 +174,7 @@ impl DiagnosticsUI {
         diagnostics_button_info.set_tool_tip(&qtr("diagnostics_button_info"));
         diagnostics_button_only_current_packed_file.set_tool_tip(&qtr("diagnostics_button_only_current_packed_file"));
         diagnostics_button_show_more_filters.set_tool_tip(&qtr("diagnostics_button_show_more_filters"));
+        diagnostics_button_check_ak_only_refs.set_tool_tip(&qtr("diagnostics_check_ak_only_refs"));
 
         let sidebar_scroll_area: QPtr<QScrollArea> = find_widget(&main_widget.static_upcast(), "more_filters_scroll")?;
         let header_column: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "diagnostics_label")?;
@@ -339,6 +342,7 @@ impl DiagnosticsUI {
             diagnostics_button_info,
             diagnostics_button_only_current_packed_file,
             diagnostics_button_show_more_filters,
+            diagnostics_button_check_ak_only_refs,
 
             sidebar_scroll_area,
             checkbox_all,
@@ -384,7 +388,7 @@ impl DiagnosticsUI {
         app_ui.menu_bar_packfile().set_enabled(false);
         let diagnostics_ignored = diagnostics_ui.diagnostics_ignored();
         info!("Triggering check.");
-        let receiver = CENTRAL_COMMAND.send_background(Command::DiagnosticsCheck(diagnostics_ignored));
+        let receiver = CENTRAL_COMMAND.send_background(Command::DiagnosticsCheck(diagnostics_ignored, diagnostics_ui.diagnostics_button_check_ak_only_refs().is_checked()));
         let response = CENTRAL_COMMAND.recv_try(&receiver);
         diagnostics_ui.diagnostics_table_model.clear();
 
@@ -414,7 +418,7 @@ impl DiagnosticsUI {
         let mut diagnostics = UI_STATE.get_diagnostics();
         *diagnostics.diagnostics_ignored_mut() = diagnostics_ui.diagnostics_ignored();
 
-        let receiver = CENTRAL_COMMAND.send_background(Command::DiagnosticsUpdate(diagnostics, paths));
+        let receiver = CENTRAL_COMMAND.send_background(Command::DiagnosticsUpdate(diagnostics, paths, diagnostics_ui.diagnostics_button_check_ak_only_refs().is_checked()));
         let response = CENTRAL_COMMAND.recv_try(&receiver);
         diagnostics_ui.diagnostics_table_model.clear();
 
