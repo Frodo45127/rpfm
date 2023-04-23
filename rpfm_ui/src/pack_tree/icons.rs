@@ -17,12 +17,14 @@ use qt_gui::QStandardItem;
 
 use qt_core::QString;
 
+use cpp_core::CppBox;
 use cpp_core::Ref;
 
 use std::sync::atomic::AtomicPtr;
 
 use rpfm_lib::files::{animpack, anim_fragment, anims_table, audio, esf, FileType, image, loc, matched_combat, pack, portrait_settings, rigidmodel, soundbank, text, text::*, unit_variant, video, uic};
 use rpfm_lib::{REGEX_DB, REGEX_PORTRAIT_SETTINGS};
+use rpfm_ui_common::ASSETS_PATH;
 
 use crate::pack_tree::{ROOT_NODE_TYPE_EDITABLE_PACKFILE, ROOT_NODE_TYPE};
 use crate::utils::{atomic_from_cpp_box, ref_from_atomic_ref};
@@ -91,46 +93,55 @@ pub struct Icons {
 impl Icons {
     pub unsafe fn new() -> Self {
         Self {
-            packfile_editable: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("application-x-compress"))),
-            packfile_locked: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("application-x-xz-compressed-tar"))),
-            folder: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("folder-orange"))),
-            file: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("none"))),
-
-            animpack: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("package-x-generic"))),
-            anim_fragment: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("animation-stage"))),
-            anims_table: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("gnumeric-pivottable"))),
-            audio: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("audio-mp3"))),
-            db: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("application-sql"))),
-            esf: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("application-x-bzdvi"))),
-
-            image_generic: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("image-x-generic"))),
-            image_png: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("image-png"))),
-            image_jpg: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("image-jpeg"))),
-            image_tga: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("image-tga"))),
-            image_gif: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("image-gif"))),
-
-            loc: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("text-x-gettext-translation"))),
-            matched_combat: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("view-table-of-contents-ltr"))),
-            portrait_settings: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("x-office-contact"))),
-            sound_bank: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("view-bank"))),
-
-            text_generic: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("text-x-generic"))),
-            text_csv: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("text-csv"))),
-            text_cpp: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("text-x-c++src"))),
-            text_md: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("text-markdown"))),
-            text_json: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("application-json"))),
-            text_html: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("text-html"))),
-            text_txt: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("text-plain"))),
-            text_xml: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("text-xml"))),
-            text_lua: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("text-x-lua"))),
-            text_js: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("text-javascript"))),
-            text_css: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("text-css"))),
-
-            rigid_model: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("application-x-blender"))),
-            unit_variant: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("application-vnd.openxmlformats-officedocument.spreadsheetml.sheet"))),
-            uic: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("application-x-designer"))),
-            video: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("video-webm"))),
+            packfile_editable: atomic_from_cpp_box(Self::load_icon("packfile_editable", "application-x-compress")),
+            packfile_locked: atomic_from_cpp_box(Self::load_icon("packfile_locked", "application-x-xz-compressed-tar")),
+            folder: atomic_from_cpp_box(Self::load_icon("folder", "folder-orange")),
+            file: atomic_from_cpp_box(Self::load_icon("file", "none")),
+            animpack: atomic_from_cpp_box(Self::load_icon("animpack", "package-x-generic")),
+            anim_fragment: atomic_from_cpp_box(Self::load_icon("anim_fragment", "animation-stage")),
+            anims_table: atomic_from_cpp_box(Self::load_icon("anims_table", "gnumeric-pivottable")),
+            audio: atomic_from_cpp_box(Self::load_icon("audio", "audio-mp3")),
+            db: atomic_from_cpp_box(Self::load_icon("db", "application-sql")),
+            esf: atomic_from_cpp_box(Self::load_icon("esf", "application-x-bzdvi")),
+            image_generic: atomic_from_cpp_box(Self::load_icon("image_generic", "image-x-generic")),
+            image_png: atomic_from_cpp_box(Self::load_icon("image_png", "image-png")),
+            image_jpg: atomic_from_cpp_box(Self::load_icon("image_jpg", "image-jpeg")),
+            image_tga: atomic_from_cpp_box(Self::load_icon("image_tga", "image-tga")),
+            image_gif: atomic_from_cpp_box(Self::load_icon("image_gif", "image-gif")),
+            loc: atomic_from_cpp_box(Self::load_icon("loc", "text-x-gettext-translation")),
+            matched_combat: atomic_from_cpp_box(Self::load_icon("matched_combat", "view-table-of-contents-ltr")),
+            portrait_settings: atomic_from_cpp_box(Self::load_icon("portrait_settings", "x-office-contact")),
+            sound_bank: atomic_from_cpp_box(Self::load_icon("sound_bank", "view-bank")),
+            text_generic: atomic_from_cpp_box(Self::load_icon("text_generic", "text-x-generic")),
+            text_csv: atomic_from_cpp_box(Self::load_icon("text_csv", "text-csv")),
+            text_cpp: atomic_from_cpp_box(Self::load_icon("text_cpp", "text-x-c++src")),
+            text_md: atomic_from_cpp_box(Self::load_icon("text_md", "text-markdown")),
+            text_json: atomic_from_cpp_box(Self::load_icon("text_json", "application-json")),
+            text_html: atomic_from_cpp_box(Self::load_icon("text_html", "text-html")),
+            text_txt: atomic_from_cpp_box(Self::load_icon("text_txt", "text-plain")),
+            text_xml: atomic_from_cpp_box(Self::load_icon("text_xml", "text-xml")),
+            text_lua: atomic_from_cpp_box(Self::load_icon("text_lua", "text-x-lua")),
+            text_js: atomic_from_cpp_box(Self::load_icon("text_js", "text-javascript")),
+            text_css: atomic_from_cpp_box(Self::load_icon("text_css", "text-css")),
+            rigid_model: atomic_from_cpp_box(Self::load_icon("rigid_model", "application-x-blender")),
+            unit_variant: atomic_from_cpp_box(Self::load_icon("unit_variant", "application-vnd.openxmlformats-officedocument.spreadsheetml.sheet")),
+            uic: atomic_from_cpp_box(Self::load_icon("uic", "application-x-designer")),
+            video: atomic_from_cpp_box(Self::load_icon("video", "video-webm")),
         }
+    }
+
+    pub unsafe fn load_icon(icon_name: &str, icon_name_fallback: &str) -> CppBox<QIcon> {
+        let mut icon = QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}.png", ASSETS_PATH.to_string_lossy(), icon_name)));
+
+        if icon.is_null() || icon.available_sizes_0a().count_0a() == 0 {
+            icon = QIcon::from_theme_1a(&QString::from_std_str(icon_name));
+
+            if icon.is_null() || icon.available_sizes_0a().count_0a() == 0 {
+                icon = QIcon::from_theme_1a(&QString::from_std_str(icon_name_fallback));
+            }
+        }
+
+        icon
     }
 
     /// This function is used to get the icon corresponding to an IconType.
