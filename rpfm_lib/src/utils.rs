@@ -95,6 +95,48 @@ pub fn files_from_subdir(current_path: &Path, scan_subdirs: bool) -> Result<Vec<
     Ok(file_list)
 }
 
+/// This function retuns a `Vec<PathBuf>` containing all the folders which do not have any more folders under them.
+pub fn final_folders_from_subdir(current_path: &Path, scan_subdirs: bool) -> Result<Vec<PathBuf>> {
+    let mut folder_list: Vec<PathBuf> = vec![];
+    match read_dir(current_path) {
+        Ok(dir_entry_in_current_path) => {
+            let mut has_subfolders = false;
+            for dir_entry in dir_entry_in_current_path {
+
+                // Get his path and continue, or return an error if it can't be read.
+                match dir_entry {
+                    Ok(dir_entry) => {
+                        let path = dir_entry.path();
+
+                        // If it's a file, skip it.
+                        if path.is_file() {
+                            continue;
+                        }
+
+                        // If it's a folder, check it..
+                        if path.is_dir() && scan_subdirs {
+                            let mut subfolder_files_path = final_folders_from_subdir(&path, scan_subdirs)?;
+                            folder_list.append(&mut subfolder_files_path);
+                            has_subfolders = true;
+                        }
+                    }
+                    Err(_) => return Err(RLibError::ReadFileFolderError(current_path.to_string_lossy().to_string())),
+                }
+            }
+
+            if !has_subfolders {
+                folder_list.push(current_path.to_path_buf());
+            }
+        }
+
+        // In case of reading error, report it.
+        Err(_) => return Err(RLibError::ReadFileFolderError(current_path.to_string_lossy().to_string())),
+    }
+
+    // Return the list of paths.
+    Ok(folder_list)
+}
+
 /// This function gets the oldest modified file in a folder and return it.
 pub fn oldest_file_in_folder(current_path: &Path) -> Result<Option<PathBuf>> {
     let files = files_in_folder_from_newest_to_oldest(current_path)?;
