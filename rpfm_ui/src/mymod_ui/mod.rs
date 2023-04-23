@@ -188,7 +188,7 @@ impl MyModUI {
 
             // Git stuff.
             if mymod_ui.git_support_groupbox.is_checked() {
-                autoignored_paths.push_str("\n.git");
+                autoignored_paths.push_str("\n.git\n.gitignore");
             }
 
             let mut pack_import_ignore_paths = mymod_ui.pack_import_ignore_contents_textedit().to_plain_text().to_std_string();
