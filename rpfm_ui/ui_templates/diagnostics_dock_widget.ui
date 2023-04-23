@@ -120,8 +120,8 @@
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>348</width>
-         <height>340</height>
+         <width>346</width>
+         <height>328</height>
         </rect>
        </property>
        <layout class="QVBoxLayout" name="verticalLayout">
@@ -275,7 +275,8 @@
           <string>...</string>
          </property>
          <property name="icon">
-          <iconset theme="data-error"/>
+          <iconset theme="messagebox_warning">
+           <normaloff>.</normaloff>.</iconset>
          </property>
          <property name="iconSize">
           <size>
