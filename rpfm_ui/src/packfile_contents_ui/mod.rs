@@ -399,10 +399,19 @@ impl PackFileContentsUI {
         rewrite_sequence_line_edit.set_placeholder_text(&qtr("rename_move_selection_placeholder"));
         move_checkbox.set_text(&qtr("rename_move_checkbox"));
 
+        // Remember the last status of the move checkbox.
+        if setting_variant_from_q_setting(&settings(), "move_checkbox_status").can_convert(1) {
+            move_checkbox.set_checked(setting_bool("move_checkbox_status"));
+        }
+
         match selected_items.len().cmp(&1) {
 
             // If we only have one selected item, put its path in the line edit.
-            Ordering::Equal => rewrite_sequence_line_edit.set_text(&QString::from_std_str(selected_items[0].path_raw())),
+            Ordering::Equal => if !move_checkbox.is_checked() {
+                rewrite_sequence_line_edit.set_text(&QString::from_std_str(selected_items[0].path_raw().split('/').last().unwrap()));
+            } else {
+                rewrite_sequence_line_edit.set_text(&QString::from_std_str(selected_items[0].path_raw()));
+            }
 
             // If we have multiple items selected, things get complicated.
             // We need to check if all of them are within the same exact folder to check if we can allow full-path move or not.
@@ -416,8 +425,13 @@ impl PackFileContentsUI {
 
                 // Branch 1: all items in the same folder. We allow full-path replace, and by default we change the file name to {x}.
                 if selected_items.iter().all(|item| item.path_raw().rfind('/') == last_separator && ((!start_path.is_empty() && item.path_raw().starts_with(start_path)) || start_path.is_empty())) {
-                    let new_path = format!("{start_path}{{x}}");
-                    rewrite_sequence_line_edit.set_text(&QString::from_std_str(new_path));
+
+                    if !move_checkbox.is_checked() {
+                        rewrite_sequence_line_edit.set_text(&QString::from_std_str("{x}"));
+                    } else {
+                        let new_path = format!("{start_path}{{x}}");
+                        rewrite_sequence_line_edit.set_text(&QString::from_std_str(new_path));
+                    }
                 }
 
                 // Branch 2: items are in different folders. We need to disable the checkbox and allow to only replace the name.
@@ -437,6 +451,8 @@ impl PackFileContentsUI {
 
         Ok(
             if dialog.exec() == 1 {
+                set_setting_bool("move_checkbox_status", move_checkbox.is_checked());
+
                 let new_text = rewrite_sequence_line_edit.text().to_std_string();
                 if new_text.is_empty() {
                     None
