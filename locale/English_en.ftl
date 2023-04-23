@@ -1326,3 +1326,6 @@ delete_empty_folders_on_delete = Delete empty folders after moving/deleting its 
 settings_delete_empty_folders_on_delete = If this is enabled, after certain operations that left empty folders, said folders will be automatically removed.
 schema_patch_submitted_with_empty_explanation = Patch not submitted because the explanation was empty.
 diagnostics_check_ak_only_refs = Check AK Only References (may trigger false positives)
+title_changes_detected_in_dark_theme_config = Changes detected in dark Theme StyleSheet
+message_changes_detected_in_dark_theme_config = <p>You see this message because RPFM just got updated and, either the update contains changes for the dark theme, or you made custom changes to the dark-theme-custom.qss file at some point.</p>
+    <p>If you didn't edit the file dark-theme-custom.qss, press Yes to import the updated dark theme. If you changed said file with your custom theme, press No and manually import the changes you want from dark-theme.qss to dark-theme-custom.qss.</p>

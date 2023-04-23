@@ -316,10 +316,33 @@ pub fn get_feature_flags() -> String {
 
 /// This function creates the stylesheet used for the dark theme in windows.
 pub fn dark_stylesheet() -> Result<String> {
-    let mut file = File::open(ASSETS_PATH.join("dark-theme.qss"))?;
+
+    // IF the extra file is missing, create it as a copy of the normal one.
+    if !ASSETS_PATH.join("dark-theme-custom.qss").is_file() {
+        std::fs::copy(ASSETS_PATH.join("dark-theme.qss"), ASSETS_PATH.join("dark-theme-custom.qss"))?;
+    }
+
+    let mut file = if cfg!(debug_assertions) {
+        File::open(ASSETS_PATH.join("dark-theme.qss"))?
+    } else {
+        File::open(ASSETS_PATH.join("dark-theme-custom.qss"))?
+    };
+
     let mut string = String::new();
     file.read_to_string(&mut string)?;
-    Ok(string.replace("{assets_path}", &ASSETS_PATH.to_string_lossy().replace("\\", "/")))
+    Ok(string.replace("{assets_path}", &ASSETS_PATH.to_string_lossy().replace('\\', "/")))
+}
+
+pub fn dark_stylesheet_is_customized() -> Result<bool> {
+    let mut file_orig = File::open(ASSETS_PATH.join("dark-theme.qss"))?;
+    let mut file_cust = File::open(ASSETS_PATH.join("dark-theme-custom.qss"))?;
+
+    let mut string_orig = String::new();
+    let mut string_cust = String::new();
+    file_orig.read_to_string(&mut string_orig)?;
+    file_cust.read_to_string(&mut string_cust)?;
+
+    Ok(string_orig != string_cust)
 }
 
 /// This function is used to load/reload a theme live.
