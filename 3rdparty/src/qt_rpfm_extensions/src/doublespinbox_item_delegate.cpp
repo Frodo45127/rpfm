@@ -70,10 +70,32 @@ void QDoubleSpinBoxItemDelegate::updateEditorGeometry(QWidget *editor, const QSt
 
 QString QDoubleSpinBoxItemDelegate::displayText(const QVariant &value, const QLocale &locale) const {
     switch(value.type()){
-    case QMetaType::Float:
-        return locale.toString(value.toFloat(),'f');
-    case QMetaType::Double:
-        return locale.toString(value.toDouble(),'f');
+        case QMetaType::Float:
+            {
+                QString str = QString::number(value.toFloat(), 'f', 4);
+                while(str.back() == '0') {
+                    str.chop(1);
+                }
+
+                if(str.back() == '.') {
+                    str.chop(1);
+                }
+
+                return str;
+            }
+        case QMetaType::Double:
+            {
+                QString str = QString::number(value.toDouble(), 'f', 4);
+                while(str.back() == '0') {
+                    str.chop(1);
+                }
+
+                if(str.back() == '.') {
+                    str.chop(1);
+                }
+
+                return str;
+            }
     default:
         return QStyledItemDelegate::displayText(value,locale);
     }
