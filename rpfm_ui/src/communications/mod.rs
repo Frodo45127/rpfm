@@ -485,7 +485,6 @@ pub enum Response {
 
     #[cfg(feature = "enable_tools")] Definition(Definition),
     #[cfg(feature = "enable_tools")] HashMapDataSourceHashSetContainerPath(HashMap<DataSource, HashSet<ContainerPath>>),
-    #[cfg(feature = "enable_tools")] VecContainerPathVecContainerPath(Vec<ContainerPath>, Vec<ContainerPath>),
 
     VecNote(Vec<Note>),
     Note(Note),

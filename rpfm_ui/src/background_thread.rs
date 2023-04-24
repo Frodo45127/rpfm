@@ -1703,7 +1703,7 @@ pub fn background_loop() {
                         added_paths.dedup();
 
                         // Then, optimize the PackFile. This should remove any non-edited rows/files.
-                        match pack_file_decoded.optimize(&mut dependencies.write().unwrap(), schema, false) {
+                        match pack_file_decoded.optimize(None, &mut dependencies.write().unwrap(), schema, false) {
                             Ok(paths_to_delete) => CentralCommand::send_back(&sender, Response::VecContainerPathVecContainerPath(added_paths, paths_to_delete.into_iter()
                                 .map(ContainerPath::File)
                                 .collect())),
