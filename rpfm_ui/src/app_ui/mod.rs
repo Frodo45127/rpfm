@@ -1645,8 +1645,6 @@ impl AppUI {
             KEY_WARHAMMER_3 => {
                 app_ui.game_selected_open_game_assembly_kit_folder.set_enabled(true);
                 app_ui.special_stuff_wh3_generate_dependencies_cache.set_enabled(true);
-                app_ui.special_stuff_wh3_live_export.set_enabled(true);
-                app_ui.special_stuff_wh3_pack_map.set_enabled(true);
             },
             KEY_TROY => {
                 app_ui.game_selected_open_game_assembly_kit_folder.set_enabled(true);
@@ -3473,24 +3471,47 @@ impl AppUI {
         let ak_path = setting_path(&format!("{game_key}_assembly_kit"));
 
         let tile_maps_path = ak_path.join("working_data/terrain/battles");
-        let tile_maps = final_folders_from_subdir(&tile_maps_path, false)?;
+        let tile_maps = final_folders_from_subdir(&tile_maps_path, true)?;
         let tile_maps_strip_name = tile_maps.iter().flat_map(|tile_map| tile_map.strip_prefix(&tile_maps_path)).collect::<Vec<_>>();
 
+
         for (index, tile_map) in tile_maps.iter().enumerate() {
-            let item = QStandardItem::from_q_string(&QString::from_std_str(&tile_maps_strip_name[index].to_string_lossy()));
+            let tile_map_name = tile_maps_strip_name[index].to_string_lossy();
+            let item = QStandardItem::from_q_string(&QString::from_std_str(&tile_map_name));
             item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(tile_map.to_string_lossy())), 20);
             item.set_editable(false);
-            tile_maps_available_model.append_row_q_standard_item(item.into_ptr());
+
+            let receiver = CENTRAL_COMMAND.send_background(Command::FolderExists(format!("terrain/battles/{}", tile_map_name)));
+            let response = CENTRAL_COMMAND.recv_try(&receiver);
+            match response {
+                Response::Bool(exists) => if exists {
+                    tile_maps_to_add_model.append_row_q_standard_item(item.into_ptr());
+                } else {
+                    tile_maps_available_model.append_row_q_standard_item(item.into_ptr());
+                }
+                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+            }
         }
 
         let tiles_path = ak_path.join("working_data/terrain/tiles/battle");
         let tiles = final_folders_from_subdir(&tiles_path, true)?;
         let tiles_strip_name = tiles.iter().flat_map(|tile| tile.strip_prefix(&tiles_path)).collect::<Vec<_>>();
         for (index, tile) in tiles.iter().enumerate() {
-            let item = QStandardItem::from_q_string(&QString::from_std_str(&tiles_strip_name[index].to_string_lossy()));
+            let tile_name = tiles_strip_name[index].to_string_lossy();
+            let item = QStandardItem::from_q_string(&QString::from_std_str(&tile_name));
             item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(tile.to_string_lossy())), 20);
             item.set_editable(false);
-            tiles_available_model.append_row_q_standard_item(item.into_ptr());
+
+            let receiver = CENTRAL_COMMAND.send_background(Command::FolderExists(format!("terrain/tiles/battle/{}", tile_name)));
+            let response = CENTRAL_COMMAND.recv_try(&receiver);
+            match response {
+                Response::Bool(exists) => if exists {
+                    tiles_to_add_model.append_row_q_standard_item(item.into_ptr());
+                } else {
+                    tiles_available_model.append_row_q_standard_item(item.into_ptr());
+                }
+                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+            }
         }
 
         // Actions

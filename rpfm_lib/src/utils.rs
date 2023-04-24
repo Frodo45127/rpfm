@@ -96,11 +96,12 @@ pub fn files_from_subdir(current_path: &Path, scan_subdirs: bool) -> Result<Vec<
 }
 
 /// This function retuns a `Vec<PathBuf>` containing all the folders which do not have any more folders under them.
-pub fn final_folders_from_subdir(current_path: &Path, scan_subdirs: bool) -> Result<Vec<PathBuf>> {
+pub fn final_folders_from_subdir(current_path: &Path, ignore_empty_folders: bool) -> Result<Vec<PathBuf>> {
     let mut folder_list: Vec<PathBuf> = vec![];
     match read_dir(current_path) {
         Ok(dir_entry_in_current_path) => {
             let mut has_subfolders = false;
+            let mut has_files = false;
             for dir_entry in dir_entry_in_current_path {
 
                 // Get his path and continue, or return an error if it can't be read.
@@ -110,12 +111,13 @@ pub fn final_folders_from_subdir(current_path: &Path, scan_subdirs: bool) -> Res
 
                         // If it's a file, skip it.
                         if path.is_file() {
+                            has_files = true;
                             continue;
                         }
 
-                        // If it's a folder, check it..
                         if path.is_dir() {
-                            let mut subfolder_files_path = final_folders_from_subdir(&path, scan_subdirs)?;
+                        // If it's a folder, check it..
+                            let mut subfolder_files_path = final_folders_from_subdir(&path, ignore_empty_folders)?;
                             folder_list.append(&mut subfolder_files_path);
                             has_subfolders = true;
                         }
@@ -124,7 +126,7 @@ pub fn final_folders_from_subdir(current_path: &Path, scan_subdirs: bool) -> Res
                 }
             }
 
-            if !has_subfolders {
+            if !has_subfolders && (!ignore_empty_folders || has_files) {
                 folder_list.push(current_path.to_path_buf());
             }
         }
