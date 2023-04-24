@@ -109,7 +109,7 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     new_action(pack_tree_actions, "generate_missing_loc_data", "Generate Missing Loc Data", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString(""), "languages");
     new_action(pack_tree_actions, "delete", "Delete", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Del"), "entry-delete");
     new_action(pack_tree_actions, "extract", "Extract", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+E"), "archive-extract");
-    new_action(pack_tree_actions, "rename", "Rename", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+R"), "edit-move");
+    new_action(pack_tree_actions, "rename", "Rename", Qt::ShortcutContext::WidgetShortcut, {QKeySequence("Ctrl+R"), QKeySequence("F2")}, "edit-move");
     new_action(pack_tree_actions, "copy_path", "Copy Path", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString(""), "edit-copy-path");
     new_action(pack_tree_actions, "open_in_decoder", "Open In Decoder", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+J"), "document-edit-decrypt");
     new_action(pack_tree_actions, "open_dependency_manager", "Open Dependency Manager", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString(""), "dblatex");
@@ -236,7 +236,7 @@ extern "C" QAction* shortcut_action(QList<QObject*> const &shortcuts, QString co
                 QAction* new_action = new QAction();
                 new_action->setText(action->text());
                 new_action->setIcon(action->icon());
-                new_action->setShortcut(action->shortcut());
+                new_action->setShortcuts(action->shortcuts());
                 new_action->setShortcutContext(action->shortcutContext());
                 return new_action;
             }
