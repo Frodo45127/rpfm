@@ -16,7 +16,7 @@ use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 
 use rpfm_lib::error::{RLibError, Result};
-use rpfm_lib::files::{Container, ContainerPath, db::DB, FileType, loc::Loc, pack::Pack, RFileDecoded, table::DecodedData};
+use rpfm_lib::files::{Container, ContainerPath, db::DB, FileType, loc::Loc, pack::Pack, RFileDecoded, table::DecodedData, text::TextFormat};
 use rpfm_lib::schema::Schema;
 
 use crate::dependencies::Dependencies;
@@ -40,7 +40,7 @@ pub trait OptimizableContainer: Container {
     /// This function optimizes the provided [Container](rpfm_lib::files::Container) to reduce its size and improve compatibility.
     ///
     /// It returns the list of files that has been safetly deleted during the optimization process.
-    fn optimize(&mut self, dependencies: &mut Dependencies, schema: &Schema, optimize_datacored_tables: bool) -> Result<HashSet<String>>;
+    fn optimize(&mut self, paths_to_optimize: Option<Vec<ContainerPath>>, dependencies: &mut Dependencies, schema: &Schema, optimize_datacored_tables: bool) -> Result<HashSet<String>>;
 }
 
 //-------------------------------------------------------------------------------//
@@ -58,18 +58,25 @@ impl OptimizableContainer for Pack {
     ///     - Removal of ITM (Identical To Master) entries.
     ///     - Removal of ITNR (Identical To New Row) entries.
     ///     - Removal of empty tables.
+    /// - XML files:
+    ///     - Removal of XML files in map folders (extra files resulting of Terry export process).
     ///
     /// NOTE: due to a consequence of the optimization, all tables are also sorted by their first key.
     ///
     /// Not yet working:
-    /// - Remove XML files in map folders.
     /// - Remove files identical to Parent/Vanilla files (if is identical to vanilla, but a parent mod overwrites it, it ignores it).
-    fn optimize(&mut self, dependencies: &mut Dependencies, _schema: &Schema, optimize_datacored_tables: bool) -> Result<HashSet<String>> {
+    fn optimize(&mut self, paths_to_optimize: Option<Vec<ContainerPath>>, dependencies: &mut Dependencies, _schema: &Schema, optimize_datacored_tables: bool) -> Result<HashSet<String>> {
 
         // We can only optimize if we have vanilla data available.
         if !dependencies.is_vanilla_data_loaded(true) {
             return Err(RLibError::DependenciesCacheNotGeneratedorOutOfDate);
         }
+
+        // List of files to optimize.
+        let mut files_to_optimize = match paths_to_optimize {
+            Some(paths) => self.files_by_paths_mut(&paths, false),
+            None => self.files_mut().values_mut().collect::<Vec<_>>(),
+        };
 
         // List of files to delete.
         let mut files_to_delete: HashSet<String> = HashSet::new();
@@ -95,20 +102,21 @@ impl OptimizableContainer for Pack {
         //let extra_data = Some(extra_data);
 
         // Then, do a second pass, this time over the decodeable files that we can optimize.
-        files_to_delete.extend(self.files_mut().iter_mut().filter_map(|(path, rfile)| {
+        files_to_delete.extend(files_to_optimize.iter_mut().filter_map(|rfile| {
 
             // Only check it if it's not already marked for deletion.
-            if files_to_delete.get(path).is_none() {
+            let path = rfile.path_in_container_raw().to_owned();
+            if files_to_delete.get(&path).is_none() {
 
                 match rfile.file_type() {
                     FileType::DB => {
 
                         // Unless we specifically wanted to, ignore the same-name-as-vanilla-or-parent files,
                         // as those are probably intended to overwrite vanilla files, not to be optimized.
-                        if optimize_datacored_tables || !dependencies.file_exists(path, true, true, true) {
+                        if optimize_datacored_tables || !dependencies.file_exists(&path, true, true, true) {
                             if let Ok(RFileDecoded::DB(db)) = rfile.decoded_mut() {
                                 if db.optimize(dependencies) {
-                                    return Some(path.to_owned());
+                                    return Some(path);
                                 }
                             }
                         }
@@ -117,21 +125,28 @@ impl OptimizableContainer for Pack {
                     FileType::Loc => {
 
                         // Same as with tables, don't optimize them if they're overwriting.
-                        if optimize_datacored_tables || !dependencies.file_exists(path, true, true, true) {
+                        if optimize_datacored_tables || !dependencies.file_exists(&path, true, true, true) {
                             if let Ok(RFileDecoded::Loc(loc)) = rfile.decoded_mut() {
                                 if loc.optimize(dependencies) {
-                                    return Some(path.to_owned());
+                                    return Some(path);
                                 }
                             }
                         }
                     }
 
-                    /*
-                    PackedFileType::Text(text_type) => {
-                        if !path.is_empty() && path.starts_with(&Self::get_terry_map_path()) && text_type == TextType::Xml {
-                            return Some(path.to_vec());
+                    FileType::Text => {
+                        if !path.is_empty() && (
+                            path.starts_with("terrain/battles") ||
+                            path.starts_with("terrain/tiles/battle")
+                        ) {
+                            if let Ok(Some(RFileDecoded::Text(text))) = rfile.decode(&None, false, true) {
+                                if *text.format() == TextFormat::Xml {
+                                    return Some(path);
+
+                                }
+                            }
                         }
-                    }*/
+                    }
 
                     // Ignore the rest.
                     _ => {}

@@ -408,7 +408,7 @@ pub fn background_loop() {
             // In case we want to optimize our PackFile...
             Command::OptimizePackFile => {
                 if let Some(ref schema) = *SCHEMA.read().unwrap() {
-                    match pack_file_decoded.optimize(&mut dependencies.write().unwrap(), schema, setting_bool("optimize_not_renamed_packedfiles")) {
+                    match pack_file_decoded.optimize(None, &mut dependencies.write().unwrap(), schema, setting_bool("optimize_not_renamed_packedfiles")) {
                         Ok(paths_to_delete) => CentralCommand::send_back(&sender, Response::HashSetString(paths_to_delete)),
                         Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                     }
@@ -1749,9 +1749,14 @@ pub fn background_loop() {
             }
 
             Command::PackMap(tile_maps, tiles) => {
-                match add_tile_maps_and_tiles(&mut pack_file_decoded, tile_maps, tiles) {
-                    Ok(paths) => CentralCommand::send_back(&sender, Response::VecContainerPath(paths)),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                match *SCHEMA.read().unwrap() {
+                    Some(ref schema) => {
+                        match add_tile_maps_and_tiles(&mut pack_file_decoded, &mut dependencies.write().unwrap(), schema, tile_maps, tiles) {
+                            Ok((paths_to_add, paths_to_delete)) => CentralCommand::send_back(&sender, Response::VecContainerPathVecContainerPath(paths_to_add, paths_to_delete)),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                        }
+                    }
+                    None => CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected."))),
                 }
             }
 
@@ -1974,7 +1979,7 @@ fn load_schemas(sender: &Sender<Response>, pack: &mut Pack, game: &GameInfo) {
 }
 
 /// Function to simplify logic for changing game selected.
-fn add_tile_maps_and_tiles(pack: &mut Pack, tile_maps: Vec<PathBuf>, tiles: Vec<PathBuf>) -> Result<Vec<ContainerPath>> {
+fn add_tile_maps_and_tiles(pack: &mut Pack, dependencies: &mut Dependencies, schema: &Schema, tile_maps: Vec<PathBuf>, tiles: Vec<PathBuf>) -> Result<(Vec<ContainerPath>, Vec<ContainerPath>)> {
     let mut added_paths = vec![];
 
     // Tile Maps are from assembly_kit/working_data/terrain/battles/.
@@ -1987,7 +1992,12 @@ fn add_tile_maps_and_tiles(pack: &mut Pack, tile_maps: Vec<PathBuf>, tiles: Vec<
         added_paths.append(&mut pack.insert_folder(tile, "terrain/tiles/battle", &None, &None, true)?);
     }
 
-    Ok(added_paths)
+    let paths_to_delete = pack.optimize(Some(added_paths.clone()), dependencies, schema, setting_bool("optimize_not_renamed_packedfiles"))?
+        .iter()
+        .map(|path| ContainerPath::File(path.to_string()))
+        .collect::<Vec<_>>();
+
+    Ok((added_paths, paths_to_delete))
 }
 
 /// Function to save files from external paths, so it's easier to use in the big loop.
