@@ -160,7 +160,7 @@ impl Default for SupportedGames {
                 vars.insert("faction_painter_uniform_row_key".to_owned(), "faction_row".to_owned());
                 vars
             },
-            lua_autogen_folder: Some("wh3".to_owned()),
+            lua_autogen_folder: Some("output/wh3".to_owned()),
         });
 
         // Troy
