@@ -114,7 +114,7 @@ pub fn final_folders_from_subdir(current_path: &Path, scan_subdirs: bool) -> Res
                         }
 
                         // If it's a folder, check it..
-                        if path.is_dir() && scan_subdirs {
+                        if path.is_dir() {
                             let mut subfolder_files_path = final_folders_from_subdir(&path, scan_subdirs)?;
                             folder_list.append(&mut subfolder_files_path);
                             has_subfolders = true;

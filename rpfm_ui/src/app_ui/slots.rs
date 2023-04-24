@@ -43,7 +43,7 @@ use std::fs::{copy, remove_file, remove_dir_all};
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use rpfm_lib::files::ContainerPath;
+use rpfm_lib::files::{ContainerPath, pack::RESERVED_NAME_NOTES};
 use rpfm_lib::games::{pfh_file_type::PFHFileType, supported_games::*};
 use rpfm_lib::integrations::log::*;
 
@@ -140,6 +140,7 @@ pub struct AppUISlots {
     pub special_stuff_optimize_packfile: QBox<SlotOfBool>,
     pub special_stuff_patch_siege_ai: QBox<SlotOfBool>,
     pub special_stuff_live_export: QBox<SlotNoArgs>,
+    pub special_stuff_pack_map: QBox<SlotNoArgs>,
     pub special_stuff_rescue_packfile: QBox<SlotOfBool>,
 
     //-----------------------------------------------//
@@ -1126,6 +1127,46 @@ impl AppUISlots {
             }
         ));
 
+        let special_stuff_pack_map = SlotNoArgs::new(&app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui => move || {
+                info!("Triggering `Pack Map` By Slot");
+
+                // Ask the background loop to patch the PackFile, and wait for a response.
+                app_ui.toggle_main_window(false);
+
+                let _ = AppUI::back_to_back_end_all(&app_ui, &pack_file_contents_ui);
+
+                if let Ok(Some((tile_maps, tiles))) = AppUI::pack_map_dialog(&app_ui) {
+                    let receiver = CENTRAL_COMMAND.send_background(Command::PackMap(tile_maps, tiles));
+                    let response = CENTRAL_COMMAND.recv_try(&receiver);
+                    match response {
+                        Response::VecContainerPath(paths) => {
+                            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(paths.to_vec()), DataSource::PackFile);
+
+                            UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
+
+                            // Try to reload all open files which data we altered, and close those that failed.
+                            let failed_paths = UI_STATE.set_open_packedfiles()
+                                .iter_mut()
+                                .filter(|view| view.data_source() == DataSource::PackFile && (paths.iter().any(|path| path.path_raw() == *view.path_read() || *view.path_read() == RESERVED_NAME_NOTES)))
+                                .filter_map(|view| if view.reload(&view.path_copy(), &pack_file_contents_ui).is_err() { Some(view.path_copy()) } else { None })
+                                .collect::<Vec<_>>();
+
+                            for path in &failed_paths {
+                                let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, DataSource::PackFile, false);
+                            }
+                        }
+                        Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
+                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}")
+                    }
+                }
+
+                // Re-enable the Main Window.
+                app_ui.toggle_main_window(true);
+            }
+        ));
+
         // What happens when we trigger the "Rescue PackFile" action.
         let special_stuff_rescue_packfile = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui,
@@ -1779,6 +1820,7 @@ impl AppUISlots {
             special_stuff_optimize_packfile,
             special_stuff_patch_siege_ai,
             special_stuff_live_export,
+            special_stuff_pack_map,
             special_stuff_rescue_packfile,
 
             //-----------------------------------------------//

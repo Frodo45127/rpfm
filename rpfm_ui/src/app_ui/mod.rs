@@ -23,9 +23,11 @@ use qt_widgets::QDialog;
 use qt_widgets::QDialogButtonBox;
 use qt_widgets::q_dialog_button_box::StandardButton;
 use qt_widgets::QFileDialog;
+use qt_widgets::QGroupBox;
 use qt_widgets::QGridLayout;
 use qt_widgets::QLabel;
 use qt_widgets::QLineEdit;
+use qt_widgets::QListView;
 use qt_widgets::QMainWindow;
 use qt_widgets::QMenu;
 use qt_widgets::{q_message_box, QMessageBox};
@@ -33,6 +35,7 @@ use qt_widgets::QScrollArea;
 use qt_widgets::QPushButton;
 use qt_widgets::QTabWidget;
 use qt_widgets::QTreeView;
+use qt_widgets::QToolButton;
 use qt_widgets::QWidget;
 
 use qt_gui::QIcon;
@@ -49,6 +52,7 @@ use qt_core::QStringList;
 use qt_core::QRegExp;
 use qt_core::{SlotNoArgs, SlotOfBool};
 use qt_core::QSortFilterProxyModel;
+use qt_core::SortOrder;
 use qt_core::QString;
 use qt_core::QVariant;
 
@@ -112,6 +116,9 @@ use crate::packedfile_views::uic::*;
 
 const NEW_FILE_VIEW_DEBUG: &str = "rpfm_ui/ui_templates/new_file_dialog.ui";
 const NEW_FILE_VIEW_RELEASE: &str = "ui/new_file_dialog.ui";
+
+const PACK_MAP_VIEW_DEBUG: &str = "rpfm_ui/ui_templates/pack_map_dialog.ui";
+const PACK_MAP_VIEW_RELEASE: &str = "ui/pack_map_dialog.ui";
 
 pub mod connections;
 pub mod slots;
@@ -248,6 +255,7 @@ pub struct AppUI {
     special_stuff_wh3_generate_dependencies_cache: QPtr<QAction>,
     special_stuff_wh3_optimize_packfile: QPtr<QAction>,
     special_stuff_wh3_live_export: QPtr<QAction>,
+    special_stuff_wh3_pack_map: QPtr<QAction>,
 
     // Troy actions.
     special_stuff_troy_generate_dependencies_cache: QPtr<QAction>,
@@ -677,6 +685,7 @@ impl AppUI {
         let special_stuff_wh3_generate_dependencies_cache = add_action_to_menu(&menu_warhammer_3, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_wh3_optimize_packfile = add_action_to_menu(&menu_warhammer_3, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_wh3_live_export = add_action_to_menu(&menu_warhammer_3, shortcuts.as_ref(), "special_stuff_menu", "live_export", "special_stuff_live_export", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
+        let special_stuff_wh3_pack_map = add_action_to_menu(&menu_warhammer_3, shortcuts.as_ref(), "special_stuff_menu", "pack_map", "special_stuff_pack_map", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_troy_generate_dependencies_cache = add_action_to_menu(&menu_troy, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_troy_optimize_packfile = add_action_to_menu(&menu_troy, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_three_k_generate_dependencies_cache = add_action_to_menu(&menu_three_kingdoms, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
@@ -862,6 +871,7 @@ impl AppUI {
             special_stuff_wh3_generate_dependencies_cache,
             special_stuff_wh3_optimize_packfile,
             special_stuff_wh3_live_export,
+            special_stuff_wh3_pack_map,
 
             // Troy actions.
             special_stuff_troy_generate_dependencies_cache,
@@ -1526,6 +1536,7 @@ impl AppUI {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(true);
                     app_ui.special_stuff_wh3_optimize_packfile.set_enabled(true);
                     app_ui.special_stuff_wh3_live_export.set_enabled(true);
+                    app_ui.special_stuff_wh3_pack_map.set_enabled(true);
                 },
                 KEY_TROY => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(true);
@@ -1583,6 +1594,7 @@ impl AppUI {
             app_ui.special_stuff_wh3_optimize_packfile.set_enabled(false);
             app_ui.special_stuff_wh3_generate_dependencies_cache.set_enabled(false);
             app_ui.special_stuff_wh3_live_export.set_enabled(false);
+            app_ui.special_stuff_wh3_pack_map.set_enabled(false);
 
             // Disable Troy actions...
             app_ui.special_stuff_troy_optimize_packfile.set_enabled(false);
@@ -1634,6 +1646,7 @@ impl AppUI {
                 app_ui.game_selected_open_game_assembly_kit_folder.set_enabled(true);
                 app_ui.special_stuff_wh3_generate_dependencies_cache.set_enabled(true);
                 app_ui.special_stuff_wh3_live_export.set_enabled(true);
+                app_ui.special_stuff_wh3_pack_map.set_enabled(true);
             },
             KEY_TROY => {
                 app_ui.game_selected_open_game_assembly_kit_folder.set_enabled(true);
@@ -3401,6 +3414,191 @@ impl AppUI {
 
         // Otherwise, return None.
         else { None }
+    }
+
+    /// This function creates the "Pack Map" dialog.
+    ///
+    /// It returns the tile maps and tiles to add, or `None` if the dialog is canceled or closed.
+    unsafe fn pack_map_dialog(app_ui: &Rc<Self>) -> Result<Option<(Vec<PathBuf>, Vec<PathBuf>)>> {
+
+        // Load the UI Template.
+        let template_path = if cfg!(debug_assertions) { PACK_MAP_VIEW_DEBUG } else { PACK_MAP_VIEW_RELEASE };
+        let main_widget = load_template(app_ui.main_window(), template_path)?;
+        let dialog = main_widget.static_downcast::<QDialog>();
+
+        // Create and configure the dialog.
+        let tile_maps_groupbox: QPtr<QGroupBox> = find_widget(&main_widget.static_upcast(), "tile_maps_groupbox")?;
+        let tile_maps_add_selected: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "tile_maps_add_selected")?;
+        let tile_maps_remove_selected: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "tile_maps_remove_selected")?;
+        let tile_maps_available: QPtr<QListView> = find_widget(&main_widget.static_upcast(), "tile_maps_available")?;
+        let tile_maps_to_add: QPtr<QListView> = find_widget(&main_widget.static_upcast(), "tile_maps_to_add")?;
+
+        let tiles_groupbox: QPtr<QGroupBox> = find_widget(&main_widget.static_upcast(), "tiles_groupbox")?;
+        let tiles_add_selected: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "tiles_add_selected")?;
+        let tiles_remove_selected: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "tiles_remove_selected")?;
+        let tiles_available: QPtr<QListView> = find_widget(&main_widget.static_upcast(), "tiles_available")?;
+        let tiles_to_add: QPtr<QListView> = find_widget(&main_widget.static_upcast(), "tiles_to_add")?;
+
+        let button_box: QPtr<QDialogButtonBox> = find_widget(&main_widget.static_upcast(), "button_box")?;
+
+        let tile_maps_available_model = QStandardItemModel::new_1a(&tile_maps_available);
+        let tile_maps_to_add_model = QStandardItemModel::new_1a(&tile_maps_to_add);
+        let tiles_available_model = QStandardItemModel::new_1a(&tiles_available);
+        let tiles_to_add_model = QStandardItemModel::new_1a(&tiles_to_add);
+
+        let tile_maps_available_filter = QSortFilterProxyModel::new_1a(&tile_maps_available_model);
+        let tile_maps_to_add_filter = QSortFilterProxyModel::new_1a(&tile_maps_to_add_model);
+        let tiles_available_filter = QSortFilterProxyModel::new_1a(&tiles_available_model);
+        let tiles_to_add_filter = QSortFilterProxyModel::new_1a(&tiles_to_add_model);
+        tile_maps_available_filter.set_source_model(&tile_maps_available_model);
+        tile_maps_to_add_filter.set_source_model(&tile_maps_to_add_model);
+        tiles_available_filter.set_source_model(&tiles_available_model);
+        tiles_to_add_filter.set_source_model(&tiles_to_add_model);
+        tile_maps_available.set_model(&tile_maps_available_filter);
+        tile_maps_to_add.set_model(&tile_maps_to_add_filter);
+        tiles_available.set_model(&tiles_available_filter);
+        tiles_to_add.set_model(&tiles_to_add_filter);
+
+        tile_maps_available_filter.sort_2a(0, SortOrder::AscendingOrder);
+        tile_maps_to_add_filter.sort_2a(0, SortOrder::AscendingOrder);
+        tiles_available_filter.sort_2a(0, SortOrder::AscendingOrder);
+        tiles_to_add_filter.sort_2a(0, SortOrder::AscendingOrder);
+
+        dialog.set_window_title(&qtr("pack_map"));
+        tile_maps_groupbox.set_title(&qtr("tile_maps"));
+        tiles_groupbox.set_title(&qtr("tiles"));
+
+        // Populate the lists with the available tile maps and tiles from the assembly kit.
+        let game_key = GAME_SELECTED.read().unwrap().game_key_name();
+        let ak_path = setting_path(&format!("{game_key}_assembly_kit"));
+
+        let tile_maps_path = ak_path.join("working_data/terrain/battles");
+        let tile_maps = final_folders_from_subdir(&tile_maps_path, false)?;
+        let tile_maps_strip_name = tile_maps.iter().flat_map(|tile_map| tile_map.strip_prefix(&tile_maps_path)).collect::<Vec<_>>();
+
+        for (index, tile_map) in tile_maps.iter().enumerate() {
+            let item = QStandardItem::from_q_string(&QString::from_std_str(&tile_maps_strip_name[index].to_string_lossy()));
+            item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(tile_map.to_string_lossy())), 20);
+            item.set_editable(false);
+            tile_maps_available_model.append_row_q_standard_item(item.into_ptr());
+        }
+
+        let tiles_path = ak_path.join("working_data/terrain/tiles/battle");
+        let tiles = final_folders_from_subdir(&tiles_path, true)?;
+        let tiles_strip_name = tiles.iter().flat_map(|tile| tile.strip_prefix(&tiles_path)).collect::<Vec<_>>();
+        for (index, tile) in tiles.iter().enumerate() {
+            let item = QStandardItem::from_q_string(&QString::from_std_str(&tiles_strip_name[index].to_string_lossy()));
+            item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(tile.to_string_lossy())), 20);
+            item.set_editable(false);
+            tiles_available_model.append_row_q_standard_item(item.into_ptr());
+        }
+
+        // Actions
+        let tile_maps_available_ptr = tile_maps_available.as_ptr();
+        let tile_maps_available_filter_ptr = tile_maps_available_filter.as_ptr();
+        let tile_maps_available_model_ptr = tile_maps_available_model.as_ptr();
+        let tile_maps_to_add_ptr = tile_maps_to_add.as_ptr();
+        let tile_maps_to_add_filter_ptr = tile_maps_to_add_filter.as_ptr();
+        let tile_maps_to_add_model_ptr = tile_maps_to_add_model.as_ptr();
+        let tile_maps_add_selected_slot = SlotNoArgs::new(&dialog, move || {
+            let selected = tile_maps_available_ptr.selection_model().selected_indexes();
+            let mut indexes = (0..selected.count_0a()).map(|row| tile_maps_available_filter_ptr.map_to_source(selected.at(row))).collect::<Vec<_>>();
+            indexes.sort_by_key(|index| index.row());
+            indexes.reverse();
+
+            for index in &indexes {
+                let new_item = QStandardItem::from_q_string(&index.data_0a().to_string());
+                new_item.set_data_2a(&index.data_1a(20), 20);
+                new_item.set_editable(false);
+                tile_maps_to_add_model_ptr.append_row_q_standard_item(new_item.into_ptr());
+
+                tile_maps_available_model_ptr.remove_row_1a(index.row());
+            }
+        });
+
+        let tile_maps_remove_selected_slot = SlotNoArgs::new(&dialog, move || {
+            let selected = tile_maps_to_add_ptr.selection_model().selected_indexes();
+            let mut indexes = (0..selected.count_0a()).map(|row| tile_maps_to_add_filter_ptr.map_to_source(selected.at(row))).collect::<Vec<_>>();
+            indexes.sort_by_key(|index| index.row());
+            indexes.reverse();
+
+            for index in &indexes {
+                let new_item = QStandardItem::from_q_string(&index.data_0a().to_string());
+                new_item.set_data_2a(&index.data_1a(20), 20);
+                new_item.set_editable(false);
+                tile_maps_available_model_ptr.append_row_q_standard_item(new_item.into_ptr());
+
+                tile_maps_to_add_model_ptr.remove_row_1a(index.row());
+            }
+        });
+
+        tile_maps_add_selected.released().connect(&tile_maps_add_selected_slot);
+        tile_maps_available.double_clicked().connect(&tile_maps_add_selected_slot);
+
+        tile_maps_remove_selected.released().connect(&tile_maps_remove_selected_slot);
+        tile_maps_to_add.double_clicked().connect(&tile_maps_remove_selected_slot);
+
+        let tiles_available_ptr = tiles_available.as_ptr();
+        let tiles_available_filter_ptr = tiles_available_filter.as_ptr();
+        let tiles_available_model_ptr = tiles_available_model.as_ptr();
+        let tiles_to_add_ptr = tiles_to_add.as_ptr();
+        let tiles_to_add_filter_ptr = tiles_to_add_filter.as_ptr();
+        let tiles_to_add_model_ptr = tiles_to_add_model.as_ptr();
+        let tiles_add_selected_slot = SlotNoArgs::new(&dialog, move || {
+            let selected = tiles_available_ptr.selection_model().selected_indexes();
+            let mut indexes = (0..selected.count_0a()).map(|row| tiles_available_filter_ptr.map_to_source(selected.at(row))).collect::<Vec<_>>();
+            indexes.sort_by_key(|index| index.row());
+            indexes.reverse();
+
+            for index in &indexes {
+                let new_item = QStandardItem::from_q_string(&index.data_0a().to_string());
+                new_item.set_data_2a(&index.data_1a(20), 20);
+                new_item.set_editable(false);
+                tiles_to_add_model_ptr.append_row_q_standard_item(new_item.into_ptr());
+
+                tiles_available_model_ptr.remove_row_1a(index.row());
+            }
+        });
+
+        let tiles_remove_selected_slot = SlotNoArgs::new(&dialog, move || {
+            let selected = tiles_to_add_ptr.selection_model().selected_indexes();
+            let mut indexes = (0..selected.count_0a()).map(|row| tiles_to_add_filter_ptr.map_to_source(selected.at(row))).collect::<Vec<_>>();
+            indexes.sort_by_key(|index| index.row());
+            indexes.reverse();
+
+            for index in &indexes {
+                let new_item = QStandardItem::from_q_string(&index.data_0a().to_string());
+                new_item.set_data_2a(&index.data_1a(20), 20);
+                new_item.set_editable(false);
+                tiles_available_model_ptr.append_row_q_standard_item(new_item.into_ptr());
+
+                tiles_to_add_model_ptr.remove_row_1a(index.row());
+            }
+        });
+
+        tiles_add_selected.released().connect(&tiles_add_selected_slot);
+        tiles_available.double_clicked().connect(&tiles_add_selected_slot);
+
+        tiles_remove_selected.released().connect(&tiles_remove_selected_slot);
+        tiles_to_add.double_clicked().connect(&tiles_remove_selected_slot);
+
+        button_box.button(StandardButton::Ok).released().connect(dialog.slot_accept());
+
+        if dialog.exec() == 1 {
+            let tile_maps = (0..tile_maps_to_add.model().row_count_0a())
+                .map(|row| PathBuf::from(tile_maps_to_add.model().index_2a(row, 0).data_1a(20).to_string().to_std_string()))
+                .collect::<Vec<_>>();
+
+            let tiles = (0..tiles_to_add.model().row_count_0a())
+                .map(|row| PathBuf::from(tiles_to_add.model().index_2a(row, 0).data_1a(20).to_string().to_std_string()))
+                .collect::<Vec<_>>();
+
+            if !tile_maps.is_empty() || !tiles.is_empty() {
+                Ok(Some((tile_maps, tiles)))
+            } else {
+                Ok(None)
+            }
+        } else { Ok(None) }
     }
 
     /// Update the FileView names, to ensure we have no collisions.

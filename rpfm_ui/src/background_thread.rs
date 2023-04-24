@@ -1748,6 +1748,13 @@ pub fn background_loop() {
                 }
             }
 
+            Command::PackMap(tile_maps, tiles) => {
+                match add_tile_maps_and_tiles(&mut pack_file_decoded, tile_maps, tiles) {
+                    Ok(paths) => CentralCommand::send_back(&sender, Response::VecContainerPath(paths)),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                }
+            }
+
             // Initialize the folder for a MyMod, including the folder structure it needs.
             Command::InitializeMyModFolder(mod_name, mod_game, sublime_support, vscode_support, git_support)  => {
                 let mut mymod_path = setting_path(MYMOD_BASE_PATH);
@@ -1964,6 +1971,23 @@ fn load_schemas(sender: &Sender<Response>, pack: &mut Pack, game: &GameInfo) {
     // Send a response, so the UI continues working while we finish things here.
     info!("Sending success after game selected change.");
     CentralCommand::send_back(sender, Response::Success);
+}
+
+/// Function to simplify logic for changing game selected.
+fn add_tile_maps_and_tiles(pack: &mut Pack, tile_maps: Vec<PathBuf>, tiles: Vec<PathBuf>) -> Result<Vec<ContainerPath>> {
+    let mut added_paths = vec![];
+
+    // Tile Maps are from assembly_kit/working_data/terrain/battles/.
+    for tile_map in &tile_maps {
+        added_paths.append(&mut pack.insert_folder(tile_map, "terrain/battles", &None, &None, true)?);
+    }
+
+    // Tiles are from assembly_kit/working_data/terrain/tiles/battle/, and can be in a subfolder if they're part of a tileset.
+    for tile in &tiles {
+        added_paths.append(&mut pack.insert_folder(tile, "terrain/tiles/battle", &None, &None, true)?);
+    }
+
+    Ok(added_paths)
 }
 
 /// Function to save files from external paths, so it's easier to use in the big loop.
