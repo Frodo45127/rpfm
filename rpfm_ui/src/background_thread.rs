@@ -1176,7 +1176,7 @@ pub fn background_loop() {
             Command::SavePackedFileFromExternalView(path, external_path) => {
                 match save_files_from_external_path(&mut pack_file_decoded, &path, &external_path) {
                     Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                 }
             }
 
@@ -1751,7 +1751,7 @@ pub fn background_loop() {
             Command::PackMap(tile_maps, tiles) => {
                 match add_tile_maps_and_tiles(&mut pack_file_decoded, tile_maps, tiles) {
                     Ok(paths) => CentralCommand::send_back(&sender, Response::VecContainerPath(paths)),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                 }
             }
 
@@ -1999,7 +1999,7 @@ fn save_files_from_external_path(pack: &mut Pack, internal_path: &str, external_
     let mut file = BufReader::new(File::open(external_path)?);
     let mut data = vec![];
     file.read_to_end(&mut data)?;
-    match pack.file_mut(&internal_path) {
+    match pack.file_mut(internal_path) {
         Some(file) => {
 
             // If we're dealing with a TSV, make sure to import it before setting up the data.
