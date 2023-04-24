@@ -134,11 +134,7 @@ impl Icons {
         let mut icon = QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}.png", ASSETS_PATH.to_string_lossy(), icon_name)));
 
         if icon.is_null() || icon.available_sizes_0a().count_0a() == 0 {
-            icon = QIcon::from_theme_1a(&QString::from_std_str(icon_name));
-
-            if icon.is_null() || icon.available_sizes_0a().count_0a() == 0 {
-                icon = QIcon::from_theme_1a(&QString::from_std_str(icon_name_fallback));
-            }
+            icon = QIcon::from_theme_1a(&QString::from_std_str(icon_name_fallback));
         }
 
         icon
