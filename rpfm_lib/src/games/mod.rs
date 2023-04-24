@@ -158,6 +158,9 @@ struct InstallData {
     /// StoreID of the game.
     store_id: u64,
 
+    /// StoreID of the AK.
+    store_id_ak: u64,
+
     /// Name of the executable of the game, including extension if it has it.
     executable: String,
 
@@ -719,10 +722,38 @@ impl GameInfo {
             return Ok(None);
         };
 
-        if let Some(mut steamdir) = SteamDir::locate() {
-            return match steamdir.apps().get(&(*install_data.store_id() as u32)) {
-                Some(Some(app)) => Ok(Some(app.path.to_owned())),
-                _ => Ok(None)
+        if install_data.store_id() > &0 {
+            if let Some(mut steamdir) = SteamDir::locate() {
+                return match steamdir.apps().get(&(*install_data.store_id() as u32)) {
+                    Some(Some(app)) => Ok(Some(app.path.to_owned())),
+                    _ => Ok(None)
+                }
+            }
+        }
+
+        Ok(None)
+    }
+
+    /// This function searches for installed total war Assembly Kits.
+    ///
+    /// NOTE: Only works for steam-installed games.
+    pub fn find_assembly_kit_install_location(&self) -> Result<Option<PathBuf>> {
+
+        // Steam install data. We don't care if it's windows or linux, as the data we want is the same in both.
+        let install_data = if let Some(install_data) = self.install_data.get(&InstallType::WinSteam) {
+            install_data
+        } else if let Some(install_data) = self.install_data.get(&InstallType::LnxSteam) {
+            install_data
+        } else {
+            return Ok(None);
+        };
+
+        if install_data.store_id_ak() > &0 {
+            if let Some(mut steamdir) = SteamDir::locate() {
+                return match steamdir.apps().get(&(*install_data.store_id_ak() as u32)) {
+                    Some(Some(app)) => Ok(Some(app.path.to_owned())),
+                    _ => Ok(None)
+                }
             }
         }
 

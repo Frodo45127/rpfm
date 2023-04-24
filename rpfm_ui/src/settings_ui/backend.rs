@@ -78,7 +78,22 @@ pub unsafe fn init_settings(main_window: &QPtr<QMainWindow>) {
             game_key != KEY_NAPOLEON &&
             game_key != KEY_ARENA {
 
-            set_setting_if_new_string(&q_settings, &(game_key.to_owned() + "_assembly_kit"), "");
+            let ak_path = if let Ok(Some(ak_path)) = game.find_assembly_kit_install_location() {
+                ak_path.join("assembly_kit").to_string_lossy().to_string()
+            } else {
+                String::new()
+            };
+
+            // If we got a path and we don't have it saved yet, save it automatically.
+            let ak_key = game_key.to_owned() + "_assembly_kit";
+            let current_path = setting_string_from_q_setting(&q_settings, &ak_key);
+
+            // Ignore shogun 2, as that one is a zip.
+            if current_path.is_empty() && !ak_path.is_empty() && game_key != KEY_SHOGUN_2 {
+                set_setting_string_to_q_setting(&q_settings, &ak_key, &ak_path);
+            } else {
+                set_setting_if_new_string(&q_settings, &ak_key, &ak_path);
+            }
         }
     }
 
