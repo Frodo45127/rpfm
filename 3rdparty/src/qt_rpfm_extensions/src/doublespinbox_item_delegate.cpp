@@ -67,3 +67,14 @@ void QDoubleSpinBoxItemDelegate::setModelData(QWidget *editor, QAbstractItemMode
 void QDoubleSpinBoxItemDelegate::updateEditorGeometry(QWidget *editor, const QStyleOptionViewItem &option, const QModelIndex &) const {
     editor->setGeometry(option.rect);
 }
+
+QString QDoubleSpinBoxItemDelegate::displayText(const QVariant &value, const QLocale &locale) const {
+    switch(value.type()){
+    case QMetaType::Float:
+        return locale.toString(value.toFloat(),'f');
+    case QMetaType::Double:
+        return locale.toString(value.toDouble(),'f');
+    default:
+        return QStyledItemDelegate::displayText(value,locale);
+    }
+}
