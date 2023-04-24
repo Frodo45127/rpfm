@@ -6,6 +6,42 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [4.0.15]
+### Added
+- RPFM CLI can now export schemas as JSON.
+- RPFM CLI can now import/export Portrait Settings files as JSon.
+- Added icon to column title on columns with description (thanks [@SWarrener](https://github.com/SWarrener)).
+- Implemented `Delete empty folders after moving/deleting its contents` setting.
+- Implemented button to enable diagnostics to check against AK-only tables (may cause false positives).
+- Implemented support for custom dark themes not overwritten by updates.
+- Implemented support for custom icons not overwritten by updates.
+- Implemented Assembly Kit path autodetection (only for Steam installations).
+- Implemented `Pack Map` Special feature for Warhammer 3.
+
+### Changed
+- Improved grammar on "Are you sure?" dialogs (thanks [@gqqnbig](https://github.com/gqqnbig)).
+- Schema patches can only be send if you filled the explanation field.
+- The `Full Path Move Enabled` checkbox when renaming now remembers its status from the last time you used it.
+- `F2` now triggers the Rename/Move dialog.
+- Table cells with extremely big or extremely small numbers should no longer use scientific notation.
+
+### Removed
+- Removed `Other` Pack Type button (it was unused since 4.0 and caused CTDs).
+
+### Fixed
+- Fixed grammar on diagnostic message.
+- Fixed "Paste" not pasting correctly on tables under specific situations.
+- Fixed autosave not actually autosaving due to a myriad of errors and bugs.
+- Fixed missing window title on merge tables dialog.
+- Fixed merge tables only trying to merge open tables, ignoring the rest of the selected ones.
+- Fixed incorrect pack type when opening multiple packs together (like when merging packs).
+- Fixed videos on dependencies having the convert buttons clickable.
+- Fixed help command on rpfm cli `merge` command failing on runtime.
+- Fixed .gitignore not getting ignored when creating a MyMod with git support.
+- Fixed alternative shortcuts not working.
+- Fixed optimizer not deleting xml files in map folders.
+- Fixed new MyMods having an incorrect path for the TW Autogen stuff.
+
 ## [4.0.14]
 ### Fixed
 - Fixed CTD when opening RPFM without having steam installed.
@@ -948,7 +984,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.0.14...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.0.15...HEAD
+[4.0.15]: https://github.com/Frodo45127/rpfm/compare/v4.0.14...v4.0.15
 [4.0.14]: https://github.com/Frodo45127/rpfm/compare/v4.0.13...v4.0.14
 [4.0.13]: https://github.com/Frodo45127/rpfm/compare/v4.0.12...v4.0.13
 [4.0.12]: https://github.com/Frodo45127/rpfm/compare/v4.0.11...v4.0.12
