@@ -1254,21 +1254,21 @@ pub fn background_loop() {
 
             // When we want to update our program...
             Command::TriggerBackupAutosave => {
-
-                // Note: we no longer notify the UI of success or error to not hang it up.
                 let folder = backup_autosave_path().unwrap().join(pack_file_decoded.disk_file_name());
                 let _ = DirBuilder::new().recursive(true).create(&folder);
-                if folder.is_dir() {
+
+                // Note: we no longer notify the UI of success or error to not hang it up.
+                let game_selected = GAME_SELECTED.read().unwrap();
+                let game_path = setting_path(game_selected.game_key_name());
+                let ca_paths = game_selected.ca_packs_paths(&game_path).unwrap_or(vec![]);
+
+                // Do not autosave vanilla packs.
+                if folder.is_dir() && (ca_paths.is_empty() || !ca_paths.contains(&PathBuf::from(pack_file_decoded.disk_file_path()))) {
                     let date = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
-                    //let date_formatted = OffsetDateTime::from_unix_timestamp(date as i64).unwrap().format(&FULL_DATE_FORMAT).unwrap();
                     let new_name = format!("{date}.pack");
                     let new_path = folder.join(new_name);
-                    let pack_type = *pack_file_decoded.header().pfh_file_type();
-                    if setting_bool("allow_editing_of_ca_packfiles") || pack_type == PFHFileType::Mod || pack_type == PFHFileType::Movie {
-                        let game_selected = GAME_SELECTED.read().unwrap();
-                        let extra_data = Some(initialize_encodeable_extra_data(&game_selected));
-                        let _ = pack_file_decoded.clone().save(Some(&new_path), &game_selected, &extra_data);
-                    }
+                    let extra_data = Some(initialize_encodeable_extra_data(&game_selected));
+                    let _ = pack_file_decoded.clone().save(Some(&new_path), &game_selected, &extra_data);
 
                     // If we have more than the limit, delete the older one.
                     if let Ok(files) = files_in_folder_from_newest_to_oldest(&folder) {
