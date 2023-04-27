@@ -68,7 +68,7 @@ impl OptimizableContainer for Pack {
     fn optimize(&mut self, paths_to_optimize: Option<Vec<ContainerPath>>, dependencies: &mut Dependencies, _schema: &Schema, optimize_datacored_tables: bool) -> Result<HashSet<String>> {
 
         // We can only optimize if we have vanilla data available.
-        if !dependencies.is_vanilla_data_loaded(true) {
+        if !dependencies.is_vanilla_data_loaded(false) {
             return Err(RLibError::DependenciesCacheNotGeneratedorOutOfDate);
         }
 
