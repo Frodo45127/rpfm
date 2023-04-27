@@ -1576,16 +1576,14 @@ impl AppUISlots {
             app_ui => move || {
                 info!("Triggering `Autosave` By Slot");
 
-                if !setting_bool("disable_autosaves") {
-                    let _ = CENTRAL_COMMAND.send_background(Command::TriggerBackupAutosave);
-                    log_to_status_bar(&tr("autosaving"));
+                let _ = CENTRAL_COMMAND.send_background(Command::TriggerBackupAutosave);
+                log_to_status_bar(&tr("autosaving"));
 
-                    // Reset the timer.
-                    let timer = setting_int("autosave_interval");
-                    if timer > 0 {
-                        app_ui.timer_backup_autosave.set_interval(timer * 60 * 1000);
-                        app_ui.timer_backup_autosave.start_0a();
-                    }
+                // Reset the timer.
+                let timer = setting_int("autosave_interval");
+                if timer > 0 {
+                    app_ui.timer_backup_autosave.set_interval(timer * 60 * 1000);
+                    app_ui.timer_backup_autosave.start_0a();
                 }
             }
         ));

@@ -1263,7 +1263,7 @@ pub fn background_loop() {
                 let ca_paths = game_selected.ca_packs_paths(&game_path).unwrap_or(vec![]);
 
                 // Do not autosave vanilla packs.
-                if folder.is_dir() && (ca_paths.is_empty() || !ca_paths.contains(&PathBuf::from(pack_file_decoded.disk_file_path()))) {
+                if folder.is_dir() && !pack_file_decoded.settings().setting_bool("disable_autosaves") && (ca_paths.is_empty() || !ca_paths.contains(&PathBuf::from(pack_file_decoded.disk_file_path()))) {
                     let date = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
                     let new_name = format!("{date}.pack");
                     let new_path = folder.join(new_name);
