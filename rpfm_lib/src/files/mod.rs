@@ -2103,7 +2103,7 @@ impl ContainerPath {
 
         // If we don't have the root of the container, second optimization: check if we have at least one folder.
         // If not, we just need to dedup the file list.
-        if paths.par_iter().any(|item| matches!(item, ContainerPath::Folder(_))) {
+        if !paths.par_iter().any(|item| matches!(item, ContainerPath::Folder(_))) {
             let mut paths = paths.to_vec();
             paths.sort();
             paths.dedup();
