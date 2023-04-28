@@ -1260,10 +1260,24 @@ pub fn background_loop() {
                 // Note: we no longer notify the UI of success or error to not hang it up.
                 let game_selected = GAME_SELECTED.read().unwrap();
                 let game_path = setting_path(game_selected.game_key_name());
-                let ca_paths = game_selected.ca_packs_paths(&game_path).unwrap_or(vec![]);
+                let ca_paths = game_selected.ca_packs_paths(&game_path)
+                    .unwrap_or(vec![])
+                    .iter()
+                    .map(|path| path.to_string_lossy().replace("\\", "/"))
+                    .collect::<Vec<_>>();
 
-                // Do not autosave vanilla packs.
-                if folder.is_dir() && !pack_file_decoded.settings().setting_bool("disable_autosaves") && (ca_paths.is_empty() || !ca_paths.contains(&PathBuf::from(pack_file_decoded.disk_file_path()))) {
+                let pack_disable_autosaves = pack_file_decoded.settings().setting_bool("disable_autosaves")
+                    .unwrap_or(&true);
+
+                let pack_type = pack_file_decoded.pfh_file_type();
+                let pack_path = pack_file_decoded.disk_file_path().replace("\\", "/");
+
+                // Do not autosave vanilla packs, packs with autosave disabled, or non-mod or movie packs.
+                if folder.is_dir() &&
+                    !pack_disable_autosaves &&
+                    (pack_type == PFHFileType::Mod || pack_type == PFHFileType::Movie) &&
+                    (ca_paths.is_empty() || !ca_paths.contains(&pack_path))
+                {
                     let date = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
                     let new_name = format!("{date}.pack");
                     let new_path = folder.join(new_name);
