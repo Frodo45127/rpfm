@@ -1999,7 +1999,7 @@ fn load_schemas(sender: &Sender<Response>, pack: &mut Pack, game: &GameInfo) {
 }
 
 /// Function to simplify logic for changing game selected.
-fn add_tile_maps_and_tiles(pack: &mut Pack, dependencies: &mut Dependencies, schema: &Schema, tile_maps: Vec<PathBuf>, tiles: Vec<PathBuf>) -> Result<(Vec<ContainerPath>, Vec<ContainerPath>)> {
+fn add_tile_maps_and_tiles(pack: &mut Pack, dependencies: &mut Dependencies, schema: &Schema, tile_maps: Vec<PathBuf>, tiles: Vec<(PathBuf, String)>) -> Result<(Vec<ContainerPath>, Vec<ContainerPath>)> {
     let mut added_paths = vec![];
 
     // Tile Maps are from assembly_kit/working_data/terrain/battles/.
@@ -2008,8 +2008,32 @@ fn add_tile_maps_and_tiles(pack: &mut Pack, dependencies: &mut Dependencies, sch
     }
 
     // Tiles are from assembly_kit/working_data/terrain/tiles/battle/, and can be in a subfolder if they're part of a tileset.
-    for tile in &tiles {
-        added_paths.append(&mut pack.insert_folder(tile, "terrain/tiles/battle", &None, &None, true)?);
+    for (tile, subpath) in &tiles {
+
+        let (internal_path, needs_tile_database) = if subpath.is_empty() {
+            ("terrain/tiles/battle".to_owned(), false)
+        } else {
+            (format!("terrain/tiles/battle/{}", subpath.replace("\\", "/")), true)
+        };
+        added_paths.append(&mut pack.insert_folder(tile, &internal_path, &None, &None, true)?);
+
+        // If it's part of a tile set, we need to add the relevant tile database file for the tileset or the map will load as blank ingame.
+        if needs_tile_database {
+
+            // We only need the database for out map, not the full database folder.
+            let subpath_len = subpath.replace("\\", "/").split("/").count();
+            let mut tile_database = tile.to_path_buf();
+
+            (0..=subpath_len).for_each(|_| {
+                tile_database.pop();
+            });
+
+            let file_name = format!("{}_{}.bin", subpath.replace("/", "_"), tile.file_name().unwrap().to_string_lossy());
+            tile_database.push(&format!("_tile_database/TILES/{}", file_name));
+            let tile_database_path = format!("terrain/tiles/battle/_tile_database/TILES/{}", file_name);
+
+            added_paths.push(pack.insert_file(&tile_database, &tile_database_path, &None)?.unwrap());
+        }
     }
 
     let paths_to_delete = pack.optimize(Some(added_paths.clone()), dependencies, schema, setting_bool("optimize_not_renamed_packedfiles"))?

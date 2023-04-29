@@ -341,7 +341,7 @@ pub enum Command {
     AddNote(Note),
     DeleteNote(String, u64),
     LiveExport,
-    PackMap(Vec<PathBuf>, Vec<PathBuf>),
+    PackMap(Vec<PathBuf>, Vec<(PathBuf, String)>),
 }
 
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.

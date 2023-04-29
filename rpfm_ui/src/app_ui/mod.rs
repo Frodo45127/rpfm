@@ -3417,7 +3417,7 @@ impl AppUI {
     /// This function creates the "Pack Map" dialog.
     ///
     /// It returns the tile maps and tiles to add, or `None` if the dialog is canceled or closed.
-    unsafe fn pack_map_dialog(app_ui: &Rc<Self>) -> Result<Option<(Vec<PathBuf>, Vec<PathBuf>)>> {
+    unsafe fn pack_map_dialog(app_ui: &Rc<Self>) -> Result<Option<(Vec<PathBuf>, Vec<(PathBuf, String)>)>> {
 
         // Load the UI Template.
         let template_path = if cfg!(debug_assertions) { PACK_MAP_VIEW_DEBUG } else { PACK_MAP_VIEW_RELEASE };
@@ -3611,8 +3611,14 @@ impl AppUI {
                 .collect::<Vec<_>>();
 
             let tiles = (0..tiles_to_add.model().row_count_0a())
-                .map(|row| PathBuf::from(tiles_to_add.model().index_2a(row, 0).data_1a(20).to_string().to_std_string()))
-                .collect::<Vec<_>>();
+                .map(|row| {
+                    let tile = tiles_to_add.model().index_2a(row, 0).data_1a(20).to_string().to_std_string();
+                    let tile_subpath = tiles_to_add.model().index_2a(row, 0).data_0a().to_string().to_std_string().replace("\\", "/");
+                    let mut tile_subpath = tile_subpath.split("/").collect::<Vec<_>>();
+                    tile_subpath.pop();
+
+                    (PathBuf::from(&tile), tile_subpath.join("/"))
+                }).collect::<Vec<_>>();
 
             if !tile_maps.is_empty() || !tiles.is_empty() {
                 Ok(Some((tile_maps, tiles)))
