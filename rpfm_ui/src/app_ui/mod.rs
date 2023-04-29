@@ -3498,19 +3498,24 @@ impl AppUI {
         let tiles_strip_name = tiles.iter().flat_map(|tile| tile.strip_prefix(&tiles_path)).collect::<Vec<_>>();
         for (index, tile) in tiles.iter().enumerate() {
             let tile_name = tiles_strip_name[index].to_string_lossy().replace("\\", "/");
-            let item = QStandardItem::from_q_string(&QString::from_std_str(&tile_name));
-            item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(tile.to_string_lossy())), 20);
-            item.set_editable(false);
 
-            let receiver = CENTRAL_COMMAND.send_background(Command::FolderExists(format!("terrain/tiles/battle/{}", tile_name)));
-            let response = CENTRAL_COMMAND.recv_try(&receiver);
-            match response {
-                Response::Bool(exists) => if exists {
-                    tiles_to_add_model.append_row_q_standard_item(item.into_ptr());
-                } else {
-                    tiles_available_model.append_row_q_standard_item(item.into_ptr());
+            // Ignore the database folder, as it's not a tile itself.
+            if tile_name != "_tile_database/TILES" {
+
+                let item = QStandardItem::from_q_string(&QString::from_std_str(&tile_name));
+                item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(tile.to_string_lossy())), 20);
+                item.set_editable(false);
+
+                let receiver = CENTRAL_COMMAND.send_background(Command::FolderExists(format!("terrain/tiles/battle/{}", tile_name)));
+                let response = CENTRAL_COMMAND.recv_try(&receiver);
+                match response {
+                    Response::Bool(exists) => if exists {
+                        tiles_to_add_model.append_row_q_standard_item(item.into_ptr());
+                    } else {
+                        tiles_available_model.append_row_q_standard_item(item.into_ptr());
+                    }
+                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                 }
-                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
             }
         }
 
