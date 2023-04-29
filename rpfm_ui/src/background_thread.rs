@@ -588,8 +588,11 @@ pub fn background_loop() {
                     // Try to add the PackedFile to the main PackFile.
                     Some(pack) => {
                         let files = pack.files_by_paths(&paths, false);
+                        let mut paths = Vec::with_capacity(files.len());
                         for file in files {
-                            let _ = pack_file_decoded.insert(file.clone());
+                            if let Ok(Some(path)) = pack_file_decoded.insert(file.clone()) {
+                                paths.push(path);
+                            }
                         }
 
                         CentralCommand::send_back(&sender, Response::VecContainerPath(paths.to_vec()));
@@ -624,8 +627,11 @@ pub fn background_loop() {
                         match file.decoded_mut() {
                             Ok(decoded) => match decoded {
                                 RFileDecoded::AnimPack(anim_pack) => {
+                                    let mut paths = Vec::with_capacity(files.len());
                                     for file in files {
-                                        let _ = anim_pack.insert(file);
+                                        if let Ok(Some(path)) = anim_pack.insert(file) {
+                                            paths.push(path);
+                                        }
                                     }
 
                                     CentralCommand::send_back(&sender, Response::VecContainerPath(paths.to_vec()));
