@@ -3476,7 +3476,7 @@ impl AppUI {
 
 
         for (index, tile_map) in tile_maps.iter().enumerate() {
-            let tile_map_name = tile_maps_strip_name[index].to_string_lossy();
+            let tile_map_name = tile_maps_strip_name[index].to_string_lossy().replace("\\", "/");
             let item = QStandardItem::from_q_string(&QString::from_std_str(&tile_map_name));
             item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(tile_map.to_string_lossy())), 20);
             item.set_editable(false);
@@ -3497,7 +3497,7 @@ impl AppUI {
         let tiles = final_folders_from_subdir(&tiles_path, true)?;
         let tiles_strip_name = tiles.iter().flat_map(|tile| tile.strip_prefix(&tiles_path)).collect::<Vec<_>>();
         for (index, tile) in tiles.iter().enumerate() {
-            let tile_name = tiles_strip_name[index].to_string_lossy();
+            let tile_name = tiles_strip_name[index].to_string_lossy().replace("\\", "/");
             let item = QStandardItem::from_q_string(&QString::from_std_str(&tile_name));
             item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(tile.to_string_lossy())), 20);
             item.set_editable(false);
