@@ -138,7 +138,8 @@ impl OptimizableContainer for Pack {
                         if !path.is_empty() && (
                             path.starts_with("terrain/battles") ||
                             path.starts_with("terrain/tiles/battle")
-                        ) {
+                        ) && !path.ends_with("/river_mesh.wsmodel")
+                         {
                             if let Ok(Some(RFileDecoded::Text(text))) = rfile.decode(&None, false, true) {
                                 if *text.format() == TextFormat::Xml {
                                     return Some(path);
