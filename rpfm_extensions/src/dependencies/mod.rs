@@ -150,6 +150,7 @@ impl Dependencies {
         self.local_tables_references.clear();
 
         // Preload parent mods of the currently loaded Pack.
+        self.parent_files.clear();
         self.load_parent_packs(parent_pack_names, game_info, game_path)?;
         self.parent_files.par_iter_mut().map(|(_, file)| file.guess_file_type()).collect::<Result<()>>()?;
 
