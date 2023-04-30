@@ -60,6 +60,7 @@ impl OptimizableContainer for Pack {
     ///     - Removal of empty tables.
     /// - XML files:
     ///     - Removal of XML files in map folders (extra files resulting of Terry export process).
+    ///     - Removal of XML files in prefabs folder (extra files resulting of Terry export process).
     ///
     /// NOTE: due to a consequence of the optimization, all tables are also sorted by their first key.
     ///
@@ -136,8 +137,9 @@ impl OptimizableContainer for Pack {
 
                     FileType::Text => {
                         if !path.is_empty() && (
-                            path.starts_with("terrain/battles") ||
-                            path.starts_with("terrain/tiles/battle")
+                            path.starts_with("prefabs/") ||
+                            path.starts_with("terrain/battles/") ||
+                            path.starts_with("terrain/tiles/battle/")
                         ) && !path.ends_with("/river_mesh.wsmodel")
                          {
                             if let Ok(Some(RFileDecoded::Text(text))) = rfile.decode(&None, false, true) {
