@@ -1092,6 +1092,50 @@ impl AppUI {
         Ok(())
     }
 
+    /// This function deletes all the widgets corresponding to opened PackedFiles from the local Pack.
+    #[must_use = "If one of those mysterious save errors happen here and we don't use the result, we may be losing the new changes to a file."]
+    pub unsafe fn purge_the_local_ones(
+        app_ui: &Rc<Self>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        save_before_deleting: bool,
+    ) -> Result<()> {
+
+        let mut delete_indexes = vec![];
+        for (file_index, file_view) in UI_STATE.get_open_packedfiles().iter().enumerate() {
+            if file_view.data_source() == DataSource::PackFile {
+                if save_before_deleting && file_view.path_copy() != RESERVED_NAME_EXTRA_PACKFILE {
+                    file_view.save(app_ui, pack_file_contents_ui)?;
+                }
+                let widget = file_view.main_widget();
+                let index = app_ui.tab_bar_packed_file.index_of(widget);
+                if index != -1 {
+                    app_ui.tab_bar_packed_file.remove_tab(index);
+                }
+
+                // Delete the widget manually to free memory.
+                widget.delete_later();
+                delete_indexes.push(file_index);
+            }
+        }
+
+        // Remove all open PackedFiles and their slots.
+        delete_indexes.reverse();
+        for index in &delete_indexes {
+            UI_STATE.set_open_packedfiles().remove(*index);
+        }
+
+        // Just in case what was open before this was a DB Table, make sure the "Game Selected" menu is re-enabled.
+        app_ui.game_selected_group.set_enabled(true);
+
+        // Just in case what was open before was the `Add From PackFile` TreeView, unlock it.
+        UI_STATE.set_packfile_contents_read_only(false);
+
+        // Update the background icon.
+        GameSelectedIcons::set_game_selected_icon(app_ui);
+
+        Ok(())
+    }
+
     /// This function deletes all the widgets corresponding to the specified PackedFile, if exists.
     #[must_use = "If one of those mysterious save errors happen here and we don't use the result, we may be losing the new changes to a file."]
     pub unsafe fn purge_that_one_specifically(
@@ -3899,7 +3943,7 @@ impl AppUI {
         }
 
         // Close any open PackedFile and clear the global search panel.
-        let _ = AppUI::purge_them_all(app_ui,  pack_file_contents_ui, false);
+        let _ = AppUI::purge_the_local_ones(app_ui, pack_file_contents_ui, false);
         GlobalSearchUI::clear(global_search_ui);
         diagnostics_ui.diagnostics_table_model().clear();
 
