@@ -6,6 +6,19 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [4.0.19]
+### Added
+- Optimizer can now remove xml files from the prefab folder.
+
+### Fixed
+- Fixed `Add from Pack` not working when clicking on folders.
+- Fixed `Pack Map` having multiple issues when tilesets were involved.
+- Fixed optimizer optimising away rivers from maps.
+- Fixed optimizer optimising away files in very specific paths that it shouldn't touch.
+- Fixed parent dependencies not getting properly invalidated on rebuilds.
+- Fixed dependencies not getting properly invalidated on settings path change.
+- Fixed dependencies files getting closed when creating a new pack.
+
 ## [4.0.18]
 ### Changed
 - Autosaves are once again limited to mods and movies.
@@ -1003,7 +1016,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.0.18...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.0.19...HEAD
+[4.0.19]: https://github.com/Frodo45127/rpfm/compare/v4.0.18...v4.0.19
 [4.0.18]: https://github.com/Frodo45127/rpfm/compare/v4.0.17...v4.0.18
 [4.0.17]: https://github.com/Frodo45127/rpfm/compare/v4.0.16...v4.0.17
 [4.0.16]: https://github.com/Frodo45127/rpfm/compare/v4.0.15...v4.0.16
