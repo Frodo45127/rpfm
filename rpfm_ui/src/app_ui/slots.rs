@@ -13,7 +13,6 @@ Module with all the code related to the main `AppUISlot`.
 !*/
 
 use qt_widgets::QApplication;
-use qt_widgets::QAction;
 use qt_widgets::QDialog;
 use qt_widgets::{QFileDialog, q_file_dialog::FileMode};
 use qt_widgets::QGridLayout;
@@ -563,6 +562,7 @@ impl AppUISlots {
         let packfile_settings = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui,
+            dependencies_ui,
             diagnostics_ui,
             global_search_ui => move |_| {
                 info!("Triggering `Preferences Dialog` By Slot");
@@ -592,7 +592,7 @@ impl AppUISlots {
                             // If we have changed the path of any of the games, and that game is the current `GameSelected`,
                             // re-select the current `GameSelected` to force it to reload the game's files.
                             if game_path_old != game_path_new || ak_path_old != ak_path_new {
-                                QAction::trigger(&app_ui.game_selected_group.checked_action());
+                                AppUI::change_game_selected(&app_ui, &pack_file_contents_ui, &dependencies_ui, true, true);
                             }
 
                             // If we detect a change in theme, reload it.
@@ -965,7 +965,7 @@ impl AppUISlots {
             pack_file_contents_ui,
             dependencies_ui => move |_| {
                 info!("Triggering `Change Game Selected` By Slot");
-                AppUI::change_game_selected(&app_ui, &pack_file_contents_ui, &dependencies_ui, true);
+                AppUI::change_game_selected(&app_ui, &pack_file_contents_ui, &dependencies_ui, true, false);
             }
         ));
 

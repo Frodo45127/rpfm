@@ -194,7 +194,7 @@ impl UI {
             _ => app_ui.game_selected_warhammer_3().set_checked(true),
         }
 
-        AppUI::change_game_selected(&app_ui, &pack_file_contents_ui, &dependencies_ui, true);
+        AppUI::change_game_selected(&app_ui, &pack_file_contents_ui, &dependencies_ui, true, false);
         info!("Initial Game Selected set to {}.", setting_string("default_game"));
 
         // We get all the Arguments provided when starting RPFM, just in case we passed it a path,

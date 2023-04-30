@@ -3755,7 +3755,8 @@ impl AppUI {
         app_ui: &Rc<Self>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         dependencies_ui: &Rc<DependenciesUI>,
-        rebuild_dependencies: bool
+        rebuild_dependencies: bool,
+        force_full_dependency_reload: bool
     ) {
 
         // Optimization: get this before starting the entire game change. Otherwise, we'll hang the thread near the end.
@@ -3803,6 +3804,11 @@ impl AppUI {
             game_changed = true;
         }
 
+        // Reenable the main window once everything is reloaded, regardless of if we disabled it here or not.
+        if game_changed {
+            app_ui.toggle_main_window(true);
+        }
+
         // Regardless if the game changed or not, if we are asked to rebuild data, prepare for a rebuild.
         // Realistically, there are two reasons for calling this:
         // - Game changed, requires full dependencies rebuild.
@@ -3817,8 +3823,12 @@ impl AppUI {
                 receiver
             } else {
                 info!("New receiver.");
-                CENTRAL_COMMAND.send_background(Command::RebuildDependencies(true))
+                CENTRAL_COMMAND.send_background(Command::RebuildDependencies(!force_full_dependency_reload))
             };
+
+            if force_full_dependency_reload {
+                app_ui.toggle_main_window(false);
+            }
 
             let response = CENTRAL_COMMAND.recv_try(&receiver);
             match response {
@@ -3829,7 +3839,7 @@ impl AppUI {
 
                     // While the backend returns the data of the entire dependencies, game and asskit data only change on game change, so we don't need to
                     // rebuild them the game didn't change.
-                    if game_changed {
+                    if game_changed || force_full_dependency_reload {
 
                         // NOTE: We're MOVING, not copying nor referencing the RFileInfo. This info is big and moving it makes it faster.
                         let mut game_build_data = BuildData::new();
@@ -3844,11 +3854,11 @@ impl AppUI {
                 Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
                 _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
             }
-        }
 
-        // Reenable the main window once everything is reloaded, regardless of if we disabled it here or not.
-        if game_changed {
-            app_ui.toggle_main_window(true);
+            if force_full_dependency_reload {
+                app_ui.toggle_main_window(true);
+            }
+
         }
 
         // Disable the pack-related actions and, if we have a pack open, re-enable them.
