@@ -15,8 +15,11 @@ use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{Result, RLibError};
 use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 
+use self::separator::Separator;
+
 use super::*;
 
+mod separator;
 mod v1;
 
 //---------------------------------------------------------------------------//
@@ -27,6 +30,7 @@ mod v1;
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Separators {
     serialise_version: u16,
+    separators: Vec<Separator>
 }
 
 //---------------------------------------------------------------------------//
@@ -50,7 +54,14 @@ impl Decodeable for Separators {
 
 impl Encodeable for Separators {
 
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+        buffer.write_u16(self.serialise_version)?;
+
+        match self.serialise_version {
+            1 => self.write_v1(buffer, extra_data)?,
+            _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("Separators"), self.serialise_version)),
+        }
+
         Ok(())
     }
 }

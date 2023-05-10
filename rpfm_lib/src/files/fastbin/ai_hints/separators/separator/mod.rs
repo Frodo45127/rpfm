@@ -15,11 +15,8 @@ use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{Result, RLibError};
 use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 
-use self::hint_polyline::HintPolyline;
-
 use super::*;
 
-mod hint_polyline;
 mod v1;
 
 //---------------------------------------------------------------------------//
@@ -28,16 +25,24 @@ mod v1;
 
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct PolylinesList {
+pub struct Separator {
     serialise_version: u16,
-    hint_polylines: Vec<HintPolyline>
+    separator_type: String,
+    points: Vec<Point>,
+}
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct Point {
+    x: u32,
+    y: u32,
 }
 
 //---------------------------------------------------------------------------//
-//                   Implementation of PolylinesList
+//                   Implementation of Separator
 //---------------------------------------------------------------------------//
 
-impl Decodeable for PolylinesList {
+impl Decodeable for Separator {
 
     fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
         let mut decoded = Self::default();
@@ -45,21 +50,21 @@ impl Decodeable for PolylinesList {
 
         match decoded.serialise_version {
             1 => decoded.read_v1(data, extra_data)?,
-            _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("PolylinesList"), decoded.serialise_version)),
+            _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("Separator"), decoded.serialise_version)),
         }
 
         Ok(decoded)
     }
 }
 
-impl Encodeable for PolylinesList {
+impl Encodeable for Separator {
 
     fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         buffer.write_u16(self.serialise_version)?;
 
         match self.serialise_version {
             1 => self.write_v1(buffer, extra_data)?,
-            _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("PolylinesList"), self.serialise_version)),
+            _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("Separator"), self.serialise_version)),
         }
 
         Ok(())

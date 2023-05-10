@@ -27,6 +27,7 @@ mod v1;
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct DirectedPoints {
     serialise_version: u16,
+    directed_points: Vec<u8>,
 }
 
 //---------------------------------------------------------------------------//
@@ -50,7 +51,14 @@ impl Decodeable for DirectedPoints {
 
 impl Encodeable for DirectedPoints {
 
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+        buffer.write_u16(self.serialise_version)?;
+
+        match self.serialise_version {
+            1 => self.write_v1(buffer, extra_data)?,
+            _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("DirectedPoints"), self.serialise_version)),
+        }
+
         Ok(())
     }
 }

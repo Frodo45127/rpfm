@@ -15,8 +15,11 @@ use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{Result, RLibError};
 use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 
+use self::hint_polyline::HintPolyline;
+
 use super::*;
 
+mod hint_polyline;
 mod v1;
 
 //---------------------------------------------------------------------------//
@@ -27,6 +30,7 @@ mod v1;
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Polylines {
     serialise_version: u16,
+    hint_polylines: Vec<HintPolyline>
 }
 
 //---------------------------------------------------------------------------//
@@ -50,7 +54,14 @@ impl Decodeable for Polylines {
 
 impl Encodeable for Polylines {
 
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+        buffer.write_u16(self.serialise_version)?;
+
+        match self.serialise_version {
+            1 => self.write_v1(buffer, extra_data)?,
+            _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("Polylines"), self.serialise_version)),
+        }
+
         Ok(())
     }
 }
