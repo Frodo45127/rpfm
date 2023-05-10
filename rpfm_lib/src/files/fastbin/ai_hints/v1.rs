@@ -27,4 +27,13 @@ impl AIHints {
 
         Ok(())
     }
+
+    pub(crate) fn write_v1<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+        self.separators.encode(buffer, extra_data)?;
+        self.directed_points.encode(buffer, extra_data)?;
+        self.polylines.encode(buffer, extra_data)?;
+        self.polylines_list.encode(buffer, extra_data)?;
+
+        Ok(())
+    }
 }

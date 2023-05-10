@@ -55,4 +55,41 @@ impl Prop {
 
         Ok(())
     }
+
+    pub(crate) fn write_v25<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+        buffer.write_u32(self.key_index)?;
+
+        self.transform.encode(buffer, extra_data)?;
+
+        buffer.write_bool(self.decal)?;
+        buffer.write_bool(self.logic_decal)?;
+        buffer.write_bool(self.is_fauna)?;
+        buffer.write_bool(self.snow_inside)?;
+        buffer.write_bool(self.snow_outside)?;
+        buffer.write_bool(self.destruction_inside)?;
+        buffer.write_bool(self.destruction_outside)?;
+        buffer.write_bool(self.animated)?;
+        buffer.write_f32(self.decal_parallax_scale)?;
+        buffer.write_f32(self.decal_tiling)?;
+        buffer.write_bool(self.decal_override_gbuffer_normal)?;
+
+        self.flags.encode(buffer, extra_data)?;
+
+        buffer.write_bool(self.visible_in_shroud)?;
+        buffer.write_bool(self.decal_apply_to_terrain)?;
+        buffer.write_bool(self.decal_apply_to_gbuffer_objects)?;
+        buffer.write_bool(self.decal_render_above_snow)?;
+        buffer.write_sized_string_u8(&self.height_mode)?;
+        buffer.write_f64(self.pdlc_mask)?;
+        buffer.write_bool(self.cast_shadows)?;
+        buffer.write_bool(self.no_culling)?;
+        buffer.write_bool(self.has_height_patch)?;
+        buffer.write_bool(self.apply_height_patch)?;
+        buffer.write_bool(self.include_in_fog)?;
+        buffer.write_bool(self.visible_without_shroud)?;
+        buffer.write_bool(self.use_dynamic_shadows)?;
+        buffer.write_bool(self.uses_terrain_vertex_offset)?;
+
+        Ok(())
+    }
 }

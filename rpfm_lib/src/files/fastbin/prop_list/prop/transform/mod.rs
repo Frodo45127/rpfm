@@ -12,7 +12,7 @@ use getset::*;
 use serde_derive::{Serialize, Deserialize};
 
 use crate::binary::{ReadBytes, WriteBytes};
-use crate::error::{Result, RLibError};
+use crate::error::Result;
 use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 
 use super::*;
@@ -44,7 +44,7 @@ pub struct Transform {
 
 impl Decodeable for Transform {
 
-    fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
+    fn decode<R: ReadBytes>(data: &mut R, _extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
         let mut transform = Self::default();
 
         transform.m00 = data.read_f32()?;
@@ -67,6 +67,19 @@ impl Decodeable for Transform {
 impl Encodeable for Transform {
 
     fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+        buffer.write_f32(self.m00)?;
+        buffer.write_f32(self.m01)?;
+        buffer.write_f32(self.m02)?;
+        buffer.write_f32(self.m10)?;
+        buffer.write_f32(self.m11)?;
+        buffer.write_f32(self.m12)?;
+        buffer.write_f32(self.m20)?;
+        buffer.write_f32(self.m21)?;
+        buffer.write_f32(self.m22)?;
+        buffer.write_f32(self.m30)?;
+        buffer.write_f32(self.m31)?;
+        buffer.write_f32(self.m32)?;
+
         Ok(())
     }
 }

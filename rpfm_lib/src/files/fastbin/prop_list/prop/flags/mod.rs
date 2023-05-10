@@ -58,7 +58,14 @@ impl Decodeable for Flags {
 
 impl Encodeable for Flags {
 
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+        buffer.write_u16(self.serialise_version)?;
+
+        match self.serialise_version {
+            4 => self.write_v4(buffer, extra_data)?,
+            _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("Flags"), self.serialise_version)),
+        }
+
         Ok(())
     }
 }

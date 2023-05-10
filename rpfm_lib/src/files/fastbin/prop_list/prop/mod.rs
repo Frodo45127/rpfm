@@ -88,7 +88,14 @@ impl Decodeable for Prop {
 
 impl Encodeable for Prop {
 
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+        buffer.write_u16(self.serialise_version)?;
+
+        match self.serialise_version {
+            25 => self.write_v25(buffer, extra_data)?,
+            _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("Prop"), self.serialise_version)),
+        }
+
         Ok(())
     }
 }
