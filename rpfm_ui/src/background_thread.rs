@@ -615,7 +615,15 @@ pub fn background_loop() {
 
             // In case we want to move stuff from our PackFile to an Animpack...
             Command::AddPackedFilesFromPackFileToAnimpack(anim_pack_path, paths) => {
-                let files = pack_file_decoded.files_by_paths(&paths, false).into_iter().cloned().collect::<Vec<RFile>>();
+                let files = pack_file_decoded.files_by_paths(&paths, false)
+                    .into_iter()
+                    .map(|file| {
+                        let mut file = file.clone();
+                        let _ = file.load();
+                        file
+                    })
+                    .collect::<Vec<RFile>>();
+
                 match pack_file_decoded.files_mut().get_mut(&anim_pack_path) {
                     Some(file) => {
 
