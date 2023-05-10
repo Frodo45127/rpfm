@@ -27,6 +27,7 @@ mod v1;
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct ParticleEmitterList {
     serialise_version: u16,
+    particle_emitters: Vec<u8>,
 }
 
 //---------------------------------------------------------------------------//
@@ -50,7 +51,14 @@ impl Decodeable for ParticleEmitterList {
 
 impl Encodeable for ParticleEmitterList {
 
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+        buffer.write_u16(self.serialise_version)?;
+
+        match self.serialise_version {
+            1 => self.write_v1(buffer, extra_data)?,
+            _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("ParticleEmitterList"), self.serialise_version)),
+        }
+
         Ok(())
     }
 }

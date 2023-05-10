@@ -24,7 +24,7 @@ use super::*;
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct CivilianShelterList {
-
+    civilian_shelter_list: Vec<u8>,
 }
 
 //---------------------------------------------------------------------------//
@@ -33,8 +33,8 @@ pub struct CivilianShelterList {
 
 impl Decodeable for CivilianShelterList {
 
-    fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
-        let mut decoded = Self::default();
+    fn decode<R: ReadBytes>(data: &mut R, _extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
+        let decoded = Self::default();
 
         for _ in 0..data.read_u32()? {
 
@@ -47,6 +47,8 @@ impl Decodeable for CivilianShelterList {
 impl Encodeable for CivilianShelterList {
 
     fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+        buffer.write_u32(self.civilian_shelter_list.len() as u32)?;
+
         Ok(())
     }
 }

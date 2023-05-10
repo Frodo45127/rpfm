@@ -36,7 +36,7 @@ pub struct Area {
 
 impl Decodeable for Area {
 
-    fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
+    fn decode<R: ReadBytes>(data: &mut R, _extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
         let mut area = Self::default();
         area.min_x = data.read_f32()?;
         area.min_y = data.read_f32()?;
@@ -50,6 +50,11 @@ impl Decodeable for Area {
 impl Encodeable for Area {
 
     fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+        buffer.write_f32(self.min_x)?;
+        buffer.write_f32(self.min_y)?;
+        buffer.write_f32(self.max_x)?;
+        buffer.write_f32(self.max_y)?;
+
         Ok(())
     }
 }

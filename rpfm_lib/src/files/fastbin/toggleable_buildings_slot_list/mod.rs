@@ -27,6 +27,7 @@ mod v7;
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct ToggleableBuildingsSlotList {
     serialise_version: u16,
+    toggleable_buildings_slots: Vec<u8>,
 }
 
 //---------------------------------------------------------------------------//
@@ -50,7 +51,14 @@ impl Decodeable for ToggleableBuildingsSlotList {
 
 impl Encodeable for ToggleableBuildingsSlotList {
 
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+        buffer.write_u16(self.serialise_version)?;
+
+        match self.serialise_version {
+            7 => self.write_v7(buffer, extra_data)?,
+            _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("ToggleableBuildingsSlotList"), self.serialise_version)),
+        }
+
         Ok(())
     }
 }

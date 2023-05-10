@@ -26,4 +26,12 @@ impl PlayableArea {
 
         Ok(())
     }
+
+    pub(crate) fn write_v3<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+        self.area.encode(buffer, extra_data)?;
+        buffer.write_bool(self.has_been_set)?;
+        self.valid_location_flags.encode(buffer, extra_data)?;
+
+        Ok(())
+    }
 }

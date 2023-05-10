@@ -27,6 +27,7 @@ mod v1;
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct CustomMaterialMeshList {
     serialise_version: u16,
+    custom_material_mesh_list: Vec<u32>
 }
 
 //---------------------------------------------------------------------------//
@@ -50,8 +51,14 @@ impl Decodeable for CustomMaterialMeshList {
 
 impl Encodeable for CustomMaterialMeshList {
 
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+        buffer.write_u16(self.serialise_version)?;
+
+        match self.serialise_version {
+            1 => self.write_v1(buffer, extra_data)?,
+            _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("CustomMaterialMeshList"), self.serialise_version)),
+        }
+
         Ok(())
     }
 }
- 

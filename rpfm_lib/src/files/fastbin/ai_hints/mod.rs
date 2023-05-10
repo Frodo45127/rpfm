@@ -64,7 +64,7 @@ impl Decodeable for AIHints {
 impl Encodeable for AIHints {
 
     fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
-       buffer.write_u16(self.serialise_version)?;
+        buffer.write_u16(self.serialise_version)?;
 
         match self.serialise_version {
             1 => self.write_v1(buffer, extra_data)?,

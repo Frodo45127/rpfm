@@ -36,5 +36,5 @@ fn test_encode_fastbin() {
     let mut writer = BufWriter::new(File::create(path_2).unwrap());
     writer.write_all(&after).unwrap();
 
-    //assert_eq!(before, after);
+    assert_eq!(before, after);
 }
