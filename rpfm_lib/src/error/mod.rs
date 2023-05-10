@@ -136,6 +136,15 @@ pub enum RLibError {
     #[error("Unsupported signature: {0}.")]
     EncodingESFUnsupportedSignature(String),
 
+    #[error("Unsupported signature: {0:#X?}.")]
+    DecodingFastBinUnsupportedSignature(Vec<u8>),
+
+    #[error("Unsupported version {1} for type {0}.")]
+    DecodingFastBinUnsupportedVersion(String, u16),
+
+    #[error("Unsupported version {1} for type {0}.")]
+    EncodingFastBinUnsupportedVersion(String, u16),
+
     #[error("Error decoding combined colour.")]
     DecodingTableCombinedColour,
 

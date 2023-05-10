@@ -103,6 +103,7 @@ pub mod anims_table;
 pub mod audio;
 pub mod db;
 pub mod esf;
+pub mod fastbin;
 pub mod image;
 pub mod loc;
 pub mod matched_combat;
