@@ -30,7 +30,7 @@ impl Separators {
     pub(crate) fn write_v1<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         buffer.write_u32(self.separators.len() as u32)?;
 
-        for separator in &self.separators {
+        for separator in &mut self.separators {
             separator.encode(buffer, extra_data)?;
         }
 
