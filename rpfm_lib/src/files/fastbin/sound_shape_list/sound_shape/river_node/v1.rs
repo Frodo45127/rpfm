@@ -14,24 +14,29 @@ use crate::error::Result;
 use super::*;
 
 //---------------------------------------------------------------------------//
-//                    Implementation of SoundShapeList
+//                    Implementation of RiverNode
 //---------------------------------------------------------------------------//
 
-impl SoundShapeList {
+impl RiverNode {
 
-    pub(crate) fn read_v1<R: ReadBytes>(&mut self, data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<()> {
-        for _ in 0..data.read_u32()? {
-            self.sound_shapes.push(SoundShape::decode(data, extra_data)?);
-        }
+    pub(crate) fn read_v1<R: ReadBytes>(&mut self, data: &mut R, _extra_data: &Option<DecodeableExtraData>) -> Result<()> {
+        self.vertex = Vertex {
+            x: data.read_f32()?,
+            y: data.read_f32()?,
+            z: data.read_f32()?,
+        };
+        self.width = data.read_f32()?;
+        self.flow_speed = data.read_f32()?;
 
         Ok(())
     }
 
-    pub(crate) fn write_v1<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
-        buffer.write_u32(self.sound_shapes.len() as u32)?;
-        for shape in &mut self.sound_shapes {
-            shape.encode(buffer, extra_data)?;
-        }
+    pub(crate) fn write_v1<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+        buffer.write_f32(self.vertex.x)?;
+        buffer.write_f32(self.vertex.y)?;
+        buffer.write_f32(self.vertex.z)?;
+        buffer.write_f32(self.width)?;
+        buffer.write_f32(self.flow_speed)?;
 
         Ok(())
     }

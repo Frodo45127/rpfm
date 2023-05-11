@@ -15,11 +15,8 @@ use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{Result, RLibError};
 use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 
-use self::sound_shape::SoundShape;
-
 use super::*;
 
-mod sound_shape;
 mod v1;
 
 //---------------------------------------------------------------------------//
@@ -28,16 +25,26 @@ mod v1;
 
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct SoundShapeList {
+pub struct RiverNode {
     serialise_version: u16,
-    sound_shapes: Vec<SoundShape>
+    vertex: Vertex,
+    width: f32,
+    flow_speed: f32,
+}
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct Vertex {
+    x: f32,
+    y: f32,
+    z: f32,
 }
 
 //---------------------------------------------------------------------------//
-//                   Implementation of SoundShapeList
+//                   Implementation of RiverNode
 //---------------------------------------------------------------------------//
 
-impl Decodeable for SoundShapeList {
+impl Decodeable for RiverNode {
 
     fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
         let mut decoded = Self::default();
@@ -45,21 +52,21 @@ impl Decodeable for SoundShapeList {
 
         match decoded.serialise_version {
             1 => decoded.read_v1(data, extra_data)?,
-            _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("SoundShapeList"), decoded.serialise_version)),
+            _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("RiverNode"), decoded.serialise_version)),
         }
 
         Ok(decoded)
     }
 }
 
-impl Encodeable for SoundShapeList {
+impl Encodeable for RiverNode {
 
     fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         buffer.write_u16(self.serialise_version)?;
 
         match self.serialise_version {
             1 => self.write_v1(buffer, extra_data)?,
-            _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("SoundShapeList"), self.serialise_version)),
+            _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("RiverNode"), self.serialise_version)),
         }
 
         Ok(())
