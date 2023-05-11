@@ -24,7 +24,20 @@ use super::*;
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct GoOutlines {
-    lines: Vec<u8>,
+    empire_outline: Vec<Outline>
+}
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct Outline {
+    outline: Vec<Position>,
+}
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct Position {
+    x: u32,
+    y: u32,
 }
 
 //---------------------------------------------------------------------------//
@@ -34,10 +47,19 @@ pub struct GoOutlines {
 impl Decodeable for GoOutlines {
 
     fn decode<R: ReadBytes>(data: &mut R, _extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
-        let decoded = Self::default();
+        let mut decoded = Self::default();
 
         for _ in 0..data.read_u32()? {
+            let mut outline = Outline::default();
 
+            for _ in 0..data.read_u32()? {
+                outline.outline.push(Position {
+                    x: data.read_u32()?,
+                    y: data.read_u32()?
+                });
+            }
+
+            decoded.empire_outline.push(outline);
         }
 
         Ok(decoded)
@@ -47,9 +69,16 @@ impl Decodeable for GoOutlines {
 impl Encodeable for GoOutlines {
 
     fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: &Option<EncodeableExtraData>) -> Result<()> {
-        buffer.write_u32(self.lines.len() as u32)?;
+        buffer.write_u32(self.empire_outline.len() as u32)?;
+        for outline in &self.empire_outline {
+
+            buffer.write_u32(outline.outline.len() as u32)?;
+            for position in &outline.outline {
+                buffer.write_u32(position.x)?;
+                buffer.write_u32(position.y)?;
+            }
+        }
 
         Ok(())
     }
 }
- 
