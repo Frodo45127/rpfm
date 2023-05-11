@@ -36,10 +36,10 @@ pub struct Building {
     parent_id: i32,
     building_key: String,
     position_type: String,
-    height_mode: String,
-    uid: f64,
     transform: Transform,
     properties: Properties,
+    height_mode: String,
+    uid: f64,
 }
 
 //---------------------------------------------------------------------------//
