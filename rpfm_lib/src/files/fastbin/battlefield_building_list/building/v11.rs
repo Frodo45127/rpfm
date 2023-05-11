@@ -42,8 +42,8 @@ impl Building {
         buffer.write_sized_string_u8(&self.building_key)?;
         buffer.write_sized_string_u8(&self.position_type)?;
 
-        self.properties.encode(buffer, extra_data)?;
         self.transform.encode(buffer, extra_data)?;
+        self.properties.encode(buffer, extra_data)?;
 
         buffer.write_sized_string_u8(&self.height_mode)?;
         buffer.write_f64(self.uid)?;

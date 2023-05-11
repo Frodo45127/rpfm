@@ -34,7 +34,7 @@ impl Separator {
 
     pub(crate) fn write_v1<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         buffer.write_sized_string_u8(&self.separator_type)?;
-
+        buffer.write_u32(self.points.len() as u32)?;
         for point in &self.points {
             buffer.write_u32(point.x)?;
             buffer.write_u32(point.y)?;

@@ -1,0 +1,200 @@
+<BATTLE_MAP_DEFINITION_DATA serialise_version='27'>
+	<BATTLEFIELD_BUILDING_LIST serialise_version='1'>
+		<BUILDINGS/>
+	</BATTLEFIELD_BUILDING_LIST>
+	<BATTLEFIELD_BUILDING_LIST_FAR serialise_version='1'>
+		<BUILDINGS/>
+	</BATTLEFIELD_BUILDING_LIST_FAR>
+	<CAPTURE_LOCATION_SET serialise_version='11'>
+		<CAPTURE_LOCATION_SET/>
+	</CAPTURE_LOCATION_SET>
+	<EF_LINE_LIST>
+		<LINES/>
+	</EF_LINE_LIST>
+	<GO_OUTLINES/>
+	<NON_TERRAIN_OUTLINES/>
+	<ZONES_TEMPLATE_LIST serialise_version='1'>
+		<ZONES/>
+	</ZONES_TEMPLATE_LIST>
+	<PREFAB_INSTANCE_LIST serialise_version='1'>
+		<PREFAB_INSTANCE/>
+	</PREFAB_INSTANCE_LIST>
+	<BMD_OUTLINE_LIST serialise_version='1'>
+		<BMD_OUTLINES/>
+	</BMD_OUTLINE_LIST>
+	<TERRAIN_OUTLINES>
+		<EMPIRE_OUTLINE>
+			<OUTLINE>
+				<position x='768.000000' y='1024.000000'/>
+				<position x='2816.000000' y='1024.000000'/>
+				<position x='2816.000000' y='3072.000000'/>
+				<position x='768.000000' y='3072.000000'/>
+			</OUTLINE>
+		</EMPIRE_OUTLINE>
+	</TERRAIN_OUTLINES>
+	<LITE_BUILDING_OUTLINES/>
+	<CAMERA_ZONES serialise_version='1'>
+		<BMD_OUTLINES/>
+	</CAMERA_ZONES>
+	<CIVILIAN_DEPLOYMENT_LIST/>
+	<CIVILIAN_SHELTER_LIST/>
+	<PROP_LIST serialise_version='2'>
+		<KEYS/>
+		<PROPS/>
+	</PROP_LIST>
+	<PARTICLE_EMITTER_LIST serialise_version='1'>
+		<PARTICLE_EMITTERS/>
+	</PARTICLE_EMITTER_LIST>
+	<AI_HINTS serialise_version='1'>
+		<separators serialise_version='1'>
+			<SEPARATORS/>
+		</separators>
+		<directed_points serialise_version='1'>
+			<DIRECTED_POINTS/>
+		</directed_points>
+		<polylines serialise_version='1'>
+			<HINT_POLYLINES/>
+		</polylines>
+		<polylines_list serialise_version='1'>
+			<HINT_POLYLINES/>
+		</polylines_list>
+	</AI_HINTS>
+	<LIGHT_PROBE_LIST serialise_version='1'>
+		<LIGHT_PROBES/>
+	</LIGHT_PROBE_LIST>
+	<TERRAIN_STENCIL_TRIANGLE_LIST serialise_version='1'>
+		<TERRAIN_STENCIL_TRIANGLES/>
+	</TERRAIN_STENCIL_TRIANGLE_LIST>
+	<POINT_LIGHT_LIST serialise_version='1'>
+		<POINT_LIGHTS/>
+	</POINT_LIGHT_LIST>
+	<BUILDING_PROJECTILE_EMITTER_LIST serialise_version='1'>
+		<BUILDING_PROJECTILE_EMITTERS/>
+	</BUILDING_PROJECTILE_EMITTER_LIST>
+	<PLAYABLE_AREA serialise_version='3' has_been_set='false'>
+		<area min_x='64.000000' min_y='64.000000' max_x='1920.000000' max_y='1920.000000'/>
+		<valid_location_flags serialise_version='1' valid_north='true' valid_south='true' valid_east='true' valid_west='true'/>
+	</PLAYABLE_AREA>
+	<CUSTOM_MATERIAL_MESH_LIST serialise_version='1'>
+		<CUSTOM_MATERIAL_MESH_LIST/>
+	</CUSTOM_MATERIAL_MESH_LIST>
+	<TERRAIN_STENCIL_BLEND_TRIANGLE_LIST serialise_version='1'>
+		<TERRAIN_BLEND_TRIANGLES/>
+	</TERRAIN_STENCIL_BLEND_TRIANGLE_LIST>
+	<SPOT_LIGHT_LIST serialise_version='1'>
+		<SPOT_LIGHTS/>
+	</SPOT_LIGHT_LIST>
+	<SOUND_SHAPE_LIST serialise_version='1'>
+		<SOUND_SHAPES/>
+	</SOUND_SHAPE_LIST>
+	<COMPOSITE_SCENE_LIST serialise_version='1'>
+		<COMPOSITE_SCENE_LIST/>
+	</COMPOSITE_SCENE_LIST>
+	<DEPLOYMENT_LIST serialise_version='1'>
+		<DEPLOYMENT_AREAS/>
+	</DEPLOYMENT_LIST>
+	<BMD_CATCHMENT_AREA_LIST serialise_version='1'>
+		<BMD_CATCHMENT_AREAS/>
+	</BMD_CATCHMENT_AREA_LIST>
+	<TOGGLEABLE_BUILDINGS_SLOT_LIST serialise_version='7'>
+		<TOGGLEABLE_BUILDINGS_SLOTS/>
+	</TOGGLEABLE_BUILDINGS_SLOT_LIST>
+	<TERRAIN_DECAL_LIST serialise_version='1'>
+		<TERRAIN_DECALS/>
+	</TERRAIN_DECAL_LIST>
+	<TREE_LIST_REFERENCE_LIST serialise_version='1'>
+		<TREE_LIST_REFERENCES/>
+	</TREE_LIST_REFERENCE_LIST>
+	<GRASS_LIST_REFERENCE_LIST serialise_version='1'>
+		<GRASS_LIST_REFERENCES/>
+	</GRASS_LIST_REFERENCE_LIST>
+	<WATER_OUTLINES>
+		<EMPIRE_OUTLINE>
+			<OUTLINE>
+				<position x='880.000000' y='2248.000000'/>
+				<position x='880.000000' y='2246.000000'/>
+				<position x='890.000000' y='2246.000000'/>
+				<position x='892.000000' y='2252.000000'/>
+				<position x='892.000000' y='2314.000000'/>
+				<position x='888.000000' y='2322.000000'/>
+				<position x='878.000000' y='2324.000000'/>
+				<position x='886.000000' y='2340.000000'/>
+				<position x='890.000000' y='2342.000000'/>
+				<position x='892.000000' y='2348.000000'/>
+				<position x='892.000000' y='2728.000000'/>
+				<position x='890.000000' y='2734.000000'/>
+				<position x='878.000000' y='2746.000000'/>
+				<position x='870.000000' y='2746.000000'/>
+				<position x='870.000000' y='2736.000000'/>
+				<position x='866.000000' y='2734.000000'/>
+				<position x='856.000000' y='2720.000000'/>
+				<position x='840.000000' y='2694.000000'/>
+				<position x='828.000000' y='2688.000000'/>
+				<position x='826.000000' y='2684.000000'/>
+				<position x='818.000000' y='2682.000000'/>
+				<position x='816.000000' y='2686.000000'/>
+				<position x='806.000000' y='2690.000000'/>
+				<position x='798.000000' y='2698.000000'/>
+				<position x='782.000000' y='2710.000000'/>
+				<position x='774.000000' y='2712.000000'/>
+				<position x='768.000000' y='2718.857178'/>
+				<position x='768.000000' y='2489.333496'/>
+				<position x='772.000000' y='2484.000000'/>
+				<position x='776.000000' y='2474.000000'/>
+				<position x='786.000000' y='2456.000000'/>
+				<position x='792.000000' y='2436.000000'/>
+				<position x='798.000000' y='2404.000000'/>
+				<position x='802.000000' y='2394.000000'/>
+				<position x='814.000000' y='2352.000000'/>
+				<position x='820.000000' y='2330.000000'/>
+				<position x='830.000000' y='2300.000000'/>
+				<position x='842.000000' y='2276.000000'/>
+				<position x='860.000000' y='2260.000000'/>
+				<position x='870.000000' y='2252.000000'/>
+				<position x='878.000000' y='2250.000000'/>
+				<position x='878.000000' y='2248.000000'/>
+			</OUTLINE>
+		</EMPIRE_OUTLINE>
+		<EMPIRE_OUTLINE>
+			<OUTLINE>
+				<position x='788.000000' y='2724.000000'/>
+				<position x='788.000000' y='2722.000000'/>
+				<position x='802.000000' y='2722.000000'/>
+				<position x='808.000000' y='2724.000000'/>
+				<position x='808.000000' y='2732.000000'/>
+				<position x='790.000000' y='2748.000000'/>
+				<position x='786.000000' y='2746.000000'/>
+				<position x='784.000000' y='2742.000000'/>
+				<position x='784.000000' y='2730.000000'/>
+				<position x='786.000000' y='2730.000000'/>
+				<position x='786.000000' y='2724.000000'/>
+			</OUTLINE>
+		</EMPIRE_OUTLINE>
+		<EMPIRE_OUTLINE>
+			<OUTLINE>
+				<position x='1540.000000' y='2810.000000'/>
+				<position x='1540.000000' y='2808.000000'/>
+				<position x='1734.000000' y='2808.000000'/>
+				<position x='1734.000000' y='2810.000000'/>
+				<position x='1738.000000' y='2810.000000'/>
+				<position x='1740.000000' y='2812.000000'/>
+				<position x='1740.000000' y='2816.000000'/>
+				<position x='1732.000000' y='2826.000000'/>
+				<position x='1716.000000' y='2830.000000'/>
+				<position x='1672.000000' y='2834.000000'/>
+				<position x='1656.000000' y='2838.000000'/>
+				<position x='1642.000000' y='2838.000000'/>
+				<position x='1632.000000' y='2830.000000'/>
+				<position x='1614.000000' y='2828.000000'/>
+				<position x='1612.000000' y='2832.000000'/>
+				<position x='1604.000000' y='2834.000000'/>
+				<position x='1564.000000' y='2822.000000'/>
+				<position x='1540.000000' y='2818.000000'/>
+				<position x='1536.000000' y='2816.000000'/>
+				<position x='1534.000000' y='2812.000000'/>
+				<position x='1536.000000' y='2812.000000'/>
+				<position x='1536.000000' y='2810.000000'/>
+			</OUTLINE>
+		</EMPIRE_OUTLINE>
+	</WATER_OUTLINES>
+</BATTLE_MAP_DEFINITION_DATA>

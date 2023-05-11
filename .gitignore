@@ -36,6 +36,7 @@
 /test_files/test_encode_matched_combat_3k_trigger.bin
 /test_files/test_encode_esf_caab.esf
 /test_files/test_encode_uic_138.xml
+/test_files/fastbin/encode_*
 
 # This one is another separate thing, not tracked.
 /autosaves/

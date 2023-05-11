@@ -38,7 +38,7 @@ fn test_encode_fastbin_prefab() {
 
     assert_eq!(before, after);
 }
-/*
+
 #[test]
 fn test_encode_fastbin_map_data() {
     let path_1 = "../test_files/fastbin/bmd_data.bin";
@@ -101,4 +101,3 @@ fn test_encode_fastbin_map_catchment() {
 
     assert_eq!(before, after);
 }
-*/
