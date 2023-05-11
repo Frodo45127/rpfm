@@ -12,15 +12,16 @@ use getset::*;
 use serde_derive::{Serialize, Deserialize};
 
 use crate::binary::{ReadBytes, WriteBytes};
-use crate::error::{Result, RLibError};
+use crate::error::Result;
 use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 
-use self::zone::Zone;
+use self::battlefield_zone_template::BattlefiedZoneTemplate;
+use self::transform::Transform;
 
 use super::*;
 
-mod zone;
-mod v1;
+mod battlefield_zone_template;
+mod transform;
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
@@ -28,41 +29,35 @@ mod v1;
 
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct ZonesTemplateList {
-    serialise_version: u16,
-    zones: Vec<Zone>
+pub struct Zone {
+    battlefield_zone_template: BattlefiedZoneTemplate,
+    transform: Transform,
 }
 
 //---------------------------------------------------------------------------//
-//                Implementation of ZonesTemplateList
+//                     Implementation of Zone
 //---------------------------------------------------------------------------//
 
-impl Decodeable for ZonesTemplateList {
+impl Decodeable for Zone {
 
     fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
         let mut decoded = Self::default();
-        decoded.serialise_version = data.read_u16()?;
 
-        match decoded.serialise_version {
-            1 => decoded.read_v1(data, extra_data)?,
-            _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("ZonesTemplateList"), decoded.serialise_version)),
-        }
+        decoded.battlefield_zone_template = BattlefiedZoneTemplate::decode(data, extra_data)?;
+        decoded.transform = Transform::decode(data, extra_data)?;
 
         Ok(decoded)
     }
 }
 
-impl Encodeable for ZonesTemplateList {
+impl Encodeable for Zone {
 
     fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
-        buffer.write_u16(self.serialise_version)?;
 
-        match self.serialise_version {
-            1 => self.write_v1(buffer, extra_data)?,
-            _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("ZonesTemplateList"), self.serialise_version)),
-        }
+        self.battlefield_zone_template.encode(buffer, extra_data)?;
+        self.transform.encode(buffer, extra_data)?;
 
         Ok(())
     }
 }
- 
+
