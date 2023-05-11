@@ -15,12 +15,9 @@ use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{Result, RLibError};
 use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 
-use self::building::Building;
-
 use super::*;
 
-mod building;
-mod v1;
+mod v11;
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
@@ -28,38 +25,54 @@ mod v1;
 
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct BattlefieldBuildingList {
+pub struct Properties {
     serialise_version: u16,
-    buildings: Vec<Building>
+    building_id: String,
+    starting_damage_unary: f32,
+    on_fire: bool,
+    start_disabled: bool,
+    weak_point: bool,
+    ai_breachable: bool,
+    indestructible: bool,
+    dockable: bool,
+    toggleable: bool,
+    lite: bool,
+    cast_shadows: bool,
+    key_building: bool,
+    key_building_use_fort: bool,
+    is_prop_in_outfield: bool,
+    settlement_level_configurable: bool,
+    hide_tooltip: bool,
+    include_in_fog: bool,
 }
 
 //---------------------------------------------------------------------------//
-//                   Implementation of BattlefieldBuildingList
+//                           Implementation of Properties
 //---------------------------------------------------------------------------//
 
-impl Decodeable for BattlefieldBuildingList {
+impl Decodeable for Properties {
 
     fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
-        let mut decoded = Self::default();
-        decoded.serialise_version = data.read_u16()?;
+        let mut flags = Self::default();
+        flags.serialise_version = data.read_u16()?;
 
-        match decoded.serialise_version {
-            1 => decoded.read_v1(data, extra_data)?,
-            _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("BattlefieldBuildingList"), decoded.serialise_version)),
+        match flags.serialise_version {
+            11 => flags.read_v11(data, extra_data)?,
+            _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("Properties"), flags.serialise_version)),
         }
 
-        Ok(decoded)
+        Ok(flags)
     }
 }
 
-impl Encodeable for BattlefieldBuildingList {
+impl Encodeable for Properties {
 
     fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         buffer.write_u16(self.serialise_version)?;
 
         match self.serialise_version {
-            1 => self.write_v1(buffer, extra_data)?,
-            _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("BattlefieldBuildingList"), self.serialise_version)),
+            11 => self.write_v11(buffer, extra_data)?,
+            _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("Properties"), self.serialise_version)),
         }
 
         Ok(())
