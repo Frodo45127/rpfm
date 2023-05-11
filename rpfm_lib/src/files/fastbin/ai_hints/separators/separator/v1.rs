@@ -24,8 +24,8 @@ impl Separator {
 
         for _ in 0..data.read_u32()? {
             self.points.push(Point {
-                x: data.read_u32()?,
-                y: data.read_u32()?,
+                x: data.read_f32()?,
+                y: data.read_f32()?,
             });
         }
 
@@ -36,8 +36,8 @@ impl Separator {
         buffer.write_sized_string_u8(&self.separator_type)?;
         buffer.write_u32(self.points.len() as u32)?;
         for point in &self.points {
-            buffer.write_u32(point.x)?;
-            buffer.write_u32(point.y)?;
+            buffer.write_f32(point.x)?;
+            buffer.write_f32(point.y)?;
         }
 
         Ok(())

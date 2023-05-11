@@ -34,8 +34,8 @@ pub struct Separator {
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Point {
-    x: u32,
-    y: u32,
+    x: f32,
+    y: f32,
 }
 
 //---------------------------------------------------------------------------//

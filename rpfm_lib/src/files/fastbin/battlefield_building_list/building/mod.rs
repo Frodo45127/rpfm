@@ -39,7 +39,7 @@ pub struct Building {
     transform: Transform,
     properties: Properties,
     height_mode: String,
-    uid: f64,
+    uid: u64,
 }
 
 //---------------------------------------------------------------------------//

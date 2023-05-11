@@ -31,7 +31,7 @@ impl Building {
         self.transform = Transform::decode(data, extra_data)?;
         self.properties = Properties::decode(data, extra_data)?;
         self.height_mode = data.read_sized_string_u8()?;
-        self.uid = data.read_f64()?;
+        self.uid = data.read_u64()?;
 
         Ok(())
     }
@@ -46,7 +46,7 @@ impl Building {
         self.properties.encode(buffer, extra_data)?;
 
         buffer.write_sized_string_u8(&self.height_mode)?;
-        buffer.write_f64(self.uid)?;
+        buffer.write_u64(self.uid)?;
 
         Ok(())
     }
