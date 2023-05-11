@@ -15,11 +15,11 @@ use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{Result, RLibError};
 use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 
-use self::deployment_area::DeploymentArea;
+use self::deployment_region::DeploymentRegion;
 
 use super::*;
 
-mod deployment_area;
+mod deployment_region;
 mod v1;
 
 //---------------------------------------------------------------------------//
@@ -28,16 +28,16 @@ mod v1;
 
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct DeploymentList {
+pub struct DeploymentZone {
     serialise_version: u16,
-    deployment_areas: Vec<DeploymentArea>
+    deployment_regions: Vec<DeploymentRegion>,
 }
 
 //---------------------------------------------------------------------------//
-//                   Implementation of DeploymentList
+//                   Implementation of DeploymentZone
 //---------------------------------------------------------------------------//
 
-impl Decodeable for DeploymentList {
+impl Decodeable for DeploymentZone {
 
     fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
         let mut decoded = Self::default();
@@ -45,21 +45,21 @@ impl Decodeable for DeploymentList {
 
         match decoded.serialise_version {
             1 => decoded.read_v1(data, extra_data)?,
-            _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("DeploymentList"), decoded.serialise_version)),
+            _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("DeploymentZone"), decoded.serialise_version)),
         }
 
         Ok(decoded)
     }
 }
 
-impl Encodeable for DeploymentList {
+impl Encodeable for DeploymentZone {
 
     fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         buffer.write_u16(self.serialise_version)?;
 
         match self.serialise_version {
             1 => self.write_v1(buffer, extra_data)?,
-            _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("DeploymentList"), self.serialise_version)),
+            _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("DeploymentZone"), self.serialise_version)),
         }
 
         Ok(())

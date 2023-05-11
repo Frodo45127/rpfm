@@ -14,23 +14,27 @@ use crate::error::Result;
 use super::*;
 
 //---------------------------------------------------------------------------//
-//                    Implementation of DeploymentList
+//                    Implementation of DeploymentArea
 //---------------------------------------------------------------------------//
 
-impl DeploymentList {
+impl DeploymentArea {
 
     pub(crate) fn read_v1<R: ReadBytes>(&mut self, data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<()> {
+        self.category = data.read_sized_string_u8()?;
+
         for _ in 0..data.read_u32()? {
-            self.deployment_areas.push(DeploymentArea::decode(data, extra_data)?);
+            self.deployment_zones.push(DeploymentZone::decode(data, extra_data)?);
         }
 
         Ok(())
     }
 
     pub(crate) fn write_v1<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
-        buffer.write_u32(self.deployment_areas.len() as u32)?;
-        for area in &mut self.deployment_areas {
-            area.encode(buffer, extra_data)?;
+        buffer.write_sized_string_u8(&self.category)?;
+        buffer.write_u32(self.deployment_zones.len() as u32)?;
+
+        for zone in &mut self.deployment_zones {
+            zone.encode(buffer, extra_data)?;
         }
 
         Ok(())

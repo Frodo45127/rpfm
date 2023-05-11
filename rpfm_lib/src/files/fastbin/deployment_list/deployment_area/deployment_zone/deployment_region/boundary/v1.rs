@@ -14,23 +14,31 @@ use crate::error::Result;
 use super::*;
 
 //---------------------------------------------------------------------------//
-//                    Implementation of DeploymentList
+//                    Implementation of Boundary
 //---------------------------------------------------------------------------//
 
-impl DeploymentList {
+impl Boundary {
 
-    pub(crate) fn read_v1<R: ReadBytes>(&mut self, data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<()> {
+    pub(crate) fn read_v1<R: ReadBytes>(&mut self, data: &mut R, _extra_data: &Option<DecodeableExtraData>) -> Result<()> {
+        self.deployment_area_boundary_type = data.read_sized_string_u8()?;
+
         for _ in 0..data.read_u32()? {
-            self.deployment_areas.push(DeploymentArea::decode(data, extra_data)?);
+            self.boundary.push(Position {
+                x: data.read_f32()?,
+                y: data.read_f32()?,
+            });
         }
 
         Ok(())
     }
 
-    pub(crate) fn write_v1<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
-        buffer.write_u32(self.deployment_areas.len() as u32)?;
-        for area in &mut self.deployment_areas {
-            area.encode(buffer, extra_data)?;
+    pub(crate) fn write_v1<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+        buffer.write_sized_string_u8(&self.deployment_area_boundary_type)?;
+        buffer.write_u32(self.boundary.len() as u32)?;
+
+        for boundary in &mut self.boundary {
+            buffer.write_f32(boundary.x)?;
+            buffer.write_f32(boundary.y)?;
         }
 
         Ok(())
