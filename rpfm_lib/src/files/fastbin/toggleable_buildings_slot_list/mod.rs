@@ -15,8 +15,11 @@ use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{Result, RLibError};
 use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 
+use self::toggleable_building_slot::ToggleableBuildingsSlot;
+
 use super::*;
 
+mod toggleable_building_slot;
 mod v7;
 
 //---------------------------------------------------------------------------//
@@ -27,7 +30,7 @@ mod v7;
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct ToggleableBuildingsSlotList {
     serialise_version: u16,
-    toggleable_buildings_slots: Vec<u8>,
+    toggleable_buildings_slots: Vec<ToggleableBuildingsSlot>,
 }
 
 //---------------------------------------------------------------------------//

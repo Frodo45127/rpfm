@@ -12,14 +12,12 @@ use getset::*;
 use serde_derive::{Serialize, Deserialize};
 
 use crate::binary::{ReadBytes, WriteBytes};
-use crate::error::{Result, RLibError};
+use crate::error::Result;
 use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 
-use self::bmd_catchment_area::BmdCatchmentArea;
 use super::*;
 
-mod bmd_catchment_area;
-mod v1;
+mod v3;
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
@@ -27,38 +25,42 @@ mod v1;
 
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct BmdCatchmentAreaList {
+pub struct BuildingLink {
     serialise_version: u16,
-    bmd_catchment_areas: Vec<BmdCatchmentArea>,
+    building_index: i32,
+    prefab_index: i32,
+    prefab_building_key: String,
+    uid: u64,
+    prefab_uid: u64,
 }
 
 //---------------------------------------------------------------------------//
-//                Implementation of BmdCatchmentAreaList
+//                Implementation of BuildingLink
 //---------------------------------------------------------------------------//
 
-impl Decodeable for BmdCatchmentAreaList {
+impl Decodeable for BuildingLink {
 
     fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
         let mut decoded = Self::default();
         decoded.serialise_version = data.read_u16()?;
 
         match decoded.serialise_version {
-            1 => decoded.read_v1(data, extra_data)?,
-            _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("BmdCatchmentAreaList"), decoded.serialise_version)),
+            3 => decoded.read_v3(data, extra_data)?,
+            _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("BuildingLink"), decoded.serialise_version)),
         }
 
         Ok(decoded)
     }
 }
 
-impl Encodeable for BmdCatchmentAreaList {
+impl Encodeable for BuildingLink {
 
     fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         buffer.write_u16(self.serialise_version)?;
 
         match self.serialise_version {
-            1 => self.write_v1(buffer, extra_data)?,
-            _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("BmdCatchmentAreaList"), self.serialise_version)),
+            3 => self.write_v3(buffer, extra_data)?,
+            _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("BuildingLink"), self.serialise_version)),
         }
 
         Ok(())

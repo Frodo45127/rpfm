@@ -15,10 +15,8 @@ use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{Result, RLibError};
 use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 
-use self::bmd_catchment_area::BmdCatchmentArea;
 use super::*;
 
-mod bmd_catchment_area;
 mod v1;
 
 //---------------------------------------------------------------------------//
@@ -27,38 +25,41 @@ mod v1;
 
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct BmdCatchmentAreaList {
+pub struct ValidLocationFlags {
     serialise_version: u16,
-    bmd_catchment_areas: Vec<BmdCatchmentArea>,
+    valid_north: bool,
+    valid_south: bool,
+    valid_east: bool,
+    valid_west: bool,
 }
 
 //---------------------------------------------------------------------------//
-//                Implementation of BmdCatchmentAreaList
+//                           Implementation of Text
 //---------------------------------------------------------------------------//
 
-impl Decodeable for BmdCatchmentAreaList {
+impl Decodeable for ValidLocationFlags {
 
     fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
-        let mut decoded = Self::default();
-        decoded.serialise_version = data.read_u16()?;
+        let mut valid_location_flags = Self::default();
+        valid_location_flags.serialise_version = data.read_u16()?;
 
-        match decoded.serialise_version {
-            1 => decoded.read_v1(data, extra_data)?,
-            _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("BmdCatchmentAreaList"), decoded.serialise_version)),
+        match valid_location_flags.serialise_version {
+            1 => valid_location_flags.read_v1(data, extra_data)?,
+            _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("ValidLocationFlags"), valid_location_flags.serialise_version)),
         }
 
-        Ok(decoded)
+        Ok(valid_location_flags)
     }
 }
 
-impl Encodeable for BmdCatchmentAreaList {
+impl Encodeable for ValidLocationFlags {
 
     fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         buffer.write_u16(self.serialise_version)?;
 
         match self.serialise_version {
             1 => self.write_v1(buffer, extra_data)?,
-            _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("BmdCatchmentAreaList"), self.serialise_version)),
+            _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("ValidLocationFlags"), self.serialise_version)),
         }
 
         Ok(())
