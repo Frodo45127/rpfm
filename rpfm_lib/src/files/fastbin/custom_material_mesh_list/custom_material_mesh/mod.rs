@@ -15,12 +15,14 @@ use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{Result, RLibError};
 use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 
-use self::custom_material_mesh::CustomMaterialMesh;
+use self::flags::Flags;
+use self::transform::Transform;
 
 use super::*;
 
-mod custom_material_mesh;
-mod v1;
+mod flags;
+mod transform;
+mod v4;
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
@@ -28,38 +30,57 @@ mod v1;
 
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct CustomMaterialMeshList {
+pub struct CustomMaterialMesh {
     serialise_version: u16,
-    custom_material_mesh_list: Vec<CustomMaterialMesh>
+    vertices: Vec<Vertex>,
+    indices: Vec<u16>,
+    material: String,
+    height_mode: String,
+    flags: Flags,
+    transform: Transform,
+    snow_inside: bool,
+    snow_outside: bool,
+    destruction_inside: bool,
+    destruction_outside: bool,
+    visible_in_shroud: bool,
+    visible_without_shroud: bool,
+}
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct Vertex {
+    x: f32,
+    y: f32,
+    z: f32,
 }
 
 //---------------------------------------------------------------------------//
-//                Implementation of CustomMaterialMeshList
+//                Implementation of CustomMaterialMesh
 //---------------------------------------------------------------------------//
 
-impl Decodeable for CustomMaterialMeshList {
+impl Decodeable for CustomMaterialMesh {
 
     fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
         let mut decoded = Self::default();
         decoded.serialise_version = data.read_u16()?;
 
         match decoded.serialise_version {
-            1 => decoded.read_v1(data, extra_data)?,
-            _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("CustomMaterialMeshList"), decoded.serialise_version)),
+            4 => decoded.read_v4(data, extra_data)?,
+            _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("CustomMaterialMesh"), decoded.serialise_version)),
         }
 
         Ok(decoded)
     }
 }
 
-impl Encodeable for CustomMaterialMeshList {
+impl Encodeable for CustomMaterialMesh {
 
     fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         buffer.write_u16(self.serialise_version)?;
 
         match self.serialise_version {
-            1 => self.write_v1(buffer, extra_data)?,
-            _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("CustomMaterialMeshList"), self.serialise_version)),
+            4 => self.write_v4(buffer, extra_data)?,
+            _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("CustomMaterialMesh"), self.serialise_version)),
         }
 
         Ok(())
