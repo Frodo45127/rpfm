@@ -15,12 +15,9 @@ use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{Result, RLibError};
 use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 
-use self::point_light::PointLight;
-
 use super::*;
 
-mod point_light;
-mod v1;
+mod v4;
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
@@ -28,42 +25,47 @@ mod v1;
 
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct PointLightList {
+pub struct Flags {
     serialise_version: u16,
-    point_lights: Vec<PointLight>,
+    allow_in_outfield: bool,
+    clamp_to_water_surface: bool,
+    spring: bool,
+    summer: bool,
+    autumn: bool,
+    winter: bool,
+    visible_in_tactical_view: bool,
+    visible_in_tactical_view_only: bool,
 }
 
 //---------------------------------------------------------------------------//
-//                Implementation of PointLightList
+//                           Implementation of Flags
 //---------------------------------------------------------------------------//
 
-impl Decodeable for PointLightList {
+impl Decodeable for Flags {
 
     fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
-        let mut decoded = Self::default();
-        decoded.serialise_version = data.read_u16()?;
+        let mut flags = Self::default();
+        flags.serialise_version = data.read_u16()?;
 
-        match decoded.serialise_version {
-            1 => decoded.read_v1(data, extra_data)?,
-            _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("PointLightList"), decoded.serialise_version)),
+        match flags.serialise_version {
+            4 => flags.read_v4(data, extra_data)?,
+            _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("Flags"), flags.serialise_version)),
         }
 
-        Ok(decoded)
+        Ok(flags)
     }
 }
 
-impl Encodeable for PointLightList {
+impl Encodeable for Flags {
 
     fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         buffer.write_u16(self.serialise_version)?;
 
         match self.serialise_version {
-            1 => self.write_v1(buffer, extra_data)?,
-            _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("PointLightList"), self.serialise_version)),
+            4 => self.write_v4(buffer, extra_data)?,
+            _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("Flags"), self.serialise_version)),
         }
 
         Ok(())
     }
 }
-
- 
