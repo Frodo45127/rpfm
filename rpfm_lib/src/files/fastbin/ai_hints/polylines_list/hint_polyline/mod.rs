@@ -28,8 +28,8 @@ mod v2;
 pub struct HintPolyline {
     serialise_version: u16,
     rtype: String,
-    district: String,
     polygons: Vec<Polygon>,
+    district: u32,
 }
 
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
@@ -41,8 +41,8 @@ pub struct Polygon {
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Point {
-    x: u32,
-    y: u32,
+    x: f32,
+    y: f32,
 }
 
 //---------------------------------------------------------------------------//

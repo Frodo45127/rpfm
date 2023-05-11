@@ -21,15 +21,15 @@ impl HintPolyline {
 
     pub(crate) fn read_v2<R: ReadBytes>(&mut self, data: &mut R, _extra_data: &Option<DecodeableExtraData>) -> Result<()> {
         self.rtype = data.read_sized_string_u8()?;
-        self.district = data.read_sized_string_u8()?;
+        self.district = data.read_u32()?;
 
         for _ in 0..data.read_u32()? {
             let mut polygon = Polygon::default();
 
             for _ in 0..data.read_u32()? {
                 polygon.points.push(Point {
-                    x: data.read_u32()?,
-                    y: data.read_u32()?,
+                    x: data.read_f32()?,
+                    y: data.read_f32()?,
                 });
             }
 
@@ -41,14 +41,14 @@ impl HintPolyline {
 
     pub(crate) fn write_v2<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         buffer.write_sized_string_u8(&self.rtype)?;
-        buffer.write_sized_string_u8(&self.district)?;
+        buffer.write_u32(self.district)?;
 
         buffer.write_u32(self.polygons.len() as u32)?;
         for polygon in &self.polygons {
             buffer.write_u32(polygon.points.len() as u32)?;
             for point in &polygon.points {
-                buffer.write_u32(point.x)?;
-                buffer.write_u32(point.y)?;
+                buffer.write_f32(point.x)?;
+                buffer.write_f32(point.y)?;
             }
         }
 

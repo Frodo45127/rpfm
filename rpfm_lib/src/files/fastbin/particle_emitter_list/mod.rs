@@ -15,8 +15,10 @@ use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{Result, RLibError};
 use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 
+use self::particle_emitter::ParticleEmitter;
 use super::*;
 
+mod particle_emitter;
 mod v1;
 
 //---------------------------------------------------------------------------//
@@ -27,7 +29,7 @@ mod v1;
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct ParticleEmitterList {
     serialise_version: u16,
-    particle_emitters: Vec<u8>,
+    particle_emitters: Vec<ParticleEmitter>,
 }
 
 //---------------------------------------------------------------------------//

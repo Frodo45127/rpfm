@@ -15,12 +15,13 @@ use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{Result, RLibError};
 use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 
-use self::terrain_stencil_triangle::TerrainStencilTriangle;
-
+use self::flags::Flags;
+use self::transform::Transform;
 use super::*;
 
-mod terrain_stencil_triangle;
-mod v1;
+mod flags;
+mod transform;
+mod v10;
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
@@ -28,38 +29,48 @@ mod v1;
 
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct TerrainStencilTriangleList {
+pub struct ParticleEmitter {
     serialise_version: u16,
-    terrain_stencil_triangles: Vec<TerrainStencilTriangle>,
+    key: String,
+    transform: Transform,
+    emission_rate: f32,
+    instance_name: String,
+    flags: Flags,
+    height_mode: String,
+    pdlc_mask: u64,
+    autoplay: bool,
+    visible_in_shroud: bool,
+    parent_id: i32,
+    visible_without_shroud: bool,
 }
 
 //---------------------------------------------------------------------------//
-//                   Implementation of TerrainStencilTriangleList
+//                   Implementation of ParticleEmitter
 //---------------------------------------------------------------------------//
 
-impl Decodeable for TerrainStencilTriangleList {
+impl Decodeable for ParticleEmitter {
 
     fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
         let mut decoded = Self::default();
         decoded.serialise_version = data.read_u16()?;
 
         match decoded.serialise_version {
-            1 => decoded.read_v1(data, extra_data)?,
-            _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("TerrainStencilTriangleList"), decoded.serialise_version)),
+            10 => decoded.read_v10(data, extra_data)?,
+            _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("ParticleEmitter"), decoded.serialise_version)),
         }
 
         Ok(decoded)
     }
 }
 
-impl Encodeable for TerrainStencilTriangleList {
+impl Encodeable for ParticleEmitter {
 
     fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         buffer.write_u16(self.serialise_version)?;
 
         match self.serialise_version {
-            1 => self.write_v1(buffer, extra_data)?,
-            _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("TerrainStencilTriangleList"), self.serialise_version)),
+            10 => self.write_v10(buffer, extra_data)?,
+            _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("ParticleEmitter"), self.serialise_version)),
         }
 
         Ok(())
