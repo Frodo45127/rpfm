@@ -15,12 +15,9 @@ use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{Result, RLibError};
 use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 
-use self::prefab_instance::PrefabInstance;
-
 use super::*;
 
-mod prefab_instance;
-mod v1;
+mod v11;
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
@@ -28,41 +25,59 @@ mod v1;
 
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct PrefabInstanceList {
+pub struct PropertyOverride {
     serialise_version: u16,
-    prefab_instances: Vec<PrefabInstance>,
+    building_id: String,
+    starting_damage_unary: f32,
+    on_fire: bool,
+    start_disabled: bool,
+    weak_point: bool,
+    ai_breachable: bool,
+    indestructible: bool,
+    dockable: bool,
+    toggleable: bool,
+    lite: bool,
+    cast_shadows: bool,
+    key_building: bool,
+    key_building_use_fort: bool,
+    is_prop_in_outfield: bool,
+    settlement_level_configurable: bool,
+    hide_tooltip: bool,
+    include_in_fog: bool,
 }
 
 //---------------------------------------------------------------------------//
-//                Implementation of PrefabInstanceList
+//                Implementation of PropertyOverride
 //---------------------------------------------------------------------------//
 
-impl Decodeable for PrefabInstanceList {
+impl Decodeable for PropertyOverride {
 
     fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
         let mut decoded = Self::default();
         decoded.serialise_version = data.read_u16()?;
 
         match decoded.serialise_version {
-            1 => decoded.read_v1(data, extra_data)?,
-            _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("PrefabInstanceList"), decoded.serialise_version)),
+            11 => decoded.read_v11(data, extra_data)?,
+            _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("PropertyOverride"), decoded.serialise_version)),
         }
 
         Ok(decoded)
     }
 }
 
-impl Encodeable for PrefabInstanceList {
+impl Encodeable for PropertyOverride {
 
     fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         buffer.write_u16(self.serialise_version)?;
 
         match self.serialise_version {
-            1 => self.write_v1(buffer, extra_data)?,
-            _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("PrefabInstanceList"), self.serialise_version)),
+            11 => self.write_v11(buffer, extra_data)?,
+            _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("PropertyOverride"), self.serialise_version)),
         }
 
         Ok(())
     }
 }
+
+
  
