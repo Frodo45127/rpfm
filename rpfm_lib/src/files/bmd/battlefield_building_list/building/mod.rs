@@ -20,6 +20,7 @@ use self::properties::Properties;
 use super::*;
 
 mod properties;
+mod v8;
 mod v11;
 
 //---------------------------------------------------------------------------//
@@ -52,6 +53,7 @@ impl Decodeable for Building {
         prop.serialise_version = data.read_u16()?;
 
         match prop.serialise_version {
+            8 => prop.read_v8(data, extra_data)?,
             11 => prop.read_v11(data, extra_data)?,
             _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("Building"), prop.serialise_version)),
         }
@@ -66,6 +68,7 @@ impl Encodeable for Building {
         buffer.write_u16(self.serialise_version)?;
 
         match self.serialise_version {
+            8 => self.write_v8(buffer, extra_data)?,
             11 => self.write_v11(buffer, extra_data)?,
             _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("Building"), self.serialise_version)),
         }

@@ -15,8 +15,11 @@ use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{Result, RLibError};
 use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 
+use self::building_projectile_emitter::BuildingProjectileEmitter;
+
 use super::*;
 
+mod building_projectile_emitter;
 mod v1;
 
 //---------------------------------------------------------------------------//
@@ -27,7 +30,7 @@ mod v1;
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct BuildingProjectileEmitterList {
     serialise_version: u16,
-    building_projectile_emitters: Vec<u8>,
+    building_projectile_emitters: Vec<BuildingProjectileEmitter>,
 }
 
 //---------------------------------------------------------------------------//

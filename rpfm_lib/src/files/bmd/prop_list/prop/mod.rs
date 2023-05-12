@@ -13,13 +13,11 @@ use serde_derive::{Serialize, Deserialize};
 
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{Result, RLibError};
-use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
-
-use self::flags::Flags;
+use crate::files::{bmd::common::flags::Flags, Decodeable, EncodeableExtraData, Encodeable};
 
 use super::*;
 
-mod flags;
+mod v15;
 mod v25;
 
 //---------------------------------------------------------------------------//
@@ -76,6 +74,7 @@ impl Decodeable for Prop {
         prop.serialise_version = data.read_u16()?;
 
         match prop.serialise_version {
+            15 => prop.read_v15(data, extra_data)?,
             25 => prop.read_v25(data, extra_data)?,
             _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("Prop"), prop.serialise_version)),
         }
@@ -90,6 +89,7 @@ impl Encodeable for Prop {
         buffer.write_u16(self.serialise_version)?;
 
         match self.serialise_version {
+            15 => self.write_v15(buffer, extra_data)?,
             25 => self.write_v25(buffer, extra_data)?,
             _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("Prop"), self.serialise_version)),
         }

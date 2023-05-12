@@ -99,6 +99,8 @@ mod grass_list_reference_list;
 mod water_outlines;
 
 mod common;
+mod v23;
+mod v26;
 mod v27;
 
 #[cfg(test)] mod bmd_test;
@@ -152,6 +154,8 @@ pub struct Bmd {
 //---------------------------------------------------------------------------//
 //                           Implementation of Bmd
 //---------------------------------------------------------------------------//
+
+// TODO: Move properties, property_overrides and flags to common.
 
 impl Bmd {
     pub fn to_layer(&self) -> Result<String> {
@@ -247,9 +251,10 @@ impl Bmd {
                 clamp_to_sea_level=\"false\"
                 terrain_oriented=\"{}\"
                 fit_height_to_terrain=\"false\"/>",
-                building.height_mode() == "BHM_TERRAIN" || building.height_mode() == "BHM_TERRAIN_ALIGN_ORIENTATION",
+                *building.properties().clamp_to_surface() || building.height_mode() == "BHM_TERRAIN" || building.height_mode() == "BHM_TERRAIN_ALIGN_ORIENTATION",
                 building.height_mode() == "BHM_TERRAIN_ALIGN_ORIENTATION"
             ));
+
             layer.push_str(&format!("<ECPrefabOverride enabled=\"false\" id=\"{}\"/>", building.building_key()));
 
 
@@ -299,6 +304,8 @@ impl Decodeable for Bmd {
         fastbin.serialise_version = data.read_u16()?;
 
         match fastbin.serialise_version {
+            23 => fastbin.read_v23(data, extra_data)?,
+            26 => fastbin.read_v26(data, extra_data)?,
             27 => fastbin.read_v27(data, extra_data)?,
             _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("Bmd"), fastbin.serialise_version)),
         }
@@ -317,6 +324,8 @@ impl Encodeable for Bmd {
         buffer.write_u16(self.serialise_version)?;
 
         match self.serialise_version {
+            23 => self.write_v23(buffer, extra_data)?,
+            26 => self.write_v26(buffer, extra_data)?,
             27 => self.write_v27(buffer, extra_data)?,
             _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("Bmd"), self.serialise_version)),
         }
