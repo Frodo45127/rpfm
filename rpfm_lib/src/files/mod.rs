@@ -82,6 +82,7 @@ use self::anim_fragment::AnimFragment;
 use self::animpack::AnimPack;
 use self::anims_table::AnimsTable;
 use self::audio::Audio;
+use self::bmd::Bmd;
 use self::db::DB;
 use self::esf::ESF;
 use self::image::Image;
@@ -101,9 +102,9 @@ pub mod anim_fragment;
 pub mod animpack;
 pub mod anims_table;
 pub mod audio;
+pub mod bmd;
 pub mod db;
 pub mod esf;
-pub mod fastbin;
 pub mod image;
 pub mod loc;
 pub mod matched_combat;
@@ -211,6 +212,7 @@ pub enum RFileDecoded {
     AnimPack(AnimPack),
     AnimsTable(AnimsTable),
     Audio(Audio),
+    BMD(Bmd),
     DB(DB),
     ESF(ESF),
     GroupFormations(Unknown),
@@ -240,6 +242,7 @@ pub enum FileType {
     AnimPack,
     AnimsTable,
     Audio,
+    BMD,
     DB,
     ESF,
     GroupFormations,
@@ -1331,6 +1334,7 @@ impl RFile {
             (FileType::AnimPack, &RFileDecoded::AnimPack(_)) |
             (FileType::AnimsTable, &RFileDecoded::AnimsTable(_)) |
             (FileType::Audio, &RFileDecoded::Audio(_)) |
+            (FileType::BMD, &RFileDecoded::BMD(_)) |
             (FileType::DB, &RFileDecoded::DB(_)) |
             (FileType::ESF, &RFileDecoded::ESF(_)) |
             (FileType::GroupFormations, &RFileDecoded::GroupFormations(_)) |
@@ -1397,6 +1401,7 @@ impl RFile {
                     FileType::AnimPack => RFileDecoded::AnimPack(AnimPack::decode(&mut data, &Some(extra_data))?),
                     FileType::AnimsTable => RFileDecoded::AnimsTable(AnimsTable::decode(&mut data, &Some(extra_data))?),
                     FileType::Audio => RFileDecoded::Audio(Audio::decode(&mut data, &Some(extra_data))?),
+                    FileType::BMD => RFileDecoded::BMD(Bmd::decode(&mut data, &Some(extra_data))?),
                     FileType::DB => {
 
                         if extra_data.table_name.is_none() {
@@ -1430,6 +1435,7 @@ impl RFile {
                     FileType::AnimFragment |
                     FileType::AnimsTable |
                     FileType::Audio |
+                    FileType::BMD |
                     FileType::DB |
                     FileType::ESF |
                     FileType::GroupFormations |
@@ -1462,6 +1468,7 @@ impl RFile {
                             FileType::AnimFragment => RFileDecoded::AnimFragment(AnimFragment::decode(&mut data, &Some(extra_data))?),
                             FileType::AnimsTable => RFileDecoded::AnimsTable(AnimsTable::decode(&mut data, &Some(extra_data))?),
                             FileType::Audio => RFileDecoded::Audio(Audio::decode(&mut data, &Some(extra_data))?),
+                            FileType::BMD => RFileDecoded::BMD(Bmd::decode(&mut data, &Some(extra_data))?),
                             FileType::DB => {
 
                                 if extra_data.table_name.is_none() {
@@ -1568,6 +1575,7 @@ impl RFile {
                     RFileDecoded::AnimPack(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::AnimsTable(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::Audio(data) => data.encode(&mut buffer, extra_data)?,
+                    RFileDecoded::BMD(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::DB(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::ESF(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::GroupFormations(data) => data.encode(&mut buffer, extra_data)?,
@@ -1755,6 +1763,11 @@ impl RFile {
 
         else if audio::EXTENSIONS.iter().any(|x| path.ends_with(x)) {
             self.file_type = FileType::Audio;
+        }
+
+        // TODO: detect bin files for maps and tile maps.
+        else if bmd::EXTENSIONS.iter().any(|x| path.ends_with(x)) {
+            self.file_type = FileType::BMD;
         }
 
         else if cfg!(feature = "support_soundbank") && path.ends_with(soundbank::EXTENSION) {
@@ -2176,6 +2189,7 @@ impl Display for FileType {
             FileType::AnimPack => write!(f, "AnimPack"),
             FileType::AnimsTable => write!(f, "AnimsTable"),
             FileType::Audio => write!(f, "Audio"),
+            FileType::BMD => write!(f, "Battle Map Definition"),
             FileType::DB => write!(f, "DB Table"),
             FileType::ESF => write!(f, "ESF"),
             FileType::GroupFormations => write!(f, "Group Formations"),
@@ -2204,6 +2218,7 @@ impl From<&str> for FileType {
             "AnimPack" => FileType::AnimPack,
             "AnimsTable" => FileType::AnimsTable,
             "Audio" => FileType::Audio,
+            "BMD" => FileType::BMD,
             "DB" => FileType::DB,
             "ESF" => FileType::ESF,
             "GroupFormations" => FileType::GroupFormations,
@@ -2232,6 +2247,7 @@ impl From<FileType> for String {
             FileType::AnimPack => "AnimPack",
             FileType::AnimsTable => "AnimsTable",
             FileType::Audio => "Audio",
+            FileType::BMD => "BMD",
             FileType::DB => "DB",
             FileType::ESF => "ESF",
             FileType::GroupFormations => "GroupFormations",
@@ -2259,6 +2275,7 @@ impl From<&RFileDecoded> for FileType {
             RFileDecoded::AnimPack(_) => Self::AnimPack,
             RFileDecoded::AnimsTable(_) => Self::AnimsTable,
             RFileDecoded::Audio(_) => Self::Audio,
+            RFileDecoded::BMD(_) => Self::BMD,
             RFileDecoded::DB(_) => Self::DB,
             RFileDecoded::ESF(_) => Self::ESF,
             RFileDecoded::GroupFormations(_) => Self::GroupFormations,

@@ -22,7 +22,7 @@ use cpp_core::Ref;
 
 use std::sync::atomic::AtomicPtr;
 
-use rpfm_lib::files::{animpack, anim_fragment, anims_table, audio, esf, FileType, image, loc, matched_combat, pack, portrait_settings, rigidmodel, soundbank, text, text::*, unit_variant, video, uic};
+use rpfm_lib::files::{animpack, anim_fragment, anims_table, audio, esf, bmd, FileType, image, loc, matched_combat, pack, portrait_settings, rigidmodel, soundbank, text, text::*, unit_variant, video, uic};
 use rpfm_lib::{REGEX_DB, REGEX_PORTRAIT_SETTINGS};
 use rpfm_ui_common::ASSETS_PATH;
 
@@ -54,6 +54,7 @@ pub struct Icons {
     pub anim_fragment: AtomicPtr<QIcon>,
     pub anims_table: AtomicPtr<QIcon>,
     pub audio: AtomicPtr<QIcon>,
+    pub bmd: AtomicPtr<QIcon>,
     pub db: AtomicPtr<QIcon>,
     pub esf: AtomicPtr<QIcon>,
 
@@ -101,6 +102,7 @@ impl Icons {
             anim_fragment: atomic_from_cpp_box(Self::load_icon("anim_fragment", "animation-stage")),
             anims_table: atomic_from_cpp_box(Self::load_icon("anims_table", "gnumeric-pivottable")),
             audio: atomic_from_cpp_box(Self::load_icon("audio", "audio-mp3")),
+            bmd: atomic_from_cpp_box(Self::load_icon("bmd", "application-xmind")),
             db: atomic_from_cpp_box(Self::load_icon("db", "application-sql")),
             esf: atomic_from_cpp_box(Self::load_icon("esf", "application-x-bzdvi")),
             image_generic: atomic_from_cpp_box(Self::load_icon("image_generic", "image-x-generic")),
@@ -183,6 +185,11 @@ impl Icons {
 
                 else if audio::EXTENSIONS.iter().any(|x| path.ends_with(x)) {
                     &self.audio
+                }
+
+                // TODO: detect .bin files for maps and campaign.
+                else if bmd::EXTENSIONS.iter().any(|x| path.ends_with(x)) {
+                    &self.bmd
                 }
 
                 else if cfg!(feature = "support_soundbank") && path.ends_with(soundbank::EXTENSION) {
@@ -272,6 +279,7 @@ impl Icons {
                     FileType::AnimPack => &self.animpack,
                     FileType::AnimsTable => &self.anims_table,
                     FileType::Audio => &self.audio,
+                    FileType::BMD => &self.bmd,
                     FileType::DB => &self.db,
                     FileType::ESF => &self.esf,
                     FileType::GroupFormations => &self.file,

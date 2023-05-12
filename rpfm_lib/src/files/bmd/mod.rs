@@ -8,7 +8,7 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! This is a module to read/write FASTBIN binary files.
+//! This is a module to read/write Battle Map Definition binary (FASTBIN0) files.
 
 use getset::*;
 use serde_derive::{Serialize, Deserialize};
@@ -55,7 +55,7 @@ use self::grass_list_reference_list::GrassListReferenceList;
 use self::water_outlines::WaterOutlines;
 use super::DecodeableExtraData;
 
-/// Extensions used by FASTBIN files.
+/// Extensions used by BMD files.
 pub const EXTENSIONS: [&str; 1] = [
     ".bmd",
 ];
@@ -101,16 +101,16 @@ mod water_outlines;
 mod common;
 mod v27;
 
-#[cfg(test)] mod fastbin_test;
+#[cfg(test)] mod bmd_test;
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
-/// This holds an entire `Text` file decoded in memory.
+/// This holds an entire `Bmd` file decoded in memory.
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct FastBin {
+pub struct Bmd {
     serialise_version: u16,
 
     battlefield_building_list: BattlefieldBuildingList,
@@ -150,10 +150,10 @@ pub struct FastBin {
 }
 
 //---------------------------------------------------------------------------//
-//                           Implementation of Text
+//                           Implementation of Bmd
 //---------------------------------------------------------------------------//
 
-impl FastBin {
+impl Bmd {
     pub fn to_layer(&self) -> Result<String> {
         let mut layer = String::new();
         layer.push_str("
@@ -287,7 +287,7 @@ impl FastBin {
     }
 }
 
-impl Decodeable for FastBin {
+impl Decodeable for Bmd {
 
     fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
         let signature_bytes = data.read_slice(8, false)?;
@@ -300,7 +300,7 @@ impl Decodeable for FastBin {
 
         match fastbin.serialise_version {
             27 => fastbin.read_v27(data, extra_data)?,
-            _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("FastBin"), fastbin.serialise_version)),
+            _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("Bmd"), fastbin.serialise_version)),
         }
 
         // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt.
@@ -310,7 +310,7 @@ impl Decodeable for FastBin {
     }
 }
 
-impl Encodeable for FastBin {
+impl Encodeable for Bmd {
 
     fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         buffer.write_all(SIGNATURE)?;
@@ -318,7 +318,7 @@ impl Encodeable for FastBin {
 
         match self.serialise_version {
             27 => self.write_v27(buffer, extra_data)?,
-            _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("FastBin"), self.serialise_version)),
+            _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("Bmd"), self.serialise_version)),
         }
 
         Ok(())

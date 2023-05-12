@@ -15,10 +15,10 @@ use crate::files::Decodeable;
 use super::*;
 
 //---------------------------------------------------------------------------//
-//                           Implementation of Text
+//                           Implementation of Bmd
 //---------------------------------------------------------------------------//
 
-impl FastBin {
+impl Bmd {
 
     pub(crate) fn read_v27<R: ReadBytes>(&mut self, data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<()> {
         self.battlefield_building_list = BattlefieldBuildingList::decode(data, extra_data)?;

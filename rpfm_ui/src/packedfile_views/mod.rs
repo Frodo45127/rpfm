@@ -45,6 +45,7 @@ use self::anim_fragment::FileAnimFragmentDebugView;
 use self::animpack::PackedFileAnimPackView;
 use self::anims_table::FileAnimsTableDebugView;
 use self::audio::FileAudioView;
+use self::bmd::FileBMDView;
 use self::esf::PackedFileESFView;
 use self::decoder::PackedFileDecoderView;
 use self::dependencies_manager::DependenciesManagerView;
@@ -70,6 +71,7 @@ pub mod anim_fragment;
 pub mod animpack;
 pub mod anims_table;
 pub mod audio;
+pub mod bmd;
 pub mod decoder;
 pub mod dependencies_manager;
 pub mod esf;
@@ -151,6 +153,7 @@ pub enum View {
     AnimPack(Arc<PackedFileAnimPackView>),
     AnimsTableDebug(Arc<FileAnimsTableDebugView>),
     Audio(Arc<FileAudioView>),
+    Bmd(Arc<FileBMDView>),
     Decoder(Arc<PackedFileDecoderView>),
     DependenciesManager(Arc<DependenciesManagerView>),
     Esf(Arc<PackedFileESFView>),
@@ -401,6 +404,13 @@ impl FileView {
                                 text.set_contents(string);
                                 RFileDecoded::Text(text)
                             },
+
+                            // TODO: move this out of here, as it can (and will) fail on broken jsons.
+                            View::Bmd(view) => {
+                                let string = get_text_safe(view.get_mut_editor()).to_std_string();
+                                let data = serde_json::from_str(&string)?;
+                                RFileDecoded::BMD(data)
+                            },
                             #[cfg(feature = "support_uic")]
                             View::UIC(view) => {
                                 RFileDecoded::UIC(view.save_view())
@@ -504,6 +514,16 @@ impl FileView {
                                 old_audio.reload_view(&audio);
                                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
 
+                            }
+                            else {
+                                return Err(anyhow!(RFILE_RELOAD_ERROR));
+                            }
+                        },
+
+                        Response::BmdRFileInfo(data, packed_file_info) => {
+                            if let View::Bmd(old_data) = view {
+                                old_data.reload_view(&data);
+                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
                             }
                             else {
                                 return Err(anyhow!(RFILE_RELOAD_ERROR));

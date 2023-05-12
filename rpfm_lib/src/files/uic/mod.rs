@@ -175,7 +175,7 @@ impl Decodeable for UIC {
 
 impl Encodeable for UIC {
 
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, _buffer: &mut W, _extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         if self.source_is_xml {
             //xml::v138::XmlLayout::encode(&mut self, buffer, extra_data)
             todo!()
