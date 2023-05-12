@@ -142,3 +142,36 @@ fn test_encode_bmd_to_layer() {
     assert_eq!(before, after);
 }
 */
+/*
+#[test]
+fn test_mass_decode() {
+    let folder_path = "/home/frodo45127/Proyectos/rpfm_test_files2/prefabs/";
+    let paths = files_from_subdir(&PathBuf::from(folder_path), true).unwrap();
+    let mut failures = 0;
+    let mut heigh_modes = HashSet::new();
+    let decodeable_extra_data = Some(DecodeableExtraData::default());
+    for path in &paths {
+        //println!("{}", path.to_string_lossy());
+
+        let mut reader = BufReader::new(File::open(path).unwrap());
+        match Bmd::decode(&mut reader, &decodeable_extra_data) {
+            Ok(data) => {
+                for building in data.battlefield_building_list().buildings() {
+                    heigh_modes.insert(building.height_mode().to_owned());
+                }
+
+                for prop in data.prop_list().props() {
+                    heigh_modes.insert(prop.height_mode().to_owned());
+                }
+            },
+            Err(error) => {
+                println!("\t{}", error);
+                failures += 1;
+            }
+        }
+    }
+
+    println!("Total errors: {}", failures);
+    dbg!(heigh_modes);
+}
+*/
