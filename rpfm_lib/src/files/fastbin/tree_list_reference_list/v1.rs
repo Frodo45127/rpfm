@@ -19,7 +19,7 @@ use super::*;
 
 impl TreeListReferenceList {
 
-    pub(crate) fn read_v1<R: ReadBytes>(&mut self, data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<()> {
+    pub(crate) fn read_v1<R: ReadBytes>(&mut self, data: &mut R, _extra_data: &Option<DecodeableExtraData>) -> Result<()> {
         for _ in 0..data.read_u32()? {
 
         }

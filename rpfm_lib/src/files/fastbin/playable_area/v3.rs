@@ -20,7 +20,7 @@ use super::*;
 impl PlayableArea {
 
     pub(crate) fn read_v3<R: ReadBytes>(&mut self, data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<()> {
-        self.area = Area::decode(data, extra_data)?;
+        self.area = Rectangle::decode(data, extra_data)?;
         self.has_been_set = data.read_bool()?;
         self.valid_location_flags = ValidLocationFlags::decode(data, extra_data)?;
 

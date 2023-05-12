@@ -16,12 +16,10 @@ use crate::error::Result;
 use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 
 use self::battlefield_zone_template::BattlefiedZoneTemplate;
-use self::transform::Transform;
 
 use super::*;
 
 mod battlefield_zone_template;
-mod transform;
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
@@ -31,7 +29,7 @@ mod transform;
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Zone {
     battlefield_zone_template: BattlefiedZoneTemplate,
-    transform: Transform,
+    transform: Transform4x4,
 }
 
 //---------------------------------------------------------------------------//
@@ -44,7 +42,7 @@ impl Decodeable for Zone {
         let mut decoded = Self::default();
 
         decoded.battlefield_zone_template = BattlefiedZoneTemplate::decode(data, extra_data)?;
-        decoded.transform = Transform::decode(data, extra_data)?;
+        decoded.transform = Transform4x4::decode(data, extra_data)?;
 
         Ok(decoded)
     }

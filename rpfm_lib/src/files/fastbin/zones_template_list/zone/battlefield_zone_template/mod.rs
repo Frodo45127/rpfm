@@ -31,19 +31,6 @@ pub struct BattlefiedZoneTemplate {
 
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct Outline {
-    outline: Vec<Position>,
-}
-
-#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
-#[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct Position {
-    x: f32,
-    y: f32,
-}
-
-#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
-#[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct EntityFormationTemplate {
     name: String,
     lines: Vec<Line>,
@@ -53,18 +40,10 @@ pub struct EntityFormationTemplate {
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Line {
     label: String,
-    start: Position3D,
-    end: Position3D,
+    start: Point3d,
+    end: Point3d,
     purpose: String,
     orientation: f32,
-}
-
-#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
-#[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct Position3D {
-    x: f32,
-    y: f32,
-    z: f32
 }
 
 //---------------------------------------------------------------------------//
@@ -73,32 +52,18 @@ pub struct Position3D {
 
 impl Decodeable for BattlefiedZoneTemplate {
 
-    fn decode<R: ReadBytes>(data: &mut R, _extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
+    fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
         let mut decoded = Self::default();
 
-        for _ in 0..data.read_u32()? {
-            decoded.outline.outline.push(Position {
-                x: data.read_f32()?,
-                y: data.read_f32()?
-            });
-        }
-
+        decoded.outline = Outline::decode(data, extra_data)?;
         decoded.zone_name = data.read_sized_string_u8()?;
         decoded.entity_formation_template.name = data.read_sized_string_u8()?;
 
         for _ in 0..data.read_u32()? {
             let mut line = Line::default();
             line.label = data.read_sized_string_u8()?;
-            line.start = Position3D {
-                x: data.read_f32()?,
-                y: data.read_f32()?,
-                z: data.read_f32()?,
-            };
-            line.end = Position3D {
-                x: data.read_f32()?,
-                y: data.read_f32()?,
-                z: data.read_f32()?,
-            };
+            line.start = Point3d::decode(data, extra_data)?;
+            line.end = Point3d::decode(data, extra_data)?;
             line.purpose = data.read_sized_string_u8()?;
             line.orientation = data.read_f32()?;
 
@@ -111,27 +76,18 @@ impl Decodeable for BattlefiedZoneTemplate {
 
 impl Encodeable for BattlefiedZoneTemplate {
 
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: &Option<EncodeableExtraData>) -> Result<()> {
-
-        buffer.write_u32(self.outline.outline.len() as u32)?;
-        for position in &self.outline.outline {
-            buffer.write_f32(position.x)?;
-            buffer.write_f32(position.y)?;
-        }
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+        self.outline.encode(buffer, extra_data)?;
 
         buffer.write_sized_string_u8(&self.zone_name)?;
         buffer.write_sized_string_u8(&self.entity_formation_template.name)?;
 
         buffer.write_u32(self.entity_formation_template.lines.len() as u32)?;
-        for line in &self.entity_formation_template.lines {
+        for line in &mut self.entity_formation_template.lines {
             buffer.write_sized_string_u8(&line.label)?;
-            buffer.write_f32(line.start.x)?;
-            buffer.write_f32(line.start.y)?;
-            buffer.write_f32(line.start.z)?;
 
-            buffer.write_f32(line.end.x)?;
-            buffer.write_f32(line.end.y)?;
-            buffer.write_f32(line.end.z)?;
+            line.start.encode(buffer, extra_data)?;
+            line.end.encode(buffer, extra_data)?;
 
             buffer.write_sized_string_u8(&line.purpose)?;
             buffer.write_f32(line.orientation)?;

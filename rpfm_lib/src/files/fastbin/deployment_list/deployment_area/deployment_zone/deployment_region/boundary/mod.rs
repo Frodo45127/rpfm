@@ -28,14 +28,8 @@ mod v1;
 pub struct Boundary {
     serialise_version: u16,
     deployment_area_boundary_type: String,
-    boundary: Vec<Position>,
+    boundary: Vec<Point2d>,
 }
-
-#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
-#[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct Position {
-    x: f32,
-    y: f32,}
 
 //---------------------------------------------------------------------------//
 //                   Implementation of Boundary

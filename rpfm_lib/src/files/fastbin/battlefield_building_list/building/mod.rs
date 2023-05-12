@@ -16,12 +16,10 @@ use crate::error::{Result, RLibError};
 use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 
 use self::properties::Properties;
-use self::transform::Transform;
 
 use super::*;
 
 mod properties;
-mod transform;
 mod v11;
 
 //---------------------------------------------------------------------------//
@@ -36,7 +34,7 @@ pub struct Building {
     parent_id: i32,
     building_key: String,
     position_type: String,
-    transform: Transform,
+    transform: Transform3x4,
     properties: Properties,
     height_mode: String,
     uid: u64,

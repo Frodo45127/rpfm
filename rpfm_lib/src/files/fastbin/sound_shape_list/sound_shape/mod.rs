@@ -32,7 +32,7 @@ pub struct SoundShape {
     serialise_version: u16,
     key: String,
     rtype: String,
-    points: Vec<Point>,
+    points: Vec<Point3d>,
     inner_radius: f32,
     outer_radius: f32,
     inner_cube: Cube,
@@ -42,52 +42,9 @@ pub struct SoundShape {
     height_mode: String,
     campaign_type_mask: u64,
     pdlc_mask: u64,
-    direction: Direction,
-    up: Up,
+    direction: Point3d,
+    up: Point3d,
     scope: String,
-}
-
-#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
-#[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct Direction {
-    x: f32,
-    y: f32,
-    z: f32,
-}
-
-#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
-#[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct Up {
-    x: f32,
-    y: f32,
-    z: f32,
-}
-
-#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
-#[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct Point {
-    x: f32,
-    y: f32,
-    z: f32,
-}
-
-#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
-#[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct Vertex {
-    x: f32,
-    y: f32,
-    z: f32,
-}
-
-#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
-#[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct Cube {
-    min_x: f32,
-    min_y: f32,
-    min_z: f32,
-    max_x: f32,
-    max_y: f32,
-    max_z: f32,
 }
 
 //---------------------------------------------------------------------------//

@@ -28,18 +28,11 @@ mod v4;
 pub struct HintPolyline {
     serialise_version: u16,
     rtype: String,
-    points: Vec<Point>,
+    points: Vec<Point2d>,
     script_id: String,
     only_vanguard: bool,
     only_deploy_when_clear: bool,
     spawn_vfx: bool,
-}
-
-#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
-#[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct Point {
-    x: f32,
-    y: f32,
 }
 
 //---------------------------------------------------------------------------//

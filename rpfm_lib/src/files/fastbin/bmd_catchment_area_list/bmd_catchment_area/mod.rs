@@ -15,11 +15,10 @@ use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{Result, RLibError};
 use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 
-use self::area::Area;
 use self::valid_location_flags::ValidLocationFlags;
+
 use super::*;
 
-mod area;
 mod valid_location_flags;
 mod v6;
 
@@ -32,7 +31,7 @@ mod v6;
 pub struct BmdCatchmentArea {
     serialise_version: u16,
     name: String,
-    area: Area,
+    area: Rectangle,
     battle_type: String,
     defending_faction_restriction: String,
     valid_location_flags: ValidLocationFlags,

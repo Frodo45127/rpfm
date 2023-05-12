@@ -19,14 +19,11 @@ use super::*;
 
 impl HintPolyline {
 
-    pub(crate) fn read_v4<R: ReadBytes>(&mut self, data: &mut R, _extra_data: &Option<DecodeableExtraData>) -> Result<()> {
+    pub(crate) fn read_v4<R: ReadBytes>(&mut self, data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<()> {
         self.rtype = data.read_sized_string_u8()?;
 
         for _ in 0..data.read_u32()? {
-            self.points.push(Point {
-                x: data.read_f32()?,
-                y: data.read_f32()?,
-            });
+            self.points.push(Point2d::decode(data, extra_data)?);
         }
 
         self.script_id = data.read_sized_string_u8()?;
@@ -37,13 +34,12 @@ impl HintPolyline {
         Ok(())
     }
 
-    pub(crate) fn write_v4<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+    pub(crate) fn write_v4<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         buffer.write_sized_string_u8(&self.rtype)?;
 
         buffer.write_u32(self.points.len() as u32)?;
-        for point in &self.points {
-            buffer.write_f32(point.x)?;
-            buffer.write_f32(point.y)?;
+        for point in &mut self.points {
+            point.encode(buffer, extra_data)?;
         }
 
         buffer.write_sized_string_u8(&self.script_id)?;

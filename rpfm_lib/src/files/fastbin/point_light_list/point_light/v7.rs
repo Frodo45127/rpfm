@@ -20,31 +20,16 @@ use super::*;
 impl PointLight {
 
     pub(crate) fn read_v7<R: ReadBytes>(&mut self, data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<()> {
-        self.position = Position {
-            x: data.read_f32()?,
-            y: data.read_f32()?,
-            z: data.read_f32()?,
-        };
-
+        self.position = Point3d::decode(data, extra_data)?;
         self.radius = data.read_f32()?;
-
-        self.colour = Colour {
-            r: data.read_f32()?,
-            g: data.read_f32()?,
-            b: data.read_f32()?,
-        };
+        self.colour = Colour::decode(data, extra_data)?;
         self.colour_scale = data.read_f32()?;
 
         // TODO: place some more lights and check this, because on the test files is all 0 and has a 4 in a boolean.
         self.animation_type = data.read_u8()?;
         self.colour_min = data.read_f32()?;
         self.random_offset = data.read_f32()?;
-
-        self.params = Params {
-            x: data.read_f32()?,
-            y: data.read_f32()?,
-        };
-
+        self.params = Point2d::decode(data, extra_data)?;
         self.falloff_type = data.read_sized_string_u8()?;
 
         // TODO: How the fuck do we get a 4 here?!!! It's supposed to be a boolean.
@@ -58,15 +43,11 @@ impl PointLight {
     }
 
     pub(crate) fn write_v7<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
-        buffer.write_f32(self.position.x)?;
-        buffer.write_f32(self.position.y)?;
-        buffer.write_f32(self.position.z)?;
+        self.position.encode(buffer, extra_data)?;
 
         buffer.write_f32(self.radius)?;
 
-        buffer.write_f32(self.colour.r)?;
-        buffer.write_f32(self.colour.g)?;
-        buffer.write_f32(self.colour.b)?;
+        self.colour.encode(buffer, extra_data)?;
 
         buffer.write_f32(self.colour_scale)?;
 
@@ -74,8 +55,7 @@ impl PointLight {
         buffer.write_f32(self.colour_min)?;
         buffer.write_f32(self.random_offset)?;
 
-        buffer.write_f32(self.params.x)?;
-        buffer.write_f32(self.params.y)?;
+        self.params.encode(buffer, extra_data)?;
 
         buffer.write_sized_string_u8(&self.falloff_type)?;
         buffer.write_u8(self.lf_relative)?;

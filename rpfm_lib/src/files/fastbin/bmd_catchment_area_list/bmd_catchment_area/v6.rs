@@ -21,7 +21,7 @@ impl BmdCatchmentArea {
 
     pub(crate) fn read_v6<R: ReadBytes>(&mut self, data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<()> {
         self.name = data.read_sized_string_u8()?;
-        self.area = Area::decode(data, extra_data)?;
+        self.area = Rectangle::decode(data, extra_data)?;
         self.battle_type = data.read_sized_string_u8()?;
         self.defending_faction_restriction = data.read_sized_string_u8()?;
         self.valid_location_flags = ValidLocationFlags::decode(data, extra_data)?;

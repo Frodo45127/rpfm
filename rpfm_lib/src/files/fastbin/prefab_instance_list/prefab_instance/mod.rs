@@ -16,12 +16,10 @@ use crate::error::{Result, RLibError};
 use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 
 use self::property_override::PropertyOverride;
-use self::transform::Transform;
 
 use super::*;
 
 mod property_override;
-mod transform;
 mod v9;
 
 //---------------------------------------------------------------------------//
@@ -33,7 +31,7 @@ mod v9;
 pub struct PrefabInstance {
     serialise_version: u16,
     key: String,
-    transform: Transform,
+    transform: Transform4x4,
     property_overrides: Vec<PropertyOverride>,
     campaign_type_mask: u64,
     campaign_region_key: String,

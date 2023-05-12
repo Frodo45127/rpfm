@@ -35,7 +35,7 @@ impl PropList {
     pub(crate) fn write_v2<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         buffer.write_u32(self.keys.len() as u32)?;
         for key in &self.keys {
-            buffer.write_sized_string_u8(&key)?;
+            buffer.write_sized_string_u8(key)?;
         }
 
         buffer.write_u32(self.props.len() as u32)?;

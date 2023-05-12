@@ -20,21 +20,9 @@ use super::*;
 impl TerrainStencilTriangle {
 
     pub(crate) fn read_v3<R: ReadBytes>(&mut self, data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<()> {
-        self.position_0 = Position {
-            x: data.read_f32()?,
-            y: data.read_f32()?,
-            z: data.read_f32()?,
-        };
-        self.position_1 = Position {
-            x: data.read_f32()?,
-            y: data.read_f32()?,
-            z: data.read_f32()?,
-        };
-        self.position_2 = Position {
-            x: data.read_f32()?,
-            y: data.read_f32()?,
-            z: data.read_f32()?,
-        };
+        self.position_0 = Point3d::decode(data, extra_data)?;
+        self.position_1 = Point3d::decode(data, extra_data)?;
+        self.position_2 = Point3d::decode(data, extra_data)?;
         self.height_mode = data.read_sized_string_u8()?;
         self.flags = Flags::decode(data, extra_data)?;
 
@@ -42,15 +30,9 @@ impl TerrainStencilTriangle {
     }
 
     pub(crate) fn write_v3<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
-        buffer.write_f32(self.position_0.x)?;
-        buffer.write_f32(self.position_0.y)?;
-        buffer.write_f32(self.position_0.z)?;
-        buffer.write_f32(self.position_1.x)?;
-        buffer.write_f32(self.position_1.y)?;
-        buffer.write_f32(self.position_1.z)?;
-        buffer.write_f32(self.position_2.x)?;
-        buffer.write_f32(self.position_2.y)?;
-        buffer.write_f32(self.position_2.z)?;
+        self.position_0.encode(buffer, extra_data)?;
+        self.position_1.encode(buffer, extra_data)?;
+        self.position_2.encode(buffer, extra_data)?;
 
         buffer.write_sized_string_u8(&self.height_mode)?;
 

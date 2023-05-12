@@ -15,12 +15,10 @@ use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{Result, RLibError};
 use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 
-use self::area::Area;
 use self::valid_location_flags::ValidLocationFlags;
 
 use super::*;
 
-mod area;
 mod valid_location_flags;
 mod v3;
 
@@ -32,7 +30,7 @@ mod v3;
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct PlayableArea {
     serialise_version: u16,
-    area: Area,
+    area: Rectangle,
     has_been_set: bool,
     valid_location_flags: ValidLocationFlags,
 }

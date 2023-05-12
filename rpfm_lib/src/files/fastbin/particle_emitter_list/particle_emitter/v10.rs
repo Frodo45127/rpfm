@@ -22,7 +22,7 @@ impl ParticleEmitter {
     pub(crate) fn read_v10<R: ReadBytes>(&mut self, data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<()> {
         self.key = data.read_sized_string_u8()?;
 
-        self.transform = Transform::decode(data, extra_data)?;
+        self.transform = Transform3x4::decode(data, extra_data)?;
 
         self.emission_rate = data.read_f32()?;
         self.instance_name = data.read_sized_string_u8()?;

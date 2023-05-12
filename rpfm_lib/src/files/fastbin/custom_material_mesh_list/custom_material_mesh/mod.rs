@@ -16,12 +16,10 @@ use crate::error::{Result, RLibError};
 use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 
 use self::flags::Flags;
-use self::transform::Transform;
 
 use super::*;
 
 mod flags;
-mod transform;
 mod v4;
 
 //---------------------------------------------------------------------------//
@@ -32,26 +30,18 @@ mod v4;
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct CustomMaterialMesh {
     serialise_version: u16,
-    vertices: Vec<Vertex>,
+    vertices: Vec<Point3d>,
     indices: Vec<u16>,
     material: String,
     height_mode: String,
     flags: Flags,
-    transform: Transform,
+    transform: Transform3x4,
     snow_inside: bool,
     snow_outside: bool,
     destruction_inside: bool,
     destruction_outside: bool,
     visible_in_shroud: bool,
     visible_without_shroud: bool,
-}
-
-#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
-#[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct Vertex {
-    x: f32,
-    y: f32,
-    z: f32,
 }
 
 //---------------------------------------------------------------------------//

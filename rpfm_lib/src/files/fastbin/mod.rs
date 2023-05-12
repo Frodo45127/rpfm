@@ -21,6 +21,7 @@ use crate::utils::check_size_mismatch;
 use self::battlefield_building_list::BattlefieldBuildingList;
 use self::battlefield_building_list_far::BattlefieldBuildingListFar;
 use self::capture_location_set::CaptureLocationSet;
+use self::common::*;
 use self::ef_line_list::EFLineList;
 use self::go_outlines::GoOutlines;
 use self::non_terrain_outlines::NonTerrainOutlines;
@@ -52,7 +53,6 @@ use self::terrain_decal_list::TerrainDecalList;
 use self::tree_list_reference_list::TreeListReferenceList;
 use self::grass_list_reference_list::GrassListReferenceList;
 use self::water_outlines::WaterOutlines;
-
 use super::DecodeableExtraData;
 
 /// Extensions used by FASTBIN files.
@@ -98,6 +98,7 @@ mod tree_list_reference_list;
 mod grass_list_reference_list;
 mod water_outlines;
 
+mod common;
 mod v27;
 
 #[cfg(test)] mod fastbin_test;
@@ -151,6 +152,140 @@ pub struct FastBin {
 //---------------------------------------------------------------------------//
 //                           Implementation of Text
 //---------------------------------------------------------------------------//
+
+impl FastBin {
+    pub fn to_layer(&self) -> Result<String> {
+        let mut layer = String::new();
+        layer.push_str("
+        <?xml version=\"1.0\" encoding=\"UTF-8\"?>
+        <layer version=\"41\">
+            <entities>
+        ");
+
+        // Battlefield Buildings
+        for building in self.battlefield_building_list.buildings() {
+            layer.push_str(&format!("<entity id=\"{:x}\">", building.uid()));
+
+            layer.push_str(&format!("<ECBuilding
+                key=\"{}\"
+                damage=\"{}\"
+                indestructible=\"{}\"
+                toggleable=\"{}\"
+                key_building=\"{}\"
+                hide_tooltip=\"{}\"
+                settlement_level_configurable=\"{}\"
+                capture_location=\"\"
+                export_as_prop=\"false\"
+                visible_beyond_outfield=\"false\"/>",
+                building.building_key(),
+                building.properties().starting_damage_unary(),
+                building.properties().indestructible(),
+                building.properties().toggleable(),
+                building.properties().key_building(),
+                building.properties().hide_tooltip(),
+                building.properties().settlement_level_configurable(),
+            ));
+
+            layer.push_str(&format!("<ECMeshRenderSettings
+                cast_shadow=\"{}\"
+                receive_decals=\"true\"
+                render_into_skydome_fog=\"false\"/>",
+                building.properties().cast_shadows()
+            ));
+
+            layer.push_str(&format!("<ECVisibilitySettingsBattle visible_in_tactical_view=\"true\" visible_in_tactical_view_only=\"false\"/>"));
+
+            layer.push_str(&format!("<ECWater is_water=\"false\"/>"));
+
+            layer.push_str(&format!("<ECTransform
+                position=\"{} {} {}0.530761719 1.12056732e-05 -8.57043457\"
+                rotation=\"{} {} {}0 109.999954 0\"
+                scale=\"{} {} {}0.999999821 1 0.999999821\"
+                pivot=\"{} {} {}0 0 0\"/>",
+                building.transform().m00(), building.transform().m01(), building.transform().m02(),
+                building.transform().m10(), building.transform().m11(), building.transform().m12(),
+                building.transform().m20(), building.transform().m21(), building.transform().m22(),
+                building.transform().m30(), building.transform().m31(), building.transform().m32(),
+            ));
+
+            // Ok, I'm shit at math and haven't touched matrixes in 12 years....
+            // Position:
+            //  - x: m30()
+            //  - y: m31(). Note that if it's clamped to terrain (height_mode == "BHM_TERRAIN" or "BHM_TERRAIN_ALIGN_ORIENTATION") it's 0.
+            //  - z: m32()
+            //
+            // Scale:
+            //  - x: (m00() * m00()) + (m01() * m01()) + (m02() * m02())
+            //  - y: (m10() * m10()) + (m11() * m11()) + (m12() * m12())
+            //  - z: (m20() * m20()) + (m21() * m21()) + (m22() * m22())
+            //
+            // Rotation:
+            //  - x: ?
+            //  - y: ?
+            //  - z: ?
+            //
+            // Pivot:
+            //  - x: ?
+            //  - y: ?
+            //  - z: ?
+            //
+      /*
+
+        position=\"0.530761719 1.12056732e-05 -8.57043457\"
+        rotation=\"0 109.999954 0\"
+        scale=\"0.999999821 1 0.999999821\"
+        pivot=\"0 0 0\"/>",
+
+              <transform
+            m00='-0.342019' m01='0.000000' m02='-0.939693'
+            m10='0.000000' m11='1.000000' m12='0.000000'
+            m20='0.939693' m21='0.000000' m22='-0.342019'
+            m30='0.530762' m31='0.000000' m32='-8.570435'/>
+    */
+            layer.push_str(&format!("<ECTerrainClamp
+                active=\"{}\"
+                clamp_to_sea_level=\"false\"
+                terrain_oriented=\"{}\"
+                fit_height_to_terrain=\"false\"/>",
+                building.height_mode() == "BHM_TERRAIN" || building.height_mode() == "BHM_TERRAIN_ALIGN_ORIENTATION",
+                building.height_mode() == "BHM_TERRAIN_ALIGN_ORIENTATION"
+            ));
+            layer.push_str(&format!("<ECPrefabOverride enabled=\"false\" id=\"{}\"/>", building.building_key()));
+
+
+    /*
+      <ECBuilding key="wh_glb_bucket_01" damage="0" indestructible="false" toggleable="false" key_building="false" hide_tooltip="false" settlement_level_configurable="false" capture_location="" export_as_prop="false" visible_beyond_outfield="false"/>
+      <ECMeshRenderSettings cast_shadow="true" receive_decals="true" render_into_skydome_fog="false"/>
+      <ECVisibilitySettingsBattle visible_in_tactical_view="true" visible_in_tactical_view_only="false"/>
+      <ECWater is_water="false"/>
+      <ECTransform position="0.530761719 1.12056732e-05 -8.57043457" rotation="0 109.999954 0" scale="0.999999821 1 0.999999821" pivot="0 0 0"/>
+      <ECTerrainClamp active="true" clamp_to_sea_level="false" terrain_oriented="false" fit_height_to_terrain="false"/>
+      <ECPrefabOverride enabled="false" id="wh_glb_bucket_01"/>
+
+        <BUILDING serialise_version='11' building_id='' parent_id='-1' building_key='wh_glb_bucket_01' position_type='BBPT_LF_RELATIVE' height_mode='BHM_TERRAIN' uid='110298702775184652'>
+        <transform
+            m00='-0.342019' m01='0.000000' m02='-0.939693'
+            m10='0.000000' m11='1.000000' m12='0.000000'
+            m20='0.939693' m21='0.000000' m22='-0.342019'
+            m30='0.530762' m31='0.000000' m32='-8.570435'/>
+        <properties serialise_version='11' building_id='' starting_damage_unary='0.000000' on_fire='false' start_disabled='false' weak_point='false' ai_breachable='true' indestructible='false' dockable='true' toggleable='false'
+            lite='false' cast_shadows='true' key_building='false' key_building_use_fort='false' is_prop_in_outfield='false' settlement_level_configurable='false' hide_tooltip='false' include_in_fog='false'/>
+    */
+            layer.push_str("</entity>");
+        }
+
+        layer.push_str("
+            </entities>
+            <associations>
+                <Logical/>
+                <Transform/>
+            </associations>
+        </layer>
+        ");
+
+        Ok(layer)
+    }
+}
 
 impl Decodeable for FastBin {
 

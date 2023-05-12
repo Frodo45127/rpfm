@@ -12,9 +12,6 @@ use crate::binary::ReadBytes;
 use crate::error::Result;
 use crate::files::Decodeable;
 
-use self::properties::Properties;
-use self::transform::Transform;
-
 use super::*;
 
 //---------------------------------------------------------------------------//
@@ -28,7 +25,7 @@ impl Building {
         self.parent_id = data.read_i32()?;
         self.building_key = data.read_sized_string_u8()?;
         self.position_type = data.read_sized_string_u8()?;
-        self.transform = Transform::decode(data, extra_data)?;
+        self.transform = Transform3x4::decode(data, extra_data)?;
         self.properties = Properties::decode(data, extra_data)?;
         self.height_mode = data.read_sized_string_u8()?;
         self.uid = data.read_u64()?;

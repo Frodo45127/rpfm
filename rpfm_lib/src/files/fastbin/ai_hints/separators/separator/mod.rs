@@ -28,14 +28,7 @@ mod v1;
 pub struct Separator {
     serialise_version: u16,
     separator_type: String,
-    points: Vec<Point>,
-}
-
-#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
-#[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct Point {
-    x: f32,
-    y: f32,
+    points: Vec<Point2d>,
 }
 
 //---------------------------------------------------------------------------//

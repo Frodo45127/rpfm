@@ -28,15 +28,15 @@ mod building_link;
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct CaptureLocation {
-    location: Location,
+    location: Point2d,
     radius: f32,
     valid_for_min_num_players: u32,
     valid_for_max_num_players: u32,
     capture_point_type: String,
     restore_type: String,
-    location_points: Vec<Point>,
+    location_points: Vec<Point2d>,
     database_key: String,
-    flag_facing: FlagFacing,
+    flag_facing: Point2d,
     destroy_building_on_capture: bool,
     disable_building_abilities_when_no_original_owner: bool,
     abilities_affect_globally: bool,
@@ -45,27 +45,6 @@ pub struct CaptureLocation {
     ai_hints_links: Vec<u8>,
     script_id: String,
     is_time_based: bool,
-}
-
-#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
-#[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct Location {
-    x: f32,
-    y: f32
-}
-
-#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
-#[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct Point {
-    x: f32,
-    y: f32
-}
-
-#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
-#[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct FlagFacing {
-    x: f32,
-    y: f32
 }
 
 //---------------------------------------------------------------------------//
@@ -77,11 +56,7 @@ impl Decodeable for CaptureLocation {
     fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
         let mut decoded = Self::default();
 
-        decoded.location = Location {
-            x: data.read_f32()?,
-            y: data.read_f32()?,
-        };
-
+        decoded.location = Point2d::decode(data, extra_data)?;
         decoded.radius = data.read_f32()?;
         decoded.valid_for_min_num_players = data.read_u32()?;
         decoded.valid_for_max_num_players = data.read_u32()?;
@@ -89,18 +64,12 @@ impl Decodeable for CaptureLocation {
         decoded.restore_type = data.read_sized_string_u8()?;
 
         for _ in 0..data.read_u32()? {
-            decoded.location_points.push(Point {
-                x: data.read_f32()?,
-                y: data.read_f32()?,
-            });
+            decoded.location_points.push(Point2d::decode(data, extra_data)?);
         }
 
         decoded.database_key = data.read_sized_string_u8()?;
 
-        decoded.flag_facing = FlagFacing {
-            x: data.read_f32()?,
-            y: data.read_f32()?,
-        };
+        decoded.flag_facing = Point2d::decode(data, extra_data)?;
 
         decoded.destroy_building_on_capture = data.read_bool()?;
         decoded.disable_building_abilities_when_no_original_owner = data.read_bool()?;
@@ -128,8 +97,7 @@ impl Decodeable for CaptureLocation {
 impl Encodeable for CaptureLocation {
 
     fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
-        buffer.write_f32(self.location.x)?;
-        buffer.write_f32(self.location.y)?;
+        self.location.encode(buffer, extra_data)?;
 
         buffer.write_f32(self.radius)?;
         buffer.write_u32(self.valid_for_min_num_players)?;
@@ -138,15 +106,13 @@ impl Encodeable for CaptureLocation {
         buffer.write_sized_string_u8(&self.restore_type)?;
 
         buffer.write_u32(self.location_points.len() as u32)?;
-        for location_point in &self.location_points {
-            buffer.write_f32(location_point.x)?;
-            buffer.write_f32(location_point.y)?;
+        for location_point in &mut self.location_points {
+            location_point.encode(buffer, extra_data)?;
         }
 
         buffer.write_sized_string_u8(&self.database_key)?;
 
-        buffer.write_f32(self.flag_facing.x)?;
-        buffer.write_f32(self.flag_facing.y)?;
+        self.flag_facing.encode(buffer, extra_data)?;
 
         buffer.write_bool(self.destroy_building_on_capture)?;
         buffer.write_bool(self.disable_building_abilities_when_no_original_owner)?;

@@ -30,43 +30,20 @@ mod v7;
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct PointLight {
     serialise_version: u16,
-    position: Position,
+    position: Point3d,
     radius: f32,
     colour: Colour,
     colour_scale: f32,
     animation_type: u8,
     colour_min: f32,
     random_offset: f32,
-    params: Params,
+    params: Point2d,
     falloff_type: String,
     lf_relative: u8,
     height_mode: String,
     light_probes_only: bool,
     pdlc_mask: u64,
     flags: Flags,
-}
-
-#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
-#[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct Position {
-    x: f32,
-    y: f32,
-    z: f32,
-}
-
-#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
-#[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct Colour {
-    r: f32,
-    g: f32,
-    b: f32,
-}
-
-#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
-#[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct Params {
-    x: f32,
-    y: f32,
 }
 
 //---------------------------------------------------------------------------//

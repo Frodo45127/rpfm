@@ -16,11 +16,10 @@ use crate::error::{Result, RLibError};
 use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 
 use self::flags::Flags;
-use self::transform::Transform;
+
 use super::*;
 
 mod flags;
-mod transform;
 mod v10;
 
 //---------------------------------------------------------------------------//
@@ -32,7 +31,7 @@ mod v10;
 pub struct ParticleEmitter {
     serialise_version: u16,
     key: String,
-    transform: Transform,
+    transform: Transform3x4,
     emission_rate: f32,
     instance_name: String,
     flags: Flags,

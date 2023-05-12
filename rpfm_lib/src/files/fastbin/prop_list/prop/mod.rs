@@ -16,12 +16,10 @@ use crate::error::{Result, RLibError};
 use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 
 use self::flags::Flags;
-use self::transform::Transform;
 
 use super::*;
 
 mod flags;
-mod transform;
 mod v25;
 
 //---------------------------------------------------------------------------//
@@ -34,7 +32,7 @@ pub struct Prop {
     serialise_version: u16,
     key_index: u32,
 
-    transform: Transform,
+    transform: Transform3x4,
 
     decal: bool,
     logic_decal: bool,
@@ -55,7 +53,7 @@ pub struct Prop {
     decal_apply_to_gbuffer_objects: bool,
     decal_render_above_snow: bool,
     height_mode: String,
-    pdlc_mask: f64,                     // FIx this nan.
+    pdlc_mask: u64,
     cast_shadows: bool,
     no_culling: bool,
     has_height_patch: bool,

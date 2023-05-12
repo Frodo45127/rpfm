@@ -27,17 +27,9 @@ mod v1;
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct RiverNode {
     serialise_version: u16,
-    vertex: Vertex,
+    vertex: Point3d,
     width: f32,
     flow_speed: f32,
-}
-
-#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
-#[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct Vertex {
-    x: f32,
-    y: f32,
-    z: f32,
 }
 
 //---------------------------------------------------------------------------//

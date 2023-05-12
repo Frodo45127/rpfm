@@ -30,19 +30,11 @@ mod v3;
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct TerrainStencilTriangle {
     serialise_version: u16,
-    position_0: Position,
-    position_1: Position,
-    position_2: Position,
+    position_0: Point3d,
+    position_1: Point3d,
+    position_2: Point3d,
     height_mode: String,
     flags: Flags,
-}
-
-#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
-#[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct Position {
-    x: f32,
-    y: f32,
-    z: f32,
 }
 
 //---------------------------------------------------------------------------//

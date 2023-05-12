@@ -21,11 +21,7 @@ impl CustomMaterialMesh {
 
     pub(crate) fn read_v4<R: ReadBytes>(&mut self, data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<()> {
         for _ in 0..data.read_u32()? {
-            self.vertices.push(Vertex {
-                x: data.read_f32()?,
-                y: data.read_f32()?,
-                z: data.read_f32()?,
-            });
+            self.vertices.push(Point3d::decode(data, extra_data)?);
         }
 
         for _ in 0..data.read_u32()? {
@@ -35,7 +31,7 @@ impl CustomMaterialMesh {
         self.material = data.read_sized_string_u8()?;
         self.height_mode = data.read_sized_string_u8()?;
         self.flags = Flags::decode(data, extra_data)?;
-        self.transform = Transform::decode(data, extra_data)?;
+        self.transform = Transform3x4::decode(data, extra_data)?;
         self.snow_inside = data.read_bool()?;
         self.snow_outside = data.read_bool()?;
         self.destruction_inside = data.read_bool()?;
@@ -48,10 +44,8 @@ impl CustomMaterialMesh {
 
     pub(crate) fn write_v4<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         buffer.write_u32(self.vertices.len() as u32)?;
-        for vertex in &self.vertices {
-            buffer.write_f32(vertex.x)?;
-            buffer.write_f32(vertex.y)?;
-            buffer.write_f32(vertex.z)?;
+        for vertex in &mut self.vertices {
+            vertex.encode(buffer, extra_data)?;
         }
 
         buffer.write_u32(self.indices.len() as u32)?;

@@ -21,7 +21,7 @@ impl PrefabInstance {
 
     pub(crate) fn read_v9<R: ReadBytes>(&mut self, data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<()> {
         self.key = data.read_sized_string_u8()?;
-        self.transform = Transform::decode(data, extra_data)?;
+        self.transform = Transform4x4::decode(data, extra_data)?;
 
         for _ in 0..data.read_u32()? {
             self.property_overrides.push(PropertyOverride::decode(data, extra_data)?);
