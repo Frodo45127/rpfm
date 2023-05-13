@@ -24,15 +24,13 @@ impl PointLight {
         self.radius = data.read_f32()?;
         self.colour = Colour::decode(data, extra_data)?;
         self.colour_scale = data.read_f32()?;
-
-        // TODO: place some more lights and check this, because on the test files is all 0 and has a 4 in a boolean.
         self.animation_type = data.read_u8()?;
+        self.params = Point2d::decode(data, extra_data)?;
         self.colour_min = data.read_f32()?;
         self.random_offset = data.read_f32()?;
-        self.params = Point2d::decode(data, extra_data)?;
         self.falloff_type = data.read_sized_string_u8()?;
 
-        // TODO: How the fuck do we get a 4 here?!!! It's supposed to be a boolean.
+        // TODO: How the fuck do we get a 194 here?!!! It's supposed to be a boolean.
         self.lf_relative = data.read_u8()?;
         self.height_mode = data.read_sized_string_u8()?;
         self.light_probes_only = data.read_bool()?;
@@ -44,18 +42,13 @@ impl PointLight {
 
     pub(crate) fn write_v7<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         self.position.encode(buffer, extra_data)?;
-
         buffer.write_f32(self.radius)?;
-
         self.colour.encode(buffer, extra_data)?;
-
         buffer.write_f32(self.colour_scale)?;
-
         buffer.write_u8(self.animation_type)?;
+        self.params.encode(buffer, extra_data)?;
         buffer.write_f32(self.colour_min)?;
         buffer.write_f32(self.random_offset)?;
-
-        self.params.encode(buffer, extra_data)?;
 
         buffer.write_sized_string_u8(&self.falloff_type)?;
         buffer.write_u8(self.lf_relative)?;
