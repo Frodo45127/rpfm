@@ -15,8 +15,11 @@ use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{Result, RLibError};
 use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 
+use self::composite_scene_reference::CompositeSceneReference;
+
 use super::*;
 
+mod composite_scene_reference;
 mod v1;
 
 //---------------------------------------------------------------------------//
@@ -27,7 +30,7 @@ mod v1;
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct CompositeSceneList {
     serialise_version: u16,
-    composite_scene_list: Vec<u8>,
+    composite_scene_list: Vec<CompositeSceneReference>,
 }
 
 //---------------------------------------------------------------------------//

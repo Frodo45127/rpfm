@@ -15,8 +15,11 @@ use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{Result, RLibError};
 use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 
+use self::light_probe::LightProbe;
+
 use super::*;
 
+mod light_probe;
 mod v1;
 
 //---------------------------------------------------------------------------//
@@ -27,7 +30,7 @@ mod v1;
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct LightProbeList {
     serialise_version: u16,
-    light_probes: Vec<u8>,
+    light_probes: Vec<LightProbe>,
 }
 
 //---------------------------------------------------------------------------//

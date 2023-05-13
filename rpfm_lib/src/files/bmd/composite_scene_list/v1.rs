@@ -19,16 +19,19 @@ use super::*;
 
 impl CompositeSceneList {
 
-    pub(crate) fn read_v1<R: ReadBytes>(&mut self, data: &mut R, _extra_data: &Option<DecodeableExtraData>) -> Result<()> {
+    pub(crate) fn read_v1<R: ReadBytes>(&mut self, data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<()> {
         for _ in 0..data.read_u32()? {
-
+            self.composite_scene_list.push(CompositeSceneReference::decode(data, extra_data)?);
         }
 
         Ok(())
     }
 
-    pub(crate) fn write_v1<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+    pub(crate) fn write_v1<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         buffer.write_u32(self.composite_scene_list.len() as u32)?;
+        for scene in &mut self.composite_scene_list {
+            scene.encode(buffer, extra_data)?;
+        }
 
         Ok(())
     }
