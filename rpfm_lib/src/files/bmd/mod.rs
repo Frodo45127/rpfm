@@ -10,9 +10,8 @@
 
 //! This is a module to read/write Battle Map Definition binary (FASTBIN0) files.
 
-use nalgebra::{Matrix3, Vector3, Rotation3, Matrix4};
-
 use getset::*;
+use nalgebra::{Matrix3, Rotation3};
 use serde_derive::{Serialize, Deserialize};
 
 use crate::binary::{ReadBytes, WriteBytes};
@@ -158,13 +157,13 @@ pub struct Bmd {
 //---------------------------------------------------------------------------//
 
 pub trait ToLayer {
-    fn to_layer(&self) -> String {
-        String::new()
+    fn to_layer(&self) -> Result<String> {
+        Ok(String::new())
     }
 }
 
 impl ToLayer for Bmd {
-    fn to_layer(&self) -> String {
+    fn to_layer(&self) -> Result<String> {
         let mut layer = String::new();
 
         layer.push_str("
@@ -173,8 +172,8 @@ impl ToLayer for Bmd {
     <entities>"
         );
 
-        layer.push_str(&self.battlefield_building_list().to_layer());
-        layer.push_str(&self.prefab_instance_list().to_layer());
+        layer.push_str(&self.battlefield_building_list().to_layer()?);
+        layer.push_str(&self.prefab_instance_list().to_layer()?);
 
         layer.push_str("
     </entities>
@@ -185,7 +184,7 @@ impl ToLayer for Bmd {
 </layer>
         ");
 
-        layer
+        Ok(layer)
     }
 }
 

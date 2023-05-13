@@ -67,7 +67,7 @@ impl Encodeable for PrefabInstanceList {
 }
  
 impl ToLayer for PrefabInstanceList {
-    fn to_layer(&self) -> String {
+    fn to_layer(&self) -> Result<String> {
         let mut layer = String::new();
 
         for prefab in self.prefab_instances() {
@@ -76,12 +76,17 @@ impl ToLayer for PrefabInstanceList {
                 prefab.uid())
             );
 
+            let prefab_path_split = prefab.key().split('/').collect::<Vec<_>>();
+            let prefab_name = prefab_path_split.last().unwrap();
+            let prefab_name_split = prefab_name.split(".").collect::<Vec<_>>();
+            let prefab_key = prefab_name_split.first().unwrap();
+
             layer.push_str(&format!("
             <ECPrefab
                 key=\"{}\"
                 use_culture_mask=\"false\"
                 valid_ids=\"1\"/>",
-                prefab.key(),
+                prefab_key,
             ));
 
             let rotation_matrix = prefab.transform().rotation_matrix();
@@ -115,6 +120,6 @@ impl ToLayer for PrefabInstanceList {
             );
         }
 
-        layer
+        Ok(layer)
     }
 }

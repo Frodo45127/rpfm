@@ -130,7 +130,7 @@ fn test_encode_bmd_to_layer() {
     let decodeable_extra_data = DecodeableExtraData::default();
     let data = Bmd::decode(&mut reader, &Some(decodeable_extra_data)).unwrap();
 
-    let layer = data.to_layer();
+    let layer = data.to_layer().unwrap();
     dbg!(&layer);
     let mut writer = BufWriter::new(File::create(path_2).unwrap());
     writer.write_all(layer.as_bytes()).unwrap();

@@ -67,7 +67,7 @@ impl Encodeable for BattlefieldBuildingList {
 }
 
 impl ToLayer for BattlefieldBuildingList {
-    fn to_layer(&self) -> String {
+    fn to_layer(&self) -> Result<String> {
         let mut layer = String::new();
 
         for building in self.buildings() {
@@ -149,6 +149,6 @@ impl ToLayer for BattlefieldBuildingList {
             );
         }
 
-        layer
+        Ok(layer)
     }
 }
