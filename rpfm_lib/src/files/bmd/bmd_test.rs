@@ -14,7 +14,7 @@ use std::io::{BufReader, BufWriter, Write};
 use std::fs::File;
 
 use crate::binary::ReadBytes;
-use crate::files::*;
+use crate::files::{*, bmd::ToLayer};
 
 use super::Bmd;
 
@@ -123,24 +123,17 @@ fn test_encode_bmd_map_catchment() {
 
 #[test]
 fn test_encode_bmd_to_layer() {
-    let path_1 = "../test_files/fastbin/test_prefab.bmd";
+    let path_1 = "../test_files/fastbin/v27_bmd_data.bin";
     let path_2 = "../test_files/fastbin/test_prefab.layer";
     let mut reader = BufReader::new(File::open(path_1).unwrap());
 
     let decodeable_extra_data = DecodeableExtraData::default();
+    let data = Bmd::decode(&mut reader, &Some(decodeable_extra_data)).unwrap();
 
-    let data_len = reader.len().unwrap();
-    let before = reader.read_slice(data_len as usize, true).unwrap();
-    let mut data = Bmd::decode(&mut reader, &Some(decodeable_extra_data)).unwrap();
-    // data.
-    dbg!(data.to_layer());
-    let mut after = vec![];
-    data.encode(&mut after, &None).unwrap();
-
+    let layer = data.to_layer();
+    dbg!(&layer);
     let mut writer = BufWriter::new(File::create(path_2).unwrap());
-    writer.write_all(&after).unwrap();
-
-    assert_eq!(before, after);
+    writer.write_all(layer.as_bytes()).unwrap();
 }
 
 /*
