@@ -18,6 +18,7 @@ use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 use super::*;
 
 mod v2;
+mod v3;
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
@@ -27,10 +28,11 @@ mod v2;
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct BuildingProjectileEmitter {
     serialise_version: u16,
-    building_index: u32,
-    height_mode: String,
     position: Point3d,
     direction: Point3d,
+    building_index: u32,
+    height_mode: String,
+    specialized_building_projectile_emitter_key: String,
 }
 
 //---------------------------------------------------------------------------//
@@ -45,6 +47,7 @@ impl Decodeable for BuildingProjectileEmitter {
 
         match decoded.serialise_version {
             2 => decoded.read_v2(data, extra_data)?,
+            3 => decoded.read_v3(data, extra_data)?,
             _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("BuildingProjectileEmitter"), decoded.serialise_version)),
         }
 
@@ -59,6 +62,7 @@ impl Encodeable for BuildingProjectileEmitter {
 
         match self.serialise_version {
             2 => self.write_v2(buffer, extra_data)?,
+            3 => self.write_v3(buffer, extra_data)?,
             _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("BuildingProjectileEmitter"), self.serialise_version)),
         }
 
