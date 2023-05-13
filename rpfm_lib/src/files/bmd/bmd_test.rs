@@ -120,7 +120,6 @@ fn test_encode_bmd_map_catchment() {
 
     assert_eq!(before, after);
 }
-/*
 #[test]
 fn test_encode_bmd_to_layer() {
     let path_1 = "../test_files/fastbin/frodo45127_emp_sidewalk_stuff_1.bmd";
@@ -141,7 +140,6 @@ fn test_encode_bmd_to_layer() {
 
     assert_eq!(before, after);
 }
-*/
 /*
 #[test]
 fn test_mass_decode() {
