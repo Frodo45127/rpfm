@@ -10,6 +10,8 @@
 
 //! This is a module to read/write Battle Map Definition binary (FASTBIN0) files.
 
+use nalgebra::{Matrix3, Vector3, Rotation3, Matrix4};
+
 use getset::*;
 use serde_derive::{Serialize, Deserialize};
 
@@ -157,8 +159,166 @@ pub struct Bmd {
 
 // TODO: Move properties, property_overrides and flags to common.
 
+
+// No overloading supported sadly :(
+// and idk how to use generics with structs
+
+
+/*
+    Restores normal Rotation matrix representation as on the picture:
+    https://developer.unigine.com/forum/uploads/monthly_2020_05/image.png.674c8b961433f2a7a62c54bc55cb599c.png
+    pic note: (it seems like R should be applies to each column)
+    from CA's column-first serialization
+
+*/
+fn create_rotation_matrix_from_transform3x4(t: &Transform3x4) -> Matrix3<f64>{
+    // Fix order of the elements here
+    let matrix = Matrix3::new(
+        *t.m00() as f64, *t.m10() as f64, *t.m20() as f64,
+        *t.m01() as f64, *t.m11() as f64, *t.m21() as f64,
+        *t.m02() as f64, *t.m12() as f64, *t.m22() as f64
+    );
+    matrix
+}
+
+fn create_rotation_matrix_from_transform4x4(t: &Transform4x4) -> Matrix3<f64>{
+    // Fix order of the elements here
+    let matrix = Matrix3::new(
+        *t.m00() as f64, *t.m10() as f64, *t.m20() as f64,
+        *t.m01() as f64, *t.m11() as f64, *t.m21() as f64,
+        *t.m02() as f64, *t.m12() as f64, *t.m22() as f64
+    );
+    matrix
+}
+
+// fn math_transforms_to_transform3x4(m: &Matrix3<f64>, translate: (f64, f64, f64)) -> Transform3x4{
+//     // Fix order of the elements here
+//     Transform3x4 {
+//         // rotation matrix in column-first order
+//         m00: m[(0,0)] as f32,
+//         m01: m[(1,0)] as f32,
+//         m02: m[(2,0)] as f32,
+//         m10: m[(0,1)] as f32,
+//         m11: m[(1,1)] as f32,
+//         m12: m[(2,1)] as f32,
+//         m20: m[(0,2)] as f32,
+//         m21: m[(1,2)] as f32,
+//         m22: m[(2,2)] as f32,
+//         //translation vector
+//         m30: translate.0 as f32,
+//         m31: translate.1 as f32,
+//         m32: translate.2 as f32
+//     };
+// }
+
+// fn math_transforms_to_transform4x4(m: &Matrix3<f64>, translate: (f64, f64, f64)) -> Transform4x4{
+//     // Fix order of the elements here
+//     Transform4x4 {
+//         // rotation matrix in column-first order
+//         m00: m[(0,0)] as f32,
+//         m01: m[(1,0)] as f32,
+//         m02: m[(2,0)] as f32,
+//         m10: m[(0,1)] as f32,
+//         m11: m[(1,1)] as f32,
+//         m12: m[(2,1)] as f32,
+//         m20: m[(0,2)] as f32,
+//         m21: m[(1,2)] as f32,
+//         m22: m[(2,2)] as f32,
+//         //translation vector
+//         m30: translate.0 as f32,
+//         m31: translate.1 as f32,
+//         m32: translate.2 as f32,
+//         //just fill
+//         m03: 0 as f32,
+//         m13: 0 as f32,
+//         m23: 0 as f32,
+//         m33: 1 as f32
+//     };
+// }
+
+
+/*
+Extracts scales as described here:
+https://math.stackexchange.com/a/1463487
+DOES NOT SUPPORT NEGATIVE SCALES
+ */
+fn extract_scales(matrix: Matrix3<f64>) -> (f64, f64, f64) {
+    let scale = (
+        matrix.column(0).norm(),
+        matrix.column(1).norm(),
+        matrix.column(2).norm()
+    );
+    scale
+}
+
+fn apply_scales(matrix: Matrix3<f64>, scales: (f64, f64, f64)) -> Matrix3<f64> {
+    let scaled_matrix = Matrix3::new(
+        matrix[(0, 0)] * scales.0, matrix[(0, 1)] * scales.1, matrix[(0, 2)] * scales.2,
+        matrix[(1, 0)] * scales.0, matrix[(1, 1)] * scales.1, matrix[(1, 2)] * scales.2,
+        matrix[(2, 0)] * scales.0, matrix[(2, 1)] * scales.1, matrix[(2, 2)] * scales.2,
+    );
+    scaled_matrix
+}
+
+fn normalize_rotation_matrix(matrix: Matrix3<f64>, scales: (f64, f64, f64)) -> Matrix3<f64> {
+    let normalized_matrix = Matrix3::new(
+        matrix[(0, 0)] / scales.0, matrix[(0, 1)] / scales.1, matrix[(0, 2)] / scales.2,
+        matrix[(1, 0)] / scales.0, matrix[(1, 1)] / scales.1, matrix[(1, 2)] / scales.2,
+        matrix[(2, 0)] / scales.0, matrix[(2, 1)] / scales.1, matrix[(2, 2)] / scales.2,
+    );
+    normalized_matrix
+}
+
+/*
+As I understand it uses 'xyz' extrinsic rotations order
+Python code using scipy lib:
+    r = Rotation.from_euler("xyz", [-130.00000555832042, 80.00000457701574, -29.999991697018082], degrees=True)
+    m = r.as_matrix()
+    r = Rotation.from_matrix(m)
+    angles = r.as_euler("xyz", degrees=True)
+ */
+fn rotation_matrix_to_euler_angles(matrix: Matrix3<f64>, degrees: bool) -> (f64, f64, f64) {
+    let rotation = Rotation3::from_matrix_unchecked(matrix);
+    let euler = rotation.euler_angles();
+    let euler_angles = if degrees {
+        (
+            euler.0.to_degrees(),
+            euler.1.to_degrees(),
+            euler.2.to_degrees(),
+        )
+    } else {
+       (euler.0, euler.1, euler.2)
+    };
+    euler_angles
+}
+
+fn euler_angles_to_rotation_matrix(angles: (f64, f64, f64), degrees: bool) -> Matrix3<f64> {
+    let _angles = if degrees {
+        (
+            angles.0.to_radians(),
+            angles.1.to_radians(),
+            angles.2.to_radians(),
+        )
+    } else {
+        angles
+    };
+    let rotation = Rotation3::from_euler_angles(_angles.0, _angles.1, _angles.2);
+    let mut matrix : Matrix3<f64> = rotation.into();
+
+    //prettify
+    matrix.iter_mut().for_each(|element| {
+        if element.abs() < 1e-5 {
+            *element = 0.0;
+        }
+    });
+    matrix
+
+}
+
 impl Bmd {
+
     pub fn to_layer(&self) -> Result<String> {
+
         let mut layer = String::new();
         layer.push_str("
         <?xml version=\"1.0\" encoding=\"UTF-8\"?>
@@ -166,8 +326,38 @@ impl Bmd {
             <entities>
         ");
 
+
+        for prefab in self.prefab_instance_list.prefab_instances() {
+            let rotation_matrix = create_rotation_matrix_from_transform4x4(prefab.transform());
+            let scales = extract_scales(rotation_matrix);
+            let normalized_rotation_matrix = normalize_rotation_matrix(rotation_matrix, scales);
+            let angles= rotation_matrix_to_euler_angles(normalized_rotation_matrix, true);
+            let position = Vector3::new(
+                (*prefab.transform().m30()) as f64,
+                (*prefab.transform().m31()) as f64,
+                (*prefab.transform().m32()) as f64,
+
+            );
+
+            //debug
+            let dmatrix = apply_scales(
+                euler_angles_to_rotation_matrix(angles, true),
+                scales
+            );
+
+
+            println!("Prefab Transform:\n{:?}", prefab.transform());
+            println!("Position:\n{:?}", position);
+            println!("Orig Matrix:\n{:?}", rotation_matrix);
+            println!("Angles:\n{:?}", angles);
+            println!("Result Matrix:\n{:?}", dmatrix);
+            println!("\n");
+        }
+
+
+
         // Battlefield Buildings
-        for building in self.battlefield_building_list.buildings() {
+        for building in self.battlefield_building_list.buildings() { //.battlefield_building_list.buildings()
             layer.push_str(&format!("<entity id=\"{:x}\">", building.uid()));
 
             layer.push_str(&format!("<ECBuilding
@@ -201,16 +391,31 @@ impl Bmd {
 
             layer.push_str(&format!("<ECWater is_water=\"false\"/>"));
 
+            let rotation_matrix = create_rotation_matrix_from_transform3x4(building.transform());
+            let scales = extract_scales(rotation_matrix);
+            let normalized_rotation_matrix = normalize_rotation_matrix(rotation_matrix, scales);
+            let angles= rotation_matrix_to_euler_angles(normalized_rotation_matrix, true);
+
             layer.push_str(&format!("<ECTransform
-                position=\"{} {} {}0.530761719 1.12056732e-05 -8.57043457\"
-                rotation=\"{} {} {}0 109.999954 0\"
-                scale=\"{} {} {}0.999999821 1 0.999999821\"
-                pivot=\"{} {} {}0 0 0\"/>",
-                building.transform().m00(), building.transform().m01(), building.transform().m02(),
-                building.transform().m10(), building.transform().m11(), building.transform().m12(),
-                building.transform().m20(), building.transform().m21(), building.transform().m22(),
+                position=\"{:.5} {:.5} {:.5}\"
+                rotation=\"{:.5} {:.5} {:.5}\"
+                scale=\"{:.5} {:.5} {:.5}\"
+                pivot=\"0 0 0\"/>",
                 building.transform().m30(), building.transform().m31(), building.transform().m32(),
+                angles.0, angles.1, angles.2,
+                scales.0, scales.1, scales.2
             ));
+
+            //debug
+            let dmatrix = apply_scales(
+                euler_angles_to_rotation_matrix(angles, true),
+                scales
+            );
+
+            println!("Orig Matrix:\n{:?}", rotation_matrix);
+            println!("Angles:\n{:?}", angles);
+            println!("Result Matrix:\n{:?}", dmatrix);
+            println!("\n");
 
             // Ok, I'm shit at math and haven't touched matrixes in 12 years....
             // Position:

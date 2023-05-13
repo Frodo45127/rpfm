@@ -104,3 +104,6 @@ content_inspector = { version = "^0.2" }
 
 # Steam Location support.
 steamlocate = "2.0.0-alpha.0"
+
+# Linear algebra
+nalgebra = "0.32.2"
