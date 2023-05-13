@@ -132,6 +132,7 @@ fn test_encode_bmd_to_layer() {
     let data_len = reader.len().unwrap();
     let before = reader.read_slice(data_len as usize, true).unwrap();
     let mut data = Bmd::decode(&mut reader, &Some(decodeable_extra_data)).unwrap();
+    // data.
     dbg!(data.to_layer());
     let mut after = vec![];
     data.encode(&mut after, &None).unwrap();
