@@ -32,7 +32,6 @@ pub struct Colour {
     b: f32,
 }
 
-
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Cube {
@@ -69,6 +68,15 @@ pub struct Point3d {
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Polygon2d {
     points: Vec<Point2d>
+}
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct Quaternion {
+    i: f32,
+    j: f32,
+    k: f32,
+    w: f32,
 }
 
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
@@ -260,6 +268,30 @@ impl Encodeable for Polygon2d {
         for point in &mut self.points {
             point.encode(buffer, extra_data)?;
         }
+
+        Ok(())
+    }
+}
+
+impl Decodeable for Quaternion {
+
+    fn decode<R: ReadBytes>(data: &mut R, _extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
+        Ok(Self {
+            i: data.read_f32()?,
+            j: data.read_f32()?,
+            k: data.read_f32()?,
+            w: data.read_f32()?,
+        })
+    }
+}
+
+impl Encodeable for Quaternion {
+
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+        buffer.write_f32(self.i)?;
+        buffer.write_f32(self.j)?;
+        buffer.write_f32(self.k)?;
+        buffer.write_f32(self.w)?;
 
         Ok(())
     }

@@ -397,6 +397,7 @@ impl PackFileContentsUI {
         let rewrite_sequence_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "name_line_edit")?;
         instructions_label.set_text(&qtr("rename_move_instructions"));
         rewrite_sequence_line_edit.set_placeholder_text(&qtr("rename_move_selection_placeholder"));
+        rewrite_sequence_line_edit.set_focus_0a();
         move_checkbox.set_text(&qtr("rename_move_checkbox"));
 
         // Remember the last status of the move checkbox.

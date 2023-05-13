@@ -396,9 +396,12 @@ impl DB {
                         definition = table.definition().clone();
                         field = definition.fields_processed()[index].clone();
                         table_name = table.table_name().to_owned();
+                        continue;
                     }
                 }
             }
+
+            break;
         }
 
         // Get the tables/rows that need to be edited.

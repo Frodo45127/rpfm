@@ -27,7 +27,8 @@ use crate::error::{Result, RLibError};
 use crate::files::{DecodeableExtraData, Decodeable, EncodeableExtraData, Encodeable};
 
 /// Extensions used by ESF files.
-pub const EXTENSIONS: [&str; 4] = [
+pub const EXTENSIONS: [&str; 5] = [
+    ".csc",         // CSC files.
     ".ccd",         // CEO files.
     ".esf",         // ESF files.
     ".save",        // Game save files.

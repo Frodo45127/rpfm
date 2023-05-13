@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<layer version="41">
+  <entities>
+    <entity id="188153b93bdbf3c" name="Reference">
+      <ECLayer export="false" bmd_export_type=""/>
+      <ECToggleableBuildingsSlot enabled="false" type="TBST_TOWERS" capture_location="" script_id="" map_barrier_record_key="" ground_melee_attack_allowed="true"/>
+    </entity>
+    <entity id="188153bb751c072">
+      <ECBuilding key="emp_hero_tower_01" damage="0" indestructible="false" toggleable="false" key_building="false" hide_tooltip="false" settlement_level_configurable="false" capture_location="" export_as_prop="false" visible_beyond_outfield="false"/>
+      <ECMeshRenderSettings cast_shadow="true" receive_decals="true" render_into_skydome_fog="false"/>
+      <ECVisibilitySettingsBattle visible_in_tactical_view="true" visible_in_tactical_view_only="false"/>
+      <ECWater is_water="false"/>
+      <ECTransform position="40 50 60" rotation="100 200 300" scale="2 3 4" pivot="20 30 40"/>
+      <ECTerrainClamp active="false" clamp_to_sea_level="false" terrain_oriented="false" fit_height_to_terrain="false"/>
+      <ECPrefabOverride enabled="false" id="hero_tower_01"/>
+    </entity>
+    <entity id="188153fdcbbc074">
+      <ECBattlefieldZone zone_name=""/>
+      <ECTerryBattlefieldZone locked="false" rank_distance="3" zone_skirt_distance="3"/>
+      <ECTransform position="150.358826 -56.1037827 129.286102" rotation="50 100 150" scale="2 3 4" pivot="12 24 36"/>
+      <ECTransform2D/>
+      <ECPolyline>
+        <polyline closed="true">
+          <point x="0" y="0"/>
+          <point x="-68.3112869" y="4.26213074"/>
+          <point x="-69.3846359" y="-32.9535141"/>
+          <point x="-7.77217484" y="-30.1080971"/>
+        </polyline>
+      </ECPolyline>
+    </entity>
+    <entity id="1881540f8b1c075">
+      <ECEFLine formation_purpose="EFP_HIGH_WALL"/>
+      <ECTransform position="-65.8350754 0 -28.3152504" rotation="0 0 0" scale="1 1 1" pivot="0 0 0"/>
+      <ECTransform2D/>
+      <ECPolyline>
+        <polyline closed="false">
+          <point x="0" y="0"/>
+          <point x="54.7721176" y="1.11544418"/>
+        </polyline>
+      </ECPolyline>
+    </entity>
+    <entity id="18815410011c076">
+      <ECEFLine formation_purpose="EFP_HIGH_WALL"/>
+      <ECTransform position="-65.2613602 3.81469727e-06 -24.2640152" rotation="0 0 0" scale="1 1 1" pivot="0 0 0"/>
+      <ECTransform2D/>
+      <ECPolyline>
+        <polyline closed="false">
+          <point x="0" y="0"/>
+          <point x="54.180584" y="0.261863708"/>
+        </polyline>
+      </ECPolyline>
+    </entity>
+    <entity id="18815410aa7c077">
+      <ECEFLine formation_purpose="EFP_HIGH_WALL"/>
+      <ECTransform position="-65.1263962 -3.81469727e-06 -20.0338936" rotation="0 0 0" scale="1 1 1" pivot="0 0 0"/>
+      <ECTransform2D/>
+      <ECPolyline>
+        <polyline closed="false">
+          <point x="0" y="0"/>
+          <point x="53.8589058" y="-0.80538559"/>
+        </polyline>
+      </ECPolyline>
+    </entity>
+    <entity id="188154112b9c078">
+      <ECEFLine formation_purpose="EFP_HIGH_WALL"/>
+      <ECTransform position="-64.4163589 0 -12.7854195" rotation="0 0 0" scale="1 1 1" pivot="0 0 0"/>
+      <ECTransform2D/>
+      <ECPolyline>
+        <polyline closed="false">
+          <point x="0" y="0"/>
+          <point x="53.6173439" y="-1.9182663"/>
+        </polyline>
+      </ECPolyline>
+    </entity>
+    <entity id="18815412487c079">
+      <ECEFLine formation_purpose="EFP_HIGH_WALL"/>
+      <ECTransform position="-63.2598648 0 -7.96974182" rotation="0 0 0" scale="1 1 1" pivot="0 0 0"/>
+      <ECTransform2D/>
+      <ECPolyline>
+        <polyline closed="false">
+          <point x="0" y="0"/>
+          <point x="10.3865576" y="7.24120331"/>
+          <point x="50.127903" y="5.30422211"/>
+          <point x="58.2598763" y="-4.17911911"/>
+        </polyline>
+      </ECPolyline>
+    </entity>
+    <entity id="188154135e2c07a">
+      <ECEFLine formation_purpose="EFP_HIGH_WALL"/>
+      <ECTransform position="-58.5874557 3.81469727e-06 -8.38038635" rotation="0 0 0" scale="1 1 1" pivot="0 0 0"/>
+      <ECTransform2D/>
+      <ECPolyline>
+        <polyline closed="false">
+          <point x="0" y="0"/>
+          <point x="7.47771263" y="5.16809845"/>
+          <point x="43.9851456" y="2.99194336"/>
+          <point x="51.1037025" y="-6.2819252"/>
+        </polyline>
+      </ECPolyline>
+    </entity>
+    <entity id="18815496c46bbcc">
+      <ECPrefab key="kho_skull_mountain_large_02" use_culture_mask="true" valid_ids="1"/>
+      <ECTransform position="150.358826 -56.1037827 129.286102" rotation="50 100 150" scale="2 3 4" pivot="12 24 36"/>
+      <ECTerrainClamp active="false" clamp_to_sea_level="false" terrain_oriented="false" fit_height_to_terrain="false"/>
+    </entity>
+  </entities>
+  <associations>
+    <Logical>
+      <from id="188153fdcbbc074">
+        <to id="1881540f8b1c075"/>
+        <to id="18815410011c076"/>
+        <to id="18815410aa7c077"/>
+        <to id="188154112b9c078"/>
+        <to id="18815412487c079"/>
+        <to id="188154135e2c07a"/>
+      </from>
+    </Logical>
+    <Transform>
+      <from id="188153fdcbbc074">
+        <to id="1881540f8b1c075"/>
+        <to id="18815410011c076"/>
+        <to id="18815410aa7c077"/>
+        <to id="188154112b9c078"/>
+        <to id="18815412487c079"/>
+        <to id="188154135e2c07a"/>
+      </from>
+    </Transform>
+  </associations>
+</layer>

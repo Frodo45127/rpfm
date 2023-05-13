@@ -3230,6 +3230,7 @@ impl AppUI {
         table_filter.set_source_model(&table_model);
         table_dropdown.set_model(&table_filter);
         table_filter_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
+        table_filter_line_edit.set_focus_0a();
         table_filter_line_edit.text_changed().connect(&SlotNoArgs::new(&dialog, move || {
             table_filter.set_filter_reg_exp_q_reg_exp(&QRegExp::new_1a(&table_filter_line_edit.text()));
         }));
@@ -3316,6 +3317,7 @@ impl AppUI {
                 }
 
                 name_line_edit.set_text(&QString::from_std_str(format!("portrait_settings_{pack_name}.bin")));
+                name_line_edit.set_focus_0a();
                 portrait_settings_extra_widget.set_visible(true);
             },
             _ => unimplemented!(),

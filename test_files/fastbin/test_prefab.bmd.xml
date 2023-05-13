@@ -1,0 +1,189 @@
+<BATTLE_MAP_DEFINITION_DATA serialise_version='27'>
+	<BATTLEFIELD_BUILDING_LIST serialise_version='1'>
+		<BUILDINGS>
+			<BUILDING serialise_version='11' building_id='' parent_id='-1' building_key='emp_hero_tower_01' position_type='BBPT_LF_RELATIVE' height_mode='BHM_PARENT' uid='110361537093419122'>
+				<transform m00='-0.939693' m01='1.627595' m02='0.684042' m10='-0.956388' m11='0.614623' m12='-2.776249' m20='-3.292691' m21='-2.175354' m22='0.652703' m30='219.193161' m31='86.023560' m32='103.498520'/>
+				<properties serialise_version='11' building_id='' starting_damage_unary='0.000000' on_fire='false' start_disabled='false' weak_point='false' ai_breachable='true' indestructible='false' dockable='true' toggleable='false' lite='false' cast_shadows='true' key_building='false' key_building_use_fort='false' is_prop_in_outfield='false' settlement_level_configurable='false' hide_tooltip='false' include_in_fog='false'/>
+			</BUILDING>
+		</BUILDINGS>
+	</BATTLEFIELD_BUILDING_LIST>
+	<BATTLEFIELD_BUILDING_LIST_FAR serialise_version='1'>
+		<BUILDINGS/>
+	</BATTLEFIELD_BUILDING_LIST_FAR>
+	<CAPTURE_LOCATION_SET serialise_version='11'>
+		<CAPTURE_LOCATION_SET/>
+	</CAPTURE_LOCATION_SET>
+	<EF_LINE_LIST>
+		<LINES/>
+	</EF_LINE_LIST>
+	<GO_OUTLINES/>
+	<NON_TERRAIN_OUTLINES/>
+	<ZONES_TEMPLATE_LIST serialise_version='1'>
+		<ZONES>
+			<ZONE>
+				<BATTLEFIELD_ZONE_TEMPLATE zone_name=''>
+					<OUTLINE>
+						<position x='240.717651' y='178.572205'/>
+						<position x='217.355576' y='311.216248'/>
+						<position x='241.623566' y='329.946198'/>
+						<position x='258.274414' y='207.322937'/>
+					</OUTLINE>
+					<entity_formation_template name=''>
+						<lines>
+							<line label='0' purpose='EFP_HIGH_WALL' orientation='-98.261673'>
+								<line>
+									<start x='239.626343' y='0.000000' z='320.884033'/>
+									<end x='255.362961' y='0.000000' z='212.506012'/>
+								</line>
+							</line>
+							<line label='0' purpose='EFP_HIGH_WALL' orientation='-98.582130'>
+								<line>
+									<start x='237.121979' y='0.000000' z='317.945282'/>
+									<end x='253.244705' y='0.000000' z='211.113449'/>
+								</line>
+							</line>
+							<line label='0' purpose='EFP_HIGH_WALL' orientation='-98.992851'>
+								<line>
+									<start x='234.367477' y='0.000000' z='315.790833'/>
+									<end x='251.098648' y='0.000000' z='210.069092'/>
+								</line>
+							</line>
+							<line label='0' purpose='EFP_HIGH_WALL' orientation='-99.428093'>
+								<line>
+									<start x='229.791473' y='0.000000' z='311.156067'/>
+									<end x='247.185349' y='0.000000' z='206.406982'/>
+								</line>
+							</line>
+							<line label='0' purpose='EFP_HIGH_WALL' orientation='-85.989906'>
+								<line>
+									<start x='226.957275' y='0.000000' z='306.728119'/>
+									<end x='225.296478' y='0.000000' z='283.037567'/>
+								</line>
+							</line>
+							<line label='1' purpose='EFP_HIGH_WALL' orientation='-99.700569'>
+								<line>
+									<start x='225.296478' y='0.000000' z='283.037567'/>
+									<end x='238.529266' y='0.000000' z='205.627228'/>
+								</line>
+							</line>
+							<line label='2' purpose='EFP_HIGH_WALL' orientation='-126.478912'>
+								<line>
+									<start x='238.529266' y='0.000000' z='205.627228'/>
+									<end x='247.241364' y='0.000000' z='193.844437'/>
+								</line>
+							</line>
+							<line label='0' purpose='EFP_HIGH_WALL' orientation='-86.085014'>
+								<line>
+									<start x='228.633911' y='0.000000' z='297.708618'/>
+									<end x='227.468063' y='0.000000' z='280.672974'/>
+								</line>
+							</line>
+							<line label='1' purpose='EFP_HIGH_WALL' orientation='-99.929939'>
+								<line>
+									<start x='227.468063' y='0.000000' z='280.672974'/>
+									<end x='239.886230' y='0.000000' z='209.738953'/>
+								</line>
+							</line>
+							<line label='2' purpose='EFP_HIGH_WALL' orientation='-129.926331'>
+								<line>
+									<start x='239.886230' y='0.000000' z='209.738953'/>
+									<end x='248.155121' y='0.000000' z='199.858704'/>
+								</line>
+							</line>
+						</lines>
+					</entity_formation_template>
+				</BATTLEFIELD_ZONE_TEMPLATE>
+				<transform m00='1.000000' m01='0.000000' m02='0.000000' m03='0.000000' m10='0.000000' m11='1.000000' m12='0.000000' m13='0.000000' m20='0.000000' m21='0.000000' m22='1.000000' m23='0.000000' m30='0.000000' m31='0.000000' m32='0.000000' m33='1.000000'/>
+			</ZONE>
+		</ZONES>
+	</ZONES_TEMPLATE_LIST>
+	<PREFAB_INSTANCE_LIST serialise_version='1'>
+		<PREFAB_INSTANCE>
+			<PREFAB_INSTANCE serialise_version='9' key='prefabs/kho_skull_mountain_large_02.bmd' campaign_type_mask='0' campaign_region_key='' height_mode='BHM_PARENT' uid='110361595963947980'>
+				<transform m00='0.300767' m01='-0.173648' m02='-1.969616' m03='0.000000' m10='-2.924187' m11='-0.538402' m12='-0.399066' m13='0.000000' m20='-0.660765' m21='3.919700' m22='-0.446476' m23='0.000000' m30='240.717651' m31='-182.207565' m32='178.572205' m33='1.000000'/>
+				<property_overrides/>
+			</PREFAB_INSTANCE>
+		</PREFAB_INSTANCE>
+	</PREFAB_INSTANCE_LIST>
+	<BMD_OUTLINE_LIST serialise_version='1'>
+		<BMD_OUTLINES/>
+	</BMD_OUTLINE_LIST>
+	<TERRAIN_OUTLINES/>
+	<LITE_BUILDING_OUTLINES/>
+	<CAMERA_ZONES serialise_version='1'>
+		<BMD_OUTLINES/>
+	</CAMERA_ZONES>
+	<CIVILIAN_DEPLOYMENT_LIST/>
+	<CIVILIAN_SHELTER_LIST/>
+	<PROP_LIST serialise_version='2'>
+		<KEYS/>
+		<PROPS/>
+	</PROP_LIST>
+	<PARTICLE_EMITTER_LIST serialise_version='1'>
+		<PARTICLE_EMITTERS/>
+	</PARTICLE_EMITTER_LIST>
+	<AI_HINTS serialise_version='1'>
+		<separators serialise_version='1'>
+			<SEPARATORS/>
+		</separators>
+		<directed_points serialise_version='1'>
+			<DIRECTED_POINTS/>
+		</directed_points>
+		<polylines serialise_version='1'>
+			<HINT_POLYLINES/>
+		</polylines>
+		<polylines_list serialise_version='1'>
+			<HINT_POLYLINES/>
+		</polylines_list>
+	</AI_HINTS>
+	<LIGHT_PROBE_LIST serialise_version='1'>
+		<LIGHT_PROBES/>
+	</LIGHT_PROBE_LIST>
+	<TERRAIN_STENCIL_TRIANGLE_LIST serialise_version='1'>
+		<TERRAIN_STENCIL_TRIANGLES/>
+	</TERRAIN_STENCIL_TRIANGLE_LIST>
+	<POINT_LIGHT_LIST serialise_version='1'>
+		<POINT_LIGHTS/>
+	</POINT_LIGHT_LIST>
+	<BUILDING_PROJECTILE_EMITTER_LIST serialise_version='1'>
+		<BUILDING_PROJECTILE_EMITTERS/>
+	</BUILDING_PROJECTILE_EMITTER_LIST>
+	<PLAYABLE_AREA serialise_version='3' has_been_set='false'>
+		<area min_x='64.000000' min_y='64.000000' max_x='1920.000000' max_y='1920.000000'/>
+		<valid_location_flags serialise_version='1' valid_north='true' valid_south='true' valid_east='true' valid_west='true'/>
+	</PLAYABLE_AREA>
+	<CUSTOM_MATERIAL_MESH_LIST serialise_version='1'>
+		<CUSTOM_MATERIAL_MESH_LIST/>
+	</CUSTOM_MATERIAL_MESH_LIST>
+	<TERRAIN_STENCIL_BLEND_TRIANGLE_LIST serialise_version='1'>
+		<TERRAIN_BLEND_TRIANGLES/>
+	</TERRAIN_STENCIL_BLEND_TRIANGLE_LIST>
+	<SPOT_LIGHT_LIST serialise_version='1'>
+		<SPOT_LIGHTS/>
+	</SPOT_LIGHT_LIST>
+	<SOUND_SHAPE_LIST serialise_version='1'>
+		<SOUND_SHAPES/>
+	</SOUND_SHAPE_LIST>
+	<COMPOSITE_SCENE_LIST serialise_version='1'>
+		<COMPOSITE_SCENE_LIST/>
+	</COMPOSITE_SCENE_LIST>
+	<DEPLOYMENT_LIST serialise_version='1'>
+		<DEPLOYMENT_AREAS/>
+	</DEPLOYMENT_LIST>
+	<BMD_CATCHMENT_AREA_LIST serialise_version='1'>
+		<BMD_CATCHMENT_AREAS/>
+	</BMD_CATCHMENT_AREA_LIST>
+	<TOGGLEABLE_BUILDINGS_SLOT_LIST serialise_version='7'>
+		<TOGGLEABLE_BUILDINGS_SLOTS/>
+	</TOGGLEABLE_BUILDINGS_SLOT_LIST>
+	<TERRAIN_DECAL_LIST serialise_version='1'>
+		<TERRAIN_DECALS/>
+	</TERRAIN_DECAL_LIST>
+	<TREE_LIST_REFERENCE_LIST serialise_version='1'>
+		<TREE_LIST_REFERENCES/>
+	</TREE_LIST_REFERENCE_LIST>
+	<GRASS_LIST_REFERENCE_LIST serialise_version='1'>
+		<GRASS_LIST_REFERENCES/>
+	</GRASS_LIST_REFERENCE_LIST>
+	<WATER_OUTLINES/>
+</BATTLE_MAP_DEFINITION_DATA>

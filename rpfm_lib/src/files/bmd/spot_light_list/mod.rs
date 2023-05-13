@@ -15,8 +15,11 @@ use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{Result, RLibError};
 use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 
+use self::spot_light::SpotLight;
+
 use super::*;
 
+mod spot_light;
 mod v1;
 
 //---------------------------------------------------------------------------//
@@ -27,11 +30,11 @@ mod v1;
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct SpotLightList {
     serialise_version: u16,
-    spot_lights: Vec<u8>
+    spot_lights: Vec<SpotLight>,
 }
 
 //---------------------------------------------------------------------------//
-//                   Implementation of SpotLightList
+//                Implementation of SpotLightList
 //---------------------------------------------------------------------------//
 
 impl Decodeable for SpotLightList {
@@ -62,3 +65,4 @@ impl Encodeable for SpotLightList {
         Ok(())
     }
 }
+

@@ -1990,7 +1990,6 @@ fn load_schemas(sender: &Sender<Response>, pack: &mut Pack, game: &GameInfo) {
 
     // Load the new schema.
     let schema_path = schemas_path().unwrap().join(game.schema_file_name());
-    let _ = Schema::update(&schema_path, &PathBuf::from("schemas/patches.ron"), game.game_key_name());         // Quick fix so we can load old schemas. To be removed once 4.0 lands.
     *SCHEMA.write().unwrap() = Schema::load(&schema_path).ok();
 
     // Redecode all the tables in the open file.

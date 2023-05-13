@@ -120,10 +120,11 @@ fn test_encode_bmd_map_catchment() {
 
     assert_eq!(before, after);
 }
+
 #[test]
 fn test_encode_bmd_to_layer() {
-    let path_1 = "../test_files/fastbin/frodo45127_emp_sidewalk_stuff_1.bmd";
-    let path_2 = "../test_files/fastbin/frodo45127_emp_sidewalk_stuff_1.layer";
+    let path_1 = "../test_files/fastbin/test_prefab.bmd";
+    let path_2 = "../test_files/fastbin/test_prefab.layer";
     let mut reader = BufReader::new(File::open(path_1).unwrap());
 
     let decodeable_extra_data = DecodeableExtraData::default();
@@ -140,6 +141,7 @@ fn test_encode_bmd_to_layer() {
 
     assert_eq!(before, after);
 }
+
 /*
 #[test]
 fn test_mass_decode() {
