@@ -21,6 +21,9 @@ use super::*;
 
 mod river_node;
 mod v6;
+mod v7;
+mod v8;
+mod v9;
 mod v10;
 
 //---------------------------------------------------------------------------//
@@ -60,6 +63,9 @@ impl Decodeable for SoundShape {
 
         match decoded.serialise_version {
             6 => decoded.read_v6(data, extra_data)?,
+            7 => decoded.read_v7(data, extra_data)?,
+            8 => decoded.read_v8(data, extra_data)?,
+            9 => decoded.read_v9(data, extra_data)?,
             10 => decoded.read_v10(data, extra_data)?,
             _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("SoundShape"), decoded.serialise_version)),
         }
@@ -75,6 +81,9 @@ impl Encodeable for SoundShape {
 
         match self.serialise_version {
             6 => self.write_v6(buffer, extra_data)?,
+            7 => self.write_v7(buffer, extra_data)?,
+            8 => self.write_v8(buffer, extra_data)?,
+            9 => self.write_v9(buffer, extra_data)?,
             10 => self.write_v10(buffer, extra_data)?,
             _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("SoundShape"), self.serialise_version)),
         }
