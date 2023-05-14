@@ -17,6 +17,7 @@ use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 
 use super::*;
 
+mod v10;
 mod v11;
 
 //---------------------------------------------------------------------------//
@@ -52,6 +53,7 @@ impl Decodeable for CompositeSceneReference {
         decoded.serialise_version = data.read_u16()?;
 
         match decoded.serialise_version {
+            10 => decoded.read_v10(data, extra_data)?,
             11 => decoded.read_v11(data, extra_data)?,
             _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("CompositeSceneReference"), decoded.serialise_version)),
         }
@@ -66,6 +68,7 @@ impl Encodeable for CompositeSceneReference {
         buffer.write_u16(self.serialise_version)?;
 
         match self.serialise_version {
+            10 => self.write_v10(buffer, extra_data)?,
             11 => self.write_v11(buffer, extra_data)?,
             _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("CompositeSceneReference"), self.serialise_version)),
         }
