@@ -20,6 +20,7 @@ use self::river_node::RiverNode;
 use super::*;
 
 mod river_node;
+mod v6;
 mod v10;
 
 //---------------------------------------------------------------------------//
@@ -58,6 +59,7 @@ impl Decodeable for SoundShape {
         decoded.serialise_version = data.read_u16()?;
 
         match decoded.serialise_version {
+            6 => decoded.read_v6(data, extra_data)?,
             10 => decoded.read_v10(data, extra_data)?,
             _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("SoundShape"), decoded.serialise_version)),
         }
@@ -72,6 +74,7 @@ impl Encodeable for SoundShape {
         buffer.write_u16(self.serialise_version)?;
 
         match self.serialise_version {
+            6 => self.write_v6(buffer, extra_data)?,
             10 => self.write_v10(buffer, extra_data)?,
             _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("SoundShape"), self.serialise_version)),
         }

@@ -17,6 +17,7 @@ use crate::files::{bmd::common::flags::Flags, Decodeable, EncodeableExtraData, E
 
 use super::*;
 
+mod v5;
 mod v6;
 mod v10;
 
@@ -52,6 +53,7 @@ impl Decodeable for ParticleEmitter {
         decoded.serialise_version = data.read_u16()?;
 
         match decoded.serialise_version {
+            5 => decoded.read_v5(data, extra_data)?,
             6 => decoded.read_v6(data, extra_data)?,
             10 => decoded.read_v10(data, extra_data)?,
             _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("ParticleEmitter"), decoded.serialise_version)),
@@ -67,6 +69,7 @@ impl Encodeable for ParticleEmitter {
         buffer.write_u16(self.serialise_version)?;
 
         match self.serialise_version {
+            5 => self.write_v5(buffer, extra_data)?,
             6 => self.write_v6(buffer, extra_data)?,
             10 => self.write_v10(buffer, extra_data)?,
             _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("ParticleEmitter"), self.serialise_version)),

@@ -13,13 +13,11 @@ use serde_derive::{Serialize, Deserialize};
 
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{Result, RLibError};
-use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
-
-use self::flags::Flags;
+use crate::files::{bmd::common::flags::Flags, Decodeable, EncodeableExtraData, Encodeable};
 
 use super::*;
 
-mod flags;
+mod v2;
 mod v3;
 
 //---------------------------------------------------------------------------//
@@ -48,6 +46,7 @@ impl Decodeable for TerrainStencilTriangle {
         decoded.serialise_version = data.read_u16()?;
 
         match decoded.serialise_version {
+            2 => decoded.read_v2(data, extra_data)?,
             3 => decoded.read_v3(data, extra_data)?,
             _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("TerrainStencilTriangle"), decoded.serialise_version)),
         }
@@ -62,6 +61,7 @@ impl Encodeable for TerrainStencilTriangle {
         buffer.write_u16(self.serialise_version)?;
 
         match self.serialise_version {
+            2 => self.write_v2(buffer, extra_data)?,
             3 => self.write_v3(buffer, extra_data)?,
             _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("TerrainStencilTriangle"), self.serialise_version)),
         }

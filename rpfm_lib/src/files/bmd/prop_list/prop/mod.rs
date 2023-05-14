@@ -17,6 +17,7 @@ use crate::files::{bmd::common::flags::Flags, Decodeable, EncodeableExtraData, E
 
 use super::*;
 
+mod v14;
 mod v15;
 mod v25;
 
@@ -70,10 +71,10 @@ impl Decodeable for Prop {
 
     fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
         let mut prop = Self::default();
-
         prop.serialise_version = data.read_u16()?;
 
         match prop.serialise_version {
+            14 => prop.read_v14(data, extra_data)?,
             15 => prop.read_v15(data, extra_data)?,
             25 => prop.read_v25(data, extra_data)?,
             _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("Prop"), prop.serialise_version)),
@@ -89,6 +90,7 @@ impl Encodeable for Prop {
         buffer.write_u16(self.serialise_version)?;
 
         match self.serialise_version {
+            14 => self.write_v14(buffer, extra_data)?,
             15 => self.write_v15(buffer, extra_data)?,
             25 => self.write_v25(buffer, extra_data)?,
             _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("Prop"), self.serialise_version)),
