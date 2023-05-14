@@ -19,7 +19,7 @@ use super::*;
 
 impl ParticleEmitter {
 
-    pub(crate) fn read_v10<R: ReadBytes>(&mut self, data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<()> {
+    pub(crate) fn read_v9<R: ReadBytes>(&mut self, data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<()> {
         self.key = data.read_sized_string_u8()?;
 
         self.transform = Transform3x4::decode(data, extra_data)?;
@@ -34,12 +34,11 @@ impl ParticleEmitter {
         self.autoplay = data.read_bool()?;
         self.visible_in_shroud = data.read_bool()?;
         self.parent_id = data.read_i32()?;
-        self.visible_without_shroud = data.read_bool()?;
 
         Ok(())
     }
 
-    pub(crate) fn write_v10<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+    pub(crate) fn write_v9<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         buffer.write_sized_string_u8(&self.key)?;
 
         self.transform.encode(buffer, extra_data)?;
@@ -54,7 +53,7 @@ impl ParticleEmitter {
         buffer.write_bool(self.autoplay)?;
         buffer.write_bool(self.visible_in_shroud)?;
         buffer.write_i32(self.parent_id)?;
-        buffer.write_bool(self.visible_without_shroud)?;
+
 
         Ok(())
     }
