@@ -20,7 +20,7 @@ use super::*;
 
 impl Prop {
 
-    pub(crate) fn read_v25<R: ReadBytes>(&mut self, data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<()> {
+    pub(crate) fn read_v22<R: ReadBytes>(&mut self, data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<()> {
         self.key_index = data.read_u32()?;
         self.transform = Transform3x4::decode(data, extra_data)?;
         self.decal = data.read_bool()?;
@@ -53,7 +53,7 @@ impl Prop {
         Ok(())
     }
 
-    pub(crate) fn write_v25<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+    pub(crate) fn write_v22<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         buffer.write_u32(self.key_index)?;
 
         self.transform.encode(buffer, extra_data)?;

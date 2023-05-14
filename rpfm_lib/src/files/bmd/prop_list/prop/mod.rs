@@ -19,6 +19,13 @@ use super::*;
 
 mod v14;
 mod v15;
+mod v18;
+mod v19;
+mod v20;
+mod v21;
+mod v22;
+mod v23;
+mod v24;
 mod v25;
 
 //---------------------------------------------------------------------------//
@@ -64,7 +71,7 @@ pub struct Prop {
 }
 
 //---------------------------------------------------------------------------//
-//                           Implementation of Text
+//                           Implementation of Prop
 //---------------------------------------------------------------------------//
 
 impl Decodeable for Prop {
@@ -72,10 +79,16 @@ impl Decodeable for Prop {
     fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
         let mut prop = Self::default();
         prop.serialise_version = data.read_u16()?;
-
         match prop.serialise_version {
             14 => prop.read_v14(data, extra_data)?,
             15 => prop.read_v15(data, extra_data)?,
+            18 => prop.read_v18(data, extra_data)?,
+            19 => prop.read_v19(data, extra_data)?,
+            20 => prop.read_v20(data, extra_data)?,
+            21 => prop.read_v21(data, extra_data)?,
+            22 => prop.read_v22(data, extra_data)?,
+            23 => prop.read_v23(data, extra_data)?,
+            24 => prop.read_v24(data, extra_data)?,
             25 => prop.read_v25(data, extra_data)?,
             _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("Prop"), prop.serialise_version)),
         }
@@ -92,6 +105,13 @@ impl Encodeable for Prop {
         match self.serialise_version {
             14 => self.write_v14(buffer, extra_data)?,
             15 => self.write_v15(buffer, extra_data)?,
+            18 => self.write_v18(buffer, extra_data)?,
+            19 => self.write_v19(buffer, extra_data)?,
+            20 => self.write_v20(buffer, extra_data)?,
+            21 => self.write_v21(buffer, extra_data)?,
+            22 => self.write_v22(buffer, extra_data)?,
+            23 => self.write_v23(buffer, extra_data)?,
+            24 => self.write_v24(buffer, extra_data)?,
             25 => self.write_v25(buffer, extra_data)?,
             _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("Prop"), self.serialise_version)),
         }
