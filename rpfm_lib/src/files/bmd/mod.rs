@@ -101,6 +101,7 @@ mod water_outlines;
 
 mod common;
 mod v23;
+mod v24;
 mod v26;
 mod v27;
 
@@ -201,6 +202,7 @@ impl Decodeable for Bmd {
 
         match fastbin.serialise_version {
             23 => fastbin.read_v23(data, extra_data)?,
+            24 => fastbin.read_v24(data, extra_data)?,
             26 => fastbin.read_v26(data, extra_data)?,
             27 => fastbin.read_v27(data, extra_data)?,
             _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("Bmd"), fastbin.serialise_version)),
@@ -221,6 +223,7 @@ impl Encodeable for Bmd {
 
         match self.serialise_version {
             23 => self.write_v23(buffer, extra_data)?,
+            24 => self.write_v24(buffer, extra_data)?,
             26 => self.write_v26(buffer, extra_data)?,
             27 => self.write_v27(buffer, extra_data)?,
             _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("Bmd"), self.serialise_version)),

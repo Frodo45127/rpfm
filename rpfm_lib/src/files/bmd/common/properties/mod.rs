@@ -18,6 +18,7 @@ use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 use super::*;
 
 mod v4;
+mod v7;
 mod v11;
 
 //---------------------------------------------------------------------------//
@@ -40,12 +41,14 @@ pub struct Properties {
     lite: bool,
     clamp_to_surface: bool,
     cast_shadows: bool,
+    dont_merge_building: bool,
     key_building: bool,
     key_building_use_fort: bool,
     is_prop_in_outfield: bool,
     settlement_level_configurable: bool,
     hide_tooltip: bool,
     include_in_fog: bool,
+    tint_inherit_from_parent: bool,
 }
 
 //---------------------------------------------------------------------------//
@@ -60,6 +63,7 @@ impl Decodeable for Properties {
 
         match flags.serialise_version {
             4 => flags.read_v4(data, extra_data)?,
+            7 => flags.read_v7(data, extra_data)?,
             11 => flags.read_v11(data, extra_data)?,
             _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("Properties"), flags.serialise_version)),
         }
@@ -75,6 +79,7 @@ impl Encodeable for Properties {
 
         match self.serialise_version {
             4 => self.write_v4(buffer, extra_data)?,
+            7 => self.write_v7(buffer, extra_data)?,
             11 => self.write_v11(buffer, extra_data)?,
             _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("Properties"), self.serialise_version)),
         }

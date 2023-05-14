@@ -32,7 +32,7 @@ pub struct SpotLight {
     length: f32,
     inner_angle: f32,
     outer_angle: f32,
-    colour: Colour,
+    colour: ColourRGB,
     falloff: f32,
     gobo: String,
     volumetric: bool,

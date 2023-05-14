@@ -19,28 +19,24 @@ use super::*;
 
 impl Flags {
 
-    pub(crate) fn read_v4<R: ReadBytes>(&mut self, data: &mut R, _extra_data: &Option<DecodeableExtraData>) -> Result<()> {
+    pub(crate) fn read_v3<R: ReadBytes>(&mut self, data: &mut R, _extra_data: &Option<DecodeableExtraData>) -> Result<()> {
         self.allow_in_outfield = data.read_bool()?;
         self.clamp_to_water_surface = data.read_bool()?;
         self.spring = data.read_bool()?;
         self.summer = data.read_bool()?;
         self.autumn = data.read_bool()?;
         self.winter = data.read_bool()?;
-        self.visible_in_tactical_view = data.read_bool()?;
-        self.visible_in_tactical_view_only = data.read_bool()?;
 
         Ok(())
     }
 
-    pub(crate) fn write_v4<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+    pub(crate) fn write_v3<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         buffer.write_bool(self.allow_in_outfield)?;
         buffer.write_bool(self.clamp_to_water_surface)?;
         buffer.write_bool(self.spring)?;
         buffer.write_bool(self.summer)?;
         buffer.write_bool(self.autumn)?;
         buffer.write_bool(self.winter)?;
-        buffer.write_bool(self.visible_in_tactical_view)?;
-        buffer.write_bool(self.visible_in_tactical_view_only)?;
 
         Ok(())
     }

@@ -14,10 +14,12 @@ use serde_derive::{Serialize, Deserialize};
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::Result;
 use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
+use crate::files::bmd::building_reference::BuildingReference;
 
 use super::*;
 
 mod v1;
+mod v2;
 mod v3;
 
 //---------------------------------------------------------------------------//
@@ -33,6 +35,7 @@ pub struct BuildingLink {
     prefab_building_key: String,
     uid: u64,
     prefab_uid: u64,
+    building_reference: BuildingReference
 }
 
 //---------------------------------------------------------------------------//
@@ -47,6 +50,7 @@ impl Decodeable for BuildingLink {
 
         match decoded.serialise_version {
             1 => decoded.read_v1(data, extra_data)?,
+            2 => decoded.read_v2(data, extra_data)?,
             3 => decoded.read_v3(data, extra_data)?,
             _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("BuildingLink"), decoded.serialise_version)),
         }
@@ -62,6 +66,7 @@ impl Encodeable for BuildingLink {
 
         match self.serialise_version {
             1 => self.write_v1(buffer, extra_data)?,
+            2 => self.write_v2(buffer, extra_data)?,
             3 => self.write_v3(buffer, extra_data)?,
             _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("BuildingLink"), self.serialise_version)),
         }

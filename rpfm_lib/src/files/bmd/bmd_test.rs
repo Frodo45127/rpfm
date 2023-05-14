@@ -60,6 +60,26 @@ fn test_encode_bmd_map_data_v23() {
 }
 
 #[test]
+fn test_encode_bmd_map_data_v24() {
+    let path_1 = "../test_files/fastbin/v24_bmd_data.bin";
+    let path_2 = "../test_files/fastbin/v24_encode_bmd_data.bin";
+    let mut reader = BufReader::new(File::open(path_1).unwrap());
+
+    let decodeable_extra_data = DecodeableExtraData::default();
+
+    let data_len = reader.len().unwrap();
+    let before = reader.read_slice(data_len as usize, true).unwrap();
+    let mut data = Bmd::decode(&mut reader, &Some(decodeable_extra_data)).unwrap();
+    let mut after = vec![];
+    data.encode(&mut after, &None).unwrap();
+
+    let mut writer = BufWriter::new(File::create(path_2).unwrap());
+    writer.write_all(&after).unwrap();
+
+    assert_eq!(before, after);
+}
+
+#[test]
 fn test_encode_bmd_map_data_v27() {
     let path_1 = "../test_files/fastbin/v27_bmd_data.bin";
     let path_2 = "../test_files/fastbin/v27_encode_bmd_data.bin";

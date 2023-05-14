@@ -14,12 +14,10 @@ use serde_derive::{Serialize, Deserialize};
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{Result, RLibError};
 use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
-
-use self::properties::Properties;
+use crate::files::bmd::common::properties::Properties;
 
 use super::*;
 
-mod properties;
 mod v8;
 mod v11;
 

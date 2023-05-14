@@ -17,7 +17,7 @@ use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 
 use super::*;
 
-mod v4;
+mod v1;
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
@@ -25,45 +25,38 @@ mod v4;
 
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct Flags {
+pub struct BuildingReference {
     serialise_version: u16,
-    allow_in_outfield: bool,
-    clamp_to_water_surface: bool,
-    spring: bool,
-    summer: bool,
-    autumn: bool,
-    winter: bool,
-    visible_in_tactical_view: bool,
-    visible_in_tactical_view_only: bool,
+    building_index: i32,
 }
 
 //---------------------------------------------------------------------------//
-//                           Implementation of Flags
+//                           Implementation of Properties
 //---------------------------------------------------------------------------//
 
-impl Decodeable for Flags {
+impl Decodeable for BuildingReference {
 
     fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
         let mut flags = Self::default();
         flags.serialise_version = data.read_u16()?;
 
         match flags.serialise_version {
-            4 => flags.read_v4(data, extra_data)?,
-            _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("Flags"), flags.serialise_version)),
+            1 => flags.read_v1(data, extra_data)?,
+            _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("BuildingReference"), flags.serialise_version)),
         }
 
         Ok(flags)
     }
 }
 
-impl Encodeable for Flags {
+impl Encodeable for BuildingReference {
 
     fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         buffer.write_u16(self.serialise_version)?;
 
         match self.serialise_version {
-            4 => self.write_v4(buffer, extra_data)?,
-            _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("Flags"), self.serialise_version)),
+            1 => self.write_v1(buffer, extra_data)?,
+            _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("BuildingReference"), self.serialise_version)),
         }
 
         Ok(())

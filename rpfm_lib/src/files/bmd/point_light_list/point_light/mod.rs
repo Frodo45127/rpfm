@@ -13,13 +13,11 @@ use serde_derive::{Serialize, Deserialize};
 
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{Result, RLibError};
-use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
-
-use self::flags::Flags;
+use crate::files::{bmd::common::flags::Flags, Decodeable, EncodeableExtraData, Encodeable};
 
 use super::*;
 
-mod flags;
+mod v6;
 mod v7;
 
 //---------------------------------------------------------------------------//
@@ -32,7 +30,7 @@ pub struct PointLight {
     serialise_version: u16,
     position: Point3d,
     radius: f32,
-    colour: Colour,
+    colour: ColourRGB,
     colour_scale: f32,
     animation_type: u8,
     params: Point2d,
@@ -57,6 +55,7 @@ impl Decodeable for PointLight {
         decoded.serialise_version = data.read_u16()?;
 
         match decoded.serialise_version {
+            6 => decoded.read_v6(data, extra_data)?,
             7 => decoded.read_v7(data, extra_data)?,
             _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("PointLight"), decoded.serialise_version)),
         }
@@ -71,6 +70,7 @@ impl Encodeable for PointLight {
         buffer.write_u16(self.serialise_version)?;
 
         match self.serialise_version {
+            6 => self.write_v6(buffer, extra_data)?,
             7 => self.write_v7(buffer, extra_data)?,
             _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("PointLight"), self.serialise_version)),
         }

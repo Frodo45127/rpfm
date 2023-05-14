@@ -19,7 +19,7 @@ use super::*;
 
 impl PointLight {
 
-    pub(crate) fn read_v7<R: ReadBytes>(&mut self, data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<()> {
+    pub(crate) fn read_v6<R: ReadBytes>(&mut self, data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<()> {
         self.position = Point3d::decode(data, extra_data)?;
         self.radius = data.read_f32()?;
         self.colour = ColourRGB::decode(data, extra_data)?;
@@ -35,12 +35,11 @@ impl PointLight {
         self.height_mode = data.read_sized_string_u8()?;
         self.light_probes_only = data.read_bool()?;
         self.pdlc_mask = data.read_u64()?;
-        self.flags = Flags::decode(data, extra_data)?;
 
         Ok(())
     }
 
-    pub(crate) fn write_v7<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+    pub(crate) fn write_v6<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         self.position.encode(buffer, extra_data)?;
         buffer.write_f32(self.radius)?;
         self.colour.encode(buffer, extra_data)?;
@@ -55,8 +54,6 @@ impl PointLight {
         buffer.write_sized_string_u8(&self.height_mode)?;
         buffer.write_bool(self.light_probes_only)?;
         buffer.write_u64(self.pdlc_mask)?;
-
-        self.flags.encode(buffer, extra_data)?;
 
         Ok(())
     }

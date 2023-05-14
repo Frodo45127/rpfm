@@ -21,7 +21,7 @@ impl CaptureLocationSet {
 
     pub(crate) fn read_v2<R: ReadBytes>(&mut self, data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<()> {
         for _ in 0..data.read_u32()? {
-            let mut list = vec![];
+            let mut list = CaptureLocationList::default();
             for _ in 0..data.read_u32()? {
                 let mut location = CaptureLocation::default();
 
@@ -43,8 +43,9 @@ impl CaptureLocationSet {
                     location.building_links_mut().push(BuildingLink::decode(data, extra_data)?);
                 }
 
-                list.push(location);
+                list.capture_locations.push(location);
             }
+
             self.capture_location_sets.push(list);
         }
 
@@ -55,8 +56,8 @@ impl CaptureLocationSet {
     pub(crate) fn write_v2<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         buffer.write_u32(self.capture_location_sets.len() as u32)?;
         for list in &mut self.capture_location_sets {
-            buffer.write_u32(list.len() as u32)?;
-            for capture_location in list {
+            buffer.write_u32(list.capture_locations.len() as u32)?;
+            for capture_location in list.capture_locations_mut() {
                 capture_location.location_mut().encode(buffer, extra_data)?;
 
                 buffer.write_f32(*capture_location.radius())?;

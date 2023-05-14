@@ -25,7 +25,7 @@ impl SpotLight {
         self.length = data.read_f32()?;
         self.inner_angle = data.read_f32()?;
         self.outer_angle = data.read_f32()?;
-        self.colour = Colour::decode(data, extra_data)?;
+        self.colour = ColourRGB::decode(data, extra_data)?;
         self.falloff = data.read_f32()?;
         self.gobo = data.read_sized_string_u8()?;
         self.volumetric = data.read_bool()?;

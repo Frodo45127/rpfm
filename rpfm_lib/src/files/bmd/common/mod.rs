@@ -18,7 +18,9 @@ use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 use super::*;
 
 pub mod building_link;
+pub mod building_reference;
 pub mod flags;
+pub mod properties;
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
@@ -26,10 +28,20 @@ pub mod flags;
 
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct Colour {
+pub struct ColourRGB {
     r: f32,
     g: f32,
     b: f32,
+}
+
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct ColourRGBA {
+    r: u8,
+    g: u8,
+    b: u8,
+    a: u8,
 }
 
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
@@ -131,7 +143,7 @@ pub struct Transform4x4 {
 //                           Implementations
 //---------------------------------------------------------------------------//
 
-impl Decodeable for Colour {
+impl Decodeable for ColourRGB {
 
     fn decode<R: ReadBytes>(data: &mut R, _extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
         Ok(Self {
@@ -142,12 +154,36 @@ impl Decodeable for Colour {
     }
 }
 
-impl Encodeable for Colour {
+impl Encodeable for ColourRGB {
 
     fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         buffer.write_f32(self.r)?;
         buffer.write_f32(self.g)?;
         buffer.write_f32(self.b)?;
+
+        Ok(())
+    }
+}
+
+impl Decodeable for ColourRGBA {
+
+    fn decode<R: ReadBytes>(data: &mut R, _extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
+        Ok(Self {
+            r: data.read_u8()?,
+            g: data.read_u8()?,
+            b: data.read_u8()?,
+            a: data.read_u8()?,
+        })
+    }
+}
+
+impl Encodeable for ColourRGBA {
+
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+        buffer.write_u8(self.r)?;
+        buffer.write_u8(self.g)?;
+        buffer.write_u8(self.b)?;
+        buffer.write_u8(self.a)?;
 
         Ok(())
     }

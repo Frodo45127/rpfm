@@ -29,7 +29,13 @@ mod v11;
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct CaptureLocationSet {
     serialise_version: u16,
-    capture_location_sets: Vec<Vec<CaptureLocation>>,
+    capture_location_sets: Vec<CaptureLocationList>,
+}
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct CaptureLocationList {
+    capture_locations: Vec<CaptureLocation>,
 }
 
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]

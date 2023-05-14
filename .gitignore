@@ -38,6 +38,7 @@
 /test_files/test_encode_uic_138.xml
 /test_files/fastbin/encode_*
 /test_files/fastbin/v23_encode_*
+/test_files/fastbin/v24_encode_*
 /test_files/fastbin/v27_encode_*
 /test_files/fastbin/test_prefab.layer
 

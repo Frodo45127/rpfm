@@ -21,6 +21,7 @@ use super::*;
 
 mod zone;
 mod v1;
+mod v2;
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
@@ -45,6 +46,7 @@ impl Decodeable for ZonesTemplateList {
 
         match decoded.serialise_version {
             1 => decoded.read_v1(data, extra_data)?,
+            2 => decoded.read_v2(data, extra_data)?,
             _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("ZonesTemplateList"), decoded.serialise_version)),
         }
 
@@ -59,6 +61,7 @@ impl Encodeable for ZonesTemplateList {
 
         match self.serialise_version {
             1 => self.write_v1(buffer, extra_data)?,
+            2 => self.write_v2(buffer, extra_data)?,
             _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("ZonesTemplateList"), self.serialise_version)),
         }
 
