@@ -8,7 +8,7 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! TableView submodule to provide Search & Replace functionality.
+//! TableView submodule to provide Filter functionality.
 
 use qt_widgets::QCheckBox;
 use qt_widgets::QComboBox;
@@ -30,6 +30,7 @@ use getset::Getters;
 use std::sync::Arc;
 
 use rpfm_ui_common::locale::*;
+use rpfm_ui_common::settings::setting_bool;
 
 use crate::views::table::clean_column_names;
 use crate::utils::*;
@@ -111,7 +112,7 @@ impl FilterView {
             column_combobox.set_model(&filter_column_list);
             group_combobox.set_model(&filter_match_group_list);
 
-            let fields = view.table_definition().fields_processed_sorted(false);
+            let fields = view.table_definition().fields_processed_sorted(setting_bool("tables_use_old_column_order"));
             for field in &fields {
                 let name = clean_column_names(field.name());
                 column_combobox.add_item_q_string(&QString::from_std_str(name));
