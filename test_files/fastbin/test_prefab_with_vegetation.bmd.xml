@@ -1,0 +1,381 @@
+<BATTLE_MAP_DEFINITION_DATA serialise_version='27'>
+	<BATTLEFIELD_BUILDING_LIST serialise_version='1'>
+		<BUILDINGS>
+			<BUILDING serialise_version='11' building_id='' parent_id='-1' building_key='hef_hero_wall_01_arch' position_type='BBPT_LF_RELATIVE' height_mode='BHM_PARENT' uid='110327189219946356'>
+				<transform m00='0.347840' m01='0.000001' m02='-0.235388' m10='-0.000001' m11='0.420000' m12='0.000000' m20='0.235388' m21='0.000000' m22='0.347840' m30='32.563652' m31='0.000135' m32='20.917212'/>
+				<properties serialise_version='11' building_id='' starting_damage_unary='0.000000' on_fire='false' start_disabled='false' weak_point='false' ai_breachable='true' indestructible='false' dockable='true' toggleable='false' lite='false' cast_shadows='true' key_building='false' key_building_use_fort='false' is_prop_in_outfield='false' settlement_level_configurable='false' hide_tooltip='false' include_in_fog='false'/>
+			</BUILDING>
+			<BUILDING serialise_version='11' building_id='' parent_id='-1' building_key='hef_infield_balcony_01' position_type='BBPT_LF_RELATIVE' height_mode='BHM_PARENT' uid='110327189219946357'>
+				<transform m00='2.905438' m01='0.000012' m02='-7.806924' m10='-0.000011' m11='7.000000' m12='0.000007' m20='6.560406' m21='0.000008' m22='2.441532' m30='-19.714893' m31='145.833755' m32='44.184311'/>
+				<properties serialise_version='11' building_id='' starting_damage_unary='0.000000' on_fire='false' start_disabled='false' weak_point='false' ai_breachable='true' indestructible='false' dockable='true' toggleable='false' lite='false' cast_shadows='true' key_building='false' key_building_use_fort='false' is_prop_in_outfield='false' settlement_level_configurable='false' hide_tooltip='false' include_in_fog='false'/>
+			</BUILDING>
+			<BUILDING serialise_version='11' building_id='' parent_id='-1' building_key='hef_door_01' position_type='BBPT_LF_RELATIVE' height_mode='BHM_PARENT' uid='110327189219946359'>
+				<transform m00='0.088889' m01='0.000000' m02='-0.108161' m10='-0.000000' m11='0.140000' m12='0.000000' m20='0.108161' m21='0.000000' m22='0.088889' m30='44.574230' m31='146.988007' m32='14.333061'/>
+				<properties serialise_version='11' building_id='' starting_damage_unary='0.000000' on_fire='false' start_disabled='false' weak_point='false' ai_breachable='true' indestructible='false' dockable='true' toggleable='false' lite='false' cast_shadows='true' key_building='false' key_building_use_fort='false' is_prop_in_outfield='false' settlement_level_configurable='false' hide_tooltip='false' include_in_fog='false'/>
+			</BUILDING>
+			<BUILDING serialise_version='11' building_id='' parent_id='-1' building_key='hef_door_01' position_type='BBPT_LF_RELATIVE' height_mode='BHM_PARENT' uid='110327189219946360'>
+				<transform m00='-0.117844' m01='0.000000' m02='-0.075583' m10='-0.000000' m11='0.140000' m12='0.000000' m20='0.075583' m21='0.000000' m22='-0.117844' m30='-48.620041' m31='146.987885' m32='-21.844124'/>
+				<properties serialise_version='11' building_id='' starting_damage_unary='0.000000' on_fire='false' start_disabled='false' weak_point='false' ai_breachable='true' indestructible='false' dockable='true' toggleable='false' lite='false' cast_shadows='true' key_building='false' key_building_use_fort='false' is_prop_in_outfield='false' settlement_level_configurable='false' hide_tooltip='false' include_in_fog='false'/>
+			</BUILDING>
+			<BUILDING serialise_version='11' building_id='' parent_id='-1' building_key='hef_door_01' position_type='BBPT_LF_RELATIVE' height_mode='BHM_PARENT' uid='110327189219946363'>
+				<transform m00='-0.006320' m01='0.000000' m02='-0.139857' m10='0.000000' m11='0.140000' m12='0.000000' m20='0.139857' m21='-0.000000' m22='-0.006320' m30='-48.321087' m31='146.791397' m32='-20.239094'/>
+				<properties serialise_version='11' building_id='' starting_damage_unary='0.000000' on_fire='false' start_disabled='false' weak_point='false' ai_breachable='true' indestructible='false' dockable='true' toggleable='false' lite='false' cast_shadows='true' key_building='false' key_building_use_fort='false' is_prop_in_outfield='false' settlement_level_configurable='false' hide_tooltip='false' include_in_fog='false'/>
+			</BUILDING>
+			<BUILDING serialise_version='11' building_id='' parent_id='-1' building_key='hef_infield_tower_01' position_type='BBPT_LF_RELATIVE' height_mode='BHM_PARENT' uid='110327189219946365'>
+				<transform m00='0.090336' m01='0.000000' m02='0.178436' m10='-0.000000' m11='0.200000' m12='0.000000' m20='-0.178436' m21='-0.000000' m22='0.090336' m30='7.993608' m31='115.956482' m32='33.994793'/>
+				<properties serialise_version='11' building_id='' starting_damage_unary='0.000000' on_fire='false' start_disabled='false' weak_point='false' ai_breachable='true' indestructible='false' dockable='true' toggleable='false' lite='false' cast_shadows='true' key_building='false' key_building_use_fort='false' is_prop_in_outfield='false' settlement_level_configurable='false' hide_tooltip='false' include_in_fog='false'/>
+			</BUILDING>
+			<BUILDING serialise_version='11' building_id='' parent_id='-1' building_key='hef_tower_base_03' position_type='BBPT_LF_RELATIVE' height_mode='BHM_PARENT' uid='110327189219946367'>
+				<transform m00='1.705705' m01='0.000002' m02='0.634799' m10='-0.000003' m11='1.820000' m12='0.000001' m20='-0.634799' m21='-0.000002' m22='1.705705' m30='15.310493' m31='0.000102' m32='27.940514'/>
+				<properties serialise_version='11' building_id='' starting_damage_unary='0.000000' on_fire='false' start_disabled='false' weak_point='false' ai_breachable='true' indestructible='false' dockable='true' toggleable='false' lite='false' cast_shadows='true' key_building='false' key_building_use_fort='false' is_prop_in_outfield='false' settlement_level_configurable='false' hide_tooltip='false' include_in_fog='false'/>
+			</BUILDING>
+			<BUILDING serialise_version='11' building_id='' parent_id='-1' building_key='hef_hero_wall_01_arch' position_type='BBPT_LF_RELATIVE' height_mode='BHM_PARENT' uid='110327189219946368'>
+				<transform m00='-0.105775' m01='0.000000' m02='-0.406462' m10='-0.000001' m11='0.420000' m12='0.000000' m20='0.406462' m21='0.000001' m22='-0.105775' m30='-43.717056' m31='0.000036' m32='-7.322191'/>
+				<properties serialise_version='11' building_id='' starting_damage_unary='0.000000' on_fire='false' start_disabled='false' weak_point='false' ai_breachable='true' indestructible='false' dockable='true' toggleable='false' lite='false' cast_shadows='true' key_building='false' key_building_use_fort='false' is_prop_in_outfield='false' settlement_level_configurable='false' hide_tooltip='false' include_in_fog='false'/>
+			</BUILDING>
+			<BUILDING serialise_version='11' building_id='' parent_id='-1' building_key='hef_small_bridge_02' position_type='BBPT_LF_RELATIVE' height_mode='BHM_PARENT' uid='110327189219946369'>
+				<transform m00='-0.656041' m01='-0.000001' m02='-0.244152' m10='-0.000001' m11='0.700000' m12='0.000001' m20='0.244152' m21='0.000001' m22='-0.656041' m30='1.089884' m31='197.613922' m32='-10.514174'/>
+				<properties serialise_version='11' building_id='' starting_damage_unary='0.000000' on_fire='false' start_disabled='false' weak_point='false' ai_breachable='true' indestructible='false' dockable='true' toggleable='false' lite='false' cast_shadows='true' key_building='false' key_building_use_fort='false' is_prop_in_outfield='false' settlement_level_configurable='false' hide_tooltip='false' include_in_fog='false'/>
+			</BUILDING>
+			<BUILDING serialise_version='11' building_id='' parent_id='-1' building_key='hef_infield_tower_01' position_type='BBPT_LF_RELATIVE' height_mode='BHM_PARENT' uid='110327189219946370'>
+				<transform m00='0.090336' m01='0.000000' m02='0.178436' m10='-0.000000' m11='0.200000' m12='0.000000' m20='-0.178436' m21='-0.000000' m22='0.090336' m30='-33.857830' m31='115.956429' m32='17.746315'/>
+				<properties serialise_version='11' building_id='' starting_damage_unary='0.000000' on_fire='false' start_disabled='false' weak_point='false' ai_breachable='true' indestructible='false' dockable='true' toggleable='false' lite='false' cast_shadows='true' key_building='false' key_building_use_fort='false' is_prop_in_outfield='false' settlement_level_configurable='false' hide_tooltip='false' include_in_fog='false'/>
+			</BUILDING>
+			<BUILDING serialise_version='11' building_id='' parent_id='-1' building_key='hef_hero_wall_01_arch' position_type='BBPT_LF_RELATIVE' height_mode='BHM_PARENT' uid='110327189219946371'>
+				<transform m00='0.347840' m01='0.000001' m02='-0.235388' m10='-0.000001' m11='0.420000' m12='0.000000' m20='0.235388' m21='0.000000' m22='0.347840' m30='26.828608' m31='0.000131' m32='14.533270'/>
+				<properties serialise_version='11' building_id='' starting_damage_unary='0.000000' on_fire='false' start_disabled='false' weak_point='false' ai_breachable='true' indestructible='false' dockable='true' toggleable='false' lite='false' cast_shadows='true' key_building='false' key_building_use_fort='false' is_prop_in_outfield='false' settlement_level_configurable='false' hide_tooltip='false' include_in_fog='false'/>
+			</BUILDING>
+			<BUILDING serialise_version='11' building_id='' parent_id='-1' building_key='hef_tower_shaft_02' position_type='BBPT_LF_RELATIVE' height_mode='BHM_PARENT' uid='110327189219946373'>
+				<transform m00='1.159783' m01='0.000001' m02='1.402605' m10='-0.000003' m11='1.820000' m12='0.000001' m20='-1.402605' m21='-0.000003' m22='1.159783' m30='45.505474' m31='100.383286' m32='6.613042'/>
+				<properties serialise_version='11' building_id='' starting_damage_unary='0.000000' on_fire='false' start_disabled='false' weak_point='false' ai_breachable='true' indestructible='false' dockable='true' toggleable='false' lite='false' cast_shadows='true' key_building='false' key_building_use_fort='false' is_prop_in_outfield='false' settlement_level_configurable='false' hide_tooltip='false' include_in_fog='false'/>
+			</BUILDING>
+			<BUILDING serialise_version='11' building_id='' parent_id='-1' building_key='hef_door_01' position_type='BBPT_LF_RELATIVE' height_mode='BHM_PARENT' uid='110327189219946376'>
+				<transform m00='-0.146492' m01='-0.000001' m02='0.393624' m10='-0.000002' m11='0.420000' m12='-0.000000' m20='-0.393624' m21='-0.000002' m22='-0.146492' m30='-31.933081' m31='70.590698' m32='0.349828'/>
+				<properties serialise_version='11' building_id='' starting_damage_unary='0.000000' on_fire='false' start_disabled='false' weak_point='false' ai_breachable='true' indestructible='false' dockable='true' toggleable='false' lite='false' cast_shadows='true' key_building='false' key_building_use_fort='false' is_prop_in_outfield='false' settlement_level_configurable='false' hide_tooltip='false' include_in_fog='false'/>
+			</BUILDING>
+			<BUILDING serialise_version='11' building_id='' parent_id='-1' building_key='hef_platform_03' position_type='BBPT_LF_RELATIVE' height_mode='BHM_PARENT' uid='110327189220011913'>
+				<transform m00='-1.705704' m01='0.000000' m02='-0.634795' m10='-0.000001' m11='1.819999' m12='0.000003' m20='0.634795' m21='0.000003' m22='-1.705704' m30='-15.271153' m31='79.157272' m32='32.244286'/>
+				<properties serialise_version='11' building_id='' starting_damage_unary='0.000000' on_fire='false' start_disabled='false' weak_point='false' ai_breachable='true' indestructible='false' dockable='true' toggleable='false' lite='false' cast_shadows='true' key_building='false' key_building_use_fort='false' is_prop_in_outfield='false' settlement_level_configurable='false' hide_tooltip='false' include_in_fog='false'/>
+			</BUILDING>
+			<BUILDING serialise_version='11' building_id='' parent_id='-1' building_key='hef_tower_capital_03' position_type='BBPT_LF_RELATIVE' height_mode='BHM_PARENT' uid='110327189220011914'>
+				<transform m00='1.000033' m01='0.000001' m02='0.979762' m10='-0.000002' m11='1.400000' m12='0.000001' m20='-0.979762' m21='-0.000002' m22='1.000033' m30='-44.305149' m31='209.271011' m32='-26.213398'/>
+				<properties serialise_version='11' building_id='' starting_damage_unary='0.000000' on_fire='false' start_disabled='false' weak_point='false' ai_breachable='true' indestructible='false' dockable='true' toggleable='false' lite='false' cast_shadows='true' key_building='false' key_building_use_fort='false' is_prop_in_outfield='false' settlement_level_configurable='false' hide_tooltip='false' include_in_fog='false'/>
+			</BUILDING>
+			<BUILDING serialise_version='11' building_id='' parent_id='-1' building_key='hef_hero_wall_01_arch' position_type='BBPT_LF_RELATIVE' height_mode='BHM_PARENT' uid='110327189220011916'>
+				<transform m00='-0.142888' m01='0.000000' m02='-0.495477' m10='-0.000000' m11='0.210092' m12='0.000000' m20='0.403554' m21='0.000001' m22='-0.116379' m30='-39.835819' m31='144.482574' m32='-8.118268'/>
+				<properties serialise_version='11' building_id='' starting_damage_unary='0.000000' on_fire='false' start_disabled='false' weak_point='false' ai_breachable='true' indestructible='false' dockable='true' toggleable='false' lite='false' cast_shadows='true' key_building='false' key_building_use_fort='false' is_prop_in_outfield='false' settlement_level_configurable='false' hide_tooltip='false' include_in_fog='false'/>
+			</BUILDING>
+			<BUILDING serialise_version='11' building_id='' parent_id='-1' building_key='hef_door_01' position_type='BBPT_LF_RELATIVE' height_mode='BHM_PARENT' uid='110327189220011918'>
+				<transform m00='0.278776' m01='0.000000' m02='0.314140' m10='-0.000002' m11='0.420000' m12='0.000002' m20='-0.314140' m21='-0.000003' m22='0.278776' m30='-41.056843' m31='70.643921' m32='1.585035'/>
+				<properties serialise_version='11' building_id='' starting_damage_unary='0.000000' on_fire='false' start_disabled='false' weak_point='false' ai_breachable='true' indestructible='false' dockable='true' toggleable='false' lite='false' cast_shadows='true' key_building='false' key_building_use_fort='false' is_prop_in_outfield='false' settlement_level_configurable='false' hide_tooltip='false' include_in_fog='false'/>
+			</BUILDING>
+			<BUILDING serialise_version='11' building_id='' parent_id='-1' building_key='hef_small_bridge_02' position_type='BBPT_LF_RELATIVE' height_mode='BHM_PARENT' uid='110327189220011919'>
+				<transform m00='0.230514' m01='0.000001' m02='-0.158943' m10='-0.000000' m11='0.280000' m12='0.000000' m20='0.158943' m21='0.000000' m22='0.230514' m30='34.351501' m31='145.417175' m32='21.732159'/>
+				<properties serialise_version='11' building_id='' starting_damage_unary='0.000000' on_fire='false' start_disabled='false' weak_point='false' ai_breachable='true' indestructible='false' dockable='true' toggleable='false' lite='false' cast_shadows='true' key_building='false' key_building_use_fort='false' is_prop_in_outfield='false' settlement_level_configurable='false' hide_tooltip='false' include_in_fog='false'/>
+			</BUILDING>
+			<BUILDING serialise_version='11' building_id='' parent_id='-1' building_key='hef_small_bridge_01' position_type='BBPT_LF_RELATIVE' height_mode='BHM_PARENT' uid='110327189220011920'>
+				<transform m00='0.656040' m01='0.000001' m02='0.244153' m10='-0.000001' m11='0.700000' m12='0.000001' m20='-0.244153' m21='-0.000001' m22='0.656040' m30='2.619089' m31='77.818756' m32='-15.024152'/>
+				<properties serialise_version='11' building_id='' starting_damage_unary='0.000000' on_fire='false' start_disabled='false' weak_point='false' ai_breachable='true' indestructible='false' dockable='true' toggleable='false' lite='false' cast_shadows='true' key_building='false' key_building_use_fort='false' is_prop_in_outfield='false' settlement_level_configurable='false' hide_tooltip='false' include_in_fog='false'/>
+			</BUILDING>
+			<BUILDING serialise_version='11' building_id='' parent_id='-1' building_key='hef_door_01' position_type='BBPT_LF_RELATIVE' height_mode='BHM_PARENT' uid='110327189220011922'>
+				<transform m00='-0.416322' m01='-0.000001' m02='0.055454' m10='-0.000001' m11='0.420000' m12='-0.000001' m20='-0.055454' m21='-0.000001' m22='-0.416322' m30='24.745506' m31='70.590752' m32='26.671791'/>
+				<properties serialise_version='11' building_id='' starting_damage_unary='0.000000' on_fire='false' start_disabled='false' weak_point='false' ai_breachable='true' indestructible='false' dockable='true' toggleable='false' lite='false' cast_shadows='true' key_building='false' key_building_use_fort='false' is_prop_in_outfield='false' settlement_level_configurable='false' hide_tooltip='false' include_in_fog='false'/>
+			</BUILDING>
+			<BUILDING serialise_version='11' building_id='' parent_id='-1' building_key='hef_small_bridge_02' position_type='BBPT_LF_RELATIVE' height_mode='BHM_PARENT' uid='110327189220011924'>
+				<transform m00='-0.074003' m01='0.000000' m02='-0.270044' m10='-0.000000' m11='0.280000' m12='0.000000' m20='0.270044' m21='0.000000' m22='-0.074003' m30='-45.175861' m31='145.417038' m32='-7.416796'/>
+				<properties serialise_version='11' building_id='' starting_damage_unary='0.000000' on_fire='false' start_disabled='false' weak_point='false' ai_breachable='true' indestructible='false' dockable='true' toggleable='false' lite='false' cast_shadows='true' key_building='false' key_building_use_fort='false' is_prop_in_outfield='false' settlement_level_configurable='false' hide_tooltip='false' include_in_fog='false'/>
+			</BUILDING>
+			<BUILDING serialise_version='11' building_id='' parent_id='-1' building_key='hef_tower_capital_02' position_type='BBPT_LF_RELATIVE' height_mode='BHM_PARENT' uid='110327189220011926'>
+				<transform m00='1.657268' m01='0.000002' m02='0.752238' m10='-0.000003' m11='1.820000' m12='0.000001' m20='-0.752238' m21='-0.000003' m22='1.657268' m30='-34.747105' m31='178.826279' m32='8.713702'/>
+				<properties serialise_version='11' building_id='' starting_damage_unary='0.000000' on_fire='false' start_disabled='false' weak_point='false' ai_breachable='true' indestructible='false' dockable='true' toggleable='false' lite='false' cast_shadows='true' key_building='false' key_building_use_fort='false' is_prop_in_outfield='false' settlement_level_configurable='false' hide_tooltip='false' include_in_fog='false'/>
+			</BUILDING>
+			<BUILDING serialise_version='11' building_id='' parent_id='-1' building_key='hef_tower_capital_03' position_type='BBPT_LF_RELATIVE' height_mode='BHM_PARENT' uid='110327189220011928'>
+				<transform m00='1.393350' m01='0.000002' m02='-0.136291' m10='-0.000002' m11='1.400000' m12='0.000001' m20='0.136291' m21='-0.000001' m22='1.393350' m30='44.963417' m31='209.886063' m32='6.570273'/>
+				<properties serialise_version='11' building_id='' starting_damage_unary='0.000000' on_fire='false' start_disabled='false' weak_point='false' ai_breachable='true' indestructible='false' dockable='true' toggleable='false' lite='false' cast_shadows='true' key_building='false' key_building_use_fort='false' is_prop_in_outfield='false' settlement_level_configurable='false' hide_tooltip='false' include_in_fog='false'/>
+			</BUILDING>
+			<BUILDING serialise_version='11' building_id='' parent_id='-1' building_key='hef_tower_base_03' position_type='BBPT_LF_RELATIVE' height_mode='BHM_PARENT' uid='110327189220011929'>
+				<transform m00='1.705705' m01='0.000002' m02='0.634799' m10='-0.000003' m11='1.820000' m12='0.000001' m20='-0.634799' m21='-0.000002' m22='1.705705' m30='-35.335823' m31='0.000036' m32='9.091818'/>
+				<properties serialise_version='11' building_id='' starting_damage_unary='0.000000' on_fire='false' start_disabled='false' weak_point='false' ai_breachable='true' indestructible='false' dockable='true' toggleable='false' lite='false' cast_shadows='true' key_building='false' key_building_use_fort='false' is_prop_in_outfield='false' settlement_level_configurable='false' hide_tooltip='false' include_in_fog='false'/>
+			</BUILDING>
+			<BUILDING serialise_version='11' building_id='' parent_id='-1' building_key='hef_door_01' position_type='BBPT_LF_RELATIVE' height_mode='BHM_PARENT' uid='110327189220011932'>
+				<transform m00='0.053772' m01='-0.000000' m02='0.129262' m10='-0.000000' m11='0.140000' m12='0.000000' m20='-0.129262' m21='-0.000000' m22='0.053772' m30='-41.621742' m31='146.791397' m32='5.109466'/>
+				<properties serialise_version='11' building_id='' starting_damage_unary='0.000000' on_fire='false' start_disabled='false' weak_point='false' ai_breachable='true' indestructible='false' dockable='true' toggleable='false' lite='false' cast_shadows='true' key_building='false' key_building_use_fort='false' is_prop_in_outfield='false' settlement_level_configurable='false' hide_tooltip='false' include_in_fog='false'/>
+			</BUILDING>
+			<BUILDING serialise_version='11' building_id='' parent_id='-1' building_key='hef_tower_capital_01' position_type='BBPT_LF_RELATIVE' height_mode='BHM_PARENT' uid='110327189220011933'>
+				<transform m00='-1.675019' m01='0.000000' m02='-0.129267' m10='-0.000000' m11='1.680000' m12='0.000004' m20='0.129267' m21='0.000004' m22='-1.675019' m30='-17.355900' m31='242.348007' m32='37.443954'/>
+				<properties serialise_version='11' building_id='' starting_damage_unary='0.000000' on_fire='false' start_disabled='false' weak_point='false' ai_breachable='true' indestructible='false' dockable='true' toggleable='false' lite='false' cast_shadows='true' key_building='false' key_building_use_fort='false' is_prop_in_outfield='false' settlement_level_configurable='false' hide_tooltip='false' include_in_fog='false'/>
+			</BUILDING>
+			<BUILDING serialise_version='11' building_id='' parent_id='-1' building_key='hef_tower_shaft_02' position_type='BBPT_LF_RELATIVE' height_mode='BHM_PARENT' uid='110327189220011934'>
+				<transform m00='1.159783' m01='0.000001' m02='1.402605' m10='-0.000003' m11='1.820000' m12='0.000001' m20='-1.402605' m21='-0.000003' m22='1.159783' m30='-43.978420' m31='100.383163' m32='-26.689487'/>
+				<properties serialise_version='11' building_id='' starting_damage_unary='0.000000' on_fire='false' start_disabled='false' weak_point='false' ai_breachable='true' indestructible='false' dockable='true' toggleable='false' lite='false' cast_shadows='true' key_building='false' key_building_use_fort='false' is_prop_in_outfield='false' settlement_level_configurable='false' hide_tooltip='false' include_in_fog='false'/>
+			</BUILDING>
+			<BUILDING serialise_version='11' building_id='' parent_id='-1' building_key='hef_tower_shaft_01' position_type='BBPT_LF_RELATIVE' height_mode='BHM_PARENT' uid='110327189220011936'>
+				<transform m00='0.830120' m01='0.000003' m02='-2.230536' m10='-0.000004' m11='2.380000' m12='0.000002' m20='2.230536' m21='0.000003' m22='0.830120' m30='-17.077888' m31='83.602570' m32='37.098888'/>
+				<properties serialise_version='11' building_id='' starting_damage_unary='0.000000' on_fire='false' start_disabled='false' weak_point='false' ai_breachable='true' indestructible='false' dockable='true' toggleable='false' lite='false' cast_shadows='true' key_building='false' key_building_use_fort='false' is_prop_in_outfield='false' settlement_level_configurable='false' hide_tooltip='false' include_in_fog='false'/>
+			</BUILDING>
+			<BUILDING serialise_version='11' building_id='' parent_id='-1' building_key='hef_tower_base_01' position_type='BBPT_LF_RELATIVE' height_mode='BHM_PARENT' uid='110327189220011937'>
+				<transform m00='1.705705' m01='0.000002' m02='0.634799' m10='-0.000003' m11='1.820000' m12='0.000001' m20='-0.634799' m21='-0.000002' m22='1.705705' m30='-43.798222' m31='0.000000' m32='-26.771971'/>
+				<properties serialise_version='11' building_id='' starting_damage_unary='0.000000' on_fire='false' start_disabled='false' weak_point='false' ai_breachable='true' indestructible='false' dockable='true' toggleable='false' lite='false' cast_shadows='true' key_building='false' key_building_use_fort='false' is_prop_in_outfield='false' settlement_level_configurable='false' hide_tooltip='false' include_in_fog='false'/>
+			</BUILDING>
+			<BUILDING serialise_version='11' building_id='' parent_id='-1' building_key='hef_tower_base_01' position_type='BBPT_LF_RELATIVE' height_mode='BHM_PARENT' uid='110327189220011938'>
+				<transform m00='1.705705' m01='0.000002' m02='0.634799' m10='-0.000003' m11='1.820000' m12='0.000001' m20='-0.634799' m21='-0.000002' m22='1.705705' m30='45.423206' m31='0.000116' m32='6.432895'/>
+				<properties serialise_version='11' building_id='' starting_damage_unary='0.000000' on_fire='false' start_disabled='false' weak_point='false' ai_breachable='true' indestructible='false' dockable='true' toggleable='false' lite='false' cast_shadows='true' key_building='false' key_building_use_fort='false' is_prop_in_outfield='false' settlement_level_configurable='false' hide_tooltip='false' include_in_fog='false'/>
+			</BUILDING>
+			<BUILDING serialise_version='11' building_id='' parent_id='-1' building_key='hef_hero_wall_01_arch' position_type='BBPT_LF_RELATIVE' height_mode='BHM_PARENT' uid='110327189220011942'>
+				<transform m00='-0.105774' m01='0.000000' m02='-0.406462' m10='-0.000001' m11='0.420000' m12='0.000000' m20='0.406462' m21='0.000001' m22='-0.105774' m30='-35.444550' m31='0.000050' m32='-8.276789'/>
+				<properties serialise_version='11' building_id='' starting_damage_unary='0.000000' on_fire='false' start_disabled='false' weak_point='false' ai_breachable='true' indestructible='false' dockable='true' toggleable='false' lite='false' cast_shadows='true' key_building='false' key_building_use_fort='false' is_prop_in_outfield='false' settlement_level_configurable='false' hide_tooltip='false' include_in_fog='false'/>
+			</BUILDING>
+			<BUILDING serialise_version='11' building_id='' parent_id='-1' building_key='hef_tower_shaft_03' position_type='BBPT_LF_RELATIVE' height_mode='BHM_PARENT' uid='110327189220011943'>
+				<transform m00='1.705704' m01='0.000002' m02='0.634800' m10='-0.000003' m11='1.820000' m12='0.000001' m20='-0.634800' m21='-0.000002' m22='1.705704' m30='15.392760' m31='89.148521' m32='28.120661'/>
+				<properties serialise_version='11' building_id='' starting_damage_unary='0.000000' on_fire='false' start_disabled='false' weak_point='false' ai_breachable='true' indestructible='false' dockable='true' toggleable='false' lite='false' cast_shadows='true' key_building='false' key_building_use_fort='false' is_prop_in_outfield='false' settlement_level_configurable='false' hide_tooltip='false' include_in_fog='false'/>
+			</BUILDING>
+			<BUILDING serialise_version='11' building_id='' parent_id='-1' building_key='hef_door_01' position_type='BBPT_LF_RELATIVE' height_mode='BHM_PARENT' uid='110327189220011944'>
+				<transform m00='-0.127306' m01='-0.000000' m02='0.058250' m10='-0.000000' m11='0.140000' m12='0.000000' m20='-0.058250' m21='0.000000' m22='-0.127306' m30='22.883854' m31='146.399063' m32='29.265543'/>
+				<properties serialise_version='11' building_id='' starting_damage_unary='0.000000' on_fire='false' start_disabled='false' weak_point='false' ai_breachable='true' indestructible='false' dockable='true' toggleable='false' lite='false' cast_shadows='true' key_building='false' key_building_use_fort='false' is_prop_in_outfield='false' settlement_level_configurable='false' hide_tooltip='false' include_in_fog='false'/>
+			</BUILDING>
+			<BUILDING serialise_version='11' building_id='' parent_id='-1' building_key='hef_tower_base_02' position_type='BBPT_LF_RELATIVE' height_mode='BHM_PARENT' uid='110327189220011945'>
+				<transform m00='1.705705' m01='0.000002' m02='0.634799' m10='-0.000003' m11='1.820000' m12='0.000001' m20='-0.634799' m21='-0.000002' m22='1.705705' m30='-17.224262' m31='0.000059' m32='37.492569'/>
+				<properties serialise_version='11' building_id='' starting_damage_unary='0.000000' on_fire='false' start_disabled='false' weak_point='false' ai_breachable='true' indestructible='false' dockable='true' toggleable='false' lite='false' cast_shadows='true' key_building='false' key_building_use_fort='false' is_prop_in_outfield='false' settlement_level_configurable='false' hide_tooltip='false' include_in_fog='false'/>
+			</BUILDING>
+			<BUILDING serialise_version='11' building_id='' parent_id='-1' building_key='hef_platform_03' position_type='BBPT_LF_RELATIVE' height_mode='BHM_PARENT' uid='110327189220011950'>
+				<transform m00='-1.705705' m01='-0.000001' m02='-0.634796' m10='-0.000002' m11='1.820000' m12='0.000002' m20='0.634796' m21='0.000003' m22='-1.705705' m30='-13.775843' m31='173.679413' m32='27.423267'/>
+				<properties serialise_version='11' building_id='' starting_damage_unary='0.000000' on_fire='false' start_disabled='false' weak_point='false' ai_breachable='true' indestructible='false' dockable='true' toggleable='false' lite='false' cast_shadows='true' key_building='false' key_building_use_fort='false' is_prop_in_outfield='false' settlement_level_configurable='false' hide_tooltip='false' include_in_fog='false'/>
+			</BUILDING>
+			<BUILDING serialise_version='11' building_id='' parent_id='-1' building_key='hef_tower_shaft_02' position_type='BBPT_LF_RELATIVE' height_mode='BHM_PARENT' uid='110327189220011951'>
+				<transform m00='0.585966' m01='0.000002' m02='-1.574495' m10='-0.000003' m11='1.680000' m12='0.000002' m20='1.574495' m21='0.000002' m22='0.585966' m30='-17.355829' m31='171.510956' m32='37.443798'/>
+				<properties serialise_version='11' building_id='' starting_damage_unary='0.000000' on_fire='false' start_disabled='false' weak_point='false' ai_breachable='true' indestructible='false' dockable='true' toggleable='false' lite='false' cast_shadows='true' key_building='false' key_building_use_fort='false' is_prop_in_outfield='false' settlement_level_configurable='false' hide_tooltip='false' include_in_fog='false'/>
+			</BUILDING>
+			<BUILDING serialise_version='11' building_id='' parent_id='-1' building_key='hef_tower_shaft_03' position_type='BBPT_LF_RELATIVE' height_mode='BHM_PARENT' uid='110327189220011952'>
+				<transform m00='1.705704' m01='0.000002' m02='0.634800' m10='-0.000003' m11='1.820000' m12='0.000001' m20='-0.634800' m21='-0.000002' m22='1.705704' m30='-35.204769' m31='89.148453' m32='9.140785'/>
+				<properties serialise_version='11' building_id='' starting_damage_unary='0.000000' on_fire='false' start_disabled='false' weak_point='false' ai_breachable='true' indestructible='false' dockable='true' toggleable='false' lite='false' cast_shadows='true' key_building='false' key_building_use_fort='false' is_prop_in_outfield='false' settlement_level_configurable='false' hide_tooltip='false' include_in_fog='false'/>
+			</BUILDING>
+			<BUILDING serialise_version='11' building_id='' parent_id='-1' building_key='hef_door_01' position_type='BBPT_LF_RELATIVE' height_mode='BHM_PARENT' uid='110327189220011953'>
+				<transform m00='-0.146492' m01='-0.000001' m02='0.393624' m10='-0.000002' m11='0.420000' m12='-0.000000' m20='-0.393624' m21='-0.000002' m22='-0.146492' m30='18.893318' m31='70.590752' m32='19.116085'/>
+				<properties serialise_version='11' building_id='' starting_damage_unary='0.000000' on_fire='false' start_disabled='false' weak_point='false' ai_breachable='true' indestructible='false' dockable='true' toggleable='false' lite='false' cast_shadows='true' key_building='false' key_building_use_fort='false' is_prop_in_outfield='false' settlement_level_configurable='false' hide_tooltip='false' include_in_fog='false'/>
+			</BUILDING>
+			<BUILDING serialise_version='11' building_id='' parent_id='-1' building_key='hef_hero_wall_decoration_01' position_type='BBPT_LF_RELATIVE' height_mode='BHM_PARENT' uid='110327189220077492'>
+				<transform m00='-0.393624' m01='-0.000000' m02='-0.146491' m10='-0.000001' m11='0.420000' m12='0.000000' m20='0.146491' m21='0.000001' m22='-0.393624' m30='-20.886768' m31='93.490501' m32='47.333309'/>
+				<properties serialise_version='11' building_id='' starting_damage_unary='0.000000' on_fire='false' start_disabled='false' weak_point='false' ai_breachable='true' indestructible='false' dockable='true' toggleable='false' lite='false' cast_shadows='true' key_building='false' key_building_use_fort='false' is_prop_in_outfield='false' settlement_level_configurable='false' hide_tooltip='false' include_in_fog='false'/>
+			</BUILDING>
+			<BUILDING serialise_version='11' building_id='' parent_id='-1' building_key='hef_tower_capital_02' position_type='BBPT_LF_RELATIVE' height_mode='BHM_PARENT' uid='110327189220077493'>
+				<transform m00='1.705704' m01='0.000002' m02='0.634800' m10='-0.000003' m11='1.820000' m12='0.000001' m20='-0.634800' m21='-0.000002' m22='1.705704' m30='15.374345' m31='178.826370' m32='27.367044'/>
+				<properties serialise_version='11' building_id='' starting_damage_unary='0.000000' on_fire='false' start_disabled='false' weak_point='false' ai_breachable='true' indestructible='false' dockable='true' toggleable='false' lite='false' cast_shadows='true' key_building='false' key_building_use_fort='false' is_prop_in_outfield='false' settlement_level_configurable='false' hide_tooltip='false' include_in_fog='false'/>
+			</BUILDING>
+			<BUILDING serialise_version='11' building_id='' parent_id='-1' building_key='hef_hero_wall_01_arch' position_type='BBPT_LF_RELATIVE' height_mode='BHM_PARENT' uid='110327189220077494'>
+				<transform m00='0.416726' m01='0.000001' m02='-0.303733' m10='-0.000000' m11='0.210092' m12='0.000000' m20='0.247383' m21='0.000000' m22='0.339414' m30='29.817394' m31='144.482666' m32='17.057211'/>
+				<properties serialise_version='11' building_id='' starting_damage_unary='0.000000' on_fire='false' start_disabled='false' weak_point='false' ai_breachable='true' indestructible='false' dockable='true' toggleable='false' lite='false' cast_shadows='true' key_building='false' key_building_use_fort='false' is_prop_in_outfield='false' settlement_level_configurable='false' hide_tooltip='false' include_in_fog='false'/>
+			</BUILDING>
+		</BUILDINGS>
+	</BATTLEFIELD_BUILDING_LIST>
+	<BATTLEFIELD_BUILDING_LIST_FAR serialise_version='1'>
+		<BUILDINGS/>
+	</BATTLEFIELD_BUILDING_LIST_FAR>
+	<CAPTURE_LOCATION_SET serialise_version='11'>
+		<CAPTURE_LOCATION_SET/>
+	</CAPTURE_LOCATION_SET>
+	<EF_LINE_LIST>
+		<LINES/>
+	</EF_LINE_LIST>
+	<GO_OUTLINES/>
+	<NON_TERRAIN_OUTLINES/>
+	<ZONES_TEMPLATE_LIST serialise_version='1'>
+		<ZONES/>
+	</ZONES_TEMPLATE_LIST>
+	<PREFAB_INSTANCE_LIST serialise_version='1'>
+		<PREFAB_INSTANCE/>
+	</PREFAB_INSTANCE_LIST>
+	<BMD_OUTLINE_LIST serialise_version='1'>
+		<BMD_OUTLINES/>
+	</BMD_OUTLINE_LIST>
+	<TERRAIN_OUTLINES/>
+	<LITE_BUILDING_OUTLINES/>
+	<CAMERA_ZONES serialise_version='1'>
+		<BMD_OUTLINES/>
+	</CAMERA_ZONES>
+	<CIVILIAN_DEPLOYMENT_LIST/>
+	<CIVILIAN_SHELTER_LIST/>
+	<PROP_LIST serialise_version='2'>
+		<KEYS/>
+		<PROPS/>
+	</PROP_LIST>
+	<PARTICLE_EMITTER_LIST serialise_version='1'>
+		<PARTICLE_EMITTERS>
+			<PARTICLE_EMITTER serialise_version='10' key='wh2_main_entity_staff_light' emission_rate='0.000000' instance_name='' height_mode='BHM_PARENT' pdlc_mask='18446744073709551615' autoplay='true' visible_in_shroud='false' parent_id='-1' visible_without_shroud='true'>
+				<transform m00='2.569997' m01='-19.623642' m02='2.882302' m10='-10.528626' m11='1.113351' m12='16.967863' m20='-16.809013' m21='-3.697701' m22='-10.187433' m30='-48.451157' m31='198.059326' m32='-20.820473'/>
+				<flags serialise_version='4' allow_in_outfield='false' clamp_to_water_surface='false' spring='true' summer='true' autumn='true' winter='true' visible_in_tactical_view='true' visible_in_tactical_view_only='false'/>
+			</PARTICLE_EMITTER>
+			<PARTICLE_EMITTER serialise_version='10' key='wh2_main_entity_staff_light' emission_rate='0.000000' instance_name='' height_mode='BHM_PARENT' pdlc_mask='18446744073709551615' autoplay='true' visible_in_shroud='false' parent_id='-1' visible_without_shroud='true'>
+				<transform m00='9.626160' m01='-12.875921' m02='11.897383' m10='-17.520924' m11='-6.605000' m12='7.027910' m20='-0.595430' m21='-13.805241' m22='-14.458937' m30='-27.923546' m31='165.951828' m32='41.866455'/>
+				<flags serialise_version='4' allow_in_outfield='false' clamp_to_water_surface='false' spring='true' summer='true' autumn='true' winter='true' visible_in_tactical_view='true' visible_in_tactical_view_only='false'/>
+			</PARTICLE_EMITTER>
+			<PARTICLE_EMITTER serialise_version='10' key='wh2_main_entity_staff_light' emission_rate='0.000000' instance_name='' height_mode='BHM_PARENT' pdlc_mask='18446744073709551615' autoplay='true' visible_in_shroud='false' parent_id='-1' visible_without_shroud='true'>
+				<transform m00='2.569928' m01='-19.623663' m02='2.882149' m10='-10.528468' m11='1.113297' m12='16.967947' m20='-16.809111' m21='-3.697548' m22='-10.187304' m30='41.338718' m31='198.862991' m32='12.630028'/>
+				<flags serialise_version='4' allow_in_outfield='false' clamp_to_water_surface='false' spring='true' summer='true' autumn='true' winter='true' visible_in_tactical_view='true' visible_in_tactical_view_only='false'/>
+			</PARTICLE_EMITTER>
+			<PARTICLE_EMITTER serialise_version='10' key='wh2_main_entity_staff_light' emission_rate='0.000000' instance_name='' height_mode='BHM_PARENT' pdlc_mask='18446744073709551615' autoplay='true' visible_in_shroud='false' parent_id='-1' visible_without_shroud='true'>
+				<transform m00='5.654031' m01='-17.963669' m02='6.733362' m10='-14.669272' m11='0.475444' m12='13.586241' m20='-12.363008' m21='-8.779530' m22='-13.041293' m30='10.573041' m31='185.618881' m32='31.119806'/>
+				<flags serialise_version='4' allow_in_outfield='false' clamp_to_water_surface='false' spring='true' summer='true' autumn='true' winter='true' visible_in_tactical_view='true' visible_in_tactical_view_only='false'/>
+			</PARTICLE_EMITTER>
+			<PARTICLE_EMITTER serialise_version='10' key='wh2_main_entity_staff_light' emission_rate='0.000000' instance_name='' height_mode='BHM_PARENT' pdlc_mask='18446744073709551615' autoplay='true' visible_in_shroud='false' parent_id='-1' visible_without_shroud='true'>
+				<transform m00='4.642859' m01='-13.399981' m02='14.102641' m10='-18.645845' m11='1.069358' m12='7.154655' m20='-5.547652' m21='-14.808681' m22='-12.244453' m30='39.001160' m31='199.247620' m32='10.226796'/>
+				<flags serialise_version='4' allow_in_outfield='false' clamp_to_water_surface='false' spring='true' summer='true' autumn='true' winter='true' visible_in_tactical_view='true' visible_in_tactical_view_only='false'/>
+			</PARTICLE_EMITTER>
+			<PARTICLE_EMITTER serialise_version='10' key='wh2_main_entity_staff_light' emission_rate='0.000000' instance_name='' height_mode='BHM_PARENT' pdlc_mask='18446744073709551615' autoplay='true' visible_in_shroud='false' parent_id='-1' visible_without_shroud='true'>
+				<transform m00='-13.026003' m01='-13.022272' m02='7.793802' m10='9.420774' m11='1.114291' m12='17.607018' m20='-11.898404' m21='15.138648' m22='5.408266' m30='-14.498535' m31='262.046356' m32='43.588341'/>
+				<flags serialise_version='4' allow_in_outfield='false' clamp_to_water_surface='false' spring='true' summer='true' autumn='true' winter='true' visible_in_tactical_view='true' visible_in_tactical_view_only='false'/>
+			</PARTICLE_EMITTER>
+			<PARTICLE_EMITTER serialise_version='10' key='wh2_main_entity_staff_light' emission_rate='0.000000' instance_name='' height_mode='BHM_PARENT' pdlc_mask='18446744073709551615' autoplay='true' visible_in_shroud='false' parent_id='-1' visible_without_shroud='true'>
+				<transform m00='-3.561963' m01='-18.408331' m02='-6.960258' m10='-2.668345' m11='-6.556283' m12='18.705465' m20='-19.498512' m21='4.260036' m22='-1.288324' m30='-19.033978' m31='165.977707' m32='48.798717'/>
+				<flags serialise_version='4' allow_in_outfield='false' clamp_to_water_surface='false' spring='true' summer='true' autumn='true' winter='true' visible_in_tactical_view='true' visible_in_tactical_view_only='false'/>
+			</PARTICLE_EMITTER>
+			<PARTICLE_EMITTER serialise_version='10' key='wh2_main_entity_staff_light' emission_rate='0.000000' instance_name='' height_mode='BHM_PARENT' pdlc_mask='18446744073709551615' autoplay='true' visible_in_shroud='false' parent_id='-1' visible_without_shroud='true'>
+				<transform m00='-13.026451' m01='-13.025092' m02='7.788351' m10='9.417743' m11='1.110501' m12='17.608879' m20='-11.900314' m21='15.136500' m22='5.410059' m30='49.300331' m31='198.917557' m32='12.858575'/>
+				<flags serialise_version='4' allow_in_outfield='false' clamp_to_water_surface='false' spring='true' summer='true' autumn='true' winter='true' visible_in_tactical_view='true' visible_in_tactical_view_only='false'/>
+			</PARTICLE_EMITTER>
+			<PARTICLE_EMITTER serialise_version='10' key='wh2_main_entity_staff_light' emission_rate='0.000000' instance_name='' height_mode='BHM_PARENT' pdlc_mask='18446744073709551615' autoplay='true' visible_in_shroud='false' parent_id='-1' visible_without_shroud='true'>
+				<transform m00='6.802005' m01='-17.404190' m02='7.129281' m10='-15.436138' m11='-0.834766' m12='12.689695' m20='-10.745134' m21='-9.818202' m22='-13.716586' m30='-44.898239' m31='271.006805' m32='-25.757593'/>
+				<flags serialise_version='4' allow_in_outfield='false' clamp_to_water_surface='false' spring='true' summer='true' autumn='true' winter='true' visible_in_tactical_view='true' visible_in_tactical_view_only='false'/>
+			</PARTICLE_EMITTER>
+			<PARTICLE_EMITTER serialise_version='10' key='wh2_main_entity_staff_light' emission_rate='0.000000' instance_name='' height_mode='BHM_PARENT' pdlc_mask='18446744073709551615' autoplay='true' visible_in_shroud='false' parent_id='-1' visible_without_shroud='true'>
+				<transform m00='-4.327446' m01='-19.522720' m02='0.369274' m10='-3.116304' m11='1.063910' m12='19.727053' m20='-19.275934' m21='4.210855' m22='-3.272132' m30='45.101547' m31='199.159607' m32='13.863514'/>
+				<flags serialise_version='4' allow_in_outfield='false' clamp_to_water_surface='false' spring='true' summer='true' autumn='true' winter='true' visible_in_tactical_view='true' visible_in_tactical_view_only='false'/>
+			</PARTICLE_EMITTER>
+			<PARTICLE_EMITTER serialise_version='10' key='wh2_main_entity_staff_light' emission_rate='0.000000' instance_name='' height_mode='BHM_PARENT' pdlc_mask='18446744073709551615' autoplay='true' visible_in_shroud='false' parent_id='-1' visible_without_shroud='true'>
+				<transform m00='-7.421958' m01='-18.542017' m02='1.052688' m10='0.233998' m11='1.040183' m12='19.971552' m20='-18.570400' m21='7.423719' m22='-0.169070' m30='45.341110' m31='271.870422' m32='8.137866'/>
+				<flags serialise_version='4' allow_in_outfield='false' clamp_to_water_surface='false' spring='true' summer='true' autumn='true' winter='true' visible_in_tactical_view='true' visible_in_tactical_view_only='false'/>
+			</PARTICLE_EMITTER>
+			<PARTICLE_EMITTER serialise_version='10' key='wh2_main_entity_staff_light' emission_rate='0.000000' instance_name='' height_mode='BHM_PARENT' pdlc_mask='18446744073709551615' autoplay='true' visible_in_shroud='false' parent_id='-1' visible_without_shroud='true'>
+				<transform m00='-13.731152' m01='-13.183053' m02='6.136947' m10='9.213670' m11='-1.357390' m12='17.699310' m20='-11.250032' m21='14.978795' m22='7.005156' m30='-13.866162' m31='237.586105' m32='44.837387'/>
+				<flags serialise_version='4' allow_in_outfield='false' clamp_to_water_surface='false' spring='true' summer='true' autumn='true' winter='true' visible_in_tactical_view='true' visible_in_tactical_view_only='false'/>
+			</PARTICLE_EMITTER>
+			<PARTICLE_EMITTER serialise_version='10' key='wh2_main_entity_staff_light' emission_rate='0.000000' instance_name='' height_mode='BHM_PARENT' pdlc_mask='18446744073709551615' autoplay='true' visible_in_shroud='false' parent_id='-1' visible_without_shroud='true'>
+				<transform m00='-8.520526' m01='-18.071306' m02='0.910247' m10='1.466644' m11='0.313045' m12='19.943686' m20='-18.034679' m21='8.563291' m22='1.191846' m30='-34.677650' m31='185.826065' m32='14.798821'/>
+				<flags serialise_version='4' allow_in_outfield='false' clamp_to_water_surface='false' spring='true' summer='true' autumn='true' winter='true' visible_in_tactical_view='true' visible_in_tactical_view_only='false'/>
+			</PARTICLE_EMITTER>
+			<PARTICLE_EMITTER serialise_version='10' key='wh2_main_entity_staff_light' emission_rate='0.000000' instance_name='' height_mode='BHM_PARENT' pdlc_mask='18446744073709551615' autoplay='true' visible_in_shroud='false' parent_id='-1' visible_without_shroud='true'>
+				<transform m00='6.843279' m01='-18.511539' m02='-3.239172' m10='-10.210078' m11='-6.556390' m12='15.898674' m20='-15.777316' m21='-3.786342' m22='-11.693574' m30='-23.874058' m31='165.718781' m32='46.765697'/>
+				<flags serialise_version='4' allow_in_outfield='false' clamp_to_water_surface='false' spring='true' summer='true' autumn='true' winter='true' visible_in_tactical_view='true' visible_in_tactical_view_only='false'/>
+			</PARTICLE_EMITTER>
+			<PARTICLE_EMITTER serialise_version='10' key='wh2_main_entity_staff_light' emission_rate='0.000000' instance_name='' height_mode='BHM_PARENT' pdlc_mask='18446744073709551615' autoplay='true' visible_in_shroud='false' parent_id='-1' visible_without_shroud='true'>
+				<transform m00='4.032636' m01='-19.564346' m02='0.986827' m10='-10.716917' m11='-1.359998' m12='16.831440' m20='-16.397722' m21='-3.922539' m22='-10.757699' m30='-20.483898' m31='237.060226' m32='45.049355'/>
+				<flags serialise_version='4' allow_in_outfield='false' clamp_to_water_surface='false' spring='true' summer='true' autumn='true' winter='true' visible_in_tactical_view='true' visible_in_tactical_view_only='false'/>
+			</PARTICLE_EMITTER>
+			<PARTICLE_EMITTER serialise_version='10' key='wh_main_light_character_aura' emission_rate='0.000000' instance_name='' height_mode='BHM_PARENT' pdlc_mask='18446744073709551615' autoplay='true' visible_in_shroud='false' parent_id='-1' visible_without_shroud='true'>
+				<transform m00='-4.340616' m01='-0.000053' m02='59.842800' m10='-0.000049' m11='60.000004' m12='0.000050' m20='-59.842800' m21='-0.000045' m22='-4.340616' m30='-5.600454' m31='32.662582' m32='13.499152'/>
+				<flags serialise_version='4' allow_in_outfield='false' clamp_to_water_surface='false' spring='true' summer='true' autumn='true' winter='true' visible_in_tactical_view='true' visible_in_tactical_view_only='false'/>
+			</PARTICLE_EMITTER>
+			<PARTICLE_EMITTER serialise_version='10' key='wh2_main_entity_staff_light' emission_rate='0.000000' instance_name='' height_mode='BHM_PARENT' pdlc_mask='18446744073709551615' autoplay='true' visible_in_shroud='false' parent_id='-1' visible_without_shroud='true'>
+				<transform m00='-13.026409' m01='-13.025282' m02='7.788136' m10='9.417534' m11='1.110504' m12='17.608999' m20='-11.900543' m21='15.136347' m22='5.410004' m30='-41.022594' m31='198.312592' m32='-19.873703'/>
+				<flags serialise_version='4' allow_in_outfield='false' clamp_to_water_surface='false' spring='true' summer='true' autumn='true' winter='true' visible_in_tactical_view='true' visible_in_tactical_view_only='false'/>
+			</PARTICLE_EMITTER>
+			<PARTICLE_EMITTER serialise_version='10' key='wh2_main_entity_staff_light' emission_rate='0.000000' instance_name='' height_mode='BHM_PARENT' pdlc_mask='18446744073709551615' autoplay='true' visible_in_shroud='false' parent_id='-1' visible_without_shroud='true'>
+				<transform m00='4.651027' m01='-13.408361' m02='14.091966' m10='-18.642136' m11='1.063890' m12='7.165068' m20='-5.553208' m21='-14.801477' m22='-12.250625' m30='-23.458313' m31='261.974792' m32='40.502563'/>
+				<flags serialise_version='4' allow_in_outfield='false' clamp_to_water_surface='false' spring='true' summer='true' autumn='true' winter='true' visible_in_tactical_view='true' visible_in_tactical_view_only='false'/>
+			</PARTICLE_EMITTER>
+			<PARTICLE_EMITTER serialise_version='10' key='wh2_main_entity_staff_light' emission_rate='0.000000' instance_name='' height_mode='BHM_PARENT' pdlc_mask='18446744073709551615' autoplay='true' visible_in_shroud='false' parent_id='-1' visible_without_shroud='true'>
+				<transform m00='-15.244025' m01='-12.609116' m02='2.937557' m10='8.607656' m11='-6.480943' m12='16.849483' m20='-9.670952' m21='14.106985' m22='10.366553' m30='-12.775275' m31='165.902145' m32='48.320259'/>
+				<flags serialise_version='4' allow_in_outfield='false' clamp_to_water_surface='false' spring='true' summer='true' autumn='true' winter='true' visible_in_tactical_view='true' visible_in_tactical_view_only='false'/>
+			</PARTICLE_EMITTER>
+			<PARTICLE_EMITTER serialise_version='10' key='wh2_main_entity_staff_light' emission_rate='0.000000' instance_name='' height_mode='BHM_PARENT' pdlc_mask='18446744073709551615' autoplay='true' visible_in_shroud='false' parent_id='-1' visible_without_shroud='true'>
+				<transform m00='-10.786884' m01='-16.600441' m02='2.840503' m10='4.404663' m11='0.475059' m12='19.503164' m20='-16.255527' m21='11.144491' m22='3.399744' m30='16.219465' m31='185.161346' m32='33.417053'/>
+				<flags serialise_version='4' allow_in_outfield='false' clamp_to_water_surface='false' spring='true' summer='true' autumn='true' winter='true' visible_in_tactical_view='true' visible_in_tactical_view_only='false'/>
+			</PARTICLE_EMITTER>
+			<PARTICLE_EMITTER serialise_version='10' key='wh2_main_entity_staff_light' emission_rate='0.000000' instance_name='' height_mode='BHM_PARENT' pdlc_mask='18446744073709551615' autoplay='true' visible_in_shroud='false' parent_id='-1' visible_without_shroud='true'>
+				<transform m00='-4.327740' m01='-19.522638' m02='0.369273' m10='-3.115960' m11='1.063885' m12='19.727093' m20='-19.275925' m21='4.211167' m22='-3.271801' m30='-44.507698' m31='198.189911' m32='-19.230209'/>
+				<flags serialise_version='4' allow_in_outfield='false' clamp_to_water_surface='false' spring='true' summer='true' autumn='true' winter='true' visible_in_tactical_view='true' visible_in_tactical_view_only='false'/>
+			</PARTICLE_EMITTER>
+			<PARTICLE_EMITTER serialise_version='10' key='wh2_main_entity_staff_light' emission_rate='0.000000' instance_name='' height_mode='BHM_PARENT' pdlc_mask='18446744073709551615' autoplay='true' visible_in_shroud='false' parent_id='-1' visible_without_shroud='true'>
+				<transform m00='-6.171225' m01='-19.021069' m02='-0.339421' m10='-1.098289' m11='-0.000024' m12='19.969818' m20='-18.992361' m21='6.180547' m22='-1.044528' m30='-34.122131' m31='126.968857' m32='18.552626'/>
+				<flags serialise_version='4' allow_in_outfield='false' clamp_to_water_surface='false' spring='true' summer='true' autumn='true' winter='true' visible_in_tactical_view='true' visible_in_tactical_view_only='false'/>
+			</PARTICLE_EMITTER>
+			<PARTICLE_EMITTER serialise_version='10' key='wh2_main_entity_staff_light' emission_rate='0.000000' instance_name='' height_mode='BHM_PARENT' pdlc_mask='18446744073709551615' autoplay='true' visible_in_shroud='false' parent_id='-1' visible_without_shroud='true'>
+				<transform m00='4.642844' m01='-13.399977' m02='14.102643' m10='-18.645826' m11='1.069388' m12='7.154651' m20='-5.547670' m21='-14.808674' m22='-12.244437' m30='-50.610302' m31='198.557709' m32='-23.314127'/>
+				<flags serialise_version='4' allow_in_outfield='false' clamp_to_water_surface='false' spring='true' summer='true' autumn='true' winter='true' visible_in_tactical_view='true' visible_in_tactical_view_only='false'/>
+			</PARTICLE_EMITTER>
+			<PARTICLE_EMITTER serialise_version='10' key='wh2_main_entity_staff_light' emission_rate='0.000000' instance_name='' height_mode='BHM_PARENT' pdlc_mask='18446744073709551615' autoplay='true' visible_in_shroud='false' parent_id='-1' visible_without_shroud='true'>
+				<transform m00='6.274510' m01='-13.563212' m02='13.291727' m10='-18.543283' m11='-1.356539' m12='7.369333' m20='-4.096056' m21='-14.635555' m22='-13.000903' m30='-25.522572' m31='237.617355' m32='39.081776'/>
+				<flags serialise_version='4' allow_in_outfield='false' clamp_to_water_surface='false' spring='true' summer='true' autumn='true' winter='true' visible_in_tactical_view='true' visible_in_tactical_view_only='false'/>
+			</PARTICLE_EMITTER>
+			<PARTICLE_EMITTER serialise_version='10' key='wh2_main_entity_staff_light' emission_rate='0.000000' instance_name='' height_mode='BHM_PARENT' pdlc_mask='18446744073709551615' autoplay='true' visible_in_shroud='false' parent_id='-1' visible_without_shroud='true'>
+				<transform m00='6.044652' m01='-14.862886' m02='11.939708' m10='-17.843632' m11='-0.000041' m12='9.033538' m20='-6.713197' m21='-13.382619' m22='-13.260407' m30='7.370216' m31='126.944374' m32='34.534637'/>
+				<flags serialise_version='4' allow_in_outfield='false' clamp_to_water_surface='false' spring='true' summer='true' autumn='true' winter='true' visible_in_tactical_view='true' visible_in_tactical_view_only='false'/>
+			</PARTICLE_EMITTER>
+			<PARTICLE_EMITTER serialise_version='10' key='wh2_main_entity_staff_light' emission_rate='0.000000' instance_name='' height_mode='BHM_PARENT' pdlc_mask='18446744073709551615' autoplay='true' visible_in_shroud='false' parent_id='-1' visible_without_shroud='true'>
+				<transform m00='2.581618' m01='-19.621098' m02='2.889239' m10='-10.541084' m11='1.110513' m12='16.960318' m20='-16.799429' m21='-3.712035' m22='-10.198032' m30='-21.389511' m31='262.069550' m32='42.817841'/>
+				<flags serialise_version='4' allow_in_outfield='false' clamp_to_water_surface='false' spring='true' summer='true' autumn='true' winter='true' visible_in_tactical_view='true' visible_in_tactical_view_only='false'/>
+			</PARTICLE_EMITTER>
+			<PARTICLE_EMITTER serialise_version='10' key='wh2_main_entity_staff_light' emission_rate='0.000000' instance_name='' height_mode='BHM_PARENT' pdlc_mask='18446744073709551615' autoplay='true' visible_in_shroud='false' parent_id='-1' visible_without_shroud='true'>
+				<transform m00='6.140440' m01='-16.980230' m02='8.600379' m10='-15.977657' m11='0.313036' m12='12.025640' m20='-10.344523' m21='-10.562835' m22='-13.469110' m30='-39.608177' m31='185.547195' m32='12.587330'/>
+				<flags serialise_version='4' allow_in_outfield='false' clamp_to_water_surface='false' spring='true' summer='true' autumn='true' winter='true' visible_in_tactical_view='true' visible_in_tactical_view_only='false'/>
+			</PARTICLE_EMITTER>
+			<PARTICLE_EMITTER serialise_version='10' key='wh2_main_entity_staff_light' emission_rate='0.000000' instance_name='' height_mode='BHM_PARENT' pdlc_mask='18446744073709551615' autoplay='true' visible_in_shroud='false' parent_id='-1' visible_without_shroud='true'>
+				<transform m00='-4.330806' m01='-19.522030' m02='0.366672' m10='-3.112350' m11='1.060989' m12='19.727839' m20='-19.275829' m21='4.214813' m22='-3.267715' m30='-17.983595' m31='262.315216' m32='44.231945'/>
+				<flags serialise_version='4' allow_in_outfield='false' clamp_to_water_surface='false' spring='true' summer='true' autumn='true' winter='true' visible_in_tactical_view='true' visible_in_tactical_view_only='false'/>
+			</PARTICLE_EMITTER>
+		</PARTICLE_EMITTERS>
+	</PARTICLE_EMITTER_LIST>
+	<AI_HINTS serialise_version='1'>
+		<separators serialise_version='1'>
+			<SEPARATORS/>
+		</separators>
+		<directed_points serialise_version='1'>
+			<DIRECTED_POINTS/>
+		</directed_points>
+		<polylines serialise_version='1'>
+			<HINT_POLYLINES/>
+		</polylines>
+		<polylines_list serialise_version='1'>
+			<HINT_POLYLINES/>
+		</polylines_list>
+	</AI_HINTS>
+	<LIGHT_PROBE_LIST serialise_version='1'>
+		<LIGHT_PROBES/>
+	</LIGHT_PROBE_LIST>
+	<TERRAIN_STENCIL_TRIANGLE_LIST serialise_version='1'>
+		<TERRAIN_STENCIL_TRIANGLES/>
+	</TERRAIN_STENCIL_TRIANGLE_LIST>
+	<POINT_LIGHT_LIST serialise_version='1'>
+		<POINT_LIGHTS/>
+	</POINT_LIGHT_LIST>
+	<BUILDING_PROJECTILE_EMITTER_LIST serialise_version='1'>
+		<BUILDING_PROJECTILE_EMITTERS/>
+	</BUILDING_PROJECTILE_EMITTER_LIST>
+	<PLAYABLE_AREA serialise_version='3' has_been_set='false'>
+		<area min_x='64.000000' min_y='64.000000' max_x='1920.000000' max_y='1920.000000'/>
+		<valid_location_flags serialise_version='1' valid_north='true' valid_south='true' valid_east='true' valid_west='true'/>
+	</PLAYABLE_AREA>
+	<CUSTOM_MATERIAL_MESH_LIST serialise_version='1'>
+		<CUSTOM_MATERIAL_MESH_LIST/>
+	</CUSTOM_MATERIAL_MESH_LIST>
+	<TERRAIN_STENCIL_BLEND_TRIANGLE_LIST serialise_version='1'>
+		<TERRAIN_BLEND_TRIANGLES/>
+	</TERRAIN_STENCIL_BLEND_TRIANGLE_LIST>
+	<SPOT_LIGHT_LIST serialise_version='1'>
+		<SPOT_LIGHTS/>
+	</SPOT_LIGHT_LIST>
+	<SOUND_SHAPE_LIST serialise_version='1'>
+		<SOUND_SHAPES/>
+	</SOUND_SHAPE_LIST>
+	<COMPOSITE_SCENE_LIST serialise_version='1'>
+		<COMPOSITE_SCENE_LIST/>
+	</COMPOSITE_SCENE_LIST>
+	<DEPLOYMENT_LIST serialise_version='1'>
+		<DEPLOYMENT_AREAS/>
+	</DEPLOYMENT_LIST>
+	<BMD_CATCHMENT_AREA_LIST serialise_version='1'>
+		<BMD_CATCHMENT_AREAS/>
+	</BMD_CATCHMENT_AREA_LIST>
+	<TOGGLEABLE_BUILDINGS_SLOT_LIST serialise_version='7'>
+		<TOGGLEABLE_BUILDINGS_SLOTS/>
+	</TOGGLEABLE_BUILDINGS_SLOT_LIST>
+	<TERRAIN_DECAL_LIST serialise_version='1'>
+		<TERRAIN_DECALS/>
+	</TERRAIN_DECAL_LIST>
+	<TREE_LIST_REFERENCE_LIST serialise_version='1'>
+		<TREE_LIST_REFERENCES/>
+	</TREE_LIST_REFERENCE_LIST>
+	<GRASS_LIST_REFERENCE_LIST serialise_version='1'>
+		<GRASS_LIST_REFERENCES/>
+	</GRASS_LIST_REFERENCE_LIST>
+	<WATER_OUTLINES/>
+</BATTLE_MAP_DEFINITION_DATA>

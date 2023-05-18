@@ -103,6 +103,7 @@ pub mod animpack;
 pub mod anims_table;
 pub mod audio;
 pub mod bmd;
+pub mod bmd_vegetation;
 pub mod db;
 pub mod esf;
 pub mod image;
