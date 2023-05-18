@@ -20,6 +20,7 @@ use super::*;
 impl GrassList {
 
     pub(crate) fn read_v4<R: ReadBytes>(&mut self, data: &mut R, _extra_data: &Option<DecodeableExtraData>) -> Result<()> {
+        dbg!(self.serialise_version);
         for _ in 0..data.read_u32()? {
 
         }

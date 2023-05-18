@@ -14,7 +14,6 @@ use serde_derive::{Serialize, Deserialize};
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{Result, RLibError};
 use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
-use crate::utils::check_size_mismatch;
 
 use super::DecodeableExtraData;
 
@@ -47,9 +46,6 @@ impl Decodeable for GrassList {
             4 => decoded.read_v4(data, extra_data)?,
             _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("GrassList"), decoded.serialise_version)),
         }
-
-        // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt.
-        check_size_mismatch(data.stream_position()? as usize, data.len()? as usize)?;
 
         Ok(decoded)
     }

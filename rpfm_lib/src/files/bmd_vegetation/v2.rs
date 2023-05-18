@@ -22,7 +22,6 @@ impl BmdVegetation {
 
     pub(crate) fn read_v2<R: ReadBytes>(&mut self, data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<()> {
         self.tree_list = TreeList::decode(data, extra_data)?;
-        dbg!(data.stream_position()?);
         self.grass_list = GrassList::decode(data, extra_data)?;
 
         Ok(())
