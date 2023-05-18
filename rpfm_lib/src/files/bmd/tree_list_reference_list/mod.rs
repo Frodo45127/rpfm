@@ -18,6 +18,8 @@ use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 use super::*;
 
 mod v1;
+mod v3;
+mod v4;
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
@@ -42,6 +44,8 @@ impl Decodeable for TreeListReferenceList {
 
         match decoded.serialise_version {
             1 => decoded.read_v1(data, extra_data)?,
+            3 => decoded.read_v3(data, extra_data)?,
+            4 => decoded.read_v4(data, extra_data)?,
             _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("TreeListReferenceList"), decoded.serialise_version)),
         }
 
@@ -56,6 +60,8 @@ impl Encodeable for TreeListReferenceList {
 
         match self.serialise_version {
             1 => self.write_v1(buffer, extra_data)?,
+            3 => self.write_v3(buffer, extra_data)?,
+            4 => self.write_v4(buffer, extra_data)?,
             _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("TreeListReferenceList"), self.serialise_version)),
         }
 

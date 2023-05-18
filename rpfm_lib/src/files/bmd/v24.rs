@@ -51,7 +51,10 @@ impl Bmd {
         self.deployment_list = DeploymentList::decode(data, extra_data)?;
         self.bmd_catchment_area_list = BmdCatchmentAreaList::decode(data, extra_data)?;
         self.tree_list_reference_list = TreeListReferenceList::decode(data, extra_data)?;
-        self.grass_list_reference_list = GrassListReferenceList::decode(data, extra_data)?;
+
+        if *self.tree_list_reference_list.serialise_version() <= 1 {
+            self.grass_list_reference_list = GrassListReferenceList::decode(data, extra_data)?;
+        }
 
         Ok(())
     }
@@ -87,7 +90,10 @@ impl Bmd {
         self.deployment_list.encode(buffer, extra_data)?;
         self.bmd_catchment_area_list.encode(buffer, extra_data)?;
         self.tree_list_reference_list.encode(buffer, extra_data)?;
-        self.grass_list_reference_list.encode(buffer, extra_data)?;
+
+        if *self.tree_list_reference_list.serialise_version() <= 1 {
+            self.grass_list_reference_list.encode(buffer, extra_data)?;
+        }
 
         Ok(())
     }

@@ -19,6 +19,7 @@ use super::*;
 
 mod v14;
 mod v15;
+mod v17;
 mod v18;
 mod v19;
 mod v20;
@@ -82,6 +83,7 @@ impl Decodeable for Prop {
         match prop.serialise_version {
             14 => prop.read_v14(data, extra_data)?,
             15 => prop.read_v15(data, extra_data)?,
+            17 => prop.read_v17(data, extra_data)?,
             18 => prop.read_v18(data, extra_data)?,
             19 => prop.read_v19(data, extra_data)?,
             20 => prop.read_v20(data, extra_data)?,
@@ -105,6 +107,7 @@ impl Encodeable for Prop {
         match self.serialise_version {
             14 => self.write_v14(buffer, extra_data)?,
             15 => self.write_v15(buffer, extra_data)?,
+            17 => self.write_v17(buffer, extra_data)?,
             18 => self.write_v18(buffer, extra_data)?,
             19 => self.write_v19(buffer, extra_data)?,
             20 => self.write_v20(buffer, extra_data)?,

@@ -46,7 +46,7 @@ impl Decodeable for HintPolyline {
         match decoded.serialise_version {
             1 => decoded.read_v1(data, extra_data)?,
             2 => decoded.read_v2(data, extra_data)?,
-            _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("HintPolyline"), decoded.serialise_version)),
+            _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("HintPolyline (Polygon)"), decoded.serialise_version)),
         }
 
         Ok(decoded)
@@ -61,7 +61,7 @@ impl Encodeable for HintPolyline {
         match self.serialise_version {
             1 => self.write_v1(buffer, extra_data)?,
             2 => self.write_v2(buffer, extra_data)?,
-            _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("HintPolyline"), self.serialise_version)),
+            _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("HintPolyline (Polygon)"), self.serialise_version)),
         }
 
         Ok(())

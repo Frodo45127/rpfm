@@ -18,6 +18,7 @@ use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 use super::*;
 
 mod v4;
+mod v6;
 mod v7;
 mod v11;
 
@@ -63,6 +64,7 @@ impl Decodeable for Properties {
 
         match flags.serialise_version {
             4 => flags.read_v4(data, extra_data)?,
+            6 => flags.read_v6(data, extra_data)?,
             7 => flags.read_v7(data, extra_data)?,
             11 => flags.read_v11(data, extra_data)?,
             _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("Properties"), flags.serialise_version)),
@@ -79,6 +81,7 @@ impl Encodeable for Properties {
 
         match self.serialise_version {
             4 => self.write_v4(buffer, extra_data)?,
+            6 => self.write_v6(buffer, extra_data)?,
             7 => self.write_v7(buffer, extra_data)?,
             11 => self.write_v11(buffer, extra_data)?,
             _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("Properties"), self.serialise_version)),

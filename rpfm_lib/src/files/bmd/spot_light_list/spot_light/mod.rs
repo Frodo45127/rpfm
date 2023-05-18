@@ -17,6 +17,7 @@ use crate::files::{bmd::flags::Flags, Decodeable, EncodeableExtraData, Encodeabl
 
 use super::*;
 
+mod v7;
 mod v8;
 
 //---------------------------------------------------------------------------//
@@ -52,6 +53,7 @@ impl Decodeable for SpotLight {
         decoded.serialise_version = data.read_u16()?;
 
         match decoded.serialise_version {
+            7 => decoded.read_v7(data, extra_data)?,
             8 => decoded.read_v8(data, extra_data)?,
             _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("SpotLight"), decoded.serialise_version)),
         }
@@ -66,6 +68,7 @@ impl Encodeable for SpotLight {
         buffer.write_u16(self.serialise_version)?;
 
         match self.serialise_version {
+            7 => self.write_v7(buffer, extra_data)?,
             8 => self.write_v8(buffer, extra_data)?,
             _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("SpotLight"), self.serialise_version)),
         }

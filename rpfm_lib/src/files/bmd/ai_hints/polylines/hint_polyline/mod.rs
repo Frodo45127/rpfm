@@ -18,6 +18,8 @@ use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 use super::*;
 
 mod v1;
+mod v2;
+mod v3;
 mod v4;
 
 //---------------------------------------------------------------------------//
@@ -48,8 +50,10 @@ impl Decodeable for HintPolyline {
 
         match decoded.serialise_version {
             1 => decoded.read_v1(data, extra_data)?,
+            2 => decoded.read_v2(data, extra_data)?,
+            3 => decoded.read_v3(data, extra_data)?,
             4 => decoded.read_v4(data, extra_data)?,
-            _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("HintPolyline"), decoded.serialise_version)),
+            _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("HintPolyline (Point)"), decoded.serialise_version)),
         }
 
         Ok(decoded)
@@ -63,8 +67,10 @@ impl Encodeable for HintPolyline {
 
         match self.serialise_version {
             1 => self.write_v1(buffer, extra_data)?,
+            2 => self.write_v2(buffer, extra_data)?,
+            3 => self.write_v3(buffer, extra_data)?,
             4 => self.write_v4(buffer, extra_data)?,
-            _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("HintPolyline"), self.serialise_version)),
+            _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("HintPolyline (Point)"), self.serialise_version)),
         }
 
         Ok(())

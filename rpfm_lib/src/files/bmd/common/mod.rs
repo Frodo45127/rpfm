@@ -472,12 +472,11 @@ pub trait Matrix {
     fn rotation_matrix(&self) -> Matrix3<f64> {
 
         // Fix order of the elements here
-        let matrix = Matrix3::new(
+        Matrix3::new(
             self.m00() as f64, self.m10() as f64, self.m20() as f64,
             self.m01() as f64, self.m11() as f64, self.m21() as f64,
             self.m02() as f64, self.m12() as f64, self.m22() as f64
-        );
-        matrix
+        )
     }
 
     ///Extracts scales as described here:
@@ -493,21 +492,19 @@ pub trait Matrix {
     }
 
     fn apply_scales(matrix: Matrix3<f64>, scales: (f64, f64, f64)) -> Matrix3<f64> {
-        let scaled_matrix = Matrix3::new(
+        Matrix3::new(
             matrix[(0, 0)] * scales.0, matrix[(0, 1)] * scales.1, matrix[(0, 2)] * scales.2,
             matrix[(1, 0)] * scales.0, matrix[(1, 1)] * scales.1, matrix[(1, 2)] * scales.2,
             matrix[(2, 0)] * scales.0, matrix[(2, 1)] * scales.1, matrix[(2, 2)] * scales.2,
-        );
-        scaled_matrix
+        )
     }
 
     fn normalize_rotation_matrix(matrix: Matrix3<f64>, scales: (f64, f64, f64)) -> Matrix3<f64> {
-        let normalized_matrix = Matrix3::new(
+        Matrix3::new(
             matrix[(0, 0)] / scales.0, matrix[(0, 1)] / scales.1, matrix[(0, 2)] / scales.2,
             matrix[(1, 0)] / scales.0, matrix[(1, 1)] / scales.1, matrix[(1, 2)] / scales.2,
             matrix[(2, 0)] / scales.0, matrix[(2, 1)] / scales.1, matrix[(2, 2)] / scales.2,
-        );
-        normalized_matrix
+        )
     }
 
     /*
@@ -521,7 +518,7 @@ pub trait Matrix {
     fn rotation_matrix_to_euler_angles(matrix: Matrix3<f64>, degrees: bool) -> (f64, f64, f64) {
         let rotation = Rotation3::from_matrix_unchecked(matrix);
         let euler = rotation.euler_angles();
-        let euler_angles = if degrees {
+        if degrees {
             (
                 euler.0.to_degrees(),
                 euler.1.to_degrees(),
@@ -529,8 +526,7 @@ pub trait Matrix {
             )
         } else {
            (euler.0, euler.1, euler.2)
-        };
-        euler_angles
+        }
     }
 
     fn euler_angles_to_rotation_matrix(angles: (f64, f64, f64), degrees: bool) -> Matrix3<f64> {

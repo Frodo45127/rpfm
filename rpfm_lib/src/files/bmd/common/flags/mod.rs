@@ -17,6 +17,7 @@ use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 
 use super::*;
 
+mod v1;
 mod v2;
 mod v3;
 mod v4;
@@ -51,6 +52,7 @@ impl Decodeable for Flags {
         flags.serialise_version = data.read_u16()?;
 
         match flags.serialise_version {
+            1 => flags.read_v1(data, extra_data)?,
             2 => flags.read_v2(data, extra_data)?,
             3 => flags.read_v3(data, extra_data)?,
             4 => flags.read_v4(data, extra_data)?,
@@ -67,6 +69,7 @@ impl Encodeable for Flags {
         buffer.write_u16(self.serialise_version)?;
 
         match self.serialise_version {
+            1 => self.write_v1(buffer, extra_data)?,
             2 => self.write_v2(buffer, extra_data)?,
             3 => self.write_v3(buffer, extra_data)?,
             4 => self.write_v4(buffer, extra_data)?,

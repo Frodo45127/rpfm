@@ -21,6 +21,7 @@ use super::*;
 
 mod toggleable_building_slot;
 mod v5;
+mod v6;
 mod v7;
 
 //---------------------------------------------------------------------------//
@@ -46,6 +47,7 @@ impl Decodeable for ToggleableBuildingsSlotList {
 
         match decoded.serialise_version {
             5 => decoded.read_v5(data, extra_data)?,
+            6 => decoded.read_v6(data, extra_data)?,
             7 => decoded.read_v7(data, extra_data)?,
             _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("ToggleableBuildingsSlotList"), decoded.serialise_version)),
         }
@@ -61,6 +63,7 @@ impl Encodeable for ToggleableBuildingsSlotList {
 
         match self.serialise_version {
             5 => self.write_v5(buffer, extra_data)?,
+            6 => self.write_v6(buffer, extra_data)?,
             7 => self.write_v7(buffer, extra_data)?,
             _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("ToggleableBuildingsSlotList"), self.serialise_version)),
         }
