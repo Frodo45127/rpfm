@@ -77,17 +77,7 @@ impl ToLayer for BattlefieldBuildingList {
             );
 
             layer.push_str(&format!("
-            <ECBuilding
-                key=\"{}\"
-                damage=\"{}\"
-                indestructible=\"{}\"
-                toggleable=\"{}\"
-                key_building=\"{}\"
-                hide_tooltip=\"{}\"
-                settlement_level_configurable=\"{}\"
-                capture_location=\"\"
-                export_as_prop=\"false\"
-                visible_beyond_outfield=\"false\"/>",
+            <ECBuilding key=\"{}\" damage=\"{}\" indestructible=\"{}\" toggleable=\"{}\" key_building=\"{}\" hide_tooltip=\"{}\" settlement_level_configurable=\"{}\" capture_location=\"\" export_as_prop=\"false\" visible_beyond_outfield=\"false\"/>",
                 building.building_key(),
                 building.properties().starting_damage_unary(),
                 building.properties().indestructible(),
@@ -98,20 +88,14 @@ impl ToLayer for BattlefieldBuildingList {
             ));
 
             layer.push_str(&format!("
-            <ECMeshRenderSettings
-                cast_shadow=\"{}\"
-                receive_decals=\"true\"
-                render_into_skydome_fog=\"false\"/>",
+            <ECMeshRenderSettings cast_shadow=\"{}\" receive_decals=\"true\" render_into_skydome_fog=\"false\"/>",
                 building.properties().cast_shadows()
             ));
 
-            layer.push_str(&format!("
-            <ECVisibilitySettingsBattle visible_in_tactical_view=\"true\" visible_in_tactical_view_only=\"false\"/>"
-            ));
-
-            layer.push_str(&format!("
-            <ECWater is_water=\"false\"/>"
-            ));
+            layer.push_str("
+            <ECVisibilitySettingsBattle visible_in_tactical_view=\"true\" visible_in_tactical_view_only=\"false\"/>");
+            layer.push_str("
+            <ECWater is_water=\"false\"/>");
 
             let rotation_matrix = building.transform().rotation_matrix();
             let scales = Transform3x4::extract_scales(rotation_matrix);
@@ -119,22 +103,14 @@ impl ToLayer for BattlefieldBuildingList {
             let angles= Transform3x4::rotation_matrix_to_euler_angles(normalized_rotation_matrix, true);
 
             layer.push_str(&format!("
-            <ECTransform
-                position=\"{:.5} {:.5} {:.5}\"
-                rotation=\"{:.5} {:.5} {:.5}\"
-                scale=\"{:.5} {:.5} {:.5}\"
-                pivot=\"0 0 0\"/>",
+            <ECTransform position=\"{:.5} {:.5} {:.5}\" rotation=\"{:.5} {:.5} {:.5}\" scale=\"{:.5} {:.5} {:.5}\" pivot=\"0 0 0\"/>",
                 building.transform().m30(), building.transform().m31(), building.transform().m32(),
                 angles.0, angles.1, angles.2,
                 scales.0, scales.1, scales.2
             ));
 
             layer.push_str(&format!("
-            <ECTerrainClamp
-                active=\"{}\"
-                clamp_to_sea_level=\"false\"
-                terrain_oriented=\"{}\"
-                fit_height_to_terrain=\"false\"/>",
+            <ECTerrainClamp active=\"{}\" clamp_to_sea_level=\"false\" terrain_oriented=\"{}\" fit_height_to_terrain=\"false\"/>",
                 *building.properties().clamp_to_surface() || building.height_mode() == "BHM_TERRAIN" || building.height_mode() == "BHM_TERRAIN_ALIGN_ORIENTATION",
                 building.height_mode() == "BHM_TERRAIN_ALIGN_ORIENTATION"
             ));

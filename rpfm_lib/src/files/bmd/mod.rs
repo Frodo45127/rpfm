@@ -14,9 +14,13 @@ use getset::*;
 use nalgebra::{Matrix3, Rotation3};
 use serde_derive::{Serialize, Deserialize};
 
+use std::fs::File;
+use std::io::{BufWriter, Write};
+use std::path::Path;
+
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{Result, RLibError};
-use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
+use crate::files::{bmd_vegetation::BmdVegetation, Decodeable, DecodeableExtraData, Encodeable, EncodeableExtraData};
 use crate::utils::check_size_mismatch;
 
 use self::battlefield_building_list::BattlefieldBuildingList;
@@ -54,7 +58,6 @@ use self::terrain_decal_list::TerrainDecalList;
 use self::tree_list_reference_list::TreeListReferenceList;
 use self::grass_list_reference_list::GrassListReferenceList;
 use self::water_outlines::WaterOutlines;
-use super::DecodeableExtraData;
 
 /// Extensions used by BMD files.
 pub const EXTENSIONS: [&str; 1] = [
@@ -231,6 +234,68 @@ impl Encodeable for Bmd {
             27 => self.write_v27(buffer, extra_data)?,
             _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("Bmd"), self.serialise_version)),
         }
+
+        Ok(())
+    }
+}
+
+impl Bmd {
+    pub fn export_prefab_to_raw_data(&self, name: &str, vegetation: Option<BmdVegetation>, output_path: &Path) -> Result<()> {
+
+        // We need to generate two files:
+        // - .terry: The project file with just one layer.
+        // - .layer: The layer file with the contents of the bmd and bmd_vegetation.
+        let terry_path = output_path.join(format!("{}.terry", name));
+        let layer_path = output_path.join(format!("{}.187abf10b8b9a13.layer", name));
+
+        let terry_data = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<project version=\"27\" id=\"187abf10b7296f5\">
+  <pc type=\"QTU::ProjectPrefab\">
+    <data database=\"battle\" is_skybox=\"0\"/>
+  </pc>
+  <pc type=\"QTU::Scene\">
+    <data version=\"41\">
+      <entity id=\"187abf10b8b9a13\" name=\"Default\">
+        <ECFileLayer export=\"true\" bmd_export_type=\"\"/>
+        <ECFileLayer export=\"true\" bmd_export_type=\"\"/>
+      </entity>
+    </data>
+  </pc>
+  <pc type=\"QTU::Terrain\"/>
+</project>".to_string();
+
+        let mut terry_file = BufWriter::new(File::create(terry_path)?);
+        terry_file.write_all(terry_data.as_bytes())?;
+
+        // Now the layer. Sadly, due to the interoperations between each section (as in we need to move stuff from some sections to other sections)
+        // we need to precalculate some stuff before writing it into the layer.
+        let mut layer_data = String::new();
+
+        layer_data.push_str("<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<layer version=\"41\">
+    <entities>"
+        );
+
+        layer_data.push_str(&self.battlefield_building_list().to_layer()?);
+        layer_data.push_str(&self.prefab_instance_list().to_layer()?);
+
+        layer_data.push_str("
+    </entities>
+    <associations>");
+
+        // We need to mirror associations to preserve the relation in terry and to not break the destruction behavior between associated items.
+
+        layer_data.push_str("
+        <Logical/>
+        <Transform/>");
+
+        layer_data.push_str("
+    </associations>
+</layer>
+        ");
+
+        let mut layer_file = BufWriter::new(File::create(layer_path)?);
+        layer_file.write_all(layer_data.as_bytes())?;
 
         Ok(())
     }

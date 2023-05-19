@@ -163,20 +163,16 @@ fn test_encode_bmd_map_catchment() {
 
 #[test]
 fn test_encode_bmd_to_layer() {
-    let path_1 = "../test_files/fastbin/v27_bmd_data.bin";
-    let path_2 = "../test_files/fastbin/test_prefab.layer";
+    let path_1 = "../test_files/fastbin/prefabs/suerto_lzd_cliff_block.bmd";
     let mut reader = BufReader::new(File::open(path_1).unwrap());
 
     let decodeable_extra_data = DecodeableExtraData::default();
     let data = Bmd::decode(&mut reader, &Some(decodeable_extra_data)).unwrap();
 
-    let layer = data.to_layer().unwrap();
-    dbg!(&layer);
-    let mut writer = BufWriter::new(File::create(path_2).unwrap());
-    writer.write_all(layer.as_bytes()).unwrap();
+    data.export_prefab_to_raw_data("test", None, &PathBuf::from("../test_files/fastbin/prefabs")).unwrap();
 }
 
-/*
+
 #[test]
 fn test_mass_decode() {
     let folder_path = "/home/frodo45127/Proyectos/rpfm_test_files2/prefabs/";
@@ -185,22 +181,24 @@ fn test_mass_decode() {
     let mut heigh_modes = HashSet::new();
     let decodeable_extra_data = Some(DecodeableExtraData::default());
     for path in &paths {
-        //println!("{}", path.to_string_lossy());
+        if path.extension().unwrap() == "bmd" {
+            let mut reader = BufReader::new(File::open(path).unwrap());
+            match Bmd::decode(&mut reader, &decodeable_extra_data) {
+                Ok(data) => {
+                    for building in data.battlefield_building_list().buildings() {
+                        heigh_modes.insert(building.height_mode().to_owned());
+                    }
 
-        let mut reader = BufReader::new(File::open(path).unwrap());
-        match Bmd::decode(&mut reader, &decodeable_extra_data) {
-            Ok(data) => {
-                for building in data.battlefield_building_list().buildings() {
-                    heigh_modes.insert(building.height_mode().to_owned());
+                    for prop in data.prop_list().props() {
+                        heigh_modes.insert(prop.height_mode().to_owned());
+                    }
+                },
+                Err(error) => {
+                    println!("\t{}:", error);
+                    println!("\t\t - {}", path.to_string_lossy());
+                    failures += 1;
+                    //break;
                 }
-
-                for prop in data.prop_list().props() {
-                    heigh_modes.insert(prop.height_mode().to_owned());
-                }
-            },
-            Err(error) => {
-                println!("\t{}", error);
-                failures += 1;
             }
         }
     }
@@ -208,4 +206,4 @@ fn test_mass_decode() {
     println!("Total errors: {}", failures);
     dbg!(heigh_modes);
 }
-*/
+

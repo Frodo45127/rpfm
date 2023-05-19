@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<layer version="41">
+    <entities>
+        <entity id="1882ae4aa7a174e">
+            <ECBuilding key="lzd_rockpillar_02" damage="0" indestructible="false" toggleable="false" key_building="false" hide_tooltip="false" settlement_level_configurable="false" capture_location="" export_as_prop="false" visible_beyond_outfield="false"/>
+            <ECMeshRenderSettings cast_shadow="true" receive_decals="true" render_into_skydome_fog="false"/>
+            <ECVisibilitySettingsBattle visible_in_tactical_view="true" visible_in_tactical_view_only="false"/>
+            <ECWater is_water="false"/>
+            <ECTransform position="-26.11230 0.00000 17.05615" rotation="180.00000 -69.99036 180.00000" scale="7.91166 5.18130 8.26774" pivot="0 0 0"/>
+            <ECTerrainClamp active="false" clamp_to_sea_level="false" terrain_oriented="false" fit_height_to_terrain="false"/>
+            <ECPrefabOverride enabled="false" id="lzd_rockpillar_02"/>
+        </entity>
+        <entity id="1882ae4aa7a1758">
+            <ECBuilding key="lzd_rockpillar_01" damage="0" indestructible="false" toggleable="false" key_building="false" hide_tooltip="false" settlement_level_configurable="false" capture_location="" export_as_prop="false" visible_beyond_outfield="false"/>
+            <ECMeshRenderSettings cast_shadow="true" receive_decals="true" render_into_skydome_fog="false"/>
+            <ECVisibilitySettingsBattle visible_in_tactical_view="true" visible_in_tactical_view_only="false"/>
+            <ECWater is_water="false"/>
+            <ECTransform position="48.00952 20.45342 29.81396" rotation="0.00000 -73.89772 0.00000" scale="7.89712 5.18130 8.29238" pivot="0 0 0"/>
+            <ECTerrainClamp active="false" clamp_to_sea_level="false" terrain_oriented="false" fit_height_to_terrain="false"/>
+            <ECPrefabOverride enabled="false" id="lzd_rockpillar_01"/>
+        </entity>
+        <entity id="1882ae4aa7b176e">
+            <ECBuilding key="lzd_rockpillar_chunk_01" damage="0" indestructible="false" toggleable="false" key_building="false" hide_tooltip="false" settlement_level_configurable="false" capture_location="" export_as_prop="false" visible_beyond_outfield="false"/>
+            <ECMeshRenderSettings cast_shadow="true" receive_decals="true" render_into_skydome_fog="false"/>
+            <ECVisibilitySettingsBattle visible_in_tactical_view="true" visible_in_tactical_view_only="false"/>
+            <ECWater is_water="false"/>
+            <ECTransform position="18.21082 20.45340 -27.20605" rotation="0.00000 45.93024 0.00000" scale="8.09911 5.18130 8.11566" pivot="0 0 0"/>
+            <ECTerrainClamp active="false" clamp_to_sea_level="false" terrain_oriented="false" fit_height_to_terrain="false"/>
+            <ECPrefabOverride enabled="false" id="lzd_rockpillar_chunk_01"/>
+        </entity>
+        <entity id="1882ae4aa7d179d">
+            <ECBuilding key="lzd_rockpillar_02" damage="0" indestructible="false" toggleable="false" key_building="false" hide_tooltip="false" settlement_level_configurable="false" capture_location="" export_as_prop="false" visible_beyond_outfield="false"/>
+            <ECMeshRenderSettings cast_shadow="true" receive_decals="true" render_into_skydome_fog="false"/>
+            <ECVisibilitySettingsBattle visible_in_tactical_view="true" visible_in_tactical_view_only="false"/>
+            <ECWater is_water="false"/>
+            <ECTransform position="-26.54321 7.02348 27.93176" rotation="180.00000 0.77221 180.00000" scale="7.73084 5.18130 8.46115" pivot="0 0 0"/>
+            <ECTerrainClamp active="false" clamp_to_sea_level="false" terrain_oriented="false" fit_height_to_terrain="false"/>
+            <ECPrefabOverride enabled="false" id="lzd_rockpillar_02"/>
+        </entity>
+        <entity id="1882ae4aa7d17a5">
+            <ECBuilding key="lzd_rockpillar_01" damage="0" indestructible="false" toggleable="false" key_building="false" hide_tooltip="false" settlement_level_configurable="false" capture_location="" export_as_prop="false" visible_beyond_outfield="false"/>
+            <ECMeshRenderSettings cast_shadow="true" receive_decals="true" render_into_skydome_fog="false"/>
+            <ECVisibilitySettingsBattle visible_in_tactical_view="true" visible_in_tactical_view_only="false"/>
+            <ECWater is_water="false"/>
+            <ECTransform position="-2.29590 20.45357 53.13147" rotation="0.00000 87.98804 0.00000" scale="7.85882 5.18130 8.32385" pivot="0 0 0"/>
+            <ECTerrainClamp active="false" clamp_to_sea_level="false" terrain_oriented="false" fit_height_to_terrain="false"/>
+            <ECPrefabOverride enabled="false" id="lzd_rockpillar_01"/>
+        </entity>
+        <entity id="1882ae4aa7d17b6">
+            <ECBuilding key="lzd_rock_01" damage="0" indestructible="false" toggleable="false" key_building="false" hide_tooltip="false" settlement_level_configurable="false" capture_location="" export_as_prop="false" visible_beyond_outfield="false"/>
+            <ECMeshRenderSettings cast_shadow="true" receive_decals="true" render_into_skydome_fog="false"/>
+            <ECVisibilitySettingsBattle visible_in_tactical_view="true" visible_in_tactical_view_only="false"/>
+            <ECWater is_water="false"/>
+            <ECTransform position="6.85181 54.19310 55.12561" rotation="180.00000 -79.96804 180.00000" scale="7.87279 5.18130 8.31068" pivot="0 0 0"/>
+            <ECTerrainClamp active="false" clamp_to_sea_level="false" terrain_oriented="false" fit_height_to_terrain="false"/>
+            <ECPrefabOverride enabled="false" id="lzd_rock_01"/>
+        </entity>
+        <entity id="1882ae4aa801808">
+            <ECBuilding key="lzd_rockpillar_02" damage="0" indestructible="false" toggleable="false" key_building="false" hide_tooltip="false" settlement_level_configurable="false" capture_location="" export_as_prop="false" visible_beyond_outfield="false"/>
+            <ECMeshRenderSettings cast_shadow="true" receive_decals="true" render_into_skydome_fog="false"/>
+            <ECVisibilitySettingsBattle visible_in_tactical_view="true" visible_in_tactical_view_only="false"/>
+            <ECWater is_water="false"/>
+            <ECTransform position="-39.17651 7.02348 27.93176" rotation="180.00000 -69.97899 180.00000" scale="7.91223 5.18130 8.26834" pivot="0 0 0"/>
+            <ECTerrainClamp active="false" clamp_to_sea_level="false" terrain_oriented="false" fit_height_to_terrain="false"/>
+            <ECPrefabOverride enabled="false" id="lzd_rockpillar_02"/>
+        </entity>
+        <entity id="1882ae4aa84187d">
+            <ECBuilding key="lzd_rock_01" damage="0" indestructible="false" toggleable="false" key_building="false" hide_tooltip="false" settlement_level_configurable="false" capture_location="" export_as_prop="false" visible_beyond_outfield="false"/>
+            <ECMeshRenderSettings cast_shadow="true" receive_decals="true" render_into_skydome_fog="false"/>
+            <ECVisibilitySettingsBattle visible_in_tactical_view="true" visible_in_tactical_view_only="false"/>
+            <ECWater is_water="false"/>
+            <ECTransform position="-17.67749 54.19327 53.97144" rotation="180.00000 -79.96804 180.00000" scale="7.87279 5.18130 8.31068" pivot="0 0 0"/>
+            <ECTerrainClamp active="false" clamp_to_sea_level="false" terrain_oriented="false" fit_height_to_terrain="false"/>
+            <ECPrefabOverride enabled="false" id="lzd_rock_01"/>
+        </entity>
+        <entity id="1882ae4aa841888">
+            <ECBuilding key="lzd_rockpillar_02" damage="0" indestructible="false" toggleable="false" key_building="false" hide_tooltip="false" settlement_level_configurable="false" capture_location="" export_as_prop="false" visible_beyond_outfield="false"/>
+            <ECMeshRenderSettings cast_shadow="true" receive_decals="true" render_into_skydome_fog="false"/>
+            <ECVisibilitySettingsBattle visible_in_tactical_view="true" visible_in_tactical_view_only="false"/>
+            <ECWater is_water="false"/>
+            <ECTransform position="48.98914 20.45343 -0.92212" rotation="0.00000 85.83982 0.00000" scale="7.91159 5.18130 8.27647" pivot="0 0 0"/>
+            <ECTerrainClamp active="false" clamp_to_sea_level="false" terrain_oriented="false" fit_height_to_terrain="false"/>
+            <ECPrefabOverride enabled="false" id="lzd_rockpillar_02"/>
+        </entity>
+        <entity id="1882ae4aa8518a5">
+            <ECBuilding key="lzd_rockpillar_02" damage="0" indestructible="false" toggleable="false" key_building="false" hide_tooltip="false" settlement_level_configurable="false" capture_location="" export_as_prop="false" visible_beyond_outfield="false"/>
+            <ECMeshRenderSettings cast_shadow="true" receive_decals="true" render_into_skydome_fog="false"/>
+            <ECVisibilitySettingsBattle visible_in_tactical_view="true" visible_in_tactical_view_only="false"/>
+            <ECWater is_water="false"/>
+            <ECTransform position="37.66064 20.45350 0.46423" rotation="180.00000 -79.96804 180.00000" scale="7.87279 5.18130 8.31068" pivot="0 0 0"/>
+            <ECTerrainClamp active="false" clamp_to_sea_level="false" terrain_oriented="false" fit_height_to_terrain="false"/>
+            <ECPrefabOverride enabled="false" id="lzd_rockpillar_02"/>
+        </entity>
+        <entity id="1882ae4aa8618b3">
+            <ECBuilding key="lzd_cliffs_01" damage="0" indestructible="false" toggleable="false" key_building="false" hide_tooltip="false" settlement_level_configurable="false" capture_location="" export_as_prop="false" visible_beyond_outfield="false"/>
+            <ECMeshRenderSettings cast_shadow="true" receive_decals="true" render_into_skydome_fog="false"/>
+            <ECVisibilitySettingsBattle visible_in_tactical_view="true" visible_in_tactical_view_only="false"/>
+            <ECWater is_water="false"/>
+            <ECTransform position="11.85071 20.45354 24.13843" rotation="0.00000 83.96178 0.00000" scale="7.86374 5.18130 8.31970" pivot="0 0 0"/>
+            <ECTerrainClamp active="false" clamp_to_sea_level="false" terrain_oriented="false" fit_height_to_terrain="false"/>
+            <ECPrefabOverride enabled="false" id="lzd_cliffs_01"/>
+        </entity>
+        <entity id="1882ae4aa8718db">
+            <ECBuilding key="lzd_rockpillar_chunk_02" damage="0" indestructible="false" toggleable="false" key_building="false" hide_tooltip="false" settlement_level_configurable="false" capture_location="" export_as_prop="false" visible_beyond_outfield="false"/>
+            <ECMeshRenderSettings cast_shadow="true" receive_decals="true" render_into_skydome_fog="false"/>
+            <ECVisibilitySettingsBattle visible_in_tactical_view="true" visible_in_tactical_view_only="false"/>
+            <ECWater is_water="false"/>
+            <ECTransform position="24.38318 20.45345 -22.54675" rotation="0.00000 87.98804 0.00000" scale="7.85882 5.18130 8.32385" pivot="0 0 0"/>
+            <ECTerrainClamp active="false" clamp_to_sea_level="false" terrain_oriented="false" fit_height_to_terrain="false"/>
+            <ECPrefabOverride enabled="false" id="lzd_rockpillar_chunk_02"/>
+        </entity>
+        <entity id="1882ae4aa8718e3">
+            <ECBuilding key="lzd_rockpillar_01" damage="0" indestructible="false" toggleable="false" key_building="false" hide_tooltip="false" settlement_level_configurable="false" capture_location="" export_as_prop="false" visible_beyond_outfield="false"/>
+            <ECMeshRenderSettings cast_shadow="true" receive_decals="true" render_into_skydome_fog="false"/>
+            <ECVisibilitySettingsBattle visible_in_tactical_view="true" visible_in_tactical_view_only="false"/>
+            <ECWater is_water="false"/>
+            <ECTransform position="-8.06445 20.45342 -20.88953" rotation="0.00000 45.93024 0.00000" scale="8.09911 5.18130 8.11566" pivot="0 0 0"/>
+            <ECTerrainClamp active="false" clamp_to_sea_level="false" terrain_oriented="false" fit_height_to_terrain="false"/>
+            <ECPrefabOverride enabled="false" id="lzd_rockpillar_01"/>
+        </entity>
+        <entity id="1882ae4aa8718ed">
+            <ECBuilding key="lzd_rockpillar_02" damage="0" indestructible="false" toggleable="false" key_building="false" hide_tooltip="false" settlement_level_configurable="false" capture_location="" export_as_prop="false" visible_beyond_outfield="false"/>
+            <ECMeshRenderSettings cast_shadow="true" receive_decals="true" render_into_skydome_fog="false"/>
+            <ECVisibilitySettingsBattle visible_in_tactical_view="true" visible_in_tactical_view_only="false"/>
+            <ECWater is_water="false"/>
+            <ECTransform position="-25.21021 20.45352 46.99341" rotation="180.00000 -69.97899 180.00000" scale="7.91224 5.18130 8.26834" pivot="0 0 0"/>
+            <ECTerrainClamp active="false" clamp_to_sea_level="false" terrain_oriented="false" fit_height_to_terrain="false"/>
+            <ECPrefabOverride enabled="false" id="lzd_rockpillar_02"/>
+        </entity>
+        <entity id="1882ae4aa881903">
+            <ECBuilding key="lzd_rockpillar_chunk_02" damage="0" indestructible="false" toggleable="false" key_building="false" hide_tooltip="false" settlement_level_configurable="false" capture_location="" export_as_prop="false" visible_beyond_outfield="false"/>
+            <ECMeshRenderSettings cast_shadow="true" receive_decals="true" render_into_skydome_fog="false"/>
+            <ECVisibilitySettingsBattle visible_in_tactical_view="true" visible_in_tactical_view_only="false"/>
+            <ECWater is_water="false"/>
+            <ECTransform position="12.14807 20.45351 -17.42810" rotation="0.00000 45.93024 0.00000" scale="8.09911 5.18130 8.11566" pivot="0 0 0"/>
+            <ECTerrainClamp active="false" clamp_to_sea_level="false" terrain_oriented="false" fit_height_to_terrain="false"/>
+            <ECPrefabOverride enabled="false" id="lzd_rockpillar_chunk_02"/>
+        </entity>
+        <entity id="1882ae4aa89192e">
+            <ECBuilding key="lzd_rockpillar_02" damage="0" indestructible="false" toggleable="false" key_building="false" hide_tooltip="false" settlement_level_configurable="false" capture_location="" export_as_prop="false" visible_beyond_outfield="false"/>
+            <ECMeshRenderSettings cast_shadow="true" receive_decals="true" render_into_skydome_fog="false"/>
+            <ECVisibilitySettingsBattle visible_in_tactical_view="true" visible_in_tactical_view_only="false"/>
+            <ECWater is_water="false"/>
+            <ECTransform position="23.96436 20.45352 46.99341" rotation="180.00000 -69.97899 180.00000" scale="7.91224 5.18130 8.26834" pivot="0 0 0"/>
+            <ECTerrainClamp active="false" clamp_to_sea_level="false" terrain_oriented="false" fit_height_to_terrain="false"/>
+            <ECPrefabOverride enabled="false" id="lzd_rockpillar_02"/>
+        </entity>
+        <entity id="1882ae4aa8e19c2">
+            <ECBuilding key="lzd_rockpillar_02" damage="0" indestructible="false" toggleable="false" key_building="false" hide_tooltip="false" settlement_level_configurable="false" capture_location="" export_as_prop="false" visible_beyond_outfield="false"/>
+            <ECMeshRenderSettings cast_shadow="true" receive_decals="true" render_into_skydome_fog="false"/>
+            <ECVisibilitySettingsBattle visible_in_tactical_view="true" visible_in_tactical_view_only="false"/>
+            <ECWater is_water="false"/>
+            <ECTransform position="46.66309 20.45343 4.53418" rotation="0.00000 -73.89772 0.00000" scale="7.89712 5.18130 8.29238" pivot="0 0 0"/>
+            <ECTerrainClamp active="false" clamp_to_sea_level="false" terrain_oriented="false" fit_height_to_terrain="false"/>
+            <ECPrefabOverride enabled="false" id="lzd_rockpillar_02"/>
+        </entity>
+    </entities>
+    <associations>
+        <Logical/>
+        <Transform/>
+    </associations>
+</layer>
+        
