@@ -17,6 +17,7 @@ use crate::files::{bmd::common::flags::Flags, Decodeable, EncodeableExtraData, E
 
 use super::*;
 
+mod v5;
 mod v6;
 mod v7;
 
@@ -55,6 +56,7 @@ impl Decodeable for PointLight {
         decoded.serialise_version = data.read_u16()?;
 
         match decoded.serialise_version {
+            5 => decoded.read_v5(data, extra_data)?,
             6 => decoded.read_v6(data, extra_data)?,
             7 => decoded.read_v7(data, extra_data)?,
             _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("PointLight"), decoded.serialise_version)),
@@ -70,6 +72,7 @@ impl Encodeable for PointLight {
         buffer.write_u16(self.serialise_version)?;
 
         match self.serialise_version {
+            5 => self.write_v5(buffer, extra_data)?,
             6 => self.write_v6(buffer, extra_data)?,
             7 => self.write_v7(buffer, extra_data)?,
             _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("PointLight"), self.serialise_version)),

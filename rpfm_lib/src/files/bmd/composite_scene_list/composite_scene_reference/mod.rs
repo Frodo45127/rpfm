@@ -17,6 +17,7 @@ use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 
 use super::*;
 
+mod v7;
 mod v9;
 mod v10;
 mod v11;
@@ -54,6 +55,7 @@ impl Decodeable for CompositeSceneReference {
         decoded.serialise_version = data.read_u16()?;
 
         match decoded.serialise_version {
+            7 => decoded.read_v7(data, extra_data)?,
             9 => decoded.read_v9(data, extra_data)?,
             10 => decoded.read_v10(data, extra_data)?,
             11 => decoded.read_v11(data, extra_data)?,
@@ -70,6 +72,7 @@ impl Encodeable for CompositeSceneReference {
         buffer.write_u16(self.serialise_version)?;
 
         match self.serialise_version {
+            7 => self.write_v7(buffer, extra_data)?,
             9 => self.write_v9(buffer, extra_data)?,
             10 => self.write_v10(buffer, extra_data)?,
             11 => self.write_v11(buffer, extra_data)?,
