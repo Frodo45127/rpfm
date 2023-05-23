@@ -14,6 +14,7 @@ use getset::*;
 use nalgebra::{Matrix3, Rotation3};
 use serde_derive::{Serialize, Deserialize};
 
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
@@ -162,34 +163,8 @@ pub struct Bmd {
 //---------------------------------------------------------------------------//
 
 pub trait ToLayer {
-    fn to_layer(&self) -> Result<String> {
+    fn to_layer(&self, _parent: &Bmd) -> Result<String> {
         Ok(String::new())
-    }
-}
-
-impl ToLayer for Bmd {
-    fn to_layer(&self) -> Result<String> {
-        let mut layer = String::new();
-
-        layer.push_str("
-<?xml version=\"1.0\" encoding=\"UTF-8\"?>
-<layer version=\"41\">
-    <entities>"
-        );
-
-        layer.push_str(&self.battlefield_building_list().to_layer()?);
-        layer.push_str(&self.prefab_instance_list().to_layer()?);
-
-        layer.push_str("
-    </entities>
-    <associations>
-        <Logical/>
-        <Transform/>
-    </associations>
-</layer>
-        ");
-
-        Ok(layer)
     }
 }
 
@@ -267,8 +242,11 @@ impl Bmd {
         let mut terry_file = BufWriter::new(File::create(terry_path)?);
         terry_file.write_all(terry_data.as_bytes())?;
 
-        // Now the layer. Sadly, due to the interoperations between each section (as in we need to move stuff from some sections to other sections)
-        // we need to precalculate some stuff before writing it into the layer.
+        // Pre-calculate the associations section.
+        let assoc_logical = self.logical_associations();
+        let assoc_transform = self.trasnform_associations();
+
+        // Now the layer.
         let mut layer_data = String::new();
 
         layer_data.push_str("<?xml version=\"1.0\" encoding=\"UTF-8\"?>
@@ -276,18 +254,106 @@ impl Bmd {
     <entities>"
         );
 
-        layer_data.push_str(&self.battlefield_building_list().to_layer()?);
-        layer_data.push_str(&self.prefab_instance_list().to_layer()?);
+        layer_data.push_str(&self.battlefield_building_list().to_layer(self)?);
+        layer_data.push_str(&self.battlefield_building_list_far().to_layer(self)?);
+        layer_data.push_str(&self.capture_location_set().to_layer(self)?);
+        //layer_data.push_str(&self.ef_line_list().to_layer(self)?);
+        //layer_data.push_str(&self.go_outlines().to_layer(self)?);
+        //layer_data.push_str(&self.non_terrain_outlines().to_layer(self)?);
+        //layer_data.push_str(&self.zones_template_list().to_layer(self)?);
+        layer_data.push_str(&self.prefab_instance_list().to_layer(self)?);
+        //layer_data.push_str(&self.bmd_outline_list().to_layer(self)?);
+        //layer_data.push_str(&self.terrain_outlines().to_layer(self)?);
+        //layer_data.push_str(&self.lite_building_outlines().to_layer(self)?);
+        //layer_data.push_str(&self.camera_zones().to_layer(self)?);
+        //layer_data.push_str(&self.civilian_deployment_list().to_layer(self)?);
+        //layer_data.push_str(&self.civilian_shelter_list().to_layer(self)?);
+        //layer_data.push_str(&self.prop_list().to_layer(self)?);
+        //layer_data.push_str(&self.particle_emitter_list().to_layer(self)?);
+        //layer_data.push_str(&self.ai_hints().to_layer(self)?);
+        //layer_data.push_str(&self.light_probe_list().to_layer(self)?);
+        //layer_data.push_str(&self.terrain_stencil_triangle_list().to_layer(self)?);
+        //layer_data.push_str(&self.point_light_list().to_layer(self)?);
+        //layer_data.push_str(&self.building_projectile_emitter_list().to_layer(self)?);
+        //layer_data.push_str(&self.playable_area().to_layer(self)?);
+        //layer_data.push_str(&self.custom_material_mesh_list().to_layer(self)?);
+        //layer_data.push_str(&self.terrain_stencil_blend_triangle_list().to_layer(self)?);
+        //layer_data.push_str(&self.spot_light_list().to_layer(self)?);
+        //layer_data.push_str(&self.sound_shape_list().to_layer(self)?);
+        //layer_data.push_str(&self.composite_scene_list().to_layer(self)?);
+        //layer_data.push_str(&self.deployment_list().to_layer(self)?);
+        //layer_data.push_str(&self.bmd_catchment_area_list().to_layer(self)?);
+        //layer_data.push_str(&self.toggleable_buildings_slot_list().to_layer(self)?);
+        //layer_data.push_str(&self.terrain_decal_list().to_layer(self)?);
+        //layer_data.push_str(&self.tree_list_reference_list().to_layer(self)?);
+        //layer_data.push_str(&self.grass_list_reference_list().to_layer(self)?);
+        //layer_data.push_str(&self.water_outlines().to_layer(self)?);
+
+        // Vegetation items are entities in the layer too.
+        if let Some(vegetation) = vegetation {
+            layer_data.push_str(&vegetation.to_layer(self)?);
+        }
 
         layer_data.push_str("
     </entities>
     <associations>");
 
-        // We need to mirror associations to preserve the relation in terry and to not break the destruction behavior between associated items.
+        if assoc_logical.is_empty() {
+            layer_data.push_str("
+        <Logical/>");
+        } else {
+            layer_data.push_str("
+        <Logical>");
 
-        layer_data.push_str("
-        <Logical/>
+            for (key, values) in &assoc_logical {
+                layer_data.push_str(&format!("
+            <from id=\"{}\">",
+                    key
+                ));
+
+                for value in values {
+                    layer_data.push_str(&format!("
+                <to id=\"{}\"/>",
+                        value
+                    ));
+                }
+
+                layer_data.push_str("
+            </from>");
+            }
+
+            layer_data.push_str("
+        </Logical>");
+        }
+
+        if assoc_transform.is_empty() {
+            layer_data.push_str("
         <Transform/>");
+        } else {
+
+            layer_data.push_str("
+        <Transform>");
+
+            for (key, values) in &assoc_transform {
+                layer_data.push_str(&format!("
+            <from id=\"{}\">",
+                    key
+                ));
+
+                for value in values {
+                    layer_data.push_str(&format!("
+                <to id=\"{}\"/>",
+                        value
+                    ));
+                }
+
+                layer_data.push_str("
+            </from>");
+            }
+
+            layer_data.push_str("
+        </Transform>");
+        }
 
         layer_data.push_str("
     </associations>
@@ -298,5 +364,13 @@ impl Bmd {
         layer_file.write_all(layer_data.as_bytes())?;
 
         Ok(())
+    }
+
+    pub fn logical_associations(&self) -> HashMap<String, Vec<String>> {
+        HashMap::new()
+    }
+
+    pub fn trasnform_associations(&self) -> HashMap<String, Vec<String>> {
+        HashMap::new()
     }
 }

@@ -67,7 +67,7 @@ impl Encodeable for PrefabInstanceList {
 }
  
 impl ToLayer for PrefabInstanceList {
-    fn to_layer(&self) -> Result<String> {
+    fn to_layer(&self, _parent: &Bmd) -> Result<String> {
         let mut layer = String::new();
 
         for prefab in self.prefab_instances() {
@@ -78,14 +78,11 @@ impl ToLayer for PrefabInstanceList {
 
             let prefab_path_split = prefab.key().split('/').collect::<Vec<_>>();
             let prefab_name = prefab_path_split.last().unwrap();
-            let prefab_name_split = prefab_name.split(".").collect::<Vec<_>>();
+            let prefab_name_split = prefab_name.split('.').collect::<Vec<_>>();
             let prefab_key = prefab_name_split.first().unwrap();
 
             layer.push_str(&format!("
-            <ECPrefab
-                key=\"{}\"
-                use_culture_mask=\"false\"
-                valid_ids=\"1\"/>",
+            <ECPrefab key=\"{}\" use_culture_mask=\"false\" valid_ids=\"1\"/>",
                 prefab_key,
             ));
 
@@ -95,22 +92,14 @@ impl ToLayer for PrefabInstanceList {
             let angles= Transform3x4::rotation_matrix_to_euler_angles(normalized_rotation_matrix, true);
 
             layer.push_str(&format!("
-            <ECTransform
-                position=\"{:.5} {:.5} {:.5}\"
-                rotation=\"{:.5} {:.5} {:.5}\"
-                scale=\"{:.5} {:.5} {:.5}\"
-                pivot=\"0 0 0\"/>",
+            <ECTransform position=\"{:.5} {:.5} {:.5}\" rotation=\"{:.5} {:.5} {:.5}\" scale=\"{:.5} {:.5} {:.5}\" pivot=\"0 0 0\"/>",
                 prefab.transform().m30(), prefab.transform().m31(), prefab.transform().m32(),
                 angles.0, angles.1, angles.2,
                 scales.0, scales.1, scales.2
             ));
 
             layer.push_str(&format!("
-            <ECTerrainClamp
-                active=\"{}\"
-                clamp_to_sea_level=\"false\"
-                terrain_oriented=\"{}\"
-                fit_height_to_terrain=\"false\"/>",
+            <ECTerrainClamp active=\"{}\" clamp_to_sea_level=\"false\" terrain_oriented=\"{}\" fit_height_to_terrain=\"false\"/>",
                 *prefab.clamp_to_surface() || prefab.height_mode() == "BHM_TERRAIN" || prefab.height_mode() == "BHM_TERRAIN_ALIGN_ORIENTATION",
                 prefab.height_mode() == "BHM_TERRAIN_ALIGN_ORIENTATION"
             ));

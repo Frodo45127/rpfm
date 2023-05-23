@@ -67,17 +67,17 @@ impl Encodeable for BattlefieldBuildingList {
 }
 
 impl ToLayer for BattlefieldBuildingList {
-    fn to_layer(&self) -> Result<String> {
+    fn to_layer(&self, parent: &Bmd) -> Result<String> {
         let mut layer = String::new();
 
-        for building in self.buildings() {
+        for (index, building) in self.buildings().iter().enumerate() {
             layer.push_str(&format!("
         <entity id=\"{:x}\">",
                 building.uid())
             );
 
             layer.push_str(&format!("
-            <ECBuilding key=\"{}\" damage=\"{}\" indestructible=\"{}\" toggleable=\"{}\" key_building=\"{}\" hide_tooltip=\"{}\" settlement_level_configurable=\"{}\" capture_location=\"\" export_as_prop=\"false\" visible_beyond_outfield=\"false\"/>",
+            <ECBuilding key=\"{}\" damage=\"{}\" indestructible=\"{}\" toggleable=\"{}\" key_building=\"{}\" hide_tooltip=\"{}\" settlement_level_configurable=\"{}\" capture_location=\"{}\" export_as_prop=\"false\" visible_beyond_outfield=\"false\"/>",
                 building.building_key(),
                 building.properties().starting_damage_unary(),
                 building.properties().indestructible(),
@@ -85,6 +85,25 @@ impl ToLayer for BattlefieldBuildingList {
                 building.properties().key_building(),
                 building.properties().hide_tooltip(),
                 building.properties().settlement_level_configurable(),
+
+                // For capture location, we need to find it by searching in the capture locations themselfs.
+                match parent.capture_location_set().capture_location_sets()
+                    .iter()
+                    .find_map(|locations| locations.capture_locations()
+                        .iter()
+                        .find_map(|location| location.building_links()
+                            .iter()
+                            .find_map(|link|
+                                if *link.building_index() == index as i32 || link.uid() == building.uid() {
+                                    Some(*location.id())
+                                } else {
+                                    None
+                                })
+                        )
+                    ) {
+                    Some(id) => format!("{:x}", id),
+                    None => String::new()
+                }
             ));
 
             layer.push_str(&format!("
@@ -100,7 +119,7 @@ impl ToLayer for BattlefieldBuildingList {
             let rotation_matrix = building.transform().rotation_matrix();
             let scales = Transform3x4::extract_scales(rotation_matrix);
             let normalized_rotation_matrix = Transform3x4::normalize_rotation_matrix(rotation_matrix, scales);
-            let angles= Transform3x4::rotation_matrix_to_euler_angles(normalized_rotation_matrix, true);
+            let angles = Transform3x4::rotation_matrix_to_euler_angles(normalized_rotation_matrix, true);
 
             layer.push_str(&format!("
             <ECTransform position=\"{:.5} {:.5} {:.5}\" rotation=\"{:.5} {:.5} {:.5}\" scale=\"{:.5} {:.5} {:.5}\" pivot=\"0 0 0\"/>",

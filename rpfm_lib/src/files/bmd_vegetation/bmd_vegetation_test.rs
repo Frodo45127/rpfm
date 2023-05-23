@@ -14,7 +14,7 @@ use std::io::{BufReader, BufWriter, Write};
 use std::fs::File;
 
 use crate::binary::ReadBytes;
-use crate::files::{*, bmd::ToLayer};
+use crate::files::*;
 
 use super::BmdVegetation;
 

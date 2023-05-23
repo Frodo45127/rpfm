@@ -40,10 +40,9 @@ impl Prop {
         self.decal_apply_to_gbuffer_objects = data.read_bool()?;
         self.decal_render_above_snow = data.read_bool()?;
         self.height_mode = data.read_sized_string_u8()?;
-        self.pdlc_mask = data.read_u32()? as u64;
+        self.pdlc_mask = data.read_u64()?;
         self.cast_shadows = data.read_bool()?;
         self.no_culling = data.read_bool()?;
-        self.has_height_patch = data.read_bool()?;
 
         Ok(())
     }
@@ -72,10 +71,9 @@ impl Prop {
         buffer.write_bool(self.decal_apply_to_gbuffer_objects)?;
         buffer.write_bool(self.decal_render_above_snow)?;
         buffer.write_sized_string_u8(&self.height_mode)?;
-        buffer.write_u32(self.pdlc_mask as u32)?;
+        buffer.write_u64(self.pdlc_mask)?;
         buffer.write_bool(self.cast_shadows)?;
         buffer.write_bool(self.no_culling)?;
-        buffer.write_bool(self.has_height_patch)?;
 
         Ok(())
     }

@@ -15,7 +15,7 @@ use serde_derive::{Serialize, Deserialize};
 
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{Result, RLibError};
-use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
+use crate::files::{Bmd, bmd::ToLayer, Decodeable, EncodeableExtraData, Encodeable};
 use crate::utils::check_size_mismatch;
 
 use self::grass_list::GrassList;
@@ -55,38 +55,6 @@ pub struct BmdVegetation {
 //                           Implementation of BmdVegetation
 //---------------------------------------------------------------------------//
 
-pub trait ToLayer {
-    fn to_layer(&self) -> Result<String> {
-        Ok(String::new())
-    }
-}
-
-impl ToLayer for BmdVegetation {
-    fn to_layer(&self) -> Result<String> {
-        let layer = String::new();
-/*
-        layer.push_str("
-<?xml version=\"1.0\" encoding=\"UTF-8\"?>
-<layer version=\"41\">
-    <entities>"
-        );
-
-        layer.push_str(&self.battlefield_building_list().to_layer()?);
-        layer.push_str(&self.prefab_instance_list().to_layer()?);
-
-        layer.push_str("
-    </entities>
-    <associations>
-        <Logical/>
-        <Transform/>
-    </associations>
-</layer>
-        ");
-*/
-        Ok(layer)
-    }
-}
-
 impl Decodeable for BmdVegetation {
 
     fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
@@ -122,5 +90,17 @@ impl Encodeable for BmdVegetation {
         }
 
         Ok(())
+    }
+}
+
+
+impl ToLayer for BmdVegetation {
+    fn to_layer(&self, parent: &Bmd) -> Result<String> {
+        let mut layer = String::new();
+
+        layer.push_str(&self.tree_list().to_layer(parent)?);
+        //layer.push_str(self.grass_list().to_layer(parent)?);
+
+        Ok(layer)
     }
 }

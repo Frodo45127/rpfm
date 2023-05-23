@@ -63,3 +63,9 @@ impl Encodeable for BattlefieldBuildingListFar {
     }
 }
  
+impl ToLayer for BattlefieldBuildingListFar {
+    fn to_layer(&self, _parent: &Bmd) -> Result<String> {
+        let layer = String::new();
+        Ok(layer)
+    }
+}
