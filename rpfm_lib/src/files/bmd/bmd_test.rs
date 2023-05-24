@@ -172,7 +172,7 @@ fn test_encode_bmd_to_layer() {
     data.export_prefab_to_raw_data("test", None, &PathBuf::from("../test_files/fastbin/prefabs")).unwrap();
 }
 
-
+/*
 #[test]
 fn test_mass_decode() {
     let folder_path = "/home/frodo45127/Proyectos/rpfm_test_files2/prefabs/";
@@ -206,4 +206,4 @@ fn test_mass_decode() {
     println!("Total errors: {}", failures);
     dbg!(heigh_modes);
 }
-
+*/
