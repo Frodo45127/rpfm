@@ -448,7 +448,7 @@ impl GameInfo {
 
         for path in files_from_subdir(&path, true).ok()?.iter() {
             match path.extension() {
-                Some(extension) => if extension == "pack" { paths.push(path.to_path_buf()); }
+                Some(extension) => if extension == "pack" || extension == "bin" { paths.push(path.to_path_buf()); }
                 None => continue,
             }
         }
