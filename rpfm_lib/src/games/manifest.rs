@@ -115,12 +115,12 @@ impl ManifestEntry {
         match self.belongs_to_base_game() {
             Some(value) => {
                 if *value == 1 || path.is_file() {
-                    canonicalize(path).ok()
+                    Some(path)
                 } else {
                     None
                 }
             },
-            None => canonicalize(path).ok(),
+            None => Some(path),
         }
     }
 }

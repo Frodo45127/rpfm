@@ -443,7 +443,7 @@ impl GameInfo {
             return None;
         }
 
-        let path = std::fs::canonicalize(game_path.join(downloaded_mods_path)).ok()?;
+        let path = game_path.join(downloaded_mods_path);
         let mut paths = vec![];
 
         for path in files_from_subdir(&path, true).ok()?.iter() {
@@ -566,15 +566,15 @@ impl GameInfo {
                         // Filter out other language's packfiles.
                         if !pack_name.is_empty() && pack_name.starts_with("local_") {
                             if pack_name.starts_with(language_pack) {
-                                std::fs::canonicalize(pack_file_path).ok()
+                                Some(pack_file_path)
                             } else {
                                 None
                             }
                         } else {
-                            std::fs::canonicalize(pack_file_path).ok()
+                            Some(pack_file_path)
                         }
                     }
-                    None => std::fs::canonicalize(pack_file_path).ok(),
+                    None => Some(pack_file_path),
                 }
             }).collect::<Vec<PathBuf>>())
         }
