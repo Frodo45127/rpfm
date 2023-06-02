@@ -36,6 +36,8 @@
 /test_files/test_encode_matched_combat_3k_trigger.bin
 /test_files/test_encode_esf_caab.esf
 /test_files/test_encode_uic_138.xml
+/test_files/test_encode_wall.cs2.parsed
+/test_files/test_encode_wall_corner.cs2.parsed
 /test_files/fastbin/encode_*
 /test_files/fastbin/v23_encode_*
 /test_files/fastbin/v24_encode_*

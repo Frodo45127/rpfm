@@ -104,6 +104,7 @@ pub mod anims_table;
 pub mod audio;
 pub mod bmd;
 pub mod bmd_vegetation;
+pub mod cs2_parsed;
 pub mod db;
 pub mod esf;
 pub mod image;

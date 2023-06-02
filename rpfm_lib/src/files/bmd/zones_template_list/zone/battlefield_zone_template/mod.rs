@@ -24,7 +24,7 @@ use super::*;
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct BattlefiedZoneTemplate {
-    outline: Outline,
+    outline: Outline2d,
     zone_name: String,
     entity_formation_template: EntityFormationTemplate
 }
@@ -55,7 +55,7 @@ impl Decodeable for BattlefiedZoneTemplate {
     fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
         let mut decoded = Self::default();
 
-        decoded.outline = Outline::decode(data, extra_data)?;
+        decoded.outline = Outline2d::decode(data, extra_data)?;
         decoded.zone_name = data.read_sized_string_u8()?;
         decoded.entity_formation_template.name = data.read_sized_string_u8()?;
 

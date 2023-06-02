@@ -57,9 +57,16 @@ pub struct Cube {
 
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct Outline {
+pub struct Outline2d {
     outline: Vec<Point2d>,
 }
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct Outline3d {
+    outline: Vec<Point3d>,
+}
+
 
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
@@ -217,7 +224,7 @@ impl Encodeable for Cube {
     }
 }
 
-impl Decodeable for Outline {
+impl Decodeable for Outline2d {
 
     fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
         let mut decoded = Self::default();
@@ -230,7 +237,33 @@ impl Decodeable for Outline {
     }
 }
 
-impl Encodeable for Outline {
+impl Encodeable for Outline2d {
+
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+        buffer.write_u32(self.outline.len() as u32)?;
+
+        for point in &mut self.outline {
+            point.encode(buffer, extra_data)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl Decodeable for Outline3d {
+
+    fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
+        let mut decoded = Self::default();
+
+        for _ in 0..data.read_u32()? {
+            decoded.outline.push(Point3d::decode(data, extra_data)?);
+        }
+
+        Ok(decoded)
+    }
+}
+
+impl Encodeable for Outline3d {
 
     fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         buffer.write_u32(self.outline.len() as u32)?;

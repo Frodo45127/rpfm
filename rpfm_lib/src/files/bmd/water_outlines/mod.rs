@@ -24,7 +24,7 @@ use super::*;
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct WaterOutlines {
-    empire_outline: Vec<Outline>
+    empire_outline: Vec<Outline2d>
 }
 
 //---------------------------------------------------------------------------//
@@ -37,7 +37,7 @@ impl Decodeable for WaterOutlines {
         let mut decoded = Self::default();
 
         for _ in 0..data.read_u32()? {
-            decoded.empire_outline.push(Outline::decode(data, extra_data)?);
+            decoded.empire_outline.push(Outline2d::decode(data, extra_data)?);
         }
 
         Ok(decoded)

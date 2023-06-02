@@ -32,6 +32,9 @@ support_soundbank = []
 # Basic get/set support.
 getset = "^0.1"
 
+# Config dependencies.
+directories = "^5.0"
+
 # Serialization support.
 serde = "^1.0"
 serde_derive = "^1.0"
