@@ -10,6 +10,7 @@
 
 //! Module that contains the GameInfo definition and stuff related with it.
 
+use directories::ProjectDirs;
 use getset::*;
 #[cfg(feature = "integration_log")] use log::{info, warn};
 use steamlocate::SteamDir;
@@ -175,6 +176,9 @@ struct InstallData {
 
     /// Folder where downloaded (other peoples's) mods are stored. Relative to the game's path.
     downloaded_mods_path: String,
+
+    /// Name of the folder where the config for this specific game installation are stored.
+    config_folder: Option<String>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -612,6 +616,19 @@ impl GameInfo {
         let executable_path = game_path.join(install_data.executable());
 
         Some(executable_path)
+    }
+
+    /// This command returns the "config" path for the game's installation.
+    pub fn config_path(&self, game_path: &Path) -> Option<PathBuf> {
+        let install_type = self.install_type(game_path).ok()?;
+        let install_data = self.install_data.get(&install_type)?;
+        let config_folder = install_data.config_folder.as_ref()?;
+
+        ProjectDirs::from("com", "The Creative Assembly", &config_folder).map(|dir| {
+            let mut dir = dir.config_dir().to_path_buf();
+            dir.pop();
+            dir
+        })
     }
 
     /// Check if a specific file is banned.

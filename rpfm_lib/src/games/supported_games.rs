@@ -121,6 +121,7 @@ impl Default for SupportedGames {
                     language_path: "data".to_owned(),
                     local_mods_path: "data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/1142710".to_owned(),
+                    config_folder: Some("Warhammer3".to_owned()),
                 });
 
                 data.insert(InstallType::LnxSteam, InstallData {
@@ -133,6 +134,7 @@ impl Default for SupportedGames {
                     language_path: "share/data/data/localisation".to_owned(),
                     local_mods_path: "share/data/data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/1142710".to_owned(),
+                    config_folder: None,
                 });
 
                 data
@@ -199,6 +201,7 @@ impl Default for SupportedGames {
                     language_path: "data".to_owned(),
                     local_mods_path: "mods/mymods".to_owned(),
                     downloaded_mods_path: "mods".to_owned(),
+                    config_folder: None,
                 });
 
                 data.insert(InstallType::WinSteam, InstallData {
@@ -211,6 +214,7 @@ impl Default for SupportedGames {
                     language_path: "data".to_owned(),
                     local_mods_path: "data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/1099410".to_owned(),
+                    config_folder: Some("Troy_Steam".to_owned()),
                 });
 
                 data
@@ -331,6 +335,7 @@ impl Default for SupportedGames {
                     language_path: "data".to_owned(),
                     local_mods_path: "data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/779340".to_owned(),
+                    config_folder: Some("ThreeKingdoms".to_owned()),
                 });
 
                 data.insert(InstallType::LnxSteam, InstallData {
@@ -395,6 +400,7 @@ impl Default for SupportedGames {
                     language_path: "share/data/data/localisation".to_owned(),
                     local_mods_path: "share/data/data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/779340".to_owned(),
+                    config_folder: None,
                 });
 
                 data
@@ -664,6 +670,7 @@ impl Default for SupportedGames {
                     language_path: "data".to_owned(),
                     local_mods_path: "data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/594570".to_owned(),
+                    config_folder: Some("Warhammer2".to_owned())
                 });
                 // TODO: check this, it may have broken with the latest update.
                 data.insert(InstallType::LnxSteam, InstallData {
@@ -812,6 +819,7 @@ impl Default for SupportedGames {
                     language_path: "share/data/data/localisation".to_owned(),
                     local_mods_path: "share/data/data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/594570".to_owned(),
+                    config_folder: None,
                 });
 
                 data
@@ -878,6 +886,7 @@ impl Default for SupportedGames {
                     language_path: "data".to_owned(),
                     local_mods_path: "data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/364360".to_owned(),
+                    config_folder: Some("Warhammer".to_owned())
                 });
 
                 data.insert(InstallType::LnxSteam, InstallData {
@@ -972,6 +981,7 @@ impl Default for SupportedGames {
                     language_path: "share/data/data".to_owned(),
                     local_mods_path: "share/data/data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/364360".to_owned(),
+                    config_folder: None,
                 });
 
                 data
@@ -1038,6 +1048,7 @@ impl Default for SupportedGames {
                     language_path: "data".to_owned(),
                     local_mods_path: "data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/712100".to_owned(),
+                    config_folder: Some("ThronesofBritannia".to_owned())
                 });
 
                 data.insert(InstallType::LnxSteam, InstallData {
@@ -1080,6 +1091,7 @@ impl Default for SupportedGames {
                     language_path: "share/data/data".to_owned(),
                     local_mods_path: "share/data/data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/712100".to_owned(),
+                    config_folder: None,
                 });
 
                 data
@@ -1146,6 +1158,7 @@ impl Default for SupportedGames {
                     language_path: "data".to_owned(),
                     local_mods_path: "data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/325610".to_owned(),
+                    config_folder: Some("Attila".to_owned())
                 });
 
                 // Internal linux port, shares structure with the one for Windows.
@@ -1159,6 +1172,7 @@ impl Default for SupportedGames {
                     language_path: "data".to_owned(),
                     local_mods_path: "data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/325610".to_owned(),
+                    config_folder: None,
                 });
 
                 data
@@ -1225,6 +1239,7 @@ impl Default for SupportedGames {
                     language_path: "data".to_owned(),
                     local_mods_path: "data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/214950".to_owned(),
+                    config_folder: Some("Rome2".to_owned()),
                 });
 
                 data
@@ -1287,11 +1302,12 @@ impl Default for SupportedGames {
                     use_manifest: true,
                     store_id: 34_330,
                     store_id_ak: 202_930,
-                    executable: "Shogun2.exe".to_owned(),
+                    executable: "shogun2.exe".to_owned(),
                     data_path: "data".to_owned(),
                     language_path: "data".to_owned(),
                     local_mods_path: "data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/34330".to_owned(),
+                    config_folder: Some("Shogun2".to_owned())
                 });
 
                 data.insert(InstallType::LnxSteam, InstallData {
@@ -1327,6 +1343,7 @@ impl Default for SupportedGames {
                     language_path: "share/data/data".to_owned(),
                     local_mods_path: "share/data/data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/34330".to_owned(),
+                    config_folder: None,
                 });
 
                 data
@@ -1417,6 +1434,7 @@ impl Default for SupportedGames {
                     language_path: "data".to_owned(),
                     local_mods_path: "data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/34030".to_owned(),
+                    config_folder: Some("Napoleon".to_owned()),
                 });
 
                 data
@@ -1517,6 +1535,7 @@ impl Default for SupportedGames {
                     language_path: "data".to_owned(),
                     local_mods_path: "data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/10500".to_owned(),
+                    config_folder: Some("Empire".to_owned()),
                 });
 
                 data.insert(InstallType::LnxSteam, InstallData {
@@ -1585,6 +1604,7 @@ impl Default for SupportedGames {
                     language_path: "data".to_owned(),
                     local_mods_path: "data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/10500".to_owned(),
+                    config_folder: None,
                 });
 
                 data
@@ -1631,6 +1651,7 @@ impl Default for SupportedGames {
                     language_path: "data".to_owned(),
                     local_mods_path: "data".to_owned(),
                     downloaded_mods_path: "".to_owned(),
+                    config_folder: None,
                 });
 
                 data
