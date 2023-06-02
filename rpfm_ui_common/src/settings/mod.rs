@@ -55,6 +55,13 @@ pub fn setting_int(setting: &str) -> i32 {
     }
 }
 
+pub fn setting_f32(setting: &str) -> f32 {
+    unsafe {
+        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(&*ORGANISATION.read().unwrap()), &QString::from_std_str(&*PROGRAM_NAME.read().unwrap()));
+        q_settings.value_1a(&QString::from_std_str(setting)).to_float_0a()
+    }
+}
+
 pub fn setting_bool(setting: &str) -> bool {
     unsafe {
         let q_settings = QSettings::from_2_q_string(&QString::from_std_str(&*ORGANISATION.read().unwrap()), &QString::from_std_str(&*PROGRAM_NAME.read().unwrap()));
@@ -93,6 +100,12 @@ pub fn setting_int_from_q_setting(q_settings: &QBox<QSettings>, setting: &str) -
     }
 }
 
+pub fn setting_f32_from_q_setting(q_settings: &QBox<QSettings>, setting: &str) -> f32 {
+    unsafe {
+        q_settings.value_1a(&QString::from_std_str(setting)).to_float_0a()
+    }
+}
+
 pub fn setting_bool_from_q_setting(q_settings: &QBox<QSettings>, setting: &str) -> bool {
     unsafe {
         q_settings.value_1a(&QString::from_std_str(setting)).to_bool()
@@ -121,6 +134,14 @@ pub fn set_setting_int(setting: &str, value: i32) {
     unsafe {
         let q_settings = QSettings::from_2_q_string(&QString::from_std_str(&*ORGANISATION.read().unwrap()), &QString::from_std_str(&*PROGRAM_NAME.read().unwrap()));
         q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_int(value));
+        q_settings.sync();
+    }
+}
+
+pub fn set_setting_f32(setting: &str, value: f32) {
+    unsafe {
+        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(&*ORGANISATION.read().unwrap()), &QString::from_std_str(&*PROGRAM_NAME.read().unwrap()));
+        q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_float(value));
         q_settings.sync();
     }
 }
@@ -163,6 +184,12 @@ pub fn set_setting_int_to_q_setting(q_settings: &QBox<QSettings>, setting: &str,
     }
 }
 
+pub fn set_setting_f32_to_q_setting(q_settings: &QBox<QSettings>, setting: &str, value: f32) {
+    unsafe {
+        q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_float(value));
+    }
+}
+
 pub fn set_setting_bool_to_q_setting(q_settings: &QBox<QSettings>, setting: &str, value: bool) {
     unsafe {
         q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_bool(value));
@@ -191,6 +218,14 @@ pub fn set_setting_if_new_int(q_settings: &QBox<QSettings>, setting: &str, value
     unsafe {
         if !q_settings.value_1a(&QString::from_std_str(setting)).is_valid() {
             q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_int(value));
+        }
+    }
+}
+
+pub fn set_setting_if_new_f32(q_settings: &QBox<QSettings>, setting: &str, value: f32) {
+    unsafe {
+        if !q_settings.value_1a(&QString::from_std_str(setting)).is_valid() {
+            q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_float(value));
         }
     }
 }
