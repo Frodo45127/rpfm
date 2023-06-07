@@ -166,7 +166,7 @@
        <item row="0" column="0">
         <widget class="QToolButton" name="error_button">
          <property name="text">
-          <string/>
+          <string>(0)</string>
          </property>
          <property name="icon">
           <iconset theme="data-error">
@@ -229,7 +229,7 @@
        <item row="1" column="0">
         <widget class="QToolButton" name="warning_button">
          <property name="text">
-          <string/>
+          <string>(0)</string>
          </property>
          <property name="icon">
           <iconset theme="data-warning">
@@ -252,7 +252,7 @@
        <item row="2" column="0">
         <widget class="QToolButton" name="info_button">
          <property name="text">
-          <string>...</string>
+          <string>(0)</string>
          </property>
          <property name="icon">
           <iconset theme="data-information">

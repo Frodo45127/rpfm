@@ -176,6 +176,10 @@ impl DiagnosticsUI {
         diagnostics_button_show_more_filters.set_tool_tip(&qtr("diagnostics_button_show_more_filters"));
         diagnostics_button_check_ak_only_refs.set_tool_tip(&qtr("diagnostics_check_ak_only_refs"));
 
+        diagnostics_button_error.set_tool_button_style(ToolButtonStyle::ToolButtonTextUnderIcon);
+        diagnostics_button_warning.set_tool_button_style(ToolButtonStyle::ToolButtonTextUnderIcon);
+        diagnostics_button_info.set_tool_button_style(ToolButtonStyle::ToolButtonTextUnderIcon);
+
         let sidebar_scroll_area: QPtr<QScrollArea> = find_widget(&main_widget.static_upcast(), "more_filters_scroll")?;
         let header_column: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "diagnostics_label")?;
         sidebar_scroll_area.horizontal_scroll_bar().set_enabled(false);
@@ -1486,9 +1490,9 @@ impl DiagnosticsUI {
                     .count(),
             }).sum::<usize>();
 
-        diagnostics_ui.diagnostics_button_info.set_text(&QString::from_std_str(format!("{} ({})", tr("diagnostics_button_info"), info)));
-        diagnostics_ui.diagnostics_button_warning.set_text(&QString::from_std_str(format!("{} ({})", tr("diagnostics_button_warning"), warning)));
-        diagnostics_ui.diagnostics_button_error.set_text(&QString::from_std_str(format!("{} ({})", tr("diagnostics_button_error"), error)));
+        diagnostics_ui.diagnostics_button_info.set_text(&QString::from_std_str(format!("({})", info)));
+        diagnostics_ui.diagnostics_button_warning.set_text(&QString::from_std_str(format!("({})", warning)));
+        diagnostics_ui.diagnostics_button_error.set_text(&QString::from_std_str(format!("({})", error)));
     }
 
     pub unsafe fn set_tooltips_anim_fragment(items: &[&CppBox<QStandardItem>], report_type: &AnimFragmentDiagnosticReportType) {
