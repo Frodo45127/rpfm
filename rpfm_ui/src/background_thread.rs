@@ -1919,6 +1919,14 @@ pub fn background_loop() {
                 Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
             },
 
+            Command::AddLineToPackIgnoredDiagnostics(line) => {
+                if let Some(diagnostics_ignored) = pack_file_decoded.settings_mut().settings_text_mut().get_mut("diagnostics_files_to_ignore") {
+                    diagnostics_ignored.push_str(&line);
+                } else {
+                    pack_file_decoded.settings_mut().settings_text_mut().insert("diagnostics_files_to_ignore".to_owned(), line);
+                }
+            },
+
             // These two belong to the network thread, not to this one!!!!
             Command::CheckUpdates | Command::CheckSchemaUpdates | Command::CheckLuaAutogenUpdates => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
         }

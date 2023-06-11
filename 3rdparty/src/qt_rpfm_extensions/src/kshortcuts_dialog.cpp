@@ -132,6 +132,20 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     new_action(dependencies_tree_actions, "extract_from_dependencies", "Extract From Dependencies", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString(""), "archive-extract");
     dependencies_tree_actions->readSettings();
 
+    // Diagnostics Table Context actions.
+    KActionCollection* diagnostics_table_actions = new KActionCollection(parent, "diagnostics_context_menu");
+    diagnostics_table_actions->setComponentDisplayName("Diagnostics Table Context Menu");
+    new_action(diagnostics_table_actions, "ignore_parent_folder", "Ignore Parent Folder", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString(""), "mail-thread-ignored");
+    new_action(diagnostics_table_actions, "ignore_parent_folder_field", "Ignore Field for Parent Folder", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString(""), "mail-thread-ignored");
+    new_action(diagnostics_table_actions, "ignore_file", "Ignore File", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString(""), "mail-thread-ignored");
+    new_action(diagnostics_table_actions, "ignore_file_field", "Ignore Field for File", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString(""), "mail-thread-ignored");
+    new_action(diagnostics_table_actions, "ignore_diagnostic_for_parent_folder", "Ignore Diagnostic for Parent Folder", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString(""), "mail-thread-ignored");
+    new_action(diagnostics_table_actions, "ignore_diagnostic_for_parent_folder_field", "Ignore Diagnostic in Field for Parent Folder", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString(""), "mail-thread-ignored");
+    new_action(diagnostics_table_actions, "ignore_diagnostic_for_file", "Ignore Diagnostic for File", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString(""), "mail-thread-ignored");
+    new_action(diagnostics_table_actions, "ignore_diagnostic_for_file_field", "Ignore Diagnostic in Field for File", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString(""), "mail-thread-ignored");
+    new_action(diagnostics_table_actions, "ignore_diagnostic_for_pack", "Ignore Diagnostic for Pack", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString(""), "mail-thread-ignored");
+    diagnostics_table_actions->readSettings();
+
     // AnimPack Tree Context actions.
     KActionCollection* anim_pack_tree_actions = new KActionCollection(parent, "anim_pack_tree_context_menu");
     anim_pack_tree_actions->setComponentDisplayName("AnimPack Tree Context Menu");
@@ -217,6 +231,7 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     shortcuts->append(dynamic_cast<QObject*>(file_tab_actions));
     shortcuts->append(dynamic_cast<QObject*>(pack_tree_actions));
     shortcuts->append(dynamic_cast<QObject*>(dependencies_tree_actions));
+    shortcuts->append(dynamic_cast<QObject*>(diagnostics_table_actions));
     shortcuts->append(dynamic_cast<QObject*>(anim_pack_tree_actions));
     shortcuts->append(dynamic_cast<QObject*>(secondary_pack_tree_actions));
     shortcuts->append(dynamic_cast<QObject*>(table_editor_actions));

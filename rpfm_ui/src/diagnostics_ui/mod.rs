@@ -12,12 +12,13 @@
 Module with all the code related to the `DiagnosticsUI`.
 !*/
 
+use qt_widgets::QAction;
 use qt_widgets::q_abstract_item_view::ScrollHint;
 use qt_widgets::{QCheckBox, QVBoxLayout};
 use qt_widgets::QDockWidget;
 use qt_widgets::q_header_view::ResizeMode;
 use qt_widgets::QLabel;
-use qt_widgets::QMainWindow;
+use qt_widgets::QMenu;
 use qt_widgets::QScrollArea;
 use qt_widgets::QTableView;
 use qt_widgets::QToolButton;
@@ -29,7 +30,7 @@ use qt_gui::QListOfQStandardItem;
 use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;
 
-use qt_core::{CaseSensitivity, DockWidgetArea, Orientation, SortOrder};
+use qt_core::{CaseSensitivity, DockWidgetArea, Orientation, SortOrder, ToolButtonStyle};
 use qt_core::QBox;
 use qt_core::QFlags;
 use qt_core::q_item_selection_model::SelectionFlag;
@@ -55,7 +56,7 @@ use rpfm_lib::files::ContainerPath;
 use rpfm_lib::games::supported_games::*;
 use rpfm_lib::integrations::log::info;
 
-use rpfm_ui_common::locale::{qtr, qtre, tr};
+use rpfm_ui_common::locale::{qtr, qtre};
 
 use crate::app_ui::AppUI;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
@@ -108,6 +109,17 @@ pub struct DiagnosticsUI {
     diagnostics_button_show_more_filters: QPtr<QToolButton>,
     diagnostics_button_check_ak_only_refs: QPtr<QToolButton>,
 
+    diagnostics_table_view_context_menu: QBox<QMenu>,
+    ignore_parent_folder: QPtr<QAction>,
+    ignore_parent_folder_field: QPtr<QAction>,
+    ignore_file: QPtr<QAction>,
+    ignore_file_field: QPtr<QAction>,
+    ignore_diagnostic_for_parent_folder: QPtr<QAction>,
+    ignore_diagnostic_for_parent_folder_field: QPtr<QAction>,
+    ignore_diagnostic_for_file: QPtr<QAction>,
+    ignore_diagnostic_for_file_field: QPtr<QAction>,
+    ignore_diagnostic_for_pack: QPtr<QAction>,
+
     sidebar_scroll_area: QPtr<QScrollArea>,
     checkbox_all: QBox<QCheckBox>,
     checkbox_outdated_table: QBox<QCheckBox>,
@@ -148,11 +160,11 @@ pub struct DiagnosticsUI {
 impl DiagnosticsUI {
 
     /// This function creates an entire `DiagnosticsUI` struct.
-    pub unsafe fn new(main_window: &QBox<QMainWindow>) -> Result<Self> {
+    pub unsafe fn new(app_ui: &Rc<AppUI>) -> Result<Self> {
 
         // Load the UI Template.
         let template_path = if cfg!(debug_assertions) { VIEW_DEBUG } else { VIEW_RELEASE };
-        let main_widget = load_template(main_window, template_path)?;
+        let main_widget = load_template(app_ui.main_window(), template_path)?;
 
         let diagnostics_dock_widget: QPtr<QDockWidget> = main_widget.static_downcast();
         let diagnostics_dock_inner_widget: QPtr<QWidget> = find_widget(&main_widget.static_upcast(), "inner_widget")?;
@@ -180,13 +192,25 @@ impl DiagnosticsUI {
         diagnostics_button_warning.set_tool_button_style(ToolButtonStyle::ToolButtonTextUnderIcon);
         diagnostics_button_info.set_tool_button_style(ToolButtonStyle::ToolButtonTextUnderIcon);
 
+        // Populate the `Contextual Menu`.
+        let diagnostics_table_view_context_menu = QMenu::from_q_widget(&diagnostics_table_view);
+        let ignore_parent_folder = add_action_to_menu(&diagnostics_table_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "diagnostics_context_menu", "ignore_parent_folder", "ignore_parent_folder", Some(diagnostics_table_view.static_upcast::<qt_widgets::QWidget>()));
+        let ignore_parent_folder_field = add_action_to_menu(&diagnostics_table_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "diagnostics_context_menu", "ignore_parent_folder_field", "ignore_parent_folder_field", Some(diagnostics_table_view.static_upcast::<qt_widgets::QWidget>()));
+        let ignore_file = add_action_to_menu(&diagnostics_table_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "diagnostics_context_menu", "ignore_file", "ignore_file", Some(diagnostics_table_view.static_upcast::<qt_widgets::QWidget>()));
+        let ignore_file_field = add_action_to_menu(&diagnostics_table_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "diagnostics_context_menu", "ignore_file_field", "ignore_file_field", Some(diagnostics_table_view.static_upcast::<qt_widgets::QWidget>()));
+        let ignore_diagnostic_for_parent_folder = add_action_to_menu(&diagnostics_table_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "diagnostics_context_menu", "ignore_diagnostic_for_parent_folder", "ignore_diagnostic_for_parent_folder", Some(diagnostics_table_view.static_upcast::<qt_widgets::QWidget>()));
+        let ignore_diagnostic_for_parent_folder_field = add_action_to_menu(&diagnostics_table_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "diagnostics_context_menu", "ignore_diagnostic_for_parent_folder_field", "ignore_diagnostic_for_parent_folder_field", Some(diagnostics_table_view.static_upcast::<qt_widgets::QWidget>()));
+        let ignore_diagnostic_for_file = add_action_to_menu(&diagnostics_table_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "diagnostics_context_menu", "ignore_diagnostic_for_file", "ignore_diagnostic_for_file", Some(diagnostics_table_view.static_upcast::<qt_widgets::QWidget>()));
+        let ignore_diagnostic_for_file_field = add_action_to_menu(&diagnostics_table_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "diagnostics_context_menu", "ignore_diagnostic_for_file_field", "ignore_diagnostic_for_file_field", Some(diagnostics_table_view.static_upcast::<qt_widgets::QWidget>()));
+        let ignore_diagnostic_for_pack = add_action_to_menu(&diagnostics_table_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "diagnostics_context_menu", "ignore_diagnostic_for_pack", "ignore_diagnostic_for_pack", Some(diagnostics_table_view.static_upcast::<qt_widgets::QWidget>()));
+
         let sidebar_scroll_area: QPtr<QScrollArea> = find_widget(&main_widget.static_upcast(), "more_filters_scroll")?;
         let header_column: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "diagnostics_label")?;
         sidebar_scroll_area.horizontal_scroll_bar().set_enabled(false);
         sidebar_scroll_area.hide();
         header_column.set_text(&qtr("diagnostic_type"));
 
-        main_window.add_dock_widget_2a(DockWidgetArea::BottomDockWidgetArea, diagnostics_dock_widget.as_ptr());
+        app_ui.main_window().add_dock_widget_2a(DockWidgetArea::BottomDockWidgetArea, diagnostics_dock_widget.as_ptr());
         diagnostics_dock_widget.set_window_title(&qtr("gen_loc_diagnostics"));
         diagnostics_dock_widget.set_object_name(&QString::from_std_str("diagnostics_dock"));
 
@@ -225,8 +249,8 @@ impl DiagnosticsUI {
             diagnostics_table_view.vertical_header().set_default_section_size(22);
         }
 
-        main_window.set_corner(qt_core::Corner::BottomLeftCorner, qt_core::DockWidgetArea::LeftDockWidgetArea);
-        main_window.set_corner(qt_core::Corner::BottomRightCorner, qt_core::DockWidgetArea::RightDockWidgetArea);
+        app_ui.main_window().set_corner(qt_core::Corner::BottomLeftCorner, qt_core::DockWidgetArea::LeftDockWidgetArea);
+        app_ui.main_window().set_corner(qt_core::Corner::BottomRightCorner, qt_core::DockWidgetArea::RightDockWidgetArea);
 
         //-------------------------------------------------------------------------------//
         // Sidebar section.
@@ -348,6 +372,17 @@ impl DiagnosticsUI {
             diagnostics_button_show_more_filters,
             diagnostics_button_check_ak_only_refs,
 
+            diagnostics_table_view_context_menu,
+            ignore_parent_folder,
+            ignore_parent_folder_field,
+            ignore_file,
+            ignore_file_field,
+            ignore_diagnostic_for_parent_folder,
+            ignore_diagnostic_for_parent_folder_field,
+            ignore_diagnostic_for_file,
+            ignore_diagnostic_for_file_field,
+            ignore_diagnostic_for_pack,
+
             sidebar_scroll_area,
             checkbox_all,
             checkbox_outdated_table,
@@ -466,6 +501,7 @@ impl DiagnosticsUI {
                             let path = QStandardItem::new();
                             let message = QStandardItem::new();
                             let report_type = QStandardItem::new();
+                            let fill_1 = QStandardItem::new();
                             let (result_type, color) = match result.level() {
                                 DiagnosticLevel::Info => ("Info".to_owned(), get_color_info()),
                                 DiagnosticLevel::Warning => ("Warning".to_owned(), get_color_warning()),
@@ -486,6 +522,7 @@ impl DiagnosticsUI {
                             path.set_editable(false);
                             message.set_editable(false);
                             report_type.set_editable(false);
+                            fill_1.set_editable(false);
 
                             // Set the tooltips to the diag type and description columns.
                             Self::set_tooltips_anim_fragment(&[&level, &path, &message], result.report_type());
@@ -497,6 +534,7 @@ impl DiagnosticsUI {
                             qlist_boi.append_q_standard_item(&path.into_ptr().as_mut_raw_ptr());
                             qlist_boi.append_q_standard_item(&message.into_ptr().as_mut_raw_ptr());
                             qlist_boi.append_q_standard_item(&report_type.into_ptr().as_mut_raw_ptr());
+                            qlist_boi.append_q_standard_item(&fill_1.into_ptr().as_mut_raw_ptr());
 
                             // Append the new row.
                             diagnostics_ui.diagnostics_table_model.append_row_q_list_of_q_standard_item(qlist_boi.into_ptr().as_ref().unwrap());
@@ -514,6 +552,7 @@ impl DiagnosticsUI {
                             let path = QStandardItem::new();
                             let message = QStandardItem::new();
                             let report_type = QStandardItem::new();
+                            let column_names = QStandardItem::new();
                             let (result_type, color) = match result.level() {
                                 DiagnosticLevel::Info => ("Info".to_owned(), get_color_info()),
                                 DiagnosticLevel::Warning => ("Warning".to_owned(), get_color_warning()),
@@ -527,6 +566,7 @@ impl DiagnosticsUI {
                             path.set_text(&QString::from_std_str(diagnostic.path()));
                             message.set_text(&QString::from_std_str(result.message()));
                             report_type.set_text(&QString::from_std_str(format!("{}", result.report_type())));
+                            column_names.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&result.column_names()).unwrap())), 2);
 
                             level.set_editable(false);
                             diag_type.set_editable(false);
@@ -534,6 +574,7 @@ impl DiagnosticsUI {
                             path.set_editable(false);
                             message.set_editable(false);
                             report_type.set_editable(false);
+                            column_names.set_editable(false);
 
                             // Set the tooltips to the diag type and description columns.
                             Self::set_tooltips_table(&[&level, &path, &message], result.report_type());
@@ -545,6 +586,7 @@ impl DiagnosticsUI {
                             qlist_boi.append_q_standard_item(&path.into_ptr().as_mut_raw_ptr());
                             qlist_boi.append_q_standard_item(&message.into_ptr().as_mut_raw_ptr());
                             qlist_boi.append_q_standard_item(&report_type.into_ptr().as_mut_raw_ptr());
+                            qlist_boi.append_q_standard_item(&column_names.into_ptr().as_mut_raw_ptr());
 
                             // Append the new row.
                             diagnostics_ui.diagnostics_table_model.append_row_q_list_of_q_standard_item(qlist_boi.into_ptr().as_ref().unwrap());
@@ -562,6 +604,7 @@ impl DiagnosticsUI {
                             let fill2 = QStandardItem::new();
                             let message = QStandardItem::new();
                             let report_type = QStandardItem::new();
+                            let fill3 = QStandardItem::new();
                             let (result_type, color) = match result.level() {
                                 DiagnosticLevel::Info => ("Info".to_owned(), get_color_info()),
                                 DiagnosticLevel::Warning => ("Warning".to_owned(), get_color_warning()),
@@ -580,6 +623,7 @@ impl DiagnosticsUI {
                             fill2.set_editable(false);
                             message.set_editable(false);
                             report_type.set_editable(false);
+                            fill3.set_editable(false);
 
                             // Set the tooltips to the diag type and description columns.
                             Self::set_tooltips_packfile(&[&level, &fill2, &message], result.report_type());
@@ -591,6 +635,7 @@ impl DiagnosticsUI {
                             qlist_boi.append_q_standard_item(&fill2.into_ptr().as_mut_raw_ptr());
                             qlist_boi.append_q_standard_item(&message.into_ptr().as_mut_raw_ptr());
                             qlist_boi.append_q_standard_item(&report_type.into_ptr().as_mut_raw_ptr());
+                            qlist_boi.append_q_standard_item(&fill3.into_ptr().as_mut_raw_ptr());
 
                             // Append the new row.
                             diagnostics_ui.diagnostics_table_model.append_row_q_list_of_q_standard_item(qlist_boi.as_ref());
@@ -607,6 +652,7 @@ impl DiagnosticsUI {
                             let path = QStandardItem::new();
                             let message = QStandardItem::new();
                             let report_type = QStandardItem::new();
+                            let fill1 = QStandardItem::new();
                             let (result_type, color) = match result.level() {
                                 DiagnosticLevel::Info => ("Info".to_owned(), get_color_info()),
                                 DiagnosticLevel::Warning => ("Warning".to_owned(), get_color_warning()),
@@ -634,6 +680,7 @@ impl DiagnosticsUI {
                             path.set_editable(false);
                             message.set_editable(false);
                             report_type.set_editable(false);
+                            fill1.set_editable(false);
 
                             // Set the tooltips to the diag type and description columns.
                             Self::set_tooltips_portrait_settings(&[&level, &path, &message], result.report_type());
@@ -645,6 +692,7 @@ impl DiagnosticsUI {
                             qlist_boi.append_q_standard_item(&path.into_ptr().as_mut_raw_ptr());
                             qlist_boi.append_q_standard_item(&message.into_ptr().as_mut_raw_ptr());
                             qlist_boi.append_q_standard_item(&report_type.into_ptr().as_mut_raw_ptr());
+                            qlist_boi.append_q_standard_item(&fill1.into_ptr().as_mut_raw_ptr());
 
                             // Append the new row.
                             diagnostics_ui.diagnostics_table_model.append_row_q_list_of_q_standard_item(qlist_boi.into_ptr().as_ref().unwrap());
@@ -661,6 +709,7 @@ impl DiagnosticsUI {
                             let path = QStandardItem::new();
                             let message = QStandardItem::new();
                             let report_type = QStandardItem::new();
+                            let fill1 = QStandardItem::new();
                             let (result_type, color) = match result.level() {
                                 DiagnosticLevel::Info => ("Info".to_owned(), get_color_info()),
                                 DiagnosticLevel::Warning => ("Warning".to_owned(), get_color_warning()),
@@ -681,6 +730,7 @@ impl DiagnosticsUI {
                             path.set_editable(false);
                             message.set_editable(false);
                             report_type.set_editable(false);
+                            fill1.set_editable(false);
 
                             // Set the tooltips to the diag type and description columns.
                             Self::set_tooltips_dependency_manager(&[&level, &path, &message], result.report_type());
@@ -692,6 +742,7 @@ impl DiagnosticsUI {
                             qlist_boi.append_q_standard_item(&path.into_ptr().as_mut_raw_ptr());
                             qlist_boi.append_q_standard_item(&message.into_ptr().as_mut_raw_ptr());
                             qlist_boi.append_q_standard_item(&report_type.into_ptr().as_mut_raw_ptr());
+                            qlist_boi.append_q_standard_item(&fill1.into_ptr().as_mut_raw_ptr());
 
                             // Append the new row.
                             diagnostics_ui.diagnostics_table_model.append_row_q_list_of_q_standard_item(qlist_boi.as_ref());
@@ -709,6 +760,7 @@ impl DiagnosticsUI {
                             let fill2 = QStandardItem::new();
                             let message = QStandardItem::new();
                             let report_type = QStandardItem::new();
+                            let fill3 = QStandardItem::new();
                             let (result_type, color) = match result.level() {
                                 DiagnosticLevel::Info => ("Info".to_owned(), get_color_info()),
                                 DiagnosticLevel::Warning => ("Warning".to_owned(), get_color_warning()),
@@ -727,6 +779,7 @@ impl DiagnosticsUI {
                             fill2.set_editable(false);
                             message.set_editable(false);
                             report_type.set_editable(false);
+                            fill3.set_editable(false);
 
                             // Set the tooltips to the diag type and description columns.
                             Self::set_tooltips_config(&[&level, &fill2, &message], result.report_type());
@@ -738,6 +791,7 @@ impl DiagnosticsUI {
                             qlist_boi.append_q_standard_item(&fill2.into_ptr().as_mut_raw_ptr());
                             qlist_boi.append_q_standard_item(&message.into_ptr().as_mut_raw_ptr());
                             qlist_boi.append_q_standard_item(&report_type.into_ptr().as_mut_raw_ptr());
+                            qlist_boi.append_q_standard_item(&fill3.into_ptr().as_mut_raw_ptr());
 
                             // Append the new row.
                             diagnostics_ui.diagnostics_table_model.append_row_q_list_of_q_standard_item(qlist_boi.as_ref());
@@ -755,11 +809,13 @@ impl DiagnosticsUI {
             diagnostics_ui.diagnostics_table_model.set_header_data_3a(3, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_path")));
             diagnostics_ui.diagnostics_table_model.set_header_data_3a(4, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_message")));
             diagnostics_ui.diagnostics_table_model.set_header_data_3a(5, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_report_type")));
+            diagnostics_ui.diagnostics_table_model.set_header_data_3a(6, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_column_names")));
 
             // Hide the column number column for tables.
             diagnostics_ui.diagnostics_table_view.hide_column(1);
             diagnostics_ui.diagnostics_table_view.hide_column(2);
             diagnostics_ui.diagnostics_table_view.hide_column(5);
+            diagnostics_ui.diagnostics_table_view.hide_column(6);
             diagnostics_ui.diagnostics_table_view.sort_by_column_2a(3, SortOrder::AscendingOrder);
 
             diagnostics_ui.diagnostics_table_view.horizontal_header().set_stretch_last_section(true);
@@ -1670,5 +1726,18 @@ impl DiagnosticsUI {
             diagnostics_ignored.push(PortraitSettingsDiagnosticReportType::FileDiffuseNotFoundForVariant(String::new(), String::new(), String::new()).to_string());
         }
         diagnostics_ignored
+    }
+
+    pub unsafe fn selection_sorted_and_deduped(&self) -> Vec<CppBox<QModelIndex>> {
+        let filter_model: QPtr<QSortFilterProxyModel> = self.diagnostics_table_view.model().static_downcast();
+        let selection_model = self.diagnostics_table_view.selection_model();
+        let selected_indexes = selection_model.selected_indexes();
+        let mut selection = (0..selected_indexes.count_0a())
+            .map(|index| filter_model.map_to_source(selected_indexes.at(index)))
+            .collect::<Vec<_>>();
+
+        selection.sort_by_key(|index| index.row());
+        selection.dedup_by_key(|index| index.row());
+        selection
     }
 }

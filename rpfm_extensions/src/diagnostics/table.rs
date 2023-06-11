@@ -16,6 +16,8 @@ use serde_derive::{Serialize, Deserialize};
 
 use std::{fmt, fmt::Display};
 
+use rpfm_lib::schema::Field;
+
 use crate::diagnostics::DiagnosticReport;
 use super::DiagnosticLevel;
 
@@ -40,6 +42,9 @@ pub struct TableDiagnosticReport {
     ///
     /// If the full row or full column are affected, use -1.
     cells_affected: Vec<(i32, i32)>,
+
+    /// Name of the columns that corresponds to the affected cells.
+    column_names: Vec<String>,
     report_type: TableDiagnosticReportType,
 }
 
@@ -79,9 +84,24 @@ impl TableDiagnostic {
 }
 
 impl TableDiagnosticReport {
-    pub fn new(report_type: TableDiagnosticReportType, cells_affected: &[(i32, i32)]) -> Self {
+    pub fn new(report_type: TableDiagnosticReportType, cells_affected: &[(i32, i32)], fields: &[Field]) -> Self {
+        let mut fields_affected = cells_affected.iter().map(|(_, column)| *column).collect::<Vec<_>>();
+        fields_affected.sort();
+        fields_affected.dedup();
+
+        if fields_affected.contains(&-1) {
+            fields_affected = vec![-1];
+        }
+
         Self {
             cells_affected: cells_affected.to_vec(),
+            column_names: fields_affected.iter().flat_map(|index| {
+                if index == &-1 {
+                    fields.iter().map(|field| field.name().to_owned()).collect()
+                } else {
+                    vec![fields[*index as usize].name().to_owned()]
+                }
+            }).collect(),
             report_type
         }
     }

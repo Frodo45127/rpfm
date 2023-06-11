@@ -1334,3 +1334,13 @@ pack_map = Pack Map
 tile_maps = Tile Maps
 tiles = Tiles
 special_stuff_pack_map = Pack Map
+
+ignore_parent_folder = Ignore Parent Folder
+ignore_parent_folder_field = Ignore Field for Parent Folder
+ignore_file = Ignore File
+ignore_file_field = Ignore Field for File
+ignore_diagnostic_for_parent_folder = Ignore Diagnostic for Parent Folder
+ignore_diagnostic_for_parent_folder_field = Ignore Diagnostic in Field for Parent Folder
+ignore_diagnostic_for_file = Ignore Diagnostic for File
+ignore_diagnostic_for_file_field = Ignore Diagnostic in Field for File
+ignore_diagnostic_for_pack = Ignore Diagnostic for Pack

@@ -12,20 +12,26 @@
 Module with all the code related to the main `DiagnosticsUISlots`.
 !*/
 
+use qt_widgets::SlotOfQPoint;
+
+use qt_gui::QCursor;
+
 use qt_core::QBox;
 use qt_core::QObject;
 use qt_core::QSignalBlocker;
 use qt_core::{SlotNoArgs, SlotOfBool, SlotOfQModelIndex};
 
-use rpfm_lib::integrations::log::*;
+use getset::Getters;
 
 use std::rc::Rc;
 
+use rpfm_lib::integrations::log::*;
 use rpfm_lib::files::ContainerPath;
-
 use rpfm_ui_common::clone;
 
 use crate::app_ui::AppUI;
+use crate::CENTRAL_COMMAND;
+use crate::communications::Command;
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
@@ -39,13 +45,26 @@ use crate::UI_STATE;
 //-------------------------------------------------------------------------------//
 
 /// This struct contains all the slots we need to respond to signals of the diagnostics panel.
+#[derive(Getters)]
+#[getset(get = "pub")]
 pub struct DiagnosticsUISlots {
-    pub diagnostics_check_packfile: QBox<SlotNoArgs>,
-    pub diagnostics_check_currently_open_packed_file: QBox<SlotNoArgs>,
-    pub diagnostics_open_result: QBox<SlotOfQModelIndex>,
-    pub show_hide_extra_filters: QBox<SlotOfBool>,
-    pub toggle_filters: QBox<SlotNoArgs>,
-    pub toggle_filters_types: QBox<SlotNoArgs>,
+    diagnostics_check_packfile: QBox<SlotNoArgs>,
+    diagnostics_check_currently_open_packed_file: QBox<SlotNoArgs>,
+    diagnostics_open_result: QBox<SlotOfQModelIndex>,
+    contextual_menu: QBox<SlotOfQPoint>,
+    contextual_menu_enabler: QBox<SlotNoArgs>,
+    ignore_parent_folder: QBox<SlotNoArgs>,
+    ignore_parent_folder_field: QBox<SlotNoArgs>,
+    ignore_file: QBox<SlotNoArgs>,
+    ignore_file_field: QBox<SlotNoArgs>,
+    ignore_diagnostic_for_parent_folder: QBox<SlotNoArgs>,
+    ignore_diagnostic_for_parent_folder_field: QBox<SlotNoArgs>,
+    ignore_diagnostic_for_file: QBox<SlotNoArgs>,
+    ignore_diagnostic_for_file_field: QBox<SlotNoArgs>,
+    ignore_diagnostic_for_pack: QBox<SlotNoArgs>,
+    show_hide_extra_filters: QBox<SlotOfBool>,
+    toggle_filters: QBox<SlotNoArgs>,
+    toggle_filters_types: QBox<SlotNoArgs>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -101,6 +120,256 @@ impl DiagnosticsUISlots {
             references_ui => move |model_index_filter| {
                 info!("Triggering `Open Diagnostic Match` By Slot");
                 DiagnosticsUI::open_match(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, model_index_filter.as_ptr());
+            }
+        ));
+
+        let contextual_menu = SlotOfQPoint::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
+            diagnostics_ui => move |_| {
+            diagnostics_ui.diagnostics_table_view_context_menu.exec_1a_mut(&QCursor::pos_0a());
+        }));
+
+        let contextual_menu_enabler = SlotNoArgs::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
+            diagnostics_ui => move || {
+                let selection = diagnostics_ui.selection_sorted_and_deduped();
+
+                // Parent folder diagnostics need to have a parent folder to be enabled.
+                let has_path = selection.iter().all(|index| !index.model().index_2a(index.row(), 3).data_0a().to_string().is_empty());
+                let has_parents = selection.iter().all(|index| index.model().index_2a(index.row(), 3).data_0a().to_string().to_std_string().contains('/'));
+                let has_fields = selection.iter().all(|index| !index.model().index_2a(index.row(), 6).data_0a().to_string().is_empty());
+
+                let non_ignorable_fields = vec![
+                    "InvalidDependencyPackName",
+                    "DependenciesCacheNotGenerated",
+                    "DependenciesCacheOutdated",
+                    "DependenciesCacheCouldNotBeLoaded",
+                    "IncorrectGamePath",
+                    "InvalidPackName"
+                ];
+
+                let can_be_ignored = selection.iter().all(|index| !non_ignorable_fields.contains(&&*index.model().index_2a(index.row(), 5).data_0a().to_string().to_std_string()));
+
+                diagnostics_ui.ignore_parent_folder.set_enabled(!selection.is_empty() && has_parents);
+                diagnostics_ui.ignore_parent_folder_field.set_enabled(!selection.is_empty() && has_parents && has_fields);
+
+                diagnostics_ui.ignore_file.set_enabled(!selection.is_empty() && has_path);
+                diagnostics_ui.ignore_file_field.set_enabled(!selection.is_empty() && has_path && has_fields);
+
+                diagnostics_ui.ignore_diagnostic_for_parent_folder.set_enabled(!selection.is_empty() && can_be_ignored && has_parents);
+                diagnostics_ui.ignore_diagnostic_for_parent_folder_field.set_enabled(!selection.is_empty() && can_be_ignored && has_parents && has_fields);
+
+                diagnostics_ui.ignore_diagnostic_for_file.set_enabled(!selection.is_empty() && can_be_ignored && has_path);
+                diagnostics_ui.ignore_diagnostic_for_file_field.set_enabled(!selection.is_empty() && can_be_ignored && has_path && has_fields);
+
+                // This one is enabled as long as there is a selection.
+                diagnostics_ui.ignore_diagnostic_for_pack.set_enabled(!selection.is_empty() && can_be_ignored);
+            }
+        ));
+
+        let ignore_parent_folder = SlotNoArgs::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
+            diagnostics_ui => move || {
+                let selection = diagnostics_ui.selection_sorted_and_deduped();
+                let mut string = String::new();
+
+                for index in &selection {
+                    let path = index.model().index_2a(index.row(), 3).data_0a().to_string().to_std_string();
+                    let (path, _) = path.rsplit_once('/').unwrap();
+                    if !path.is_empty() {
+                        string.push_str(path);
+                        string.push('\n');
+                    }
+                }
+
+                if !string.is_empty() {
+                    CENTRAL_COMMAND.send_background(Command::AddLineToPackIgnoredDiagnostics(format!("\n{string}")));
+                }
+            }
+        ));
+
+        let ignore_parent_folder_field = SlotNoArgs::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
+            diagnostics_ui => move || {
+                let selection = diagnostics_ui.selection_sorted_and_deduped();
+                let mut string = String::new();
+
+                for index in &selection {
+                    let path = index.model().index_2a(index.row(), 3).data_0a().to_string().to_std_string();
+                    let (path, _) = path.rsplit_once('/').unwrap();
+                    let fields = index.model().index_2a(index.row(), 6).data_0a().to_string().to_std_string();
+                    let fields: Vec<String> = if fields.is_empty() {
+                        vec![]
+                    } else {
+                        serde_json::from_str(&fields).unwrap()
+                    };
+
+                    if !path.is_empty() && !fields.is_empty() {
+                        string.push_str(&format!("{path};{}", fields.join(",")));
+                        string.push('\n');
+                    }
+                }
+
+                if !string.is_empty() {
+                    CENTRAL_COMMAND.send_background(Command::AddLineToPackIgnoredDiagnostics(format!("\n{string}")));
+                }
+            }
+        ));
+
+        let ignore_file = SlotNoArgs::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
+            diagnostics_ui => move || {
+                let selection = diagnostics_ui.selection_sorted_and_deduped();
+                let mut string = String::new();
+
+                for index in &selection {
+                    let path = index.model().index_2a(index.row(), 3).data_0a().to_string().to_std_string();
+                    if !path.is_empty() {
+                        string.push_str(&path);
+                        string.push('\n');
+                    }
+                }
+
+                if !string.is_empty() {
+                    CENTRAL_COMMAND.send_background(Command::AddLineToPackIgnoredDiagnostics(format!("\n{string}")));
+                }
+            }
+        ));
+
+        let ignore_file_field = SlotNoArgs::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
+            diagnostics_ui => move || {
+                let selection = diagnostics_ui.selection_sorted_and_deduped();
+                let mut string = String::new();
+
+                for index in &selection {
+                    let path = index.model().index_2a(index.row(), 3).data_0a().to_string().to_std_string();
+                    let fields = index.model().index_2a(index.row(), 6).data_0a().to_string().to_std_string();
+                    let fields: Vec<String> = if fields.is_empty() {
+                        vec![]
+                    } else {
+                        serde_json::from_str(&fields).unwrap()
+                    };
+
+                    if !path.is_empty() && !fields.is_empty() {
+                        string.push_str(&format!("{path};{}", fields.join(",")));
+                        string.push('\n');
+                    }
+                }
+
+                if !string.is_empty() {
+                    CENTRAL_COMMAND.send_background(Command::AddLineToPackIgnoredDiagnostics(format!("\n{string}")));
+                }
+            }
+        ));
+
+        let ignore_diagnostic_for_parent_folder = SlotNoArgs::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
+            diagnostics_ui => move || {
+                let selection = diagnostics_ui.selection_sorted_and_deduped();
+                let mut string = String::new();
+
+                for index in &selection {
+                    let path = index.model().index_2a(index.row(), 3).data_0a().to_string().to_std_string();
+                    let (path, _) = path.rsplit_once('/').unwrap();
+                    let diagnostic = index.model().index_2a(index.row(), 5).data_0a().to_string().to_std_string();
+
+                    if !path.is_empty() && !diagnostic.is_empty() {
+                        string.push_str(&format!("{path};;{diagnostic}"));
+                        string.push('\n');
+                    }
+                }
+
+                if !string.is_empty() {
+                    CENTRAL_COMMAND.send_background(Command::AddLineToPackIgnoredDiagnostics(format!("\n{string}")));
+                }
+            }
+        ));
+
+        let ignore_diagnostic_for_parent_folder_field = SlotNoArgs::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
+            diagnostics_ui => move || {
+                let selection = diagnostics_ui.selection_sorted_and_deduped();
+                let mut string = String::new();
+
+                for index in &selection {
+                    let path = index.model().index_2a(index.row(), 3).data_0a().to_string().to_std_string();
+                    let (path, _) = path.rsplit_once('/').unwrap();
+                    let diagnostic = index.model().index_2a(index.row(), 5).data_0a().to_string().to_std_string();
+                    let fields = index.model().index_2a(index.row(), 6).data_0a().to_string().to_std_string();
+                    let fields: Vec<String> = if fields.is_empty() {
+                        vec![]
+                    } else {
+                        serde_json::from_str(&fields).unwrap()
+                    };
+
+                    if !path.is_empty() && !fields.is_empty() && !diagnostic.is_empty() {
+                        string.push_str(&format!("{path};{};{diagnostic}", fields.join(",")));
+                        string.push('\n');
+                    }
+                }
+
+                if !string.is_empty() {
+                    CENTRAL_COMMAND.send_background(Command::AddLineToPackIgnoredDiagnostics(format!("\n{string}")));
+                }
+            }
+        ));
+
+        let ignore_diagnostic_for_file = SlotNoArgs::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
+            diagnostics_ui => move || {
+                let selection = diagnostics_ui.selection_sorted_and_deduped();
+                let mut string = String::new();
+
+                for index in &selection {
+                    let path = index.model().index_2a(index.row(), 3).data_0a().to_string().to_std_string();
+                    let diagnostic = index.model().index_2a(index.row(), 5).data_0a().to_string().to_std_string();
+                    if !path.is_empty() && !diagnostic.is_empty() {
+                        string.push_str(&format!("{path};;{diagnostic}"));
+                        string.push('\n');
+                    }
+                }
+
+                if !string.is_empty() {
+                    CENTRAL_COMMAND.send_background(Command::AddLineToPackIgnoredDiagnostics(format!("\n{string}")));
+                }
+            }
+        ));
+
+        let ignore_diagnostic_for_file_field = SlotNoArgs::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
+            diagnostics_ui => move || {
+                let selection = diagnostics_ui.selection_sorted_and_deduped();
+                let mut string = String::new();
+
+                for index in &selection {
+                    let path = index.model().index_2a(index.row(), 3).data_0a().to_string().to_std_string();
+                    let diagnostic = index.model().index_2a(index.row(), 5).data_0a().to_string().to_std_string();
+                    let fields = index.model().index_2a(index.row(), 6).data_0a().to_string().to_std_string();
+                    let fields: Vec<String> = if fields.is_empty() {
+                        vec![]
+                    } else {
+                        serde_json::from_str(&fields).unwrap()
+                    };
+
+                    if !path.is_empty() && !fields.is_empty() && !diagnostic.is_empty() {
+                        string.push_str(&format!("{path};{};{diagnostic}", fields.join(",")));
+                        string.push('\n');
+                    }
+                }
+
+                if !string.is_empty() {
+                    CENTRAL_COMMAND.send_background(Command::AddLineToPackIgnoredDiagnostics(format!("\n{string}")));
+                }
+            }
+        ));
+
+        let ignore_diagnostic_for_pack = SlotNoArgs::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
+            diagnostics_ui => move || {
+                let selection = diagnostics_ui.selection_sorted_and_deduped();
+                let mut string = String::new();
+
+                for index in &selection {
+                    let diagnostic = index.model().index_2a(index.row(), 5).data_0a().to_string().to_std_string();
+                    if !diagnostic.is_empty() {
+                        string.push_str(&format!(";;{diagnostic}"));
+                        string.push('\n');
+                    }
+                }
+
+                if !string.is_empty() {
+                    CENTRAL_COMMAND.send_background(Command::AddLineToPackIgnoredDiagnostics(format!("\n{string}")));
+                }
             }
         ));
 
@@ -189,6 +458,17 @@ impl DiagnosticsUISlots {
             diagnostics_check_packfile,
             diagnostics_check_currently_open_packed_file,
             diagnostics_open_result,
+            contextual_menu,
+            contextual_menu_enabler,
+            ignore_parent_folder,
+            ignore_parent_folder_field,
+            ignore_file,
+            ignore_file_field,
+            ignore_diagnostic_for_parent_folder,
+            ignore_diagnostic_for_parent_folder_field,
+            ignore_diagnostic_for_file,
+            ignore_diagnostic_for_file_field,
+            ignore_diagnostic_for_pack,
             show_hide_extra_filters,
             toggle_filters,
             toggle_filters_types,
