@@ -1233,15 +1233,16 @@ impl DiagnosticsUI {
                     for row in 0..table_model.row_count_0a() {
                         for column in 0..table_model.column_count_0a() {
                             let item = table_model.item_2a(row, column);
-
-                            if item.data_1a(ITEM_HAS_ERROR).to_bool() {
-                                item.set_data_2a(&QVariant::from_bool(false), ITEM_HAS_ERROR);
-                            }
-                            if item.data_1a(ITEM_HAS_WARNING).to_bool() {
-                                item.set_data_2a(&QVariant::from_bool(false), ITEM_HAS_WARNING);
-                            }
-                            if item.data_1a(ITEM_HAS_INFO).to_bool() {
-                                item.set_data_2a(&QVariant::from_bool(false), ITEM_HAS_INFO);
+                            if !item.is_null() {
+                                if item.data_1a(ITEM_HAS_ERROR).to_bool() {
+                                    item.set_data_2a(&QVariant::from_bool(false), ITEM_HAS_ERROR);
+                                }
+                                if item.data_1a(ITEM_HAS_WARNING).to_bool() {
+                                    item.set_data_2a(&QVariant::from_bool(false), ITEM_HAS_WARNING);
+                                }
+                                if item.data_1a(ITEM_HAS_INFO).to_bool() {
+                                    item.set_data_2a(&QVariant::from_bool(false), ITEM_HAS_INFO);
+                                }
                             }
                         }
                     }
