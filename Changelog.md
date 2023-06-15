@@ -6,6 +6,25 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [4.0.20]
+### Added
+- Implemented experimental support for opening BMD/BMD Vegetation/Bin files (lib-only).
+- Implemented experimental support for opening cs2.parsed files (lib-only).
+- CSC files can now be open in the ESF editor (not very user-friendly, but it works).
+- Added counter under each diagnostic filter button.
+- Added "Ignore..." options for diagnostics.
+- Import/Export MyMod now has default showtcuts.
+
+### Fixed
+- Fixed portrait settings with specific names not being openable.
+- Fixed animpacks causing RPFM to fail to save.
+- Fixed infinite loop when renaming references.
+- Fixed lost focus when opening certain dialogs.
+- Fixed filter dropdowns on tables sometimes having the wrong table order.
+- Fixed packs in bin format not showing up as part of the content packs.
+- Fixed CTD when cleaning up diagnostics results if the table is broken.
+- Fixed CTD when opening subtables.
+
 ## [4.0.19]
 ### Added
 - Optimizer can now remove xml files from the prefab folder.
@@ -1016,7 +1035,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.0.19...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.0.20...HEAD
+[4.0.20]: https://github.com/Frodo45127/rpfm/compare/v4.0.19...v4.0.20
 [4.0.19]: https://github.com/Frodo45127/rpfm/compare/v4.0.18...v4.0.19
 [4.0.18]: https://github.com/Frodo45127/rpfm/compare/v4.0.17...v4.0.18
 [4.0.17]: https://github.com/Frodo45127/rpfm/compare/v4.0.16...v4.0.17
