@@ -833,7 +833,7 @@ impl Table {
         }
     }
 
-    pub(crate) fn encode<W: WriteBytes>(&self, data: &mut W, schema_patches: &Option<&DefinitionPatch>, pool: &Option<&Pool<SqliteConnectionManager>>) -> Result<()> {
+    pub fn encode<W: WriteBytes>(&self, data: &mut W, schema_patches: &Option<&DefinitionPatch>, pool: &Option<&Pool<SqliteConnectionManager>>) -> Result<()> {
 
         // Get the table data in local format, no matter in what backend we stored it.
         let entries = self.data(pool)?;

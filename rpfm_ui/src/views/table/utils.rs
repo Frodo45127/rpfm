@@ -20,6 +20,7 @@ use qt_gui::QListOfQStandardItem;
 use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;
 
+use qt_core::QByteArray;
 use qt_core::QListOfQModelIndex;
 use qt_core::QModelIndex;
 use qt_core::QSignalBlocker;
@@ -36,7 +37,7 @@ use cpp_core::Ptr;
 use cpp_core::Ref;
 
 use rayon::prelude::*;
-use rpfm_lib::schema::DefinitionPatch;
+use std::io::Cursor;
 
 use std::borrow::Cow;
 use std::collections::BTreeMap;
@@ -48,7 +49,7 @@ use rpfm_extensions::dependencies::TableReferences;
 
 use rpfm_lib::files::table::Table;
 use rpfm_lib::integrations::log::*;
-use rpfm_lib::schema::{Definition, Field, FieldType};
+use rpfm_lib::schema::{Definition, DefinitionPatch, Field, FieldType};
 
 use rpfm_ui_common::locale::{qtr, tr, tre};
 
@@ -612,13 +613,13 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData, keys: &[i32], colum
             item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(data)), ITEM_SOURCE_VALUE);
             item
         },
-        DecodedData::SequenceU16(ref table) | DecodedData::SequenceU32(ref table) => {
-            let table = QString::from_std_str(serde_json::to_string(&table).unwrap());
+        DecodedData::SequenceU16(ref data) | DecodedData::SequenceU32(ref data) => {
+            let data = QByteArray::from_slice(data);
             let item = QStandardItem::from_q_string(&qtr("packedfile_editable_sequence"));
             item.set_editable(false);
             item.set_data_2a(&QVariant::from_bool(false), ITEM_HAS_SOURCE_VALUE);
             item.set_data_2a(&QVariant::from_bool(true), ITEM_IS_SEQUENCE);
-            item.set_data_2a(&QVariant::from_q_string(&table), ITEM_SEQUENCE_DATA);
+            item.set_data_2a(&QVariant::from_q_byte_array(&data), ITEM_SEQUENCE_DATA);
             item
         }
     };
@@ -998,12 +999,8 @@ pub unsafe fn get_table_from_view(
                 FieldType::OptionalStringU16 => DecodedData::OptionalStringU16(QString::to_std_string(&model.item_2a(row, column as i32).text())),
 
                 // Sequences in the UI are not yet supported.
-                FieldType::SequenceU16(_) => DecodedData::SequenceU16(serde_json::from_str(&model.item_2a(row, column as i32).data_1a(ITEM_SEQUENCE_DATA).to_string().to_std_string()).unwrap()),
-                FieldType::SequenceU32(_) => {
-                    let data = model.item_2a(row, column as i32).data_1a(ITEM_SEQUENCE_DATA).to_string().to_std_string();
-                    info!("Sequence data: {}", data);
-                    DecodedData::SequenceU32(serde_json::from_str(&data).unwrap())
-                }
+                FieldType::SequenceU16(_) => DecodedData::SequenceU16(model.item_2a(row, column as i32).data_1a(ITEM_SEQUENCE_DATA).to_byte_array().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>()),
+                FieldType::SequenceU32(_) => DecodedData::SequenceU32(model.item_2a(row, column as i32).data_1a(ITEM_SEQUENCE_DATA).to_byte_array().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>()),
             };
             new_row.push(item);
         }
@@ -1026,7 +1023,7 @@ pub unsafe fn open_subtable(
     references_ui: &Rc<ReferencesUI>,
     table_data: TableType,
     data_source: Arc<RwLock<DataSource>>
-) -> Option<String> {
+) -> Option<Vec<u8>> {
 
     // Create and configure the dialog.
     let dialog = QDialog::new_1a(parent);
@@ -1048,7 +1045,10 @@ pub unsafe fn open_subtable(
 
     if dialog.exec() == 1 {
         if let Ok(table) = get_table_from_view(&table_view.table_model.static_upcast(), &table_view.table_definition()) {
-            Some(serde_json::to_string(&table).unwrap())
+            let mut data = Cursor::new(vec![]);
+            let _ = table.encode(&mut data, &None, &None);
+
+            Some(data.into_inner())
         } else {
             show_dialog(&table_view.table_view, "This should never happen.", false);
             None

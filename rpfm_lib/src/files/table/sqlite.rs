@@ -28,7 +28,7 @@ use super::{DecodedData, Table, TableData};
 
 impl Table {
 
-    pub(crate) fn decode<R: ReadBytes>(
+    pub fn decode<R: ReadBytes>(
         pool: &Option<&Pool<SqliteConnectionManager>>,
         data: &mut R,
         definition: &Definition,
