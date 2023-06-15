@@ -30,7 +30,6 @@ use rpfm_lib::error::RLibError;
 use rpfm_lib::games::{*, supported_games::*};
 use rpfm_lib::schema::SCHEMA_FOLDER;
 
-use rpfm_ui_common::*;
 pub use rpfm_ui_common::settings::*;
 
 use crate::GAME_SELECTED;
@@ -173,10 +172,6 @@ pub unsafe fn init_settings(main_window: &QPtr<QMainWindow>) {
 /// This can fail, so if this fails, better stop the program and check why it failed.
 #[must_use = "Many things depend on this folder existing. So better check this worked."]
 pub fn init_config_path() -> Result<()> {
-
-    *QUALIFIER.write().unwrap() = "com".to_owned();
-    *ORGANISATION.write().unwrap() = "FrodoWazEre".to_owned();
-    *PROGRAM_NAME.write().unwrap() = "rpfm".to_owned();
 
     DirBuilder::new().recursive(true).create(config_path()?)?;
     DirBuilder::new().recursive(true).create(backup_autosave_path()?)?;

@@ -215,6 +215,12 @@ fn main() {
 
     // Create the application and start the loop.
     QApplication::init(|_app| {
+        unsafe {
+            QCoreApplication::set_organization_domain(&QString::from_std_str("com"));
+            QCoreApplication::set_organization_name(&QString::from_std_str("FrodoWazEre"));
+            QCoreApplication::set_application_name(&QString::from_std_str("rpfm"));
+        }
+
         let ui = unsafe { UI::new() };
         match ui {
             Ok(ui) => {

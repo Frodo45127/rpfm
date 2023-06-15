@@ -31,9 +31,6 @@ mod config;
 
 // Statics, so we don't need to pass them everywhere to use them.
 lazy_static! {
-    pub static ref QUALIFIER: Arc<RwLock<String>> = Arc::new(RwLock::new("com".to_owned()));
-    pub static ref ORGANISATION: Arc<RwLock<String>> = Arc::new(RwLock::new("FrodoWazEre".to_owned()));
-    pub static ref PROGRAM_NAME: Arc<RwLock<String>> = Arc::new(RwLock::new("rpfm".to_owned()));
 
     /// Sentry client guard, so we can reuse it later on and keep it in scope for the entire duration of the program.
     static ref SENTRY_GUARD: Arc<RwLock<ClientInitGuard>> = Arc::new(RwLock::new(Logger::init(&{

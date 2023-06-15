@@ -20,10 +20,6 @@ use std::path::PathBuf;
 
 use rpfm_lib::games::{*, supported_games::SupportedGames};
 
-use crate::QUALIFIER;
-use crate::ORGANISATION;
-use crate::PROGRAM_NAME
-;
 /// This struct serves to hold the configuration used during the execution of the program.
 pub struct Config {
 	pub game: Option<GameInfo>,
@@ -48,10 +44,6 @@ impl Config {
 #[must_use = "Many things depend on this folder existing. So better check this worked."]
 pub fn init_config_path() -> Result<()> {
 
-    *QUALIFIER.write().unwrap() = "com".to_owned();
-    *ORGANISATION.write().unwrap() = "FrodoWazEre".to_owned();
-    *PROGRAM_NAME.write().unwrap() = "rpfm".to_owned();
-
     DirBuilder::new().recursive(true).create(error_path()?)?;
 
     Ok(())
@@ -62,7 +54,7 @@ pub fn init_config_path() -> Result<()> {
 /// Note: On `Debug´ mode this project is the project from where you execute one of RPFM's programs, which should be the root of the repo.
 pub fn config_path() -> Result<PathBuf> {
     if cfg!(debug_assertions) { std::env::current_dir().map_err(From::from) } else {
-        match ProjectDirs::from(&QUALIFIER.read().unwrap(), &ORGANISATION.read().unwrap(), &PROGRAM_NAME.read().unwrap()) {
+        match ProjectDirs::from("com", "FrodoWazEre", "rpfm") {
             Some(proj_dirs) => Ok(proj_dirs.config_dir().to_path_buf()),
             None => Err(anyhow!("Failed to get the config path."))
         }

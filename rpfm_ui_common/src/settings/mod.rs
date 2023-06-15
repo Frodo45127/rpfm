@@ -10,6 +10,7 @@
 
 use qt_core::QBox;
 use qt_core::QByteArray;
+use qt_core::QCoreApplication;
 use qt_core::QSettings;
 use qt_core::QString;
 use qt_core::QVariant;
@@ -22,57 +23,47 @@ use directories::ProjectDirs;
 
 use std::path::{Path, PathBuf};
 
-use crate::QUALIFIER;
-use crate::ORGANISATION;
-use crate::PROGRAM_NAME;
-
 //-------------------------------------------------------------------------------//
 //                         Setting-related functions
 //-------------------------------------------------------------------------------//
 
 pub fn settings() -> QBox<QSettings> {
-    unsafe { QSettings::from_2_q_string(&QString::from_std_str(&*ORGANISATION.read().unwrap()), &QString::from_std_str(&*PROGRAM_NAME.read().unwrap())) }
+    unsafe { QSettings::new() }
 }
 
 pub fn setting_path(setting: &str) -> PathBuf {
     unsafe {
-        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(&*ORGANISATION.read().unwrap()), &QString::from_std_str(&*PROGRAM_NAME.read().unwrap()));
-        PathBuf::from(q_settings.value_1a(&QString::from_std_str(setting)).to_string().to_std_string())
+        PathBuf::from(settings().value_1a(&QString::from_std_str(setting)).to_string().to_std_string())
     }
 }
 
 pub fn setting_string(setting: &str) -> String {
     unsafe {
-        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(&*ORGANISATION.read().unwrap()), &QString::from_std_str(&*PROGRAM_NAME.read().unwrap()));
-        q_settings.value_1a(&QString::from_std_str(setting)).to_string().to_std_string()
+        settings().value_1a(&QString::from_std_str(setting)).to_string().to_std_string()
     }
 }
 
 pub fn setting_int(setting: &str) -> i32 {
     unsafe {
-        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(&*ORGANISATION.read().unwrap()), &QString::from_std_str(&*PROGRAM_NAME.read().unwrap()));
-        q_settings.value_1a(&QString::from_std_str(setting)).to_int_0a()
+        settings().value_1a(&QString::from_std_str(setting)).to_int_0a()
     }
 }
 
 pub fn setting_f32(setting: &str) -> f32 {
     unsafe {
-        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(&*ORGANISATION.read().unwrap()), &QString::from_std_str(&*PROGRAM_NAME.read().unwrap()));
-        q_settings.value_1a(&QString::from_std_str(setting)).to_float_0a()
+        settings().value_1a(&QString::from_std_str(setting)).to_float_0a()
     }
 }
 
 pub fn setting_bool(setting: &str) -> bool {
     unsafe {
-        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(&*ORGANISATION.read().unwrap()), &QString::from_std_str(&*PROGRAM_NAME.read().unwrap()));
-        q_settings.value_1a(&QString::from_std_str(setting)).to_bool()
+        settings().value_1a(&QString::from_std_str(setting)).to_bool()
     }
 }
 
 pub fn setting_byte_array(setting: &str) -> CppBox<QByteArray> {
     unsafe {
-        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(&*ORGANISATION.read().unwrap()), &QString::from_std_str(&*PROGRAM_NAME.read().unwrap()));
-        q_settings.value_1a(&QString::from_std_str(setting)).to_byte_array()
+        settings().value_1a(&QString::from_std_str(setting)).to_byte_array()
     }
 }
 
@@ -124,7 +115,7 @@ pub fn set_setting_path(setting: &str, value: &Path) {
 
 pub fn set_setting_string(setting: &str, value: &str) {
     unsafe {
-        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(&*ORGANISATION.read().unwrap()), &QString::from_std_str(&*PROGRAM_NAME.read().unwrap()));
+        let q_settings = settings();
         q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_q_string(&QString::from_std_str(value)));
         q_settings.sync();
     }
@@ -132,7 +123,7 @@ pub fn set_setting_string(setting: &str, value: &str) {
 
 pub fn set_setting_int(setting: &str, value: i32) {
     unsafe {
-        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(&*ORGANISATION.read().unwrap()), &QString::from_std_str(&*PROGRAM_NAME.read().unwrap()));
+        let q_settings = settings();
         q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_int(value));
         q_settings.sync();
     }
@@ -140,7 +131,7 @@ pub fn set_setting_int(setting: &str, value: i32) {
 
 pub fn set_setting_f32(setting: &str, value: f32) {
     unsafe {
-        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(&*ORGANISATION.read().unwrap()), &QString::from_std_str(&*PROGRAM_NAME.read().unwrap()));
+        let q_settings = settings();
         q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_float(value));
         q_settings.sync();
     }
@@ -148,7 +139,7 @@ pub fn set_setting_f32(setting: &str, value: f32) {
 
 pub fn set_setting_bool(setting: &str, value: bool) {
     unsafe {
-        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(&*ORGANISATION.read().unwrap()), &QString::from_std_str(&*PROGRAM_NAME.read().unwrap()));
+        let q_settings = settings();
         q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_bool(value));
         q_settings.sync();
     }
@@ -156,7 +147,7 @@ pub fn set_setting_bool(setting: &str, value: bool) {
 
 pub fn set_setting_q_byte_array(setting: &str, value: Ref<QByteArray>) {
     unsafe {
-        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(&*ORGANISATION.read().unwrap()), &QString::from_std_str(&*PROGRAM_NAME.read().unwrap()));
+        let q_settings = settings();
         q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_q_byte_array(value));
         q_settings.sync();
     }
@@ -255,9 +246,11 @@ pub fn set_setting_if_new_q_byte_array(q_settings: &QBox<QSettings>, setting: &s
 /// Note: On `Debug´ mode this project is the project from where you execute one of RPFM's programs, which should be the root of the repo.
 pub fn config_path() -> Result<PathBuf> {
     if cfg!(debug_assertions) { std::env::current_dir().map_err(From::from) } else {
-        match ProjectDirs::from(&QUALIFIER.read().unwrap(), &ORGANISATION.read().unwrap(), &PROGRAM_NAME.read().unwrap()) {
-            Some(proj_dirs) => Ok(proj_dirs.config_dir().to_path_buf()),
-            None => Err(anyhow!("Failed to get the config path."))
+        unsafe {
+            match ProjectDirs::from(&QCoreApplication::organization_domain().to_std_string(), &QCoreApplication::organization_name().to_std_string(), &QCoreApplication::application_name().to_std_string()) {
+                Some(proj_dirs) => Ok(proj_dirs.config_dir().to_path_buf()),
+                None => Err(anyhow!("Failed to get the config path."))
+            }
         }
     }
 }

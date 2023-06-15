@@ -9,10 +9,10 @@
 //---------------------------------------------------------------------------//
 
 use lazy_static::lazy_static;
+use qt_core::QCoreApplication;
 use time::format_description::{parse, FormatItem};
 
 use std::path::PathBuf;
-use std::sync::{Arc, RwLock};
 
 use crate::locale::Locale;
 use crate::settings::*;
@@ -55,9 +55,6 @@ macro_rules! clone {
 }
 
 lazy_static!{
-    pub static ref QUALIFIER: Arc<RwLock<String>> = Arc::new(RwLock::new("com".to_owned()));
-    pub static ref ORGANISATION: Arc<RwLock<String>> = Arc::new(RwLock::new("FrodoWazEre".to_owned()));
-    pub static ref PROGRAM_NAME: Arc<RwLock<String>> = Arc::new(RwLock::new("rpfm".to_owned()));
 
     /// Path were the stuff used by RPFM (settings, schemas,...) is. In debug mode, we just take the current path
     /// (so we don't break debug builds). In Release mode, we take the `.exe` path.
@@ -80,7 +77,7 @@ lazy_static!{
         // - Linux: /usr/share/rpfm.
         // - MacOs: Who knows?
         if cfg!(target_os = "linux") {
-            PathBuf::from("/usr/share/".to_owned() + &PROGRAM_NAME.read().unwrap())
+            PathBuf::from("/usr/share/".to_owned() + unsafe { &QCoreApplication::application_name().to_std_string() })
         } else {
             PROGRAM_PATH.to_path_buf()
         }
