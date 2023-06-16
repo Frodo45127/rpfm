@@ -191,6 +191,13 @@ const SENTRY_DSN_KEY: &str = "https://a8bf0a98ed43467d841ec433fb3d75a8@sentry.io
 /// Main function.
 fn main() {
 
+    // This needs to be initialised before anything else.
+    unsafe {
+        QCoreApplication::set_organization_domain(&QString::from_std_str("com"));
+        QCoreApplication::set_organization_name(&QString::from_std_str("FrodoWazEre"));
+        QCoreApplication::set_application_name(&QString::from_std_str("rpfm"));
+    }
+
     // Setup the fallback locale before anything else.
     *FALLBACK_LOCALE.write().unwrap() = FALLBACK_LOCALE_EN.to_string();
 
@@ -215,12 +222,6 @@ fn main() {
 
     // Create the application and start the loop.
     QApplication::init(|_app| {
-        unsafe {
-            QCoreApplication::set_organization_domain(&QString::from_std_str("com"));
-            QCoreApplication::set_organization_name(&QString::from_std_str("FrodoWazEre"));
-            QCoreApplication::set_application_name(&QString::from_std_str("rpfm"));
-        }
-
         let ui = unsafe { UI::new() };
         match ui {
             Ok(ui) => {
