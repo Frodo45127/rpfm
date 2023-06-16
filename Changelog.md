@@ -6,6 +6,10 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [4.0.21]
+### Fixed
+- Fixed crash on start.
+
 ## [4.0.20]
 ### Added
 - Implemented experimental support for opening BMD/BMD Vegetation/Bin files (lib-only).
@@ -1035,7 +1039,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.0.20...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.0.21...HEAD
+[4.0.21]: https://github.com/Frodo45127/rpfm/compare/v4.0.20...v4.0.21
 [4.0.20]: https://github.com/Frodo45127/rpfm/compare/v4.0.19...v4.0.20
 [4.0.19]: https://github.com/Frodo45127/rpfm/compare/v4.0.18...v4.0.19
 [4.0.18]: https://github.com/Frodo45127/rpfm/compare/v4.0.17...v4.0.18
