@@ -6,6 +6,10 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [4.0.22]
+### Fixed
+- Fixed paths magically not working unless they're cannonicalized.
+
 ## [4.0.21]
 ### Fixed
 - Fixed crash on start.
