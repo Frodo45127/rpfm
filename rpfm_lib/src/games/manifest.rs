@@ -12,6 +12,7 @@ use csv::ReaderBuilder;
 use getset::*;
 use serde_derive::Deserialize;
 
+use std::fs::canonicalize;
 use std::path::{Path, PathBuf};
 
 use crate::error::{RLibError, Result};
