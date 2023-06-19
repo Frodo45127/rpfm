@@ -119,9 +119,10 @@ impl Locale {
     /// If the key doesn't exists, it returns the equivalent from the english localisation. If it fails to find it there too, returns a warning.
     fn tr(key: &str) -> String {
         let mut _errors = vec![];
-        match LOCALE.get().get_message(key) {
+        let locale = LOCALE.get();
+        match locale.get_message(key) {
             Some(message) => match message.value() {
-                Some(pattern) => LOCALE.get().format_pattern(pattern, None, &mut _errors).to_string(),
+                Some(pattern) => locale.format_pattern(pattern, None, &mut _errors).to_string(),
                 None => Self::tr_fallback(key),
             },
             None => Self::tr_fallback(key),
@@ -131,9 +132,10 @@ impl Locale {
     /// This function returns the translation for the key provided in the english language, or a... warning.
     fn tr_fallback(key: &str) -> String {
         let mut _errors = vec![];
-        match LOCALE_FALLBACK.get().get_message(key) {
+        let locale = LOCALE_FALLBACK.get();
+        match locale.get_message(key) {
             Some(message) => match message.value() {
-                Some(pattern) => LOCALE_FALLBACK.get().format_pattern(pattern, None, &mut _errors).to_string(),
+                Some(pattern) => locale.format_pattern(pattern, None, &mut _errors).to_string(),
                 None => "AlL YoUrS TrAnSlAtIoNs ArE BeLoNg To mE.".to_owned(),
             },
             None => "AlL YoUrS TrAnSlAtIoNs ArE BeLoNg To mE.".to_owned(),
