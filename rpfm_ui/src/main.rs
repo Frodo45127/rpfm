@@ -32,6 +32,7 @@ use qt_widgets::QStatusBar;
 
 use qt_gui::QColor;
 use qt_gui::QFont;
+use qt_gui::QGuiApplication;
 use qt_gui::{QPalette, q_palette::{ColorGroup, ColorRole}};
 use qt_gui::QFontDatabase;
 use qt_gui::q_font_database::SystemFont;
@@ -193,9 +194,14 @@ fn main() {
 
     // This needs to be initialised before anything else.
     unsafe {
+
+        // Settings stuff.
         QCoreApplication::set_organization_domain(&QString::from_std_str("com"));
         QCoreApplication::set_organization_name(&QString::from_std_str("FrodoWazEre"));
         QCoreApplication::set_application_name(&QString::from_std_str("rpfm"));
+
+        // This fixes the app icon on wayland.
+        QGuiApplication::set_desktop_file_name(&QString::from_std_str("rpfm"));
     }
 
     // Setup the fallback locale before anything else.
