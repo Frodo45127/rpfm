@@ -453,9 +453,16 @@ impl TableViewSlots {
                                 let old_data = view.get_copy_of_table();
 
                                 view.undo_lock.store(true, Ordering::SeqCst);
+
+                                let table_name = match data {
+                                    TableType::DB(ref db) => Some(db.table_name().to_owned()),
+                                    _ => None,
+                                };
+
                                 load_data(
                                     &view.table_view_ptr(),
                                     &view.table_definition(),
+                                    table_name.as_deref(),
                                     &view.dependency_data,
                                     &data,
                                     &view.timer_delayed_updates,
@@ -465,18 +472,6 @@ impl TableViewSlots {
                                 // Prepare the diagnostic pass.
                                 view.start_delayed_updates_timer();
                                 view.update_line_counter();
-
-                                let table_name = match data {
-                                    TableType::DB(ref db) => Some(db.table_name().to_owned()),
-                                    _ => None,
-                                };
-
-                                build_columns(
-                                    &view.table_view_ptr(),
-                                    &view.table_definition(),
-                                    table_name.as_deref(),
-                                    &data
-                                );
 
                                 view.undo_lock.store(false, Ordering::SeqCst);
 

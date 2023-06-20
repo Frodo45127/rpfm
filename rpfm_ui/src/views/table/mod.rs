@@ -626,6 +626,7 @@ impl TableView {
         load_data(
             &packed_file_table_view.table_view_ptr(),
             &packed_file_table_view.table_definition.read().unwrap(),
+            packed_file_table_view.table_name.as_deref(),
             &packed_file_table_view.dependency_data,
             &table_data,
             &packed_file_table_view.timer_delayed_updates,
@@ -634,14 +635,6 @@ impl TableView {
 
         // Initialize the undo model.
         update_undo_model(&packed_file_table_view.table_model_ptr(), &packed_file_table_view.undo_model_ptr());
-
-        // Build the columns. If we have a model from before, use it to paint our cells as they were last time we painted them.
-        build_columns(
-            &packed_file_table_view.table_view_ptr(),
-            &packed_file_table_view.table_definition.read().unwrap(),
-            packed_file_table_view.table_name.as_deref(),
-            &table_data
-        );
 
         // Set the connections and return success.
         connections::set_connections(&packed_file_table_view, &packed_file_table_view_slots);
@@ -684,6 +677,7 @@ impl TableView {
         load_data(
             table_view,
             &self.table_definition(),
+            self.table_name.as_deref(),
             &self.dependency_data,
             &data,
             &self.timer_delayed_updates,
@@ -699,23 +693,16 @@ impl TableView {
         self.history_undo.write().unwrap().clear();
         self.history_redo.write().unwrap().clear();
 
-        // Rebuild the column's stuff.
-        build_columns(
-            table_view,
-            &self.table_definition(),
-            self.table_name.as_deref(),
-            &data
-        );
-
         // Rebuild the column list of the filter and search panels, just in case the definition changed.
         // NOTE: We need to lock the signals for the column selector so it doesn't try to trigger in the middle of the rebuild, causing a deadlock.
         for filter in self.filters_mut().iter() {
-            let _filter_blocker = QSignalBlocker::from_q_object(filter.column_combobox().static_upcast::<QObject>());
+            filter.column_combobox().block_signals(true);
             filter.column_combobox().clear();
             for column in self.table_definition.read().unwrap().fields_processed_sorted(setting_bool("tables_use_old_column_order")) {
                 let name = QString::from_std_str(utils::clean_column_names(column.name()));
                 filter.column_combobox().add_item_q_string(&name);
             }
+            filter.column_combobox().block_signals(false);
         }
 
         if let Some(search_view) = &*self.search_view() {

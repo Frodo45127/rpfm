@@ -435,6 +435,7 @@ pub fn clean_column_names(field_name: &str) -> String {
 pub unsafe fn load_data(
     table_view: &QPtr<QTableView>,
     definition: &Definition,
+    table_name: Option<&str>,
     dependency_data: &RwLock<HashMap<i32, TableReferences>>,
     data: &TableType,
     timer: &QBox<QTimer>,
@@ -447,6 +448,9 @@ pub unsafe fn load_data(
     // This wipes out header information, so remember to run "build_columns" after this.
     table_model.clear();
 
+    // Build the columns. We do this without data already in to ensure Qt doesn't do unnecessary stuff.
+    let resize_after_data = build_columns(&table_view, &definition, table_name, &data);
+
     // Set the right data, depending on the table type you get.
     let data = match data {
         TableType::DependencyManager(data) => Cow::from(data),
@@ -455,12 +459,12 @@ pub unsafe fn load_data(
         TableType::NormalTable(data) => data.data(&None).unwrap(),
     };
 
-    // TODO: Optimize this. On big loc files this is slow as hell.
-    table_view.set_updates_enabled(false);
-
-    // NOTE: We need the blocker because disabling only updates doesn't seem to work.
-    table_model.block_signals(true);
     if !data.is_empty() {
+
+        // NOTE: We need the blocker because disabling only updates doesn't seem to work.
+        table_view.set_updates_enabled(false);
+        table_model.block_signals(true);
+
         let fields_processed = definition.fields_processed();
         let patches = Some(definition.patches());
         let keys = fields_processed.iter().enumerate().filter_map(|(x, y)| if y.is_key(patches) { Some(x as i32) } else { None }).collect::<Vec<i32>>();
@@ -497,14 +501,9 @@ pub unsafe fn load_data(
         }
     }
 
-    // If the table it's empty, we add an empty row and delete it, so the "columns" get created.
-    else {
-        table_view.set_updates_enabled(true);
-        table_model.block_signals(false);
-
-        let qlist = get_new_row(definition);
-        table_model.append_row_q_list_of_q_standard_item(&qlist);
-        table_model.remove_rows_2a(0, 1);
+    // If we need to do a loaded data-based resizing, it has to be done here, not at the top.
+    if resize_after_data {
+        table_view.horizontal_header().resize_sections(ResizeMode::ResizeToContents);
     }
 
     setup_item_delegates(
@@ -647,18 +646,24 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData, keys: &[i32], colum
 
 /// This function is meant to be used to prepare and build the column headers, and the column-related stuff.
 /// His intended use is for just after we load/reload the data to the table.
+///
+/// Returns if we need to perform a resizing after data is loaded.
 pub unsafe fn build_columns(
     table_view: &QPtr<QTableView>,
     definition: &Definition,
     table_name: Option<&str>,
     table_data: &TableType
-) {
+) -> bool {
     let filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
     let model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
+
     let schema = SCHEMA.read().unwrap();
     let mut do_we_have_ca_order = false;
+    let mut resize_after_data = false;
     let mut keys = vec![];
     let fields_processed = definition.fields_processed();
+    model.set_column_count(fields_processed.len() as i32);
+
     let patches = Some(definition.patches());
     let tooltips = get_column_tooltips(&schema, &fields_processed, table_name);
     let adjust_columns = setting_bool("adjust_columns_to_content");
@@ -705,36 +710,63 @@ pub unsafe fn build_columns(
         } else {
 
             // Optimized logic to resize columns.
-            if let TableType::DB(ref table) = table_data {
-                match field.field_type() {
-                    FieldType::Boolean |
-                    FieldType::F32 |
-                    FieldType::F64 |
-                    FieldType::I16 |
-                    FieldType::I32 |
-                    FieldType::I64 |
-                    FieldType::OptionalI16 |
-                    FieldType::OptionalI32 |
-                    FieldType::OptionalI64 |
-                    FieldType::ColourRGB => table_view.set_column_width(index as i32, model.horizontal_header_item(index as i32).text().length() * 6 + 30),
-                    FieldType::StringU8 |
-                    FieldType::StringU16 |
-                    FieldType::OptionalStringU8 |
-                    FieldType::OptionalStringU16 => {
-                        let size = table.data(&None).unwrap()
-                            .par_iter()
-                            .max_by_key(|row| row[index].data_to_string().len())
-                            .map(|row| row[index].data_to_string().len())
-                            .unwrap_or(COLUMN_SIZE_STRING as usize);
-                        table_view.set_column_width(index as i32, size as i32 * 6 + 30);
+            match table_data {
+                TableType::DependencyManager(ref table) => {
+                    match field.field_type() {
+                        FieldType::StringU8 => {
+                            let size = table
+                                .par_iter()
+                                .max_by_key(|row| row[index].data_to_string().len())
+                                .map(|row| row[index].data_to_string().len() * 6)
+                                .unwrap_or(COLUMN_SIZE_STRING as usize);
+                            table_view.set_column_width(index as i32, size as i32 + 30);
+                        }
+                        _ => table_view.set_column_width(index as i32, COLUMN_SIZE_STRING),
                     }
-                    FieldType::SequenceU16(_) | FieldType::SequenceU32(_) => table_view.set_column_width(index as i32, COLUMN_SIZE_STRING),
                 }
-            }
+                TableType::DB(ref table) => {
+                    match field.field_type() {
+                        FieldType::Boolean |
+                        FieldType::F32 |
+                        FieldType::F64 |
+                        FieldType::I16 |
+                        FieldType::I32 |
+                        FieldType::I64 |
+                        FieldType::OptionalI16 |
+                        FieldType::OptionalI32 |
+                        FieldType::OptionalI64 |
+                        FieldType::ColourRGB => table_view.set_column_width(index as i32, model.horizontal_header_item(index as i32).text().length() * 6 + 30),
+                        FieldType::StringU8 |
+                        FieldType::StringU16 |
+                        FieldType::OptionalStringU8 |
+                        FieldType::OptionalStringU16 => {
+                            let size = table.data(&None).unwrap()
+                                .par_iter()
+                                .max_by_key(|row| row[index].data_to_string().len())
+                                .map(|row| row[index].data_to_string().len() * 6)
+                                .unwrap_or(COLUMN_SIZE_STRING as usize);
+                            table_view.set_column_width(index as i32, size as i32 + 30);
+                        }
+                        FieldType::SequenceU16(_) | FieldType::SequenceU32(_) => table_view.set_column_width(index as i32, COLUMN_SIZE_STRING),
+                    }
+                }
+                TableType::Loc(ref table) => {
+                    match field.field_type() {
+                        FieldType::Boolean => table_view.set_column_width(index as i32, model.horizontal_header_item(index as i32).text().length() * 6 + 30),
+                        FieldType::StringU16 => {
+                            let size = table.data(&None).unwrap()
+                                .par_iter()
+                                .max_by_key(|row| row[index].data_to_string().len())
+                                .map(|row| row[index].data_to_string().len() * 6)
+                                .unwrap_or(COLUMN_SIZE_STRING as usize);
+                            table_view.set_column_width(index as i32, size as i32 + 30);
+                        }
+                        _ => table_view.set_column_width(index as i32, COLUMN_SIZE_STRING),
+                    }
+                }
 
-            // Slow logic to resize columns.
-            else {
-                header.resize_sections(ResizeMode::ResizeToContents);
+                // Slow logic to resize columns.
+                _ => resize_after_data = true,
             }
         }
 
@@ -774,6 +806,8 @@ pub unsafe fn build_columns(
 
         header.block_signals(false);
     }
+
+    resize_after_data
 }
 
 /// This function sets the tooltip for the provided column header, if the column should have one.
