@@ -76,6 +76,7 @@ use std::rc::Rc;
 use rpfm_extensions::dependencies::TableReferences;
 
 use rpfm_lib::files::{FileType, db::DB, loc::Loc, table::*};
+use rpfm_lib::integrations::log::error;
 use rpfm_lib::schema::{Definition, Field, FieldType, Schema};
 
 use rpfm_ui_common::ASSETS_PATH;
@@ -2142,6 +2143,7 @@ impl TableView {
                         }
                     },
 
+                    FieldType::OptionalI16 |
                     FieldType::I16 => {
 
                         // To the stupid float conversion problem avoid, this we do.
@@ -2156,6 +2158,7 @@ impl TableView {
                         }
                     },
 
+                    FieldType::OptionalI32 |
                     FieldType::I32 => {
 
                         // To the stupid float conversion problem avoid, this we do.
@@ -2170,6 +2173,7 @@ impl TableView {
                         }
                     },
 
+                    FieldType::OptionalI64 |
                     FieldType::I64 => {
 
                         // To the stupid float conversion problem avoid, this we do.
@@ -2191,14 +2195,20 @@ impl TableView {
                             self.process_edition(self.table_model.item_from_index(real_cell));
                         }
                     }
-
-                    _ => {
+                    FieldType::StringU8 |
+                    FieldType::StringU16 |
+                    FieldType::OptionalStringU8 |
+                    FieldType::OptionalStringU16 => {
                         if current_value != *text {
                             self.table_model.set_data_3a(real_cell, &QVariant::from_q_string(&QString::from_std_str(text)), 2);
                             changed_cells += 1;
                             self.process_edition(self.table_model.item_from_index(real_cell));
                         }
                     }
+
+                    // Do NOT rewrite sequences.
+                    FieldType::SequenceU16(_) |
+                    FieldType::SequenceU32(_) => {},
                 }
             }
         }
@@ -2229,6 +2239,11 @@ impl TableView {
                 if changed_cells > 0 {
 
                     let mut edits_data = vec![];
+                    if changed_cells > len {
+                        error!("Error: Changed cells greater than lenght. How the fuck did this happen? Fixing it so at least it doesn't crash.");
+                        changed_cells = len;
+                    }
+
                     let mut edits = history_undo.drain((len - changed_cells)..);
                     for edit in &mut edits {
                         if let TableOperations::Editing(mut edit) = edit {
