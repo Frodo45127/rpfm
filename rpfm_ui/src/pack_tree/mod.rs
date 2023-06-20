@@ -1050,6 +1050,9 @@ impl PackTree for QPtr<QTreeView> {
                 // - FileB
                 sort_folders_before_files_alphabetically_file_infos(&mut packed_files_data);
 
+                // Optimisation: prebuilt certain file-related data before entering the TreeView build loop. This improves performances by about 5%.
+                let packed_files_data = packed_files_data.par_iter().map(|data| (data.path().split('/').count() - 1, data.path().split('/'), data)).collect::<Vec<_>>();
+
                 let variant_type_file = QVariant::from_int(ITEM_TYPE_FILE);
                 let variant_type_folder = QVariant::from_int(ITEM_TYPE_FOLDER);
                 let variant_status_pristine = QVariant::from_int(ITEM_STATUS_PRISTINE);
@@ -1058,6 +1061,7 @@ impl PackTree for QPtr<QTreeView> {
                 base_file_item.set_editable(false);
                 base_file_item.set_data_2a(&variant_type_file, ITEM_TYPE);
                 base_file_item.set_data_2a(&variant_status_pristine, ITEM_STATUS);
+                let base_file_item = atomic_from_cpp_box(base_file_item);
 
                 let base_folder_item = QStandardItem::from_q_string(&QString::new());
                 base_folder_item.set_editable(false);
@@ -1065,30 +1069,39 @@ impl PackTree for QPtr<QTreeView> {
                 base_folder_item.set_data_2a(&variant_status_pristine, ITEM_STATUS);
                 TREEVIEW_ICONS.set_standard_item_icon(&base_folder_item, None);
 
+                // Optimisation: Premade the file items before building the tree. This gives us around 20% better times when building WH3 depedencies TreeView.
+                let mut files = packed_files_data.par_iter().rev().map(|(_,_,file_info)| {
+                    let tooltip = new_packed_file_tooltip(file_info);
+                    let file = (*ref_from_atomic(&base_file_item)).clone();
+                    if let Some((_, name)) = file_info.path().rsplit_once('/') {
+                        file.set_text(&QString::from_std_str(name));
+                    } else {
+                        file.set_text(&QString::from_std_str(file_info.path()));
+                    }
+
+                    if !tooltip.is_empty() {
+                        file.set_tool_tip(&QString::from_std_str(tooltip));
+                    }
+
+                    TREEVIEW_ICONS.set_standard_item_icon(&file, Some(file_info.file_type()));
+
+                    atomic_from_ptr(file)
+                }).collect::<Vec<_>>();
+
                 // Once we get the entire path list sorted, we add the paths to the model one by one,
                 // skipping duplicate entries.
-                for packed_file in &packed_files_data {
-                    let count = packed_file.path().split('/').count() - 1;
+                for (count, path_split, _) in packed_files_data {
 
                     // First, we reset the parent to the big_parent (the PackFile).
                     // Then, we form the path ("parent -> child" style path) to add to the model.
                     let mut parent = big_parent;
-                    for (index_in_path, name) in packed_file.path().split('/').enumerate() {
+
+                    for (index_in_path, name) in path_split.enumerate() {
                         let name = QString::from_std_str(name);
 
                         // If it's the last string in the file path, it's a file, so we add it to the model.
                         if index_in_path == count {
-                            let tooltip = new_packed_file_tooltip(packed_file);
-                            let file = base_file_item.clone();
-                            file.set_text(&name);
-
-                            if !tooltip.is_empty() {
-                                file.set_tool_tip(&QString::from_std_str(tooltip));
-                            }
-
-                            TREEVIEW_ICONS.set_standard_item_icon(&file, Some(packed_file.file_type()));
-
-                            parent.append_row_q_standard_item(file);
+                            parent.append_row_q_standard_item(ref_from_atomic(&files.pop().unwrap()));
                         }
 
                         // If it's a folder, we check first if it's already in the TreeView using the following
