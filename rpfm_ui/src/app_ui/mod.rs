@@ -93,6 +93,7 @@ use crate::ffi::*;
 use crate::FIRST_GAME_CHANGE_DONE;
 use crate::GAME_SELECTED;
 use crate::global_search_ui::GlobalSearchUI;
+use crate::NEW_FILE_VIEW_CREATED;
 use crate::pack_tree::{BuildData, icons::IconType, new_pack_file_tooltip, PackTree, TreeViewOperation};
 use crate::packedfile_views::{anim_fragment::*, animpack::*, anims_table::*, audio::FileAudioView, bmd::FileBMDView, DataSource, decoder::*, dependencies_manager::*, esf::*, external::*, image::*, matched_combat::*, FileView, packfile::PackFileExtraView, packfile_settings::*, portrait_settings::PortraitSettingsView, SpecialView, table::*, text::*, unit_variant::*, video::*};
 use crate::packfile_contents_ui::PackFileContentsUI;
@@ -2413,6 +2414,9 @@ impl AppUI {
                     let icon_type = IconType::File(path.to_owned());
                     let icon = TREEVIEW_ICONS.icon(icon_type);
 
+                    // If we're here, it's always a new file view. The line next to this one disables the variable.
+                    NEW_FILE_VIEW_CREATED.store(true, std::sync::atomic::Ordering::SeqCst);
+                    let tab_index = app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &QString::from_std_str(""));
                     let response = CentralCommand::recv(&receiver);
                     match response {
 
@@ -2422,7 +2426,6 @@ impl AppUI {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &QString::from_std_str(""));
                                     app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
 
                                     // Fix the quick notes view.
@@ -2444,7 +2447,6 @@ impl AppUI {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &QString::from_std_str(""));
                                     app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
 
                                     // Fix the quick notes view.
@@ -2468,7 +2470,6 @@ impl AppUI {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &QString::from_std_str(""));
                                     app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
 
                                     // Fix the quick notes view.
@@ -2490,7 +2491,6 @@ impl AppUI {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &QString::from_std_str(""));
                                     app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
 
                                     // Fix the quick notes view.
@@ -2513,7 +2513,6 @@ impl AppUI {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &QString::from_std_str(""));
                                     app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
 
                                     // Fix the quick notes view.
@@ -2538,7 +2537,6 @@ impl AppUI {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &QString::from_std_str(""));
                                     app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
 
                                     // Fix the quick notes view.
@@ -2572,7 +2570,6 @@ impl AppUI {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &QString::from_std_str(""));
                                     app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
 
                                     // Fix the quick notes view.
@@ -2596,7 +2593,6 @@ impl AppUI {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &QString::from_std_str(""));
                                     app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
 
                                     // Fix the quick notes view.
@@ -2621,7 +2617,6 @@ impl AppUI {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &QString::from_std_str(""));
                                     app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
 
                                     // Fix the quick notes view.
@@ -2644,7 +2639,6 @@ impl AppUI {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &QString::from_std_str(""));
                                     app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
 
                                     // Fix the quick notes view.
@@ -2666,7 +2660,6 @@ impl AppUI {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &QString::from_std_str(""));
                                     app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
 
                                     // Fix the quick notes view.
@@ -2690,7 +2683,6 @@ impl AppUI {
                                     Ok(_) => {
 
                                         // Add the file to the 'Currently open' list and make it visible.
-                                        app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &QString::from_std_str(""));
                                         app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
 
                                         // Fix the quick notes view.
@@ -2717,7 +2709,6 @@ impl AppUI {
                                     Ok(_) => {
 
                                        // Add the file to the 'Currently open' list and make it visible.
-                                        app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &QString::from_std_str(""));
                                         app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
 
                                         // Fix the quick notes view.
@@ -2741,7 +2732,6 @@ impl AppUI {
                             PackedFileTextView::new_view(&mut tab, app_ui, pack_file_contents_ui, &data);
 
                             // Add the file to the 'Currently open' list and make it visible.
-                            app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &QString::from_std_str(""));
                             app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
 
                             // Fix the quick notes view.
@@ -2761,7 +2751,6 @@ impl AppUI {
                             PackedFileTextView::new_view(&mut tab, app_ui, pack_file_contents_ui, &data);
 
                             // Add the file to the 'Currently open' list and make it visible.
-                            app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &QString::from_std_str(""));
                             app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
 
                             // Fix the quick notes view.
@@ -2777,7 +2766,6 @@ impl AppUI {
                             PackedFileVideoView::new_view(&mut tab, app_ui, pack_file_contents_ui, &data);
 
                             // Add the file to the 'Currently open' list and make it visible.
-                            app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &QString::from_std_str(""));
                             app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
 
                             // Fix the quick notes view.
@@ -2797,7 +2785,6 @@ impl AppUI {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &QString::from_std_str(""));
                                     app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
 
                                     // Fix the quick notes view.
@@ -2814,8 +2801,11 @@ impl AppUI {
                             }
                         }
 
-                        Response::Unknown => {},
-                        Response::Error(error) => return show_dialog(&app_ui.main_window, error, false),
+                        Response::Unknown => app_ui.tab_bar_packed_file.remove_tab(tab_index),
+                        Response::Error(error) => {
+                            app_ui.tab_bar_packed_file.remove_tab(tab_index);
+                            return show_dialog(&app_ui.main_window, error, false);
+                        }
                         _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                     };
                 }

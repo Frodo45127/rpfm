@@ -61,6 +61,7 @@ use crate::GITHUB_URL;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::MANUAL_URL;
 use crate::mymod_ui::MyModUI;
+use crate::NEW_FILE_VIEW_CREATED;
 use crate::pack_tree::*;
 use crate::packedfile_views::{DataSource, View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
@@ -1460,7 +1461,11 @@ impl AppUISlots {
 
         let packed_file_update = SlotOfInt::new(&app_ui.main_window, clone!(
             app_ui => move |index| {
-                if index == -1 { return; }
+                if index == -1 || NEW_FILE_VIEW_CREATED.load(std::sync::atomic::Ordering::SeqCst) {
+                    NEW_FILE_VIEW_CREATED.store(false, std::sync::atomic::Ordering::SeqCst);
+                    return;
+                }
+
                 for file_view in UI_STATE.get_open_packedfiles().iter() {
                     let widget = file_view.main_widget();
                     if app_ui.tab_bar_packed_file.index_of(widget) == index {
