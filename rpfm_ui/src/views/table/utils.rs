@@ -16,6 +16,7 @@ use qt_widgets::QDialog;
 use qt_widgets::QTableView;
 use qt_widgets::q_header_view::ResizeMode;
 
+use qt_gui::QIcon;
 use qt_gui::QListOfQStandardItem;
 use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;
@@ -23,7 +24,6 @@ use qt_gui::QStandardItemModel;
 use qt_core::QByteArray;
 use qt_core::QListOfQModelIndex;
 use qt_core::QModelIndex;
-use qt_core::QSignalBlocker;
 use qt_core::QSortFilterProxyModel;
 use qt_core::QVariant;
 use qt_core::QObject;
@@ -55,6 +55,8 @@ use rpfm_ui_common::locale::{qtr, tr, tre};
 
 use crate::ffi::*;
 use crate::packedfile_views::DataSource;
+use crate::QVARIANT_TRUE;
+use crate::QVARIANT_FALSE;
 use crate::utils::*;
 use crate::UI_STATE;
 use super::*;
@@ -65,6 +67,7 @@ use super::*;
 
 /// This function is used to update the background or undo table when a change is made in the main table.
 pub unsafe fn update_undo_model(model: &QPtr<QStandardItemModel>, undo_model: &QPtr<QStandardItemModel>) {
+    undo_model.block_signals(true);
     undo_model.clear();
     for row in 0..model.row_count_0a() {
         for column in 0..model.column_count_0a() {
@@ -76,6 +79,7 @@ pub unsafe fn update_undo_model(model: &QPtr<QStandardItemModel>, undo_model: &Q
             }
         }
     }
+    undo_model.block_signals(false);
 }
 
 //----------------------------------------------------------------------------//
@@ -455,17 +459,20 @@ pub unsafe fn load_data(
     table_view.set_updates_enabled(false);
 
     // NOTE: We need the blocker because disabling only updates doesn't seem to work.
-    let blocker = QSignalBlocker::from_q_object(table_model.static_upcast::<QObject>());
+    table_model.block_signals(true);
     if !data.is_empty() {
         let fields_processed = definition.fields_processed();
         let patches = Some(definition.patches());
         let keys = fields_processed.iter().enumerate().filter_map(|(x, y)| if y.is_key(patches) { Some(x as i32) } else { None }).collect::<Vec<i32>>();
+        let tooltip_string = tr("original_data");
 
-        // Load the data, row by row.
-        for (row, entry) in data.iter().enumerate() {
+        // Get each row in a mass loop.
+        let qlists = data.par_iter().map(|entry| {
             let qlist = QListOfQStandardItem::new();
+            qlist.reserve(entry.len() as i32);
+
             for (column, field) in entry.iter().enumerate() {
-                let item = get_item_from_decoded_data(field, &keys, column);
+                let item = get_item_from_decoded_data(field, &keys, column, &tooltip_string);
 
                 if data_source != DataSource::PackFile {
                     item.set_editable(false);
@@ -474,18 +481,26 @@ pub unsafe fn load_data(
                 qlist.append_q_standard_item(&item.into_ptr().as_mut_raw_ptr());
             }
 
-            if row == data.len() - 1 {
-                blocker.unblock();
+            atomic_from_ptr(qlist.into_ptr())
+        }).collect::<Vec<_>>();
+
+        // Load the data, row by row.
+        for (row, qlist) in qlists.iter().enumerate() {
+            let qlist = ptr_from_atomic(qlist);
+
+            if row == qlists.len() - 1 {
+                table_model.block_signals(false);
+                table_view.set_updates_enabled(true);
             }
 
-            table_model.append_row_q_list_of_q_standard_item(&qlist);
+            table_model.append_row_q_list_of_q_standard_item(qlist.as_ref().unwrap());
         }
     }
 
     // If the table it's empty, we add an empty row and delete it, so the "columns" get created.
     else {
         table_view.set_updates_enabled(true);
-        blocker.unblock();
+        table_model.block_signals(false);
 
         let qlist = get_new_row(definition);
         table_model.append_row_q_list_of_q_standard_item(&qlist);
@@ -498,21 +513,19 @@ pub unsafe fn load_data(
         &dependency_data.read().unwrap(),
         timer
     );
-
-    table_view.set_updates_enabled(true);
 }
 
 /// This function generates a StandardItem for the provided DecodedData.
-pub unsafe fn get_item_from_decoded_data(data: &DecodedData, keys: &[i32], column: usize) -> CppBox<QStandardItem> {
+pub unsafe fn get_item_from_decoded_data(data: &DecodedData, keys: &[i32], column: usize, tooltip_string: &str) -> CppBox<QStandardItem> {
     let item = match *data {
 
         // This one needs a couple of changes before turning it into an item in the table.
         DecodedData::Boolean(ref data) => {
             let item = QStandardItem::new();
-            item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
-            item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
+            item.set_data_2a(ref_from_atomic(&QVARIANT_TRUE), ITEM_HAS_SOURCE_VALUE);
+            item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_SEQUENCE);
             item.set_data_2a(&QVariant::from_bool(*data), ITEM_SOURCE_VALUE);
-            item.set_tool_tip(&QString::from_std_str(tre("original_data", &[&data.to_string()])));
+            item.set_tool_tip(&QString::from_std_str(tooltip_string.replacen("{}", &data.to_string(), 1)));
             item.set_editable(false);
             item.set_checkable(true);
             item.set_check_state(if *data { CheckState::Checked } else { CheckState::Unchecked });
@@ -522,103 +535,104 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData, keys: &[i32], colum
         // Floats need to be tweaked to fix trailing zeroes and precision issues, like turning 0.5000004 into 0.5.
         // Also, they should be limited to 3 decimals.
         DecodedData::F32(ref data) => {
-            let data = {
+            let (data, string) = {
                 let data_str = format!("{data}");
                 if let Some(position) = data_str.find('.') {
                     let decimals = &data_str[position..].len();
-                    if *decimals > 4 { format!("{data:.4}").parse::<f32>().unwrap() }
-                    else { *data }
+                    if *decimals > 4 {
+                        let data_str = format!("{data:.4}");
+                        (data_str.parse::<f32>().unwrap(), data_str) }
+                    else { (*data, data_str) }
                 }
-                else { *data }
+                else { (*data, data_str) }
             };
 
+            let qdata = QVariant::from_float(data);
             let item = QStandardItem::new();
-            item.set_tool_tip(&QString::from_std_str(tre("original_data", &[&data.to_string()])));
-            item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
-            item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
-            item.set_data_2a(&QVariant::from_float(data), ITEM_SOURCE_VALUE);
-            item.set_data_2a(&QVariant::from_float(data), 2);
+            item.set_tool_tip(&QString::from_std_str(tooltip_string.replacen("{}", &string, 1)));
+            item.set_data_2a(ref_from_atomic(&QVARIANT_TRUE), ITEM_HAS_SOURCE_VALUE);
+            item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_SEQUENCE);
+            item.set_data_2a(&qdata, ITEM_SOURCE_VALUE);
+            item.set_data_2a(&qdata, 2);
             item
         },
 
         DecodedData::F64(ref data) => {
-            let data = {
+            let (data, string) = {
                 let data_str = format!("{data}");
                 if let Some(position) = data_str.find('.') {
                     let decimals = &data_str[position..].len();
-                    if *decimals > 4 { format!("{data:.4}").parse::<f64>().unwrap() }
-                    else { *data }
+                    if *decimals > 4 {
+                        let data_str = format!("{data:.4}");
+                        (data_str.parse::<f64>().unwrap(), data_str) }
+                    else { (*data, data_str) }
                 }
-                else { *data }
+                else { (*data, data_str) }
             };
 
+            let qdata = QVariant::from_double(data);
             let item = QStandardItem::new();
-            item.set_tool_tip(&QString::from_std_str(tre("original_data", &[&data.to_string()])));
-            item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
-            item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
-            item.set_data_2a(&QVariant::from_double(data), ITEM_SOURCE_VALUE);
-            item.set_data_2a(&QVariant::from_double(data), 2);
+            item.set_tool_tip(&QString::from_std_str(tooltip_string.replacen("{}", &string, 1)));
+            item.set_data_2a(ref_from_atomic(&QVARIANT_TRUE), ITEM_HAS_SOURCE_VALUE);
+            item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_SEQUENCE);
+            item.set_data_2a(&qdata, ITEM_SOURCE_VALUE);
+            item.set_data_2a(&qdata, 2);
             item
         },
         DecodedData::I16(ref data) |
         DecodedData::OptionalI16(ref data) => {
             let item = QStandardItem::new();
-            item.set_tool_tip(&QString::from_std_str(tre("original_data", &[&data.to_string()])));
-            item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
-            item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
-            item.set_data_2a(&QVariant::from_int(*data as i32), ITEM_SOURCE_VALUE);
-            item.set_data_2a(&QVariant::from_int(*data as i32), 2);
+            let qdata = QVariant::from_int(*data as i32);
+            item.set_tool_tip(&QString::from_std_str(tooltip_string.replacen("{}", &data.to_string(), 1)));
+            item.set_data_2a(ref_from_atomic(&QVARIANT_TRUE), ITEM_HAS_SOURCE_VALUE);
+            item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_SEQUENCE);
+            item.set_data_2a(&qdata, ITEM_SOURCE_VALUE);
+            item.set_data_2a(&qdata, 2);
             item
         },
         DecodedData::I32(ref data) |
         DecodedData::OptionalI32(ref data) => {
             let item = QStandardItem::new();
-            item.set_tool_tip(&QString::from_std_str(tre("original_data", &[&data.to_string()])));
-            item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
-            item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
-            item.set_data_2a(&QVariant::from_int(*data), ITEM_SOURCE_VALUE);
-            item.set_data_2a(&QVariant::from_int(*data), 2);
+            let qdata = QVariant::from_int(*data);
+            item.set_tool_tip(&QString::from_std_str(tooltip_string.replacen("{}", &data.to_string(), 1)));
+            item.set_data_2a(ref_from_atomic(&QVARIANT_TRUE), ITEM_HAS_SOURCE_VALUE);
+            item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_SEQUENCE);
+            item.set_data_2a(&qdata, ITEM_SOURCE_VALUE);
+            item.set_data_2a(&qdata, 2);
             item
         },
         DecodedData::I64(ref data) |
         DecodedData::OptionalI64(ref data) => {
             let item = QStandardItem::new();
-            item.set_tool_tip(&QString::from_std_str(tre("original_data", &[&data.to_string()])));
-            item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
-            item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
-            item.set_data_2a(&QVariant::from_i64(*data), ITEM_SOURCE_VALUE);
-            item.set_data_2a(&QVariant::from_i64(*data), 2);
-            item
-        },
-
-        DecodedData::ColourRGB(_) => {
-            let data = data.data_to_string();
-            let item = QStandardItem::from_q_string(&QString::from_std_str(&data));
-            item.set_tool_tip(&QString::from_std_str(tre("original_data", &[&data])));
-            item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
-            item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
-            item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(data)), ITEM_SOURCE_VALUE);
+            let qdata = QVariant::from_i64(*data);
+            item.set_tool_tip(&QString::from_std_str(tooltip_string.replacen("{}", &data.to_string(), 1)));
+            item.set_data_2a(ref_from_atomic(&QVARIANT_TRUE), ITEM_HAS_SOURCE_VALUE);
+            item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_SEQUENCE);
+            item.set_data_2a(&qdata, ITEM_SOURCE_VALUE);
+            item.set_data_2a(&qdata, 2);
             item
         },
 
         // All these are Strings, so it can be together,
+        DecodedData::ColourRGB(ref data) |
         DecodedData::StringU8(ref data) |
         DecodedData::StringU16(ref data) |
         DecodedData::OptionalStringU8(ref data) |
         DecodedData::OptionalStringU16(ref data) => {
-            let item = QStandardItem::from_q_string(&QString::from_std_str(data));
-            item.set_tool_tip(&QString::from_std_str(tre("original_data", &[data])));
-            item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
-            item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
-            item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(data)), ITEM_SOURCE_VALUE);
+            let qdata = QString::from_std_str(data);
+            let item = QStandardItem::from_q_string(&qdata);
+            item.set_tool_tip(&QString::from_std_str(tooltip_string.replacen("{}", &data, 1)));
+            item.set_data_2a(ref_from_atomic(&QVARIANT_TRUE), ITEM_HAS_SOURCE_VALUE);
+            item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_SEQUENCE);
+            item.set_data_2a(&QVariant::from_q_string(&qdata), ITEM_SOURCE_VALUE);
             item
         },
         DecodedData::SequenceU16(ref data) | DecodedData::SequenceU32(ref data) => {
             let data = QByteArray::from_slice(data);
             let item = QStandardItem::from_q_string(&qtr("packedfile_editable_sequence"));
             item.set_editable(false);
-            item.set_data_2a(&QVariant::from_bool(false), ITEM_HAS_SOURCE_VALUE);
-            item.set_data_2a(&QVariant::from_bool(true), ITEM_IS_SEQUENCE);
+            item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_HAS_SOURCE_VALUE);
+            item.set_data_2a(ref_from_atomic(&QVARIANT_TRUE), ITEM_IS_SEQUENCE);
             item.set_data_2a(&QVariant::from_q_byte_array(&data), ITEM_SEQUENCE_DATA);
             item
         }
@@ -637,16 +651,24 @@ pub unsafe fn build_columns(
     table_view: &QPtr<QTableView>,
     definition: &Definition,
     table_name: Option<&str>,
+    table_data: &TableType
 ) {
     let filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
     let model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
     let schema = SCHEMA.read().unwrap();
     let mut do_we_have_ca_order = false;
     let mut keys = vec![];
-
     let fields_processed = definition.fields_processed();
     let patches = Some(definition.patches());
     let tooltips = get_column_tooltips(&schema, &fields_processed, table_name);
+    let adjust_columns = setting_bool("adjust_columns_to_content");
+    let header = table_view.horizontal_header();
+
+    let description_icon = if setting_bool("use_dark_theme") {
+        QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/description_icon_dark.png", ASSETS_PATH.to_string_lossy())))
+    }  else {
+        QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/description_icon_light.png", ASSETS_PATH.to_string_lossy())))
+    };
 
     for (index, field) in fields_processed.iter().enumerate() {
 
@@ -655,17 +677,14 @@ pub unsafe fn build_columns(
         if let Some(ref tooltip) = tooltips.get(index) {
             item.set_tool_tip(&QString::from_std_str(tooltip));
             if !field.description().is_empty() {
-                if setting_bool("use_dark_theme") {
-                    item.set_icon(&qt_gui::QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/description_icon_dark.png", ASSETS_PATH.to_string_lossy()))));
-                }  else {
-                    item.set_icon(&qt_gui::QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/description_icon_light.png", ASSETS_PATH.to_string_lossy()))));
-                }  
+                item.set_icon(&description_icon);
             }
         }   
+
         model.set_horizontal_header_item(index as i32, item.into_ptr());
 
         // Depending on his type, set one width or another.
-        if !setting_bool("adjust_columns_to_content") {
+        if !adjust_columns {
             match field.field_type() {
                 FieldType::Boolean => table_view.set_column_width(index as i32, COLUMN_SIZE_BOOLEAN),
                 FieldType::F32 => table_view.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
@@ -683,6 +702,40 @@ pub unsafe fn build_columns(
                 FieldType::OptionalStringU16 => table_view.set_column_width(index as i32, COLUMN_SIZE_STRING),
                 FieldType::SequenceU16(_) | FieldType::SequenceU32(_) => table_view.set_column_width(index as i32, COLUMN_SIZE_STRING),
             }
+        } else {
+
+            // Optimized logic to resize columns.
+            if let TableType::DB(ref table) = table_data {
+                match field.field_type() {
+                    FieldType::Boolean |
+                    FieldType::F32 |
+                    FieldType::F64 |
+                    FieldType::I16 |
+                    FieldType::I32 |
+                    FieldType::I64 |
+                    FieldType::OptionalI16 |
+                    FieldType::OptionalI32 |
+                    FieldType::OptionalI64 |
+                    FieldType::ColourRGB => table_view.set_column_width(index as i32, model.horizontal_header_item(index as i32).text().length() * 6 + 30),
+                    FieldType::StringU8 |
+                    FieldType::StringU16 |
+                    FieldType::OptionalStringU8 |
+                    FieldType::OptionalStringU16 => {
+                        let size = table.data(&None).unwrap()
+                            .par_iter()
+                            .max_by_key(|row| row[index].data_to_string().len())
+                            .map(|row| row[index].data_to_string().len())
+                            .unwrap_or(COLUMN_SIZE_STRING as usize);
+                        table_view.set_column_width(index as i32, size as i32 * 6 + 30);
+                    }
+                    FieldType::SequenceU16(_) | FieldType::SequenceU32(_) => table_view.set_column_width(index as i32, COLUMN_SIZE_STRING),
+                }
+            }
+
+            // Slow logic to resize columns.
+            else {
+                header.resize_sections(ResizeMode::ResizeToContents);
+            }
         }
 
         // If the field is key, add that column to the "Key" list, so we can move them at the beginning later.
@@ -691,7 +744,6 @@ pub unsafe fn build_columns(
     }
 
     // Now the order. If we have a sort order from the schema, we use that one.
-    let header = table_view.horizontal_header();
     if !setting_bool("tables_use_old_column_order") && do_we_have_ca_order {
         let mut fields = fields_processed.iter()
             .enumerate()
@@ -702,24 +754,25 @@ pub unsafe fn build_columns(
             else { a.1.cmp(&b.1) }
         });
 
+        header.block_signals(true);
         for (new_pos, (logical_index, ca_order)) in fields.iter().enumerate() {
             if *ca_order != -1 {
                 let visual_index = header.visual_index(*logical_index as i32);
+
                 header.move_section(visual_index, new_pos as i32);
             }
         }
+        header.block_signals(false);
     }
 
     // Otherwise, if we have any "Key" field, move it to the beginning.
     else if !keys.is_empty() {
+        header.block_signals(true);
         for (position, column) in keys.iter().enumerate() {
             header.move_section(*column as i32, position as i32);
         }
-    }
 
-    // If we want to let the columns resize themselves...
-    if setting_bool("adjust_columns_to_content") {
-        header.resize_sections(ResizeMode::ResizeToContents);
+        header.block_signals(false);
     }
 }
 
@@ -889,11 +942,13 @@ pub unsafe fn setup_item_delegates(
 ) {
     let enable_lookups = false; //table_enable_lookups_button.is_checked();
     for (column, field) in definition.fields_processed().iter().enumerate() {
+        let table_object = table_view.static_upcast::<QObject>().as_ptr();
+        let references = table_references.get(&(column as i32));
 
         // Combos are a bit special, as they may or may not replace other delegates. If we disable them, use the normal delegates.
-        if !setting_bool("disable_combos_on_tables") && table_references.get(&(column as i32)).is_some() || !field.enum_values().is_empty() {
+        if !setting_bool("disable_combos_on_tables") && references.is_some() || !field.enum_values().is_empty() {
             let list = QStringList::new();
-            if let Some(data) = table_references.get(&(column as i32)) {
+            if let Some(data) = references {
                 let mut data = data.data().iter().map(|x| if enable_lookups { x.1 } else { x.0 }).collect::<Vec<&String>>();
                 data.sort();
                 data.iter().for_each(|x| list.append_q_string(&QString::from_std_str(x)));
@@ -903,30 +958,30 @@ pub unsafe fn setup_item_delegates(
                 field.enum_values().values().for_each(|x| list.append_q_string(&QString::from_std_str(x)));
             }
 
-            new_combobox_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), column as i32, list.as_ptr(), true, &timer.as_ptr(), true);
+            new_combobox_item_delegate_safe(&table_object, column as i32, list.as_ptr(), true, &timer.as_ptr(), true);
         }
 
         else {
             match field.field_type() {
-                FieldType::Boolean => new_generic_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr(), true),
-                FieldType::F32 => new_doublespinbox_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr(), true),
-                FieldType::F64 => new_doublespinbox_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr(), true),
-                FieldType::I16 => new_spinbox_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), column as i32, 16, &timer.as_ptr(), true),
-                FieldType::I32 => new_spinbox_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), column as i32, 32, &timer.as_ptr(), true),
+                FieldType::Boolean => new_generic_item_delegate_safe(&table_object, column as i32, &timer.as_ptr(), true),
+                FieldType::F32 => new_doublespinbox_item_delegate_safe(&table_object, column as i32, &timer.as_ptr(), true),
+                FieldType::F64 => new_doublespinbox_item_delegate_safe(&table_object, column as i32, &timer.as_ptr(), true),
+                FieldType::I16 => new_spinbox_item_delegate_safe(&table_object, column as i32, 16, &timer.as_ptr(), true),
+                FieldType::I32 => new_spinbox_item_delegate_safe(&table_object, column as i32, 32, &timer.as_ptr(), true),
 
                 // LongInteger uses normal string controls due to QSpinBox being limited to i32.
-                FieldType::I64 => new_spinbox_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), column as i32, 64, &timer.as_ptr(), true),
-                FieldType::OptionalI16 => new_spinbox_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), column as i32, 16, &timer.as_ptr(), true),
-                FieldType::OptionalI32 => new_spinbox_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), column as i32, 32, &timer.as_ptr(), true),
+                FieldType::I64 => new_spinbox_item_delegate_safe(&table_object, column as i32, 64, &timer.as_ptr(), true),
+                FieldType::OptionalI16 => new_spinbox_item_delegate_safe(&table_object, column as i32, 16, &timer.as_ptr(), true),
+                FieldType::OptionalI32 => new_spinbox_item_delegate_safe(&table_object, column as i32, 32, &timer.as_ptr(), true),
 
                 // LongInteger uses normal string controls due to QSpinBox being limited to i32.
-                FieldType::OptionalI64 => new_spinbox_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), column as i32, 64, &timer.as_ptr(), true),
-                FieldType::ColourRGB => new_colour_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr(), true),
+                FieldType::OptionalI64 => new_spinbox_item_delegate_safe(&table_object, column as i32, 64, &timer.as_ptr(), true),
+                FieldType::ColourRGB => new_colour_item_delegate_safe(&table_object, column as i32, &timer.as_ptr(), true),
                 FieldType::StringU8 |
                 FieldType::StringU16 |
                 FieldType::OptionalStringU8 |
-                FieldType::OptionalStringU16 => new_qstring_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr(), true),
-                FieldType::SequenceU16(_) | FieldType::SequenceU32(_) => new_generic_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr(), true),
+                FieldType::OptionalStringU16 => new_qstring_item_delegate_safe(&table_object, column as i32, &timer.as_ptr(), true),
+                FieldType::SequenceU16(_) | FieldType::SequenceU32(_) => new_generic_item_delegate_safe(&table_object, column as i32, &timer.as_ptr(), true),
             }
         }
     }

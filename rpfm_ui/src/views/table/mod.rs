@@ -639,7 +639,8 @@ impl TableView {
         build_columns(
             &packed_file_table_view.table_view_ptr(),
             &packed_file_table_view.table_definition.read().unwrap(),
-            packed_file_table_view.table_name.as_deref()
+            packed_file_table_view.table_name.as_deref(),
+            &table_data
         );
 
         // Set the connections and return success.
@@ -702,7 +703,8 @@ impl TableView {
         build_columns(
             table_view,
             &self.table_definition(),
-            self.table_name.as_deref()
+            self.table_name.as_deref(),
+            &data
         );
 
         // Rebuild the column list of the filter and search panels, just in case the definition changed.

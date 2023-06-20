@@ -39,6 +39,7 @@ use qt_gui::q_font_database::SystemFont;
 
 use qt_core::QCoreApplication;
 use qt_core::QString;
+use qt_core::QVariant;
 
 use lazy_static::lazy_static;
 
@@ -174,6 +175,13 @@ lazy_static! {
 
     /// Atomic to control if we have performed the initial game selected change or not.
     static ref FIRST_GAME_CHANGE_DONE: AtomicBool = AtomicBool::new(false);
+
+    // QVariants used to speedup certain processes that require a lot of new QVariants of bools.
+    static ref QVARIANT_TRUE: AtomicPtr<QVariant> = unsafe { atomic_from_cpp_box(QVariant::from_bool(true)) };
+    static ref QVARIANT_FALSE: AtomicPtr<QVariant> = unsafe { atomic_from_cpp_box(QVariant::from_bool(false)) };
+
+    /// This one is for detecting when a file is open for the first time, so we can skip some costly slots.
+    static ref NEW_FILE_VIEW_CREATED: AtomicBool = AtomicBool::new(false);
 }
 
 /// This constant gets RPFM's version from the `Cargo.toml` file, so we don't have to change it

@@ -467,14 +467,15 @@ impl TableViewSlots {
                                 view.update_line_counter();
 
                                 let table_name = match data {
-                                    TableType::DB(db) => Some(db.table_name().to_owned()),
+                                    TableType::DB(ref db) => Some(db.table_name().to_owned()),
                                     _ => None,
                                 };
 
                                 build_columns(
                                     &view.table_view_ptr(),
                                     &view.table_definition(),
-                                    table_name.as_deref()
+                                    table_name.as_deref(),
+                                    &data
                                 );
 
                                 view.undo_lock.store(false, Ordering::SeqCst);
