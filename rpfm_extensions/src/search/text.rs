@@ -87,30 +87,38 @@ impl Searchable for Text {
                 let length = pattern.len();
                 let mut column = 0;
 
-                for (row, data) in self.contents().lines().enumerate() {
-                    while let Some(text) = data.get(column..) {
-                        if case_sensitive {
-                            match text.find(pattern) {
-                                Some(position) => {
-                                    matches.matches.push(TextMatch::new(column as u64 + position as u64, row as u64, length as i64, data.to_owned()));
-                                    column += position + length;
+                if case_sensitive {
+                    if self.contents().find(pattern).is_some() {
+                        for (row, data) in self.contents().lines().enumerate() {
+                            while let Some(text) = data.get(column..) {
+                                match text.find(pattern) {
+                                    Some(position) => {
+                                        matches.matches.push(TextMatch::new(column as u64 + position as u64, row as u64, length as i64, data.to_owned()));
+                                        column += position + length;
+                                    }
+                                    None => break,
                                 }
-                                None => break,
                             }
-                        }
-                        else {
-                            let text = text.to_lowercase();
-                            match text.find(pattern) {
-                                Some(position) => {
-                                    matches.matches.push(TextMatch::new(column as u64 + position as u64, row as u64, length as i64, data.to_owned()));
-                                    column += position + length;
-                                }
-                                None => break,
-                            }
+                            column = 0;
                         }
                     }
+                } else {
+                    let contents = self.contents().to_lowercase();
+                    if contents.find(pattern).is_some() {
+                        for (row, data) in contents.lines().enumerate() {
+                            while let Some(text) = data.get(column..) {
+                                match text.find(pattern) {
+                                    Some(position) => {
+                                        matches.matches.push(TextMatch::new(column as u64 + position as u64, row as u64, length as i64, data.to_owned()));
+                                        column += position + length;
+                                    }
+                                    None => break,
+                                }
+                            }
 
-                    column = 0;
+                            column = 0;
+                        }
+                    }
                 }
             }
         }

@@ -207,190 +207,183 @@ impl GlobalSearch {
         match self.source {
             SearchSource::Pack => {
 
+                let mut files_to_search = vec![];
                 if self.search_on_dbs {
-                    let files = if !update_paths.is_empty() {
-                        pack.files_by_type_and_paths(&[FileType::DB], &update_paths, false)
-                    } else {
-                        pack.files_by_type(&[FileType::DB])
-                    };
+                    files_to_search.push(FileType::DB);
+                }
+                if self.search_on_locs {
+                    files_to_search.push(FileType::Loc);
+                }
+                if self.search_on_texts {
+                    files_to_search.push(FileType::Text);
+                }
 
-                    self.matches_db = files.par_iter()
-                        .filter_map(|file| {
+                let mut files = if !update_paths.is_empty() {
+                    pack.files_by_type_and_paths_mut(&files_to_search, &update_paths, false)
+                } else {
+                    pack.files_by_type_mut(&files_to_search)
+                };
+
+                let matches = files.par_iter_mut()
+                    .filter_map(|file| {
+                        if self.search_on_dbs && file.file_type() == FileType::DB {
                             if let Ok(RFileDecoded::DB(table)) = file.decoded() {
                                 let result = table.search(file.path_in_container_raw(), &self.pattern, self.case_sensitive, &matching_mode);
                                 if !result.matches().is_empty() {
-                                    Some(result)
+                                    Some((Some(result), None, None))
                                 } else {
                                     None
                                 }
                             } else {
                                 None
                             }
-                        }
-                    ).collect();
-                }
-
-                if self.search_on_locs {
-                    let files = if !update_paths.is_empty() {
-                        pack.files_by_type_and_paths(&[FileType::Loc], &update_paths, false)
-                    } else {
-                        pack.files_by_type(&[FileType::Loc])
-                    };
-
-                    self.matches_loc = files.par_iter()
-                        .filter_map(|file| {
+                        } else if self.search_on_locs && file.file_type() == FileType::Loc {
                             if let Ok(RFileDecoded::Loc(table)) = file.decoded() {
                                 let result = table.search(file.path_in_container_raw(), &self.pattern, self.case_sensitive, &matching_mode);
                                 if !result.matches().is_empty() {
-                                    Some(result)
+                                    Some((None, Some(result), None))
                                 } else {
                                     None
                                 }
                             } else {
                                 None
                             }
-                        }
-                    ).collect();
-                }
-
-                if self.search_on_texts {
-                    let mut files = if !update_paths.is_empty() {
-                        pack.files_by_type_and_paths_mut(&[FileType::Text], &update_paths, false)
-                    } else {
-                        pack.files_by_type_mut(&[FileType::Text])
-                    };
-
-                    self.matches_text = files.par_iter_mut()
-                        .filter_map(|file| {
+                        } else if self.search_on_texts && file.file_type() == FileType::Text {
                             if let Ok(RFileDecoded::Text(table)) = file.decode(&None, false, true).transpose().unwrap() {
                                 let result = table.search(file.path_in_container_raw(), &self.pattern, self.case_sensitive, &matching_mode);
                                 if !result.matches().is_empty() {
-                                    Some(result)
+                                    Some((None, None, Some(result)))
                                 } else {
                                     None
                                 }
                             } else {
                                 None
                             }
+                        } else {
+                            None
                         }
-                    ).collect();
-                }
+                    }
+                ).collect::<Vec<_>>();
+
+                self.matches_db = matches.iter().filter_map(|x| x.0.clone()).collect::<Vec<_>>();
+                self.matches_loc = matches.iter().filter_map(|x| x.1.clone()).collect::<Vec<_>>();
+                self.matches_text = matches.iter().filter_map(|x| x.2.clone()).collect::<Vec<_>>();
             }
             SearchSource::ParentFiles => {
-
+                let mut files_to_search = vec![];
                 if self.search_on_dbs {
-                    if let Ok(files) = dependencies.db_and_loc_data(true, false, false, true) {
-                        self.matches_db = files.par_iter()
-                            .filter_map(|file| {
-                                if let Ok(RFileDecoded::DB(table)) = file.decoded() {
-                                    let result = table.search(file.path_in_container_raw(), &self.pattern, self.case_sensitive, &matching_mode);
-                                    if !result.matches().is_empty() {
-                                        Some(result)
-                                    } else {
-                                        None
-                                    }
-                                } else {
-                                    None
-                                }
-                            }
-                        ).collect();
-                    }
+                    files_to_search.push(FileType::DB);
                 }
-
                 if self.search_on_locs {
-                    if let Ok(files) = dependencies.db_and_loc_data(false, true, false, true) {
-                        self.matches_loc = files.par_iter()
-                            .filter_map(|file| {
-                                if let Ok(RFileDecoded::Loc(table)) = file.decoded() {
-                                    let result = table.search(file.path_in_container_raw(), &self.pattern, self.case_sensitive, &matching_mode);
-                                    if !result.matches().is_empty() {
-                                        Some(result)
-                                    } else {
-                                        None
-                                    }
-                                } else {
-                                    None
-                                }
-                            }
-                        ).collect();
-                    }
+                    files_to_search.push(FileType::Loc);
+                }
+                if self.search_on_texts {
+                    files_to_search.push(FileType::Text);
                 }
 
-                if self.search_on_texts {
-                    let mut files = dependencies.files_by_types_mut(&[FileType::Text], false, true);
-                    self.matches_text = files.par_iter_mut()
-                        .filter_map(|(path, file)| {
-                            if let Ok(RFileDecoded::Text(text)) = file.decode(&None, false, true).transpose().unwrap() {
-                                let result = text.search(path, &self.pattern, self.case_sensitive, &matching_mode);
+                let mut files = dependencies.files_by_types_mut(&files_to_search, false, true);
+                let matches = files.par_iter_mut()
+                    .filter_map(|(_, file)| {
+                        if self.search_on_dbs && file.file_type() == FileType::DB {
+                            if let Ok(RFileDecoded::DB(table)) = file.decoded() {
+                                let result = table.search(file.path_in_container_raw(), &self.pattern, self.case_sensitive, &matching_mode);
                                 if !result.matches().is_empty() {
-                                    Some(result)
+                                    Some((Some(result), None, None))
                                 } else {
                                     None
                                 }
                             } else {
                                 None
                             }
+                        } else if self.search_on_locs && file.file_type() == FileType::Loc {
+                            if let Ok(RFileDecoded::Loc(table)) = file.decoded() {
+                                let result = table.search(file.path_in_container_raw(), &self.pattern, self.case_sensitive, &matching_mode);
+                                if !result.matches().is_empty() {
+                                    Some((None, Some(result), None))
+                                } else {
+                                    None
+                                }
+                            } else {
+                                None
+                            }
+                        } else if self.search_on_texts && file.file_type() == FileType::Text {
+                            if let Ok(RFileDecoded::Text(table)) = file.decode(&None, false, true).transpose().unwrap() {
+                                let result = table.search(file.path_in_container_raw(), &self.pattern, self.case_sensitive, &matching_mode);
+                                if !result.matches().is_empty() {
+                                    Some((None, None, Some(result)))
+                                } else {
+                                    None
+                                }
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
                         }
-                    ).collect();
-                }
+                    }
+                ).collect::<Vec<_>>();
+
+                self.matches_db = matches.iter().filter_map(|x| x.0.clone()).collect::<Vec<_>>();
+                self.matches_loc = matches.iter().filter_map(|x| x.1.clone()).collect::<Vec<_>>();
+                self.matches_text = matches.iter().filter_map(|x| x.2.clone()).collect::<Vec<_>>();
             },
             SearchSource::GameFiles => {
-
+                let mut files_to_search = vec![];
                 if self.search_on_dbs {
-                    if let Ok(files) = dependencies.db_and_loc_data(true, false, true, false) {
-                        self.matches_db = files.par_iter()
-                            .filter_map(|file| {
-                                if let Ok(RFileDecoded::DB(table)) = file.decoded() {
-                                    let result = table.search(file.path_in_container_raw(), &self.pattern, self.case_sensitive, &matching_mode);
-                                    if !result.matches().is_empty() {
-                                        Some(result)
-                                    } else {
-                                        None
-                                    }
-                                } else {
-                                    None
-                                }
-                            }
-                        ).collect();
-                    }
+                    files_to_search.push(FileType::DB);
                 }
-
                 if self.search_on_locs {
-                    if let Ok(files) = dependencies.db_and_loc_data(false, true, true, false) {
-                        self.matches_loc = files.par_iter()
-                            .filter_map(|file| {
-                                if let Ok(RFileDecoded::Loc(table)) = file.decoded() {
-                                    let result = table.search(file.path_in_container_raw(), &self.pattern, self.case_sensitive, &matching_mode);
-                                    if !result.matches().is_empty() {
-                                        Some(result)
-                                    } else {
-                                        None
-                                    }
-                                } else {
-                                    None
-                                }
-                            }
-                        ).collect();
-                    }
+                    files_to_search.push(FileType::Loc);
+                }
+                if self.search_on_texts {
+                    files_to_search.push(FileType::Text);
                 }
 
-                if self.search_on_texts {
-                    let mut files = dependencies.files_by_types_mut(&[FileType::Text], true, false);
-                    self.matches_text = files.par_iter_mut()
-                        .filter_map(|(path, file)| {
-                            if let Ok(RFileDecoded::Text(text)) = file.decode(&None, false, true).transpose().unwrap() {
-                                let result = text.search(path, &self.pattern, self.case_sensitive, &matching_mode);
+                let mut files = dependencies.files_by_types_mut(&files_to_search, true, false);
+                let matches = files.par_iter_mut()
+                    .filter_map(|(_, file)| {
+                        if self.search_on_dbs && file.file_type() == FileType::DB {
+                            if let Ok(RFileDecoded::DB(table)) = file.decoded() {
+                                let result = table.search(file.path_in_container_raw(), &self.pattern, self.case_sensitive, &matching_mode);
                                 if !result.matches().is_empty() {
-                                    Some(result)
+                                    Some((Some(result), None, None))
                                 } else {
                                     None
                                 }
                             } else {
                                 None
                             }
+                        } else if self.search_on_locs && file.file_type() == FileType::Loc {
+                            if let Ok(RFileDecoded::Loc(table)) = file.decoded() {
+                                let result = table.search(file.path_in_container_raw(), &self.pattern, self.case_sensitive, &matching_mode);
+                                if !result.matches().is_empty() {
+                                    Some((None, Some(result), None))
+                                } else {
+                                    None
+                                }
+                            } else {
+                                None
+                            }
+                        } else if self.search_on_texts && file.file_type() == FileType::Text {
+                            if let Ok(RFileDecoded::Text(table)) = file.decode(&None, false, true).transpose().unwrap() {
+                                let result = table.search(file.path_in_container_raw(), &self.pattern, self.case_sensitive, &matching_mode);
+                                if !result.matches().is_empty() {
+                                    Some((None, None, Some(result)))
+                                } else {
+                                    None
+                                }
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
                         }
-                    ).collect();
-                }
+                    }
+                ).collect::<Vec<_>>();
+
+                self.matches_db = matches.iter().filter_map(|x| x.0.clone()).collect::<Vec<_>>();
+                self.matches_loc = matches.iter().filter_map(|x| x.1.clone()).collect::<Vec<_>>();
+                self.matches_text = matches.iter().filter_map(|x| x.2.clone()).collect::<Vec<_>>();
             },
 
             // Asskit files are only tables.

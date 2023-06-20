@@ -19,7 +19,6 @@ use qt_widgets::QCheckBox;
 use qt_widgets::QComboBox;
 use qt_widgets::QDockWidget;
 use qt_widgets::QGroupBox;
-use qt_widgets::q_header_view::ResizeMode;
 use qt_widgets::QLineEdit;
 use qt_widgets::QMainWindow;
 use qt_widgets::QRadioButton;
@@ -49,6 +48,7 @@ use cpp_core::Ptr;
 
 use anyhow::Result;
 use getset::Getters;
+use rayon::prelude::*;
 
 use std::rc::Rc;
 
@@ -332,29 +332,48 @@ impl GlobalSearchUI {
         self.matches_table_and_text_tree_model.clear();
         self.matches_schema_tree_model.clear();
 
+        // Optimisation: Setting the column counts allows us to configure the columns before loading the data.
+        self.matches_table_and_text_tree_model.set_column_count(6);
+        self.matches_schema_tree_model.set_column_count(4);
+
+        // Tweak the table columns for the files tree here, instead on each load function.
+        self.matches_table_and_text_tree_model.block_signals(true);
+        self.matches_table_and_text_tree_model.set_header_data_3a(0, Orientation::Horizontal, &QVariant::from_q_string(&qtr("global_search_match_packedfile_column")));
+        self.matches_table_and_text_tree_model.set_header_data_3a(1, Orientation::Horizontal, &QVariant::from_q_string(&qtr("global_search_column_name")));
+        self.matches_table_and_text_tree_model.set_header_data_3a(2, Orientation::Horizontal, &QVariant::from_q_string(&qtr("gen_loc_row")));
+        self.matches_table_and_text_tree_model.set_header_data_3a(3, Orientation::Horizontal, &QVariant::from_q_string(&qtr("gen_loc_column")));
+        self.matches_table_and_text_tree_model.set_header_data_3a(4, Orientation::Horizontal, &QVariant::from_q_string(&qtr("gen_loc_length")));
+        self.matches_table_and_text_tree_model.block_signals(false);
+
+        // Hide the column number column for tables.
+        self.matches_table_and_text_tree_view.hide_column(3);
+        self.matches_table_and_text_tree_view.hide_column(4);
+        self.matches_table_and_text_tree_view.hide_column(5);
+        self.matches_table_and_text_tree_view.sort_by_column_2a(0, SortOrder::AscendingOrder);
+        self.matches_table_and_text_tree_view.set_column_width(0, 300);
+        self.matches_table_and_text_tree_view.set_column_width(1, 200);
+        self.matches_table_and_text_tree_view.set_column_width(2, 20);
+
+        // Same for the schema matches list.
+        self.matches_schema_tree_model.block_signals(true);
+        self.matches_schema_tree_model.set_header_data_3a(0, Orientation::Horizontal, &QVariant::from_q_string(&qtr("global_search_table_name")));
+        self.matches_schema_tree_model.set_header_data_3a(1, Orientation::Horizontal, &QVariant::from_q_string(&qtr("global_search_version")));
+        self.matches_schema_tree_model.set_header_data_3a(2, Orientation::Horizontal, &QVariant::from_q_string(&qtr("global_search_column_name")));
+        self.matches_schema_tree_model.set_header_data_3a(3, Orientation::Horizontal, &QVariant::from_q_string(&qtr("global_search_column")));
+        self.matches_schema_tree_model.block_signals(false);
+
+        // Hide the column number column for tables.
+        self.matches_schema_tree_view.hide_column(3);
+        self.matches_schema_tree_view.sort_by_column_2a(0, SortOrder::AscendingOrder);
+        self.matches_schema_tree_view.set_column_width(0, 300);
+        self.matches_schema_tree_view.set_column_width(1, 20);
+        self.matches_schema_tree_view.set_column_width(2, 300);
+
         // Load the results to their respective models. Then, store the GlobalSearch for future checks.
         match CentralCommand::recv(&receiver) {
             Response::GlobalSearchVecRFileInfo(global_search, packed_files_info) => {
-                self.load_table_matches_to_ui(&global_search.matches_db, FileType::DB);
-                self.load_table_matches_to_ui(&global_search.matches_loc, FileType::Loc);
-                self.load_text_matches_to_ui(&global_search.matches_text, FileType::Text);
-                self.load_schema_matches_to_ui(&global_search.matches_schema);
 
-                // Tweak the table columns for the files tree here, instead on each load function.
-                self.matches_table_and_text_tree_model.set_header_data_3a(0, Orientation::Horizontal, &QVariant::from_q_string(&qtr("global_search_match_packedfile_column")));
-                self.matches_table_and_text_tree_model.set_header_data_3a(1, Orientation::Horizontal, &QVariant::from_q_string(&qtr("global_search_column_name")));
-                self.matches_table_and_text_tree_model.set_header_data_3a(2, Orientation::Horizontal, &QVariant::from_q_string(&qtr("gen_loc_row")));
-                self.matches_table_and_text_tree_model.set_header_data_3a(3, Orientation::Horizontal, &QVariant::from_q_string(&qtr("gen_loc_column")));
-                self.matches_table_and_text_tree_model.set_header_data_3a(4, Orientation::Horizontal, &QVariant::from_q_string(&qtr("gen_loc_length")));
-
-                // Hide the column number column for tables.
-                self.matches_table_and_text_tree_view.hide_column(3);
-                self.matches_table_and_text_tree_view.hide_column(4);
-                self.matches_table_and_text_tree_view.hide_column(5);
-                self.matches_table_and_text_tree_view.sort_by_column_2a(0, SortOrder::AscendingOrder);
-                self.matches_table_and_text_tree_view.header().resize_sections(ResizeMode::ResizeToContents);
-
-                // Focus on the tree with the results.
+                // Focus on the tree with the results. We do it before loading because it's quite a lot faster that way.
                 if !global_search.matches_db.is_empty() || !global_search.matches_loc.is_empty() || !global_search.matches_text.is_empty() {
                     self.matches_tab_widget().set_current_index(0);
                 }
@@ -362,6 +381,11 @@ impl GlobalSearchUI {
                 else if !global_search.matches_schema.matches().is_empty() {
                     self.matches_tab_widget().set_current_index(1);
                 }
+
+                self.load_table_matches_to_ui(&global_search.matches_db, FileType::DB);
+                self.load_table_matches_to_ui(&global_search.matches_loc, FileType::Loc);
+                self.load_text_matches_to_ui(&global_search.matches_text, FileType::Text);
+                self.load_schema_matches_to_ui(&global_search.matches_schema);
 
                 UI_STATE.set_global_search(&global_search);
                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile);
@@ -667,9 +691,11 @@ impl GlobalSearchUI {
             let file_type_item = QStandardItem::new();
             file_type_item.set_editable(false);
             file_type_item.set_text(&QString::from_std_str::<String>(From::from(file_type)));
+            let file_type_item = atomic_from_cpp_box(file_type_item);
 
-            for (index, match_table) in matches.iter().enumerate() {
-                if !match_table.matches().is_empty() {
+            let rows = matches.par_iter()
+                .filter(|match_table| !match_table.matches().is_empty())
+                .map(|match_table| {
                     let path = match_table.path();
                     let qlist_daddy = QListOfQStandardItem::new();
                     let file = QStandardItem::new();
@@ -726,15 +752,19 @@ impl GlobalSearchUI {
                     qlist_daddy.append_q_standard_item(&fill2.into_ptr().as_mut_raw_ptr());
                     qlist_daddy.append_q_standard_item(&fill3.into_ptr().as_mut_raw_ptr());
                     qlist_daddy.append_q_standard_item(&fill4.into_ptr().as_mut_raw_ptr());
-                    qlist_daddy.append_q_standard_item(&file_type_item.clone().as_mut_raw_ptr());
+                    qlist_daddy.append_q_standard_item(&(ptr_from_atomic(&file_type_item).clone()).as_mut_raw_ptr());
+                    atomic_from_cpp_box(qlist_daddy)
+                })
+                .collect::<Vec<_>>();
 
-                    // Unlock the model before the last insertion.
-                    if index == matches.len() - 1 {
-                        model.block_signals(false);
-                    }
+            for (index, row) in rows.iter().enumerate() {
 
-                    model.append_row_q_list_of_q_standard_item(qlist_daddy.as_ref());
+                // Unlock the model before the last insertion.
+                if index == rows.len() - 1 {
+                    model.block_signals(false);
                 }
+
+                model.append_row_q_list_of_q_standard_item(ref_from_atomic(row));
             }
         }
     }
@@ -753,9 +783,11 @@ impl GlobalSearchUI {
             let file_type_item = QStandardItem::new();
             file_type_item.set_editable(false);
             file_type_item.set_text(&QString::from_std_str::<String>(From::from(file_type)));
+            let file_type_item = atomic_from_cpp_box(file_type_item);
 
-            for (index, match_text) in matches.iter().enumerate() {
-                if !match_text.matches().is_empty() {
+            let rows = matches.par_iter()
+                .filter(|match_text| !match_text.matches().is_empty())
+                .map(|match_text| {
                     let path = match_text.path();
                     let qlist_daddy = QListOfQStandardItem::new();
                     let file = QStandardItem::new();
@@ -818,15 +850,19 @@ impl GlobalSearchUI {
                     qlist_daddy.append_q_standard_item(&fill2.into_ptr().as_mut_raw_ptr());
                     qlist_daddy.append_q_standard_item(&fill3.into_ptr().as_mut_raw_ptr());
                     qlist_daddy.append_q_standard_item(&fill4.into_ptr().as_mut_raw_ptr());
-                    qlist_daddy.append_q_standard_item(&file_type_item.clone().as_mut_raw_ptr());
+                    qlist_daddy.append_q_standard_item(&(ptr_from_atomic(&file_type_item).clone()).as_mut_raw_ptr());
+                    atomic_from_cpp_box(qlist_daddy)
+                })
+                .collect::<Vec<_>>();
 
-                    // Unlock the model before the last insertion.
-                    if index == matches.len() - 1 {
-                        model.block_signals(false);
-                    }
+            for (index, row) in rows.iter().enumerate() {
 
-                    model.append_row_q_list_of_q_standard_item(qlist_daddy.as_ref());
+                // Unlock the model before the last insertion.
+                if index == rows.len() - 1 {
+                    model.block_signals(false);
                 }
+
+                model.append_row_q_list_of_q_standard_item(ref_from_atomic(row));
             }
         }
     }
@@ -834,10 +870,10 @@ impl GlobalSearchUI {
     /// This function takes care of loading the results of a global search of `SchemaMatches` into a model.
     unsafe fn load_schema_matches_to_ui(&self, matches: &SchemaMatches) {
         let model = &self.matches_schema_tree_model;
-        let tree_view = &self.matches_schema_tree_view;
 
-        if !matches.matches().is_empty() {
-            for match_schema in matches.matches() {
+        let rows = matches.matches()
+            .par_iter()
+            .map(|match_schema| {
                 let qlist = QListOfQStandardItem::new();
                 let table_name = QStandardItem::new();
                 let version = QStandardItem::new();
@@ -858,20 +894,18 @@ impl GlobalSearchUI {
                 qlist.append_q_standard_item(&version.into_ptr().as_mut_raw_ptr());
                 qlist.append_q_standard_item(&column_name.into_ptr().as_mut_raw_ptr());
                 qlist.append_q_standard_item(&column.into_ptr().as_mut_raw_ptr());
+                atomic_from_cpp_box(qlist)
+            })
+            .collect::<Vec<_>>();
 
-                model.append_row_q_list_of_q_standard_item(qlist.as_ref());
+        for (index, row) in rows.iter().enumerate() {
+
+            // Unlock the model before the last insertion.
+            if index == rows.len() - 1 {
+                model.block_signals(false);
             }
 
-            model.set_header_data_3a(0, Orientation::Horizontal, &QVariant::from_q_string(&qtr("global_search_table_name")));
-            model.set_header_data_3a(1, Orientation::Horizontal, &QVariant::from_q_string(&qtr("global_search_version")));
-            model.set_header_data_3a(2, Orientation::Horizontal, &QVariant::from_q_string(&qtr("global_search_column_name")));
-            model.set_header_data_3a(3, Orientation::Horizontal, &QVariant::from_q_string(&qtr("global_search_column")));
-
-            // Hide the column number column for tables.
-            tree_view.hide_column(3);
-            tree_view.sort_by_column_2a(0, SortOrder::AscendingOrder);
-
-            tree_view.header().resize_sections(ResizeMode::ResizeToContents);
+            model.append_row_q_list_of_q_standard_item(ref_from_atomic(row));
         }
     }
 
