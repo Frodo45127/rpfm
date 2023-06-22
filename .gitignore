@@ -43,6 +43,7 @@
 /test_files/fastbin/v24_encode_*
 /test_files/fastbin/v27_encode_*
 /test_files/fastbin/test_prefab.layer
+/test_files/fastbin/prefabs
 
 # This one is another separate thing, not tracked.
 /autosaves/
