@@ -262,10 +262,28 @@ global_search_use_regex = Use Regex
 global_search_search_on = Search On
 
 global_search_all = All
+global_search_anim = Anim
+global_search_anim_fragment = Anim Fragment
+global_search_anim_pack = Anim Pack
+global_search_anims_table = Anims Table
+global_search_audio = Audio
+global_search_bmd = BMD
 global_search_db = DB
-global_search_loc = LOC
-global_search_txt = Text
+global_search_esf = ESF
+global_search_group_formations = Group Formations
+global_search_image = Image
+global_search_loc = Loc
+global_search_matched_combat = Matched Combat
+global_search_pack = Pack
+global_search_portrait_settings = Portrait Settings
+global_search_rigid_model = Rigid Model
 global_search_schemas = Schemas
+global_search_sound_bank = Sound Bank
+global_search_text = Text
+global_search_uic = UIC
+global_search_unit_variant = Unit Variant
+global_search_unknown = Unknown
+global_search_video = Video
 
 ## Filter Dialogues
 

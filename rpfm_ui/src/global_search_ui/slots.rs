@@ -15,6 +15,8 @@ Module with all the code related to the main `GlobalSearchSlots`.
 use qt_core::QBox;
 use qt_core::{SlotOfBool, SlotOfQModelIndex, SlotNoArgs, SlotOfQString};
 
+use getset::*;
+
 use rpfm_lib::integrations::log::*;
 
 use rpfm_ui_common::clone;
@@ -34,17 +36,19 @@ use crate::utils::check_regex as check_regex_string;
 //-------------------------------------------------------------------------------//
 
 /// This struct contains all the slots we need to respond to signals of the Global Search panel.
+#[derive(Getters)]
+#[getset(get = "pub")]
 pub struct GlobalSearchSlots {
-    pub search: QBox<SlotNoArgs>,
-    pub clear: QBox<SlotNoArgs>,
-    pub replace_current: QBox<SlotNoArgs>,
-    pub replace_all: QBox<SlotNoArgs>,
-    pub check_regex: QBox<SlotOfQString>,
-    pub check_regex_clean: QBox<SlotOfBool>,
-    pub open_match: QBox<SlotOfQModelIndex>,
-    pub toggle_all: QBox<SlotOfBool>,
-    pub filter_table_and_text: QBox<SlotNoArgs>,
-    pub filter_schemas: QBox<SlotNoArgs>,
+    search: QBox<SlotNoArgs>,
+    clear: QBox<SlotNoArgs>,
+    replace_current: QBox<SlotNoArgs>,
+    replace_all: QBox<SlotNoArgs>,
+    check_regex: QBox<SlotOfQString>,
+    check_regex_clean: QBox<SlotOfBool>,
+    open_match: QBox<SlotOfQModelIndex>,
+    toggle_all: QBox<SlotOfBool>,
+    filter_table_and_text: QBox<SlotNoArgs>,
+    filter_schemas: QBox<SlotNoArgs>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -129,17 +133,53 @@ impl GlobalSearchSlots {
         // What happens when we toggle the "All" checkbox we have to disable/enable the rest ot the checkboxes.
         let toggle_all = SlotOfBool::new(&global_search_ui.dock_widget, clone!(
         global_search_ui => move |state| {
-            global_search_ui.search_on_dbs_checkbox.set_enabled(!state);
-            global_search_ui.search_on_locs_checkbox.set_enabled(!state);
-            global_search_ui.search_on_texts_checkbox.set_enabled(!state);
+            global_search_ui.search_on_anim_checkbox.set_enabled(!state);
+            global_search_ui.search_on_anim_fragment_checkbox.set_enabled(!state);
+            global_search_ui.search_on_anim_pack_checkbox.set_enabled(!state);
+            global_search_ui.search_on_anims_table_checkbox.set_enabled(!state);
+            global_search_ui.search_on_audio_checkbox.set_enabled(!state);
+            global_search_ui.search_on_bmd_checkbox.set_enabled(!state);
+            global_search_ui.search_on_db_checkbox.set_enabled(!state);
+            global_search_ui.search_on_esf_checkbox.set_enabled(!state);
+            global_search_ui.search_on_group_formations_checkbox.set_enabled(!state);
+            global_search_ui.search_on_image_checkbox.set_enabled(!state);
+            global_search_ui.search_on_loc_checkbox.set_enabled(!state);
+            global_search_ui.search_on_matched_combat_checkbox.set_enabled(!state);
+            global_search_ui.search_on_pack_checkbox.set_enabled(!state);
+            global_search_ui.search_on_portrait_settings_checkbox.set_enabled(!state);
+            global_search_ui.search_on_rigid_model_checkbox.set_enabled(!state);
             global_search_ui.search_on_schemas_checkbox.set_enabled(!state);
+            global_search_ui.search_on_sound_bank_checkbox.set_enabled(!state);
+            global_search_ui.search_on_text_checkbox.set_enabled(!state);
+            global_search_ui.search_on_uic_checkbox.set_enabled(!state);
+            global_search_ui.search_on_unit_variant_checkbox.set_enabled(!state);
+            global_search_ui.search_on_unknown_checkbox.set_enabled(!state);
+            global_search_ui.search_on_video_checkbox.set_enabled(!state);
 
             // If we're selecting all, check them.
             if state {
-                global_search_ui.search_on_dbs_checkbox.set_checked(state);
-                global_search_ui.search_on_locs_checkbox.set_checked(state);
-                global_search_ui.search_on_texts_checkbox.set_checked(state);
+                global_search_ui.search_on_anim_checkbox.set_checked(state);
+                global_search_ui.search_on_anim_fragment_checkbox.set_checked(state);
+                global_search_ui.search_on_anim_pack_checkbox.set_checked(state);
+                global_search_ui.search_on_anims_table_checkbox.set_checked(state);
+                global_search_ui.search_on_audio_checkbox.set_checked(state);
+                global_search_ui.search_on_bmd_checkbox.set_checked(state);
+                global_search_ui.search_on_db_checkbox.set_checked(state);
+                global_search_ui.search_on_esf_checkbox.set_checked(state);
+                global_search_ui.search_on_group_formations_checkbox.set_checked(state);
+                global_search_ui.search_on_image_checkbox.set_checked(state);
+                global_search_ui.search_on_loc_checkbox.set_checked(state);
+                global_search_ui.search_on_matched_combat_checkbox.set_checked(state);
+                global_search_ui.search_on_pack_checkbox.set_checked(state);
+                global_search_ui.search_on_portrait_settings_checkbox.set_checked(state);
+                global_search_ui.search_on_rigid_model_checkbox.set_checked(state);
                 global_search_ui.search_on_schemas_checkbox.set_checked(state);
+                global_search_ui.search_on_sound_bank_checkbox.set_checked(state);
+                global_search_ui.search_on_text_checkbox.set_checked(state);
+                global_search_ui.search_on_uic_checkbox.set_checked(state);
+                global_search_ui.search_on_unit_variant_checkbox.set_checked(state);
+                global_search_ui.search_on_unknown_checkbox.set_checked(state);
+                global_search_ui.search_on_video_checkbox.set_checked(state);
             }
         }));
 

@@ -239,13 +239,10 @@ impl RFileInfo {
 
     /// This function returns the PackedFileInfo for all the PackedFiles the current search has searched on.
     pub fn info_from_global_search(global_search: &GlobalSearch, pack: &Pack) -> Vec<Self> {
-        let mut types = vec![];
-        if global_search.search_on_dbs { types.push(FileType::DB); }
-        if global_search.search_on_locs { types.push(FileType::Loc); }
-        if global_search.search_on_texts { types.push(FileType::Text); }
+        let types = global_search.search_on().types_to_search();
 
         // Only return info of stuff on the local Pack.
-        if global_search.source == SearchSource::Pack {
+        if global_search.source() == &SearchSource::Pack {
             pack.files_by_type(&types).iter().map(|x| From::from(*x)).collect()
         } else {
             vec![]
