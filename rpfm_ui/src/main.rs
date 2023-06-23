@@ -196,7 +196,7 @@ const PATREON_URL: &str = "https://www.patreon.com/RPFM";
 const DISCORD_URL: &str = "https://discord.gg/moddingden";
 
 const FALLBACK_LOCALE_EN: &str = include_str!("../../locale/English_en.ftl");
-const SENTRY_DSN_KEY: &str = "https://a8bf0a98ed43467d841ec433fb3d75a8@sentry.io/1205298";
+const SENTRY_DSN_KEY: &str = "https://a8bf0a98ed43467d841ec433fb3d75a8:aeb106a185a0439fb7598598e0160ab2@o152833.ingest.sentry.io/1205298";
 
 /// Main function.
 fn main() {
