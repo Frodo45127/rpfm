@@ -43,6 +43,7 @@ use qt_core::QVariant;
 
 use lazy_static::lazy_static;
 
+use std::{panic, panic::PanicInfo};
 use std::path::PathBuf;
 use std::sync::{Arc, atomic::{AtomicBool, AtomicPtr}, RwLock};
 use std::thread;
@@ -219,7 +220,8 @@ fn main() {
     *SENTRY_DSN.write().unwrap() = SENTRY_DSN_KEY.to_owned();
 
     // Access the guard to make sure it gets initialized.
-    if SENTRY_GUARD.read().unwrap().is_enabled() {
+    let sentry_enabled = SENTRY_GUARD.read().unwrap().is_enabled();
+    if sentry_enabled {
         info!("Sentry Logging support enabled. Starting...");
     } else {
         info!("Sentry Logging support disabled. Starting...");
@@ -252,6 +254,11 @@ fn main() {
                 let _ = bac_handle.join();
                 let _ = net_handle.join();
 
+                // Stop tracking session health before existing.
+                if sentry_enabled {
+                    end_session_with_status(SessionStatus::Exited)
+                }
+
                 exit_code
             }
             Err(error) => {
@@ -263,6 +270,11 @@ fn main() {
 
                 let _ = bac_handle.join();
                 let _ = net_handle.join();
+
+                // Stop tracking session health before existing.
+                if sentry_enabled {
+                    end_session_with_status(SessionStatus::Abnormal)
+                }
 
                 55
             }

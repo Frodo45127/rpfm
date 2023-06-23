@@ -22,7 +22,7 @@ Otherwise, none of them will work.
 use backtrace::Backtrace;
 use lazy_static::lazy_static;
 pub use log::{error, info, warn};
-pub use sentry::{ClientInitGuard, Envelope, integrations::log::SentryLogger, protocol::*};
+pub use sentry::{ClientInitGuard, Envelope, integrations::log::SentryLogger, protocol::*, end_session, end_session_with_status};
 use serde_derive::Serialize;
 use simplelog::{ColorChoice, CombinedLogger, LevelFilter, SharedLogger, TermLogger, TerminalMode};
 
@@ -116,10 +116,12 @@ impl Logger {
         let sentry_guard = sentry::init((dsn, sentry::ClientOptions {
             release: sentry::release_name!(),
             sample_rate: 1.0,
+            auto_session_tracking: true,
             ..Default::default()
         }));
 
         // Setup the panic hooks to catch panics on all threads, not only the main one.
+        let sentry_enabled = sentry_guard.is_enabled();
         let orig_hook = panic::take_hook();
         let logging_path = logging_path.to_owned();
         panic::set_hook(Box::new(move |info: &panic::PanicInfo| {
@@ -132,7 +134,11 @@ impl Logger {
             }
 
             orig_hook(info);
-            std::process::exit(1);
+
+            // Stop tracking session health before existing.
+            if sentry_enabled {
+                end_session_with_status(SessionStatus::Crashed)
+            }
         }));
 
         // Return Sentry's guard, so we can keep it alive until everything explodes, or the user closes the program.

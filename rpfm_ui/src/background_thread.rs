@@ -76,9 +76,6 @@ pub fn background_loop() {
     // Preload the default game's dependencies.
     let mut dependencies = Arc::new(RwLock::new(Dependencies::default()));
 
-    // Initalize background sentry guard. This should, in theory, register crashes on the background thread.
-    let _sentry_guard = Logger::init(&error_path().unwrap_or_else(|_| PathBuf::from(".")), true, false);
-
     // Load all the tips we have.
     //let mut tips = if let Ok(tips) = Tips::load() { tips } else { Tips::default() };
 
@@ -94,7 +91,7 @@ pub fn background_loop() {
         match response {
 
             // Command to close the thread.
-            Command::Exit => return,
+            Command::Exit => break,
 
             // In case we want to reset the PackFile to his original state (dummy)...
             Command::ResetPackFile => pack_file_decoded = Pack::default(),

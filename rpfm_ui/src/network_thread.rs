@@ -32,9 +32,6 @@ use crate::updater;
 /// All communication between this and the UI thread is done use the `CENTRAL_COMMAND` static.
 pub fn network_loop() {
 
-    // Initalize background sentry guard. This should, in theory, register crashes on the background thread.
-    let _sentry_guard = Logger::init(&error_path().unwrap_or_else(|_| PathBuf::from(".")), true, false);
-
     //---------------------------------------------------------------------------------------//
     // Looping forever and ever...
     //---------------------------------------------------------------------------------------//
@@ -47,7 +44,7 @@ pub fn network_loop() {
         match response {
 
             // Command to close the thread.
-            Command::Exit => return,
+            Command::Exit => break,
 
             // When we want to check if there is an update available for RPFM...
             Command::CheckUpdates => {
