@@ -43,7 +43,6 @@ use qt_core::QVariant;
 
 use lazy_static::lazy_static;
 
-use std::{panic, panic::PanicInfo};
 use std::path::PathBuf;
 use std::sync::{Arc, atomic::{AtomicBool, AtomicPtr}, RwLock};
 use std::thread;
