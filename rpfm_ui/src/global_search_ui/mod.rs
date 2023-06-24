@@ -52,7 +52,7 @@ use rayon::prelude::*;
 
 use std::rc::Rc;
 
-use rpfm_extensions::search::{GlobalSearch, MatchHolder, rigid_model::RigidModelMatches, SearchSource, schema::SchemaMatches, table::{TableMatches, TableMatch}, text::{TextMatches, TextMatch}, unknown::{UnknownMatches, UnknownMatch}};
+use rpfm_extensions::search::{GlobalSearch, MatchHolder, rigid_model::RigidModelMatches, SearchSource, schema::SchemaMatches, table::{TableMatches, TableMatch}, text::{TextMatches, TextMatch}, unknown::UnknownMatches};
 use rpfm_lib::files::FileType;
 use rpfm_ui_common::locale::qtr;
 

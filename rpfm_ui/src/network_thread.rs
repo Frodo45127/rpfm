@@ -16,8 +16,6 @@ Basically, this does the network checks of the program.
 
 use crossbeam::channel::Sender;
 
-use std::path::PathBuf;
-
 use rpfm_lib::integrations::{git::*, log::*};
 use rpfm_lib::games::{LUA_REPO, LUA_REMOTE, LUA_BRANCH};
 use rpfm_lib::schema::*;
