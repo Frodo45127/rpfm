@@ -22,7 +22,7 @@ jobs:
         id: check_version_format_bash
         shell: bash
         run: |
-          if [[ ${{ steps.check_version_format.outputs.patch }} -gt 99 ]]; then
+          if [[ ${{ steps.check_version_format.outputs.patch }} -gt 98 ]]; then
             echo "is_beta=1" >> $GITHUB_OUTPUT
           else
             echo "is_beta=0" >> $GITHUB_OUTPUT
@@ -52,7 +52,7 @@ jobs:
         id: check_version_format_bash
         shell: bash
         run: |
-          if [[ ${{ steps.check_version_format.outputs.patch }} -gt 99 ]]; then
+          if [[ ${{ steps.check_version_format.outputs.patch }} -gt 98 ]]; then
             echo "is_beta=1" >> $GITHUB_OUTPUT
           else
             echo "is_beta=0" >> $GITHUB_OUTPUT
