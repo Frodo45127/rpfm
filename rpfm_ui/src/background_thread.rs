@@ -1041,10 +1041,13 @@ pub fn background_loop() {
             Command::GlobalSearchReplaceMatches(mut global_search, matches) => {
                 let game_info = GAME_SELECTED.read().unwrap();
                 if let Some(ref schema) = *SCHEMA.read().unwrap() {
-                    let paths = global_search.replace(&game_info, schema, &mut pack_file_decoded, &mut dependencies.write().unwrap(), &matches);
-                    let files_info = paths.iter().flat_map(|path| pack_file_decoded.files_by_path(path, false).iter().map(|file| RFileInfo::from(*file)).collect::<Vec<RFileInfo>>()).collect();
-
-                    CentralCommand::send_back(&sender, Response::GlobalSearchVecRFileInfo(global_search, files_info));
+                    match global_search.replace(&game_info, schema, &mut pack_file_decoded, &mut dependencies.write().unwrap(), &matches) {
+                        Ok(paths) => {
+                            let files_info = paths.iter().flat_map(|path| pack_file_decoded.files_by_path(path, false).iter().map(|file| RFileInfo::from(*file)).collect::<Vec<RFileInfo>>()).collect();
+                            CentralCommand::send_back(&sender, Response::GlobalSearchVecRFileInfo(global_search, files_info));
+                        }
+                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error.into())),
+                    }
                 } else {
                     CentralCommand::send_back(&sender, Response::Error(anyhow!("Schema not found. Maybe you need to download it?")));
                 }
@@ -1054,10 +1057,13 @@ pub fn background_loop() {
             Command::GlobalSearchReplaceAll(mut global_search) => {
                 let game_info = GAME_SELECTED.read().unwrap();
                 if let Some(ref schema) = *SCHEMA.read().unwrap() {
-                    let paths = global_search.replace_all(&game_info, schema, &mut pack_file_decoded, &mut dependencies.write().unwrap());
-                    let files_info = paths.iter().flat_map(|path| pack_file_decoded.files_by_path(path, false).iter().map(|file| RFileInfo::from(*file)).collect::<Vec<RFileInfo>>()).collect();
-
-                    CentralCommand::send_back(&sender, Response::GlobalSearchVecRFileInfo(global_search, files_info));
+                    match global_search.replace_all(&game_info, schema, &mut pack_file_decoded, &mut dependencies.write().unwrap()) {
+                        Ok(paths) => {
+                            let files_info = paths.iter().flat_map(|path| pack_file_decoded.files_by_path(path, false).iter().map(|file| RFileInfo::from(*file)).collect::<Vec<RFileInfo>>()).collect();
+                            CentralCommand::send_back(&sender, Response::GlobalSearchVecRFileInfo(global_search, files_info));
+                        }
+                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error.into())),
+                    }
                 } else {
                     CentralCommand::send_back(&sender, Response::Error(anyhow!("Schema not found. Maybe you need to download it?")));
                 }

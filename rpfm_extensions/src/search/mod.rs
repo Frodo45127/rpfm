@@ -18,6 +18,7 @@ use getset::*;
 use regex::{RegexBuilder, Regex};
 use rayon::prelude::*;
 
+use rpfm_lib::error::{Result, RLibError};
 use rpfm_lib::files::{Container, ContainerPath, FileType, pack::Pack, RFile, RFileDecoded};
 use rpfm_lib::games::{GameInfo, VanillaDBTableNameLogic};
 use rpfm_lib::schema::Schema;
@@ -72,22 +73,20 @@ pub mod schema;
 //                             Trait definitions
 //-------------------------------------------------------------------------------//
 
-/// This trait marks an struct (mainly structs representing decoded files) as `Optimizable`, meaning it can be cleaned up to reduce size and improve compatibility.
+/// This trait marks an struct (mainly structs representing decoded files) as `Searchable`, meaning they can be scanned for specific string matches.
 pub trait Searchable {
     type SearchMatches;
 
-    /// This function optimizes the provided struct to reduce its size and improve compatibility.
-    ///
-    /// It returns if the struct has been left in an state where it can be safetly deleted.
+    /// This function performs a search over a Searchable type, and returns the results.
     fn search(&self, file_path: &str, pattern_to_search: &str, case_sensitive: bool, matching_mode: &MatchingMode) -> Self::SearchMatches;
 }
 
-/// This trait marks a [Container](rpfm_lib::files::Container) as an `Optimizable` container, meaning it can be cleaned up to reduce size and improve compatibility.
+/// This trait marks a Searchable struct as `Replaceable`, meaning their matches can be replaced.
 pub trait Replaceable: Searchable {
 
-    /// This function optimizes the provided [Container](rpfm_lib::files::Container) to reduce its size and improve compatibility.
+    /// This function performs a replace over search matches, returning true if the replacement was done.
     ///
-    /// It returns the list of files that has been safetly deleted during the optimization process.
+    /// Replacements can fail due to outdated search matches or if the replacement is the same as the search match.
     fn replace(&mut self, pattern: &str, replace_pattern: &str, case_sensitive: bool, matching_mode: &MatchingMode, search_matches: &Self::SearchMatches) -> bool;
 }
 
@@ -318,17 +317,42 @@ impl GlobalSearch {
         *self = Self::default();
     }
 
+    /// This function checks if it's possible to replace the provided matches.
+    pub fn replace_possible(&self, matches: &[MatchHolder]) -> Result<()> {
+        let patterns_same_lenght = self.pattern.len() == self.replace_text.len();
+
+        // Error out if at least one of the matches requires special conditions.
+        if matches.iter().any(|m| match m {
+            MatchHolder::RigidModel(_) => self.use_regex || !patterns_same_lenght,
+            MatchHolder::Schema(_) => false,
+            MatchHolder::Table(_) => false,
+            MatchHolder::Text(_) => false,
+            MatchHolder::Unknown(_) => self.use_regex || !patterns_same_lenght,
+        }) {
+            Err(RLibError::GlobalSearchReplaceRequiresSameLenghtAndNotRegex)
+        } else {
+            Ok(())
+        }
+    }
+
     /// This function performs a replace operation over the provided matches.
     ///
     /// NOTE: Schema matches are always ignored.
-    pub fn replace(&mut self, game_info: &GameInfo, schema: &Schema, pack: &mut Pack, dependencies: &mut Dependencies, matches: &[MatchHolder]) -> Vec<ContainerPath> {
+    pub fn replace(&mut self, game_info: &GameInfo, schema: &Schema, pack: &mut Pack, dependencies: &mut Dependencies, matches: &[MatchHolder]) -> Result<Vec<ContainerPath>> {
         let mut edited_paths = vec![];
 
         // Don't do anything if we have no pattern to search.
-        if self.pattern.is_empty() { return edited_paths }
+        if self.pattern.is_empty() {
+            return Ok(edited_paths)
+        }
 
         // This is only useful for Packs, not for dependencies.
-        if self.source != SearchSource::Pack { return edited_paths }
+        if self.source != SearchSource::Pack {
+            return Ok(edited_paths)
+        }
+
+        // Make sure we can actually do the replacements.
+        self.replace_possible(matches)?;
 
         // If we want to use regex and the pattern is invalid, use normal pattern instead of Regex.
         let matching_mode = if self.use_regex {
@@ -439,10 +463,10 @@ impl GlobalSearch {
         self.search(game_info, schema, pack, dependencies, &edited_paths);
 
         // Return the changed paths.
-        edited_paths
+        Ok(edited_paths)
     }
 
-    pub fn replace_all(&mut self, game_info: &GameInfo, schema: &Schema, pack: &mut Pack, dependencies: &mut Dependencies) -> Vec<ContainerPath> {
+    pub fn replace_all(&mut self, game_info: &GameInfo, schema: &Schema, pack: &mut Pack, dependencies: &mut Dependencies) -> Result<Vec<ContainerPath>> {
         let mut matches = vec![];
         matches.extend(self.matches.db.iter().map(|x| MatchHolder::Table(x.clone())).collect::<Vec<_>>());
         matches.extend(self.matches.loc.iter().map(|x| MatchHolder::Table(x.clone())).collect::<Vec<_>>());
