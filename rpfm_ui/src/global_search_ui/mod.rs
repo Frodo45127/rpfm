@@ -477,7 +477,9 @@ impl GlobalSearchUI {
                     }
                 }
 
-                // Re-expand previously expanded matches, if still present.
+                // Re-expand the previously expanded items. We disable animation to avoid the slow opening behaviour of the UI.
+                self.matches_table_and_text_tree_view.set_animated(false);
+
                 let root = self.matches_table_and_text_tree_model.invisible_root_item();
                 for index in 0..root.row_count() {
                     let source_item = root.child_1a(index);
@@ -490,6 +492,8 @@ impl GlobalSearchUI {
                         }
                     }
                 }
+
+                self.matches_table_and_text_tree_view.set_animated(true);
 
                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile);
             },
