@@ -1581,6 +1581,22 @@ impl AppUISlots {
             app_ui => move || {
                 info!("Triggering `Autosave` By Slot");
 
+                // Before autosaving, check the space used by autosaves and throw a warning if we pass 25GB
+                if let Ok(autosave_path) = backup_autosave_path() {
+                    if let Ok(folder_size) = fs_extra::dir::get_size(autosave_path) {
+                        if folder_size > 26843545600 && !setting_bool("autosave_folder_size_warning_triggered") {
+                            set_setting_bool("autosave_folder_size_warning_triggered", true);
+
+                            show_dialog(app_ui.main_window(), tr("autosave_folder_size_warning"), false);
+                        }
+
+                        // Make the warning available again once we get under 25GB.
+                        else if folder_size <= 26843545600 {
+                            set_setting_bool("autosave_folder_size_warning_triggered", false);
+                        }
+                    }
+                }
+
                 let _ = CENTRAL_COMMAND.send_background(Command::TriggerBackupAutosave);
                 log_to_status_bar(&tr("autosaving"));
 

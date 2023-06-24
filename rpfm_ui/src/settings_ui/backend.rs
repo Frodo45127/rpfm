@@ -128,6 +128,7 @@ pub unsafe fn init_settings(main_window: &QPtr<QMainWindow>) {
     set_setting_if_new_bool(&q_settings, "disable_file_previews", false);
     set_setting_if_new_bool(&q_settings, "include_base_folder_on_add_from_folder", true);
     set_setting_if_new_bool(&q_settings, "delete_empty_folders_on_delete", true);
+    set_setting_if_new_bool(&q_settings, "autosave_folder_size_warning_triggered", false);
 
     // Table Settings.
     set_setting_if_new_bool(&q_settings, "adjust_columns_to_content", true);
