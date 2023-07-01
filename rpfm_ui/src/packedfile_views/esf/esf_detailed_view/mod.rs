@@ -213,6 +213,7 @@ impl ESFDetailedView {
                     let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QSpinBox::new_1a(parent_widget);
                     widget.set_maximum(u8::MAX.into());
+                    widget.set_minimum(0);
                     widget.set_value(*value as i32);
                     layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
@@ -223,6 +224,7 @@ impl ESFDetailedView {
                     let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QSpinBox::new_1a(parent_widget);
                     widget.set_maximum(u16::MAX.into());
+                    widget.set_minimum(0);
                     widget.set_value(*value as i32);
                     layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
@@ -232,7 +234,10 @@ impl ESFDetailedView {
                 NodeType::U32(value) => {
                     let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QSpinBox::new_1a(parent_widget);
-                    widget.set_maximum(u32::MAX as i32);
+
+                    // NOTE: this is a workaround. I need to get an u32-backed spinbox working to properly fix this.
+                    widget.set_maximum(i32::MAX);
+                    widget.set_minimum(0);
                     widget.set_value(*value.value() as i32);
                     layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
@@ -242,7 +247,10 @@ impl ESFDetailedView {
                 NodeType::U64(value) => {
                     let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QSpinBox::new_1a(parent_widget);
-                    widget.set_maximum(u32::MAX as i32);
+
+                    // NOTE: this is a workaround. I need to get an u64-backed spinbox working to properly fix this.
+                    widget.set_maximum(i32::MAX);
+                    widget.set_minimum(0);
                     widget.set_value(*value as i32);
                     layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
@@ -252,6 +260,7 @@ impl ESFDetailedView {
                 NodeType::F32(value) => {
                     let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QDoubleSpinBox::new_1a(parent_widget);
+                    widget.set_decimals(4);
                     widget.set_maximum(f32::MAX.into());
                     widget.set_minimum(f32::MIN.into());
                     widget.set_value(*value.value() as f64);
@@ -263,6 +272,7 @@ impl ESFDetailedView {
                 NodeType::F64(value) => {
                     let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QDoubleSpinBox::new_1a(parent_widget);
+                    widget.set_decimals(4);
                     widget.set_maximum(f64::MAX);
                     widget.set_minimum(f64::MIN);
                     widget.set_value(*value);
@@ -280,6 +290,12 @@ impl ESFDetailedView {
                     let y_label = QLabel::from_q_string_q_widget(&QString::from_std_str("Y"), &widget);
                     let x_spinbox = QDoubleSpinBox::new_1a(&widget);
                     let y_spinbox = QDoubleSpinBox::new_1a(&widget);
+                    x_spinbox.set_decimals(4);
+                    y_spinbox.set_decimals(4);
+                    x_spinbox.set_maximum(f32::MAX.into());
+                    x_spinbox.set_minimum(f32::MIN.into());
+                    y_spinbox.set_maximum(f32::MAX.into());
+                    y_spinbox.set_minimum(f32::MIN.into());
 
                     x_spinbox.set_value(*value.x() as f64);
                     y_spinbox.set_value(*value.y() as f64);
@@ -305,6 +321,15 @@ impl ESFDetailedView {
                     let x_spinbox = QDoubleSpinBox::new_1a(&widget);
                     let y_spinbox = QDoubleSpinBox::new_1a(&widget);
                     let z_spinbox = QDoubleSpinBox::new_1a(&widget);
+                    y_spinbox.set_decimals(4);
+                    x_spinbox.set_decimals(4);
+                    z_spinbox.set_decimals(4);
+                    x_spinbox.set_maximum(f64::MAX.into());
+                    x_spinbox.set_minimum(f64::MIN.into());
+                    y_spinbox.set_maximum(f64::MAX.into());
+                    y_spinbox.set_minimum(f64::MIN.into());
+                    z_spinbox.set_maximum(f64::MAX.into());
+                    z_spinbox.set_minimum(f64::MIN.into());
 
                     x_spinbox.set_value(*value.x() as f64);
                     y_spinbox.set_value(*value.y() as f64);
@@ -352,6 +377,11 @@ impl ESFDetailedView {
                 NodeType::Unknown21(value) => {
                     let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QSpinBox::new_1a(parent_widget);
+
+                    // Wrong representation, but allow us to not lose the data.
+                    widget.set_maximum(i32::MAX.into());
+                    widget.set_minimum(i32::MIN.into());
+
                     widget.set_value(*value as i32);
                     layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
@@ -361,6 +391,9 @@ impl ESFDetailedView {
                 NodeType::Unknown23(value) => {
                     let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QSpinBox::new_1a(parent_widget);
+                    widget.set_maximum(u8::MAX.into());
+                    widget.set_minimum(0);
+
                     widget.set_value(*value as i32);
                     layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
@@ -370,6 +403,11 @@ impl ESFDetailedView {
                 NodeType::Unknown25(value) => {
                     let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QSpinBox::new_1a(parent_widget);
+
+                    // Wrong representation, but allow us to not lose the data.
+                    widget.set_maximum(i32::MAX.into());
+                    widget.set_minimum(i32::MIN.into());
+
                     widget.set_value(*value as i32);
                     layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
