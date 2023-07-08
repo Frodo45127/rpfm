@@ -352,6 +352,9 @@ pub struct EncodeableExtraData<'a> {
     /// If we're running the encode method on test mode.
     test_mode: bool,
 
+    /// If we want to set any date or timestamp to 0.
+    nullify_dates: bool,
+
     /// Only for tables. If we should add a GUID to its header or not.
     table_has_guid: bool,
 

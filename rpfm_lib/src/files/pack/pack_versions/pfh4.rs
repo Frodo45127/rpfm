@@ -107,10 +107,10 @@ impl Pack {
 
     /// This function writes a `Pack` of version 4 into the provided buffer.
     pub(crate) fn write_pfh4<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
-        let test_mode = if let Some(extra_data) = extra_data {
-            extra_data.test_mode
+        let (test_mode, nullify_dates) = if let Some(extra_data) = extra_data {
+            (extra_data.test_mode, extra_data.nullify_dates)
         } else {
-            false
+            (false, false)
         };
 
         // We need our files sorted before trying to write them. But we don't want to duplicate
@@ -143,7 +143,12 @@ impl Pack {
                 file_index_entry.write_u32(data.len() as u32)?;
 
                 if self.header.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) {
-                    file_index_entry.write_u32(file.timestamp().unwrap_or(0) as u32)?;
+                    let timestamp = if nullify_dates {
+                        0
+                    } else {
+                        file.timestamp().unwrap_or(0) as u32
+                    };
+                    file_index_entry.write_u32(timestamp)?;
                 }
 
                 file_index_entry.write_string_u8_0terminated(path)?;
@@ -171,8 +176,12 @@ impl Pack {
         header.write_u32(files_index.len() as u32)?;
 
         // If we're not in testing mode, update the header timestamp.
-        if !test_mode {
+        if !test_mode || !nullify_dates {
             self.header.internal_timestamp = current_time()?;
+        }
+
+        if nullify_dates {
+            self.header.internal_timestamp = 0;
         }
 
         header.write_u32(self.header.internal_timestamp as u32)?;
