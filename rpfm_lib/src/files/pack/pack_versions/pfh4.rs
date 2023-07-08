@@ -176,12 +176,10 @@ impl Pack {
         header.write_u32(files_index.len() as u32)?;
 
         // If we're not in testing mode, update the header timestamp.
-        if !test_mode || !nullify_dates {
-            self.header.internal_timestamp = current_time()?;
-        }
-
         if nullify_dates {
             self.header.internal_timestamp = 0;
+        } else if !test_mode {
+            self.header.internal_timestamp = current_time()?;
         }
 
         header.write_u32(self.header.internal_timestamp as u32)?;
