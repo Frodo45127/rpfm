@@ -735,16 +735,31 @@ pub unsafe fn build_columns(
                         FieldType::OptionalI16 |
                         FieldType::OptionalI32 |
                         FieldType::OptionalI64 |
-                        FieldType::ColourRGB => table_view.set_column_width(index as i32, model.horizontal_header_item(index as i32).text().length() * 6 + 30),
+                        FieldType::ColourRGB => {
+                            let mut size = model.horizontal_header_item(index as i32).text().length() * 6 + 30;
+
+                            // Fix some columns getting their title eaten by description icon.
+                            if size < 60 {
+                                size = 60;
+                            }
+
+                            table_view.set_column_width(index as i32, size);
+                        }
                         FieldType::StringU8 |
                         FieldType::StringU16 |
                         FieldType::OptionalStringU8 |
                         FieldType::OptionalStringU16 => {
-                            let size = table.data(&None).unwrap()
+                            let mut size = table.data(&None).unwrap()
                                 .par_iter()
                                 .max_by_key(|row| row[index].data_to_string().len())
                                 .map(|row| row[index].data_to_string().len() * 6)
                                 .unwrap_or(COLUMN_SIZE_STRING as usize);
+
+                            // Fix some columns getting their title eaten by description icon.
+                            if size < 60 {
+                                size = 60;
+                            }
+
                             table_view.set_column_width(index as i32, size as i32 + 30);
                         }
                         FieldType::SequenceU16(_) | FieldType::SequenceU32(_) => table_view.set_column_width(index as i32, COLUMN_SIZE_STRING),
