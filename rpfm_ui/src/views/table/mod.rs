@@ -698,13 +698,16 @@ impl TableView {
         // NOTE: We need to lock the signals for the column selector so it doesn't try to trigger in the middle of the rebuild, causing a deadlock.
         for filter in self.filters_mut().iter() {
             filter.column_combobox().block_signals(true);
+            filter.column_combobox().model().block_signals(true);
             filter.column_combobox().clear();
+
             for column in self.table_definition.read().unwrap().fields_processed_sorted(setting_bool("tables_use_old_column_order")) {
                 let name = QString::from_std_str(utils::clean_column_names(column.name()));
                 filter.column_combobox().add_item_q_string(&name);
             }
             filter.column_combobox().block_signals(false);
-        }
+            filter.column_combobox().model().block_signals(false);
+        };
 
         if let Some(search_view) = &*self.search_view() {
             search_view.reload(self);
