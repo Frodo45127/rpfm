@@ -20,6 +20,7 @@ use getset::*;
 use rpfm_lib::integrations::log::*;
 
 use rpfm_ui_common::clone;
+use rpfm_ui_common::settings::set_setting_int;
 
 use std::rc::Rc;
 
@@ -49,6 +50,7 @@ pub struct GlobalSearchSlots {
     toggle_all: QBox<SlotOfBool>,
     filter_table_and_text: QBox<SlotNoArgs>,
     filter_schemas: QBox<SlotNoArgs>,
+    save_view_status: QBox<SlotNoArgs>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -204,6 +206,21 @@ impl GlobalSearchSlots {
             );
         }));
 
+        let save_view_status = SlotNoArgs::new(&global_search_ui.dock_widget, clone!(
+            global_search_ui => move || {
+                let value = if global_search_ui.search_source_packfile.is_checked() {
+                    0
+                } else if global_search_ui.search_source_parent.is_checked() {
+                    1
+                } else if global_search_ui.search_source_game.is_checked() {
+                    2
+                } else {
+                    3
+                };
+
+                set_setting_int("global_search_source_status", value);
+        }));
+
         // And here... we return all the slots.
 		Self {
             search,
@@ -216,6 +233,7 @@ impl GlobalSearchSlots {
             toggle_all,
             filter_table_and_text,
             filter_schemas,
+            save_view_status
 		}
 	}
 }

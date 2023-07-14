@@ -42,4 +42,9 @@ pub unsafe fn set_connections(global_search_ui: &Rc<GlobalSearchUI>, slots: &Glo
     global_search_ui.matches_filter_schema_line_edit.text_changed().connect(slots.filter_schemas());
     global_search_ui.matches_case_sensitive_schema_button.toggled().connect(slots.filter_schemas());
     global_search_ui.matches_column_selector_schema_combobox.current_text_changed().connect(slots.filter_schemas());
+
+    global_search_ui.search_source_packfile.toggled().connect(slots.save_view_status());
+    global_search_ui.search_source_parent.toggled().connect(slots.save_view_status());
+    global_search_ui.search_source_game.toggled().connect(slots.save_view_status());
+    global_search_ui.search_source_asskit.toggled().connect(slots.save_view_status());
 }
