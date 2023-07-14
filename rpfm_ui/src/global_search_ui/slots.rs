@@ -105,20 +105,16 @@ impl GlobalSearchSlots {
         // What happens when we trigger the "Check Regex" action.
         let check_regex = SlotOfQString::new(&global_search_ui.dock_widget, clone!(
             global_search_ui => move |string| {
-            if global_search_ui.use_regex_checkbox.is_checked() {
-                check_regex_string(&string.to_std_string(), global_search_ui.search_line_edit.static_upcast());
+                check_regex_string(&string.to_std_string(), global_search_ui.search_line_edit.static_upcast(), global_search_ui.use_regex_checkbox.is_checked());
             }
-        }));
+        ));
 
         // What happens when we toggle the "Use Regex" checkbox.
         let check_regex_clean = SlotOfBool::new(&global_search_ui.dock_widget, clone!(
             global_search_ui => move |is_checked| {
-            if is_checked {
-                check_regex_string(&global_search_ui.search_line_edit.text().to_std_string(), global_search_ui.search_line_edit.static_upcast());
-            } else {
-                check_regex_string("", global_search_ui.search_line_edit.static_upcast());
+                check_regex_string(&global_search_ui.search_line_edit.text().to_std_string(), global_search_ui.search_line_edit.static_upcast(), is_checked);
             }
-        }));
+        ));
 
         // What happens when we try to open the file corresponding to one of the matches.
         let open_match = SlotOfQModelIndex::new(&global_search_ui.dock_widget, clone!(

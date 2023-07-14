@@ -880,6 +880,7 @@ impl TableView {
         let mut columns = vec![];
         let mut patterns = vec![];
         let mut sensitivity = vec![];
+        let mut use_regex = vec![];
         let mut show_blank_cells = vec![];
         let mut match_groups = vec![];
 
@@ -902,6 +903,9 @@ impl TableView {
                 if case_sensitive { sensitivity.push(CaseSensitivity::CaseSensitive); }
                 else { sensitivity.push(CaseSensitivity::CaseInsensitive); }
 
+                // Check for regex.
+                use_regex.push(filter.use_regex_button().is_checked());
+
                 // Check if we should filter out blank cells or not.
                 show_blank_cells.push(filter.show_blank_cells_button().is_checked());
 
@@ -916,7 +920,7 @@ impl TableView {
         }
 
         // Filter whatever it's in that column by the text we got.
-        trigger_tableview_filter_safe(&self.table_filter, &columns, patterns, &sensitivity, &show_blank_cells, &match_groups);
+        trigger_tableview_filter_safe(&self.table_filter, &columns, patterns, &use_regex, &sensitivity, &show_blank_cells, &match_groups);
 
         // Update the line count.
         self.update_line_counter();

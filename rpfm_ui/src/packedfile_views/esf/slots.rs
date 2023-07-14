@@ -97,7 +97,7 @@ impl PackedFileESFViewSlots {
         // What happens when we trigger the "Check Regex" action.
         let filter_check_regex = SlotOfQString::new(&view.tree_view, clone!(
             view => move |string| {
-                check_regex(&string.to_std_string(), view.filter_line_edit.static_upcast());
+                check_regex(&string.to_std_string(), view.filter_line_edit.static_upcast(), true);
             }
         ));
 

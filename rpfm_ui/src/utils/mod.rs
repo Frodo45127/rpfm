@@ -242,8 +242,8 @@ pub unsafe fn add_action_to_widget(shortcuts: Ref<QListOfQObject>, action_group:
     action
 }
 
-pub unsafe fn check_regex(pattern: &str, widget: QPtr<QWidget>) {
-    let style_sheet = if !pattern.is_empty() {
+pub unsafe fn check_regex(pattern: &str, widget: QPtr<QWidget>, use_regex: bool) {
+    let style_sheet = if !pattern.is_empty() && use_regex {
         if Regex::new(pattern).is_ok() {
             get_color_correct()
         } else {

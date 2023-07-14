@@ -288,7 +288,7 @@ impl PackFileContentsSlots {
         // What happens when we trigger the "Check Regex" action.
         let filter_check_regex = SlotOfQString::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             pack_file_contents_ui => move |string| {
-                check_regex(&string.to_std_string(), pack_file_contents_ui.filter_line_edit.static_upcast());
+                check_regex(&string.to_std_string(), pack_file_contents_ui.filter_line_edit.static_upcast(), true);
             }
         ));
 

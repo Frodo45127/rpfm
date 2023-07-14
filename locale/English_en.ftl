@@ -1368,3 +1368,4 @@ autosave_folder_size_warning = <p>Your autosave folder has surpassed 25GB of aut
     <p>This is a one-time message. It'll not appear again until you get the autosaves folder under 25GB again, and past 25GB again.</p>
 
 portrait_settings_file_name = Filename
+table_filter_use_regex = Use Regex

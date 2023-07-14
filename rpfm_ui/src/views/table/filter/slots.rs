@@ -34,6 +34,7 @@ pub struct FilterViewSlots {
     pub filter_match_group_selector: QBox<SlotNoArgs>,
     pub filter_column_selector: QBox<SlotOfInt>,
     pub filter_case_sensitive_button: QBox<SlotNoArgs>,
+    pub filter_use_regex_button: QBox<SlotNoArgs>,
     pub filter_show_blank_cells_button: QBox<SlotNoArgs>,
     pub filter_trigger: QBox<SlotNoArgs>,
     pub filter_check_regex: QBox<SlotOfQString>,
@@ -78,6 +79,15 @@ impl FilterViewSlots {
             parent_view.filter_table();
         }));
 
+        let filter_use_regex_button = SlotNoArgs::new(&view.main_widget, clone!(
+            parent_view,
+            view => move || {
+                check_regex(&view.filter_line_edit.text().to_std_string(), view.filter_line_edit.static_upcast(), view.use_regex_button().is_checked());
+
+                parent_view.filter_table();
+            }
+        ));
+
         let filter_show_blank_cells_button = SlotNoArgs::new(&view.main_widget, clone!(
             parent_view => move || {
             parent_view.filter_table();
@@ -92,7 +102,7 @@ impl FilterViewSlots {
         // What happens when we trigger the "Check Regex" action.
         let filter_check_regex = SlotOfQString::new(&view.main_widget, clone!(
             view => move |string| {
-            check_regex(&string.to_std_string(), view.filter_line_edit.static_upcast());
+            check_regex(&string.to_std_string(), view.filter_line_edit.static_upcast(), view.use_regex_button().is_checked());
         }));
 
         let filter_add = SlotNoArgs::new(&view.main_widget, clone!(
@@ -124,6 +134,7 @@ impl FilterViewSlots {
             filter_column_selector,
             filter_not_checkbox,
             filter_case_sensitive_button,
+            filter_use_regex_button,
             filter_show_blank_cells_button,
             filter_trigger,
             filter_check_regex,

@@ -132,7 +132,7 @@ impl DependenciesUISlots {
         // What happens when we trigger the "Check Regex" action.
         let filter_check_regex = SlotOfQString::new(&dependencies_ui.dependencies_dock_widget, clone!(
             dependencies_ui => move |string| {
-                check_regex(&string.to_std_string(), dependencies_ui.filter_line_edit.static_upcast());
+                check_regex(&string.to_std_string(), dependencies_ui.filter_line_edit.static_upcast(), true);
             }
         ));
 

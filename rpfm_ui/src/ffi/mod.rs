@@ -139,13 +139,16 @@ pub fn new_tableview_filter_safe(parent: QPtr<QObject>) ->  QBox<QSortFilterProx
 }
 
 // This function triggers the special filter used for the TableViews It has to be triggered here to work properly.
-extern "C" { fn trigger_tableview_filter(filter: *const QSortFilterProxyModel, columns: *const QListOfInt, patterns: *const QStringList, case_sensitive: *const QListOfInt, show_blank_cells: *const QListOfInt, match_groups: *const QListOfInt); }
-pub unsafe fn trigger_tableview_filter_safe(filter: &QSortFilterProxyModel, columns: &[i32], patterns: Vec<Ptr<QString>>, case_sensitive: &[CaseSensitivity], show_blank_cells: &[bool], match_groups: &[i32]) {
+extern "C" { fn trigger_tableview_filter(filter: *const QSortFilterProxyModel, columns: *const QListOfInt, patterns: *const QStringList, regex: *const QListOfInt, case_sensitive: *const QListOfInt, show_blank_cells: *const QListOfInt, match_groups: *const QListOfInt); }
+pub unsafe fn trigger_tableview_filter_safe(filter: &QSortFilterProxyModel, columns: &[i32], patterns: Vec<Ptr<QString>>, regex: &[bool], case_sensitive: &[CaseSensitivity], show_blank_cells: &[bool], match_groups: &[i32]) {
     let columns_qlist = QListOfInt::new();
     columns.iter().for_each(|x| columns_qlist.append_int(x));
 
     let patterns_qlist = QStringList::new();
     patterns.iter().for_each(|x| patterns_qlist.append_q_string(x.as_ref().unwrap()));
+
+    let regex_qlist = QListOfInt::new();
+    regex.iter().for_each(|x| regex_qlist.append_int(if *x { &1i32 } else { &0i32 }));
 
     let case_sensitive_qlist = QListOfInt::new();
     case_sensitive.iter().for_each(|x| case_sensitive_qlist.append_int(&x.to_int()));
@@ -156,7 +159,7 @@ pub unsafe fn trigger_tableview_filter_safe(filter: &QSortFilterProxyModel, colu
     let match_groups_qlist = QListOfInt::new();
     match_groups.iter().for_each(|x| match_groups_qlist.append_int(x));
 
-    trigger_tableview_filter(filter, columns_qlist.into_ptr().as_raw_ptr(), patterns_qlist.into_ptr().as_raw_ptr(), case_sensitive_qlist.into_ptr().as_raw_ptr(), show_blank_cells_qlist.into_ptr().as_raw_ptr(), match_groups_qlist.into_ptr().as_raw_ptr());
+    trigger_tableview_filter(filter, columns_qlist.into_ptr().as_raw_ptr(), patterns_qlist.into_ptr().as_raw_ptr(), regex_qlist.into_ptr().as_raw_ptr(), case_sensitive_qlist.into_ptr().as_raw_ptr(), show_blank_cells_qlist.into_ptr().as_raw_ptr(), match_groups_qlist.into_ptr().as_raw_ptr());
 }
 
 // This function allow us to create a QTreeView compatible with draggable items

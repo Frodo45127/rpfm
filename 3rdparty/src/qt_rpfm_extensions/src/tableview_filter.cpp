@@ -16,6 +16,7 @@ extern "C" void trigger_tableview_filter(
     QSortFilterProxyModel* filter,
     QList<int> columns,
     QStringList patterns,
+    QList<int> regex,
     QList<int> case_sensitive,
     QList<int> show_blank_cells,
     QList<int> match_groups_per_column
@@ -23,6 +24,7 @@ extern "C" void trigger_tableview_filter(
     QTableViewSortFilterProxyModel* filter2 = static_cast<QTableViewSortFilterProxyModel*>(filter);
     filter2->columns = columns;
     filter2->patterns = patterns;
+    filter2->regex = regex;
     filter2->case_sensitive = case_sensitive;
     filter2->show_blank_cells = show_blank_cells;
     filter2->match_groups_per_column = match_groups_per_column;
@@ -63,6 +65,7 @@ bool QTableViewSortFilterProxyModel::filterAcceptsRow(int source_row, const QMod
         // For each column, check if it's on the current group.
         for (int match: matches_per_group.at(j)) {
             int column = columns.at(match);
+            bool use_regex = regex.at(match) == 1 ? true: false;
             QString const pattern = patterns.at(match);
             Qt::CaseSensitivity case_sensitivity = static_cast<Qt::CaseSensitivity>(case_sensitive.at(match));
             bool show_blank_cells_in_column = show_blank_cells.at(match) == 1 ? true: false;
@@ -75,6 +78,7 @@ bool QTableViewSortFilterProxyModel::filterAcceptsRow(int source_row, const QMod
             QRegularExpression regex(pattern, options);
             QModelIndex currntIndex = sourceModel()->index(source_row, column, source_parent);
             QStandardItem *currntData = static_cast<QStandardItemModel*>(sourceModel())->itemFromIndex(currntIndex);
+
             if (currntIndex.isValid()) {
 
                 // Checkbox matches.
@@ -91,20 +95,26 @@ bool QTableViewSortFilterProxyModel::filterAcceptsRow(int source_row, const QMod
                 }
 
                 // In case of text, if it's empty we let it pass the filters.
-                else if (show_blank_cells_in_column && currntIndex.data(2).toString().isEmpty()) {
+                else if (show_blank_cells_in_column && currntData->data(2).toString().isEmpty()) {
                     continue;
                 }
 
+                // Float matches.
+                // We need to do special stuff so they match against the formatted number, not against the unformatted one.
+                //else if (currntData.data(2).toFloat(conversion_ok)) {
+
+                //}
+
                 // Text matches.
-                else if (regex.isValid()) {
-                    QRegularExpressionMatch match = regex.match(currntIndex.data(2).toString());
+                else if (use_regex && regex.isValid()) {
+                    QRegularExpressionMatch match = regex.match(currntData->data(2).toString());
                     if (!match.hasMatch()) {
                         is_group_valid = false;
                         break;
                     }
                 }
                 else {
-                    if (!currntIndex.data(2).toString().contains(pattern)) {
+                    if (!currntData->data(2).toString().contains(pattern, case_sensitivity)) {
                         is_group_valid = false;
                         break;
                     }
