@@ -568,7 +568,6 @@ impl FileView {
                                 let old_table = old_table.get_ref_table();
                                 old_table.reload_view(TableType::Loc(table));
                                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
-
                             }
                             else {
                                 return Err(anyhow!(RFILE_RELOAD_ERROR));
@@ -579,7 +578,8 @@ impl FileView {
                             if let View::MatchedCombatDebug(old_data) = view {
                                 old_data.reload_view(data)?;
                                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), DataSource::PackFile);
-                            } else {
+                            }
+                            else {
                                 return Err(anyhow!(RFILE_RELOAD_ERROR));
                             }
                         },
@@ -588,7 +588,6 @@ impl FileView {
                             if let View::PortraitSettings(old_portrait_settings) = view {
                                 old_portrait_settings.reload_view(&mut portrait_settings)?;
                                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
-
                             }
                             else {
                                 return Err(anyhow!(RFILE_RELOAD_ERROR));
@@ -600,7 +599,6 @@ impl FileView {
                             if let View::RigidModel(old_rigidmodel) = view {
                                 old_rigidmodel.reload_view(&rigidmodel)?;
                                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
-
                             }
                             else {
                                 return Err(anyhow!(RFILE_RELOAD_ERROR));
@@ -611,7 +609,6 @@ impl FileView {
                             if let View::Text(old_text) = view {
                                 old_text.reload_view(&text);
                                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
-
                             }
                             else {
                                 return Err(anyhow!(RFILE_RELOAD_ERROR));
@@ -634,7 +631,6 @@ impl FileView {
                                     if let View::UnitVariant(old_variant) = view {
                                         old_variant.reload_view(&variant);
                                         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
-
                                     }
                                     else {
                                         return Err(anyhow!(RFILE_RELOAD_ERROR));
@@ -644,7 +640,6 @@ impl FileView {
                                     if let View::Esf(old_esf) = view {
                                         old_esf.reload_view(&esf);
                                         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
-
                                     }
                                     else {
                                         return Err(anyhow!(RFILE_RELOAD_ERROR));

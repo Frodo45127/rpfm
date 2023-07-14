@@ -1366,3 +1366,5 @@ ignore_diagnostic_for_pack = Ignore Diagnostic for Pack
 autosave_folder_size_warning = <p>Your autosave folder has surpassed 25GB of autosaves.</p>
     <p>This message is a reminder of it, so you don't wonder where all those GB went. If you want to delete the existing autosaves, go to <i>PackFile/Settings</i> and hit the <b>Clear Autosaves Folder</b>.</p>
     <p>This is a one-time message. It'll not appear again until you get the autosaves folder under 25GB again, and past 25GB again.</p>
+
+portrait_settings_file_name = Filename

@@ -32,6 +32,7 @@ use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;
 
 use qt_core::QBox;
+use qt_core::QChar;
 use qt_core::QPtr;
 use qt_core::QFlags;
 use qt_core::QModelIndex;
@@ -44,6 +45,7 @@ use qt_core::QSortFilterProxyModel;
 use qt_core::QString;
 use qt_core::QVariant;
 
+use cpp_core::CppBox;
 use cpp_core::Ptr;
 
 use anyhow::Result;
@@ -52,7 +54,7 @@ use rayon::prelude::*;
 
 use std::rc::Rc;
 
-use rpfm_extensions::search::{GlobalSearch, MatchHolder, rigid_model::RigidModelMatches, SearchSource, schema::SchemaMatches, table::{TableMatches, TableMatch}, text::{TextMatches, TextMatch}, unknown::UnknownMatches};
+use rpfm_extensions::search::{GlobalSearch, MatchHolder, portrait_settings::{PortraitSettingsMatches, PortraitSettingsMatch}, rigid_model::{RigidModelMatches, RigidModelMatch}, SearchSource, schema::SchemaMatches, table::{TableMatches, TableMatch}, text::{TextMatches, TextMatch}, unknown::{UnknownMatches, UnknownMatch}};
 use rpfm_lib::files::FileType;
 use rpfm_ui_common::locale::qtr;
 
@@ -77,6 +79,10 @@ pub mod tips;
 /// Tool's ui template path.
 const VIEW_DEBUG: &str = "rpfm_ui/ui_templates/global_search_dock_widget.ui";
 const VIEW_RELEASE: &str = "ui/global_search_dock_widget.ui";
+
+const PORTRAIT_SETTINGS_ENTRY_INDEX: i32 = 40;
+const PORTRAIT_SETTINGS_BOOL_DATA: i32 = 41;
+const PORTRAIT_SETTINGS_VARIANT_INDEX: i32 = 42;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -264,7 +270,7 @@ impl GlobalSearchUI {
         search_on_loc_checkbox.set_visible(true);
         search_on_matched_combat_checkbox.set_visible(false);
         search_on_pack_checkbox.set_visible(false);
-        search_on_portrait_settings_checkbox.set_visible(false);
+        search_on_portrait_settings_checkbox.set_visible(true);
         search_on_rigid_model_checkbox.set_visible(true);
         search_on_schemas_checkbox.set_visible(true);
         search_on_sound_bank_checkbox.set_visible(false);
@@ -411,6 +417,7 @@ impl GlobalSearchUI {
                     self.matches_tab_widget().set_current_index(1);
                 }
 
+                self.load_portrait_settings_matches_to_ui(&global_search.matches().portrait_settings(), FileType::PortraitSettings);
                 self.load_rigid_model_matches_to_ui(&global_search.matches().rigid_model(), FileType::RigidModel);
                 self.load_table_matches_to_ui(&global_search.matches().db(), FileType::DB);
                 self.load_table_matches_to_ui(&global_search.matches().loc(), FileType::Loc);
@@ -673,9 +680,182 @@ impl GlobalSearchUI {
                         scroll_to_row_safe(&editor.as_ptr(), row_number.try_into().unwrap());
                     }
 
+                    // If it's a portrait settings file, open and select the matched value.
+                    ViewType::Internal(View::PortraitSettings(view)) => {
+                        let parent = gidhora.parent();
+                        let entry_index = parent.child_2a(model_index.row(), 0).data_1a(PORTRAIT_SETTINGS_ENTRY_INDEX).to_u_int_0a();
+
+                        let item_to_select = view.main_list_model().index_2a(entry_index as i32, 0);
+                        let item_to_select_filter = view.main_list_filter().map_from_source(&item_to_select);
+
+                        // This view uses selection to trigger loads and saves. By changing selection we're forcing the view
+                        // to load the item we want without breaking anything related to saving.
+                        let selection = view.main_list_view().selection_model().selection();
+                        view.main_list_view().selection_model().select_q_item_selection_q_flags_selection_flag(&selection, SelectionFlag::Toggle.into());
+                        view.main_list_view().selection_model().select_q_model_index_q_flags_selection_flag(&item_to_select_filter, SelectionFlag::Toggle.into());
+
+                        let bool_data = parent.child_2a(model_index.row(), 0).data_1a(PORTRAIT_SETTINGS_BOOL_DATA).to_u_int_0a();
+
+                        if bool_data == 1 {
+                            view.main_list_view().set_focus_0a();
+                        } else if bool_data == 2 {
+                            view.head_skeleton_node_line_edit().select_all();
+                            view.head_skeleton_node_line_edit().set_focus_0a();
+                        } else if bool_data == 3 {
+                            view.body_skeleton_node_line_edit().select_all();
+                            view.body_skeleton_node_line_edit().set_focus_0a();
+                        } else {
+                            let variant_index = parent.child_2a(model_index.row(), 0).data_1a(PORTRAIT_SETTINGS_VARIANT_INDEX).to_u_int_0a();
+
+                            let item_to_select = view.variants_list_model().index_2a(variant_index as i32, 0);
+                            let item_to_select_filter = view.variants_list_filter().map_from_source(&item_to_select);
+
+                            // Same as with the other list
+                            let selection = view.variants_list_view().selection_model().selection();
+                            view.variants_list_view().selection_model().select_q_item_selection_q_flags_selection_flag(&selection, SelectionFlag::Toggle.into());
+                            view.variants_list_view().selection_model().select_q_model_index_q_flags_selection_flag(&item_to_select_filter, SelectionFlag::Toggle.into());
+
+                            if bool_data == 4 {
+                                view.variants_list_view().set_focus_0a();
+                            } else if bool_data == 5 {
+                                view.file_diffuse_line_edit().select_all();
+                                view.file_diffuse_line_edit().set_focus_0a();
+                            } else if bool_data == 6 {
+                                view.file_mask_1_line_edit().select_all();
+                                view.file_mask_1_line_edit().set_focus_0a();
+                            } else if bool_data == 7 {
+                                view.file_mask_2_line_edit().select_all();
+                                view.file_mask_2_line_edit().set_focus_0a();
+                            } else if bool_data == 8 {
+                                view.file_mask_3_line_edit().select_all();
+                                view.file_mask_3_line_edit().set_focus_0a();
+                            }
+                        }
+                    }
+
                     // Ignore the rest.
                     _ => {},
                 }
+            }
+        }
+    }
+
+    /// This function takes care of loading the results of a global search of `PortraitSettingsMatches` into a model.
+    unsafe fn load_portrait_settings_matches_to_ui(&self, matches: &[PortraitSettingsMatches], file_type: FileType) {
+        let model = &self.matches_table_and_text_tree_model;
+
+        if !matches.is_empty() {
+
+            // Microoptimization: block the model from triggering signals on each item added. It reduce add times on 200 ms, depending on the case.
+            model.block_signals(true);
+
+            let file_type_item = Self::new_item();
+            file_type_item.set_text(&QString::from_std_str::<String>(From::from(file_type)));
+            let file_type_item = atomic_from_cpp_box(file_type_item);
+
+            let rows = matches.par_iter()
+                .filter(|match_ps| !match_ps.matches().is_empty())
+                .map(|match_ps| {
+                    let path = match_ps.path();
+                    let qlist_daddy = QListOfQStandardItem::new();
+                    let file = Self::new_item();
+                    file.set_text(&QString::from_std_str(path));
+                    TREEVIEW_ICONS.set_standard_item_icon(&file, Some(&file_type));
+
+                    for match_row in match_ps.matches() {
+
+                        // Create a new list of StandardItem.
+                        let qlist_boi = QListOfQStandardItem::new();
+
+                        // Create an empty row.
+                        let text = Self::new_item();
+                        let match_type = Self::new_item();
+                        text.set_text(&QString::from_std_str(match_row.data().trim()));
+
+                        // Store the data needed to pin-point the match in the file in the text item.
+                        let bool_data = if *match_row.id() {
+                            1
+                        }else if *match_row.camera_settings_head() {
+                            2
+                        } else if *match_row.camera_settings_body() {
+                            3
+                        } else if let Some(variant) = match_row.variant() {
+                            if variant.1 {
+                                4
+                            } else if variant.2 {
+                                5
+                            } else if variant.3 {
+                                6
+                            } else if variant.4 {
+                                7
+                            } else if variant.5 {
+                                8
+                            } else {
+                                panic!()
+                            }
+                        } else {
+                            panic!()
+                        };
+
+                        text.set_data_2a(&QVariant::from_uint(*match_row.entry() as u32), PORTRAIT_SETTINGS_ENTRY_INDEX);
+                        text.set_data_2a(&QVariant::from_uint(bool_data), PORTRAIT_SETTINGS_BOOL_DATA);
+
+                        if bool_data > 3 {
+                            if let Some(variant) = match_row.variant() {
+                                text.set_data_2a(&QVariant::from_uint(variant.0 as u32), PORTRAIT_SETTINGS_VARIANT_INDEX);
+                            }
+                        }
+
+                        let string = match bool_data {
+                            1 => qtr("portrait_settings_id"),
+                            2 => qtr("portrait_settings_head_skeleton_node"),
+                            3 => qtr("portrait_settings_body_skeleton_node"),
+                            4 => qtr("portrait_settings_file_name"),
+                            5 => qtr("portrait_settings_file_diffuse_label"),
+                            6 => qtr("portrait_settings_file_mask_1_label"),
+                            7 => qtr("portrait_settings_file_mask_2_label"),
+                            8 => qtr("portrait_settings_file_mask_3_label"),
+                            _ => QString::new(),
+                        };
+
+                        // Fix for translations ending in :.
+                        let chara = QChar::from_uchar(b':');
+                        if string.ends_with_q_char(&chara) {
+                            string.remove_q_char(&chara);
+                        }
+
+                        match_type.set_text(&string);
+
+                        // Add an empty row to the list.
+                        qlist_boi.append_q_standard_item(&text.into_ptr().as_mut_raw_ptr());
+                        qlist_boi.append_q_standard_item(&match_type.into_ptr().as_mut_raw_ptr());
+                        qlist_boi.append_q_standard_item(&Self::new_item().into_ptr().as_mut_raw_ptr());
+                        qlist_boi.append_q_standard_item(&Self::new_item().into_ptr().as_mut_raw_ptr());
+                        qlist_boi.append_q_standard_item(&Self::new_item().into_ptr().as_mut_raw_ptr());
+                        qlist_boi.append_q_standard_item(&Self::new_item().into_ptr().as_mut_raw_ptr());
+
+                        // Append the new row.
+                        file.append_row_q_list_of_q_standard_item(qlist_boi.as_ref());
+                    }
+
+                    qlist_daddy.append_q_standard_item(&file.into_ptr().as_mut_raw_ptr());
+                    qlist_daddy.append_q_standard_item(&Self::new_item().into_ptr().as_mut_raw_ptr());
+                    qlist_daddy.append_q_standard_item(&Self::new_item().into_ptr().as_mut_raw_ptr());
+                    qlist_daddy.append_q_standard_item(&Self::new_item().into_ptr().as_mut_raw_ptr());
+                    qlist_daddy.append_q_standard_item(&Self::new_item().into_ptr().as_mut_raw_ptr());
+                    qlist_daddy.append_q_standard_item(&((*ptr_from_atomic(&file_type_item)).clone()).as_mut_raw_ptr());
+                    atomic_from_cpp_box(qlist_daddy)
+                })
+                .collect::<Vec<_>>();
+
+            for (index, row) in rows.iter().enumerate() {
+
+                // Unlock the model before the last insertion.
+                if index == rows.len() - 1 {
+                    model.block_signals(false);
+                }
+
+                model.append_row_q_list_of_q_standard_item(ref_from_atomic(row));
             }
         }
     }
@@ -687,9 +867,7 @@ impl GlobalSearchUI {
         if !matches.is_empty() {
 
             // Microoptimization: block the model from triggering signals on each item added. It reduce add times on 200 ms, depending on the case.
-            if !matches.is_empty() {
-                model.block_signals(true);
-            }
+            model.block_signals(true);
 
             let file_type_item = QStandardItem::new();
             file_type_item.set_editable(false);
@@ -754,7 +932,7 @@ impl GlobalSearchUI {
                     qlist_daddy.append_q_standard_item(&fill2.into_ptr().as_mut_raw_ptr());
                     qlist_daddy.append_q_standard_item(&fill3.into_ptr().as_mut_raw_ptr());
                     qlist_daddy.append_q_standard_item(&fill4.into_ptr().as_mut_raw_ptr());
-                    qlist_daddy.append_q_standard_item(&(ptr_from_atomic(&file_type_item).clone()).as_mut_raw_ptr());
+                    qlist_daddy.append_q_standard_item(&((*ptr_from_atomic(&file_type_item)).clone()).as_mut_raw_ptr());
                     atomic_from_cpp_box(qlist_daddy)
                 })
                 .collect::<Vec<_>>();
@@ -778,9 +956,7 @@ impl GlobalSearchUI {
         if !matches.is_empty() {
 
             // Microoptimization: block the model from triggering signals on each item added. It reduce add times on 200 ms, depending on the case.
-            if !matches.is_empty() {
-                model.block_signals(true);
-            }
+            model.block_signals(true);
 
             let file_type_item = QStandardItem::new();
             file_type_item.set_editable(false);
@@ -846,7 +1022,7 @@ impl GlobalSearchUI {
                     qlist_daddy.append_q_standard_item(&fill2.into_ptr().as_mut_raw_ptr());
                     qlist_daddy.append_q_standard_item(&fill3.into_ptr().as_mut_raw_ptr());
                     qlist_daddy.append_q_standard_item(&fill4.into_ptr().as_mut_raw_ptr());
-                    qlist_daddy.append_q_standard_item(&(ptr_from_atomic(&file_type_item).clone()).as_mut_raw_ptr());
+                    qlist_daddy.append_q_standard_item(&((*ptr_from_atomic(&file_type_item)).clone()).as_mut_raw_ptr());
                     atomic_from_cpp_box(qlist_daddy)
                 })
                 .collect::<Vec<_>>();
@@ -870,9 +1046,7 @@ impl GlobalSearchUI {
         if !matches.is_empty() {
 
             // Microoptimization: block the model from triggering signals on each item added. It reduce add times on 200 ms, depending on the case.
-            if !matches.is_empty() {
-                model.block_signals(true);
-            }
+            model.block_signals(true);
 
             let file_type_item = QStandardItem::new();
             file_type_item.set_editable(false);
@@ -944,7 +1118,7 @@ impl GlobalSearchUI {
                     qlist_daddy.append_q_standard_item(&fill2.into_ptr().as_mut_raw_ptr());
                     qlist_daddy.append_q_standard_item(&fill3.into_ptr().as_mut_raw_ptr());
                     qlist_daddy.append_q_standard_item(&fill4.into_ptr().as_mut_raw_ptr());
-                    qlist_daddy.append_q_standard_item(&(ptr_from_atomic(&file_type_item).clone()).as_mut_raw_ptr());
+                    qlist_daddy.append_q_standard_item(&((*ptr_from_atomic(&file_type_item)).clone()).as_mut_raw_ptr());
                     atomic_from_cpp_box(qlist_daddy)
                 })
                 .collect::<Vec<_>>();
@@ -968,9 +1142,7 @@ impl GlobalSearchUI {
         if !matches.is_empty() {
 
             // Microoptimization: block the model from triggering signals on each item added. It reduce add times on 200 ms, depending on the case.
-            if !matches.is_empty() {
-                model.block_signals(true);
-            }
+            model.block_signals(true);
 
             let file_type_item = QStandardItem::new();
             file_type_item.set_editable(false);
@@ -1035,7 +1207,7 @@ impl GlobalSearchUI {
                     qlist_daddy.append_q_standard_item(&fill2.into_ptr().as_mut_raw_ptr());
                     qlist_daddy.append_q_standard_item(&fill3.into_ptr().as_mut_raw_ptr());
                     qlist_daddy.append_q_standard_item(&fill4.into_ptr().as_mut_raw_ptr());
-                    qlist_daddy.append_q_standard_item(&(ptr_from_atomic(&file_type_item).clone()).as_mut_raw_ptr());
+                    qlist_daddy.append_q_standard_item(&((*ptr_from_atomic(&file_type_item)).clone()).as_mut_raw_ptr());
                     atomic_from_cpp_box(qlist_daddy)
                 })
                 .collect::<Vec<_>>();
@@ -1056,41 +1228,45 @@ impl GlobalSearchUI {
     unsafe fn load_schema_matches_to_ui(&self, matches: &SchemaMatches) {
         let model = &self.matches_schema_tree_model;
 
-        let rows = matches.matches()
-            .par_iter()
-            .map(|match_schema| {
-                let qlist = QListOfQStandardItem::new();
-                let table_name = QStandardItem::new();
-                let version = QStandardItem::new();
-                let column_name = QStandardItem::new();
-                let column = QStandardItem::new();
+        if !matches.matches().is_empty() {
+            model.block_signals(true);
 
-                table_name.set_text(&QString::from_std_str(match_schema.table_name()));
-                version.set_data_2a(&QVariant::from_int(*match_schema.version()), 2);
-                column_name.set_text(&QString::from_std_str(match_schema.column_name()));
-                column.set_data_2a(&QVariant::from_uint(*match_schema.column()), 2);
+            let rows = matches.matches()
+                .par_iter()
+                .map(|match_schema| {
+                    let qlist = QListOfQStandardItem::new();
+                    let table_name = QStandardItem::new();
+                    let version = QStandardItem::new();
+                    let column_name = QStandardItem::new();
+                    let column = QStandardItem::new();
 
-                table_name.set_editable(false);
-                version.set_editable(false);
-                column_name.set_editable(false);
-                column.set_editable(false);
+                    table_name.set_text(&QString::from_std_str(match_schema.table_name()));
+                    version.set_data_2a(&QVariant::from_int(*match_schema.version()), 2);
+                    column_name.set_text(&QString::from_std_str(match_schema.column_name()));
+                    column.set_data_2a(&QVariant::from_uint(*match_schema.column()), 2);
 
-                qlist.append_q_standard_item(&table_name.into_ptr().as_mut_raw_ptr());
-                qlist.append_q_standard_item(&version.into_ptr().as_mut_raw_ptr());
-                qlist.append_q_standard_item(&column_name.into_ptr().as_mut_raw_ptr());
-                qlist.append_q_standard_item(&column.into_ptr().as_mut_raw_ptr());
-                atomic_from_cpp_box(qlist)
-            })
-            .collect::<Vec<_>>();
+                    table_name.set_editable(false);
+                    version.set_editable(false);
+                    column_name.set_editable(false);
+                    column.set_editable(false);
 
-        for (index, row) in rows.iter().enumerate() {
+                    qlist.append_q_standard_item(&table_name.into_ptr().as_mut_raw_ptr());
+                    qlist.append_q_standard_item(&version.into_ptr().as_mut_raw_ptr());
+                    qlist.append_q_standard_item(&column_name.into_ptr().as_mut_raw_ptr());
+                    qlist.append_q_standard_item(&column.into_ptr().as_mut_raw_ptr());
+                    atomic_from_cpp_box(qlist)
+                })
+                .collect::<Vec<_>>();
 
-            // Unlock the model before the last insertion.
-            if index == rows.len() - 1 {
-                model.block_signals(false);
+            for (index, row) in rows.iter().enumerate() {
+
+                // Unlock the model before the last insertion.
+                if index == rows.len() - 1 {
+                    model.block_signals(false);
+                }
+
+                model.append_row_q_list_of_q_standard_item(ref_from_atomic(row));
             }
-
-            model.append_row_q_list_of_q_standard_item(ref_from_atomic(row));
         }
     }
 
@@ -1123,13 +1299,33 @@ impl GlobalSearchUI {
 
         let items = tree_view.get_items_from_selection(true);
 
+        let anim_matches: Vec<UnknownMatches> = vec![];
+        let anim_fragment_matches: Vec<UnknownMatches> = vec![];
+        let anim_pack_matches: Vec<UnknownMatches> = vec![];
+        let anims_table_matches: Vec<UnknownMatches> = vec![];
+        let audio_matches: Vec<UnknownMatches> = vec![];
+        let bmd_matches: Vec<UnknownMatches> = vec![];
+        let mut db_matches: Vec<TableMatches> = vec![];
+        let esf_matches: Vec<UnknownMatches> = vec![];
+        let group_formations_matches: Vec<UnknownMatches> = vec![];
+        let image_matches: Vec<UnknownMatches> = vec![];
+        let mut loc_matches: Vec<TableMatches> = vec![];
+        let matched_combat_matches: Vec<UnknownMatches> = vec![];
+        let pack_matches: Vec<UnknownMatches> = vec![];
+        let mut portrait_settings_matches: Vec<PortraitSettingsMatches> = vec![];
+        let mut rigid_model_matches: Vec<RigidModelMatches> = vec![];
+        let sound_bank_matches: Vec<UnknownMatches> = vec![];
+        let mut text_matches: Vec<TextMatches> = vec![];
+        let uic_matches: Vec<UnknownMatches> = vec![];
+        let unit_variant_matches: Vec<UnknownMatches> = vec![];
+        let mut unknown_matches: Vec<UnknownMatches> = vec![];
+        let video_matches: Vec<UnknownMatches> = vec![];
+
         // For each item we follow the following logic:
         // - If it's a parent, it's all the matches on a table.
         // - If it's a child, check if the parent already exists.
         // - If it does, add another entry to it's matches.
         // - If not, create it with only that match.
-        let mut table_matches: Vec<TableMatches> = vec![];
-        let mut text_matches: Vec<TextMatches> = vec![];
         for item in items {
             if item.column() == 0 {
                 let is_match = !item.has_children();
@@ -1141,20 +1337,47 @@ impl GlobalSearchUI {
                     let file_type_index = parent.index().sibling_at_column(5);
                     let file_type = FileType::from(&*model.item_from_index(&file_type_index).text().to_std_string());
 
-                    let column_name = parent.child_2a(item.row(), 1).text().to_std_string();
-                    let column_number = parent.child_2a(item.row(), 3).text().to_std_string().parse().unwrap();
-                    let row_number = parent.child_2a(item.row(), 2).text().to_std_string().parse::<i64>().unwrap() - 1;
-                    let text = parent.child_2a(item.row(), 0).text().to_std_string();
-
                     match file_type {
-                        FileType::DB |
-                        FileType::Loc => {
-                            let match_file = match table_matches.iter_mut().find(|x| x.path() == &path) {
+                        FileType::Anim => todo!(),
+                        FileType::AnimFragment => todo!(),
+                        FileType::AnimPack => todo!(),
+                        FileType::AnimsTable => todo!(),
+                        FileType::Audio => todo!(),
+                        FileType::BMD => todo!(),
+                        FileType::DB => {
+                            let column_name = parent.child_2a(item.row(), 1).text().to_std_string();
+                            let column_number = parent.child_2a(item.row(), 3).text().to_std_string().parse().unwrap();
+                            let row_number = parent.child_2a(item.row(), 2).text().to_std_string().parse::<i64>().unwrap() - 1;
+                            let text = parent.child_2a(item.row(), 0).text().to_std_string();
+                            let match_file = match db_matches.iter_mut().find(|x| x.path() == &path) {
                                 Some(match_file) => match_file,
                                 None => {
                                     let table = TableMatches::new(&path);
-                                    table_matches.push(table);
-                                    table_matches.last_mut().unwrap()
+                                    db_matches.push(table);
+                                    db_matches.last_mut().unwrap()
+                                }
+                            };
+
+                            let match_entry = TableMatch::new(&column_name, column_number, row_number, &text);
+
+                            if !match_file.matches_mut().contains(&match_entry) {
+                                match_file.matches_mut().push(match_entry);
+                            }
+                        },
+                        FileType::ESF => todo!(),
+                        FileType::GroupFormations => todo!(),
+                        FileType::Image => todo!(),
+                        FileType::Loc => {
+                            let column_name = parent.child_2a(item.row(), 1).text().to_std_string();
+                            let column_number = parent.child_2a(item.row(), 3).text().to_std_string().parse().unwrap();
+                            let row_number = parent.child_2a(item.row(), 2).text().to_std_string().parse::<i64>().unwrap() - 1;
+                            let text = parent.child_2a(item.row(), 0).text().to_std_string();
+                            let match_file = match loc_matches.iter_mut().find(|x| x.path() == &path) {
+                                Some(match_file) => match_file,
+                                None => {
+                                    let table = TableMatches::new(&path);
+                                    loc_matches.push(table);
+                                    loc_matches.last_mut().unwrap()
                                 }
                             };
 
@@ -1164,8 +1387,73 @@ impl GlobalSearchUI {
                                 match_file.matches_mut().push(match_entry);
                             }
                         }
+                        FileType::MatchedCombat => todo!(),
+                        FileType::Pack => todo!(),
+                        FileType::PortraitSettings => {
+                            let item = parent.child_2a(item.row(), 0);
+                            let index = item.data_1a(PORTRAIT_SETTINGS_ENTRY_INDEX).to_u_int_0a() as usize;
+                            let bool_data = item.data_1a(PORTRAIT_SETTINGS_BOOL_DATA).to_u_int_0a();
+                            let vindex = item.data_1a(PORTRAIT_SETTINGS_VARIANT_INDEX).to_u_int_0a() as usize;
+
+                            let match_file = match portrait_settings_matches.iter_mut().find(|x| x.path() == &path) {
+                                Some(match_file) => match_file,
+                                None => {
+                                    let matches = PortraitSettingsMatches::new(&path);
+                                    portrait_settings_matches.push(matches);
+                                    portrait_settings_matches.last_mut().unwrap()
+                                }
+                            };
+
+                            let match_entry = PortraitSettingsMatch::new(
+                                index,
+                                bool_data == 1,
+                                bool_data == 2,
+                                bool_data == 3,
+                                if bool_data > 3 {
+                                    Some((
+                                        vindex,
+                                        bool_data == 4,
+                                        bool_data == 5,
+                                        bool_data == 6,
+                                        bool_data == 7,
+                                        bool_data == 8
+                                    ))
+                                } else {
+                                    None
+                                },
+                                item.text().to_std_string()
+                            );
+
+                            if !match_file.matches_mut().contains(&match_entry) {
+                                match_file.matches_mut().push(match_entry);
+                            }
+                        },
+                        FileType::RigidModel => {
+                            let pos = parent.child_2a(item.row(), 3).text().to_std_string().parse().unwrap();
+                            let len = parent.child_2a(item.row(), 4).text().to_std_string().parse().unwrap();
+
+                            let match_file = match rigid_model_matches.iter_mut().find(|x| x.path() == &path) {
+                                Some(match_file) => match_file,
+                                None => {
+                                    let matches = RigidModelMatches::new(&path);
+                                    rigid_model_matches.push(matches);
+                                    rigid_model_matches.last_mut().unwrap()
+                                }
+                            };
+
+                            let match_entry = RigidModelMatch::new(pos, len);
+
+                            if !match_file.matches_mut().contains(&match_entry) {
+                                match_file.matches_mut().push(match_entry);
+                            }
+                        }
+                        FileType::SoundBank => todo!(),
                         FileType::Text => {
+                            let column_number = parent.child_2a(item.row(), 3).text().to_std_string().parse().unwrap();
+                            let row_number = parent.child_2a(item.row(), 2).text().to_std_string().parse::<i64>().unwrap() - 1;
+                            let text = parent.child_2a(item.row(), 0).text().to_std_string();
                             let lenght = parent.child_2a(item.row(), 4).text().to_std_string().parse().unwrap();
+
                             let match_file = match text_matches.iter_mut().find(|x| x.path() == &path) {
                                 Some(match_file) => match_file,
                                 None => {
@@ -1175,13 +1463,34 @@ impl GlobalSearchUI {
                                 }
                             };
 
-                            let match_entry = TextMatch::new(column_number as u64, row_number as u64, lenght, text);
+                            let match_entry = TextMatch::new(column_number, row_number as u64, lenght, text);
 
                             if !match_file.matches_mut().contains(&match_entry) {
                                 match_file.matches_mut().push(match_entry);
                             }
                         }
-                        _ => unimplemented!()
+                        FileType::UIC => todo!(),
+                        FileType::UnitVariant => todo!(),
+                        FileType::Video => todo!(),
+                        FileType::Unknown => {
+                            let pos = parent.child_2a(item.row(), 3).text().to_std_string().parse().unwrap();
+                            let len = parent.child_2a(item.row(), 4).text().to_std_string().parse().unwrap();
+
+                            let match_file = match unknown_matches.iter_mut().find(|x| x.path() == &path) {
+                                Some(match_file) => match_file,
+                                None => {
+                                    let matches = UnknownMatches::new(&path);
+                                    unknown_matches.push(matches);
+                                    unknown_matches.last_mut().unwrap()
+                                }
+                            };
+
+                            let match_entry = UnknownMatch::new(pos, len);
+
+                            if !match_file.matches_mut().contains(&match_entry) {
+                                match_file.matches_mut().push(match_entry);
+                            }
+                        }
                     }
                 }
 
@@ -1193,15 +1502,20 @@ impl GlobalSearchUI {
 
                     // If it already exists, delete it, as the new one contains the entire set for it.
                     match file_type {
-                        FileType::DB |
-                        FileType::Loc => {
-                            if let Some(position) = table_matches.iter().position(|x| x.path() == &path) {
-                                table_matches.remove(position);
+                        FileType::Anim => todo!(),
+                        FileType::AnimFragment => todo!(),
+                        FileType::AnimPack => todo!(),
+                        FileType::AnimsTable => todo!(),
+                        FileType::Audio => todo!(),
+                        FileType::BMD => todo!(),
+                        FileType::DB => {
+                            if let Some(position) = db_matches.iter().position(|x| x.path() == &path) {
+                                db_matches.remove(position);
                             }
 
                             let table = TableMatches::new(&path);
-                            table_matches.push(table);
-                            let match_file = table_matches.last_mut().unwrap();
+                            db_matches.push(table);
+                            let match_file = db_matches.last_mut().unwrap();
 
                             // For the individual matches, we have to get them from the view, so the filtered out items are not added.
                             for row in 0..item.row_count() {
@@ -1213,6 +1527,87 @@ impl GlobalSearchUI {
                                 match_file.matches_mut().push(match_entry);
                             }
                         }
+                        FileType::ESF => todo!(),
+                        FileType::GroupFormations => todo!(),
+                        FileType::Image => todo!(),
+                        FileType::Loc => {
+                            if let Some(position) = loc_matches.iter().position(|x| x.path() == &path) {
+                                loc_matches.remove(position);
+                            }
+
+                            let table = TableMatches::new(&path);
+                            loc_matches.push(table);
+                            let match_file = loc_matches.last_mut().unwrap();
+
+                            // For the individual matches, we have to get them from the view, so the filtered out items are not added.
+                            for row in 0..item.row_count() {
+                                let column_name = item.child_2a(row, 1).text().to_std_string();
+                                let column_number = item.child_2a(row, 3).text().to_std_string().parse().unwrap();
+                                let row_number = item.child_2a(row, 2).text().to_std_string().parse::<i64>().unwrap() - 1;
+                                let text = item.child_2a(row, 0).text().to_std_string();
+                                let match_entry = TableMatch::new(&column_name, column_number, row_number, &text);
+                                match_file.matches_mut().push(match_entry);
+                            }
+                        }
+                        FileType::MatchedCombat => todo!(),
+                        FileType::Pack => todo!(),
+                        FileType::PortraitSettings => {
+                            if let Some(position) = portrait_settings_matches.iter().position(|x| x.path() == &path) {
+                                portrait_settings_matches.remove(position);
+                            }
+
+                            let matches = PortraitSettingsMatches::new(&path);
+                            portrait_settings_matches.push(matches);
+                            let match_file = portrait_settings_matches.last_mut().unwrap();
+
+                            // For the individual matches, we have to get them from the view, so the filtered out items are not added.
+                            for row in 0..item.row_count() {
+                                let item = item.child_2a(row, 0);
+                                let index = item.data_1a(PORTRAIT_SETTINGS_ENTRY_INDEX).to_u_int_0a() as usize;
+                                let bool_data = item.data_1a(PORTRAIT_SETTINGS_BOOL_DATA).to_u_int_0a();
+                                let vindex = item.data_1a(PORTRAIT_SETTINGS_VARIANT_INDEX).to_u_int_0a() as usize;
+
+                                let match_entry = PortraitSettingsMatch::new(
+                                    index,
+                                    bool_data == 1,
+                                    bool_data == 2,
+                                    bool_data == 3,
+                                    if bool_data > 3 {
+                                        Some((
+                                            vindex,
+                                            bool_data == 4,
+                                            bool_data == 5,
+                                            bool_data == 6,
+                                            bool_data == 7,
+                                            bool_data == 8
+                                        ))
+                                    } else {
+                                        None
+                                    },
+                                    item.text().to_std_string()
+                                );
+
+                                match_file.matches_mut().push(match_entry);
+                            }
+                        },
+                        FileType::RigidModel => {
+                            if let Some(position) = rigid_model_matches.iter().position(|x| x.path() == &path) {
+                                rigid_model_matches.remove(position);
+                            }
+
+                            let text = RigidModelMatches::new(&path);
+                            rigid_model_matches.push(text);
+                            let match_file = rigid_model_matches.last_mut().unwrap();
+
+                            // For the individual matches, we have to get them from the view, so the filtered out items are not added.
+                            for row in 0..item.row_count() {
+                                let pos = item.child_2a(row, 3).text().to_std_string().parse().unwrap();
+                                let len = item.child_2a(row, 4).text().to_std_string().parse().unwrap();
+                                let match_entry = RigidModelMatch::new(pos, len);
+                                match_file.matches_mut().push(match_entry);
+                            }
+                        }
+                        FileType::SoundBank => todo!(),
                         FileType::Text => {
                             if let Some(position) = text_matches.iter().position(|x| x.path() == &path) {
                                 text_matches.remove(position);
@@ -1232,15 +1627,55 @@ impl GlobalSearchUI {
                                 match_file.matches_mut().push(match_entry);
                             }
                         }
-                        _ => unimplemented!()
-                    }
+                        FileType::UIC => todo!(),
+                        FileType::UnitVariant => todo!(),
+                        FileType::Video => todo!(),
+                        FileType::Unknown => {
+                            if let Some(position) = unknown_matches.iter().position(|x| x.path() == &path) {
+                                unknown_matches.remove(position);
+                            }
 
+                            let text = UnknownMatches::new(&path);
+                            unknown_matches.push(text);
+                            let match_file = unknown_matches.last_mut().unwrap();
+
+                            // For the individual matches, we have to get them from the view, so the filtered out items are not added.
+                            for row in 0..item.row_count() {
+                                let pos = item.child_2a(row, 3).text().to_std_string().parse().unwrap();
+                                let len = item.child_2a(row, 4).text().to_std_string().parse().unwrap();
+                                let match_entry = UnknownMatch::new(pos, len);
+                                match_file.matches_mut().push(match_entry);
+                            }
+                        }
+                    }
                 }
             }
         }
 
-        let mut matches = table_matches.into_iter().map(MatchHolder::Table).collect::<Vec<_>>();
+        let mut matches = vec![];
+
+        matches.append(&mut anim_matches.into_iter().map(MatchHolder::Anim).collect::<Vec<_>>());
+        matches.append(&mut anim_fragment_matches.into_iter().map(MatchHolder::AnimFragment).collect::<Vec<_>>());
+        matches.append(&mut anim_pack_matches.into_iter().map(MatchHolder::AnimPack).collect::<Vec<_>>());
+        matches.append(&mut anims_table_matches.into_iter().map(MatchHolder::AnimsTable).collect::<Vec<_>>());
+        matches.append(&mut audio_matches.into_iter().map(MatchHolder::Audio).collect::<Vec<_>>());
+        matches.append(&mut bmd_matches.into_iter().map(MatchHolder::Bmd).collect::<Vec<_>>());
+        matches.append(&mut db_matches.into_iter().map(MatchHolder::Db).collect::<Vec<_>>());
+        matches.append(&mut esf_matches.into_iter().map(MatchHolder::Esf).collect::<Vec<_>>());
+        matches.append(&mut group_formations_matches.into_iter().map(MatchHolder::GroupFormations).collect::<Vec<_>>());
+        matches.append(&mut image_matches.into_iter().map(MatchHolder::Image).collect::<Vec<_>>());
+        matches.append(&mut loc_matches.into_iter().map(MatchHolder::Loc).collect::<Vec<_>>());
+        matches.append(&mut matched_combat_matches.into_iter().map(MatchHolder::MatchedCombat).collect::<Vec<_>>());
+        matches.append(&mut pack_matches.into_iter().map(MatchHolder::Pack).collect::<Vec<_>>());
+        matches.append(&mut portrait_settings_matches.into_iter().map(MatchHolder::PortraitSettings).collect::<Vec<_>>());
+        matches.append(&mut rigid_model_matches.into_iter().map(MatchHolder::RigidModel).collect::<Vec<_>>());
+        matches.append(&mut sound_bank_matches.into_iter().map(MatchHolder::SoundBank).collect::<Vec<_>>());
         matches.append(&mut text_matches.into_iter().map(MatchHolder::Text).collect::<Vec<_>>());
+        matches.append(&mut uic_matches.into_iter().map(MatchHolder::Uic).collect::<Vec<_>>());
+        matches.append(&mut unit_variant_matches.into_iter().map(MatchHolder::UnitVariant).collect::<Vec<_>>());
+        matches.append(&mut unknown_matches.into_iter().map(MatchHolder::Unknown).collect::<Vec<_>>());
+        matches.append(&mut video_matches.into_iter().map(MatchHolder::Video).collect::<Vec<_>>());
+
         matches
     }
 
@@ -1370,5 +1805,11 @@ impl GlobalSearchUI {
         self.matches_schema_tree_view.set_column_width(0, 300);
         self.matches_schema_tree_view.set_column_width(1, 20);
         self.matches_schema_tree_view.set_column_width(2, 300);
+    }
+
+    unsafe fn new_item() -> CppBox<QStandardItem> {
+        let item = QStandardItem::new();
+        item.set_editable(false);
+        item
     }
 }

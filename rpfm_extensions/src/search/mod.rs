@@ -36,7 +36,7 @@ use crate::dependencies::Dependencies;
 //use self::image::ImageMatches;
 //use self::matched_combat::MatchedCombatMatches;
 //use self::pack::PackMatches;
-//use self::portrait_settings::PortraitSettingsMatches;
+use self::portrait_settings::PortraitSettingsMatches;
 use self::rigid_model::RigidModelMatches;
 //use self::sound_bank::SoundBankMatches;
 use self::table::TableMatches;
@@ -58,7 +58,7 @@ use self::schema::SchemaMatches;
 //pub mod image;
 //pub mod matched_combat;
 //pub mod pack;
-//pub mod portrait_settings;
+pub mod portrait_settings;
 pub mod rigid_model;
 //pub mod sound_bank;
 pub mod table;
@@ -132,11 +132,28 @@ pub enum MatchingMode {
 /// This enum is a way to put together all kind of matches.
 #[derive(Debug, Clone)]
 pub enum MatchHolder {
+    Anim(UnknownMatches),
+    AnimFragment(UnknownMatches),
+    AnimPack(UnknownMatches),
+    AnimsTable(UnknownMatches),
+    Audio(UnknownMatches),
+    Bmd(UnknownMatches),
+    Db(TableMatches),
+    Esf(UnknownMatches),
+    GroupFormations(UnknownMatches),
+    Image(UnknownMatches),
+    Loc(TableMatches),
+    MatchedCombat(UnknownMatches),
+    Pack(UnknownMatches),
+    PortraitSettings(PortraitSettingsMatches),
     RigidModel(RigidModelMatches),
-    Schema(SchemaMatches),
-    Table(TableMatches),
+    SoundBank(UnknownMatches),
     Text(TextMatches),
+    Uic(UnknownMatches),
+    UnitVariant(UnknownMatches),
     Unknown(UnknownMatches),
+    Video(UnknownMatches),
+    Schema(SchemaMatches),
 }
 
 /// This enum is specifies the source where the search should be performed.
@@ -194,7 +211,7 @@ pub struct Matches {
     loc: Vec<TableMatches>,
     matched_combat: Vec<UnknownMatches>,
     pack: Vec<UnknownMatches>,
-    portrait_settings: Vec<UnknownMatches>,
+    portrait_settings: Vec<PortraitSettingsMatches>,
     rigid_model: Vec<RigidModelMatches>,
     sound_bank: Vec<UnknownMatches>,
     text: Vec<TextMatches>,
@@ -323,11 +340,28 @@ impl GlobalSearch {
 
         // Error out if at least one of the matches requires special conditions.
         if matches.iter().any(|m| match m {
+            MatchHolder::Anim(_) => false,
+            MatchHolder::AnimFragment(_) => false,
+            MatchHolder::AnimPack(_) => false,
+            MatchHolder::AnimsTable(_) => false,
+            MatchHolder::Audio(_) => false,
+            MatchHolder::Bmd(_) => false,
+            MatchHolder::Db(_) => false,
+            MatchHolder::Esf(_) => false,
+            MatchHolder::GroupFormations(_) => false,
+            MatchHolder::Image(_) => false,
+            MatchHolder::Loc(_) => false,
+            MatchHolder::MatchedCombat(_) => false,
+            MatchHolder::Pack(_) => false,
+            MatchHolder::PortraitSettings(_) => false,
             MatchHolder::RigidModel(_) => self.use_regex || !patterns_same_lenght,
             MatchHolder::Schema(_) => false,
-            MatchHolder::Table(_) => false,
+            MatchHolder::SoundBank(_) => false,
             MatchHolder::Text(_) => false,
+            MatchHolder::Uic(_) => false,
+            MatchHolder::UnitVariant(_) => false,
             MatchHolder::Unknown(_) => self.use_regex || !patterns_same_lenght,
+            MatchHolder::Video(_) => false,
         }) {
             Err(RLibError::GlobalSearchReplaceRequiresSameLenghtAndNotRegex)
         } else {
@@ -365,6 +399,72 @@ impl GlobalSearch {
         // Just replace all the provided matches, one by one.
         for match_file in matches {
             match match_file {
+                MatchHolder::Anim(_) => continue,
+                MatchHolder::AnimFragment(_) => continue,
+                MatchHolder::AnimPack(_) => continue,
+                MatchHolder::AnimsTable(_) => continue,
+                MatchHolder::Audio(_) => continue,
+                MatchHolder::Bmd(_) => continue,
+
+                MatchHolder::Db(search_matches) => {
+                    let container_path = ContainerPath::File(search_matches.path().to_string());
+                    let mut file = pack.files_by_path_mut(&container_path, false);
+                    if let Some(file) = file.get_mut(0) {
+                        if let Ok(decoded) = file.decoded_mut() {
+                            let edited = match decoded {
+                                RFileDecoded::DB(table) => table.replace(&self.pattern, &self.replace_text, self.case_sensitive, &matching_mode, search_matches),
+                                _ => unimplemented!(),
+                            };
+
+                            if edited {
+                                edited_paths.push(container_path);
+                            }
+                        }
+                    }
+                },
+
+                MatchHolder::Esf(_) => continue,
+                MatchHolder::GroupFormations(_) => continue,
+                MatchHolder::Image(_) => continue,
+                MatchHolder::Loc(search_matches) => {
+                    let container_path = ContainerPath::File(search_matches.path().to_string());
+                    let mut file = pack.files_by_path_mut(&container_path, false);
+                    if let Some(file) = file.get_mut(0) {
+                        if let Ok(decoded) = file.decoded_mut() {
+                            let edited = match decoded {
+                                RFileDecoded::Loc(table) => table.replace(&self.pattern, &self.replace_text, self.case_sensitive, &matching_mode, search_matches),
+                                _ => unimplemented!(),
+                            };
+
+                            if edited {
+                                edited_paths.push(container_path);
+                            }
+                        }
+                    }
+                },
+
+                MatchHolder::MatchedCombat(_) => continue,
+                MatchHolder::Pack(_) => continue,
+                MatchHolder::PortraitSettings(search_matches) => {
+                    let container_path = ContainerPath::File(search_matches.path().to_string());
+                    let mut file = pack.files_by_path_mut(&container_path, false);
+                    if let Some(file) = file.get_mut(0) {
+
+                        // Make sure it has been decoded.
+                        let _ = file.decode(&None, true, false);
+                        if let Ok(decoded) = file.decoded_mut() {
+                            let edited = match decoded {
+                                RFileDecoded::PortraitSettings(data) => data.replace(&self.pattern, &self.replace_text, self.case_sensitive, &matching_mode, search_matches),
+                                _ => unimplemented!(),
+                            };
+
+                            if edited {
+                                edited_paths.push(container_path);
+                            }
+                        }
+                    }
+                },
+
                 MatchHolder::RigidModel(search_matches) => {
                     let container_path = ContainerPath::File(search_matches.path().to_string());
                     let mut file = pack.files_by_path_mut(&container_path, false);
@@ -385,24 +485,7 @@ impl GlobalSearch {
                     }
                 },
 
-                MatchHolder::Table(search_matches) => {
-                    let container_path = ContainerPath::File(search_matches.path().to_string());
-                    let mut file = pack.files_by_path_mut(&container_path, false);
-                    if let Some(file) = file.get_mut(0) {
-                        if let Ok(decoded) = file.decoded_mut() {
-                            let edited = match decoded {
-                                RFileDecoded::DB(table) => table.replace(&self.pattern, &self.replace_text, self.case_sensitive, &matching_mode, search_matches),
-                                RFileDecoded::Loc(table) => table.replace(&self.pattern, &self.replace_text, self.case_sensitive, &matching_mode, search_matches),
-                                _ => unimplemented!(),
-                            };
-
-                            if edited {
-                                edited_paths.push(container_path);
-                            }
-                        }
-                    }
-                },
-
+                MatchHolder::SoundBank(_) => continue,
                 MatchHolder::Text(search_matches) => {
                     let container_path = ContainerPath::File(search_matches.path().to_string());
                     let mut file = pack.files_by_path_mut(&container_path, false);
@@ -434,6 +517,8 @@ impl GlobalSearch {
                     }
                 },
 
+                MatchHolder::Uic(_) => continue,
+                MatchHolder::UnitVariant(_) => continue,
                 MatchHolder::Unknown(search_matches) => {
                     let container_path = ContainerPath::File(search_matches.path().to_string());
                     let mut file = pack.files_by_path_mut(&container_path, false);
@@ -453,6 +538,7 @@ impl GlobalSearch {
                         }
                     }
                 },
+                MatchHolder::Video(_) => continue,
 
                 // We cannot edit schemas here.
                 MatchHolder::Schema(_) => continue,
@@ -468,11 +554,28 @@ impl GlobalSearch {
 
     pub fn replace_all(&mut self, game_info: &GameInfo, schema: &Schema, pack: &mut Pack, dependencies: &mut Dependencies) -> Result<Vec<ContainerPath>> {
         let mut matches = vec![];
-        matches.extend(self.matches.db.iter().map(|x| MatchHolder::Table(x.clone())).collect::<Vec<_>>());
-        matches.extend(self.matches.loc.iter().map(|x| MatchHolder::Table(x.clone())).collect::<Vec<_>>());
+
+        matches.extend(self.matches.anim.iter().map(|x| MatchHolder::Unknown(x.clone())).collect::<Vec<_>>());
+        matches.extend(self.matches.anim_fragment.iter().map(|x| MatchHolder::Unknown(x.clone())).collect::<Vec<_>>());
+        matches.extend(self.matches.anim_pack.iter().map(|x| MatchHolder::Unknown(x.clone())).collect::<Vec<_>>());
+        matches.extend(self.matches.anims_table.iter().map(|x| MatchHolder::Unknown(x.clone())).collect::<Vec<_>>());
+        matches.extend(self.matches.audio.iter().map(|x| MatchHolder::Unknown(x.clone())).collect::<Vec<_>>());
+        matches.extend(self.matches.bmd.iter().map(|x| MatchHolder::Unknown(x.clone())).collect::<Vec<_>>());
+        matches.extend(self.matches.db.iter().map(|x| MatchHolder::Db(x.clone())).collect::<Vec<_>>());
+        matches.extend(self.matches.esf.iter().map(|x| MatchHolder::Unknown(x.clone())).collect::<Vec<_>>());
+        matches.extend(self.matches.group_formations.iter().map(|x| MatchHolder::Unknown(x.clone())).collect::<Vec<_>>());
+        matches.extend(self.matches.image.iter().map(|x| MatchHolder::Unknown(x.clone())).collect::<Vec<_>>());
+        matches.extend(self.matches.loc.iter().map(|x| MatchHolder::Loc(x.clone())).collect::<Vec<_>>());
+        matches.extend(self.matches.matched_combat.iter().map(|x| MatchHolder::Unknown(x.clone())).collect::<Vec<_>>());
+        matches.extend(self.matches.pack.iter().map(|x| MatchHolder::Unknown(x.clone())).collect::<Vec<_>>());
+        matches.extend(self.matches.portrait_settings.iter().map(|x| MatchHolder::PortraitSettings(x.clone())).collect::<Vec<_>>());
         matches.extend(self.matches.rigid_model.iter().map(|x| MatchHolder::RigidModel(x.clone())).collect::<Vec<_>>());
+        matches.extend(self.matches.sound_bank.iter().map(|x| MatchHolder::Unknown(x.clone())).collect::<Vec<_>>());
         matches.extend(self.matches.text.iter().map(|x| MatchHolder::Text(x.clone())).collect::<Vec<_>>());
+        matches.extend(self.matches.uic.iter().map(|x| MatchHolder::Unknown(x.clone())).collect::<Vec<_>>());
+        matches.extend(self.matches.unit_variant.iter().map(|x| MatchHolder::Unknown(x.clone())).collect::<Vec<_>>());
         matches.extend(self.matches.unknown.iter().map(|x| MatchHolder::Unknown(x.clone())).collect::<Vec<_>>());
+        matches.extend(self.matches.video.iter().map(|x| MatchHolder::Unknown(x.clone())).collect::<Vec<_>>());
 
         self.replace(game_info, schema, pack, dependencies, &matches)
     }
@@ -618,7 +721,7 @@ impl Matches {
                     None
                 } else if search_on.db && file.file_type() == FileType::DB {
                     if let Ok(RFileDecoded::DB(table)) = file.decoded() {
-                        let result = table.search(file.path_in_container_raw(), pattern, case_sensitive, &matching_mode);
+                        let result = table.search(file.path_in_container_raw(), pattern, case_sensitive, matching_mode);
                         if !result.matches().is_empty() {
                             Some((None, None, None, None, None, None, Some(result), None, None, None, None, None, None, None, None, None, None, None, None, None, None))
                         } else {
@@ -668,7 +771,7 @@ impl Matches {
                     None
                 } else if search_on.loc && file.file_type() == FileType::Loc {
                     if let Ok(RFileDecoded::Loc(table)) = file.decoded() {
-                        let result = table.search(file.path_in_container_raw(), pattern, case_sensitive, &matching_mode);
+                        let result = table.search(file.path_in_container_raw(), pattern, case_sensitive, matching_mode);
                         if !result.matches().is_empty() {
                             Some((None, None, None, None, None, None, None, None, None, None, Some(result), None, None, None, None, None, None, None, None, None, None))
                         } else {
@@ -704,9 +807,8 @@ impl Matches {
                     }*/
                     None
                 } else if search_on.portrait_settings && file.file_type() == FileType::PortraitSettings {
-                    /*
                     if let Ok(RFileDecoded::PortraitSettings(data)) = file.decode(&None, false, true).transpose().unwrap() {
-                        let result = data.search(file.path_in_container_raw(), pattern, case_sensitive, &matching_mode);
+                        let result = data.search(file.path_in_container_raw(), pattern, case_sensitive, matching_mode);
                         if !result.matches().is_empty() {
                             Some((None, None, None, None, None, None, None, None, None, None, None, None, None, Some(result), None, None, None, None, None, None, None))
                         } else {
@@ -714,11 +816,10 @@ impl Matches {
                         }
                     } else {
                         None
-                    }*/
-                    None
+                    }
                 } else if search_on.rigid_model && file.file_type() == FileType::RigidModel {
                     if let Ok(RFileDecoded::RigidModel(data)) = file.decode(&None, false, true).transpose().unwrap() {
-                        let result = data.search(file.path_in_container_raw(), pattern, case_sensitive, &matching_mode);
+                        let result = data.search(file.path_in_container_raw(), pattern, case_sensitive, matching_mode);
                         if !result.matches().is_empty() {
                             Some((None, None, None, None, None, None, None, None, None, None, None, None, None, None, Some(result), None, None, None, None, None, None))
                         } else {
@@ -742,7 +843,7 @@ impl Matches {
                     None
                 } else if search_on.text && file.file_type() == FileType::Text {
                     if let Ok(RFileDecoded::Text(table)) = file.decode(&None, false, true).transpose().unwrap() {
-                        let result = table.search(file.path_in_container_raw(), pattern, case_sensitive, &matching_mode);
+                        let result = table.search(file.path_in_container_raw(), pattern, case_sensitive, matching_mode);
                         if !result.matches().is_empty() {
                             Some((None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, Some(result), None, None, None, None))
                         } else {
@@ -779,7 +880,7 @@ impl Matches {
                     None
                 } else if search_on.unknown && file.file_type() == FileType::Unknown {
                     if let Ok(RFileDecoded::Unknown(data)) = file.decode(&None, false, true).transpose().unwrap() {
-                        let result = data.search(file.path_in_container_raw(), pattern, case_sensitive, &matching_mode);
+                        let result = data.search(file.path_in_container_raw(), pattern, case_sensitive, matching_mode);
                         if !result.matches().is_empty() {
                             Some((None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, Some(result), None))
                         } else {
@@ -807,7 +908,7 @@ impl Matches {
             }
         ).collect::<Vec<(
             Option<UnknownMatches>, Option<UnknownMatches>, Option<UnknownMatches>, Option<UnknownMatches>, Option<UnknownMatches>, Option<UnknownMatches>, Option<TableMatches>,
-            Option<UnknownMatches>, Option<UnknownMatches>, Option<UnknownMatches>, Option<TableMatches>, Option<UnknownMatches>, Option<UnknownMatches>, Option<UnknownMatches>,
+            Option<UnknownMatches>, Option<UnknownMatches>, Option<UnknownMatches>, Option<TableMatches>, Option<UnknownMatches>, Option<UnknownMatches>, Option<PortraitSettingsMatches>,
             Option<RigidModelMatches>, Option<UnknownMatches>, Option<TextMatches>, Option<UnknownMatches>, Option<UnknownMatches>, Option<UnknownMatches>, Option<UnknownMatches>
         )>>();
 
@@ -835,7 +936,7 @@ impl Matches {
 
         // Schema searches are a bit independant from the rest, so they're done after the full search.
         if search_on.schema {
-            self.schema = schema.search("", pattern, case_sensitive, &matching_mode);
+            self.schema = schema.search("", pattern, case_sensitive, matching_mode);
         }
     }
 }

@@ -46,3 +46,4 @@ float_eq = "^1"
 
 # Case-insensitive checks.
 caseless = "^0.2"
+unicase = "^2.6"
