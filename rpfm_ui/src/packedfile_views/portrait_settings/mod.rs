@@ -415,6 +415,9 @@ impl PortraitSettingsView {
 
     /// Function to reload the data of the view without having to delete the view itself.
     pub unsafe fn reload_view(&self, data: &mut PortraitSettings) -> Result<()> {
+
+        // Clear ALL the fields before reloading.
+        self.clear_main_view();
         self.load_data(data)
     }
 
