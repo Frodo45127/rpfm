@@ -755,9 +755,11 @@ pub unsafe fn build_columns(
                                 .map(|row| row[index].data_to_string().len() * 6)
                                 .unwrap_or(COLUMN_SIZE_STRING as usize);
 
-                            // Fix some columns getting their title eaten by description icon.
+                            // Fix some columns getting their title eaten by description icon, and some columns being extremely long.
                             if size < 60 {
                                 size = 60;
+                            } else if size > 800 {
+                                size = 800;
                             }
 
                             table_view.set_column_width(index as i32, size as i32 + 30);
