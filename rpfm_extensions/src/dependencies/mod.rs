@@ -25,7 +25,7 @@ use rpfm_lib::error::{Result, RLibError};
 use rpfm_lib::files::{Container, ContainerPath, db::DB, DecodeableExtraData, FileType, pack::Pack, RFile, RFileDecoded};
 use rpfm_lib::games::GameInfo;
 use rpfm_lib::integrations::{assembly_kit::table_data::RawTable, log::info};
-use rpfm_lib::schema::{Definition, Schema};
+use rpfm_lib::schema::{Definition, Field, FieldType, Schema};
 use rpfm_lib::utils::{current_time, last_modified_time_from_files, starts_with_case_insensitive};
 
 //-------------------------------------------------------------------------------//
@@ -991,46 +991,70 @@ impl Dependencies {
     /// This function returns the table/column/key from the provided loc key.
     ///
     /// We return the table without "_tables". Keep that in mind if you use this.
-    pub fn loc_key_source(&self, key: &str) -> Option<(String, String, String)> {
+    pub fn loc_key_source(&self, key: &str) -> Option<(String, String, Vec<String>)> {
         let key_split = key.split('_').collect::<Vec<_>>();
-        let mut table_name = String::new();
 
-        // We don't know how much of the string the key the table is, so we try adding parts until we find a table that matches.
-        for (index, value) in key_split.iter().enumerate() {
-            table_name.push_str(value);
+        // We don't know how much of the string the key the table is, so we try removing parts until we find a table that matches.
+        // in reverse so longer table names have priority in case of collision.
+        for (index, _) in key_split.iter().enumerate().rev() {
 
-            let full_table_name = format!("{table_name}_tables");
+            // Index 0 would mean empty table name.
+            if index >= 1 {
 
-            if let Ok(rfiles) = self.db_data(&full_table_name, true, false) {
-                for rfile in rfiles {
-                    if let Ok(RFileDecoded::DB(table)) = rfile.decoded() {
+                let mut table_name = key_split[..index].join("_");
+                let full_table_name = format!("{table_name}_tables");
+
+                if let Ok(rfiles) = self.db_data(&full_table_name, true, false) {
+                    let mut decoded = rfiles.iter()
+                        .filter_map(|x| if let Ok(RFileDecoded::DB(table)) = x.decoded() {
+                            Some(table)
+                        } else {
+                            None
+                        }).collect::<Vec<_>>();
+
+                    // Also add the ak files if present.
+                    if let Some(ak_file) = self.asskit_only_db_tables().get(&full_table_name) {
+                        decoded.push(ak_file);
+                    }
+
+                    for table in decoded {
                         let definition = table.definition();
                         let localised_fields = definition.localised_fields();
-                        if !localised_fields.is_empty() && key_split.len() > index + 2 {
+                        let localised_key_order = definition.localised_key_order();
+                        if !localised_fields.is_empty() {
                             let mut field = String::new();
-                            let fields_processed = definition.fields_processed();
-                            let patches = Some(definition.patches());
 
                             // Loop to get the column.
-                            for (second_index, value) in key_split[index + 1..].iter().enumerate() {
+                            for (second_index, value) in key_split[index..].iter().enumerate() {
                                 field.push_str(value);
+
                                 if localised_fields.iter().any(|x| x.name() == field) {
 
                                     // If we reached this, the rest is the value.
-                                    let key_field = &key_split[index + second_index + 2..].join("_");
-                                    if let Some(field) = fields_processed.iter().find(|x| (x.name() == "key" || x.name() == "id") && x.is_key(patches)) {
-                                        return Some((table_name, field.name().to_string(), key_field.to_owned()));
+                                    let key_data = &key_split[index + second_index + 1..].join("_");
+
+                                    // Once we get the key, we need to use the stored loc order to find out to what specific line it belongs.
+                                    // And yes, this means checking every single fucking line in every single table.
+                                    if let Ok(data) = table.data(&None) {
+                                        for row in data.iter() {
+                                            let generated_key_split = localised_key_order.iter().map(|col| row[*col as usize].data_to_string()).collect::<Vec<_>>();
+                                            let generated_key = generated_key_split.join("");
+                                            if &generated_key == key_data {
+                                                return Some((table_name, field, generated_key_split.iter().map(|x| x.to_string()).collect()));
+                                            }
+                                        }
                                     }
                                 }
+
                                 field.push('_');
                             }
                         }
                     }
                 }
-            }
 
-            // Add an underscore before adding the next part of the table name in the next loop.
-            table_name.push('_');
+                // Add an underscore before adding the next part of the table name in the next loop.
+                table_name.push('_');
+            }
         }
 
         None
@@ -1202,7 +1226,8 @@ impl Dependencies {
     }
 
     /// This function bruteforces the order in which multikeyed tables get their keys together for loc entries.
-    pub fn bruteforce_loc_key_order(&self, schema: &mut Schema) -> Result<()> {
+    pub fn bruteforce_loc_key_order(&self, schema: &mut Schema, locs: Option<HashMap<String, Vec<String>>>) -> Result<()> {
+        let mut fields_still_not_found = vec![];
 
         // Get all vanilla loc keys into a big hashmap so we can check them fast.
         let loc_files = self.loc_data(true, false)?;
@@ -1220,15 +1245,64 @@ impl Dependencies {
 
         for table in db_tables {
             let definition = table.definition();
+            let mut loc_fields = definition.localised_fields().to_vec();
 
-            // Ignore tables without localisation. Note that we only consider keys those that come from the asskit.
-            // Custom loc keys we setup through patches are not taken into account for locs.
-            if !definition.localised_fields().is_empty() {
-                let fields = definition.fields_processed();
-                let key_fields = fields.iter()
-                    .enumerate()
-                    .filter(|(_, field)| field.is_key(None))
-                    .collect::<Vec<_>>();
+            // If we received possible loc info, remove the loc data the definition has, and add the one we received.
+            if let Some(ref loc_fields_info) = locs {
+                loc_fields.clear();
+
+                if let Some(loc_names) = loc_fields_info.get(&table.table_name_without_tables()) {
+                    for name in loc_names {
+                        let mut field = Field::default();
+                        field.set_name(name.to_string());
+                        field.set_field_type(FieldType::OptionalStringU8);
+
+                        loc_fields.push(field);
+                    }
+                }
+            }
+
+            let fields = definition.fields_processed();
+            let key_fields = fields.iter()
+                .enumerate()
+                .filter(|(_, field)| field.is_key(None))
+                .collect::<Vec<_>>();
+
+            // Check which fields from the missing field list are actually loc fields.
+            let short_table_name = table.table_name_without_tables();
+            let mut loc_fields_final = vec![];
+            for localised_field in &loc_fields {
+                let localised_key = format!("{}_{}_", short_table_name, localised_field.name());
+                if loc_table.keys().any(|x| x.starts_with(&localised_key)) {
+                    loc_fields_final.push(localised_field.clone());
+                }
+            }
+
+            // Some fields fail the previous check because the table contains a field with the same name. So we must repeat it with the table fields.
+            // There is a weird corner case here where a localised field may start like the name of another table field. We need to avoid that.
+            for table_field in &fields {
+                if loc_fields_final.iter().all(|x| !x.name().starts_with(table_field.name())) {
+                    let localised_key = format!("{}_{}_", short_table_name, table_field.name());
+                    if loc_table.keys().any(|x| x.starts_with(&localised_key)) && loc_fields_final.iter().all(|x| x.name() != table_field.name()) {
+                        loc_fields_final.push(table_field.clone());
+                    }
+                }
+            }
+
+            for loc_field in &loc_fields {
+                if loc_fields_final.iter().all(|x| x.name() != loc_field.name()) {
+                    fields_still_not_found.push(format!("{}/{}", table.table_name_without_tables(), loc_field.name()));
+                }
+            }
+
+            // Save the loc fields.
+            if let Some(schema_definition) = schema.definition_by_name_and_version_mut(table.table_name(), *definition.version()) {
+                schema_definition.set_localised_fields(loc_fields_final.to_vec());
+            }
+
+            // If after updating the loc data we have loc fields, try to find the key order for them.
+            if !loc_fields_final.is_empty() {
+                let mut fail_due_to_empty_keys_in_combos = false;
 
                 // If we only have one key field, don't bother searching.
                 let order = if key_fields.len() == 1 {
@@ -1239,16 +1313,18 @@ impl Dependencies {
                 else {
                     let mut order = Vec::with_capacity(key_fields.len());
                     let combos = key_fields.iter().permutations(key_fields.len());
-                    let short_table_name = table.table_name_without_tables();
                     let table_data = table.data(&None)?;
                     for combo in combos {
 
                         // Many multikeyed tables admit empty values as part of the key. We need rows with no empty values.
+                        // NOTE: While we just need one line to get the order, we check every line to avoid wrong orders due to first line sharing fields.
+                        let mut combo_is_valid = true;
                         for row in table_data.iter() {
                             let mut all_keys_populated = true;
                             for (index, _) in &combo {
                                 if row[*index].data_to_string().is_empty() {
                                     all_keys_populated = false;
+                                    fail_due_to_empty_keys_in_combos = true;
                                     break;
                                 }
                             }
@@ -1259,40 +1335,78 @@ impl Dependencies {
                                     combined_key.push_str(&row[*index].data_to_string());
                                 }
 
-                                for localised_field in definition.localised_fields() {
+                                for localised_field in &loc_fields_final {
                                     let localised_key = format!("{}_{}_{}", short_table_name, localised_field.name(), combined_key);
-                                    if loc_table.get(&localised_key).is_some() {
-                                        order = combo.iter().map(|(index, _)| *index as u32).collect();
-                                        break;
+                                    match loc_table.get(&localised_key) {
+                                        Some(_) => {
+                                            if order.is_empty() {
+                                                order = combo.iter().map(|(index, _)| *index as u32).collect();
+                                            }
+                                        }
+                                        None => {
+                                            combo_is_valid = false;
+                                            break;
+                                        }
                                     }
                                 }
                             }
 
-                            if !order.is_empty() {
+                            // If the combo was not valid for a loc field on a line, stop.
+                            if !combo_is_valid {
                                 break;
                             }
                         }
 
+                        // If the combo is not valid, reset the order and try the next one.
+                        if !combo_is_valid {
+                            order = vec![];
+                            continue;
+                        }
+
                         if !order.is_empty() {
                             break;
-                        } else {
-                            info!("Bruteforce: failed to find order for table {}, version {}, combo {:?}. Trying another combo (if any left to try).", table.table_name(), definition.version(), combo);
                         }
                     }
 
                     order
                 };
 
-                if !order.is_empty() {
+                if !order.is_empty() && !loc_fields_final.is_empty() {
                     info!("Bruteforce: loc key order found for table {}, version {}.", table.table_name(), definition.version());
                     if let Some(schema_definition) = schema.definition_by_name_and_version_mut(table.table_name(), *definition.version()) {
                         schema_definition.set_localised_key_order(order);
                     }
+                } else {
+                    if fail_due_to_empty_keys_in_combos {
+                        info!("Failed to bruteforce order due to missing values in optional columns for table {}, version {}.", table.table_name(), definition.version());
+                    }
+                    info!("Bruteforce: loc key order NOT found for table {}, version {}.", table.table_name(), definition.version());
+
+                    // If we don't have locs, make sure to delete any order we had.
+                    if loc_fields_final.is_empty() {
+                        if let Some(schema_definition) = schema.definition_by_name_and_version_mut(table.table_name(), *definition.version()) {
+                            schema_definition.set_localised_key_order(vec![]);
+                        }
+                    }
                 }
+            }
+
+            // Make sure to cleanup any past mess here.
+            else if let Some(schema_definition) = schema.definition_by_name_and_version_mut(table.table_name(), *definition.version()) {
+                schema_definition.set_localised_key_order(vec![]);
+            }
+        }
+
+        info!("Bruteforce: fields still not found :{:#?}", fields_still_not_found);
+
+        // Once everything is done, run a check on the loc keys to see if any of them still doesn't match any table/field combo.
+        for key in loc_table.keys().sorted() {
+            match self.loc_key_source(key) {
+                Some((_, _, _)) => {},
+                None => info!("-- Bruteforce: cannot find source for loc key {}.", key),
             }
         }
 
         Ok(())
     }
 }
-

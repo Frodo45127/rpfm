@@ -2548,7 +2548,7 @@ impl TableView {
                     let index = self.table_filter.map_to_source(self.table_view.selection_model().selection().indexes().at(0));
                     if let Some(field) = self.table_definition().fields_processed().get(index.column() as usize) {
                         if let Some((ref_table, ref_column)) = field.is_reference() {
-                            Some((ref_table.to_owned(), ref_column.to_owned(), index.data_0a().to_string().to_std_string()))
+                            Some((ref_table.to_owned(), ref_column.to_owned(), vec![index.data_0a().to_string().to_std_string()]))
                         } else { None }
                     } else { None }
                 }
@@ -2560,7 +2560,7 @@ impl TableView {
                     let receiver = CENTRAL_COMMAND.send_background(Command::GetSourceDataFromLocKey(key));
                     let response = CENTRAL_COMMAND.recv_try(&receiver);
                     match response {
-                        Response::OptionStringStringString(response) => response,
+                        Response::OptionStringStringVecString(response) => response,
                         _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                     }
                 }

@@ -383,9 +383,9 @@ pub fn background_loop() {
 
                         let tables_to_skip = dependencies.vanilla_tables().keys().map(|x| &**x).collect::<Vec<_>>();
                         match update_schema_from_raw_files(schema, &game_selected, &asskit_path, &schema_path, &tables_to_skip, &tables_to_check_split) {
-                            Ok(_) => {
+                            Ok(possible_loc_fields) => {
 
-                                if dependencies.bruteforce_loc_key_order(schema).is_ok() {
+                                if dependencies.bruteforce_loc_key_order(schema, possible_loc_fields).is_ok() {
                                     match schema.save(&schemas_path().unwrap().join(GAME_SELECTED.read().unwrap().schema_file_name())) {
                                         Ok(_) => CentralCommand::send_back(&sender, Response::Success),
                                         Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
@@ -1431,14 +1431,24 @@ pub fn background_loop() {
                 CentralCommand::send_back(&sender, Response::VecContainerPathVecRFileInfo(edited_paths, packed_files_info));
             }
 
-            Command::GoToDefinition(ref_table, ref_column, ref_data) => {
+            Command::GoToDefinition(ref_table, mut ref_column, ref_data) => {
                 let table_name = format!("{ref_table}_tables");
                 let table_folder = format!("db/{table_name}");
                 let packed_files = pack_file_decoded.files_by_path(&ContainerPath::Folder(table_folder.to_owned()), true);
                 let mut found = false;
                 for packed_file in &packed_files {
                     if let Ok(RFileDecoded::DB(data)) = packed_file.decoded() {
-                        if let Some((column_index, row_index)) = data.table().rows_containing_data(&ref_column, &ref_data) {
+
+                        // If the column is a loc column, we need to search in the first key column instead.
+                        if data.definition().localised_fields().iter().any(|x| x.name() == ref_column) {
+                            if let Some(first_key_index) = data.definition().localised_key_order().get(0) {
+                                if let Some(first_key_field) = data.definition().fields_processed().get(*first_key_index as usize) {
+                                    ref_column = first_key_field.name().to_owned();
+                                }
+                            }
+                        }
+
+                        if let Some((column_index, row_index)) = data.table().rows_containing_data(&ref_column, &ref_data[0]) {
                             CentralCommand::send_back(&sender, Response::DataSourceStringUsizeUsize(DataSource::PackFile, packed_file.path_in_container_raw().to_owned(), column_index, row_index[0]));
                             found = true;
                             break;
@@ -1450,7 +1460,17 @@ pub fn background_loop() {
                     if let Ok(packed_files) = dependencies.read().unwrap().db_data(&table_name, false, true) {
                         for packed_file in &packed_files {
                             if let Ok(RFileDecoded::DB(data)) = packed_file.decoded() {
-                                if let Some((column_index, row_index)) = data.table().rows_containing_data(&ref_column, &ref_data) {
+
+                                // If the column is a loc column, we need to search in the first key column instead.
+                                if data.definition().localised_fields().iter().any(|x| x.name() == ref_column) {
+                                    if let Some(first_key_index) = data.definition().localised_key_order().get(0) {
+                                        if let Some(first_key_field) = data.definition().fields_processed().get(*first_key_index as usize) {
+                                            ref_column = first_key_field.name().to_owned();
+                                        }
+                                    }
+                                }
+
+                                if let Some((column_index, row_index)) = data.table().rows_containing_data(&ref_column, &ref_data[0]) {
                                     CentralCommand::send_back(&sender, Response::DataSourceStringUsizeUsize(DataSource::ParentFiles, packed_file.path_in_container_raw().to_owned(), column_index, row_index[0]));
                                     found = true;
                                     break;
@@ -1464,7 +1484,17 @@ pub fn background_loop() {
                     if let Ok(packed_files) = dependencies.read().unwrap().db_data(&table_name, true, false) {
                         for packed_file in &packed_files {
                             if let Ok(RFileDecoded::DB(data)) = packed_file.decoded() {
-                                if let Some((column_index, row_index)) = data.table().rows_containing_data(&ref_column, &ref_data) {
+
+                                // If the column is a loc column, we need to search in the first key column instead.
+                                if data.definition().localised_fields().iter().any(|x| x.name() == ref_column) {
+                                    if let Some(first_key_index) = data.definition().localised_key_order().get(0) {
+                                        if let Some(first_key_field) = data.definition().fields_processed().get(*first_key_index as usize) {
+                                            ref_column = first_key_field.name().to_owned();
+                                        }
+                                    }
+                                }
+
+                                if let Some((column_index, row_index)) = data.table().rows_containing_data(&ref_column, &ref_data[0]) {
                                     CentralCommand::send_back(&sender, Response::DataSourceStringUsizeUsize(DataSource::GameFiles, packed_file.path_in_container_raw().to_owned(), column_index, row_index[0]));
                                     found = true;
                                     break;
@@ -1475,8 +1505,18 @@ pub fn background_loop() {
                 }
 
                 if !found {
-                    if let Some(table) = dependencies.read().unwrap().asskit_only_db_tables().get(&table_name) {
-                        if let Some((column_index, row_index)) = table.table().rows_containing_data(&ref_column, &ref_data) {
+                    if let Some(data) = dependencies.read().unwrap().asskit_only_db_tables().get(&table_name) {
+
+                        // If the column is a loc column, we need to search in the first key column instead.
+                        if data.definition().localised_fields().iter().any(|x| x.name() == ref_column) {
+                            if let Some(first_key_index) = data.definition().localised_key_order().get(0) {
+                                if let Some(first_key_field) = data.definition().fields_processed().get(*first_key_index as usize) {
+                                    ref_column = first_key_field.name().to_owned();
+                                }
+                            }
+                        }
+
+                        if let Some((column_index, row_index)) = data.table().rows_containing_data(&ref_column, &ref_data[0]) {
                             let path = format!("{}/ak_data", &table_folder);
                             CentralCommand::send_back(&sender, Response::DataSourceStringUsizeUsize(DataSource::AssKitFiles, path, column_index, row_index[0]));
                             found = true;
@@ -1601,7 +1641,7 @@ pub fn background_loop() {
                 }
             },
 
-            Command::GetSourceDataFromLocKey(loc_key) => CentralCommand::send_back(&sender, Response::OptionStringStringString(dependencies.read().unwrap().loc_key_source(&loc_key))),
+            Command::GetSourceDataFromLocKey(loc_key) => CentralCommand::send_back(&sender, Response::OptionStringStringVecString(dependencies.read().unwrap().loc_key_source(&loc_key))),
             Command::GetPackFileName => CentralCommand::send_back(&sender, Response::String(pack_file_decoded.disk_file_name())),
             Command::GetPackedFileRawData(path) => {
                 match pack_file_decoded.files_mut().get_mut(&path) {

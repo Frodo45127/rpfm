@@ -287,8 +287,8 @@ pub enum Command {
     /// This command is used to trigger a cascade edition on all referenced data.
     CascadeEdition(String, Definition, Vec<(Field, String, String)>),
 
-    /// This command is used for the Go To Definition feature. Contains table, column, and value to search.
-    GoToDefinition(String, String, String),
+    /// This command is used for the Go To Definition feature. Contains table, column, and values to search.
+    GoToDefinition(String, String, Vec<String>),
 
     /// This command is used to get the source data of a loc key. Contains the loc key to search.
     GetSourceDataFromLocKey(String),
@@ -471,8 +471,8 @@ pub enum Response {
     /// Response to return `Vec<(DataSource, Vec<String>, String, usize, usize)>`.
     VecDataSourceStringStringUsizeUsize(Vec<(DataSource, String, String, usize, usize)>),
 
-    /// Response to return `Option<(String, String, String)>`.
-    OptionStringStringString(Option<(String, String, String)>),
+    /// Response to return `Option<(String, String, Vec<String>)>`.
+    OptionStringStringVecString(Option<(String, String, Vec<String>)>),
 
     /// Response to return `Vec<u8>`.
     VecU8(Vec<u8>),

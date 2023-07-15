@@ -776,10 +776,12 @@ impl Definition {
     /// - Lookup.
     /// - CA Order.
     #[cfg(feature = "integration_assembly_kit")]
-    pub fn update_from_raw_definition(&mut self, raw_definition: &RawDefinition) {
+    pub fn update_from_raw_definition(&mut self, raw_definition: &RawDefinition, unfound_fields: &mut Vec<String>) {
         let raw_table_name = &raw_definition.name.as_ref().unwrap()[..raw_definition.name.as_ref().unwrap().len() - 4];
         let mut combined_fields = BTreeMap::new();
         for (index, raw_field) in raw_definition.fields.iter().enumerate() {
+
+            let mut found = false;
             for field in &mut self.fields {
                 if field.name == raw_field.name {
                     if (raw_field.primary_key == "1" && !field.is_key) || (raw_field.primary_key == "0" && field.is_key) {
@@ -794,8 +796,11 @@ impl Definition {
                         field.filename_relative_path = raw_field.filename_relative_path.clone();
                     }
 
+                    // Make sure to cleanup any old invalid definition.
                     if let Some(ref description) = raw_field.field_description {
                         field.description = description.to_owned();
+                    } else {
+                        field.description = String::new();
                     }
 
                     if let Some(ref table) = raw_field.column_source_table {
@@ -841,8 +846,13 @@ impl Definition {
                             }
                         }
                     }
+                    found = true;
                     break;
                 }
+            }
+
+            if !found {
+                unfound_fields.push(format!("{}/{}", raw_table_name, raw_field.name));
             }
         }
     }
