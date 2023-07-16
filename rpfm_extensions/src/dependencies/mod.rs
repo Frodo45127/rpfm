@@ -96,6 +96,10 @@ pub struct Dependencies {
     #[serde(skip_serializing, skip_deserializing)]
     local_tables_references: HashMap<String, HashMap<i32, TableReferences>>,
 
+    /// Data from all the locs, so we can quickly search for a loc entry.
+    #[serde(skip_serializing, skip_deserializing)]
+    localisation_data: HashMap<String, String>,
+
     /// DB Files only available on the assembly kit. Usable only for references. Do not use them as the base for new tables.
     asskit_only_db_tables: HashMap<String, DB>,
 }
@@ -212,6 +216,19 @@ impl Dependencies {
 
             self.parent_files.par_extend(files);
         }
+
+        // Populate the localisation data.
+        let loc_files = self.loc_data(true, true).unwrap_or(vec![]);
+        let loc_decoded = loc_files.iter()
+            .filter_map(|file| if let Ok(RFileDecoded::Loc(loc)) = file.decoded() { Some(loc) } else { None })
+            .map(|file| file.data(&None).unwrap())
+            .collect::<Vec<_>>();
+
+        self.localisation_data = loc_decoded.par_iter()
+            .flat_map(|data| data.par_iter()
+                .map(|entry| (entry[0].data_to_string().to_string(), entry[1].data_to_string().to_string()))
+                .collect::<Vec<(_,_)>>()
+            ).collect::<HashMap<_,_>>();
 
         Ok(())
     }
@@ -341,15 +358,6 @@ impl Dependencies {
 
     /// This function builds the local db references data for the table with the definition you pass to, and returns it.
     pub fn generate_references(&self, definition: &Definition) -> HashMap<i32, TableReferences> {
-
-        // Get all vanilla loc keys into a big hashmap so we can check them fast for lookups.
-        let loc_files = self.loc_data(true, true).unwrap_or(vec![]);
-        let loc_data = loc_files.iter()
-            .filter_map(|file| if let Ok(RFileDecoded::Loc(loc)) = file.decoded() { Some(loc) } else { None })
-            .flat_map(|file| file.data(&None).unwrap().to_vec())
-            .map(|entry| (entry[0].data_to_string().to_string(), entry[1].data_to_string().to_string()))
-            .collect::<HashMap<_,_>>();
-
         definition.fields_processed().into_iter().enumerate().filter_map(|(column, field)| {
             if let Some((ref ref_table, ref ref_column)) = field.is_reference() {
                 if !ref_table.is_empty() && !ref_column.is_empty() {
@@ -361,7 +369,7 @@ impl Dependencies {
                     *references.field_name_mut() = field.name().to_owned();
 
                     let fake_found = self.db_reference_data_from_asskit_tables(&mut references, (&ref_table, ref_column, &lookup_data));
-                    let real_found = self.db_reference_data_from_from_vanilla_and_modded_tables(&mut references, (&ref_table, ref_column, &lookup_data), &loc_data);
+                    let real_found = self.db_reference_data_from_from_vanilla_and_modded_tables(&mut references, (&ref_table, ref_column, &lookup_data));
 
                     if fake_found && real_found.is_none() {
                         references.referenced_table_is_ak_only = true;
@@ -898,7 +906,7 @@ impl Dependencies {
     /// This function returns the reference/lookup data of all relevant columns of a DB Table from the vanilla/parent data.
     ///
     /// If reference data was found, the most recent definition of said data is returned.
-    fn db_reference_data_from_from_vanilla_and_modded_tables(&self, references: &mut TableReferences, reference_info: (&str, &str, &[String]), loc_data: &HashMap<String, String>) -> Option<Definition> {
+    fn db_reference_data_from_from_vanilla_and_modded_tables(&self, references: &mut TableReferences, reference_info: (&str, &str, &[String])) -> Option<Definition> {
         let mut data_found: Option<Definition> = None;
         let ref_table = reference_info.0;
         let ref_column = reference_info.1;
@@ -936,8 +944,8 @@ impl Dependencies {
                             for (is_loc, column) in ref_lookup_columns_index.iter() {
                                 if *is_loc {
                                     let loc_key = format!("{}_{}_{}", name_short, localised_fields[*column].name(), localised_order.iter().map(|pos| row[*pos as usize].data_to_string()).collect::<Vec<_>>().join(""));
-                                    match loc_data.get(&loc_key) {
-                                        Some(data) => lookup_data.push(data.to_owned()),
+                                    match self.localisation_data.get(&loc_key) {
+                                        Some(data) => lookup_data.push(data.to_string()),
                                         None => lookup_data.push(String::new()),
                                     }
                                 }
