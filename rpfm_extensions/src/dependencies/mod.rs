@@ -15,6 +15,7 @@ use itertools::Itertools;
 use rayon::prelude::*;
 use serde_derive::{Serialize, Deserialize};
 
+use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::fs::{DirBuilder, File};
 use std::io::{BufReader, Read, Write};
@@ -858,11 +859,16 @@ impl Dependencies {
         };
 
         let loc_files = pack.files_by_type(&[FileType::Loc]);
-        let loc_data = loc_files.iter()
+        let loc_decoded = loc_files.iter()
             .filter_map(|file| if let Ok(RFileDecoded::Loc(loc)) = file.decoded() { Some(loc) } else { None })
-            .flat_map(|file| file.data(&None).unwrap().to_vec())
-            .map(|entry| (entry[0].data_to_string().to_string(), entry[1].data_to_string().to_string()))
-            .collect::<HashMap<_,_>>();
+            .map(|file| file.data(&None).unwrap())
+            .collect::<Vec<_>>();
+
+        let loc_data = loc_decoded.par_iter()
+            .flat_map(|data| data.par_iter()
+                .map(|entry| (entry[0].data_to_string(), entry[1].data_to_string()))
+                .collect::<Vec<(_,_)>>()
+            ).collect::<HashMap<_,_>>();
 
         let local_references = definition.fields_processed().into_par_iter().enumerate().filter_map(|(column, field)| {
             if let Some((ref ref_table, ref ref_column)) = field.is_reference() {
@@ -1000,7 +1006,7 @@ impl Dependencies {
     }
 
     /// This function returns the reference/lookup data of all relevant columns of a DB Table from the provided Pack.
-    fn db_reference_data_from_local_pack(references: &mut TableReferences, reference_info: (&str, &str, &[String]), pack: &Pack, loc_data: &HashMap<String, String>) -> bool {
+    fn db_reference_data_from_local_pack(references: &mut TableReferences, reference_info: (&str, &str, &[String]), pack: &Pack, loc_data: &HashMap<Cow<str>, Cow<str>>) -> bool {
 
         let mut data_found = false;
         let ref_table = reference_info.0;
@@ -1039,8 +1045,8 @@ impl Dependencies {
                         for (is_loc, column) in ref_lookup_columns_index.iter() {
                             if *is_loc {
                                 let loc_key = format!("{}_{}_{}", ref_table, localised_fields[*column].name(), localised_order.iter().map(|pos| row[*pos as usize].data_to_string()).collect::<Vec<_>>().join(""));
-                                match loc_data.get(&loc_key) {
-                                    Some(data) => lookup_data.push(data.to_owned()),
+                                match loc_data.get(&*loc_key) {
+                                    Some(data) => lookup_data.push(data.to_string()),
                                     None => lookup_data.push(String::new()),
                                 }
                             }
