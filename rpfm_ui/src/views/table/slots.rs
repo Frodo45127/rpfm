@@ -58,7 +58,6 @@ use super::*;
 /// This struct contains the slots of the view of a Table PackedFile.
 pub struct TableViewSlots {
     pub delayed_updates: QBox<SlotNoArgs>,
-    pub toggle_lookups: QBox<SlotOfBool>,
     pub sort_order_column_changed: QBox<SlotOfIntSortOrder>,
     pub show_context_menu: QBox<SlotOfQPoint>,
     pub context_menu_enabler: QBox<SlotOfQItemSelectionQItemSelection>,
@@ -145,12 +144,6 @@ impl TableViewSlots {
                     }
                 }
             }
-        }));
-
-        // When we want to toggle the lookups on and off.
-        let toggle_lookups = SlotOfBool::new(&view.table_view, clone!(
-            view => move |_| {
-            view.toggle_lookups();
         }));
 
         let sort_order_column_changed = SlotOfIntSortOrder::new(&view.table_view, clone!(
@@ -765,7 +758,6 @@ impl TableViewSlots {
         // Return the slots, so we can keep them alive for the duration of the view.
         Self {
             delayed_updates,
-            toggle_lookups,
             sort_order_column_changed,
             show_context_menu,
             context_menu_enabler,

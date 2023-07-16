@@ -932,23 +932,6 @@ impl TableView {
         self.table_view().vertical_header().set_visible(true);
     }
 
-    /// This function enables/disables showing the lookup values instead of the real ones in the columns that support it.
-    pub unsafe fn toggle_lookups(&self) {
-        /*
-        if SETTINGS.lock().unwrap().settings_bool["disable_combos_on_tables"] {
-            let enable_lookups = unsafe { self.table_enable_lookups_button.is_checked() };
-            for (column, field) in table_definition.fields.iter().enumerate() {
-                if let Some(data) = dependency_data.get(&(column as i32)) {
-                    let mut list = QStringList::new(());
-                    data.iter().map(|x| if enable_lookups { &x.1 } else { &x.0 }).for_each(|x| list.append(&QString::from_std_str(x)));
-                    let list: *mut QStringList = &mut list;
-                    unsafe { new_combobox_item_delegate_safe(self.table_view as *mut QObject, column as i32, list as *const QStringList, true, field.max_length)};
-                    unsafe { new_combobox_item_delegate_safe(self.table_view_frozen as *mut QObject, column as i32, list as *const QStringList, true, field.max_length)};
-                }
-            }
-        }*/
-    }
-
     /// This function resets the currently selected cells to their original value.
     pub unsafe fn reset_selection(&self) {
 
