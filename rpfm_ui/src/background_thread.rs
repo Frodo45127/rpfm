@@ -1072,8 +1072,11 @@ pub fn background_loop() {
             // In case we want to get the reference data for a definition...
             Command::GetReferenceDataFromDefinition(table_name, definition) => {
 
-                // TODO: move this to pack opening.
-                dependencies.write().unwrap().generate_local_definition_references(&table_name, &definition);
+                // Only generate the cache references if we don't already have them generated.
+                if dependencies.read().unwrap().local_tables_references().get(&table_name).is_none() {
+                    dependencies.write().unwrap().generate_local_definition_references(&table_name, &definition);
+                }
+
                 let reference_data = dependencies.read().unwrap().db_reference_data(&pack_file_decoded, &table_name, &definition);
                 CentralCommand::send_back(&sender, Response::HashMapI32TableReferences(reference_data));
             }
