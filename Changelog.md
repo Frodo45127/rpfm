@@ -9,9 +9,12 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [Unreleased]
 ### Added
 - Implemented warning when the autosaves folder surpasses 25GB.
+- Implemented table lookups (like in DAVE).
 - Implemented Global Search & Replace support files of the following types:
+    + Portrait Settings
     + RigidModel
     + Unknown
+- Added button to toggle regex on table filters (disabled by default).
 
 ### Changed
 - Optimized Dependencies TreeView UI loading process.
@@ -20,6 +23,8 @@ If you're looking for the changes included in the latest beta (against the lates
 - Optimized the UI's file loading logic.
 - Optimized table's UI loading logic.
 - Improved Crash recording to avoid duplicate reports.
+- DB Table automatic cell size now can vary between 60 and 800px, so you don't get too small columns, nor extremely big columns.
+- The Search Source check for global search is now remembered between sessions.
 
 ### Removed
 - Removed 4.0 warning message on first start.
@@ -29,6 +34,14 @@ If you're looking for the changes included in the latest beta (against the lates
 - Fixed Global Search Trees not properly animating.
 - Fixed dependencies for files being queried twice on file open.
 - Fixed CTD when applying a rewrite selection to a db column of certain types.
+- Fixed multiple issues with numeric values in ESF files doing weird things.
+- Fixed old ESF files with large 00 paddings at the end not opening.
+- Fixed hang when using global replace on an open table with filters applied.
+- Fixed portrait settings view not clearing properly on reload.
+- Fixed CTD when using global replace under specific circustances.
+- Fixed a ton and a half of inconsistencies on how loc data is loaded for references/lookups.
+- Fixed Go To Loc not working with AK sources.
+
 
 ## [4.0.22]
 ### Fixed
