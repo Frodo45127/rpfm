@@ -443,6 +443,7 @@ pub unsafe fn load_data(
 ) {
     let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
     let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
+    let reference_data = dependency_data.read().unwrap();
 
     // First, we delete all the data from the `ListStore`. Just in case there is something there.
     // This wipes out header information, so remember to run "build_columns" after this.
@@ -469,6 +470,7 @@ pub unsafe fn load_data(
         let patches = Some(definition.patches());
         let keys = fields_processed.iter().enumerate().filter_map(|(x, y)| if y.is_key(patches) { Some(x as i32) } else { None }).collect::<Vec<i32>>();
         let tooltip_string = tr("original_data");
+        let enable_lookups = setting_bool("enable_lookups");
 
         // Get each row in a mass loop.
         let qlists = data.par_iter().map(|entry| {
@@ -480,6 +482,16 @@ pub unsafe fn load_data(
 
                 if data_source != DataSource::PackFile {
                     item.set_editable(false);
+                }
+
+                if enable_lookups {
+                    if let Some(column_data) = reference_data.get(&(column as i32)) {
+                        if let Some(lookup) = column_data.data().get(&*field.data_to_string()) {
+                            if !data.is_empty() {
+                                item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(lookup)), ITEM_SUB_DATA);
+                            }
+                        }
+                    }
                 }
 
                 qlist.append_q_standard_item(&item.into_ptr().as_mut_raw_ptr());
@@ -509,7 +521,7 @@ pub unsafe fn load_data(
     setup_item_delegates(
         table_view,
         definition,
-        &dependency_data.read().unwrap(),
+        &reference_data,
         timer
     );
 }
@@ -991,25 +1003,35 @@ pub unsafe fn setup_item_delegates(
     table_references: &HashMap<i32, TableReferences>,
     timer: &QBox<QTimer>
 ) {
-    let enable_lookups = false; //table_enable_lookups_button.is_checked();
+    let table_object = table_view.static_upcast::<QObject>().as_ptr();
+    let enable_lookups = setting_bool("enable_lookups");
+
     for (column, field) in definition.fields_processed().iter().enumerate() {
-        let table_object = table_view.static_upcast::<QObject>().as_ptr();
         let references = table_references.get(&(column as i32));
 
         // Combos are a bit special, as they may or may not replace other delegates. If we disable them, use the normal delegates.
         if !setting_bool("disable_combos_on_tables") && references.is_some() || !field.enum_values().is_empty() {
-            let list = QStringList::new();
+            let values = QStringList::new();
+            let lookups = QStringList::new();
             if let Some(data) = references {
-                let mut data = data.data().iter().map(|x| if enable_lookups { x.1 } else { x.0 }).collect::<Vec<&String>>();
-                data.sort();
-                data.iter().for_each(|x| list.append_q_string(&QString::from_std_str(x)));
+                let mut data = data.data().iter().collect::<Vec<(&String, &String)>>();
+                data.sort_by_key(|x| x.0);
+                data.iter().for_each(|x| {
+                    values.append_q_string(&QString::from_std_str(x.0));
+                    if enable_lookups {
+                        lookups.append_q_string(&QString::from_std_str(x.1));
+                    }
+                });
             }
 
+            // TODO: Rework the enum system to work like lookups.
             if !field.enum_values().is_empty() {
-                field.enum_values().values().for_each(|x| list.append_q_string(&QString::from_std_str(x)));
+                field.enum_values().values().for_each(|x| {
+                    values.append_q_string(&QString::from_std_str(x));
+                });
             }
 
-            new_combobox_item_delegate_safe(&table_object, column as i32, list.as_ptr(), true, &timer.as_ptr(), true);
+            new_combobox_item_delegate_safe(&table_object, column as i32, values.into_ptr(), lookups.into_ptr(), true, &timer.as_ptr(), true);
         }
 
         else {

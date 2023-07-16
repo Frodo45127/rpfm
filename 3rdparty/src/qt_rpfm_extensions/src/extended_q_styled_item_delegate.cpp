@@ -58,10 +58,17 @@ void QExtendedStyledItemDelegate::paint(QPainter *painter, const QStyleOptionVie
         QStyledItemDelegate::paint( painter, option, index );
     }
 
-    if (use_filter && index.isValid()) {
-        const QSortFilterProxyModel* filterModel = dynamic_cast<const QSortFilterProxyModel*>(index.model());
-        const QStandardItemModel* standardModel = dynamic_cast<const QStandardItemModel*>(filterModel->sourceModel());
-        QStandardItem* item = standardModel->itemFromIndex(filterModel->mapToSource(index));
+
+    if (index.isValid()) {
+        QStandardItem* item;
+        if (use_filter) {
+            const QSortFilterProxyModel* filterModel = dynamic_cast<const QSortFilterProxyModel*>(index.model());
+            const QStandardItemModel* standardModel = dynamic_cast<const QStandardItemModel*>(filterModel->sourceModel());
+            item = standardModel->itemFromIndex(filterModel->mapToSource(index));
+        } else {
+            const QStandardItemModel* standardModel = dynamic_cast<const QStandardItemModel*>(index.model());
+            item = standardModel->itemFromIndex(index);
+        }
 
         if (item != nullptr) {
             QVariant isKeyVariant = item->data(20);
@@ -194,6 +201,30 @@ void QExtendedStyledItemDelegate::paint(QPainter *painter, const QStyleOptionVie
 
             // Remember to restore the painter so we can reuse it for other cells.
             painter->restore();
+        }
+    }
+}
+
+void QExtendedStyledItemDelegate::initStyleOption(QStyleOptionViewItem *option, const QModelIndex &index) const {
+    QStyledItemDelegate::initStyleOption(option,index);
+
+    if (index.isValid()) {
+        QStandardItem* item;
+        if (use_filter) {
+            const QSortFilterProxyModel* filterModel = dynamic_cast<const QSortFilterProxyModel*>(index.model());
+            const QStandardItemModel* standardModel = dynamic_cast<const QStandardItemModel*>(filterModel->sourceModel());
+            item = standardModel->itemFromIndex(filterModel->mapToSource(index));
+        } else {
+            const QStandardItemModel* standardModel = dynamic_cast<const QStandardItemModel*>(index.model());
+            item = standardModel->itemFromIndex(index);
+        }
+
+        QVariant subDataVariant = item->data(40);
+        QString subData = !subDataVariant.isNull() ? subDataVariant.toString(): QString();
+
+        //  If we have subdata, put it on the right side of the normal data, as a dimmed text.
+        if (!subData.isEmpty()) {
+            option->text += QChar(':') + subData;
         }
     }
 }

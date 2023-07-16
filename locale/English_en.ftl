@@ -1369,3 +1369,4 @@ autosave_folder_size_warning = <p>Your autosave folder has surpassed 25GB of aut
 
 portrait_settings_file_name = Filename
 table_filter_use_regex = Use Regex
+settings_enable_lookups = Enable Lookups

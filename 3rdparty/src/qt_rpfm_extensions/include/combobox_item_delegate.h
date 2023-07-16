@@ -8,7 +8,7 @@
 #include <QComboBox>
 #include <QTimer>
 
-extern "C" void new_combobox_item_delegate(QObject *parent = nullptr, const int column = 0, const QStringList *values = nullptr, const bool is_editable = false, QTimer* timer = nullptr, bool is_dark_theme_enabled = false, bool has_filter = false, bool right_side_mark = false);
+extern "C" void new_combobox_item_delegate(QObject *parent = nullptr, const int column = 0, const QStringList *values = nullptr, const QStringList* lookups = nullptr, const bool is_editable = false, QTimer* timer = nullptr, bool is_dark_theme_enabled = false, bool has_filter = false, bool right_side_mark = false);
 
 class QComboBoxItemDelegate : public QExtendedStyledItemDelegate
 {
@@ -16,7 +16,7 @@ class QComboBoxItemDelegate : public QExtendedStyledItemDelegate
 
 public:
 
-    explicit QComboBoxItemDelegate(QObject *parent = nullptr, const QStringList list = {""}, bool is_editable = false, QTimer* timer = nullptr, bool is_dark_theme_enabled = false, bool has_filter = false, bool right_side_mark = false);
+    explicit QComboBoxItemDelegate(QObject *parent = nullptr, const QStringList list = {""}, const QStringList lookup_list = {""}, bool is_editable = false, QTimer* timer = nullptr, bool is_dark_theme_enabled = false, bool has_filter = false, bool right_side_mark = false);
 
     QWidget* createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const;
     void setEditorData(QWidget *editor, const QModelIndex &index) const;
@@ -27,6 +27,7 @@ signals:
 
 private:
     QStringList values;
+    QStringList lookups;
     bool editable;
     QTimer* diag_timer;
 };

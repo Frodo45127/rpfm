@@ -126,6 +126,8 @@ pub static ITEM_SOURCE_VALUE: i32 = 31;
 pub static ITEM_IS_SEQUENCE: i32 = 35;
 pub static ITEM_SEQUENCE_DATA: i32 = 36;
 
+pub static ITEM_SUB_DATA: i32 = 40;
+
 const PATCH_COLUMN_VIEW_DEBUG: &str = "rpfm_ui/ui_templates/new_schema_patch_dialog.ui";
 const PATCH_COLUMN_VIEW_RELEASE: &str = "ui/new_schema_patch_dialog.ui";
 

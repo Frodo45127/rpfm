@@ -2,19 +2,22 @@
 #include <QDebug>
 #include <QAbstractItemView>
 #include <QSettings>
+#include <QStandardItem>
+#include <QStandardItemModel>
 
 // Function to be called from any other language. This assing to the provided column of the provided TableView a QComboBoxItemDelegate,
 // with the specified values. We have to tell it too if the combo will be editable or not.
-extern "C" void new_combobox_item_delegate(QObject *parent, const int column, const QStringList* values, const bool is_editable, QTimer* timer, bool is_dark_theme_enabled, bool has_filter, bool right_side_mark) {
-    QComboBoxItemDelegate* delegate = new QComboBoxItemDelegate(parent, *values, is_editable, timer, is_dark_theme_enabled, has_filter, right_side_mark);
+extern "C" void new_combobox_item_delegate(QObject *parent, const int column, const QStringList* values, const QStringList* lookups, const bool is_editable, QTimer* timer, bool is_dark_theme_enabled, bool has_filter, bool right_side_mark) {
+    QComboBoxItemDelegate* delegate = new QComboBoxItemDelegate(parent, *values, *lookups, is_editable, timer, is_dark_theme_enabled, has_filter, right_side_mark);
     dynamic_cast<QAbstractItemView*>(parent)->setItemDelegateForColumn(column, delegate);
 }
 
 // Constructor of the QComboBoxItemDelegate. We use it to store the values and if the user should be able to write his own value.
-QComboBoxItemDelegate::QComboBoxItemDelegate(QObject *parent, const QStringList provided_values, bool is_editable, QTimer* timer, bool is_dark_theme_enabled, bool has_filter, bool right_side_mark): QExtendedStyledItemDelegate(parent, timer, is_dark_theme_enabled, has_filter, right_side_mark)
+QComboBoxItemDelegate::QComboBoxItemDelegate(QObject *parent, const QStringList provided_values, const QStringList provided_lookups, bool is_editable, QTimer* timer, bool is_dark_theme_enabled, bool has_filter, bool right_side_mark): QExtendedStyledItemDelegate(parent, timer, is_dark_theme_enabled, has_filter, right_side_mark)
 {
     editable = is_editable;
     values = provided_values;
+    lookups = provided_lookups;
     diag_timer = timer;
     dark_theme = is_dark_theme_enabled;
     use_filter = has_filter;
@@ -46,8 +49,23 @@ QWidget* QComboBoxItemDelegate::createEditor(QWidget *parent, const QStyleOption
     }
 
     QComboBox* comboBox = new QComboBox(parent);
+    QStandardItemModel* model = new QStandardItemModel(comboBox);
+    comboBox->setModel(model);
     comboBox->setEditable(editable);
-    comboBox->addItems(values);
+
+    if (lookups.isEmpty() || lookups.count() != values.count()) {
+        comboBox->addItems(values);
+    } else {
+        for (int i = 0; i < lookups.count(); ++i) {
+            QStandardItem* item = new QStandardItem();
+            item->setData(values.at(i), 2);
+            item->setData(lookups.at(i), 40);
+            model->appendRow(item);
+        }
+
+        // Set the same delegate used for tables.
+        comboBox->setItemDelegate(new QExtendedStyledItemDelegate(comboBox, nullptr, dark_theme, false, false));
+    }
 
     return comboBox;
 }

@@ -196,6 +196,15 @@ impl TableViewSlots {
                             // We block the saving for painting, so this doesn't get retriggered again.
                             let blocker = QSignalBlocker::from_q_object(&view.table_model);
                             item.set_data_2a(&QVariant::from_bool(true), ITEM_IS_MODIFIED);
+
+                            // Update the lookup data while the model is blocked.
+                            let dependency_data = view.dependency_data.read().unwrap();
+                            if let Some(column_data) = dependency_data.get(&item.column()) {
+                                if let Some(lookup) = column_data.data().get(&item.text().to_std_string()) {
+                                    item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(lookup)), ITEM_SUB_DATA);
+                                }
+                            }
+
                             blocker.unblock();
                         }
 

@@ -17,7 +17,6 @@ public:
     explicit QExtendedStyledItemDelegate(QObject *parent = nullptr, QTimer* timer = nullptr, bool is_dark_theme_enabled = false, bool has_filter = false, bool right_side_mark = false);
     QWidget* createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const;
     void paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const;
-
 signals:
 
 protected:
@@ -31,7 +30,9 @@ protected:
     QColor colour_diagnostic_warning;
     QColor colour_diagnostic_info;
 
-private:
+    void initStyleOption(QStyleOptionViewItem *option, const QModelIndex &index) const override;
+
+    private:
     QTimer* diag_timer;
 };
 

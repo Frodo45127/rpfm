@@ -1687,7 +1687,7 @@ unsafe fn configure_table_view(table_view: &QBox<QTreeView>) {
     list.append_q_string(&QString::from_std_str("OptionalStringU8"));
     list.append_q_string(&QString::from_std_str("OptionalStringU16"));
     list.append_q_string(&QString::from_std_str("SequenceU32"));
-    new_combobox_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), 2, list.as_ptr(), false, &QTimer::new_0a().into_ptr(), false);
+    new_combobox_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), 2, list.into_ptr(), QStringList::new().into_ptr(), false, &QTimer::new_0a().into_ptr(), false);
 
     // Fields that need special code.
     new_spinbox_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), 11, 16, &QTimer::new_0a().into_ptr(), false);

@@ -148,6 +148,7 @@ pub struct SettingsUI {
     ui_table_resize_on_edit_checkbox: QBox<QCheckBox>,
     ui_table_use_old_column_order_checkbox: QBox<QCheckBox>,
     ui_table_use_right_size_markers_checkbox: QBox<QCheckBox>,
+    ui_table_enable_lookups_checkbox: QBox<QCheckBox>,
 
     ui_table_colour_light_table_added_button: QBox<QPushButton>,
     ui_table_colour_light_table_modified_button: QBox<QPushButton>,
@@ -518,6 +519,9 @@ impl SettingsUI {
         let ui_table_use_right_size_markers_label = QLabel::from_q_string_q_widget(&qtr("settings_use_right_side_markers"), &ui_table_view_frame);
         let ui_table_use_right_size_markers_checkbox = QCheckBox::from_q_widget(&ui_table_view_frame);
 
+        let ui_table_enable_lookups_label = QLabel::from_q_string_q_widget(&qtr("settings_enable_lookups"), &ui_table_view_frame);
+        let ui_table_enable_lookups_checkbox = QCheckBox::from_q_widget(&ui_table_view_frame);
+
         ui_table_view_grid.add_widget_5a(&ui_table_adjust_columns_to_content_label, 0, 0, 1, 2);
         ui_table_view_grid.add_widget_5a(&ui_table_adjust_columns_to_content_checkbox, 0, 2, 1, 1);
 
@@ -541,6 +545,9 @@ impl SettingsUI {
 
         ui_table_view_grid.add_widget_5a(&ui_table_use_right_size_markers_label, 7, 0, 1, 2);
         ui_table_view_grid.add_widget_5a(&ui_table_use_right_size_markers_checkbox, 7, 2, 1, 1);
+
+        ui_table_view_grid.add_widget_5a(&ui_table_enable_lookups_label, 8, 0, 1, 2);
+        ui_table_view_grid.add_widget_5a(&ui_table_enable_lookups_checkbox, 8, 2, 1, 1);
 
         let settings_ui_table_colour_light_label = QLabel::from_q_string_q_widget(&qtr("settings_ui_table_colour_light_label"), &ui_table_view_frame);
         let settings_ui_table_colour_dark_label = QLabel::from_q_string_q_widget(&qtr("settings_ui_table_colour_dark_label"), &ui_table_view_frame);
@@ -778,6 +785,7 @@ impl SettingsUI {
             ui_table_resize_on_edit_checkbox,
             ui_table_use_old_column_order_checkbox,
             ui_table_use_right_size_markers_checkbox,
+            ui_table_enable_lookups_checkbox,
 
             ui_table_colour_light_table_added_button,
             ui_table_colour_light_table_modified_button,
@@ -905,6 +913,7 @@ impl SettingsUI {
         self.ui_table_resize_on_edit_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "table_resize_on_edit"));
         self.ui_table_use_old_column_order_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "tables_use_old_column_order"));
         self.ui_table_use_right_size_markers_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "use_right_size_markers"));
+        self.ui_table_enable_lookups_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "enable_lookups"));
 
         // Load colours.
         let colour_light_table_added = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_light_table_added")).to_string());
@@ -1015,6 +1024,7 @@ impl SettingsUI {
         set_setting_bool_to_q_setting(&q_settings, "table_resize_on_edit", self.ui_table_resize_on_edit_checkbox.is_checked());
         set_setting_bool_to_q_setting(&q_settings, "tables_use_old_column_order", self.ui_table_use_old_column_order_checkbox.is_checked());
         set_setting_bool_to_q_setting(&q_settings, "use_right_size_markers", self.ui_table_use_right_size_markers_checkbox.is_checked());
+        set_setting_bool_to_q_setting(&q_settings, "enable_lookups", self.ui_table_enable_lookups_checkbox.is_checked());
 
         // Get the colours high.
         q_settings.set_value(&QString::from_std_str("colour_light_table_added"), &QVariant::from_q_string(&self.ui_table_colour_light_table_added_button.palette().color_1a(ColorRole::Background).name_1a(NameFormat::HexArgb)));
