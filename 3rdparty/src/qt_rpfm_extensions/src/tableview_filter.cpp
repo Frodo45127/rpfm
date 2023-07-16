@@ -16,6 +16,7 @@ extern "C" void trigger_tableview_filter(
     QSortFilterProxyModel* filter,
     QList<int> columns,
     QStringList patterns,
+    QList<int> nott,
     QList<int> regex,
     QList<int> case_sensitive,
     QList<int> show_blank_cells,
@@ -24,6 +25,7 @@ extern "C" void trigger_tableview_filter(
     QTableViewSortFilterProxyModel* filter2 = static_cast<QTableViewSortFilterProxyModel*>(filter);
     filter2->columns = columns;
     filter2->patterns = patterns;
+    filter2->nott = nott;
     filter2->regex = regex;
     filter2->case_sensitive = case_sensitive;
     filter2->show_blank_cells = show_blank_cells;
@@ -66,16 +68,11 @@ bool QTableViewSortFilterProxyModel::filterAcceptsRow(int source_row, const QMod
         for (int match: matches_per_group.at(j)) {
             int column = columns.at(match);
             bool use_regex = regex.at(match) == 1 ? true: false;
-            QString const pattern = patterns.at(match);
+            bool use_nott = nott.at(match) == 1 ? true: false;
+            QString pattern = patterns.at(match);
             Qt::CaseSensitivity case_sensitivity = static_cast<Qt::CaseSensitivity>(case_sensitive.at(match));
             bool show_blank_cells_in_column = show_blank_cells.at(match) == 1 ? true: false;
 
-            QRegularExpression::PatternOptions options = QRegularExpression::PatternOptions();
-            if (case_sensitivity == Qt::CaseSensitivity::CaseInsensitive) {
-                options |= QRegularExpression::CaseInsensitiveOption;
-            }
-
-            QRegularExpression regex(pattern, options);
             QModelIndex currntIndex = sourceModel()->index(source_row, column, source_parent);
             QStandardItem *currntData = static_cast<QStandardItemModel*>(sourceModel())->itemFromIndex(currntIndex);
 
@@ -85,10 +82,14 @@ bool QTableViewSortFilterProxyModel::filterAcceptsRow(int source_row, const QMod
                 if (currntData->isCheckable()) {
                     QString pattern_lower = pattern.toLower();
                     bool isChecked = currntData->checkState() == Qt::CheckState::Checked;
-                    if ((pattern_lower == "true" || pattern_lower == "1") && !isChecked) {
-                        is_group_valid = false;
-                        break;
-                    } else if ((pattern_lower == "false" || pattern_lower == "0") && isChecked) {
+
+                    if (use_nott) {
+                        isChecked = !isChecked;
+                    }
+
+                    if (
+                        ((pattern_lower == "true" || pattern_lower == "1") && isChecked) ||
+                        ((pattern_lower == "false" || pattern_lower == "0") && !isChecked)) {
                         is_group_valid = false;
                         break;
                     }
@@ -106,17 +107,36 @@ bool QTableViewSortFilterProxyModel::filterAcceptsRow(int source_row, const QMod
                 //}
 
                 // Text matches.
-                else if (use_regex && regex.isValid()) {
-                    QRegularExpressionMatch match = regex.match(currntData->data(2).toString());
-                    if (!match.hasMatch()) {
-                        is_group_valid = false;
-                        break;
+                else if (use_regex) {
+                    if (use_nott) {
+                        pattern = "^((?!" + pattern + ").)*$";
+                    }
+
+                    QRegularExpression::PatternOptions options = QRegularExpression::PatternOptions();
+                    if (case_sensitivity == Qt::CaseSensitivity::CaseInsensitive) {
+                        options |= QRegularExpression::CaseInsensitiveOption;
+                    }
+
+                    QRegularExpression regex(pattern, options);
+                    if (regex.isValid()) {
+                        QRegularExpressionMatch match = regex.match(currntData->data(2).toString());
+                        if (!match.hasMatch()) {
+                            is_group_valid = false;
+                            break;
+                        }
                     }
                 }
                 else {
-                    if (!currntData->data(2).toString().contains(pattern, case_sensitivity)) {
-                        is_group_valid = false;
-                        break;
+                    if (use_nott) {
+                        if (currntData->data(2).toString().contains(pattern, case_sensitivity)) {
+                            is_group_valid = false;
+                            break;
+                        }
+                    } else {
+                        if (!currntData->data(2).toString().contains(pattern, case_sensitivity)) {
+                            is_group_valid = false;
+                            break;
+                        }
                     }
                 }
             }

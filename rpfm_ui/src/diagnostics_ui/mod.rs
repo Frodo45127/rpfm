@@ -1451,12 +1451,13 @@ impl DiagnosticsUI {
         columns.push(5);
         patterns.push(QString::from_std_str(diagnostic_type_pattern).into_ptr());
         sensitivity.push(CaseSensitivity::CaseSensitive);
+        let use_nott = vec![false; sensitivity.len()];
         let use_regex = vec![false; sensitivity.len()];
         let show_blank_lines = vec![false; sensitivity.len()];
         let match_groups = vec![0; sensitivity.len()];
 
         // Filter whatever it's in that column by the text we got.
-        trigger_tableview_filter_safe(&diagnostics_ui.diagnostics_table_filter, &columns, patterns, &use_regex, &sensitivity, &show_blank_lines, &match_groups);
+        trigger_tableview_filter_safe(&diagnostics_ui.diagnostics_table_filter, &columns, patterns, &use_nott, &use_regex, &sensitivity, &show_blank_lines, &match_groups);
     }
 
     pub unsafe fn update_level_counts(diagnostics_ui: &Rc<Self>, diagnostics: &[DiagnosticType]) {

@@ -882,6 +882,7 @@ impl TableView {
         let mut columns = vec![];
         let mut patterns = vec![];
         let mut sensitivity = vec![];
+        let mut use_nott = vec![];
         let mut use_regex = vec![];
         let mut show_blank_cells = vec![];
         let mut match_groups = vec![];
@@ -911,10 +912,8 @@ impl TableView {
                 // Check if we should filter out blank cells or not.
                 show_blank_cells.push(filter.show_blank_cells_button().is_checked());
 
-                let mut pattern = filter.filter_line_edit().text().to_std_string();
-                if filter.not_checkbox().is_checked() {
-                    pattern = format!("^((?!{pattern}).)*$")
-                }
+                let pattern = filter.filter_line_edit().text().to_std_string();
+                use_nott.push(filter.not_checkbox().is_checked());
 
                 patterns.push(QString::from_std_str(pattern).into_ptr());
                 match_groups.push(filter.group_combobox().current_index());
@@ -922,7 +921,7 @@ impl TableView {
         }
 
         // Filter whatever it's in that column by the text we got.
-        trigger_tableview_filter_safe(&self.table_filter, &columns, patterns, &use_regex, &sensitivity, &show_blank_cells, &match_groups);
+        trigger_tableview_filter_safe(&self.table_filter, &columns, patterns, &use_nott, &use_regex, &sensitivity, &show_blank_cells, &match_groups);
 
         // Update the line count.
         self.update_line_counter();
