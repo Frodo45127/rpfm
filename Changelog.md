@@ -23,6 +23,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - Optimized the UI's file loading logic.
 - Optimized table's UI loading logic.
 - Improved Crash recording to avoid duplicate reports.
+- Improved table filter performance.
 - DB Table automatic cell size now can vary between 60 and 800px, so you don't get too small columns, nor extremely big columns.
 - The Search Source check for global search is now remembered between sessions.
 
@@ -41,7 +42,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - Fixed CTD when using global replace under specific circustances.
 - Fixed a ton and a half of inconsistencies on how loc data is loaded for references/lookups.
 - Fixed Go To Loc not working with AK sources.
-
+- Fixed a bug that caused dependencies cache to be ignored and regenerated when re-opening a file/switching tabs.
 
 ## [4.0.22]
 ### Fixed
