@@ -932,61 +932,9 @@ pub unsafe fn get_reference_data(file_type: FileType, table_name: &str, definiti
 
             // Call the backend passing it the files we have open (so we don't get them from the backend too), and get the frontend data while we wait for it to finish.
             let receiver = CENTRAL_COMMAND.send_background(Command::GetReferenceDataFromDefinition(table_name.to_owned(), definition.clone()));
-
-            let reference_data = definition.reference_data();
-            let mut dependency_data_visual = BTreeMap::new();
-
-            // If we have a referenced PackedFile open in a view, get the data from the view itself.
-            let open_packedfiles = UI_STATE.get_open_packedfiles();
-            for (index, (table, column, lookup)) in &reference_data {
-                let mut dependency_data_visual_column = BTreeMap::new();
-                for file_view in open_packedfiles.iter() {
-                    let path = file_view.path_read();
-                    if file_view.data_source() == DataSource::PackFile {
-                        let path_split = path.split('/').collect::<Vec<_>>();
-                        if path_split.len() == 3 && path_split[0].to_lowercase() == "db" && path_split[1].to_lowercase() == format!("{table}_tables") {
-                            if let ViewType::Internal(View::Table(table)) = file_view.view_type() {
-                                let table = table.get_ref_table();
-                                let column = clean_column_names(column);
-                                let table_model = &table.table_model;
-                                for column_index in 0..table_model.column_count_0a() {
-                                    if table_model.header_data_2a(column_index, Orientation::Horizontal).to_string().to_std_string() == column {
-                                        for row in 0..table_model.row_count_0a() {
-                                            let item = table_model.item_2a(row, column_index);
-                                            let value = item.text().to_std_string();
-                                            let lookup_value = match lookup {
-                                                Some(columns) => {
-                                                    let data: Vec<String> = (0..table_model.column_count_0a()).filter(|x| {
-                                                        columns.contains(&table_model.header_data_2a(*x, Orientation::Horizontal).to_string().to_std_string())
-                                                    }).map(|x| table_model.item_2a(row, x).text().to_std_string()).collect();
-                                                    data.join(" ")
-                                                },
-                                                None => String::new(),
-                                            };
-                                            dependency_data_visual_column.insert(value, lookup_value);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                dependency_data_visual.insert(index, dependency_data_visual_column);
-            }
-
-            let mut response = CentralCommand::recv(&receiver);
+            let response = CentralCommand::recv(&receiver);
             match response {
-                Response::HashMapI32TableReferences(ref mut dependency_data) => {
-                    for index in reference_data.keys() {
-                        if let Some(column_data_visual) = dependency_data_visual.get(index) {
-                            if let Some(column_data) = dependency_data.get_mut(index) {
-                                column_data.data_mut().extend(column_data_visual.iter().map(|(k, v)| (k.clone(), v.clone())));
-                            }
-                        }
-                    }
-
-                    Ok(dependency_data.clone())
-                },
+                Response::HashMapI32TableReferences(dependency_data) => Ok(dependency_data),
                 Response::Error(error) => Err(error),
                 _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
             }
