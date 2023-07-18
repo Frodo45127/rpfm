@@ -22,7 +22,7 @@ use cpp_core::Ref;
 
 use std::sync::atomic::AtomicPtr;
 
-use rpfm_lib::files::{animpack, anim_fragment, anims_table, audio, esf, bmd, FileType, image, loc, matched_combat, pack, portrait_settings, rigidmodel, soundbank, text, text::*, unit_variant, video, uic};
+use rpfm_lib::files::{animpack, anim_fragment, anims_table, atlas, audio, esf, bmd, FileType, image, loc, matched_combat, pack, portrait_settings, rigidmodel, soundbank, text, text::*, unit_variant, video, uic};
 use rpfm_lib::{REGEX_DB, REGEX_PORTRAIT_SETTINGS};
 use rpfm_ui_common::ASSETS_PATH;
 
@@ -53,6 +53,7 @@ pub struct Icons {
     pub animpack: AtomicPtr<QIcon>,
     pub anim_fragment: AtomicPtr<QIcon>,
     pub anims_table: AtomicPtr<QIcon>,
+    pub atlas: AtomicPtr<QIcon>,
     pub audio: AtomicPtr<QIcon>,
     pub bmd: AtomicPtr<QIcon>,
     pub db: AtomicPtr<QIcon>,
@@ -101,6 +102,7 @@ impl Icons {
             animpack: atomic_from_cpp_box(Self::load_icon("animpack", "package-x-generic")),
             anim_fragment: atomic_from_cpp_box(Self::load_icon("anim_fragment", "animation-stage")),
             anims_table: atomic_from_cpp_box(Self::load_icon("anims_table", "gnumeric-pivottable")),
+            atlas: atomic_from_cpp_box(Self::load_icon("atlas", "android-studio")),
             audio: atomic_from_cpp_box(Self::load_icon("audio", "audio-mp3")),
             bmd: atomic_from_cpp_box(Self::load_icon("bmd", "application-xmind")),
             db: atomic_from_cpp_box(Self::load_icon("db", "application-sql")),
@@ -255,6 +257,10 @@ impl Icons {
                     &self.portrait_settings
                 }
 
+                else if path.ends_with(atlas::EXTENSION) {
+                    &self.atlas
+                }
+
                 // If we reach this... we're clueless. Leave it unknown.
                 else {
                     &self.file
@@ -278,6 +284,7 @@ impl Icons {
                     FileType::AnimFragment => &self.anim_fragment,
                     FileType::AnimPack => &self.animpack,
                     FileType::AnimsTable => &self.anims_table,
+                    FileType::Atlas => &self.atlas,
                     FileType::Audio => &self.audio,
                     FileType::BMD => &self.bmd,
                     FileType::DB => &self.db,

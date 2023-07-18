@@ -1357,6 +1357,7 @@ impl GlobalSearchUI {
                         FileType::AnimFragment => todo!(),
                         FileType::AnimPack => todo!(),
                         FileType::AnimsTable => todo!(),
+                        FileType::Atlas => todo!(),
                         FileType::Audio => todo!(),
                         FileType::BMD => todo!(),
                         FileType::DB => {
@@ -1521,6 +1522,7 @@ impl GlobalSearchUI {
                         FileType::AnimFragment => todo!(),
                         FileType::AnimPack => todo!(),
                         FileType::AnimsTable => todo!(),
+                        FileType::Atlas => todo!(),
                         FileType::Audio => todo!(),
                         FileType::BMD => todo!(),
                         FileType::DB => {

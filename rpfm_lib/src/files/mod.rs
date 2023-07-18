@@ -81,6 +81,7 @@ use crate::utils::*;
 use self::anim_fragment::AnimFragment;
 use self::animpack::AnimPack;
 use self::anims_table::AnimsTable;
+use self::atlas::Atlas;
 use self::audio::Audio;
 use self::bmd::Bmd;
 use self::db::DB;
@@ -101,6 +102,7 @@ use self::video::Video;
 pub mod anim_fragment;
 pub mod animpack;
 pub mod anims_table;
+pub mod atlas;
 pub mod audio;
 pub mod bmd;
 pub mod bmd_vegetation;
@@ -213,6 +215,7 @@ pub enum RFileDecoded {
     AnimFragment(AnimFragment),
     AnimPack(AnimPack),
     AnimsTable(AnimsTable),
+    Atlas(Atlas),
     Audio(Audio),
     BMD(Bmd),
     DB(DB),
@@ -243,6 +246,7 @@ pub enum FileType {
     AnimFragment,
     AnimPack,
     AnimsTable,
+    Atlas,
     Audio,
     BMD,
     DB,
@@ -1338,6 +1342,7 @@ impl RFile {
             (FileType::AnimFragment, &RFileDecoded::AnimFragment(_)) |
             (FileType::AnimPack, &RFileDecoded::AnimPack(_)) |
             (FileType::AnimsTable, &RFileDecoded::AnimsTable(_)) |
+            (FileType::Atlas, &RFileDecoded::Atlas(_)) |
             (FileType::Audio, &RFileDecoded::Audio(_)) |
             (FileType::BMD, &RFileDecoded::BMD(_)) |
             (FileType::DB, &RFileDecoded::DB(_)) |
@@ -1405,6 +1410,7 @@ impl RFile {
                     FileType::AnimFragment => RFileDecoded::AnimFragment(AnimFragment::decode(&mut data, &Some(extra_data))?),
                     FileType::AnimPack => RFileDecoded::AnimPack(AnimPack::decode(&mut data, &Some(extra_data))?),
                     FileType::AnimsTable => RFileDecoded::AnimsTable(AnimsTable::decode(&mut data, &Some(extra_data))?),
+                    FileType::Atlas => RFileDecoded::Atlas(Atlas::decode(&mut data, &Some(extra_data))?),
                     FileType::Audio => RFileDecoded::Audio(Audio::decode(&mut data, &Some(extra_data))?),
                     FileType::BMD => RFileDecoded::BMD(Bmd::decode(&mut data, &Some(extra_data))?),
                     FileType::DB => {
@@ -1439,6 +1445,7 @@ impl RFile {
                     FileType::Anim |
                     FileType::AnimFragment |
                     FileType::AnimsTable |
+                    FileType::Atlas |
                     FileType::Audio |
                     FileType::BMD |
                     FileType::DB |
@@ -1472,6 +1479,7 @@ impl RFile {
                             FileType::Anim => RFileDecoded::Anim(Unknown::decode(&mut data, &Some(extra_data))?),
                             FileType::AnimFragment => RFileDecoded::AnimFragment(AnimFragment::decode(&mut data, &Some(extra_data))?),
                             FileType::AnimsTable => RFileDecoded::AnimsTable(AnimsTable::decode(&mut data, &Some(extra_data))?),
+                            FileType::Atlas => RFileDecoded::Atlas(Atlas::decode(&mut data, &Some(extra_data))?),
                             FileType::Audio => RFileDecoded::Audio(Audio::decode(&mut data, &Some(extra_data))?),
                             FileType::BMD => RFileDecoded::BMD(Bmd::decode(&mut data, &Some(extra_data))?),
                             FileType::DB => {
@@ -1579,6 +1587,7 @@ impl RFile {
                     RFileDecoded::AnimFragment(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::AnimPack(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::AnimsTable(data) => data.encode(&mut buffer, extra_data)?,
+                    RFileDecoded::Atlas(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::Audio(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::BMD(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::DB(data) => data.encode(&mut buffer, extra_data)?,
@@ -1820,6 +1829,10 @@ impl RFile {
 
         else if path.ends_with(portrait_settings::EXTENSION) && REGEX_PORTRAIT_SETTINGS.is_match(&path) {
             self.file_type = FileType::PortraitSettings;
+        }
+
+        else if path.ends_with(atlas::EXTENSION) {
+            self.file_type = FileType::Atlas;
         }
 
         // If we reach this... we're clueless. Leave it unknown.
@@ -2193,6 +2206,7 @@ impl Display for FileType {
             FileType::AnimFragment => write!(f, "AnimFragment"),
             FileType::AnimPack => write!(f, "AnimPack"),
             FileType::AnimsTable => write!(f, "AnimsTable"),
+            FileType::Atlas => write!(f, "Atlas"),
             FileType::Audio => write!(f, "Audio"),
             FileType::BMD => write!(f, "Battle Map Definition"),
             FileType::DB => write!(f, "DB Table"),
@@ -2216,12 +2230,12 @@ impl Display for FileType {
 
 impl From<&str> for FileType {
     fn from(value: &str) -> Self {
-        dbg!(value);
         match value {
             "Anim" => FileType::Anim,
             "AnimFragment" => FileType::AnimFragment,
             "AnimPack" => FileType::AnimPack,
             "AnimsTable" => FileType::AnimsTable,
+            "Atlas" => FileType::Atlas,
             "Audio" => FileType::Audio,
             "BMD" => FileType::BMD,
             "DB" => FileType::DB,
@@ -2251,6 +2265,7 @@ impl From<FileType> for String {
             FileType::AnimFragment => "AnimFragment",
             FileType::AnimPack => "AnimPack",
             FileType::AnimsTable => "AnimsTable",
+            FileType::Atlas => "Atlas",
             FileType::Audio => "Audio",
             FileType::BMD => "BMD",
             FileType::DB => "DB",
@@ -2279,6 +2294,7 @@ impl From<&RFileDecoded> for FileType {
             RFileDecoded::AnimFragment(_) => Self::AnimFragment,
             RFileDecoded::AnimPack(_) => Self::AnimPack,
             RFileDecoded::AnimsTable(_) => Self::AnimsTable,
+            RFileDecoded::Atlas(_) => Self::Atlas,
             RFileDecoded::Audio(_) => Self::Audio,
             RFileDecoded::BMD(_) => Self::BMD,
             RFileDecoded::DB(_) => Self::DB,

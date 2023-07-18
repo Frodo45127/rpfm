@@ -59,6 +59,7 @@ impl PackedFileTableView {
 
         // Get the decoded Table.
         let table_data = match response {
+            Response::AtlasRFileInfo(table, _) => TableType::Atlas(From::from(table)),
             Response::DBRFileInfo(table, _) => TableType::DB(table),
             Response::LocRFileInfo(table, _) => TableType::Loc(table),
             Response::Error(error) => return Err(error),
@@ -66,6 +67,7 @@ impl PackedFileTableView {
         };
 
         let packed_file_type = match table_data {
+            TableType::Atlas(_) => FileType::Atlas,
             TableType::DB(_) => FileType::DB,
             TableType::Loc(_) => FileType::Loc,
             _ => unimplemented!()

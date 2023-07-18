@@ -2486,6 +2486,28 @@ impl AppUI {
                             }
                         },
 
+                        Response::AtlasRFileInfo(_, ref file_info) => {
+                            let file_info = file_info.clone();
+                            match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, response) {
+                                Ok(_) => {
+
+                                    // Add the file to the 'Currently open' list and make it visible.
+                                    app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
+
+                                    // Fix the quick notes view.
+                                    let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
+                                    layout.add_widget_5a(tab.notes_widget(), 0, 99, layout.row_count(), 1);
+
+                                    let mut open_list = UI_STATE.set_open_packedfiles();
+                                    open_list.push(tab);
+                                    if data_source == DataSource::PackFile {
+                                        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), data_source);
+                                    }
+                                },
+                                Err(error) => return show_dialog(&app_ui.main_window, error, false),
+                            }
+                        }
+
                         Response::AudioRFileInfo(data, file_info) => {
                             match FileAudioView::new_view(&mut tab, &data) {
                                 Ok(_) => {

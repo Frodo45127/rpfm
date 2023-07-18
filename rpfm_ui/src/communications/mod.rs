@@ -26,7 +26,7 @@ use rpfm_extensions::dependencies::TableReferences;
 use rpfm_extensions::diagnostics::Diagnostics;
 use rpfm_extensions::search::{GlobalSearch, MatchHolder};
 
-use rpfm_lib::files::{anim_fragment::AnimFragment, anims_table::AnimsTable, audio::Audio, ContainerPath, video::SupportedFormats, db::DB, esf::ESF, bmd::Bmd, image::Image, loc::Loc, matched_combat::MatchedCombat, pack::PackSettings, RFile, RFileDecoded, portrait_settings::PortraitSettings, text::Text, uic::UIC};
+use rpfm_lib::files::{anim_fragment::AnimFragment, anims_table::AnimsTable, atlas::Atlas, audio::Audio, ContainerPath, video::SupportedFormats, db::DB, esf::ESF, bmd::Bmd, image::Image, loc::Loc, matched_combat::MatchedCombat, pack::PackSettings, RFile, RFileDecoded, portrait_settings::PortraitSettings, text::Text, uic::UIC};
 #[cfg(feature = "support_rigidmodel")] use rpfm_lib::files::rigidmodel::RigidModel;
 use rpfm_lib::games::pfh_file_type::PFHFileType;
 use rpfm_lib::integrations::{git::GitResponse, log::info};
@@ -410,6 +410,7 @@ pub enum Response {
 
     /// Response to return `(AnimTable, RFileInfo)`.
     AnimsTableRFileInfo(AnimsTable, RFileInfo),
+    AtlasRFileInfo(Atlas, RFileInfo),
     AudioRFileInfo(Audio, RFileInfo),
 
     /// Response to return `(CaVp8, RFileInfo)`.

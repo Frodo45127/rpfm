@@ -743,40 +743,7 @@ pub fn background_loop() {
 
                             // Find the PackedFile we want and send back the response.
                             match pack_file_decoded.files_mut().get_mut(&path) {
-                                Some(file) => {
-                                    dbg!(file.file_type());
-                                    let mut extra_data = DecodeableExtraData::default();
-                                    //extra_data.set_lazy_load(setting_bool("use_lazy_loading"));
-
-                                    let schema = SCHEMA.read().unwrap();
-                                    extra_data.set_schema(schema.as_ref());
-
-                                    let game_key = GAME_SELECTED.read().unwrap().game_key_name();
-                                    extra_data.set_game_key(Some(game_key));
-
-                                    let result = file.decode(&Some(extra_data), true, true).transpose().unwrap();
-
-                                    match result {
-                                        Ok(RFileDecoded::AnimFragment(data)) => CentralCommand::send_back(&sender, Response::AnimFragmentRFileInfo(data, From::from(&*file))),
-                                        Ok(RFileDecoded::AnimPack(data)) => CentralCommand::send_back(&sender, Response::AnimPackRFileInfo(data.files().values().map(From::from).collect(), From::from(&*file))),
-                                        Ok(RFileDecoded::AnimsTable(data)) => CentralCommand::send_back(&sender, Response::AnimsTableRFileInfo(data, From::from(&*file))),
-                                        Ok(RFileDecoded::Audio(data)) => CentralCommand::send_back(&sender, Response::AudioRFileInfo(data, From::from(&*file))),
-                                        //Ok(RFileDecoded::BMD(data)) => CentralCommand::send_back(&sender, Response::BmdRFileInfo(data, From::from(&*file))),
-                                        Ok(RFileDecoded::DB(table)) => CentralCommand::send_back(&sender, Response::DBRFileInfo(table, From::from(&*file))),
-                                        Ok(RFileDecoded::ESF(data)) => CentralCommand::send_back(&sender, Response::ESFRFileInfo(data, From::from(&*file))),
-                                        Ok(RFileDecoded::Image(image)) => CentralCommand::send_back(&sender, Response::ImageRFileInfo(image, From::from(&*file))),
-                                        Ok(RFileDecoded::Loc(table)) => CentralCommand::send_back(&sender, Response::LocRFileInfo(table, From::from(&*file))),
-                                        Ok(RFileDecoded::MatchedCombat(data)) => CentralCommand::send_back(&sender, Response::MatchedCombatRFileInfo(data, From::from(&*file))),
-                                        Ok(RFileDecoded::PortraitSettings(data)) => CentralCommand::send_back(&sender, Response::PortraitSettingsRFileInfo(data, From::from(&*file))),
-                                        #[cfg(feature = "support_rigidmodel")]Ok(RFileDecoded::RigidModel(rigid_model)) => CentralCommand::send_back(&sender, Response::RigidModelRFileInfo(rigid_model, From::from(&*file))),
-                                        Ok(RFileDecoded::Text(text)) => CentralCommand::send_back(&sender, Response::TextRFileInfo(text, From::from(&*file))),
-                                        Ok(RFileDecoded::UIC(uic)) => CentralCommand::send_back(&sender, Response::UICRFileInfo(uic, From::from(&*file))),
-                                        Ok(RFileDecoded::UnitVariant(_)) => CentralCommand::send_back(&sender, Response::RFileDecodedRFileInfo(result.unwrap(), From::from(&*file))),
-                                        Ok(RFileDecoded::Video(data)) => CentralCommand::send_back(&sender, Response::VideoInfoRFileInfo(From::from(&data), From::from(&*file))),
-                                        Ok(_) => CentralCommand::send_back(&sender, Response::Unknown),
-                                        Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
-                                    }
-                                }
+                                Some(file) => decode_and_send_file(file, &sender),
                                 None => CentralCommand::send_back(&sender, Response::Error(anyhow!("The file with the path {} hasn't been found on this Pack.", path))),
                             }
                         }
@@ -784,79 +751,14 @@ pub fn background_loop() {
 
                     DataSource::ParentFiles => {
                         match dependencies.write().unwrap().file_mut(&path, false, true) {
-                            Ok(file) => {
-                                let mut extra_data = DecodeableExtraData::default();
-                                //extra_data.set_lazy_load(setting_bool("use_lazy_loading"));
-
-                                let schema = SCHEMA.read().unwrap();
-                                extra_data.set_schema(schema.as_ref());
-
-                                let game_key = GAME_SELECTED.read().unwrap().game_key_name();
-                                extra_data.set_game_key(Some(game_key));
-
-                                let result = file.decode(&Some(extra_data), true, true).transpose().unwrap();
-
-                                match result {
-                                    Ok(RFileDecoded::AnimFragment(data)) => CentralCommand::send_back(&sender, Response::AnimFragmentRFileInfo(data, From::from(&*file))),
-                                    Ok(RFileDecoded::AnimPack(data)) => CentralCommand::send_back(&sender, Response::AnimPackRFileInfo(data.files().values().map(From::from).collect(), From::from(&*file))),
-                                    Ok(RFileDecoded::AnimsTable(data)) => CentralCommand::send_back(&sender, Response::AnimsTableRFileInfo(data, From::from(&*file))),
-                                    Ok(RFileDecoded::Audio(data)) => CentralCommand::send_back(&sender, Response::AudioRFileInfo(data, From::from(&*file))),
-                                    //Ok(RFileDecoded::BMD(data)) => CentralCommand::send_back(&sender, Response::BmdRFileInfo(data, From::from(&*file))),
-                                    Ok(RFileDecoded::DB(table)) => CentralCommand::send_back(&sender, Response::DBRFileInfo(table, From::from(&*file))),
-                                    Ok(RFileDecoded::ESF(data)) => CentralCommand::send_back(&sender, Response::ESFRFileInfo(data, From::from(&*file))),
-                                    Ok(RFileDecoded::Image(image)) => CentralCommand::send_back(&sender, Response::ImageRFileInfo(image, From::from(&*file))),
-                                    Ok(RFileDecoded::Loc(table)) => CentralCommand::send_back(&sender, Response::LocRFileInfo(table, From::from(&*file))),
-                                    Ok(RFileDecoded::MatchedCombat(data)) => CentralCommand::send_back(&sender, Response::MatchedCombatRFileInfo(data, From::from(&*file))),
-                                    Ok(RFileDecoded::PortraitSettings(data)) => CentralCommand::send_back(&sender, Response::PortraitSettingsRFileInfo(data, From::from(&*file))),
-                                    #[cfg(feature = "support_rigidmodel")]Ok(RFileDecoded::RigidModel(rigid_model)) => CentralCommand::send_back(&sender, Response::RigidModelRFileInfo(rigid_model, From::from(&*file))),
-                                    Ok(RFileDecoded::Text(text)) => CentralCommand::send_back(&sender, Response::TextRFileInfo(text, From::from(&*file))),
-                                    Ok(RFileDecoded::UIC(uic)) => CentralCommand::send_back(&sender, Response::UICRFileInfo(uic, From::from(&*file))),
-                                    Ok(RFileDecoded::UnitVariant(_)) => CentralCommand::send_back(&sender, Response::RFileDecodedRFileInfo(result.unwrap(), From::from(&*file))),
-                                    Ok(RFileDecoded::Video(data)) => CentralCommand::send_back(&sender, Response::VideoInfoRFileInfo(From::from(&data), From::from(&*file))),
-                                    Ok(_) => CentralCommand::send_back(&sender, Response::Unknown),
-                                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
-                                }
-                            }
+                            Ok(file) => decode_and_send_file(file, &sender),
                             Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                         }
                     }
 
                     DataSource::GameFiles => {
                         match dependencies.write().unwrap().file_mut(&path, true, false) {
-                            Ok(file) => {
-                                dbg!(file.file_type());
-                                let mut extra_data = DecodeableExtraData::default();
-                                //extra_data.set_lazy_load(setting_bool("use_lazy_loading"));
-
-                                let schema = SCHEMA.read().unwrap();
-                                extra_data.set_schema(schema.as_ref());
-
-                                let game_key = GAME_SELECTED.read().unwrap().game_key_name();
-                                extra_data.set_game_key(Some(game_key));
-
-                                let result = file.decode(&Some(extra_data), true, true).transpose().unwrap();
-
-                                match result {
-                                    Ok(RFileDecoded::AnimFragment(data)) => CentralCommand::send_back(&sender, Response::AnimFragmentRFileInfo(data, From::from(&*file))),
-                                    Ok(RFileDecoded::AnimPack(data)) => CentralCommand::send_back(&sender, Response::AnimPackRFileInfo(data.files().values().map(From::from).collect(), From::from(&*file))),
-                                    Ok(RFileDecoded::AnimsTable(data)) => CentralCommand::send_back(&sender, Response::AnimsTableRFileInfo(data, From::from(&*file))),
-                                    Ok(RFileDecoded::Audio(data)) => CentralCommand::send_back(&sender, Response::AudioRFileInfo(data, From::from(&*file))),
-                                    //Ok(RFileDecoded::BMD(data)) => CentralCommand::send_back(&sender, Response::BmdRFileInfo(data, From::from(&*file))),
-                                    Ok(RFileDecoded::ESF(data)) => CentralCommand::send_back(&sender, Response::ESFRFileInfo(data, From::from(&*file))),
-                                    Ok(RFileDecoded::DB(table)) => CentralCommand::send_back(&sender, Response::DBRFileInfo(table, From::from(&*file))),
-                                    Ok(RFileDecoded::Image(image)) => CentralCommand::send_back(&sender, Response::ImageRFileInfo(image, From::from(&*file))),
-                                    Ok(RFileDecoded::Loc(table)) => CentralCommand::send_back(&sender, Response::LocRFileInfo(table, From::from(&*file))),
-                                    Ok(RFileDecoded::MatchedCombat(data)) => CentralCommand::send_back(&sender, Response::MatchedCombatRFileInfo(data, From::from(&*file))),
-                                    Ok(RFileDecoded::PortraitSettings(data)) => CentralCommand::send_back(&sender, Response::PortraitSettingsRFileInfo(data, From::from(&*file))),
-                                    #[cfg(feature = "support_rigidmodel")]Ok(RFileDecoded::RigidModel(rigid_model)) => CentralCommand::send_back(&sender, Response::RigidModelRFileInfo(rigid_model, From::from(&*file))),
-                                    Ok(RFileDecoded::Text(text)) => CentralCommand::send_back(&sender, Response::TextRFileInfo(text, From::from(&*file))),
-                                    Ok(RFileDecoded::UIC(uic)) => CentralCommand::send_back(&sender, Response::UICRFileInfo(uic, From::from(&*file))),
-                                    Ok(RFileDecoded::UnitVariant(_)) => CentralCommand::send_back(&sender, Response::RFileDecodedRFileInfo(result.unwrap(), From::from(&*file))),
-                                    Ok(RFileDecoded::Video(data)) => CentralCommand::send_back(&sender, Response::VideoInfoRFileInfo(From::from(&data), From::from(&*file))),
-                                    Ok(_) => CentralCommand::send_back(&sender, Response::Unknown),
-                                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
-                                }
-                            }
+                            Ok(file) => decode_and_send_file(file, &sender),
                             Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                         }
                     }
@@ -2152,5 +2054,57 @@ fn save_files_from_external_path(pack: &mut Pack, internal_path: &str, external_
             Ok(())
         }
         None => Err(anyhow!("Failed to find file with path in pack: {}", internal_path)),
+    }
+}
+
+fn decode_and_send_file(file: &mut RFile, sender: &Sender<Response>) {
+    let mut extra_data = DecodeableExtraData::default();
+    let schema = SCHEMA.read().unwrap();
+    extra_data.set_schema(schema.as_ref());
+
+    let game_key = GAME_SELECTED.read().unwrap().game_key_name();
+    extra_data.set_game_key(Some(game_key));
+
+    // Do not attempt to decode these.
+    let ignored_file_types = vec![
+        FileType::Anim,
+        FileType::BMD,
+        FileType::GroupFormations,
+        FileType::Pack,
+        #[cfg(not(feature = "support_rigidmodel"))]FileType::RigidModel,
+        FileType::SoundBank,
+        FileType::Unknown
+    ];
+
+    if ignored_file_types.contains(&file.file_type()) {
+        return CentralCommand::send_back(&sender, Response::Unknown);
+    }
+    let result = file.decode(&Some(extra_data), true, true).transpose().unwrap();
+
+    match result {
+        Ok(RFileDecoded::AnimFragment(data)) => CentralCommand::send_back(&sender, Response::AnimFragmentRFileInfo(data, From::from(&*file))),
+        Ok(RFileDecoded::AnimPack(data)) => CentralCommand::send_back(&sender, Response::AnimPackRFileInfo(data.files().values().map(From::from).collect(), From::from(&*file))),
+        Ok(RFileDecoded::AnimsTable(data)) => CentralCommand::send_back(&sender, Response::AnimsTableRFileInfo(data, From::from(&*file))),
+        Ok(RFileDecoded::Anim(_)) => CentralCommand::send_back(&sender, Response::Unknown),
+        Ok(RFileDecoded::Atlas(data)) => CentralCommand::send_back(&sender, Response::AtlasRFileInfo(data, From::from(&*file))),
+        Ok(RFileDecoded::Audio(data)) => CentralCommand::send_back(&sender, Response::AudioRFileInfo(data, From::from(&*file))),
+        Ok(RFileDecoded::BMD(_)) => CentralCommand::send_back(&sender, Response::Unknown),
+        Ok(RFileDecoded::DB(table)) => CentralCommand::send_back(&sender, Response::DBRFileInfo(table, From::from(&*file))),
+        Ok(RFileDecoded::ESF(data)) => CentralCommand::send_back(&sender, Response::ESFRFileInfo(data, From::from(&*file))),
+        Ok(RFileDecoded::GroupFormations(_)) => CentralCommand::send_back(&sender, Response::Unknown),
+        Ok(RFileDecoded::Image(image)) => CentralCommand::send_back(&sender, Response::ImageRFileInfo(image, From::from(&*file))),
+        Ok(RFileDecoded::Loc(table)) => CentralCommand::send_back(&sender, Response::LocRFileInfo(table, From::from(&*file))),
+        Ok(RFileDecoded::MatchedCombat(data)) => CentralCommand::send_back(&sender, Response::MatchedCombatRFileInfo(data, From::from(&*file))),
+        Ok(RFileDecoded::Pack(_)) => CentralCommand::send_back(&sender, Response::Unknown),
+        Ok(RFileDecoded::PortraitSettings(data)) => CentralCommand::send_back(&sender, Response::PortraitSettingsRFileInfo(data, From::from(&*file))),
+        #[cfg(not(feature = "support_rigidmodel"))]Ok(RFileDecoded::RigidModel(_)) => CentralCommand::send_back(&sender, Response::Unknown),
+        #[cfg(feature = "support_rigidmodel")]Ok(RFileDecoded::RigidModel(rigid_model)) => CentralCommand::send_back(&sender, Response::RigidModelRFileInfo(rigid_model, From::from(&*file))),
+        Ok(RFileDecoded::SoundBank(_)) => CentralCommand::send_back(&sender, Response::Unknown),
+        Ok(RFileDecoded::Text(text)) => CentralCommand::send_back(&sender, Response::TextRFileInfo(text, From::from(&*file))),
+        Ok(RFileDecoded::UIC(uic)) => CentralCommand::send_back(&sender, Response::UICRFileInfo(uic, From::from(&*file))),
+        Ok(RFileDecoded::UnitVariant(_)) => CentralCommand::send_back(&sender, Response::RFileDecodedRFileInfo(result.unwrap(), From::from(&*file))),
+        Ok(RFileDecoded::Unknown(_)) => CentralCommand::send_back(&sender, Response::Unknown),
+        Ok(RFileDecoded::Video(data)) => CentralCommand::send_back(&sender, Response::VideoInfoRFileInfo(From::from(&data), From::from(&*file))),
+        Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
     }
 }

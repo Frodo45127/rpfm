@@ -27,7 +27,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 
 use rpfm_lib::integrations::log::*;
-use rpfm_lib::files::{ContainerPath, db::DB, loc::Loc, FileType, RFileDecoded, text::Text};
+use rpfm_lib::files::{atlas::Atlas, ContainerPath, db::DB, loc::Loc, FileType, RFileDecoded, text::Text};
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
@@ -381,6 +381,10 @@ impl FileView {
                             View::Table(view) => {
                                 let new_table = get_table_from_view(&view.get_ref_table().table_model_ptr().static_upcast(), &view.get_ref_table().table_definition())?;
                                 match self.file_type {
+                                    FileType::Atlas => {
+                                        let table = Atlas::from(new_table);
+                                        RFileDecoded::Atlas(table)
+                                    }
                                     FileType::DB => {
 
                                         // If this crashes, it's a bug somewhere else.
@@ -502,7 +506,17 @@ impl FileView {
                                     return Err(anyhow!(RFILE_RELOAD_ERROR));
                                 }
                                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), DataSource::PackFile);
+                            }
+                            else {
+                                return Err(anyhow!(RFILE_RELOAD_ERROR));
+                            }
+                        },
 
+                        Response::AtlasRFileInfo(table, packed_file_info) => {
+                            if let View::Table(old_table) = view {
+                                let old_table = old_table.get_ref_table();
+                                old_table.reload_view(TableType::Atlas(From::from(table)));
+                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
                             }
                             else {
                                 return Err(anyhow!(RFILE_RELOAD_ERROR));
@@ -513,7 +527,6 @@ impl FileView {
                             if let View::Audio(old_audio) = view {
                                 old_audio.reload_view(&audio);
                                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
-
                             }
                             else {
                                 return Err(anyhow!(RFILE_RELOAD_ERROR));
