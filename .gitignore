@@ -63,6 +63,9 @@
 # Ignore autogen folder on debug builds.
 /tw_autogen/
 
+# Ignore the table profiles.
+/table_profiles/
+
 # Intellij Config folder and files.
 /.idea/
 
