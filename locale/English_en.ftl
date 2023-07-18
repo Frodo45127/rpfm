@@ -1370,3 +1370,12 @@ autosave_folder_size_warning = <p>Your autosave folder has surpassed 25GB of aut
 portrait_settings_file_name = Filename
 table_filter_use_regex = Use Regex
 settings_enable_lookups = Enable Lookups
+
+context_menu_profiles_apply = Apply Profile
+context_menu_profiles_delete = Delete Profile
+context_menu_profiles_create = New Profile
+context_menu_profiles_set_as_default = Set Profile as Default
+new_profile_title = New Profile
+new_profile_instructions = Just pick a name. If there is already a profile with said name for this table, it'll be overwritten.
+new_profile_placeholder_text = Name.
+new_profile_no_name_error = What part of "Just pick a name" did you not understand?

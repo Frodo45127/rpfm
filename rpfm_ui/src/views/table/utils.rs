@@ -29,7 +29,6 @@ use qt_core::QVariant;
 use qt_core::QObject;
 use qt_core::CheckState;
 use qt_core::QString;
-use qt_core::Orientation;
 use qt_core::SortOrder;
 
 use cpp_core::CppBox;
@@ -37,11 +36,10 @@ use cpp_core::Ptr;
 use cpp_core::Ref;
 
 use rayon::prelude::*;
-use std::io::Cursor;
 
 use std::borrow::Cow;
-use std::collections::BTreeMap;
 use std::cmp::{Ordering, Reverse};
+use std::io::Cursor;
 use std::rc::Rc;
 use std::sync::{atomic::AtomicPtr, RwLock};
 
@@ -58,7 +56,7 @@ use crate::packedfile_views::DataSource;
 use crate::QVARIANT_TRUE;
 use crate::QVARIANT_FALSE;
 use crate::utils::*;
-use crate::UI_STATE;
+
 use super::*;
 
 //----------------------------------------------------------------------------//
@@ -664,7 +662,7 @@ pub unsafe fn build_columns(
     table_view: &QPtr<QTableView>,
     definition: &Definition,
     table_name: Option<&str>,
-    table_data: &TableType
+    table_data: &TableType,
 ) -> bool {
     let filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
     let model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();

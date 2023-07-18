@@ -45,6 +45,7 @@ pub unsafe fn set_connections(ui: &Arc<TableView>, slots: &TableViewSlots) {
     ui.context_menu_reset_selection().triggered().connect(&slots.reset_selection);
     ui.context_menu_rewrite_selection().triggered().connect(&slots.rewrite_selection);
     ui.context_menu_generate_ids().triggered().connect(&slots.generate_ids);
+    ui.context_menu_profiles_create().triggered().connect(&slots.profile_new);
     ui.context_menu_undo().triggered().connect(&slots.undo);
     ui.context_menu_redo().triggered().connect(&slots.redo);
     ui.context_menu_import_tsv().triggered().connect(&slots.import_tsv);
@@ -76,4 +77,8 @@ pub unsafe fn set_connections(ui: &Arc<TableView>, slots: &TableViewSlots) {
     ui.table_view_ptr().double_clicked().connect(&slots.open_subtable);
 
     ui.timer_delayed_updates.timeout().connect(&slots.delayed_updates);
+
+    ui.signal_mapper_profile_apply.mapped2().connect(&slots.profile_apply);
+    ui.signal_mapper_profile_delete.mapped2().connect(&slots.profile_delete);
+    ui.signal_mapper_profile_set_as_default.mapped2().connect(&slots.profile_set_as_default);
 }

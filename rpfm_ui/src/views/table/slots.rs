@@ -25,7 +25,7 @@ use qt_core::QBox;
 use qt_core::QByteArray;
 use qt_core::QItemSelection;
 use qt_core::QSignalBlocker;
-use qt_core::{SlotOfBool, SlotOfInt, SlotNoArgs, SlotOfQItemSelectionQItemSelection, SlotOfQModelIndex};
+use qt_core::{SlotOfBool, SlotOfInt, SlotNoArgs, SlotOfQItemSelectionQItemSelection, SlotOfQModelIndex, SlotOfQString};
 
 use std::io::Cursor;
 use std::path::PathBuf;
@@ -95,6 +95,10 @@ pub struct TableViewSlots {
     pub freeze_columns: Vec<QBox<SlotOfInt>>,
     pub freeze_columns_all: QBox<SlotOfInt>,
     pub open_subtable: QBox<SlotOfQModelIndex>,
+    pub profile_apply: QBox<SlotOfQString>,
+    pub profile_delete: QBox<SlotOfQString>,
+    pub profile_new: QBox<SlotNoArgs>,
+    pub profile_set_as_default: QBox<SlotOfQString>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -468,7 +472,7 @@ impl TableViewSlots {
                                     &view.dependency_data,
                                     &data,
                                     &view.timer_delayed_updates,
-                                    view.get_data_source()
+                                    view.get_data_source(),
                                 );
 
                                 // Prepare the diagnostic pass.
@@ -755,6 +759,47 @@ impl TableViewSlots {
             }
         ));
 
+        let profile_apply = SlotOfQString::new(&view.table_view, clone!(
+            view => move |key| {
+                info!("Triggering `Apply Profile` By Slot");
+
+                view.apply_table_view_profile(&key.to_std_string());
+            }
+        ));
+
+        let profile_delete = SlotOfQString::new(&view.table_view, clone!(
+            view => move |key| {
+                info!("Triggering `Delete Profile` By Slot");
+
+                view.delete_table_view_profile(&key.to_std_string());
+                if let Err(error) = view.save_table_view_profiles() {
+                    show_dialog(&view.table_view, error, false);
+                }
+            }
+        ));
+
+        let profile_new = SlotNoArgs::new(&view.table_view, clone!(
+            view => move || {
+                info!("Triggering `New Profile` By Slot");
+
+                if let Err(error) = view.new_profile_dialog() {
+                    show_dialog(&view.table_view, error, false);
+                }
+            }
+        ));
+
+        let profile_set_as_default = SlotOfQString::new(&view.table_view, clone!(
+            view => move |key| {
+                info!("Triggering `Set Default Profile` By Slot");
+
+                *view.profile_default.write().unwrap() = key.to_std_string().to_owned();
+
+                if let Err(error) = view.save_table_view_profiles() {
+                    show_dialog(&view.table_view, error, false);
+                }
+            }
+        ));
+
         // Return the slots, so we can keep them alive for the duration of the view.
         Self {
             delayed_updates,
@@ -795,6 +840,10 @@ impl TableViewSlots {
             freeze_columns,
             freeze_columns_all,
             open_subtable,
+            profile_apply,
+            profile_delete,
+            profile_new,
+            profile_set_as_default,
         }
     }
 }

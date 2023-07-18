@@ -13,6 +13,7 @@ Module with all the code for managing the view for Tables.
 !*/
 
 use qt_widgets::q_abstract_item_view::ScrollHint;
+use qt_widgets::QActionGroup;
 use qt_widgets::QAction;
 use qt_widgets::QCheckBox;
 use qt_widgets::QComboBox;
@@ -49,6 +50,7 @@ use qt_core::QModelIndex;
 use qt_core::QObject;
 use qt_core::QPtr;
 use qt_core::QSignalBlocker;
+use qt_core::QSignalMapper;
 use qt_core::QSortFilterProxyModel;
 use qt_core::QStringList;
 use qt_core::QString;
@@ -64,10 +66,11 @@ use cpp_core::Ref;
 use anyhow::{anyhow, Result};
 use getset::Getters;
 use itertools::Itertools;
+use serde_derive::{Deserialize, Serialize};
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs::File;
-use std::io::{BufReader, Read};
+use std::io::{BufReader, Read, BufWriter, Write};
 use std::{fmt, fmt::Debug};
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
@@ -76,7 +79,7 @@ use std::rc::Rc;
 use rpfm_extensions::dependencies::TableReferences;
 
 use rpfm_lib::files::{FileType, db::DB, loc::Loc, table::*};
-use rpfm_lib::integrations::log::error;
+use rpfm_lib::integrations::log::{error};
 use rpfm_lib::schema::{Definition, Field, FieldType, Schema};
 
 use rpfm_ui_common::ASSETS_PATH;
@@ -131,6 +134,9 @@ pub static ITEM_SUB_DATA: i32 = 40;
 const PATCH_COLUMN_VIEW_DEBUG: &str = "rpfm_ui/ui_templates/new_schema_patch_dialog.ui";
 const PATCH_COLUMN_VIEW_RELEASE: &str = "ui/new_schema_patch_dialog.ui";
 
+const NEW_PROFILE_VIEW_DEBUG: &str = "rpfm_ui/ui_templates/new_table_view_profile_dialog.ui";
+const NEW_PROFILE_VIEW_RELEASE: &str = "ui/new_table_view_profile_dialog.ui";
+
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
@@ -180,6 +186,10 @@ pub struct TableView {
     #[getset(skip)]
     column_sort_state: Arc<RwLock<(i32, i8)>>,
 
+    signal_mapper_profile_apply: QBox<QSignalMapper>,
+    signal_mapper_profile_delete: QBox<QSignalMapper>,
+    signal_mapper_profile_set_as_default: QBox<QSignalMapper>,
+
     context_menu: QBox<QMenu>,
     context_menu_add_rows: QPtr<QAction>,
     context_menu_insert_rows: QPtr<QAction>,
@@ -196,6 +206,10 @@ pub struct TableView {
     context_menu_reset_selection: QPtr<QAction>,
     context_menu_rewrite_selection: QPtr<QAction>,
     context_menu_generate_ids: QPtr<QAction>,
+    context_menu_profiles_apply: QBox<QMenu>,
+    context_menu_profiles_delete: QBox<QMenu>,
+    context_menu_profiles_set_as_default: QBox<QMenu>,
+    context_menu_profiles_create: QPtr<QAction>,
     context_menu_undo: QPtr<QAction>,
     context_menu_redo: QPtr<QAction>,
     context_menu_import_tsv: QPtr<QAction>,
@@ -243,6 +257,9 @@ pub struct TableView {
     #[getset(skip)]
     reference_map: Arc<HashMap<String, HashMap<String, Vec<String>>>>,
 
+    profile_default: Arc<RwLock<String>>,
+    profiles: Arc<RwLock<HashMap<String, TableViewProfile>>>,
+
     save_lock: Arc<AtomicBool>,
     undo_lock: Arc<AtomicBool>,
 
@@ -255,6 +272,14 @@ pub struct TableView {
     history_redo: Arc<RwLock<Vec<TableOperations>>>,
 
     timer_delayed_updates: QBox<QTimer>,
+}
+
+/// This struct contains data to load a specific status of a view.
+#[derive(Debug, Default, Getters, Serialize, Deserialize)]
+#[getset(get = "pub")]
+pub struct TableViewProfile {
+    column_order: Vec<i32>,
+    columns_hidden: Vec<i32>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -351,6 +376,9 @@ impl TableView {
         let context_menu_smart_delete = add_action_to_widget(app_ui.shortcuts().as_ref(), "table_editor", "smart_delete", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
 
         // Create the Contextual Menu for the TableView.
+        let signal_mapper_profile_apply = QSignalMapper::new_1a(&table_view);
+        let signal_mapper_profile_delete = QSignalMapper::new_1a(&table_view);
+        let signal_mapper_profile_set_as_default = QSignalMapper::new_1a(&table_view);
         let context_menu = QMenu::from_q_widget(&table_view);
         let context_menu_add_rows = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "add_row", "context_menu_add_rows", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_insert_rows = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "insert_row", "context_menu_insert_rows", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
@@ -377,6 +405,10 @@ impl TableView {
         let context_menu_find_references = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "find_references", "context_menu_find_references", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_cascade_edition = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "rename_references", "context_menu_cascade_edition", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_patch_column = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "patch_columns", "context_menu_patch_column", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
+        let context_menu_profiles_apply = QMenu::from_q_string_q_widget(&qtr("context_menu_profiles_apply"), &table_view);
+        let context_menu_profiles_delete = QMenu::from_q_string_q_widget(&qtr("context_menu_profiles_delete"), &table_view);
+        let context_menu_profiles_set_as_default = QMenu::from_q_string_q_widget(&qtr("context_menu_profiles_set_as_default"), &table_view);
+        let context_menu_profiles_create = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "create_profile", "context_menu_profiles_create", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_undo = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "undo", "context_menu_undo", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_redo = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "redo", "context_menu_redo", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_go_to = QMenu::from_q_string_q_widget(&qtr("context_menu_go_to"), &table_view);
@@ -393,6 +425,10 @@ impl TableView {
         context_menu.insert_menu(&context_menu_paste, &context_menu_clone_submenu);
         context_menu.insert_menu(&context_menu_paste, &context_menu_copy_submenu);
         context_menu.insert_menu(&context_menu_paste, &context_menu_go_to);
+        context_menu.insert_separator(&context_menu_profiles_create);
+        context_menu.insert_menu(&context_menu_profiles_create, &context_menu_profiles_apply);
+        context_menu.insert_menu(&context_menu_profiles_create, &context_menu_profiles_delete);
+        context_menu.insert_menu(&context_menu_profiles_create, &context_menu_profiles_set_as_default);
         context_menu.insert_separator(&context_menu_rewrite_selection);
         context_menu.insert_separator(&context_menu_import_tsv);
         context_menu.insert_separator(&context_menu_search);
@@ -541,11 +577,13 @@ impl TableView {
             table_view,
             table_filter,
             table_model,
-            //table_enable_lookups_button: table_enable_lookups_button.into_ptr(),
             filters: Arc::new(RwLock::new(vec![])),
             filter_base_widget,
             column_sort_state: Arc::new(RwLock::new((-1, 0))),
 
+            signal_mapper_profile_apply,
+            signal_mapper_profile_delete,
+            signal_mapper_profile_set_as_default,
             context_menu,
             context_menu_add_rows,
             context_menu_insert_rows,
@@ -562,6 +600,10 @@ impl TableView {
             context_menu_reset_selection,
             context_menu_rewrite_selection,
             context_menu_generate_ids,
+            context_menu_profiles_apply,
+            context_menu_profiles_delete,
+            context_menu_profiles_set_as_default,
+            context_menu_profiles_create,
             context_menu_undo,
             context_menu_redo,
             context_menu_import_tsv,
@@ -598,6 +640,8 @@ impl TableView {
             packed_file_type: Arc::new(packed_file_type),
             banned_table,
             reference_map: Arc::new(reference_map),
+            profile_default: Arc::new(RwLock::new(String::new())),
+            profiles: Arc::new(RwLock::new(HashMap::new())),
 
             undo_lock,
             save_lock,
@@ -617,12 +661,14 @@ impl TableView {
             diagnostics_ui,
             dependencies_ui,
             references_ui,
-            packed_file_path
+            packed_file_path.clone()
         );
 
         // Build the first filter.
         FilterView::new(&packed_file_table_view)?;
         SearchView::new(&packed_file_table_view)?;
+
+        packed_file_table_view.load_table_view_profiles()?;
 
         // Load the data to the Table. For some reason, if we do this after setting the titles of
         // the columns, the titles will be resetted to 1, 2, 3,... so we do this here.
@@ -633,8 +679,13 @@ impl TableView {
             &packed_file_table_view.dependency_data,
             &table_data,
             &packed_file_table_view.timer_delayed_updates,
-            packed_file_table_view.get_data_source()
+            packed_file_table_view.get_data_source(),
         );
+
+        // If we have a default profile, apply it.
+        if !packed_file_table_view.profile_default().read().unwrap().is_empty() {
+            packed_file_table_view.apply_table_view_profile(&packed_file_table_view.profile_default().read().unwrap());
+        }
 
         // Initialize the undo model.
         update_undo_model(&packed_file_table_view.table_model_ptr(), &packed_file_table_view.undo_model_ptr());
@@ -649,6 +700,132 @@ impl TableView {
         packed_file_table_view.context_menu_update();
 
         Ok(packed_file_table_view)
+    }
+
+    pub unsafe fn apply_table_view_profile(&self, key: &str) {
+        let profiles = self.profiles.read().unwrap();
+        if let Some(profile) = profiles.get(key) {
+            let header = self.table_view.horizontal_header();
+
+            // Block signals so the header doesn't trigger weird things while doing this.
+            header.block_signals(true);
+
+            // Column order && hidden columns.
+            for (dest_index, logical_index) in profile.column_order.iter().enumerate() {
+                let visual_index = header.visual_index(*logical_index);
+                header.move_section(visual_index, dest_index as i32);
+
+                if profile.columns_hidden.contains(logical_index) {
+                    header.hide_section(*logical_index);
+                } else {
+                    header.show_section(*logical_index);
+                }
+            }
+
+            header.block_signals(false);
+        }
+    }
+
+    pub unsafe fn delete_table_view_profile(&self, key: &str) {
+        self.profiles.write().unwrap().remove(key);
+
+        // Reload all profiles in the UI.
+        self.load_profiles_to_context_menu();
+    }
+
+    pub unsafe fn new_table_view_profile(&self, key: &str) {
+        let mut profile = TableViewProfile::default();
+
+        // Column order.
+        let header = self.table_view().horizontal_header();
+        profile.column_order = (0..header.count())
+            .map(|visual_index| header.logical_index(visual_index))
+            .collect::<Vec<_>>();
+
+        profile.columns_hidden = (0..header.count())
+            .map(|visual_index| header.logical_index(visual_index))
+            .filter(|logical_index| header.is_section_hidden(*logical_index))
+            .collect::<Vec<_>>();
+
+        self.profiles.write().unwrap().insert(key.to_owned(), profile);
+
+        // Reload all profiles in the UI.
+        self.load_profiles_to_context_menu();
+    }
+
+    pub unsafe fn load_table_view_profiles(&self) -> Result<()> {
+        if let Some(ref table_name) = self.table_name {
+            let mut profiles = self.profiles.write().unwrap();
+
+            let profiles_path = table_profiles_path()?;
+            let profiles_file_name = format!("table_view_profiles_{}.json", table_name);
+            let path = profiles_path.join(profiles_file_name);
+            if path.is_file() {
+                let mut file = BufReader::new(File::open(path)?);
+                let mut data = vec![];
+                file.read_to_end(&mut data)?;
+
+                let profiles_data: HashMap<String, String> = serde_json::from_slice(&data)?;
+                for (key, value) in &profiles_data {
+                    if key == "profile_default" {
+                        *self.profile_default.write().unwrap() = value.to_owned();
+                    } else {
+                        profiles.insert(key.to_owned(), serde_json::from_str(value)?);
+                    }
+                }
+            }
+        }
+
+        // Once loaded, put them in the ui.
+        self.load_profiles_to_context_menu();
+
+        Ok(())
+    }
+
+    pub unsafe fn load_profiles_to_context_menu(&self) {
+        self.context_menu_profiles_apply.clear();
+        self.context_menu_profiles_delete.clear();
+        self.context_menu_profiles_set_as_default.clear();
+
+        let default_group = QActionGroup::new(&self.context_menu_profiles_set_as_default);
+        let profiles = self.profiles.read().unwrap();
+        for key in profiles.keys() {
+            let apply = self.context_menu_profiles_apply.add_action_q_string(&QString::from_std_str(key));
+            let delete = self.context_menu_profiles_delete.add_action_q_string(&QString::from_std_str(key));
+            let set_as_default = self.context_menu_profiles_set_as_default.add_action_q_string(&QString::from_std_str(key));
+            set_as_default.set_checkable(true);
+            default_group.add_action_q_action(&set_as_default);
+
+            apply.triggered().connect(self.signal_mapper_profile_apply.slot_map());
+            self.signal_mapper_profile_apply.set_mapping_q_object_q_string(apply, &QString::from_std_str(key));
+
+            delete.triggered().connect(self.signal_mapper_profile_delete.slot_map());
+            self.signal_mapper_profile_delete.set_mapping_q_object_q_string(delete, &QString::from_std_str(key));
+
+            set_as_default.toggled().connect(self.signal_mapper_profile_set_as_default.slot_map());
+            self.signal_mapper_profile_set_as_default.set_mapping_q_object_q_string(set_as_default, &QString::from_std_str(key));
+        }
+    }
+
+    pub unsafe fn save_table_view_profiles(&self) -> Result<()> {
+        if let Some(ref table_name) = self.table_name {
+            let mut profiles_data = self.profiles.read().unwrap().iter()
+                .map(|(key, value)| (key.to_owned(), serde_json::to_string_pretty(value).unwrap()))
+                .collect::<HashMap<String, String>>();
+
+            let profile_default = self.profile_default().read().unwrap();
+            if !profile_default.is_empty() {
+                profiles_data.insert("profile_default".to_owned(), profile_default.to_string());
+            }
+
+            let profiles_path = table_profiles_path()?;
+            let profiles_file_name = format!("table_view_profiles_{}.json", table_name);
+            let path = profiles_path.join(profiles_file_name);
+            let mut file = BufWriter::new(File::create(path)?);
+            file.write_all(serde_json::to_string_pretty(&profiles_data)?.as_bytes())?;
+        }
+
+        Ok(())
     }
 
     /// Function to reload the data of the view without having to delete the view itself.
@@ -686,6 +863,11 @@ impl TableView {
             &self.timer_delayed_updates,
             self.get_data_source()
         );
+
+        // If we have a default profile, apply it.
+        if !self.profile_default().read().unwrap().is_empty() {
+            self.apply_table_view_profile(&self.profile_default().read().unwrap());
+        }
 
         // Prepare the diagnostic pass.
         self.start_delayed_updates_timer();
@@ -2504,6 +2686,51 @@ impl TableView {
                 Response::Error(error) => return Err(error),
                 _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
             }
+        }
+
+        Ok(())
+    }
+
+    pub unsafe fn new_profile_dialog(&self) -> Result<()> {
+
+        // We only want to do this for tables we can identify.
+        if self.table_name().is_none() {
+            return Err(anyhow!("This is either not a DB Table, or it's a DB Table but it's corrupted."));
+        }
+
+        // Create and configure the dialog.
+        let view_name = if cfg!(debug_assertions) { NEW_PROFILE_VIEW_DEBUG } else { NEW_PROFILE_VIEW_RELEASE };
+        let template_path = format!("{}/{}", ASSETS_PATH.to_string_lossy(), view_name);
+        let mut data = vec!();
+        let mut file = BufReader::new(File::open(template_path)?);
+        file.read_to_end(&mut data)?;
+
+        let ui_loader = QUiLoader::new_0a();
+        let main_widget = ui_loader.load_bytes_with_parent(&data, &self.table_view);
+
+        let instructions_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "instructions_label")?;
+        let name_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "name_line_edit")?;
+        let button_box: QPtr<QDialogButtonBox> = find_widget(&main_widget.static_upcast(), "button_box")?;
+
+        let dialog = main_widget.static_downcast::<QDialog>();
+        button_box.button(StandardButton::Cancel).released().connect(dialog.slot_close());
+        button_box.button(StandardButton::Ok).released().connect(dialog.slot_accept());
+
+        // Setup translations.
+        dialog.set_window_title(&qtr("new_profile_title"));
+        instructions_label.set_text(&qtr("new_profile_instructions"));
+        name_line_edit.set_placeholder_text(&qtr("new_profile_placeholder_text"));
+
+        // Launch.
+        if dialog.exec() == 1 {
+            let name = name_line_edit.text();
+            if name.is_empty() || name.to_std_string() == "profile_default" {
+                show_dialog(&self.table_view, tr("new_profile_no_name_error"), false);
+                return Ok(())
+            }
+
+            self.new_table_view_profile(&name.to_std_string());
+            self.save_table_view_profiles()?;
         }
 
         Ok(())

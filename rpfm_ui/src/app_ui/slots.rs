@@ -1476,11 +1476,12 @@ impl AppUISlots {
                         // TODO: This lags the ui on switching tabs. Move to the backend + timer.
                         if let ViewType::Internal(View::Table(table)) = file_view.view_type() {
 
-                            // For tables, we have to update the dependency data, reset the dropdown's data, and recheck the entire table for errors.
+                            // For tables, we have to update the dependency data, reload its profiles and reset the dropdown's data.
                             let table = table.get_ref_table();
                             let table_name = if let Some(name) = table.table_name() { name.to_owned() } else { "".to_owned() };
                             if let Ok(data) = get_reference_data(*table.get_packed_file_type(), &table_name, &table.table_definition()) {
                                 table.set_dependency_data(&data);
+                                let _ = table.load_table_view_profiles();
 
                                 setup_item_delegates(
                                     &table.table_view_ptr(),

@@ -43,6 +43,7 @@ pub const ZIP_PATH: &str = "7zip_path";
 pub const MYMOD_BASE_PATH: &str = "mymods_base_path";
 
 const DEPENDENCIES_FOLDER: &str = "dependencies";
+const TABLE_PROFILES_FOLDER: &str = "table_profiles";
 
 //-------------------------------------------------------------------------------//
 //                         Setting-related functions
@@ -179,6 +180,7 @@ pub fn init_config_path() -> Result<()> {
     DirBuilder::new().recursive(true).create(backup_autosave_path()?)?;
     DirBuilder::new().recursive(true).create(error_path()?)?;
     DirBuilder::new().recursive(true).create(schemas_path()?)?;
+    DirBuilder::new().recursive(true).create(table_profiles_path()?)?;
 
     Ok(())
 }
@@ -186,6 +188,10 @@ pub fn init_config_path() -> Result<()> {
 /// This function returns the schema path.
 pub fn schemas_path() -> Result<PathBuf> {
     Ok(config_path()?.join(SCHEMA_FOLDER))
+}
+
+pub fn table_profiles_path() -> Result<PathBuf> {
+    Ok(config_path()?.join(TABLE_PROFILES_FOLDER))
 }
 
 /// This function returns the lua autogen path.
