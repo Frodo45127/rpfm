@@ -1452,7 +1452,7 @@ impl DiagnosticsUI {
         patterns.push(QString::from_std_str(diagnostic_type_pattern).into_ptr());
         sensitivity.push(CaseSensitivity::CaseSensitive);
         let use_nott = vec![false; sensitivity.len()];
-        let use_regex = vec![false; sensitivity.len()];
+        let use_regex = vec![true; sensitivity.len()];
         let show_blank_lines = vec![false; sensitivity.len()];
         let match_groups = vec![0; sensitivity.len()];
 
