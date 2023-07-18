@@ -185,7 +185,7 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     new_action(table_editor_actions, "export_tsv", "Export TSV", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString(""), "export-symbolic");
     new_action(table_editor_actions, "search", "Search", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+F"), "folder-saved-search-symbolic");
     new_action(table_editor_actions, "sidebar", "Sidebar", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString(""), "view-right-new");
-    new_action(table_editor_actions, "create_profile", "New Profile", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString(""), "go-jump-definition");
+    new_action(table_editor_actions, "create_profile", "New Profile", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString(""), "project-development-new-template");
     new_action(table_editor_actions, "undo", "Undo", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+Z"), "edit-undo-symbolic");
     new_action(table_editor_actions, "redo", "Redo", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+Shift+Z"), "edit-redo-symbolic");
     new_action(table_editor_actions, "smart_delete", "Smart Delete", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Del"), "edit-delete-shred");
