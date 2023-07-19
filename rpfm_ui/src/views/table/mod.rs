@@ -79,7 +79,7 @@ use std::rc::Rc;
 use rpfm_extensions::dependencies::TableReferences;
 
 use rpfm_lib::files::{FileType, db::DB, loc::Loc, table::*};
-use rpfm_lib::integrations::log::{error};
+use rpfm_lib::integrations::log::error;
 use rpfm_lib::schema::{Definition, Field, FieldType, Schema};
 
 use rpfm_ui_common::ASSETS_PATH;
