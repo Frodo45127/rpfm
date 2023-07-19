@@ -93,6 +93,7 @@ impl FilterView {
         filter_line_edit.set_placeholder_text(&qtr("table_filter"));
         filter_line_edit.set_clear_button_enabled(true);
         use_regex_button.set_tool_tip(&qtr("table_filter_use_regex"));
+        use_regex_button.set_checked(true);
         show_blank_cells_button.set_tool_tip(&qtr("table_filter_show_blank_cells"));
         case_sensitive_button.set_tool_tip(&qtr("table_filter_case_sensitive"));
         timer_delayed_updates.set_single_shot(true);
