@@ -2164,6 +2164,9 @@ impl GlobalSearchUI {
         self.matches_table_and_text_tree_view.set_column_width(1, 200);
         self.matches_table_and_text_tree_view.set_column_width(2, 20);
 
+        // Show row before column for where it's relevant. Otherwise row tends to be hidden.
+        self.matches_table_and_text_tree_view.header().move_section(2, 1);
+
         // Same for the schema matches list.
         self.matches_schema_tree_model.block_signals(true);
         self.matches_schema_tree_model.set_header_data_3a(0, Orientation::Horizontal, &QVariant::from_q_string(&qtr("global_search_table_name")));
