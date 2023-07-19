@@ -34,6 +34,7 @@ pub unsafe fn set_connections(global_search_ui: &Rc<GlobalSearchUI>, slots: &Glo
     global_search_ui.matches_table_and_text_tree_view.double_clicked().connect(slots.open_match());
 
     global_search_ui.search_on_all_checkbox.toggled().connect(slots.toggle_all());
+    global_search_ui.search_on_all_common_checkbox.toggled().connect(slots.toggle_all_common());
 
     global_search_ui.matches_filter_table_and_text_line_edit.text_changed().connect(slots.filter_table_and_text());
     global_search_ui.matches_case_sensitive_table_and_text_button.toggled().connect(slots.filter_table_and_text());

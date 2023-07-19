@@ -48,6 +48,7 @@ pub struct GlobalSearchSlots {
     check_regex_clean: QBox<SlotOfBool>,
     open_match: QBox<SlotOfQModelIndex>,
     toggle_all: QBox<SlotOfBool>,
+    toggle_all_common: QBox<SlotOfBool>,
     filter_table_and_text: QBox<SlotNoArgs>,
     filter_schemas: QBox<SlotNoArgs>,
     save_view_status: QBox<SlotNoArgs>,
@@ -135,6 +136,7 @@ impl GlobalSearchSlots {
             global_search_ui.search_on_anim_fragment_checkbox.set_enabled(!state);
             global_search_ui.search_on_anim_pack_checkbox.set_enabled(!state);
             global_search_ui.search_on_anims_table_checkbox.set_enabled(!state);
+            global_search_ui.search_on_atlas_checkbox.set_enabled(!state);
             global_search_ui.search_on_audio_checkbox.set_enabled(!state);
             global_search_ui.search_on_bmd_checkbox.set_enabled(!state);
             global_search_ui.search_on_db_checkbox.set_enabled(!state);
@@ -156,10 +158,15 @@ impl GlobalSearchSlots {
 
             // If we're selecting all, check them.
             if state {
+                global_search_ui.search_on_all_common_checkbox.block_signals(true);
+                global_search_ui.search_on_all_common_checkbox.set_checked(false);
+                global_search_ui.search_on_all_common_checkbox.block_signals(false);
+
                 global_search_ui.search_on_anim_checkbox.set_checked(state);
                 global_search_ui.search_on_anim_fragment_checkbox.set_checked(state);
                 global_search_ui.search_on_anim_pack_checkbox.set_checked(state);
                 global_search_ui.search_on_anims_table_checkbox.set_checked(state);
+                global_search_ui.search_on_atlas_checkbox.set_checked(state);
                 global_search_ui.search_on_audio_checkbox.set_checked(state);
                 global_search_ui.search_on_bmd_checkbox.set_checked(state);
                 global_search_ui.search_on_db_checkbox.set_checked(state);
@@ -178,6 +185,65 @@ impl GlobalSearchSlots {
                 global_search_ui.search_on_unit_variant_checkbox.set_checked(state);
                 global_search_ui.search_on_unknown_checkbox.set_checked(state);
                 global_search_ui.search_on_video_checkbox.set_checked(state);
+            }
+        }));
+
+        // What happens when we toggle the "All (Common)" checkbox we have to disable/enable the rest ot the checkboxes.
+        let toggle_all_common = SlotOfBool::new(&global_search_ui.dock_widget, clone!(
+        global_search_ui => move |state| {
+            global_search_ui.search_on_anim_checkbox.set_enabled(!state);
+            global_search_ui.search_on_anim_fragment_checkbox.set_enabled(!state);
+            global_search_ui.search_on_anim_pack_checkbox.set_enabled(!state);
+            global_search_ui.search_on_anims_table_checkbox.set_enabled(!state);
+            global_search_ui.search_on_atlas_checkbox.set_enabled(!state);
+            global_search_ui.search_on_audio_checkbox.set_enabled(!state);
+            global_search_ui.search_on_bmd_checkbox.set_enabled(!state);
+            global_search_ui.search_on_db_checkbox.set_enabled(!state);
+            global_search_ui.search_on_esf_checkbox.set_enabled(!state);
+            global_search_ui.search_on_group_formations_checkbox.set_enabled(!state);
+            global_search_ui.search_on_image_checkbox.set_enabled(!state);
+            global_search_ui.search_on_loc_checkbox.set_enabled(!state);
+            global_search_ui.search_on_matched_combat_checkbox.set_enabled(!state);
+            global_search_ui.search_on_pack_checkbox.set_enabled(!state);
+            global_search_ui.search_on_portrait_settings_checkbox.set_enabled(!state);
+            global_search_ui.search_on_rigid_model_checkbox.set_enabled(!state);
+            global_search_ui.search_on_schemas_checkbox.set_enabled(!state);
+            global_search_ui.search_on_sound_bank_checkbox.set_enabled(!state);
+            global_search_ui.search_on_text_checkbox.set_enabled(!state);
+            global_search_ui.search_on_uic_checkbox.set_enabled(!state);
+            global_search_ui.search_on_unit_variant_checkbox.set_enabled(!state);
+            global_search_ui.search_on_unknown_checkbox.set_enabled(!state);
+            global_search_ui.search_on_video_checkbox.set_enabled(!state);
+
+            // If we're selecting all, check them.
+            if state {
+                global_search_ui.search_on_all_checkbox.block_signals(true);
+                global_search_ui.search_on_all_checkbox.set_checked(false);
+                global_search_ui.search_on_all_checkbox.block_signals(false);
+
+                global_search_ui.search_on_anim_checkbox.set_checked(false);
+                global_search_ui.search_on_anim_fragment_checkbox.set_checked(false);
+                global_search_ui.search_on_anim_pack_checkbox.set_checked(false);
+                global_search_ui.search_on_anims_table_checkbox.set_checked(false);
+                global_search_ui.search_on_atlas_checkbox.set_checked(false);
+                global_search_ui.search_on_audio_checkbox.set_checked(false);
+                global_search_ui.search_on_bmd_checkbox.set_checked(false);
+                global_search_ui.search_on_db_checkbox.set_checked(true);
+                global_search_ui.search_on_esf_checkbox.set_checked(false);
+                global_search_ui.search_on_group_formations_checkbox.set_checked(false);
+                global_search_ui.search_on_image_checkbox.set_checked(false);
+                global_search_ui.search_on_loc_checkbox.set_checked(true);
+                global_search_ui.search_on_matched_combat_checkbox.set_checked(false);
+                global_search_ui.search_on_pack_checkbox.set_checked(false);
+                global_search_ui.search_on_portrait_settings_checkbox.set_checked(false);
+                global_search_ui.search_on_rigid_model_checkbox.set_checked(false);
+                global_search_ui.search_on_schemas_checkbox.set_checked(false);
+                global_search_ui.search_on_sound_bank_checkbox.set_checked(false);
+                global_search_ui.search_on_text_checkbox.set_checked(true);
+                global_search_ui.search_on_uic_checkbox.set_checked(false);
+                global_search_ui.search_on_unit_variant_checkbox.set_checked(false);
+                global_search_ui.search_on_unknown_checkbox.set_checked(false);
+                global_search_ui.search_on_video_checkbox.set_checked(false);
             }
         }));
 
@@ -227,6 +293,7 @@ impl GlobalSearchSlots {
             check_regex_clean,
             open_match,
             toggle_all,
+            toggle_all_common,
             filter_table_and_text,
             filter_schemas,
             save_view_status

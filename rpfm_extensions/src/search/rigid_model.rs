@@ -9,10 +9,11 @@
 //---------------------------------------------------------------------------//
 
 use getset::{Getters, MutGetters};
+use regex::bytes::RegexBuilder;
 
 use rpfm_lib::files::rigidmodel::RigidModel;
 
-use super::{MatchingMode, Replaceable, Searchable};
+use super::{find_in_bytes, MatchingMode, Replaceable, Searchable, replace_match_bytes};
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -36,10 +37,10 @@ pub struct RigidModelMatches {
 pub struct RigidModelMatch {
 
     /// First Byte index of the match.
-    pos: u64,
+    pos: usize,
 
     /// Length of the matched pattern, in bytes.
-    len: i64,
+    len: usize,
 }
 
 //-------------------------------------------------------------------------------//
@@ -49,30 +50,30 @@ pub struct RigidModelMatch {
 impl Searchable for RigidModel {
     type SearchMatches = RigidModelMatches;
 
-    fn search(&self, file_path: &str, pattern: &str, _case_sensitive: bool, matching_mode: &MatchingMode) -> RigidModelMatches {
+    fn search(&self, file_path: &str, pattern: &str, case_sensitive: bool, matching_mode: &MatchingMode) -> RigidModelMatches {
         let mut matches = RigidModelMatches::new(file_path);
 
-        // We do not care about case sensitivity here, as this is a byte search, not a text search.
         match matching_mode {
             MatchingMode::Regex(regex) => {
-                for match_data in regex::bytes::Regex::new(regex.as_str()).unwrap().find_iter(self.data()) {
+
+                // We can assume that, if the original regex was valid, this one is too.
+                let regex = RegexBuilder::new(regex.as_str()).case_insensitive(!case_sensitive).build().unwrap();
+                for match_data in regex.find_iter(self.data()) {
                     matches.matches.push(
                         RigidModelMatch::new(
-                            match_data.start() as u64,
-                            (match_data.end() - match_data.start()) as i64,
+                            match_data.start(),
+                            match_data.end() - match_data.start(),
                         )
                     );
                 }
             }
 
-            MatchingMode::Pattern => {
-                let length = pattern.len();
+            MatchingMode::Pattern(regex) => {
+                let regex = regex.as_ref().map(|regex| RegexBuilder::new(regex.as_str()).case_insensitive(!case_sensitive).build().unwrap());
 
-                if self.data().len() > length {
-                    for index in 0..self.data().len() - length {
-                        if &self.data()[index..index + length] == pattern.as_bytes() {
-                            matches.matches.push(RigidModelMatch::new(index as u64, length as i64));
-                        }
+                if self.data().len() > pattern.len() {
+                    for (start, length) in &find_in_bytes(self.data(), pattern, case_sensitive, &regex) {
+                        matches.matches.push(RigidModelMatch::new(*start, *length));
                     }
                 }
             }
@@ -111,7 +112,7 @@ impl RigidModelMatches {
 impl RigidModelMatch {
 
     /// This function creates a new `RigidModelMatch` with the provided data.
-    pub fn new(pos: u64, len: i64) -> Self {
+    pub fn new(pos: usize, len: usize) -> Self {
         Self {
             pos,
             len,
@@ -120,14 +121,6 @@ impl RigidModelMatch {
 
     /// This function replaces all the matches in the provided data.
     fn replace(&self, replace_pattern: &str, data: &mut Vec<u8>) -> bool {
-        let mut edited = false;
-        let old_data = data.to_vec();
-        data.splice(self.pos as usize..self.pos as usize + self.len as usize, replace_pattern.as_bytes().to_vec());
-
-        if old_data != *data {
-            edited = true;
-        }
-
-        edited
+        replace_match_bytes(replace_pattern, self.pos, self.len, data)
     }
 }

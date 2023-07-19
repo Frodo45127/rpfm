@@ -33,14 +33,16 @@ const VERSION: i32 = 1;
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
-#[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
+#[derive(PartialEq, Clone, Debug, Default, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Atlas {
     version: u32,
     unknown: u32,
     entries: Vec<AtlasEntry>,
 }
 
-#[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
+#[derive(PartialEq, Clone, Debug, Default, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct AtlasEntry {
     string1: String,
     string2: String,

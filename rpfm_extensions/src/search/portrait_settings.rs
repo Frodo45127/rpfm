@@ -9,12 +9,10 @@
 //---------------------------------------------------------------------------//
 
 use getset::{Getters, MutGetters};
-use regex::Regex;
-use unicase::UniCase;
 
 use rpfm_lib::files::portrait_settings::PortraitSettings;
 
-use super::{MatchingMode, Replaceable, Searchable};
+use super::{find_in_string, MatchingMode, Replaceable, Searchable, replace_match_string};
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -52,8 +50,14 @@ pub struct PortraitSettingsMatch {
     /// If the match corresponds to a variant value. We have their index and a bool for each value.
     variant: Option<(usize, bool, bool, bool, bool, bool)>,
 
+    /// Byte where the match starts.
+    start: usize,
+
+    /// Byte where the match ends.
+    end: usize,
+
     /// Matched data.
-    data: String,
+    text: String,
 }
 
 //-------------------------------------------------------------------------------//
@@ -69,7 +73,7 @@ impl Searchable for PortraitSettings {
         match matching_mode {
             MatchingMode::Regex(regex) => {
                 for (index, data) in self.entries().iter().enumerate() {
-                    if regex.is_match(data.id()) {
+                    for entry_match in regex.find_iter(data.id()) {
                         matches.matches.push(
                             PortraitSettingsMatch::new(
                                 index,
@@ -77,12 +81,14 @@ impl Searchable for PortraitSettings {
                                 false,
                                 false,
                                 None,
+                                entry_match.start(),
+                                entry_match.end(),
                                 data.id().to_owned()
                             )
                         );
                     }
 
-                    if regex.is_match(data.camera_settings_head().skeleton_node()) {
+                    for entry_match in regex.find_iter(data.camera_settings_head().skeleton_node()) {
                         matches.matches.push(
                             PortraitSettingsMatch::new(
                                 index,
@@ -90,13 +96,15 @@ impl Searchable for PortraitSettings {
                                 true,
                                 false,
                                 None,
+                                entry_match.start(),
+                                entry_match.end(),
                                 data.camera_settings_head().skeleton_node().to_owned()
                             )
                         );
                     }
 
                     if let Some(camera_body) = data.camera_settings_body() {
-                        if regex.is_match(camera_body.skeleton_node()) {
+                        for entry_match in regex.find_iter(camera_body.skeleton_node()) {
                             matches.matches.push(
                                 PortraitSettingsMatch::new(
                                     index,
@@ -104,6 +112,8 @@ impl Searchable for PortraitSettings {
                                     false,
                                     true,
                                     None,
+                                    entry_match.start(),
+                                    entry_match.end(),
                                     camera_body.skeleton_node().to_owned()
                                 )
                             );
@@ -111,7 +121,7 @@ impl Searchable for PortraitSettings {
                     }
 
                     for (vindex, variant) in data.variants().iter().enumerate() {
-                        if regex.is_match(variant.filename()) {
+                        for entry_match in regex.find_iter(variant.filename()) {
                             matches.matches.push(
                                 PortraitSettingsMatch::new(
                                     index,
@@ -119,12 +129,14 @@ impl Searchable for PortraitSettings {
                                     false,
                                     false,
                                     Some((vindex, true, false, false, false, false)),
+                                    entry_match.start(),
+                                    entry_match.end(),
                                     variant.filename().to_owned()
                                 )
                             );
                         }
 
-                        if regex.is_match(variant.file_diffuse()) {
+                        for entry_match in regex.find_iter(variant.file_diffuse()) {
                             matches.matches.push(
                                 PortraitSettingsMatch::new(
                                     index,
@@ -132,12 +144,14 @@ impl Searchable for PortraitSettings {
                                     false,
                                     false,
                                     Some((vindex, false, true, false, false, false)),
+                                    entry_match.start(),
+                                    entry_match.end(),
                                     variant.file_diffuse().to_owned()
                                 )
                             );
                         }
 
-                        if regex.is_match(variant.file_mask_1()) {
+                        for entry_match in regex.find_iter(variant.file_mask_1()) {
                             matches.matches.push(
                                 PortraitSettingsMatch::new(
                                     index,
@@ -145,12 +159,14 @@ impl Searchable for PortraitSettings {
                                     false,
                                     false,
                                     Some((vindex, false, false, true, false, false)),
+                                    entry_match.start(),
+                                    entry_match.end(),
                                     variant.file_mask_1().to_owned()
                                 )
                             );
                         }
 
-                        if regex.is_match(variant.file_mask_2()) {
+                        for entry_match in regex.find_iter(variant.file_mask_2()) {
                             matches.matches.push(
                                 PortraitSettingsMatch::new(
                                     index,
@@ -158,12 +174,14 @@ impl Searchable for PortraitSettings {
                                     false,
                                     false,
                                     Some((vindex, false, false, false, true, false)),
+                                    entry_match.start(),
+                                    entry_match.end(),
                                     variant.file_mask_2().to_owned()
                                 )
                             );
                         }
 
-                        if regex.is_match(variant.file_mask_3()) {
+                        for entry_match in regex.find_iter(variant.file_mask_3()) {
                             matches.matches.push(
                                 PortraitSettingsMatch::new(
                                     index,
@@ -171,6 +189,8 @@ impl Searchable for PortraitSettings {
                                     false,
                                     false,
                                     Some((vindex, false, false, false, false, true)),
+                                    entry_match.start(),
+                                    entry_match.end(),
                                     variant.file_mask_3().to_owned()
                                 )
                             );
@@ -179,31 +199,16 @@ impl Searchable for PortraitSettings {
                 }
             }
 
-            MatchingMode::Pattern => {
+            MatchingMode::Pattern(regex) => {
+                let pattern = if case_sensitive || regex.is_some() {
+                    pattern.to_owned()
+                } else {
+                    pattern.to_lowercase()
+                };
+
                 for (index, data) in self.entries().iter().enumerate() {
-                    let contains_id = if case_sensitive {
-                        data.id().contains(pattern)
-                    } else {
-                        UniCase::new(data.id()).contains(pattern)
-                    };
 
-                    let contains_camera_settings_head = if case_sensitive {
-                        data.camera_settings_head().skeleton_node().contains(pattern)
-                    } else {
-                        UniCase::new(data.camera_settings_head().skeleton_node()).contains(pattern)
-                    };
-
-                    let contains_camera_settings_body = if let Some(camera_body) = data.camera_settings_body() {
-                        if case_sensitive {
-                            camera_body.skeleton_node().contains(pattern)
-                        } else {
-                            UniCase::new(camera_body.skeleton_node()).contains(pattern)
-                        }
-                    } else {
-                        false
-                    };
-
-                    if contains_id {
+                    for (start, end, _) in &find_in_string(data.id(), &pattern, case_sensitive, regex) {
                         matches.matches.push(
                             PortraitSettingsMatch::new(
                                 index,
@@ -211,12 +216,15 @@ impl Searchable for PortraitSettings {
                                 false,
                                 false,
                                 None,
+                                *start,
+                                *end,
                                 data.id().to_owned()
                             )
                         );
+
                     }
 
-                    if contains_camera_settings_head {
+                    for (start, end, _) in &find_in_string(data.camera_settings_head().skeleton_node(), &pattern, case_sensitive, regex) {
                         matches.matches.push(
                             PortraitSettingsMatch::new(
                                 index,
@@ -224,13 +232,15 @@ impl Searchable for PortraitSettings {
                                 true,
                                 false,
                                 None,
+                                *start,
+                                *end,
                                 data.camera_settings_head().skeleton_node().to_owned()
                             )
                         );
                     }
 
                     if let Some(camera_body) = data.camera_settings_body() {
-                        if contains_camera_settings_body {
+                        for (start, end, _) in &find_in_string(camera_body.skeleton_node(), &pattern, case_sensitive, regex) {
                             matches.matches.push(
                                 PortraitSettingsMatch::new(
                                     index,
@@ -238,6 +248,8 @@ impl Searchable for PortraitSettings {
                                     false,
                                     true,
                                     None,
+                                    *start,
+                                    *end,
                                     camera_body.skeleton_node().to_owned()
                                 )
                             );
@@ -245,37 +257,7 @@ impl Searchable for PortraitSettings {
                     }
 
                     for (vindex, variant) in data.variants().iter().enumerate() {
-                        let contains_filename = if case_sensitive {
-                            variant.filename().contains(pattern)
-                        } else {
-                            UniCase::new(variant.filename()).contains(pattern)
-                        };
-
-                        let contains_file_diffuse = if case_sensitive {
-                            variant.file_diffuse().contains(pattern)
-                        } else {
-                            UniCase::new(variant.file_diffuse()).contains(pattern)
-                        };
-
-                        let contains_file_mask_1 = if case_sensitive {
-                            variant.file_mask_1().contains(pattern)
-                        } else {
-                            UniCase::new(variant.file_mask_1()).contains(pattern)
-                        };
-
-                        let contains_file_mask_2 = if case_sensitive {
-                            variant.file_mask_2().contains(pattern)
-                        } else {
-                            UniCase::new(variant.file_mask_2()).contains(pattern)
-                        };
-
-                        let contains_file_mask_3 = if case_sensitive {
-                            variant.file_mask_3().contains(pattern)
-                        } else {
-                            UniCase::new(variant.file_mask_3()).contains(pattern)
-                        };
-
-                        if contains_filename {
+                        for (start, end, _) in &find_in_string(variant.filename(), &pattern, case_sensitive, regex) {
                             matches.matches.push(
                                 PortraitSettingsMatch::new(
                                     index,
@@ -283,12 +265,14 @@ impl Searchable for PortraitSettings {
                                     false,
                                     false,
                                     Some((vindex, true, false, false, false, false)),
+                                    *start,
+                                    *end,
                                     variant.filename().to_owned()
                                 )
                             );
                         }
 
-                        if contains_file_diffuse {
+                        for (start, end, _) in &find_in_string(variant.file_diffuse(), &pattern, case_sensitive, regex) {
                             matches.matches.push(
                                 PortraitSettingsMatch::new(
                                     index,
@@ -296,12 +280,14 @@ impl Searchable for PortraitSettings {
                                     false,
                                     false,
                                     Some((vindex, false, true, false, false, false)),
+                                    *start,
+                                    *end,
                                     variant.file_diffuse().to_owned()
                                 )
                             );
                         }
 
-                        if contains_file_mask_1 {
+                        for (start, end, _) in &find_in_string(variant.file_mask_1(), &pattern, case_sensitive, regex) {
                             matches.matches.push(
                                 PortraitSettingsMatch::new(
                                     index,
@@ -309,12 +295,14 @@ impl Searchable for PortraitSettings {
                                     false,
                                     false,
                                     Some((vindex, false, false, true, false, false)),
+                                    *start,
+                                    *end,
                                     variant.file_mask_1().to_owned()
                                 )
                             );
                         }
 
-                        if contains_file_mask_2 {
+                        for (start, end, _) in &find_in_string(variant.file_mask_2(), &pattern, case_sensitive, regex) {
                             matches.matches.push(
                                 PortraitSettingsMatch::new(
                                     index,
@@ -322,12 +310,14 @@ impl Searchable for PortraitSettings {
                                     false,
                                     false,
                                     Some((vindex, false, false, false, true, false)),
+                                    *start,
+                                    *end,
                                     variant.file_mask_2().to_owned()
                                 )
                             );
                         }
 
-                        if contains_file_mask_3 {
+                        for (start, end, _) in &find_in_string(variant.file_mask_3(), &pattern, case_sensitive, regex) {
                             matches.matches.push(
                                 PortraitSettingsMatch::new(
                                     index,
@@ -335,6 +325,8 @@ impl Searchable for PortraitSettings {
                                     false,
                                     false,
                                     Some((vindex, false, false, false, false, true)),
+                                    *start,
+                                    *end,
                                     variant.file_mask_3().to_owned()
                                 )
                             );
@@ -377,14 +369,16 @@ impl PortraitSettingsMatches {
 impl PortraitSettingsMatch {
 
     /// This function creates a new `PortraitSettingsMatch` with the provided data.
-    pub fn new(entry: usize, id: bool, camera_settings_head: bool, camera_settings_body: bool, variant: Option<(usize, bool, bool, bool, bool, bool)>, data: String) -> Self {
+    pub fn new(entry: usize, id: bool, camera_settings_head: bool, camera_settings_body: bool, variant: Option<(usize, bool, bool, bool, bool, bool)>, start: usize, end: usize, data: String) -> Self {
         Self {
             entry,
             id,
             camera_settings_head,
             camera_settings_body,
             variant,
-            data
+            start,
+            end,
+            text: data
         }
     }
 
@@ -432,48 +426,7 @@ impl PortraitSettingsMatch {
                 }
             };
 
-            match matching_mode {
-                MatchingMode::Regex(regex) => {
-                    if regex.is_match(current_data) {
-                        *current_data = regex.replace_all(&previous_data, replace_pattern).to_string();
-                    }
-                }
-                MatchingMode::Pattern => {
-                    if case_sensitive {
-                        let mut index = 0;
-                        while let Some(start) = current_data.find(pattern) {
-
-                            // Advance the index so we don't get trapped in an infinite loop... again.
-                            if start >= index {
-                                let end = start + pattern.len();
-                                current_data.replace_range(start..end, replace_pattern);
-                                index = end;
-                            } else {
-                                break;
-                            }
-                        }
-                    }
-
-                    else {
-                        let regex = Regex::new(&format!("(?i){}", regex::escape(pattern))).unwrap();
-                        let mut index = 0;
-                        while let Some(match_data) = regex.find(&current_data.to_owned()) {
-
-                            // Advance the index so we don't get trapped in an infinite loop... again.
-                            if match_data.start() >= index {
-                                current_data.replace_range(match_data.start()..match_data.end(), replace_pattern);
-                                index = match_data.end();
-                            } else {
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-
-            if previous_data != *current_data {
-                edited = true;
-            }
+            edited = replace_match_string(pattern, replace_pattern, case_sensitive, matching_mode, self.start, self.end, &previous_data, current_data);
         }
 
         edited

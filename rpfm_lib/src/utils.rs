@@ -55,6 +55,17 @@ pub fn starts_with_case_insensitive(full_str: &str, partial_str: &str) -> bool {
     }
 }
 
+/// This function returns the first byte where a character starts, starting on the one provided.
+pub fn closest_valid_char_byte(string: &str, start_byte: usize) -> usize {
+    if start_byte < string.len() && string.get(start_byte..).is_some() { start_byte }
+    else if start_byte + 1 < string.len() && string.get(start_byte + 1..).is_some() { start_byte + 1 }
+    else if start_byte + 2 < string.len() && string.get(start_byte + 2..).is_some() { start_byte + 2 }
+    else if start_byte + 3 < string.len() && string.get(start_byte + 3..).is_some() { start_byte + 3 }
+
+    // Characters are max 4 bytes. This can never happen unless you provide an invalid start_byte.
+    else { unimplemented!() }
+}
+
 //--------------------------------------------------------//
 // Path utils.
 //--------------------------------------------------------//

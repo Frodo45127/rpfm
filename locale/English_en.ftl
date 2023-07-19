@@ -1379,3 +1379,10 @@ new_profile_title = New Profile
 new_profile_instructions = Just pick a name. If there is already a profile with said name for this table, it'll be overwritten.
 new_profile_placeholder_text = Name.
 new_profile_no_name_error = What part of "Just pick a name" did you not understand?
+
+global_search_all_common = All (common)
+global_search_atlas = Atlas
+
+unit_variant_name = Name
+unit_variant_mesh_file = Mesh File
+unit_variant_texture_folder = Texture Folder

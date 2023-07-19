@@ -2653,7 +2653,6 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
- "unicase",
 ]
 
 [[package]]
@@ -3630,15 +3629,6 @@ dependencies = [
  "quote",
  "syn 1.0.109",
  "unic-langid-impl",
-]
-
-[[package]]
-name = "unicase"
-version = "2.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "50f37be617794602aabbeee0be4f259dc1778fabe05e2d67ee8f79326d5cb4f6"
-dependencies = [
- "version_check",
 ]
 
 [[package]]

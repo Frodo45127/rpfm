@@ -80,8 +80,13 @@ impl Searchable for Schema {
                 }
 
                 // If we're searching a pattern, we just check every text PackedFile, line by line.
-                MatchingMode::Pattern => {
-                    let pattern = if case_sensitive { pattern_to_search.to_owned() } else { pattern_to_search.to_lowercase() };
+                MatchingMode::Pattern(regex) => {
+                    let pattern = if case_sensitive || regex.is_some() {
+                        pattern_to_search.to_owned()
+                    } else {
+                        pattern_to_search.to_lowercase()
+                    };
+
                     for definition in definitions {
                         for (index, field) in definition.fields_processed().iter().enumerate() {
                             if case_sensitive {
@@ -94,6 +99,18 @@ impl Searchable for Schema {
                                     ));
                                 }
                             }
+                            else if let Some(regex) = regex {
+                                if regex.is_match(field.name()) {
+                                    matches.matches.push(SchemaMatch::new(
+                                        table_name,
+                                        *definition.version(),
+                                        index as u32,
+                                        field.name()
+                                    ));
+                                }
+                            }
+
+                            // Fallback, just in case the regex is invalid.
                             else {
                                 let name = field.name().to_lowercase();
                                 if name.contains(&pattern) {

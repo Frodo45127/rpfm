@@ -15,12 +15,11 @@ This module contains the code needed to get table matches from a `GlobalSearch`.
 !*/
 
 use getset::{Getters, MutGetters};
-use regex::Regex;
 
 use rpfm_lib::files::{db::DB, loc::Loc, table::DecodedData};
 use rpfm_lib::schema::Field;
 
-use super::{MatchingMode, Replaceable, Searchable};
+use super::{find_in_string, MatchingMode, Replaceable, Searchable, replace_match_string};
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -52,8 +51,14 @@ pub struct TableMatch {
     // The row number of this match. This should be -1 when the row is hidden by a filter.
     row_number: i64,
 
+    /// Byte where the match starts.
+    start: usize,
+
+    /// Byte where the match ends.
+    end: usize,
+
     // The contents of the matched cell.
-    contents: String,
+    text: String,
 }
 
 //-------------------------------------------------------------------------------//
@@ -104,13 +109,14 @@ impl Replaceable for DB {
     fn replace(&mut self, pattern: &str, replace_pattern: &str, case_sensitive: bool, matching_mode: &MatchingMode, search_matches: &TableMatches) -> bool {
         let mut edited = false;
 
-        if let Ok(data) = self.data(&None) {
-            let mut data = data.to_vec();
+        if let Ok(data) = self.data_mut() {
             for search_match in search_matches.matches() {
-                edited |= search_match.replace(pattern, replace_pattern, case_sensitive, matching_mode, &mut data);
+                if let Some(row) = data.get_mut(search_match.row_number as usize) {
+                    if let Some(data) = row.get_mut(search_match.column_number as usize) {
+                        edited |= search_match.replace(pattern, replace_pattern, case_sensitive, matching_mode, data);
+                    }
+                }
             }
-
-            let _ = self.set_data(None, &data);
         }
 
         edited
@@ -122,13 +128,14 @@ impl Replaceable for Loc {
     fn replace(&mut self, pattern: &str, replace_pattern: &str, case_sensitive: bool, matching_mode: &MatchingMode, search_matches: &TableMatches) -> bool {
         let mut edited = false;
 
-        if let Ok(data) = self.data(&None) {
-            let mut data = data.to_vec();
+        if let Ok(data) = self.data_mut() {
             for search_match in search_matches.matches() {
-                edited |= search_match.replace(pattern, replace_pattern, case_sensitive, matching_mode, &mut data);
+                if let Some(row) = data.get_mut(search_match.row_number as usize) {
+                    if let Some(data) = row.get_mut(search_match.column_number as usize) {
+                        edited |= search_match.replace(pattern, replace_pattern, case_sensitive, matching_mode, data);
+                    }
+                }
             }
-
-            let _ = self.set_data(&data);
         }
 
         edited
@@ -159,25 +166,16 @@ impl TableMatches {
     ) {
         match matching_mode {
             MatchingMode::Regex(regex) => {
-                if regex.is_match(text) {
+                for entry_match in regex.find_iter(text) {
                     let column_name = fields_processed[column_number as usize].name();
-                    self.matches.push(TableMatch::new(column_name, column_number, row_number, text));
+                    self.matches.push(TableMatch::new(column_name, column_number, row_number, entry_match.start(), entry_match.end(), text));
                 }
             }
 
-            MatchingMode::Pattern => {
-                if case_sensitive {
-                    if text.contains(pattern) {
-                        let column_name = fields_processed[column_number as usize].name();
-                        self.matches.push(TableMatch::new(column_name, column_number, row_number, text));
-                    }
-                }
-                else {
-                    let text_lower = text.to_lowercase();
-                    if text_lower.contains(pattern) {
-                        let column_name = fields_processed[column_number as usize].name();
-                        self.matches.push(TableMatch::new(column_name, column_number, row_number, text));
-                    }
+            MatchingMode::Pattern(regex) => {
+                for (start, end, _) in &find_in_string(text, pattern, case_sensitive, regex) {
+                    let column_name = fields_processed[column_number as usize].name();
+                    self.matches.push(TableMatch::new(column_name, column_number, row_number, *start, *end, text));
                 }
             }
         }
@@ -188,71 +186,21 @@ impl TableMatches {
 impl TableMatch {
 
     /// This function creates a new `TableMatch` with the provided data.
-    pub fn new(column_name: &str, column_number: u32, row_number: i64, contents: &str) -> Self {
+    pub fn new(column_name: &str, column_number: u32, row_number: i64, start: usize, end: usize, text: &str) -> Self {
         Self {
             column_name: column_name.to_owned(),
             column_number,
             row_number,
-            contents: contents.to_owned(),
+            start,
+            end,
+            text: text.to_owned(),
         }
     }
 
     /// This function replaces all the matches in the provided text.
-    fn replace(&self, pattern: &str, replace_pattern: &str, case_sensitive: bool, matching_mode: &MatchingMode, data: &mut [Vec<DecodedData>]) -> bool {
-        let mut edited = false;
-
-        if let Some(row) = data.get_mut(self.row_number as usize) {
-            if let Some(cell) = row.get_mut(self.column_number as usize) {
-                let previous_data = cell.data_to_string().to_string();
-
-                match matching_mode {
-                    MatchingMode::Regex(regex) => {
-                        if regex.is_match(&cell.data_to_string()) {
-                            let _ = cell.set_data(&regex.replace_all(&previous_data, replace_pattern));
-                        }
-                    }
-                    MatchingMode::Pattern => {
-                        let mut text = cell.data_to_string().to_string();
-                        if case_sensitive {
-                            let mut index = 0;
-                            while let Some(start) = text.find(pattern) {
-
-                                // Advance the index so we don't get trapped in an infinite loop... again.
-                                if start >= index {
-                                    let end = start + pattern.len();
-                                    text.replace_range(start..end, replace_pattern);
-                                    index = end;
-                                } else {
-                                    break;
-                                }
-                            }
-                        }
-                        else {
-
-                            let regex = Regex::new(&format!("(?i){}", regex::escape(pattern))).unwrap();
-                            let mut index = 0;
-                            while let Some(match_data) = regex.find(&text.to_owned()) {
-
-                                 // Advance the index so we don't get trapped in an infinite loop... again.
-                                if match_data.start() >= index {
-                                    text.replace_range(match_data.start()..match_data.end(), replace_pattern);
-                                    index = match_data.end();
-                                } else {
-                                    break;
-                                }
-                            }
-                        }
-
-                        let _ = cell.set_data(&text);
-                    }
-                }
-
-                if previous_data != cell.data_to_string() {
-                    edited = true;
-                }
-            }
-        }
-
-        edited
+    fn replace(&self, pattern: &str, replace_pattern: &str, case_sensitive: bool, matching_mode: &MatchingMode, data: &mut DecodedData) -> bool {
+        let (previous_data, mut current_data) = (data.data_to_string().to_string(), data.data_to_string().to_string());
+        let edited = replace_match_string(pattern, replace_pattern, case_sensitive, matching_mode, self.start, self.end, &previous_data, &mut current_data);
+        data.set_data(&current_data).is_ok() && edited
     }
 }

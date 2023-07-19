@@ -92,7 +92,8 @@ pub const EXTENSION: &str = ".unit_variant";
 //---------------------------------------------------------------------------//
 
 /// This holds an entire UnitVariant decoded in memory.
-#[derive(Eq, PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
+#[derive(Eq, PartialEq, Clone, Debug, Default, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct UnitVariant {
 
     /// Version of the UnitVariant.
@@ -106,7 +107,8 @@ pub struct UnitVariant {
 }
 
 /// This holds a variant category.
-#[derive(Eq, PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
+#[derive(Eq, PartialEq, Clone, Debug, Default, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Category {
 
     /// Name of the category.
@@ -120,7 +122,8 @@ pub struct Category {
 }
 
 /// This holds a `Variant` of a Category.
-#[derive(Eq, PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
+#[derive(Eq, PartialEq, Clone, Debug, Default, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Variant {
 
     /// The file path (case insensitive) of the mesh file of this variant.
