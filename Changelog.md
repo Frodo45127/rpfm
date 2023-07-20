@@ -10,11 +10,16 @@ If you're looking for the changes included in the latest beta (against the lates
 ### Added
 - Implemented warning when the autosaves folder surpasses 25GB.
 - Implemented table lookups (like in DAVE).
+- Implemented table profiles.
+- Implemented support for Atlas files.
+- Implemented custom view for UnitVariant files.
 - Implemented Global Search & Replace support files of the following types:
+    - Atlas
     + Portrait Settings
     + RigidModel
+    + Unit Variant
     + Unknown
-- Added button to toggle regex on table filters (disabled by default).
+- Added button to toggle regex on table filters (enabled by default).
 
 ### Changed
 - Optimized Dependencies TreeView UI loading process.
@@ -26,6 +31,9 @@ If you're looking for the changes included in the latest beta (against the lates
 - Improved table filter performance.
 - DB Table automatic cell size now can vary between 60 and 800px, so you don't get too small columns, nor extremely big columns.
 - The Search Source check for global search is now remembered between sessions.
+- Global search matched text is now trimmed to focus on the part of the match.
+- Global search's row column is now show right after the matched text.
+- I64 and OptionalI64 fields in tables now use spinboxes, like the other numeric fields.
 
 ### Removed
 - Removed 4.0 warning message on first start.
@@ -43,6 +51,10 @@ If you're looking for the changes included in the latest beta (against the lates
 - Fixed a ton and a half of inconsistencies on how loc data is loaded for references/lookups.
 - Fixed Go To Loc not working with AK sources.
 - Fixed a bug that caused dependencies cache to be ignored and regenerated when re-opening a file/switching tabs.
+- Fixed global replace replacing all matches on the same line/cell if there were more than one.
+- Fixed a myriad of inconsistencies when using different search modes.
+- Fixed a bug where ESF files may lost numeric data when dealing with very large integers.
+
 
 ## [4.0.22]
 ### Fixed
