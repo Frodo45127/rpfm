@@ -234,6 +234,16 @@ pub fn set_value_q_spinbox_i64_safe(widget: &QPtr<QAbstractSpinBox>, value: i64)
     unsafe { set_value_q_spinbox_i64(widget.as_mut_raw_ptr(), value) }
 }
 
+extern "C" { fn set_min_q_spinbox_i64(widget: *mut QAbstractSpinBox, value: i64); }
+pub fn set_min_q_spinbox_i64_safe(widget: &QPtr<QAbstractSpinBox>, value: i64) {
+    unsafe { set_min_q_spinbox_i64(widget.as_mut_raw_ptr(), value) }
+}
+
+extern "C" { fn set_max_q_spinbox_i64(widget: *mut QAbstractSpinBox, value: i64); }
+pub fn set_max_q_spinbox_i64_safe(widget: &QPtr<QAbstractSpinBox>, value: i64) {
+    unsafe { set_max_q_spinbox_i64(widget.as_mut_raw_ptr(), value) }
+}
+
 //---------------------------------------------------------------------------//
 // Spoiler stuff.
 //---------------------------------------------------------------------------//

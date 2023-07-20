@@ -35,6 +35,16 @@ extern "C" void set_value_q_spinbox_i64(QAbstractSpinBox* widget, qlonglong valu
     return spinbox->setValue(value);
 }
 
+extern "C" void set_min_q_spinbox_i64(QAbstractSpinBox* widget, qlonglong value) {
+    QtLongLongSpinBox* spinbox = dynamic_cast<QtLongLongSpinBox*>(widget);
+    return spinbox->setMinimum(value);
+}
+
+extern "C" void set_max_q_spinbox_i64(QAbstractSpinBox* widget, qlonglong value) {
+    QtLongLongSpinBox* spinbox = dynamic_cast<QtLongLongSpinBox*>(widget);
+    return spinbox->setMaximum(value);
+}
+
 QtLongLongSpinBox::QtLongLongSpinBox(QWidget *parent) :
     QAbstractSpinBox(parent)
 {

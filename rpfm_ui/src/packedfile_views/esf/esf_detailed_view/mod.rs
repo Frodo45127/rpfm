@@ -12,6 +12,7 @@
 Module with all the code for managing the ESF Detailed Views.
 !*/
 
+use qt_widgets::QAbstractSpinBox;
 use qt_widgets::QCheckBox;
 use qt_widgets::QDoubleSpinBox;
 use qt_widgets::QLabel;
@@ -44,6 +45,7 @@ use rpfm_lib::schema::*;
 use crate::app_ui::AppUI;
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
+use crate::ffi::*;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packedfile_views::{DataSource, esf::esftree::*};
 use crate::packfile_contents_ui::PackFileContentsUI;
@@ -67,11 +69,11 @@ enum DataType {
     I8(QBox<QSpinBox>),
     I16(QBox<QSpinBox>),
     I32(QBox<QSpinBox>),
-    I64(QBox<QSpinBox>),
+    I64(QPtr<QAbstractSpinBox>),
     U8(QBox<QSpinBox>),
     U16(QBox<QSpinBox>),
-    U32(QBox<QSpinBox>),
-    U64(QBox<QSpinBox>),
+    U32(QPtr<QAbstractSpinBox>),
+    U64(QPtr<QAbstractSpinBox>),
     F32(QBox<QDoubleSpinBox>),
     F64(QBox<QDoubleSpinBox>),
     Coord2d((QBox<QDoubleSpinBox>, QBox<QDoubleSpinBox>)),
@@ -200,10 +202,10 @@ impl ESFDetailedView {
                 },
                 NodeType::I64(value) => {
                     let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
-                    let widget = QSpinBox::new_1a(parent_widget);
-                    widget.set_maximum(i32::MAX);
-                    widget.set_minimum(i32::MIN);
-                    widget.set_value(*value as i32);
+                    let widget = new_q_spinbox_i64_safe(&parent_widget.static_upcast());
+                    set_max_q_spinbox_i64_safe(&widget, i64::MAX.into());
+                    set_min_q_spinbox_i64_safe(&widget, i64::MIN.into());
+                    set_value_q_spinbox_i64_safe(&widget, *value);
                     layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
@@ -233,12 +235,11 @@ impl ESFDetailedView {
                 },
                 NodeType::U32(value) => {
                     let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
-                    let widget = QSpinBox::new_1a(parent_widget);
+                    let widget = new_q_spinbox_i64_safe(&parent_widget.static_upcast());
+                    set_max_q_spinbox_i64_safe(&widget, u32::MAX.into());
+                    set_min_q_spinbox_i64_safe(&widget, 0);
+                    set_value_q_spinbox_i64_safe(&widget, *value.value() as i64);
 
-                    // NOTE: this is a workaround. I need to get an u32-backed spinbox working to properly fix this.
-                    widget.set_maximum(i32::MAX);
-                    widget.set_minimum(0);
-                    widget.set_value(*value.value() as i32);
                     layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
@@ -246,12 +247,11 @@ impl ESFDetailedView {
                 },
                 NodeType::U64(value) => {
                     let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
-                    let widget = QSpinBox::new_1a(parent_widget);
+                    let widget = new_q_spinbox_i64_safe(&parent_widget.static_upcast());
+                    set_max_q_spinbox_i64_safe(&widget, i64::MAX);
+                    set_min_q_spinbox_i64_safe(&widget, i64::MIN);
+                    set_value_q_spinbox_i64_safe(&widget, *value as i64);
 
-                    // NOTE: this is a workaround. I need to get an u64-backed spinbox working to properly fix this.
-                    widget.set_maximum(i32::MAX);
-                    widget.set_minimum(0);
-                    widget.set_value(*value as i32);
                     layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
@@ -815,7 +815,7 @@ impl ESFDetailedView {
                             index += 1;
                         },
                         NodeType::I64(value) => if let DataType::I64(widget) = &self.data_types[index] {
-                            *value = widget.value() as i64;
+                            *value = value_q_spinbox_i64_safe(widget);
                             index += 1;
                         },
                         NodeType::U8(value) => if let DataType::U8(widget) = &self.data_types[index] {
@@ -827,11 +827,11 @@ impl ESFDetailedView {
                             index += 1;
                         },
                         NodeType::U32(value) => if let DataType::U32(widget) = &self.data_types[index] {
-                            *value.value_mut() = widget.value() as u32;
+                            *value.value_mut() = value_q_spinbox_i64_safe(widget) as u32;
                             index += 1;
                         },
                         NodeType::U64(value) => if let DataType::U64(widget) = &self.data_types[index] {
-                            *value = widget.value() as u64;
+                            *value = value_q_spinbox_i64_safe(widget) as u64;
                             index += 1;
                         },
                         NodeType::F32(value) => if let DataType::F32(widget) = &self.data_types[index] {
