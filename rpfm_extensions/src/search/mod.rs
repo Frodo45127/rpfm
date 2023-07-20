@@ -431,6 +431,9 @@ impl GlobalSearch {
                     let container_path = ContainerPath::File(search_matches.path().to_string());
                     let mut file = pack.files_by_path_mut(&container_path, false);
                     if let Some(file) = file.get_mut(0) {
+
+                        // Make sure it has been decoded.
+                        let _ = file.decode(&None, true, false);
                         if let Ok(decoded) = file.decoded_mut() {
                             let edited = match decoded {
                                 RFileDecoded::Atlas(table) => table.replace(&self.pattern, &self.replace_text, self.case_sensitive, &matching_mode, search_matches),
