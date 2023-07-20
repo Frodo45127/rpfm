@@ -12,6 +12,7 @@
 Module containing the ffi functions used for custom widgets.
 !*/
 
+use qt_widgets::QAbstractSpinBox;
 use qt_widgets::QAction;
 use qt_widgets::QLabel;
 use qt_widgets::QLayout;
@@ -66,12 +67,20 @@ pub fn new_combobox_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, l
     unsafe { new_combobox_item_delegate(table_view.as_mut_raw_ptr(), column, list.as_raw_ptr(), lookup_list.as_raw_ptr(), is_editable, timer.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter, is_right_side_mark_enabled) }
 }
 
-// This function changes the default editor widget for I32/64 cells on tables with a numeric one.
+// This function changes the default editor widget for I32 cells on tables with a numeric one.
 extern "C" { fn new_spinbox_item_delegate(table_view: *mut QObject, column: i32, integer_type: i32, timer: *mut QTimer, is_dark_theme_enabled: bool, has_filter: bool, is_right_side_mark_enabled: bool); }
 pub fn new_spinbox_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, integer_type: i32, timer: &Ptr<QTimer>, has_filter: bool) {
     let is_dark_theme_enabled = setting_bool("use_dark_theme");
     let is_right_side_mark_enabled = setting_bool("use_right_size_markers");
     unsafe { new_spinbox_item_delegate(table_view.as_mut_raw_ptr(), column, integer_type, timer.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter, is_right_side_mark_enabled) }
+}
+
+// This function changes the default editor widget for I64 cells on tables with a numeric one.
+extern "C" { fn new_i64_spinbox_item_delegate(table_view: *mut QObject, column: i32, timer: *mut QTimer, is_dark_theme_enabled: bool, has_filter: bool, is_right_side_mark_enabled: bool); }
+pub fn new_i64_spinbox_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, timer: &Ptr<QTimer>, has_filter: bool) {
+    let is_dark_theme_enabled = setting_bool("use_dark_theme");
+    let is_right_side_mark_enabled = setting_bool("use_right_size_markers");
+    unsafe { new_i64_spinbox_item_delegate(table_view.as_mut_raw_ptr(), column, timer.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter, is_right_side_mark_enabled) }
 }
 
 // This function changes the default editor widget for F32 cells on tables with a numeric one.
@@ -204,6 +213,25 @@ pub fn main_window_drop_pack_signal(widget: QPtr<QWidget>) -> Signal<(*const ::q
             ),
         )
     }
+}
+
+//---------------------------------------------------------------------------//
+// i64 Spinbox stuff.
+//---------------------------------------------------------------------------//
+
+extern "C" { fn new_q_spinbox_i64(parent: *mut QWidget) -> *mut QAbstractSpinBox; }
+pub fn new_q_spinbox_i64_safe(parent: &QPtr<QWidget>) -> QPtr<QAbstractSpinBox> {
+    unsafe { QPtr::from_raw(new_q_spinbox_i64(parent.as_mut_raw_ptr())) }
+}
+
+extern "C" { fn value_q_spinbox_i64(widget: *mut QAbstractSpinBox) -> i64; }
+pub fn value_q_spinbox_i64_safe(widget: &QPtr<QAbstractSpinBox>) -> i64 {
+    unsafe { value_q_spinbox_i64(widget.as_mut_raw_ptr()) }
+}
+
+extern "C" { fn set_value_q_spinbox_i64(widget: *mut QAbstractSpinBox, value: i64); }
+pub fn set_value_q_spinbox_i64_safe(widget: &QPtr<QAbstractSpinBox>, value: i64) {
+    unsafe { set_value_q_spinbox_i64(widget.as_mut_raw_ptr(), value) }
 }
 
 //---------------------------------------------------------------------------//

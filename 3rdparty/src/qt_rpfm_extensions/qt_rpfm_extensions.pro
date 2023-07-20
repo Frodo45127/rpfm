@@ -41,10 +41,12 @@ SOURCES += \
     src/packed_file_model.cpp \
     src/qstring_item_delegate.cpp \
     src/combobox_item_delegate.cpp \
+    src/qt_long_long_spinbox.cpp \
     src/resizable_label.cpp \
     src/spinbox_item_delegate.cpp \
     src/doublespinbox_item_delegate.cpp \
     src/spoiler.cpp \
+    src/qt_long_long_spinbox_item_delegate.cpp \
     src/tableview_command_palette.cpp \
     src/tableview_filter.cpp \
     src/tableview_frozen.cpp \
@@ -62,6 +64,7 @@ HEADERS += \
     include/kline_edit_custom.h \
     include/kmessage_widget.h \
     include/kshortcuts_dialog.h \
+    include/qt_long_long_spinbox.h \
     include/qt_subclasses_global.h \
     include/tableview_command_palette.h \
     include/tableview_filter.h \
@@ -79,7 +82,8 @@ HEADERS += \
     include/resizable_label.h \
     include/q_main_window_custom.h \
     include/spoiler.h \
-    include/kcolor_combo.h
+    include/kcolor_combo.h \
+    include/qt_long_long_spinbox_item_delegate.h
 
 release:DESTDIR = release
 release:OBJECTS_DIR = release/.obj

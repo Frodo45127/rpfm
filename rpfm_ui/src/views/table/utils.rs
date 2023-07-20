@@ -988,14 +988,12 @@ pub unsafe fn setup_item_delegates(
                 FieldType::F64 => new_doublespinbox_item_delegate_safe(&table_object, column as i32, &timer.as_ptr(), true),
                 FieldType::I16 => new_spinbox_item_delegate_safe(&table_object, column as i32, 16, &timer.as_ptr(), true),
                 FieldType::I32 => new_spinbox_item_delegate_safe(&table_object, column as i32, 32, &timer.as_ptr(), true),
-
-                // LongInteger uses normal string controls due to QSpinBox being limited to i32.
-                FieldType::I64 => new_spinbox_item_delegate_safe(&table_object, column as i32, 64, &timer.as_ptr(), true),
+                FieldType::I64 => new_i64_spinbox_item_delegate_safe(&table_object, column as i32, &timer.as_ptr(), true),
                 FieldType::OptionalI16 => new_spinbox_item_delegate_safe(&table_object, column as i32, 16, &timer.as_ptr(), true),
                 FieldType::OptionalI32 => new_spinbox_item_delegate_safe(&table_object, column as i32, 32, &timer.as_ptr(), true),
 
                 // LongInteger uses normal string controls due to QSpinBox being limited to i32.
-                FieldType::OptionalI64 => new_spinbox_item_delegate_safe(&table_object, column as i32, 64, &timer.as_ptr(), true),
+                FieldType::OptionalI64 => new_i64_spinbox_item_delegate_safe(&table_object, column as i32, &timer.as_ptr(), true),
                 FieldType::ColourRGB => new_colour_item_delegate_safe(&table_object, column as i32, &timer.as_ptr(), true),
                 FieldType::StringU8 |
                 FieldType::StringU16 |
