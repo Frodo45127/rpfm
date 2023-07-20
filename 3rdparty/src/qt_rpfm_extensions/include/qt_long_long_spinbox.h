@@ -49,6 +49,8 @@ public:
 
     void setRange(qlonglong min, qlonglong max);
 
+    void setInvalidValues(QList<qlonglong> values);
+
 public slots:
     void setValue(qlonglong value);
 
@@ -74,6 +76,7 @@ private:
     qlonglong m_minimum;
     qlonglong m_maximum;
     qlonglong m_value;
+    QList<qlonglong> m_invalidValues;
 
 private:
     Q_DISABLE_COPY(QtLongLongSpinBox)

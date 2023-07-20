@@ -59,6 +59,16 @@ use crate::UI_STATE;
 // Custom delegates stuff.
 //---------------------------------------------------------------------------//
 
+//extern "C" { fn new_search_match_item_delegate(table_view: *mut QObject, column: i32); }
+//pub fn new_search_match_item_delegate_safe(table_view: &Ptr<QObject>, column: i32) {
+//    unsafe { new_search_match_item_delegate(table_view.as_mut_raw_ptr(), column) }
+//}
+
+extern "C" { fn new_unit_variant_item_delegate(table_view: *mut QObject, column: i32); }
+pub fn new_unit_variant_item_delegate_safe(table_view: &Ptr<QObject>, column: i32) {
+    unsafe { new_unit_variant_item_delegate(table_view.as_mut_raw_ptr(), column) }
+}
+
 // This function replaces the default editor widget for reference columns with a combobox, so you can select the reference data.
 extern "C" { fn new_combobox_item_delegate(table_view: *mut QObject, column: i32, list: *const QStringList, lookup_list: *const QStringList, is_editable: bool, timer: *mut QTimer, is_dark_theme_enabled: bool, has_filter: bool, is_right_side_mark_enabled: bool); }
 pub fn new_combobox_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, list: Ptr<QStringList>, lookup_list: Ptr<QStringList>, is_editable: bool, timer: &Ptr<QTimer>, has_filter: bool) {
@@ -243,6 +253,17 @@ extern "C" { fn set_max_q_spinbox_i64(widget: *mut QAbstractSpinBox, value: i64)
 pub fn set_max_q_spinbox_i64_safe(widget: &QPtr<QAbstractSpinBox>, value: i64) {
     unsafe { set_max_q_spinbox_i64(widget.as_mut_raw_ptr(), value) }
 }
+
+//pub fn value_changed_q_spinbox_i64(widget: &QPtr<QAbstractSpinBox>) -> Signal<(i64,)> {
+//    unsafe {
+//        Signal::new(
+//            ::cpp_core::Ref::from_raw(widget.as_raw_ptr()).expect("attempted to construct a null Ref"),
+//            ::std::ffi::CStr::from_bytes_with_nul_unchecked(
+//                b"2valueChanged(qlonglong const &)\0",
+//            ),
+//        )
+//    }
+//}
 
 //---------------------------------------------------------------------------//
 // Spoiler stuff.

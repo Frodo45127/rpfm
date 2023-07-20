@@ -204,6 +204,11 @@ void QtLongLongSpinBox::stepBy(int steps)
     }
 
     qlonglong newValue = m_value + (steps * m_singleStep);
+    QString newString = QString::number(newValue);
+    int pos = 0;
+    if (validate(newString, pos) == QValidator::Invalid) {
+        return;
+    }
     if (wrapping()) {
         // emulating the behavior of QSpinBox
         if (newValue > m_maximum) {
@@ -236,6 +241,10 @@ QValidator::State QtLongLongSpinBox::validate(QString &input, int &pos) const
     // first, we try to interpret as a number without prefixes
     bool ok;
     const qlonglong value = input.toLongLong(&ok);
+    if (ok && m_invalidValues.contains(value)) {
+        return QValidator::Invalid;
+    }
+
     if (input.isEmpty() || (ok && value <= m_maximum)) {
         input = m_prefix + input + m_suffix;
         pos += m_prefix.length();
@@ -313,3 +322,9 @@ void QtLongLongSpinBox::selectCleanText()
                                  - m_prefix.length()
                                  - m_suffix.length());
 }
+
+void QtLongLongSpinBox::setInvalidValues(QList<qlonglong> values)
+{
+    m_invalidValues = values;
+}
+

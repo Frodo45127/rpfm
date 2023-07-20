@@ -1,5 +1,5 @@
 #include "qt_long_long_spinbox_item_delegate.h"
-#include <qt_long_long_spinbox.h>>
+#include <qt_long_long_spinbox.h>
 #include <QDebug>
 #include <QAbstractItemView>
 #include <QSettings>

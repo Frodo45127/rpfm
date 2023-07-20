@@ -781,7 +781,6 @@ impl GlobalSearchUI {
                     ViewType::Internal(View::UnitVariant(view)) => {
                         let parent = gidhora.parent();
                         let entry_index = parent.child_2a(model_index.row(), 0).data_1a(UNIT_VARIANT_ENTRY_INDEX).to_u_int_0a();
-                        /*
                         let item_to_select = view.main_list_model().index_2a(entry_index as i32, 0);
                         let item_to_select_filter = view.main_list_filter().map_from_source(&item_to_select);
 
@@ -791,18 +790,12 @@ impl GlobalSearchUI {
                         view.main_list_view().selection_model().select_q_item_selection_q_flags_selection_flag(&selection, SelectionFlag::Toggle.into());
                         view.main_list_view().selection_model().select_q_model_index_q_flags_selection_flag(&item_to_select_filter, SelectionFlag::Toggle.into());
 
-                        let bool_data = parent.child_2a(model_index.row(), 0).data_1a(PORTRAIT_SETTINGS_BOOL_DATA).to_u_int_0a();
+                        let bool_data = parent.child_2a(model_index.row(), 0).data_1a(UNIT_VARIANT_BOOL_DATA).to_u_int_0a();
 
                         if bool_data == 1 {
                             view.main_list_view().set_focus_0a();
-                        } else if bool_data == 2 {
-                            view.head_skeleton_node_line_edit().select_all();
-                            view.head_skeleton_node_line_edit().set_focus_0a();
-                        } else if bool_data == 3 {
-                            view.body_skeleton_node_line_edit().select_all();
-                            view.body_skeleton_node_line_edit().set_focus_0a();
                         } else {
-                            let variant_index = parent.child_2a(model_index.row(), 0).data_1a(PORTRAIT_SETTINGS_VARIANT_INDEX).to_u_int_0a();
+                            let variant_index = parent.child_2a(model_index.row(), 0).data_1a(UNIT_VARIANT_VARIANT_INDEX).to_u_int_0a();
 
                             let item_to_select = view.variants_list_model().index_2a(variant_index as i32, 0);
                             let item_to_select_filter = view.variants_list_filter().map_from_source(&item_to_select);
@@ -812,22 +805,14 @@ impl GlobalSearchUI {
                             view.variants_list_view().selection_model().select_q_item_selection_q_flags_selection_flag(&selection, SelectionFlag::Toggle.into());
                             view.variants_list_view().selection_model().select_q_model_index_q_flags_selection_flag(&item_to_select_filter, SelectionFlag::Toggle.into());
 
-                            if bool_data == 4 {
-                                view.variants_list_view().set_focus_0a();
-                            } else if bool_data == 5 {
-                                view.file_diffuse_line_edit().select_all();
-                                view.file_diffuse_line_edit().set_focus_0a();
-                            } else if bool_data == 6 {
-                                view.file_mask_1_line_edit().select_all();
-                                view.file_mask_1_line_edit().set_focus_0a();
-                            } else if bool_data == 7 {
-                                view.file_mask_2_line_edit().select_all();
-                                view.file_mask_2_line_edit().set_focus_0a();
-                            } else if bool_data == 8 {
-                                view.file_mask_3_line_edit().select_all();
-                                view.file_mask_3_line_edit().set_focus_0a();
+                            if bool_data == 2 {
+                                view.mesh_file_line_edit().select_all();
+                                view.mesh_file_line_edit().set_focus_0a();
+                            } else if bool_data == 3 {
+                                view.texture_folder_line_edit().select_all();
+                                view.texture_folder_line_edit().set_focus_0a();
                             }
-                        }*/
+                        }
                     }
 
                     // Ignore the rest.
@@ -2181,6 +2166,8 @@ impl GlobalSearchUI {
         self.matches_schema_tree_view.set_column_width(0, 300);
         self.matches_schema_tree_view.set_column_width(1, 20);
         self.matches_schema_tree_view.set_column_width(2, 300);
+
+        //new_search_match_item_delegate_safe(&self.matches_table_and_text_tree_view.static_upcast::<QObject>().as_ptr(), 0);
     }
 
     unsafe fn new_item() -> CppBox<QStandardItem> {

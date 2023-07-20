@@ -2102,7 +2102,7 @@ fn decode_and_send_file(file: &mut RFile, sender: &Sender<Response>) {
         Ok(RFileDecoded::SoundBank(_)) => CentralCommand::send_back(&sender, Response::Unknown),
         Ok(RFileDecoded::Text(text)) => CentralCommand::send_back(&sender, Response::TextRFileInfo(text, From::from(&*file))),
         Ok(RFileDecoded::UIC(uic)) => CentralCommand::send_back(&sender, Response::UICRFileInfo(uic, From::from(&*file))),
-        Ok(RFileDecoded::UnitVariant(_)) => CentralCommand::send_back(&sender, Response::RFileDecodedRFileInfo(result.unwrap(), From::from(&*file))),
+        Ok(RFileDecoded::UnitVariant(data)) => CentralCommand::send_back(&sender, Response::UnitVariantRFileInfo(data, From::from(&*file))),
         Ok(RFileDecoded::Unknown(_)) => CentralCommand::send_back(&sender, Response::Unknown),
         Ok(RFileDecoded::Video(data)) => CentralCommand::send_back(&sender, Response::VideoInfoRFileInfo(From::from(&data), From::from(&*file))),
         Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),

@@ -1383,6 +1383,13 @@ new_profile_no_name_error = What part of "Just pick a name" did you not understa
 global_search_all_common = All (common)
 global_search_atlas = Atlas
 
-unit_variant_name = Name
-unit_variant_mesh_file = Mesh File
-unit_variant_texture_folder = Texture Folder
+unit_variant_name = Name:
+unit_variant_details_title = Details
+unit_variant_variants_title = Variants
+unit_variant_filter = Filter
+unit_variant_mesh_file = Mesh File:
+unit_variant_texture_folder = Texture Folder:
+unit_variant_unknown_value = Unknown Value:
+unit_variant_id = Id:
+
+unit_variant_new_category_title = New/Clone Category

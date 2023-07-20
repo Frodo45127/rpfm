@@ -215,6 +215,13 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     new_action(portrait_settings_actions, "delete", "Delete", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+Del"), "edit-table-delete-row");
     portrait_settings_actions->readSettings();
 
+    KActionCollection* unit_variant_actions = new KActionCollection(parent, "unit_variant");
+    unit_variant_actions->setComponentDisplayName("Unit Variant");
+    new_action(unit_variant_actions, "add", "Add", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+A"), "edit-table-insert-row-below");
+    new_action(unit_variant_actions, "clone", "Clone", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+D"), "insert-table-row");
+    new_action(unit_variant_actions, "delete", "Delete", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+Del"), "edit-table-delete-row");
+    unit_variant_actions->readSettings();
+
     // Text Editor actions.
     KTextEditor::Editor *editor = KTextEditor::Editor::instance();
     KTextEditor::Document *doc = editor->createDocument(nullptr);
@@ -238,6 +245,7 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     shortcuts->append(dynamic_cast<QObject*>(table_editor_actions));
     shortcuts->append(dynamic_cast<QObject*>(decoder_actions));
     shortcuts->append(dynamic_cast<QObject*>(portrait_settings_actions));
+    shortcuts->append(dynamic_cast<QObject*>(unit_variant_actions));
     shortcuts->append(dynamic_cast<QObject*>(text_editor_actions));
 }
 

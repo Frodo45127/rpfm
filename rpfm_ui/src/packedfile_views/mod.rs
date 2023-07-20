@@ -58,6 +58,7 @@ use self::packfile_settings::PackFileSettingsView;
 use self::portrait_settings::PortraitSettingsView;
 use self::table::PackedFileTableView;
 use self::text::PackedFileTextView;
+use self::unit_variant::UnitVariantView;
 use self::video::PackedFileVideoView;
 
 #[cfg(feature = "support_rigidmodel")]
@@ -65,7 +66,6 @@ use self::rigidmodel::PackedFileRigidModelView;
 
 #[cfg(feature = "support_uic")]
 use self::uic::FileUICView;
-use self::unit_variant::PackedFileUnitVariantView;
 
 pub mod anim_fragment;
 pub mod animpack;
@@ -170,7 +170,7 @@ pub enum View {
 
     #[cfg(feature = "support_uic")]
     UIC(Arc<FileUICView>),
-    UnitVariant(Arc<PackedFileUnitVariantView>),
+    UnitVariant(Arc<UnitVariantView>),
     Video(Arc<PackedFileVideoView>),
     None,
 }
@@ -419,7 +419,7 @@ impl FileView {
                             View::UIC(view) => {
                                 RFileDecoded::UIC(view.save_view())
                             },
-                            View::UnitVariant(_) => return Ok(()),
+                            View::UnitVariant(view) => RFileDecoded::UnitVariant(view.save_view()),
                             View::Video(view) => {
                                 let _ = CENTRAL_COMMAND.send_background(Command::SetVideoFormat(self.path_copy(), view.get_current_format()));
                                 return Ok(());
@@ -637,30 +637,15 @@ impl FileView {
                             }
                         },
 
-                        // Debug views retun their entire file.
-                        Response::RFileDecodedRFileInfo(packed_file, packed_file_info) => {
-                            match packed_file {
-                                RFileDecoded::UnitVariant(variant) => {
-                                    if let View::UnitVariant(old_variant) = view {
-                                        old_variant.reload_view(&variant);
-                                        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
-                                    }
-                                    else {
-                                        return Err(anyhow!(RFILE_RELOAD_ERROR));
-                                    }
-                                }
-                                RFileDecoded::ESF(esf) => {
-                                    if let View::Esf(old_esf) = view {
-                                        old_esf.reload_view(&esf);
-                                        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
-                                    }
-                                    else {
-                                        return Err(anyhow!(RFILE_RELOAD_ERROR));
-                                    }
-                                }
-                                _ => return Err(anyhow!(RFILE_RELOAD_ERROR)),
+                        Response::UnitVariantRFileInfo(mut variant, file_info) => {
+                            if let View::UnitVariant(old_variant) = view {
+                                let _ = old_variant.reload_view(&mut variant);
+                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), DataSource::PackFile);
                             }
-                        },
+                            else {
+                                return Err(anyhow!(RFILE_RELOAD_ERROR));
+                            }
+                        }
 
                         Response::VideoInfoRFileInfo(video, packed_file_info) => {
                             if let View::Video(old_video) = view {
