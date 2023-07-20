@@ -575,10 +575,10 @@ impl UnitVariantView {
         Ok(
             if dialog.exec() == 1 {
                 let new_id = id_spinbox.text();
-                if new_id.is_empty() || banned_list.contains(&new_id.to_long_0a()) {
+                if new_id.is_empty() || banned_list.contains(&new_id.to_long_long_0a()) {
                     None
                 } else {
-                    Some(new_id.to_long_0a()) }
+                    Some(new_id.to_long_long_0a()) }
             } else { None }
         )
     }
