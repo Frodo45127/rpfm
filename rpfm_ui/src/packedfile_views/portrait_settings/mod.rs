@@ -649,6 +649,7 @@ impl PortraitSettingsView {
     pub unsafe fn save_variant_from_detailed_view(&self, index: Ref<QModelIndex>) {
         let mut data: Variant = serde_json::from_str(&index.data_1a(DATA).to_string().to_std_string()).unwrap();
 
+        data.set_filename(index.data_1a(2).to_string().to_std_string());
         data.set_file_diffuse(self.file_diffuse_line_edit.text().to_std_string());
         data.set_file_mask_1(self.file_mask_1_line_edit.text().to_std_string());
         data.set_file_mask_2(self.file_mask_2_line_edit.text().to_std_string());
