@@ -1508,6 +1508,9 @@ impl Dependencies {
             }
         }
 
+        // Dedup this list, because if the game had multiple table files, we'll get duplicated fields.
+        fields_still_not_found.sort();
+        fields_still_not_found.dedup();
         info!("Bruteforce: fields still not found :{:#?}", fields_still_not_found);
 
         // Once everything is done, run a check on the loc keys to see if any of them still doesn't match any table/field combo.
