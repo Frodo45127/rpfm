@@ -58,10 +58,12 @@ pub const LUA_BRANCH: &str = "main";
 //-------------------------------------------------------------------------------//
 
 /// This struct holds all the info needed for a game to be "supported" by RPFM.
-#[derive(Clone, Debug)]
+#[derive(Getters, Clone, Debug)]
+#[getset(get = "pub")]
 pub struct GameInfo {
 
     /// This is the internal key of the game.
+    #[getset(skip)]
     key: &'static str,
 
     /// This is the name it'll show up for the user. The *pretty name*. For example, in a dropdown (Warhammer 2).
@@ -96,22 +98,26 @@ pub struct GameInfo {
     banned_packedfiles: Vec<String>,
 
     /// Name of the icon used to display the game as `Game Selected`, in an UI.
-    game_selected_icon: String,
+    icon_small: String,
 
     /// Name of the big icon used to display the game as `Game Selected`, in an UI.
-    game_selected_big_icon: String,
+    icon_big: String,
 
     /// Logic used to name vanilla tables.
     vanilla_db_table_name_logic: VanillaDBTableNameLogic,
 
     /// Installation-dependant data.
+    #[getset(skip)]
     install_data: HashMap<InstallType, InstallData>,
 
     /// Tool-specific vars for each game.
     tool_vars: HashMap<String, String>,
 
     /// Subfolder under Lua Autogen's folder where the files for this game are, if it's supported.
-    lua_autogen_folder: Option<String>
+    lua_autogen_folder: Option<String>,
+
+    /// Table/fields ignored on the assembly kit integration for this game. These are fields that are "lost" when exporting the tables from Dave.
+    ak_lost_fields: Vec<String>,
 }
 
 /// This enum holds the info about each game approach at naming db tables.
@@ -204,13 +210,8 @@ impl GameInfo {
     //---------------------------------------------------------------------------//
 
     /// This function returns the "Key" name of the Game, meaning in lowercase and without spaces.
-    pub fn game_key_name(&self) -> &str {
+    pub fn key(&self) -> &str {
         self.key
-    }
-
-    /// This function returns the "Display" name of the Game, meaning properly written.
-    pub fn display_name(&self) -> &str {
-        self.display_name
     }
 
     /// This function returns the PFHVersion corresponding to the provided PackFile type. If it's not found, it defaults to the one used by mods.
@@ -219,66 +220,6 @@ impl GameInfo {
             Some(pfh_version) => *pfh_version,
             None => *self.pfh_versions.get(&PFHFileType::Mod).unwrap(),
         }
-    }
-
-    /// This function returns the full list of compatible PFHVersions for this game.
-    pub fn pfh_versions(&self) -> &HashMap<PFHFileType, PFHVersion> {
-        &self.pfh_versions
-    }
-
-    /// This function returns this Game's schema file name.
-    pub fn schema_file_name(&self) -> &str {
-        &self.schema_file_name
-    }
-
-    /// This function returns this Game's dependencies cache file name.
-    pub fn dependencies_cache_file_name(&self) -> &str {
-        &self.dependencies_cache_file_name
-    }
-
-    /// This function returns this Game's raw_db_version, used to identify how to process AssKit table files for this game.
-    pub fn raw_db_version(&self) -> i16 {
-        self.raw_db_version
-    }
-
-    /// This function returns this Game's PortraitSettings version, if any.
-    pub fn portrait_settings_version(&self) -> Option<u32> {
-        self.portrait_settings_version
-    }
-
-    /// This function returns whether this Game supports editing or not.
-    pub fn supports_editing(&self) -> bool {
-        self.supports_editing
-    }
-
-    /// This function returns whether this Game's tables should have a GUID in their header or not.
-    pub fn db_tables_have_guid(&self) -> bool {
-        self.db_tables_have_guid
-    }
-
-    /// This function returns the file with the language of the game, if any.
-    pub fn locale_file_name(&self) -> &Option<String> {
-        &self.locale_file_name
-    }
-
-    /// This function returns this Game's icon filename. Normal size.
-    pub fn icon_file_name(&self) -> &str {
-        &self.game_selected_icon
-    }
-
-    /// This function returns this Game's icon filename. Big size.
-    pub fn icon_big_file_name(&self) -> &str {
-        &self.game_selected_big_icon
-    }
-
-    /// This function returns this Game's logic for naming db tables.
-    pub fn vanilla_db_table_name_logic(&self) -> &VanillaDBTableNameLogic {
-        &self.vanilla_db_table_name_logic
-    }
-
-    /// This function returns this Game's logic for naming db tables.
-    pub fn lua_autogen_folder(&self) -> Option<&str> {
-        self.lua_autogen_folder.as_deref()
     }
 
     //---------------------------------------------------------------------------//
@@ -689,7 +630,7 @@ impl GameInfo {
 
     /// This function gets the version number of the exe for the current GameSelected, if it exists.
     pub fn game_version_number(&self, game_path: &Path) -> Option<u32> {
-        match self.game_key_name() {
+        match self.key() {
             KEY_TROY => {
                 let exe_path = self.executable_path(game_path)?;
                 if exe_path.is_file() {

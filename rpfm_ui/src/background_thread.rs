@@ -106,7 +106,7 @@ pub fn background_loop() {
                 pack_file_decoded = Pack::new_with_name_and_version("unknown.pack", pack_version);
                 pack_file_decoded.set_settings(initialize_pack_settings());
 
-                if let Some(version_number) = game_selected.game_version_number(&setting_path(game_selected.game_key_name())) {
+                if let Some(version_number) = game_selected.game_version_number(&setting_path(game_selected.key())) {
                     pack_file_decoded.set_game_version(version_number);
                 }
             }
@@ -152,7 +152,7 @@ pub fn background_loop() {
             // In case we want to "Load All CA PackFiles"...
             Command::LoadAllCAPackFiles => {
                 let game_selected = GAME_SELECTED.read().unwrap();
-                match Pack::read_and_merge_ca_packs(&game_selected, &setting_path(game_selected.game_key_name())) {
+                match Pack::read_and_merge_ca_packs(&game_selected, &setting_path(game_selected.key())) {
                     Ok(pack) => {
                         pack_file_decoded = pack;
 
@@ -274,7 +274,7 @@ pub fn background_loop() {
 
             Command::SetGameSelected(game_selected, rebuild_dependencies) => {
                 info!("Setting game selected.");
-                let game_changed = GAME_SELECTED.read().unwrap().game_key_name() != game_selected || !FIRST_GAME_CHANGE_DONE.load(Ordering::SeqCst);
+                let game_changed = GAME_SELECTED.read().unwrap().key() != game_selected || !FIRST_GAME_CHANGE_DONE.load(Ordering::SeqCst);
                 *GAME_SELECTED.write().unwrap() = SUPPORTED_GAMES.game(&game_selected).unwrap();
                 let game = GAME_SELECTED.read().unwrap();
 
@@ -290,7 +290,7 @@ pub fn background_loop() {
                     let pack_dependencies = pack_file_decoded.dependencies().to_vec();
                     let handle = thread::spawn(move || {
                         let game_selected = GAME_SELECTED.read().unwrap();
-                        let game_path = setting_path(game_selected.game_key_name());
+                        let game_path = setting_path(game_selected.key());
                         let file_path = dependencies_cache_path().unwrap().join(game_selected.dependencies_cache_file_name());
                         let file_path = if game_changed { Some(&*file_path) } else { None };
                         let _ = dependencies.write().unwrap().rebuild(&None, &pack_dependencies, file_path, &game_selected, &game_path);
@@ -323,7 +323,7 @@ pub fn background_loop() {
                     let pfh_file_type = *pack_file_decoded.header().pfh_file_type();
                     pack_file_decoded.header_mut().set_pfh_version(game.pfh_version_by_file_type(pfh_file_type));
 
-                    if let Some(version_number) = game.game_version_number(&setting_path(game.game_key_name())) {
+                    if let Some(version_number) = game.game_version_number(&setting_path(game.key())) {
                         pack_file_decoded.set_game_version(version_number);
                     }
                 }
@@ -333,7 +333,7 @@ pub fn background_loop() {
             // In case we want to generate the dependencies cache for our Game Selected...
             Command::GenerateDependenciesCache => {
                 let game_selected = GAME_SELECTED.read().unwrap();
-                let game_path = setting_path(game_selected.game_key_name());
+                let game_path = setting_path(game_selected.key());
                 let asskit_path = assembly_kit_path().ok();
 
                 if game_path.is_dir() {
@@ -360,7 +360,7 @@ pub fn background_loop() {
             Command::UpdateCurrentSchemaFromAssKit => {
                 if let Some(ref mut schema) = *SCHEMA.write().unwrap() {
                     let game_selected = GAME_SELECTED.read().unwrap();
-                    let asskit_path = setting_path(&format!("{}_assembly_kit", game_selected.game_key_name()));
+                    let asskit_path = setting_path(&format!("{}_assembly_kit", game_selected.key()));
                     let schema_path = schemas_path().unwrap().join(game_selected.schema_file_name());
 
                     let dependencies = dependencies.read().unwrap();
@@ -1134,7 +1134,7 @@ pub fn background_loop() {
 
                                     // Then rebuild the dependencies stuff.
                                     if dependencies.read().unwrap().is_vanilla_data_loaded(false) {
-                                        let game_path = setting_path(game.game_key_name());
+                                        let game_path = setting_path(game.key());
                                         let dependencies_file_path = dependencies_cache_path().unwrap().join(game.dependencies_cache_file_name());
 
                                         match dependencies.write().unwrap().rebuild(&SCHEMA.read().unwrap(), pack_file_decoded.dependencies(), Some(&*dependencies_file_path), &game, &game_path) {
@@ -1184,7 +1184,7 @@ pub fn background_loop() {
 
                 // Note: we no longer notify the UI of success or error to not hang it up.
                 let game_selected = GAME_SELECTED.read().unwrap();
-                let game_path = setting_path(game_selected.game_key_name());
+                let game_path = setting_path(game_selected.key());
                 let ca_paths = game_selected.ca_packs_paths(&game_path)
                     .unwrap_or(vec![])
                     .iter()
@@ -1229,7 +1229,7 @@ pub fn background_loop() {
                     dependencies,
                     pack_file_decoded => move || {
                     let game_selected = GAME_SELECTED.read().unwrap().clone();
-                    let game_path = setting_path(game_selected.game_key_name());
+                    let game_path = setting_path(game_selected.key());
 
                     let mut diagnostics = Diagnostics::default();
                     *diagnostics.diagnostics_ignored_mut() = diagnostics_ignored;
@@ -1254,7 +1254,7 @@ pub fn background_loop() {
                     dependencies,
                     pack_file_decoded => move || {
                     let game_selected = GAME_SELECTED.read().unwrap().clone();
-                    let game_path = setting_path(game_selected.game_key_name());
+                    let game_path = setting_path(game_selected.key());
 
                     if let Some(schema) = &*SCHEMA.read().unwrap() {
                         if pack_file_decoded.pfh_file_type() == PFHFileType::Mod ||
@@ -1315,7 +1315,7 @@ pub fn background_loop() {
             Command::RebuildDependencies(rebuild_only_current_mod_dependencies) => {
                 if SCHEMA.read().unwrap().is_some() {
                     let game_selected = GAME_SELECTED.read().unwrap();
-                    let game_path = setting_path(game_selected.game_key_name());
+                    let game_path = setting_path(game_selected.key());
                     let dependencies_file_path = dependencies_cache_path().unwrap().join(game_selected.dependencies_cache_file_name());
                     let file_path = if !rebuild_only_current_mod_dependencies { Some(&*dependencies_file_path) } else { None };
 
@@ -1890,7 +1890,7 @@ fn live_export(pack: &mut Pack) -> Result<()> {
     }
 
     let extra_data = Some(initialize_encodeable_extra_data(&GAME_SELECTED.read().unwrap()));
-    let game_path = setting_path(GAME_SELECTED.read().unwrap().game_key_name());
+    let game_path = setting_path(GAME_SELECTED.read().unwrap().key());
     let data_path = GAME_SELECTED.read().unwrap().data_path(&game_path)?;
 
     // We're interested in lua and xml files only, not those entire folders.
@@ -2062,7 +2062,7 @@ fn decode_and_send_file(file: &mut RFile, sender: &Sender<Response>) {
     let schema = SCHEMA.read().unwrap();
     extra_data.set_schema(schema.as_ref());
 
-    let game_key = GAME_SELECTED.read().unwrap().game_key_name();
+    let game_key = GAME_SELECTED.read().unwrap().key();
     extra_data.set_game_key(Some(game_key));
 
     // Do not attempt to decode these.

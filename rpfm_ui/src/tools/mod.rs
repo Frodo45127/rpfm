@@ -138,7 +138,7 @@ impl Tool {
         // - Dependencies cache generated and up-to-date.
         //
         // These requirements are common for all tools, so they're checked here.
-        if tool_supported_games.iter().all(|x| *x != GAME_SELECTED.read().unwrap().game_key_name()) {
+        if tool_supported_games.iter().all(|x| *x != GAME_SELECTED.read().unwrap().key()) {
             return Err(ToolsError::GameSelectedNotSupportedForTool.into());
         }
 

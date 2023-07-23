@@ -1334,7 +1334,7 @@ impl PackedFileDecoderView {
 
         // Get the raw data ready.
         let game = GAME_SELECTED.read().unwrap();
-        let raw_db_version = game.raw_db_version();
+        let raw_db_version = *game.raw_db_version();
         let raw_db_path = assembly_kit_path()?;
 
         let raw_definition_paths = get_raw_definition_paths(&raw_db_path, raw_db_version)?;

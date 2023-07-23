@@ -199,7 +199,7 @@ pub unsafe fn show_undecoded_table_report_dialog(parent: Ptr<QWidget>, table_nam
     dialog.resize_2a(400, 50);
 
     let main_grid = create_grid_layout(dialog.static_upcast());
-    let explanation_label = QLabel::from_q_string_q_widget(&qtre("send_table_for_decoding_explanation", &[(GAME_SELECTED.read().unwrap().game_key_name()), &table_name]), &dialog);
+    let explanation_label = QLabel::from_q_string_q_widget(&qtre("send_table_for_decoding_explanation", &[(GAME_SELECTED.read().unwrap().key()), &table_name]), &dialog);
     let cancel_button = QPushButton::from_q_string(&qtr("cancel"));
     let accept_button = QPushButton::from_q_string(&qtr("send"));
 

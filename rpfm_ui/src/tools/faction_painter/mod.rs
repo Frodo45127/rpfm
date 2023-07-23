@@ -146,7 +146,7 @@ impl ToolFactionPainter {
 
         // Initialize a Tool. This also performs some common checks to ensure we can actually use the tool.
         // TODO: Move this to a tool var.
-        let paths = match &*GAME_SELECTED.read().unwrap().game_key_name() {
+        let paths = match &*GAME_SELECTED.read().unwrap().key() {
             KEY_WARHAMMER_3 => vec![
                 ContainerPath::Folder("db/factions_tables".to_owned()),
                 ContainerPath::Folder("text".to_owned()),
@@ -379,7 +379,7 @@ impl ToolFactionPainter {
 
         // We have to save the data to the last entry of the keys in out list, so if any of the other fields is edited on it, that edition is kept.
         let mut files_to_save = vec![];
-        match &*GAME_SELECTED.read().unwrap().game_key_name() {
+        match &*GAME_SELECTED.read().unwrap().key() {
             KEY_WARHAMMER_3 => {
                 files_to_save.push(self.save_factions_data(&data_to_save)?);
             }
@@ -613,13 +613,13 @@ impl ToolFactionPainter {
                     let flag_path_column = table.column_position_by_name("flags_path").ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), "flags_path".to_string()))?;
 
                     // Only used for WH3.
-                    let banner_primary_colour_column = if GAME_SELECTED.read().unwrap().game_key_name() == KEY_WARHAMMER_3 { table.column_position_by_name(banner_primary_colour_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), banner_primary_colour_column_name.to_string()))? } else { 0 };
-                    let banner_secondary_colour_column = if GAME_SELECTED.read().unwrap().game_key_name() == KEY_WARHAMMER_3 { table.column_position_by_name(banner_secondary_colour_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), banner_secondary_colour_column_name.to_string()))? } else { 0 };
-                    let banner_tertiary_colour_column = if GAME_SELECTED.read().unwrap().game_key_name() == KEY_WARHAMMER_3 { table.column_position_by_name(banner_tertiary_colour_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), banner_tertiary_colour_column_name.to_string()))? } else { 0 };
+                    let banner_primary_colour_column = if GAME_SELECTED.read().unwrap().key() == KEY_WARHAMMER_3 { table.column_position_by_name(banner_primary_colour_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), banner_primary_colour_column_name.to_string()))? } else { 0 };
+                    let banner_secondary_colour_column = if GAME_SELECTED.read().unwrap().key() == KEY_WARHAMMER_3 { table.column_position_by_name(banner_secondary_colour_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), banner_secondary_colour_column_name.to_string()))? } else { 0 };
+                    let banner_tertiary_colour_column = if GAME_SELECTED.read().unwrap().key() == KEY_WARHAMMER_3 { table.column_position_by_name(banner_tertiary_colour_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), banner_tertiary_colour_column_name.to_string()))? } else { 0 };
 
-                    let uniform_primary_colour_column = if GAME_SELECTED.read().unwrap().game_key_name() == KEY_WARHAMMER_3 { table.column_position_by_name(uniform_primary_colour_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), uniform_primary_colour_column_name.to_string()))? } else { 0 };
-                    let uniform_secondary_colour_column = if GAME_SELECTED.read().unwrap().game_key_name() == KEY_WARHAMMER_3 { table.column_position_by_name(uniform_secondary_colour_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), uniform_secondary_colour_column_name.to_string()))? } else { 0 };
-                    let uniform_tertiary_colour_column = if GAME_SELECTED.read().unwrap().game_key_name() == KEY_WARHAMMER_3 { table.column_position_by_name(uniform_tertiary_colour_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), uniform_tertiary_colour_column_name.to_string()))? } else { 0 };
+                    let uniform_primary_colour_column = if GAME_SELECTED.read().unwrap().key() == KEY_WARHAMMER_3 { table.column_position_by_name(uniform_primary_colour_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), uniform_primary_colour_column_name.to_string()))? } else { 0 };
+                    let uniform_secondary_colour_column = if GAME_SELECTED.read().unwrap().key() == KEY_WARHAMMER_3 { table.column_position_by_name(uniform_secondary_colour_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), uniform_secondary_colour_column_name.to_string()))? } else { 0 };
+                    let uniform_tertiary_colour_column = if GAME_SELECTED.read().unwrap().key() == KEY_WARHAMMER_3 { table.column_position_by_name(uniform_tertiary_colour_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), uniform_tertiary_colour_column_name.to_string()))? } else { 0 };
 
                     let definition = serde_json::to_string(table.definition())?;
                     for row in table.data(&None)?.iter() {
@@ -652,7 +652,7 @@ impl ToolFactionPainter {
                         }
 
                         // In WH3 the 3 tables were merged into factions, so we have to check here for their data
-                        if GAME_SELECTED.read().unwrap().game_key_name() == KEY_WARHAMMER_3 {
+                        if GAME_SELECTED.read().unwrap().key() == KEY_WARHAMMER_3 {
                             let banner_primary_row_by_column = Tool::get_row_by_column_index(row, banner_primary_colour_column)?;
                             let banner_secondary_row_by_column = Tool::get_row_by_column_index(row, banner_secondary_colour_column)?;
                             let banner_tertiary_row_by_column = Tool::get_row_by_column_index(row, banner_tertiary_colour_column)?;

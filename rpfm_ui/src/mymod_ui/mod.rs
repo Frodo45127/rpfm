@@ -131,12 +131,12 @@ impl MyModUI {
         // Add the games to the ComboBox.
         let mut selected_index = 0;
         let mut selected_index_counter = 0;
-        let game_selected = GAME_SELECTED.read().unwrap().game_key_name();
+        let game_selected = GAME_SELECTED.read().unwrap().key();
         for game in SUPPORTED_GAMES.games_sorted() {
-            if game.supports_editing() {
+            if *game.supports_editing() {
                 game_combobox.add_item_q_string(&QString::from_std_str(game.display_name()));
 
-                if game.game_key_name() == game_selected {
+                if game.key() == game_selected {
                     selected_index = selected_index_counter
                 }
                 selected_index_counter += 1;

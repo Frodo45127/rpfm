@@ -59,7 +59,7 @@ pub unsafe fn init_settings(main_window: &QPtr<QMainWindow>) {
     set_setting_if_new_string(&q_settings, ZIP_PATH, "");
 
     for game in &SUPPORTED_GAMES.games() {
-        let game_key = game.game_key_name();
+        let game_key = game.key();
         let game_path = if let Ok(Some(game_path)) = game.find_game_install_location() {
             game_path.to_string_lossy().to_string()
         } else {
@@ -220,8 +220,8 @@ pub fn dependencies_cache_path() -> Result<PathBuf> {
 /// This function returns the dependencies path.
 pub fn assembly_kit_path() -> Result<PathBuf> {
     let game_selected = GAME_SELECTED.read().unwrap();
-    let mut base_path = setting_path(&format!("{}_assembly_kit", game_selected.game_key_name()));
-    let version = game_selected.raw_db_version();
+    let mut base_path = setting_path(&format!("{}_assembly_kit", game_selected.key()));
+    let version = *game_selected.raw_db_version();
     match version {
 
         // Post-Shogun 2 games.

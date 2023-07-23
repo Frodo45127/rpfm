@@ -291,7 +291,7 @@ impl Dependencies {
 
         // This one can fail, leaving the dependencies with only game data.
         if let Some(path) = asskit_path {
-            let _ = cache.generate_asskit_only_db_tables(path, game_info.raw_db_version());
+            let _ = cache.generate_asskit_only_db_tables(path, *game_info.raw_db_version());
         }
 
         Ok(cache)

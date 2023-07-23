@@ -106,8 +106,8 @@ impl Default for SupportedGames {
                 "db/ritual_ownership_content_pack_junctions_tables".to_owned(),
                 "db/technology_ownership_content_pack_junctions_tables".to_owned(),
             ],
-            game_selected_icon: "gs_wh3.png".to_owned(),
-            game_selected_big_icon: "gs_big_wh3.png".to_owned(),
+            icon_small: "gs_wh3.png".to_owned(),
+            icon_big: "gs_big_wh3.png".to_owned(),
             vanilla_db_table_name_logic: VanillaDBTableNameLogic::DefaultName("data__".to_owned()),
             install_data: {
                 let mut data = HashMap::new();
@@ -163,6 +163,113 @@ impl Default for SupportedGames {
                 vars
             },
             lua_autogen_folder: Some("output/wh3".to_owned()),
+            ak_lost_fields: vec![
+                "_kv_battle_ai_ability_usage_variables/description".to_owned(),
+                "_kv_experience_bonuses/description".to_owned(),
+                "_kv_fatigue/description".to_owned(),
+                "_kv_fire_values/description".to_owned(),
+                "_kv_key_buildings/description".to_owned(),
+                "_kv_morale/description".to_owned(),
+                "_kv_naval_morale/description".to_owned(),
+                "_kv_naval_rules/description".to_owned(),
+                "_kv_rules/description".to_owned(),
+                "_kv_ui_tweakers/description".to_owned(),
+                "_kv_unit_ability_scaling_rules/description".to_owned(),
+                "_kv_winds_of_magic_params/description".to_owned(),
+                "advice_levels/locatable".to_owned(),
+                "ancillary_info/author".to_owned(),
+                "ancillary_info/comment".to_owned(),
+                "ancillary_info/historical_example".to_owned(),
+                "audio_entity_types/game_expansion_key".to_owned(),
+                "audio_markers/colour_blue".to_owned(),
+                "audio_markers/colour_green".to_owned(),
+                "audio_markers/colour_red".to_owned(),
+                "audio_metadata_tags/colour_blue".to_owned(),
+                "audio_metadata_tags/colour_green".to_owned(),
+                "audio_metadata_tags/colour_red".to_owned(),
+                "audio_metadata_tags/game_expansion_key".to_owned(),
+                "audio_metadata_tags/path".to_owned(),
+                "battle_animations_table/game_expansion_key".to_owned(),
+                "battle_personalities/game_expansion_key".to_owned(),
+                "battle_set_pieces/game_expansion_key".to_owned(),
+                "battle_skeletons/game_expansion_key".to_owned(),
+                "battles/game_expansion_key".to_owned(),
+                "battles/objectives_team_1".to_owned(),
+                "battles/objectives_team_2".to_owned(),
+                "building_chains/encyclopedia_group".to_owned(),
+                "building_chains/encyclopedia_include_in_index".to_owned(),
+                "building_culture_variants/flavour".to_owned(),
+                "building_levels/commodity_vol".to_owned(),
+                "cai_algorithm_variables/description".to_owned(),
+                "cai_algorithms/description".to_owned(),
+                "cai_decision_interfaces/description".to_owned(),
+                "cai_decision_items_non_record_bound_types/description".to_owned(),
+                "cai_decision_policies/description".to_owned(),
+                "cai_domain_modifier_functions/description".to_owned(),
+                "cai_domain_variables/description".to_owned(),
+                "cai_domains/description".to_owned(),
+                "cai_queries/description".to_owned(),
+                "cai_query_variables/description".to_owned(),
+                "cai_task_management_system_variables/description".to_owned(),
+                "campaign_ai_managers/description".to_owned(),
+                "campaign_map_playable_areas/game_expansion_key".to_owned(),
+                "campaign_map_playable_areas/maxy".to_owned(),
+                "campaign_map_playable_areas/miny".to_owned(),
+                "campaign_map_playable_areas/preview_border".to_owned(),
+                "campaign_payload_ui_details/comment".to_owned(),
+                "campaign_settlement_display_building_ids/sub_culture".to_owned(),
+                "campaign_tree_types/game_expansion_key".to_owned(),
+                "campaign_variables/description".to_owned(),
+                "campaigns/game_expansion_key".to_owned(),
+                "cdir_event_targets/description".to_owned(),
+                "cdir_events_options/notes".to_owned(),
+                "cdir_events_payloads/notes".to_owned(),
+                "cdir_events_targets/description".to_owned(),
+                "cdir_military_generator_configs/game_expansion_key".to_owned(),
+                "cdir_military_generator_templates/game_expansion_key".to_owned(),
+                "character_skill_level_to_effects_junctions/is_factionwide".to_owned(),
+                "character_skills/pre_battle_speech_parameter".to_owned(),
+                "character_traits/author".to_owned(),
+                "character_traits/comment".to_owned(),
+                "deployables/icon_name".to_owned(),
+                "faction_groups/ui_icon".to_owned(),
+                "factions/game_expansion_key".to_owned(),
+                "frontend_faction_leaders/game_expansion_key".to_owned(),
+                "land_units/game_expansion_key".to_owned(),
+                "loading_screen_quotes/game_expansion_key".to_owned(),
+                "mercenary_pool_to_groups_junctions/game_expansion_key".to_owned(),
+
+                // Special table. Ignore them.
+                "models_building/cs2_file".to_owned(),
+                "models_building/model_file".to_owned(),
+                "models_building/tech_file".to_owned(),
+
+                "names_groups/Description".to_owned(),
+                "names_groups/game_expansion_key".to_owned(),
+                "naval_units/strengths_weaknesses_text".to_owned(),
+                "pdlc/game_expansion_key".to_owned(),
+                "projectiles/game_expansion_key".to_owned(),
+                "regions/in_encyclopedia".to_owned(),
+                "regions/is_sea".to_owned(),
+                "resources/campaign_group".to_owned(),
+                "scripted_bonus_value_ids/notes".to_owned(),
+                "scripted_objectives/game_expansion_key".to_owned(),
+                "start_pos_calendars/unique".to_owned(),
+                "start_pos_diplomacy/relations_modifier".to_owned(),
+                "start_pos_diplomacy/unique".to_owned(),
+                "start_pos_factions/honour".to_owned(),
+                "start_pos_factions/unique".to_owned(),
+                "start_pos_regions/unique".to_owned(),
+                "technologies/in_encyclopedia".to_owned(),
+                "technology_node_sets/game_expansion_key".to_owned(),
+                "trait_info/applicable_to".to_owned(),
+                "trigger_events/from_ui".to_owned(),
+                "trigger_events/game_expansion_key".to_owned(),
+                "videos/game_expansion_key".to_owned(),
+                "warscape_animated/game_expansion_key".to_owned(),
+                "wind_levels/magnitudeX".to_owned(),
+                "wind_levels/magnitudeY".to_owned(),
+            ],
         });
 
         // Troy
@@ -186,8 +293,8 @@ impl Default for SupportedGames {
             db_tables_have_guid: true,
             locale_file_name: Some("language.txt".to_owned()),
             banned_packedfiles: vec![],
-            game_selected_icon: "gs_troy.png".to_owned(),
-            game_selected_big_icon: "gs_big_troy.png".to_owned(),
+            icon_small: "gs_troy.png".to_owned(),
+            icon_big: "gs_big_troy.png".to_owned(),
             vanilla_db_table_name_logic: VanillaDBTableNameLogic::DefaultName("data__".to_owned()),
             install_data: {
                 let mut data = HashMap::new();
@@ -245,6 +352,7 @@ impl Default for SupportedGames {
                 vars
             },
             lua_autogen_folder: None,
+            ak_lost_fields: vec![],
         });
 
         // Three Kingdoms
@@ -268,8 +376,8 @@ impl Default for SupportedGames {
             db_tables_have_guid: true,
             locale_file_name: Some("language.txt".to_owned()),
             banned_packedfiles: vec![],
-            game_selected_icon: "gs_3k.png".to_owned(),
-            game_selected_big_icon: "gs_big_3k.png".to_owned(),
+            icon_small: "gs_3k.png".to_owned(),
+            icon_big: "gs_big_3k.png".to_owned(),
             vanilla_db_table_name_logic: VanillaDBTableNameLogic::DefaultName("data__".to_owned()),
 
             install_data: {
@@ -429,6 +537,7 @@ impl Default for SupportedGames {
                 vars
             },
             lua_autogen_folder: None,
+            ak_lost_fields: vec![],
         });
         // Warhammer 2
         game_list.insert(KEY_WARHAMMER_2, GameInfo {
@@ -451,8 +560,8 @@ impl Default for SupportedGames {
             db_tables_have_guid: true,
             locale_file_name: None,
             banned_packedfiles: vec![],
-            game_selected_icon: "gs_wh2.png".to_owned(),
-            game_selected_big_icon: "gs_big_wh2.png".to_owned(),
+            icon_small: "gs_wh2.png".to_owned(),
+            icon_big: "gs_big_wh2.png".to_owned(),
             vanilla_db_table_name_logic: VanillaDBTableNameLogic::DefaultName("data__".to_owned()),
             install_data: {
                 let mut data = HashMap::new();
@@ -848,6 +957,7 @@ impl Default for SupportedGames {
                 vars
             },
             lua_autogen_folder: None,
+            ak_lost_fields: vec![],
         });
 
         // Warhammer
@@ -871,8 +981,8 @@ impl Default for SupportedGames {
             db_tables_have_guid: true,
             locale_file_name: None,
             banned_packedfiles: vec![],
-            game_selected_icon: "gs_wh.png".to_owned(),
-            game_selected_big_icon: "gs_big_wh.png".to_owned(),
+            icon_small: "gs_wh.png".to_owned(),
+            icon_big: "gs_big_wh.png".to_owned(),
             vanilla_db_table_name_logic: VanillaDBTableNameLogic::FolderName,
             install_data: {
                 let mut data = HashMap::new();
@@ -1010,6 +1120,7 @@ impl Default for SupportedGames {
                 vars
             },
             lua_autogen_folder: None,
+            ak_lost_fields: vec![],
         });
 
         // Thrones of Britannia
@@ -1033,8 +1144,8 @@ impl Default for SupportedGames {
             db_tables_have_guid: true,
             locale_file_name: None,
             banned_packedfiles: vec![],
-            game_selected_icon: "gs_tob.png".to_owned(),
-            game_selected_big_icon: "gs_big_tob.png".to_owned(),
+            icon_small: "gs_tob.png".to_owned(),
+            icon_big: "gs_big_tob.png".to_owned(),
             vanilla_db_table_name_logic: VanillaDBTableNameLogic::FolderName,
             install_data: {
                 let mut data = HashMap::new();
@@ -1120,6 +1231,7 @@ impl Default for SupportedGames {
                 vars
             },
             lua_autogen_folder: None,
+            ak_lost_fields: vec![],
         });
 
         // Attila
@@ -1143,8 +1255,8 @@ impl Default for SupportedGames {
             db_tables_have_guid: true,
             locale_file_name: None,
             banned_packedfiles: vec![],
-            game_selected_icon: "gs_att.png".to_owned(),
-            game_selected_big_icon: "gs_big_att.png".to_owned(),
+            icon_small: "gs_att.png".to_owned(),
+            icon_big: "gs_big_att.png".to_owned(),
             vanilla_db_table_name_logic: VanillaDBTableNameLogic::FolderName,
             install_data: {
                 let mut data = HashMap::new();
@@ -1201,6 +1313,7 @@ impl Default for SupportedGames {
                 vars
             },
             lua_autogen_folder: None,
+            ak_lost_fields: vec![],
         });
 
         // Rome 2
@@ -1224,8 +1337,8 @@ impl Default for SupportedGames {
             db_tables_have_guid: true,
             locale_file_name: None,
             banned_packedfiles: vec![],
-            game_selected_icon: "gs_rom2.png".to_owned(),
-            game_selected_big_icon: "gs_big_rom2.png".to_owned(),
+            icon_small: "gs_rom2.png".to_owned(),
+            icon_big: "gs_big_rom2.png".to_owned(),
             vanilla_db_table_name_logic: VanillaDBTableNameLogic::FolderName,
             install_data: {
                 let mut data = HashMap::new();
@@ -1268,6 +1381,7 @@ impl Default for SupportedGames {
                 vars
             },
             lua_autogen_folder: None,
+            ak_lost_fields: vec![],
         });
 
         // Shogun 2
@@ -1292,8 +1406,8 @@ impl Default for SupportedGames {
             db_tables_have_guid: true,
             locale_file_name: None,
             banned_packedfiles: vec![],
-            game_selected_icon: "gs_sho2.png".to_owned(),
-            game_selected_big_icon: "gs_big_sho2.png".to_owned(),
+            icon_small: "gs_sho2.png".to_owned(),
+            icon_big: "gs_big_sho2.png".to_owned(),
             vanilla_db_table_name_logic: VanillaDBTableNameLogic::FolderName,
             install_data: {
                 let mut data = HashMap::new();
@@ -1350,6 +1464,7 @@ impl Default for SupportedGames {
             },
             tool_vars: HashMap::new(),
             lua_autogen_folder: None,
+            ak_lost_fields: vec![],
         });
 
         // Napoleon
@@ -1373,8 +1488,8 @@ impl Default for SupportedGames {
             db_tables_have_guid: false,
             locale_file_name: None,
             banned_packedfiles: vec![],
-            game_selected_icon: "gs_nap.png".to_owned(),
-            game_selected_big_icon: "gs_big_nap.png".to_owned(),
+            icon_small: "gs_nap.png".to_owned(),
+            icon_big: "gs_big_nap.png".to_owned(),
             vanilla_db_table_name_logic: VanillaDBTableNameLogic::FolderName,
             install_data: {
                 let mut data = HashMap::new();
@@ -1441,6 +1556,7 @@ impl Default for SupportedGames {
             },
             tool_vars: HashMap::new(),
             lua_autogen_folder: None,
+            ak_lost_fields: vec![],
         });
 
         // Empire
@@ -1464,8 +1580,8 @@ impl Default for SupportedGames {
             db_tables_have_guid: false,
             locale_file_name: None,
             banned_packedfiles: vec![],
-            game_selected_icon: "gs_emp.png".to_owned(),
-            game_selected_big_icon: "gs_big_emp.png".to_owned(),
+            icon_small: "gs_emp.png".to_owned(),
+            icon_big: "gs_big_emp.png".to_owned(),
             vanilla_db_table_name_logic: VanillaDBTableNameLogic::FolderName,
             install_data: {
                 let mut data = HashMap::new();
@@ -1611,6 +1727,7 @@ impl Default for SupportedGames {
             },
             tool_vars: HashMap::new(),
             lua_autogen_folder: None,
+            ak_lost_fields: vec![],
         });
 
         // NOTE: There are things that depend on the order of this list, and this game must ALWAYS be the last one.
@@ -1636,8 +1753,8 @@ impl Default for SupportedGames {
             db_tables_have_guid: true,
             locale_file_name: None,
             banned_packedfiles: vec![],
-            game_selected_icon: "gs_are.png".to_owned(),
-            game_selected_big_icon: "gs_big_are.png".to_owned(),
+            icon_small: "gs_are.png".to_owned(),
+            icon_big: "gs_big_are.png".to_owned(),
             vanilla_db_table_name_logic: VanillaDBTableNameLogic::FolderName,
             install_data: {
                 let mut data = HashMap::new();
@@ -1658,6 +1775,7 @@ impl Default for SupportedGames {
             },
             tool_vars: HashMap::new(),
             lua_autogen_folder: None,
+            ak_lost_fields: vec![],
         });
 
         let order_list = vec![

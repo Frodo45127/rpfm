@@ -2321,8 +2321,8 @@ impl<'a> EncodeableExtraData<'a> {
     /// This functions generates an EncodeableExtraData for a specific game.
     pub fn new_from_game_info(game_info: &'a GameInfo) -> Self {
         let mut extra_data = Self::default();
-        extra_data.set_game_key(Some(game_info.game_key_name()));
-        extra_data.set_table_has_guid(game_info.db_tables_have_guid());
+        extra_data.set_game_key(Some(game_info.key()));
+        extra_data.set_table_has_guid(*game_info.db_tables_have_guid());
         extra_data
     }
 }

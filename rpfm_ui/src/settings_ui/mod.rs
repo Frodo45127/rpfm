@@ -276,7 +276,7 @@ impl SettingsUI {
             // Note: ignore the warnings caused by this. They're harmless.
             let game_path_layout = create_grid_layout(spoiler.static_upcast());
 
-            let game_key = game_supported.game_key_name();
+            let game_key = game_supported.key();
             let game_label = QLabel::from_q_string_q_widget(&qtr("settings_game_label"), &spoiler);
             let game_line_edit = QLineEdit::from_q_widget(&spoiler);
             let game_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("..."), &spoiler);
@@ -862,7 +862,7 @@ impl SettingsUI {
 
         // Get the default game.
         for (index, game) in SUPPORTED_GAMES.games().iter().enumerate() {
-            if game.game_key_name() == setting_string_from_q_setting(&q_settings, "default_game") {
+            if game.key() == setting_string_from_q_setting(&q_settings, "default_game") {
                 self.extra_global_default_game_combobox.set_current_index(index as i32);
                 break;
             }
