@@ -1154,7 +1154,7 @@ impl Default for SupportedGames {
                     use_manifest: true,
                     store_id: 712_100,
                     store_id_ak: 817_480,
-                    executable: "Thrones.exe".to_owned(),
+                    executable: "thrones.exe".to_owned(),
                     data_path: "data".to_owned(),
                     language_path: "data".to_owned(),
                     local_mods_path: "data".to_owned(),
