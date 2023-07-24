@@ -53,6 +53,10 @@ pub const LUA_REPO: &str = "https://github.com/chadvandy/tw_autogen";
 pub const LUA_REMOTE: &str = "origin";
 pub const LUA_BRANCH: &str = "main";
 
+pub const OLD_AK_REPO: &str = "https://github.com/Frodo45127/total_war_ak_files_pre_shogun_2";
+pub const OLD_AK_REMOTE: &str = "origin";
+pub const OLD_AK_BRANCH: &str = "master";
+
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//

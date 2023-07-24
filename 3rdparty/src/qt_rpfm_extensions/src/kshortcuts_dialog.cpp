@@ -76,6 +76,7 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     new_action(about_menu_actions, "check_schema_updates", "Check Schema Updates", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+Shift+U"), "svn-update");
     new_action(about_menu_actions, "check_message_updates", "Check Message Updates", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""), "svn-update");
     new_action(about_menu_actions, "check_tw_autogen_updates", "Check TW Autogen Updates", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""), "svn-update");
+    new_action(about_menu_actions, "check_empire_and_napoleon_ak_updates", "Check Old AK (Empire/Napoleon) Updates", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""), "svn-update");
     about_menu_actions->readSettings();
 
     // File Tab actions.

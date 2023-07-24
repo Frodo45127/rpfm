@@ -17,7 +17,7 @@ Basically, this does the network checks of the program.
 use crossbeam::channel::Sender;
 
 use rpfm_lib::integrations::{git::*, log::*};
-use rpfm_lib::games::{LUA_REPO, LUA_REMOTE, LUA_BRANCH};
+use rpfm_lib::games::{LUA_REPO, LUA_REMOTE, LUA_BRANCH, OLD_AK_REPO, OLD_AK_BRANCH, OLD_AK_REMOTE};
 use rpfm_lib::schema::*;
 
 use crate::CENTRAL_COMMAND;
@@ -71,6 +71,19 @@ pub fn network_loop() {
                 match lua_autogen_base_path() {
                     Ok(local_path) => {
                         let git_integration = GitIntegration::new(&local_path, LUA_REPO, LUA_BRANCH, LUA_REMOTE);
+                        match git_integration.check_update() {
+                            Ok(response) => CentralCommand::send_back(&sender, Response::APIResponseGit(response)),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                        }
+                    },
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                }
+            }
+
+            Command::CheckEmpireAndNapoleonAKUpdates => {
+                match old_ak_files_path() {
+                    Ok(local_path) => {
+                        let git_integration = GitIntegration::new(&local_path, OLD_AK_REPO, OLD_AK_BRANCH, OLD_AK_REMOTE);
                         match git_integration.check_update() {
                             Ok(response) => CentralCommand::send_back(&sender, Response::APIResponseGit(response)),
                             Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),

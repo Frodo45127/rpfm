@@ -157,6 +157,7 @@ pub struct AppUISlots {
     pub about_check_updates: QBox<SlotOfBool>,
     pub about_check_schema_updates: QBox<SlotOfBool>,
     pub about_check_lua_autogen_updates: QBox<SlotOfBool>,
+    pub about_check_empire_and_napoleon_ak_updates: QBox<SlotOfBool>,
 
     //-----------------------------------------------//
     // `Debug` menu slots.
@@ -1373,11 +1374,17 @@ impl AppUISlots {
             }
         ));
 
-        // What happens when we trigger the "Check Schema Update" action.
         let about_check_lua_autogen_updates = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
                 info!("Triggering `Check Lua Autogen Updates` By Slot");
                 AppUI::check_lua_autogen_updates(&app_ui, true);
+            }
+        ));
+
+        let about_check_empire_and_napoleon_ak_updates = SlotOfBool::new(&app_ui.main_window, clone!(
+            app_ui => move |_| {
+                info!("Triggering `Check Old AK Updates` By Slot");
+                AppUI::check_old_ak_updates(&app_ui, true);
             }
         ));
 
@@ -1866,6 +1873,7 @@ impl AppUISlots {
             about_check_updates,
             about_check_schema_updates,
             about_check_lua_autogen_updates,
+            about_check_empire_and_napoleon_ak_updates,
 
             //-----------------------------------------------//
             // `Debug` menu slots.

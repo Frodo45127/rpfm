@@ -1393,3 +1393,9 @@ unit_variant_unknown_value = Unknown Value:
 unit_variant_id = Id:
 
 unit_variant_new_category_title = New/Clone Category
+about_check_empire_and_napoleon_ak_updates = Check Old AK (Empire/Napoleon) Updates
+update_old_ak_autogen_checker = Update Old AK (Empire/Napoleon) Checker
+old_ak_no_update = <h4>No new Old AK updates available</h4> <p>More luck next time :)</p>
+old_ak_new_update = <h4>New Old AK update available</h4> <p>Do you want to update the Old AK data?</p>
+update_no_local_old_ak = <p>No local Old AK (Empire/Napoleon) data found. Do you want to download the latest one?</p>
+old_ak_update_success = <h4>Old AK Data updated.</h4><p>You can continue using RPFM now, but remember to regenerate the dependencies cache for Empire and Napoleon, so the Old AK data is added to it.</p>
