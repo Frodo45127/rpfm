@@ -6,3 +6,6 @@
 	path = 3rdparty/src/qt_dds_library
 	url = git@github.com:Frodo45127/qt_dds_library.git
     update = "none"
+[submodule "old_ak_files"]
+	path = old_ak_files
+	url = git@github.com:Frodo45127/total_war_ak_files_pre_shogun_2.git

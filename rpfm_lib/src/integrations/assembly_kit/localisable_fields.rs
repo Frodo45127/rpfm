@@ -63,6 +63,8 @@ impl RawLocalisableFields {
                 let localisable_fields_file = BufReader::new(File::open(localisable_fields_path)?);
                 from_reader(localisable_fields_file).map_err(From::from)
             }
+
+            // Version 0 doesn't have loc fields as is. We have to bruteforce them.
             _ => Err(RLibError::AssemblyKitUnsupportedVersion(version))
         }
     }

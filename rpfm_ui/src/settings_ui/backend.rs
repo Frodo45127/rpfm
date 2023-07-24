@@ -181,6 +181,7 @@ pub fn init_config_path() -> Result<()> {
     DirBuilder::new().recursive(true).create(error_path()?)?;
     DirBuilder::new().recursive(true).create(schemas_path()?)?;
     DirBuilder::new().recursive(true).create(table_profiles_path()?)?;
+    DirBuilder::new().recursive(true).create(old_ak_files_path()?)?;
 
     Ok(())
 }
@@ -217,18 +218,27 @@ pub fn dependencies_cache_path() -> Result<PathBuf> {
     Ok(config_path()?.join(DEPENDENCIES_FOLDER))
 }
 
+pub fn old_ak_files_path() -> Result<PathBuf> {
+    Ok(config_path()?.join("old_ak_files"))
+}
+
 /// This function returns the dependencies path.
 pub fn assembly_kit_path() -> Result<PathBuf> {
     let game_selected = GAME_SELECTED.read().unwrap();
-    let mut base_path = setting_path(&format!("{}_assembly_kit", game_selected.key()));
     let version = *game_selected.raw_db_version();
     match version {
 
         // Post-Shogun 2 games.
         2 | 1 => {
+            let mut base_path = setting_path(&format!("{}_assembly_kit", game_selected.key()));
             base_path.push("raw_data/db");
             Ok(base_path)
         }
+
+        0 => {
+            let base_path = old_ak_files_path()?.join(game_selected.key());
+            Ok(base_path)
+        },
 
         // Shogun 2/Older games
         _ => Err(RLibError::AssemblyKitUnsupportedVersion(version).into())

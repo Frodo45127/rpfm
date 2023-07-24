@@ -52,14 +52,14 @@ const RAW_DEFINITION_IGNORED_FILES_V2: [&str; 5] = [
 //const RAW_DEFINITION_EXTENSION_V2: &str = ".xml";
 //const RAW_DATA_EXTENSION_V2: &str = RAW_DEFINITION_EXTENSION_V2;
 
-const RAW_DEFINITION_EXTENSION_V0: &str = ".xsd";
+const RAW_DEFINITION_EXTENSION_V0: &str = "xsd";
 //const RAW_DATA_EXTENSION_V0: &str = RAW_DATA_EXTENSION_V2;
 
 
 /// Theses tables are blacklisted because:
 /// - "translated_texts.xml": just translations.
 /// - "TWaD_form_descriptions.xml": it's not a table.
-const BLACKLISTED_TABLES: [&str; 2] = ["translated_texts.xml", "TWaD_form_descriptions.xml"];
+const BLACKLISTED_TABLES: [&str; 4] = ["translated_texts.xml", "TWaD_form_descriptions.xml", "GroupFormation.xsd", "TExc_Effects.xsd"];
 
 //---------------------------------------------------------------------------//
 // Functions to process the Raw DB Tables from the Assembly Kit.
@@ -82,7 +82,7 @@ pub fn update_schema_from_raw_files(
 
     // This has to do a different process depending on the `raw_db_version`.
     let raw_db_version = game_info.raw_db_version();
-    match raw_db_version {
+    let (raw_definitions, raw_localisable_fields) = match raw_db_version {
         2 | 1 => {
 
             let mut ass_kit_path = ass_kit_path.to_owned();
@@ -96,50 +96,57 @@ pub fn update_schema_from_raw_files(
                     from_reader(file).ok()
                 } else { None };
 
-            let raw_definitions = RawDefinition::read_all(&ass_kit_path, *raw_db_version, tables_to_skip)?;
+            (RawDefinition::read_all(&ass_kit_path, *raw_db_version, tables_to_skip)?, raw_localisable_fields)
+        }
 
-            let mut unfound_fields = schema.definitions_mut().par_iter_mut().flat_map(|(table_name, definitions)| {
-                let name = &table_name[0..table_name.len() - 7];
-                let mut unfound_fields = vec![];
-                if let Some(raw_definition) = raw_definitions.iter().filter(|x| x.name.is_some()).find(|x| &(x.name.as_ref().unwrap())[0..x.name.as_ref().unwrap().len() - 4] == name) {
+        // For these ones, we expect the path to point to the folder with each game's table folder.
+        0 => {
 
-                    // We need to get the version from the vanilla files to know what definition to update.
-                    if let Some(vanilla_tables) = tables_to_check.get(table_name) {
-                        for vanilla_table in vanilla_tables {
-                            if let Some(definition) = definitions.iter_mut().find(|x| x.version() == vanilla_table.definition().version()) {
-                                definition.update_from_raw_definition(raw_definition, &mut unfound_fields);
-                                if let Some(ref raw_localisable_fields) = raw_localisable_fields {
-                                    definition.update_from_raw_localisable_fields(raw_definition, &raw_localisable_fields.fields)
-                                }
-                            }
+            let ass_kit_path = ass_kit_path.join(game_info.key());
+            (RawDefinition::read_all(&ass_kit_path, *raw_db_version, tables_to_skip)?, None)
+        }
+        _ => return Err(RLibError::AssemblyKitUnsupportedVersion(*raw_db_version)),
+    };
+
+    let mut unfound_fields = schema.definitions_mut().par_iter_mut().flat_map(|(table_name, definitions)| {
+        let name = &table_name[0..table_name.len() - 7];
+        let mut unfound_fields = vec![];
+        if let Some(raw_definition) = raw_definitions.iter().filter(|x| x.name.is_some()).find(|x| &(x.name.as_ref().unwrap())[0..x.name.as_ref().unwrap().len() - 4] == name) {
+
+            // We need to get the version from the vanilla files to know what definition to update.
+            if let Some(vanilla_tables) = tables_to_check.get(table_name) {
+                for vanilla_table in vanilla_tables {
+                    if let Some(definition) = definitions.iter_mut().find(|x| x.version() == vanilla_table.definition().version()) {
+                        definition.update_from_raw_definition(raw_definition, &mut unfound_fields);
+                        if let Some(ref raw_localisable_fields) = raw_localisable_fields {
+                            definition.update_from_raw_localisable_fields(raw_definition, &raw_localisable_fields.fields)
                         }
                     }
                 }
-
-                unfound_fields
-            }).collect::<Vec<String>>();
-
-            // Sort and remove the known non-exported ones.
-            unfound_fields.sort();
-            unfound_fields.retain(|table| !game_info.ak_lost_fields().contains(&*table));
-
-            schema.save(schema_path)?;
-
-            let mut unfound_hash: HashMap<String, Vec<String>> = HashMap::new();
-            for un in &unfound_fields {
-                let split = un.split('/').collect::<Vec<_>>();
-                if split.len() == 2 {
-                    match unfound_hash.get_mut(split[0]) {
-                        Some(fields) => fields.push(split[1].to_string()),
-                        None => { unfound_hash.insert(split[0].to_string(), vec![split[1].to_string()]); }
-                    }
-                }
             }
-
-            Ok(Some(unfound_hash))
         }
-        _ => Err(RLibError::AssemblyKitUnsupportedVersion(*raw_db_version)),
+
+        unfound_fields
+    }).collect::<Vec<String>>();
+
+    // Sort and remove the known non-exported ones.
+    unfound_fields.sort();
+    unfound_fields.retain(|table| !game_info.ak_lost_fields().contains(&*table));
+
+    schema.save(schema_path)?;
+
+    let mut unfound_hash: HashMap<String, Vec<String>> = HashMap::new();
+    for un in &unfound_fields {
+        let split = un.split('/').collect::<Vec<_>>();
+        if split.len() == 2 {
+            match unfound_hash.get_mut(split[0]) {
+                Some(fields) => fields.push(split[1].to_string()),
+                None => { unfound_hash.insert(split[0].to_string(), vec![split[1].to_string()]); }
+            }
+        }
     }
+
+    Ok(Some(unfound_hash))
 }
 
 //---------------------------------------------------------------------------//
@@ -159,18 +166,17 @@ pub fn get_raw_definition_paths(current_path: &Path, version: i16) -> Result<Vec
                     Ok(file) => {
                         let file_path = file.path();
                         let file_name = file_path.file_stem().unwrap().to_str().unwrap();
-                        if version == 1 || version == 2 {
-                            if file_path.is_file() &&
-                                file_name.starts_with(RAW_DEFINITION_NAME_PREFIX_V2) &&
-                                !file_name.starts_with("TWaD_TExc") &&
-                                !RAW_DEFINITION_IGNORED_FILES_V2.contains(&file_name) {
-                                file_list.push(file_path);
-                            }
+                        if (version == 1 || version == 2) &&
+                            file_path.is_file() &&
+                            file_name.starts_with(RAW_DEFINITION_NAME_PREFIX_V2) &&
+                            !file_name.starts_with("TWaD_TExc") &&
+                            !RAW_DEFINITION_IGNORED_FILES_V2.contains(&file_name) {
+                            file_list.push(file_path);
                         }
 
                         else if version == 0 &&
                             file_path.is_file() &&
-                            file_name.ends_with(RAW_DEFINITION_EXTENSION_V0) {
+                            file_path.extension().unwrap() == RAW_DEFINITION_EXTENSION_V0 {
                             file_list.push(file_path);
                         }
                     }
