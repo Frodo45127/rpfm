@@ -11,6 +11,7 @@
 // Here should be all the functions related with encryption/decryption.
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+
 use std::io::{Read, Seek};
 use std::num::Wrapping;
 
@@ -26,11 +27,11 @@ use crate::binary::ReadBytes;
 // Decryption keys. Each one for a piece of the PackFile. The commented ones are old keys no longer used, but valid for old PackFiles.
 static INDEX_STRING_KEY: [u8; 64] = *b"#:AhppdV-!PEfz&}[]Nv?6w4guU%dF5.fq:n*-qGuhBJJBm&?2tPy!geW/+k#pG?";
 static INDEX_U32_KEY: u32 = 0xE10B_73F4;
-static DATA_KEY: Wrapping<u64> = Wrapping(0x8FEB_2A67_40A6_920E);
+static DATA_KEY: u64 = 0x8FEB_2A67_40A6_920E;
 
 pub trait Decryptable: ReadBytes + Read + Seek {
 
-    fn decrypt(&mut self, use_padding: bool) -> Result<Vec<u8>> {
+    fn decrypt(&mut self) -> Result<Vec<u8>> {
 
         // First, make sure the file ends in a multiple of 8. If not, extend it with zeros.
         // We need it because the decoding is done in packs of 8 bytes.
@@ -38,17 +39,25 @@ pub trait Decryptable: ReadBytes + Read + Seek {
         let mut ciphertext = self.read_slice(ciphertext_len, false)?;
         let size = ciphertext.len();
         let padding = 8 - (size % 8);
-        if padding < 8 { ciphertext.resize(size + padding, 0) };
+        if padding < 8 {
+            ciphertext.resize(size + padding, 0);
+        }
 
         // Then decrypt the file in packs of 8. It's faster than in packs of 4.
         let mut plaintext = Vec::with_capacity(ciphertext.len());
-        let mut edi: u32 = 0;
-        for _ in 0..ciphertext.len()/8 {
+        let mut edi: u64 = 0;
+        let chunks = ciphertext.len() / 8;
+        for i in 0..chunks {
 
-            let mut prod = (DATA_KEY * Wrapping(u64::from(!edi))).0;
+            // The last chunk is NOT ENCRYPTED.
             let esi = edi as usize;
-            prod ^= (&ciphertext[esi..esi + 8]).read_u64::<LittleEndian>().unwrap();
-            plaintext.write_u64::<LittleEndian>(prod).unwrap();
+            if i == chunks - 1 {
+                plaintext.extend_from_slice(&ciphertext[esi..esi + 8]);
+            } else {
+                let mut prod = DATA_KEY.wrapping_mul(!edi);
+                prod ^= (&ciphertext[esi..esi + 8]).read_u64::<LittleEndian>().unwrap();
+                plaintext.write_u64::<LittleEndian>(prod).unwrap();
+            }
             edi += 8
         }
 
@@ -85,4 +94,3 @@ pub trait Decryptable: ReadBytes + Read + Seek {
 }
 
 impl<R: ReadBytes + Read + Seek> Decryptable for R {}
-

@@ -2031,7 +2031,7 @@ impl OnDisk {
 
         // If the data is encrypted, decrypt it.
         if decrypt.is_some() {
-            data = Cursor::new(data).decrypt(false)?;
+            data = Cursor::new(data).decrypt()?;
         }
 
         // If the data is compressed. decompress it.
