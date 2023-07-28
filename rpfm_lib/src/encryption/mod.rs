@@ -13,7 +13,6 @@
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 use std::io::{Read, Seek};
-use std::num::Wrapping;
 
 use crate::error::Result;
 use crate::binary::ReadBytes;
