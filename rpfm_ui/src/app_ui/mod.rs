@@ -2515,7 +2515,10 @@ impl AppUI {
                                         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), data_source);
                                     }
                                 },
-                                Err(error) => return show_dialog(&app_ui.main_window, error, false),
+                                Err(error) => {
+                                    app_ui.tab_bar_packed_file.remove_tab(tab_index);
+                                    return show_dialog(&app_ui.main_window, error, false);
+                                }
                             }
                         },
 
@@ -2537,7 +2540,10 @@ impl AppUI {
                                     }
                                 },
 
-                                Err(error) => return show_dialog(&app_ui.main_window, error, false),
+                                Err(error) => {
+                                    app_ui.tab_bar_packed_file.remove_tab(tab_index);
+                                    return show_dialog(&app_ui.main_window, error, false);
+                                }
                             }
                         },
 
@@ -2559,7 +2565,10 @@ impl AppUI {
                                         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), data_source);
                                     }
                                 },
-                                Err(error) => return show_dialog(&app_ui.main_window, error, false),
+                                Err(error) => {
+                                    app_ui.tab_bar_packed_file.remove_tab(tab_index);
+                                    return show_dialog(&app_ui.main_window, error, false);
+                                }
                             }
                         },
 
@@ -2581,7 +2590,10 @@ impl AppUI {
                                         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), data_source);
                                     }
                                 },
-                                Err(error) => return show_dialog(&app_ui.main_window, error, false),
+                                Err(error) => {
+                                    app_ui.tab_bar_packed_file.remove_tab(tab_index);
+                                    return show_dialog(&app_ui.main_window, error, false);
+                                }
                             }
                         }
 
@@ -2603,7 +2615,10 @@ impl AppUI {
                                         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), data_source);
                                     }
                                 }
-                                Err(error) => return show_dialog(&app_ui.main_window, error, false),
+                                Err(error) => {
+                                    app_ui.tab_bar_packed_file.remove_tab(tab_index);
+                                    return show_dialog(&app_ui.main_window, error, false);
+                                }
                             }
                         }
 
@@ -2625,7 +2640,10 @@ impl AppUI {
                                         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), data_source);
                                     }
                                 }
-                                Err(error) => return show_dialog(&app_ui.main_window, error, false),
+                                Err(error) => {
+                                    app_ui.tab_bar_packed_file.remove_tab(tab_index);
+                                    return show_dialog(&app_ui.main_window, error, false);
+                                }
                             }
                         }
 
@@ -2649,6 +2667,7 @@ impl AppUI {
                                     }
                                 },
                                 Err(error) => {
+                                    app_ui.tab_bar_packed_file.remove_tab(tab_index);
 
                                     // Try to get the data of the table to send it for decoding.
                                     let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFileRawData(path.to_owned()));
@@ -2682,7 +2701,10 @@ impl AppUI {
                                         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), data_source);
                                     }
                                 },
-                                Err(error) => return show_dialog(&app_ui.main_window, error, false),
+                                Err(error) => {
+                                    app_ui.tab_bar_packed_file.remove_tab(tab_index);
+                                    return show_dialog(&app_ui.main_window, error, false);
+                                }
                             }
                         }
 
@@ -2705,7 +2727,10 @@ impl AppUI {
                                         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), data_source);
                                     }
                                 }
-                                Err(error) => return show_dialog(&app_ui.main_window, error, false),
+                                Err(error) => {
+                                    app_ui.tab_bar_packed_file.remove_tab(tab_index);
+                                    return show_dialog(&app_ui.main_window, error, false);
+                                }
                             }
                         }
 
@@ -2728,7 +2753,10 @@ impl AppUI {
                                         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), data_source);
                                     }
                                 },
-                                Err(error) => return show_dialog(&app_ui.main_window, error, false),
+                                Err(error) => {
+                                    app_ui.tab_bar_packed_file.remove_tab(tab_index);
+                                    return show_dialog(&app_ui.main_window, error, false);
+                                }
                             }
                         }
 
@@ -2750,7 +2778,10 @@ impl AppUI {
                                         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), data_source);
                                     }
                                 },
-                                Err(error) => return show_dialog(&app_ui.main_window, error, false),
+                                Err(error) => {
+                                    app_ui.tab_bar_packed_file.remove_tab(tab_index);
+                                    return show_dialog(&app_ui.main_window, error, false);
+                                }
                             }
                         }
 
@@ -2771,7 +2802,10 @@ impl AppUI {
                                         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), data_source);
                                     }
                                 },
-                                Err(error) => return show_dialog(&app_ui.main_window, error, false),
+                                Err(error) => {
+                                    app_ui.tab_bar_packed_file.remove_tab(tab_index);
+                                    return show_dialog(&app_ui.main_window, error, false);
+                                }
                             }
                         }
 
@@ -2796,7 +2830,10 @@ impl AppUI {
                                             pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), data_source);
                                         }
                                     },
-                                    Err(error) => return show_dialog(&app_ui.main_window, error, false),
+                                    Err(error) => {
+                                        app_ui.tab_bar_packed_file.remove_tab(tab_index);
+                                        return show_dialog(&app_ui.main_window, error, false);
+                                    }
                                 }
                             }
                         }
@@ -2852,7 +2889,10 @@ impl AppUI {
                                         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), data_source);
                                     }
                                 },
-                                Err(error) => return show_dialog(&app_ui.main_window, error, false),
+                                Err(error) => {
+                                    app_ui.tab_bar_packed_file.remove_tab(tab_index);
+                                    return show_dialog(&app_ui.main_window, error, false);
+                                }
                             }
                         }
 
@@ -2874,7 +2914,10 @@ impl AppUI {
                                         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), data_source);
                                     }
                                 },
-                                Err(error) => return show_dialog(&app_ui.main_window, error, false),
+                                Err(error) => {
+                                    app_ui.tab_bar_packed_file.remove_tab(tab_index);
+                                    return show_dialog(&app_ui.main_window, error, false);
+                                }
                             }
                         }
 
