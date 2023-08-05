@@ -47,7 +47,7 @@ pub unsafe fn set_connections(ui: &DiagnosticsUI, slots: &DiagnosticsUISlots) {
     ui.ignore_diagnostic_for_file_field.triggered().connect(slots.ignore_diagnostic_for_file_field());
     ui.ignore_diagnostic_for_pack.triggered().connect(slots.ignore_diagnostic_for_pack());
 
-    ui.checkbox_all.toggled().connect(slots.toggle_filters_types());
+    ui.checkbox_all.toggled().connect(slots.toggle_filters_all());
     ui.checkbox_outdated_table.toggled().connect(slots.toggle_filters());
     ui.checkbox_invalid_reference.toggled().connect(slots.toggle_filters());
     ui.checkbox_empty_row.toggled().connect(slots.toggle_filters());

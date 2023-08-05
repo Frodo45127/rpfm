@@ -63,8 +63,8 @@ pub struct DiagnosticsUISlots {
     ignore_diagnostic_for_file_field: QBox<SlotNoArgs>,
     ignore_diagnostic_for_pack: QBox<SlotNoArgs>,
     show_hide_extra_filters: QBox<SlotOfBool>,
-    toggle_filters: QBox<SlotNoArgs>,
-    toggle_filters_types: QBox<SlotNoArgs>,
+    toggle_filters: QBox<SlotOfBool>,
+    toggle_filters_all: QBox<SlotOfBool>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -380,15 +380,23 @@ impl DiagnosticsUISlots {
             }
         ));
 
-        let toggle_filters = SlotNoArgs::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
+        let toggle_filters = SlotOfBool::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
             app_ui,
-            diagnostics_ui => move || {
+            diagnostics_ui => move |toggled| {
+
+            // Uncheck all if it's checked.
+            if !toggled && diagnostics_ui.checkbox_all.is_checked() {
+                diagnostics_ui.checkbox_all.block_signals(true);
+                diagnostics_ui.checkbox_all.set_checked(false);
+                diagnostics_ui.checkbox_all.block_signals(false);
+            }
+
             DiagnosticsUI::filter(&app_ui, &diagnostics_ui);
         }));
 
-        let toggle_filters_types = SlotNoArgs::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
+        let toggle_filters_all = SlotOfBool::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
             app_ui,
-            diagnostics_ui => move || {
+            diagnostics_ui => move |toggled| {
 
                 // Lock all signals except the last one, so the filters only trigger once.
                 let _blocker_00 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_outdated_table.static_upcast::<QObject>());
@@ -420,34 +428,36 @@ impl DiagnosticsUISlots {
                 let _blocker_26 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_file_diffuse_not_found_for_variant.static_upcast::<QObject>());
                 let _blocker_27 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_datacored_portrait_settings.static_upcast::<QObject>());
 
-                diagnostics_ui.checkbox_outdated_table.toggle();
-                diagnostics_ui.checkbox_invalid_reference.toggle();
-                diagnostics_ui.checkbox_empty_row.toggle();
-                diagnostics_ui.checkbox_empty_key_field.toggle();
-                diagnostics_ui.checkbox_empty_key_fields.toggle();
-                diagnostics_ui.checkbox_duplicated_combined_keys.toggle();
-                diagnostics_ui.checkbox_no_reference_table_found.toggle();
-                diagnostics_ui.checkbox_no_reference_table_nor_column_found_pak.toggle();
-                diagnostics_ui.checkbox_no_reference_table_nor_column_found_no_pak.toggle();
-                diagnostics_ui.checkbox_invalid_escape.toggle();
-                diagnostics_ui.checkbox_duplicated_row.toggle();
-                diagnostics_ui.checkbox_invalid_loc_key.toggle();
-                diagnostics_ui.checkbox_invalid_dependency_packfile.toggle();
-                diagnostics_ui.checkbox_dependencies_cache_not_generated.toggle();
-                diagnostics_ui.checkbox_invalid_packfile_name.toggle();
-                diagnostics_ui.checkbox_table_name_ends_in_number.toggle();
-                diagnostics_ui.checkbox_table_name_has_space.toggle();
-                diagnostics_ui.checkbox_table_is_datacoring.toggle();
-                diagnostics_ui.checkbox_dependencies_cache_outdated.toggle();
-                diagnostics_ui.checkbox_dependencies_cache_could_not_be_loaded.toggle();
-                diagnostics_ui.checkbox_field_with_path_not_found.toggle();
-                diagnostics_ui.checkbox_incorrect_game_path.toggle();
-                diagnostics_ui.checkbox_banned_table.toggle();
-                diagnostics_ui.checkbox_value_cannot_be_empty.toggle();
-                diagnostics_ui.checkbox_invalid_art_set_id.toggle();
-                diagnostics_ui.checkbox_invalid_variant_filename.toggle();
-                diagnostics_ui.checkbox_file_diffuse_not_found_for_variant.toggle();
-                diagnostics_ui.checkbox_datacored_portrait_settings.toggle();
+                if toggled {
+                    diagnostics_ui.checkbox_outdated_table.set_checked(true);
+                    diagnostics_ui.checkbox_invalid_reference.set_checked(true);
+                    diagnostics_ui.checkbox_empty_row.set_checked(true);
+                    diagnostics_ui.checkbox_empty_key_field.set_checked(true);
+                    diagnostics_ui.checkbox_empty_key_fields.set_checked(true);
+                    diagnostics_ui.checkbox_duplicated_combined_keys.set_checked(true);
+                    diagnostics_ui.checkbox_no_reference_table_found.set_checked(true);
+                    diagnostics_ui.checkbox_no_reference_table_nor_column_found_pak.set_checked(true);
+                    diagnostics_ui.checkbox_no_reference_table_nor_column_found_no_pak.set_checked(true);
+                    diagnostics_ui.checkbox_invalid_escape.set_checked(true);
+                    diagnostics_ui.checkbox_duplicated_row.set_checked(true);
+                    diagnostics_ui.checkbox_invalid_loc_key.set_checked(true);
+                    diagnostics_ui.checkbox_invalid_dependency_packfile.set_checked(true);
+                    diagnostics_ui.checkbox_dependencies_cache_not_generated.set_checked(true);
+                    diagnostics_ui.checkbox_invalid_packfile_name.set_checked(true);
+                    diagnostics_ui.checkbox_table_name_ends_in_number.set_checked(true);
+                    diagnostics_ui.checkbox_table_name_has_space.set_checked(true);
+                    diagnostics_ui.checkbox_table_is_datacoring.set_checked(true);
+                    diagnostics_ui.checkbox_dependencies_cache_outdated.set_checked(true);
+                    diagnostics_ui.checkbox_dependencies_cache_could_not_be_loaded.set_checked(true);
+                    diagnostics_ui.checkbox_field_with_path_not_found.set_checked(true);
+                    diagnostics_ui.checkbox_incorrect_game_path.set_checked(true);
+                    diagnostics_ui.checkbox_banned_table.set_checked(true);
+                    diagnostics_ui.checkbox_value_cannot_be_empty.set_checked(true);
+                    diagnostics_ui.checkbox_invalid_art_set_id.set_checked(true);
+                    diagnostics_ui.checkbox_invalid_variant_filename.set_checked(true);
+                    diagnostics_ui.checkbox_file_diffuse_not_found_for_variant.set_checked(true);
+                    diagnostics_ui.checkbox_datacored_portrait_settings.set_checked(true);
+                }
 
                 DiagnosticsUI::filter(&app_ui, &diagnostics_ui);
             }
@@ -471,7 +481,7 @@ impl DiagnosticsUISlots {
             ignore_diagnostic_for_pack,
             show_hide_extra_filters,
             toggle_filters,
-            toggle_filters_types,
+            toggle_filters_all,
         }
     }
 }
