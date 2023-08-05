@@ -888,7 +888,7 @@ impl Default for SupportedGames {
                 let mut data = HashMap::new();
                 data.insert(InstallType::WinSteam, InstallData {
                     vanilla_packs: vec![
-                        "audio.basepack".to_owned(),
+                        "audio_base.pack".to_owned(),
                         "audio_base_2.pack".to_owned(),
                         "audio_base_bl.pack".to_owned(),
                         "audio_base_br.pack".to_owned(),
