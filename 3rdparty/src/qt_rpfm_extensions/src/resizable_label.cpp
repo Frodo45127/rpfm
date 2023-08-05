@@ -31,7 +31,7 @@ QSize ResizableLabel::sizeHint() const {
 }
 
 QPixmap ResizableLabel::scaledPixmap() const {
-    if (pix.height() > this->height()) {
+    if (pix.height() > this->height() || pix.width() > this->width()) {
         return pix.scaled(this->size(), Qt::KeepAspectRatio);
     }
     else {
