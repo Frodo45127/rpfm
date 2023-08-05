@@ -675,6 +675,7 @@ impl Diagnostics {
             let field_key_name = fields[0].name();
             let field_text_name = fields[1].name();
             let mut duplicated_rows_already_marked = vec![];
+            let mut duplicated_combined_keys_already_marked = vec![];
 
             for (row, cells) in table.data(&None).ok()?.iter().enumerate() {
                 let key = if let DecodedData::StringU16(ref data) = cells[0] { data } else { unimplemented!() };
@@ -725,6 +726,31 @@ impl Diagnostics {
                                 let result = TableDiagnosticReport::new(TableDiagnosticReportType::DuplicatedRow(combined_keys), &cells_affected, &fields);
                                 diagnostic.results_mut().push(result);
                                 duplicated_rows_already_marked.push(row as i32);
+                            }
+                        }
+                    }
+                }
+
+                if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field_key_name), Some("DuplicatedCombinedKeys"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
+
+                    // If this returns something, it means there is a duplicate.
+                    let combined_keys = key.to_owned();
+                    if let Some(old_position) = keys.insert(combined_keys.to_owned(), vec![(row as i32, 0)]) {
+                        if let Some(old_pos) = old_position.first() {
+
+                            // Mark previous row, if not yet marked.
+                            if !duplicated_rows_already_marked.contains(&old_pos.0) {
+                                let result = TableDiagnosticReport::new(TableDiagnosticReportType::DuplicatedCombinedKeys(combined_keys.to_string()), &old_position, &fields);
+                                diagnostic.results_mut().push(result);
+                                duplicated_combined_keys_already_marked.push(old_pos.0);
+                            }
+
+                            // Mark current row, if not yet marked.
+                            if !duplicated_rows_already_marked.contains(&(row as i32)) {
+                                let cells_affected = vec![(row as i32, 0)];
+                                let result = TableDiagnosticReport::new(TableDiagnosticReportType::DuplicatedCombinedKeys(combined_keys), &cells_affected, &fields);
+                                diagnostic.results_mut().push(result);
+                                duplicated_combined_keys_already_marked.push(row as i32);
                             }
                         }
                     }
