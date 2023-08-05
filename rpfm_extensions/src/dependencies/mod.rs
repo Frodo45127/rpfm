@@ -11,7 +11,7 @@
 //! This module contains a dependencies system implementation, used to manage dependencies between packs.
 
 use getset::{Getters, MutGetters};
-use itertools::Itertools;
+use itertools::{Either, Itertools};
 use rayon::prelude::*;
 use serde_derive::{Serialize, Deserialize};
 
@@ -593,22 +593,30 @@ impl Dependencies {
     /// This function returns a reference to a specific file from the cache, if exists.
     pub fn file(&self, file_path: &str, include_vanilla: bool, include_parent: bool, case_insensitive: bool) -> Result<&RFile> {
         if include_parent {
+
+            // Even on case-insensitive searches, try to use get first. We may get lucky.
+            if let Some(file) = self.parent_files.get(file_path) {
+                return Ok(file);
+            }
+
             if case_insensitive {
-                if let Some(file) = self.parent_files.par_iter().find_map_first(|(path, file)| if caseless::canonical_caseless_match_str(path, file_path) { Some(file) } else { None }) {
+                if let Some(file) = self.parent_files.par_iter().find_map_first(|(path, file)| if caseless::default_caseless_match_str(path, file_path) { Some(file) } else { None }) {
                     return Ok(file);
                 }
-            } else if let Some(file) = self.parent_files.get(file_path) {
-                return Ok(file);
             }
         }
 
         if include_vanilla {
+
+            // Even on case-insensitive searches, try to use get first. We may get lucky.
+            if let Some(file) = self.vanilla_files.get(file_path) {
+                return Ok(file);
+            }
+
             if case_insensitive {
-                if let Some(file) = self.vanilla_files.par_iter().find_map_first(|(path, file)| if caseless::canonical_caseless_match_str(path, file_path) { Some(file) } else { None }) {
+                if let Some(file) = self.vanilla_files.par_iter().find_map_first(|(path, file)| if caseless::default_caseless_match_str(path, file_path) { Some(file) } else { None }) {
                     return Ok(file);
                 }
-            } else if let Some(file) = self.vanilla_files.get(file_path) {
-                return Ok(file);
             }
         }
 
@@ -634,33 +642,57 @@ impl Dependencies {
 
     /// This function returns a reference to all files corresponding to the provided paths.
     pub fn files_by_path(&self, file_paths: &[ContainerPath], include_vanilla: bool, include_parent: bool, case_insensitive: bool) -> HashMap<String, &RFile> {
-        file_paths.into_par_iter().flat_map(|file_path| {
-            let mut files = HashMap::new();
-            match file_path {
-                ContainerPath::Folder(folder_path) => {
-                    let folder_path = folder_path.to_owned() + "/";
+        let (file_paths, folder_paths): (Vec<_>, Vec<_>) = file_paths.iter().partition_map(|file_path| match file_path {
+            ContainerPath::File(file_path) => Either::Left(file_path.to_owned()),
+            ContainerPath::Folder(file_path) => Either::Right(file_path.to_owned()),
+        });
 
+        let mut hashmap = HashMap::new();
+
+        // File check.
+        if !file_paths.is_empty() {
+
+            // For case-sensitive paths, call the file directly, because that one already has that code optimised.
+            if !case_insensitive {
+                hashmap.extend(file_paths.par_iter().filter_map(|file_path| self.file(file_path, include_vanilla, include_parent, case_insensitive).ok().map(|file| (file_path.to_owned(), file))).collect::<Vec<(_,_)>>());
+            }
+
+            // For case insensitive paths, it's faster to search them in batch than one by one.
+            else {
+
+                // For each one, do a case sensitive search first, as that's way faster and we may get lucky.
+                hashmap.extend(file_paths.par_iter().filter_map(|file_path| self.file(file_path, include_vanilla, include_parent, false).ok().map(|file| (file_path.to_owned(), file))).collect::<Vec<(_,_)>>());
+
+                let file_paths_not_yet_found = file_paths.iter().filter(|x| hashmap.get(&**x).is_none()).collect::<Vec<_>>();
+                if !file_paths_not_yet_found.is_empty() {
                     if include_vanilla {
-                        if folder_path.is_empty() {
-                            files.extend(self.vanilla_files.par_iter()
-                                .map(|(path, file)| (path.to_owned(), file))
-                                .collect::<HashMap<_,_>>());
-                        } else {
-                            files.extend(self.vanilla_files.par_iter()
-                                .filter(|(path, _)| {
-                                    if case_insensitive {
-                                        starts_with_case_insensitive(path, &folder_path)
-                                    } else {
-                                        path.starts_with(&folder_path)
-                                    }
-                                })
-                                .map(|(path, file)| (path.to_owned(), file))
-                                .collect::<HashMap<_,_>>());
-                        }
+                        hashmap.extend(self.vanilla_files.par_iter()
+                            .filter_map(|(path, file)| file_paths_not_yet_found.iter().find_map(|file_path| if caseless::default_caseless_match_str(path, file_path) { Some((path.to_owned(), file)) } else { None }))
+                            .collect::<Vec<(_,_)>>());
                     }
 
                     if include_parent {
-                        files.extend(self.parent_files.par_iter()
+                        hashmap.extend(self.parent_files.par_iter()
+                            .filter_map(|(path, file)| file_paths_not_yet_found.iter().find_map(|file_path| if caseless::default_caseless_match_str(path, file_path) { Some((path.to_owned(), file)) } else { None }))
+                            .collect::<Vec<(_,_)>>());
+                    }
+                }
+
+            }
+        }
+
+        // Folder check.
+        if !folder_paths.is_empty() {
+            hashmap.extend(folder_paths.into_par_iter().flat_map(|folder_path| {
+                let mut folder = vec![];
+                let folder_path = folder_path.to_owned() + "/";
+                if include_vanilla {
+                    if folder_path.is_empty() {
+                        folder.extend(self.vanilla_files.par_iter()
+                            .map(|(path, file)| (path.to_owned(), file))
+                            .collect::<Vec<(_,_)>>());
+                    } else {
+                        folder.extend(self.vanilla_files.par_iter()
                             .filter(|(path, _)| {
                                 if case_insensitive {
                                     starts_with_case_insensitive(path, &folder_path)
@@ -669,17 +701,27 @@ impl Dependencies {
                                 }
                             })
                             .map(|(path, file)| (path.to_owned(), file))
-                            .collect::<HashMap<_,_>>());
+                            .collect::<Vec<(_,_)>>());
                     }
                 }
-                ContainerPath::File(file_path) => {
-                    if let Ok(file) = self.file(file_path, include_vanilla, include_parent, case_insensitive) {
-                        files.insert(file_path.to_string(), file);
-                    }
+
+                if include_parent {
+                    folder.extend(self.parent_files.par_iter()
+                        .filter(|(path, _)| {
+                            if case_insensitive {
+                                starts_with_case_insensitive(path, &folder_path)
+                            } else {
+                                path.starts_with(&folder_path)
+                            }
+                        })
+                        .map(|(path, file)| (path.to_owned(), file))
+                        .collect::<Vec<(_,_)>>());
                 }
-            }
-            files
-        }).collect()
+                folder
+            }).collect::<Vec<(_,_)>>());
+        }
+
+        hashmap
     }
 
     /// This function returns a reference to all files of the specified FileTypes from the cache, if any, along with their path.
