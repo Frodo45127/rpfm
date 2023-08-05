@@ -216,7 +216,7 @@
           </property>
           <item row="0" column="2" rowspan="2" colspan="2">
            <widget class="QWidget" name="variants_widget" native="true">
-            <layout class="QGridLayout" name="gridLayout_5" columnstretch="0,0,0,0,0">
+            <layout class="QGridLayout" name="gridLayout_5" rowstretch="1,0" columnstretch="0,0,0">
              <property name="leftMargin">
               <number>2</number>
              </property>
@@ -232,76 +232,176 @@
              <property name="spacing">
               <number>2</number>
              </property>
-             <item row="0" column="3">
-              <widget class="QLabel" name="mask_2_label">
-               <property name="text">
-                <string/>
-               </property>
+             <item row="1" column="1" colspan="2">
+              <widget class="QWidget" name="widget_3" native="true">
+               <layout class="QGridLayout" name="gridLayout_12">
+                <item row="0" column="0">
+                 <widget class="QLabel" name="file_diffuse_label">
+                  <property name="text">
+                   <string>TextLabel</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="0" column="1">
+                 <widget class="KLineEdit" name="file_diffuse_line_edit"/>
+                </item>
+                <item row="1" column="0">
+                 <widget class="QLabel" name="file_mask_1_label">
+                  <property name="text">
+                   <string>TextLabel</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="1" column="1">
+                 <widget class="KLineEdit" name="file_mask_1_line_edit"/>
+                </item>
+                <item row="2" column="0">
+                 <widget class="QLabel" name="file_mask_2_label">
+                  <property name="text">
+                   <string>TextLabel</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="2" column="1">
+                 <widget class="KLineEdit" name="file_mask_2_line_edit"/>
+                </item>
+                <item row="3" column="0">
+                 <widget class="QLabel" name="file_mask_3_label">
+                  <property name="text">
+                   <string>TextLabel</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="3" column="1">
+                 <widget class="KLineEdit" name="file_mask_3_line_edit"/>
+                </item>
+               </layout>
               </widget>
              </item>
-             <item row="0" column="4">
-              <widget class="QLabel" name="mask_3_label">
-               <property name="text">
-                <string/>
-               </property>
+             <item row="0" column="1" colspan="2">
+              <widget class="QWidget" name="widget_4" native="true">
+               <layout class="QGridLayout" name="gridLayout_13" columnstretch="0,1,1,1,1,0">
+                <property name="leftMargin">
+                 <number>0</number>
+                </property>
+                <property name="topMargin">
+                 <number>0</number>
+                </property>
+                <property name="rightMargin">
+                 <number>0</number>
+                </property>
+                <property name="bottomMargin">
+                 <number>0</number>
+                </property>
+                <property name="horizontalSpacing">
+                 <number>2</number>
+                </property>
+                <property name="verticalSpacing">
+                 <number>0</number>
+                </property>
+                <item row="0" column="3">
+                 <widget class="QGroupBox" name="mask_1_groupbox">
+                  <property name="title">
+                   <string>GroupBox</string>
+                  </property>
+                  <layout class="QGridLayout" name="gridLayout_9">
+                   <item row="0" column="0">
+                    <widget class="QLabel" name="mask_1_label">
+                     <property name="text">
+                      <string/>
+                     </property>
+                    </widget>
+                   </item>
+                  </layout>
+                 </widget>
+                </item>
+                <item row="0" column="4">
+                 <widget class="QGroupBox" name="mask_2_groupbox">
+                  <property name="title">
+                   <string>GroupBox</string>
+                  </property>
+                  <layout class="QGridLayout" name="gridLayout_8">
+                   <item row="0" column="0">
+                    <widget class="QLabel" name="mask_2_label">
+                     <property name="text">
+                      <string/>
+                     </property>
+                    </widget>
+                   </item>
+                  </layout>
+                 </widget>
+                </item>
+                <item row="0" column="5">
+                 <widget class="QGroupBox" name="mask_3_groupbox">
+                  <property name="title">
+                   <string>GroupBox</string>
+                  </property>
+                  <layout class="QGridLayout" name="gridLayout_11">
+                   <item row="0" column="0">
+                    <widget class="QLabel" name="mask_3_label">
+                     <property name="text">
+                      <string/>
+                     </property>
+                    </widget>
+                   </item>
+                  </layout>
+                 </widget>
+                </item>
+                <item row="0" column="1">
+                 <widget class="QGroupBox" name="icon_groupbox">
+                  <property name="title">
+                   <string>GroupBox</string>
+                  </property>
+                  <layout class="QGridLayout" name="gridLayout_14">
+                   <item row="0" column="2">
+                    <widget class="QLabel" name="icon_mask_2_label">
+                     <property name="text">
+                      <string/>
+                     </property>
+                    </widget>
+                   </item>
+                   <item row="0" column="1">
+                    <widget class="QLabel" name="icon_mask_1_label">
+                     <property name="text">
+                      <string/>
+                     </property>
+                    </widget>
+                   </item>
+                   <item row="0" column="0">
+                    <widget class="QLabel" name="icon_diffuse_label">
+                     <property name="text">
+                      <string/>
+                     </property>
+                    </widget>
+                   </item>
+                   <item row="0" column="3">
+                    <widget class="QLabel" name="icon_mask_3_label">
+                     <property name="text">
+                      <string/>
+                     </property>
+                    </widget>
+                   </item>
+                  </layout>
+                 </widget>
+                </item>
+                <item row="0" column="2">
+                 <widget class="QGroupBox" name="diffuse_groupbox">
+                  <property name="title">
+                   <string>GroupBox</string>
+                  </property>
+                  <layout class="QGridLayout" name="gridLayout_10">
+                   <item row="0" column="1">
+                    <widget class="QLabel" name="diffuse_label">
+                     <property name="text">
+                      <string/>
+                     </property>
+                    </widget>
+                   </item>
+                  </layout>
+                 </widget>
+                </item>
+               </layout>
               </widget>
-             </item>
-             <item row="0" column="2">
-              <widget class="QLabel" name="mask_1_label">
-               <property name="text">
-                <string/>
-               </property>
-              </widget>
-             </item>
-             <item row="0" column="1">
-              <widget class="QLabel" name="diffuse_label">
-               <property name="text">
-                <string/>
-               </property>
-              </widget>
-             </item>
-             <item row="0" column="0">
-              <widget class="QWidget" name="widget_2" native="true"/>
-             </item>
-             <item row="1" column="0">
-              <widget class="QLabel" name="file_diffuse_label">
-               <property name="text">
-                <string>TextLabel</string>
-               </property>
-              </widget>
-             </item>
-             <item row="2" column="0">
-              <widget class="QLabel" name="file_mask_1_label">
-               <property name="text">
-                <string>TextLabel</string>
-               </property>
-              </widget>
-             </item>
-             <item row="3" column="0">
-              <widget class="QLabel" name="file_mask_2_label">
-               <property name="text">
-                <string>TextLabel</string>
-               </property>
-              </widget>
-             </item>
-             <item row="4" column="0">
-              <widget class="QLabel" name="file_mask_3_label">
-               <property name="text">
-                <string>TextLabel</string>
-               </property>
-              </widget>
-             </item>
-             <item row="4" column="1" colspan="4">
-              <widget class="KLineEdit" name="file_mask_3_line_edit"/>
-             </item>
-             <item row="3" column="1" colspan="4">
-              <widget class="KLineEdit" name="file_mask_2_line_edit"/>
-             </item>
-             <item row="2" column="1" colspan="4">
-              <widget class="KLineEdit" name="file_mask_1_line_edit"/>
-             </item>
-             <item row="1" column="1" colspan="4">
-              <widget class="KLineEdit" name="file_diffuse_line_edit"/>
              </item>
             </layout>
            </widget>

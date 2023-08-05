@@ -1602,19 +1602,20 @@ pub fn background_loop() {
                 CentralCommand::send_back(&sender, Response::Success);
             },
 
-            Command::GetRFilesFromAllSources(paths) => {
+            Command::GetRFilesFromAllSources(paths, force_lowercased_paths) => {
                 let mut packed_files = HashMap::new();
+                let dependencies = dependencies.read().unwrap();
 
                 // Get PackedFiles requested from the Parent Files.
                 let mut packed_files_parent = HashMap::new();
-                for (path, file) in dependencies.read().unwrap().files_by_path(&paths, false, true, true) {
-                    packed_files_parent.insert(path, file.clone());
+                for (path, file) in dependencies.files_by_path(&paths, false, true, true) {
+                    packed_files_parent.insert(if force_lowercased_paths { path.to_lowercase() } else { path }, file.clone());
                 }
 
                 // Get PackedFiles requested from the Game Files.
                 let mut packed_files_game = HashMap::new();
-                for (path, file) in dependencies.read().unwrap().files_by_path(&paths, true, false, true) {
-                    packed_files_game.insert(path, file.clone());
+                for (path, file) in dependencies.files_by_path(&paths, true, false, true) {
+                    packed_files_game.insert(if force_lowercased_paths { path.to_lowercase() } else { path }, file.clone());
                 }
 
                 // Get PackedFiles requested from the AssKit Files.
@@ -1629,7 +1630,7 @@ pub fn background_loop() {
                 // Get PackedFiles requested from the currently open PackFile, if any.
                 let mut packed_files_packfile = HashMap::new();
                 for file in pack_file_decoded.files_by_paths(&paths, true) {
-                    packed_files_packfile.insert(file.path_in_container_raw().to_owned(), file.clone());
+                    packed_files_packfile.insert(if force_lowercased_paths { file.path_in_container_raw().to_lowercase() } else { file.path_in_container_raw().to_owned() }, file.clone());
                 }
 
                 packed_files.insert(DataSource::ParentFiles, packed_files_parent);

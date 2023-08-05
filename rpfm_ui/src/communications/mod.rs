@@ -233,8 +233,8 @@ pub enum Command {
     /// This command is used to set the list of PackFiles that are marked as dependency of our PackFile.
     SetDependencyPackFilesList(Vec<String>),
 
-    // This command is used to get a full list of PackedFile from all known sources to the UI. Requires the path of the PackedFile.
-    GetRFilesFromAllSources(Vec<ContainerPath>),
+    /// This command is used to get a full list of PackedFile from all known sources to the UI. Requires the path of the PackedFile.
+    GetRFilesFromAllSources(Vec<ContainerPath>, bool),
 
     // This command is used to change the format of a ca_vp8 video packedfile. Requires the path of the PackedFile and the new format.
     SetVideoFormat(String, SupportedFormats),

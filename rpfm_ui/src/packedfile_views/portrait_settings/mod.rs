@@ -42,6 +42,7 @@ use qt_core::QTimer;
 use qt_core::QVariant;
 use qt_core::SortOrder;
 
+use cpp_core::CppDeletable;
 use cpp_core::Ref;
 
 use anyhow::Result;
@@ -122,10 +123,20 @@ pub struct PortraitSettingsView {
     file_mask_2_line_edit: QPtr<QLineEdit>,
     file_mask_3_line_edit: QPtr<QLineEdit>,
 
+    diffuse_groupbox: QPtr<QGroupBox>,
+    mask_1_groupbox: QPtr<QGroupBox>,
+    mask_2_groupbox: QPtr<QGroupBox>,
+    mask_3_groupbox: QPtr<QGroupBox>,
+
     diffuse_label: QPtr<QLabel>,
     mask_1_label: QPtr<QLabel>,
     mask_2_label: QPtr<QLabel>,
     mask_3_label: QPtr<QLabel>,
+
+    diffuse_icon_label: QPtr<QLabel>,
+    mask_1_icon_label: QPtr<QLabel>,
+    mask_2_icon_label: QPtr<QLabel>,
+    mask_3_icon_label: QPtr<QLabel>,
 
     main_list_context_menu: QBox<QMenu>,
     variants_list_context_menu: QBox<QMenu>,
@@ -171,10 +182,20 @@ impl PortraitSettingsView {
         let body_camera_settings_groupbox: QPtr<QGroupBox> = find_widget(&main_widget.static_upcast(), "body_camera_settings_groupbox")?;
         let variants_groupbox: QPtr<QGroupBox> = find_widget(&main_widget.static_upcast(), "variants_groupbox")?;
         let variants_widget: QPtr<QWidget> = find_widget(&main_widget.static_upcast(), "variants_widget")?;
+        let icon_groupbox: QPtr<QGroupBox> = find_widget(&main_widget.static_upcast(), "icon_groupbox")?;
+        let diffuse_groupbox: QPtr<QGroupBox> = find_widget(&main_widget.static_upcast(), "diffuse_groupbox")?;
+        let mask_1_groupbox: QPtr<QGroupBox> = find_widget(&main_widget.static_upcast(), "mask_1_groupbox")?;
+        let mask_2_groupbox: QPtr<QGroupBox> = find_widget(&main_widget.static_upcast(), "mask_2_groupbox")?;
+        let mask_3_groupbox: QPtr<QGroupBox> = find_widget(&main_widget.static_upcast(), "mask_3_groupbox")?;
         head_camera_settings_groupbox.set_title(&qtr("portrait_settings_head_camera_settings_title"));
         body_camera_settings_groupbox.set_title(&qtr("portrait_settings_body_camera_settings_title"));
         variants_groupbox.set_title(&qtr("portrait_settings_variants_title"));
         main_filter_line_edit.set_placeholder_text(&qtr("portrait_settings_filter"));
+        icon_groupbox.set_title(&qtr("portrait_settings_file_icon_label"));
+        diffuse_groupbox.set_title(&qtr("portrait_settings_file_diffuse_label"));
+        mask_1_groupbox.set_title(&qtr("portrait_settings_file_mask_1_label"));
+        mask_2_groupbox.set_title(&qtr("portrait_settings_file_mask_2_label"));
+        mask_3_groupbox.set_title(&qtr("portrait_settings_file_mask_3_label"));
 
         // Main camera.
         let head_z_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "head_z_label")?;
@@ -243,16 +264,46 @@ impl PortraitSettingsView {
         let mask_2_label_placeholder: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "mask_2_label")?;
         let mask_3_label_placeholder: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "mask_3_label")?;
 
-        let diffuse_label: QPtr<QLabel> = new_resizable_label_safe(&variants_widget.as_ptr(), &QPixmap::new().into_ptr());
-        let mask_1_label: QPtr<QLabel> = new_resizable_label_safe(&variants_widget.as_ptr(), &QPixmap::new().into_ptr());
-        let mask_2_label: QPtr<QLabel> = new_resizable_label_safe(&variants_widget.as_ptr(), &QPixmap::new().into_ptr());
-        let mask_3_label: QPtr<QLabel> = new_resizable_label_safe(&variants_widget.as_ptr(), &QPixmap::new().into_ptr());
+        let icon_diffuse_label_placeholder: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "icon_diffuse_label")?;
+        let icon_mask_1_label_placeholder: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "icon_mask_1_label")?;
+        let icon_mask_2_label_placeholder: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "icon_mask_2_label")?;
+        let icon_mask_3_label_placeholder: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "icon_mask_3_label")?;
 
-        let variants_layout = variants_widget.layout().static_downcast::<QGridLayout>();
-        variants_layout.replace_widget_2a(diffuse_label_placeholder, diffuse_label.as_ptr());
-        variants_layout.replace_widget_2a(mask_1_label_placeholder, mask_1_label.as_ptr());
-        variants_layout.replace_widget_2a(mask_2_label_placeholder, mask_2_label.as_ptr());
-        variants_layout.replace_widget_2a(mask_3_label_placeholder, mask_3_label.as_ptr());
+        let diffuse_icon_label: QPtr<QLabel> = new_resizable_label_safe(&icon_groupbox.static_upcast::<QWidget>().as_ptr(), &QPixmap::new().into_ptr());
+        let mask_1_icon_label: QPtr<QLabel> = new_resizable_label_safe(&icon_groupbox.static_upcast::<QWidget>().as_ptr(), &QPixmap::new().into_ptr());
+        let mask_2_icon_label: QPtr<QLabel> = new_resizable_label_safe(&icon_groupbox.static_upcast::<QWidget>().as_ptr(), &QPixmap::new().into_ptr());
+        let mask_3_icon_label: QPtr<QLabel> = new_resizable_label_safe(&icon_groupbox.static_upcast::<QWidget>().as_ptr(), &QPixmap::new().into_ptr());
+
+        let diffuse_label: QPtr<QLabel> = new_resizable_label_safe(&diffuse_groupbox.static_upcast::<QWidget>().as_ptr(), &QPixmap::new().into_ptr());
+        let mask_1_label: QPtr<QLabel> = new_resizable_label_safe(&mask_1_groupbox.static_upcast::<QWidget>().as_ptr(), &QPixmap::new().into_ptr());
+        let mask_2_label: QPtr<QLabel> = new_resizable_label_safe(&mask_2_groupbox.static_upcast::<QWidget>().as_ptr(), &QPixmap::new().into_ptr());
+        let mask_3_label: QPtr<QLabel> = new_resizable_label_safe(&mask_3_groupbox.static_upcast::<QWidget>().as_ptr(), &QPixmap::new().into_ptr());
+
+        let icon_layout = icon_groupbox.layout().static_downcast::<QGridLayout>();
+        let diffuse_layout = diffuse_groupbox.layout().static_downcast::<QGridLayout>();
+        let mask_1_layout = mask_1_groupbox.layout().static_downcast::<QGridLayout>();
+        let mask_2_layout = mask_2_groupbox.layout().static_downcast::<QGridLayout>();
+        let mask_3_layout = mask_3_groupbox.layout().static_downcast::<QGridLayout>();
+
+        icon_layout.replace_widget_2a(&icon_diffuse_label_placeholder, diffuse_icon_label.as_ptr());
+        icon_layout.replace_widget_2a(&icon_mask_1_label_placeholder, mask_1_icon_label.as_ptr());
+        icon_layout.replace_widget_2a(&icon_mask_2_label_placeholder, mask_2_icon_label.as_ptr());
+        icon_layout.replace_widget_2a(&icon_mask_3_label_placeholder, mask_3_icon_label.as_ptr());
+
+        diffuse_layout.replace_widget_2a(&diffuse_label_placeholder, diffuse_label.as_ptr());
+        mask_1_layout.replace_widget_2a(&mask_1_label_placeholder, mask_1_label.as_ptr());
+        mask_2_layout.replace_widget_2a(&mask_2_label_placeholder, mask_2_label.as_ptr());
+        mask_3_layout.replace_widget_2a(&mask_3_label_placeholder, mask_3_label.as_ptr());
+
+        icon_diffuse_label_placeholder.delete();
+        icon_mask_1_label_placeholder.delete();
+        icon_mask_2_label_placeholder.delete();
+        icon_mask_3_label_placeholder.delete();
+
+        diffuse_label_placeholder.delete();
+        mask_1_label_placeholder.delete();
+        mask_2_label_placeholder.delete();
+        mask_3_label_placeholder.delete();
 
         // Extra stuff.
         let main_list_filter = QSortFilterProxyModel::new_1a(&main_list_view);
@@ -323,10 +374,21 @@ impl PortraitSettingsView {
             file_mask_1_line_edit,
             file_mask_2_line_edit,
             file_mask_3_line_edit,
+
+            diffuse_groupbox,
+            mask_1_groupbox,
+            mask_2_groupbox,
+            mask_3_groupbox,
+
             diffuse_label,
             mask_1_label,
             mask_2_label,
             mask_3_label,
+
+            diffuse_icon_label,
+            mask_1_icon_label,
+            mask_2_icon_label,
+            mask_3_icon_label,
 
             main_list_context_menu,
             variants_list_context_menu,
@@ -386,6 +448,16 @@ impl PortraitSettingsView {
         self.file_mask_1_line_edit.clear();
         self.file_mask_2_line_edit.clear();
         self.file_mask_3_line_edit.clear();
+
+        set_pixmap_on_resizable_label_safe(&self.diffuse_icon_label.as_ptr(), &QPixmap::new().into_ptr());
+        set_pixmap_on_resizable_label_safe(&self.mask_1_icon_label.as_ptr(), &QPixmap::new().into_ptr());
+        set_pixmap_on_resizable_label_safe(&self.mask_2_icon_label.as_ptr(), &QPixmap::new().into_ptr());
+        set_pixmap_on_resizable_label_safe(&self.mask_3_icon_label.as_ptr(), &QPixmap::new().into_ptr());
+
+        self.diffuse_groupbox.set_visible(false);
+        self.mask_1_groupbox.set_visible(false);
+        self.mask_2_groupbox.set_visible(false);
+        self.mask_3_groupbox.set_visible(false);
 
         set_pixmap_on_resizable_label_safe(&self.diffuse_label.as_ptr(), &QPixmap::new().into_ptr());
         set_pixmap_on_resizable_label_safe(&self.mask_1_label.as_ptr(), &QPixmap::new().into_ptr());
@@ -495,6 +567,16 @@ impl PortraitSettingsView {
         self.file_mask_2_line_edit.clear();
         self.file_mask_3_line_edit.clear();
 
+        set_pixmap_on_resizable_label_safe(&self.diffuse_icon_label.as_ptr(), &QPixmap::new().into_ptr());
+        set_pixmap_on_resizable_label_safe(&self.mask_1_icon_label.as_ptr(), &QPixmap::new().into_ptr());
+        set_pixmap_on_resizable_label_safe(&self.mask_2_icon_label.as_ptr(), &QPixmap::new().into_ptr());
+        set_pixmap_on_resizable_label_safe(&self.mask_3_icon_label.as_ptr(), &QPixmap::new().into_ptr());
+
+        self.diffuse_groupbox.set_visible(false);
+        self.mask_1_groupbox.set_visible(false);
+        self.mask_2_groupbox.set_visible(false);
+        self.mask_3_groupbox.set_visible(false);
+
         set_pixmap_on_resizable_label_safe(&self.diffuse_label.as_ptr(), &QPixmap::new().into_ptr());
         set_pixmap_on_resizable_label_safe(&self.mask_1_label.as_ptr(), &QPixmap::new().into_ptr());
         set_pixmap_on_resizable_label_safe(&self.mask_2_label.as_ptr(), &QPixmap::new().into_ptr());
@@ -534,6 +616,11 @@ impl PortraitSettingsView {
     ///
     /// This usually gets triggered "delayed", so except on load, the image change is always about 500ms after the input is changed.
     pub unsafe fn load_variant_images(&self, diffuse: &str, mask_1: &str, mask_2: &str, mask_3: &str) {
+        set_pixmap_on_resizable_label_safe(&self.diffuse_icon_label.as_ptr(), &QPixmap::new().into_ptr());
+        set_pixmap_on_resizable_label_safe(&self.mask_1_icon_label.as_ptr(), &QPixmap::new().into_ptr());
+        set_pixmap_on_resizable_label_safe(&self.mask_2_icon_label.as_ptr(), &QPixmap::new().into_ptr());
+        set_pixmap_on_resizable_label_safe(&self.mask_3_icon_label.as_ptr(), &QPixmap::new().into_ptr());
+
         set_pixmap_on_resizable_label_safe(&self.diffuse_label.as_ptr(), &QPixmap::new().into_ptr());
         set_pixmap_on_resizable_label_safe(&self.mask_1_label.as_ptr(), &QPixmap::new().into_ptr());
         set_pixmap_on_resizable_label_safe(&self.mask_2_label.as_ptr(), &QPixmap::new().into_ptr());
@@ -544,35 +631,50 @@ impl PortraitSettingsView {
         let mut search = false;
         if !diffuse.is_empty() {
             paths.push(ContainerPath::File(diffuse.to_owned()));
+            paths.push(ContainerPath::File(diffuse.to_lowercase().replace("/portholes/", "/units/")));
             search = true;
         }
 
         if !mask_1.is_empty() {
             paths.push(ContainerPath::File(mask_1.to_owned()));
+            paths.push(ContainerPath::File(mask_1.to_lowercase().replace("/portholes/", "/units/")));
             search = true;
         }
 
         if !mask_2.is_empty() {
             paths.push(ContainerPath::File(mask_2.to_owned()));
+            paths.push(ContainerPath::File(mask_2.to_lowercase().replace("/portholes/", "/units/")));
             search = true;
         }
 
         if !mask_3.is_empty() {
             paths.push(ContainerPath::File(mask_3.to_owned()));
+            paths.push(ContainerPath::File(mask_3.to_lowercase().replace("/portholes/", "/units/")));
             search = true;
         }
 
         // Do not bother doing this if we have no paths.
         if search {
-            let receiver = CENTRAL_COMMAND.send_background(Command::GetRFilesFromAllSources(paths));
+            let receiver = CENTRAL_COMMAND.send_background(Command::GetRFilesFromAllSources(paths, false));
             let response = CENTRAL_COMMAND.recv_try(&receiver);
             match response {
                 Response::HashMapDataSourceHashMapStringRFile(mut files) => {
-                    Self::load_variant_image_to_label(diffuse, &self.diffuse_label, &mut files);
-                    Self::load_variant_image_to_label(mask_1, &self.mask_1_label, &mut files);
-                    Self::load_variant_image_to_label(mask_2, &self.mask_2_label, &mut files);
-                    Self::load_variant_image_to_label(mask_3, &self.mask_3_label, &mut files);
+                    let diffuse_loaded = Self::load_variant_image_to_label(diffuse, &self.diffuse_label, &mut files);
+                    let mask_1_loaded = Self::load_variant_image_to_label(mask_1, &self.mask_1_label, &mut files);
+                    let mask_2_loaded = Self::load_variant_image_to_label(mask_2, &self.mask_2_label, &mut files);
+                    let mask_3_loaded = Self::load_variant_image_to_label(mask_3, &self.mask_3_label, &mut files);
+
+                    self.diffuse_groupbox.set_visible(diffuse_loaded);
+                    self.mask_1_groupbox.set_visible(mask_1_loaded);
+                    self.mask_2_groupbox.set_visible(mask_2_loaded);
+                    self.mask_3_groupbox.set_visible(mask_3_loaded);
+
+                    Self::load_variant_image_to_label(&diffuse.to_lowercase().replace("/portholes/", "/units/"), &self.diffuse_icon_label, &mut files);
+                    Self::load_variant_image_to_label(&mask_1.to_lowercase().replace("/portholes/", "/units/"), &self.mask_1_icon_label, &mut files);
+                    Self::load_variant_image_to_label(&mask_2.to_lowercase().replace("/portholes/", "/units/"), &self.mask_2_icon_label, &mut files);
+                    Self::load_variant_image_to_label(&mask_3.to_lowercase().replace("/portholes/", "/units/"), &self.mask_3_icon_label, &mut files);
                 },
+
                 _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
             }
         }
@@ -581,28 +683,26 @@ impl PortraitSettingsView {
     /// This function tries to load the image at the provided path to the provided label.
     ///
     /// Tries.
-    pub unsafe fn load_variant_image_to_label(path: &str, label: &QPtr<QLabel>, files: &mut HashMap<DataSource, HashMap<String, RFile>>) {
+    pub unsafe fn load_variant_image_to_label(path: &str, label: &QPtr<QLabel>, files: &mut HashMap<DataSource, HashMap<String, RFile>>) -> bool {
         if !path.is_empty() {
             let path_we_want = path.to_lowercase();
             for files in files.values_mut() {
-                let mut found = false;
                 for (path, file) in files {
                     if path.to_lowercase() == path_we_want {
                         if let Ok(Some(RFileDecoded::Image(data))) = file.decode(&None, false, true) {
                             let byte_array = QByteArray::from_slice(data.data()).into_ptr();
                             let image = QPixmap::new();
-                            image.load_from_data_q_byte_array(byte_array.as_ref().unwrap());
-                            set_pixmap_on_resizable_label_safe(&label.as_ptr(), &image.into_ptr());
+                            if image.load_from_data_q_byte_array(byte_array.as_ref().unwrap()) {
+                                set_pixmap_on_resizable_label_safe(&label.as_ptr(), &image.into_ptr());
+                                return true;
+                            }
                         }
-                        found = true;
-                        break;
                     }
-                }
-                if found {
-                    break;
                 }
             }
         }
+
+        false
     }
 
     /// This function saves the data of an entry from the detailed view.

@@ -1399,3 +1399,4 @@ old_ak_no_update = <h4>No new Old AK updates available</h4> <p>More luck next ti
 old_ak_new_update = <h4>New Old AK update available</h4> <p>Do you want to update the Old AK data?</p>
 update_no_local_old_ak = <p>No local Old AK (Empire/Napoleon) data found. Do you want to download the latest one?</p>
 old_ak_update_success = <h4>Old AK Data updated.</h4><p>You can continue using RPFM now, but remember to regenerate the dependencies cache for Empire and Napoleon, so the Old AK data is added to it.</p>
+portrait_settings_file_icon_label = Icons
