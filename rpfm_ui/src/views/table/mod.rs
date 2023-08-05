@@ -1246,20 +1246,27 @@ impl TableView {
         // Get the initial value of the dialog.
         let initial_value = if let Some(first) = indexes_sorted.first() {
             if first.is_valid() {
-                if let Ok(data) = self.table_filter.map_to_source(*first).data_0a().to_string().to_std_string().parse::<i32>() {
+                if let Ok(data) = self.table_filter.map_to_source(*first).data_0a().to_string().to_std_string().parse::<i64>() {
                     data
                 } else { 0 }
             } else { 0 }
         } else { 0 };
 
-        if let Some(value) = self.create_generate_ids_dialog(initial_value) {
+        let fields_processed = self.table_definition().fields_processed();
+        let is_i64 = indexes_sorted.iter().map(|x| x.column()).all(|x| fields_processed[x as usize].field_type() == &FieldType::I64 || fields_processed[x as usize].field_type() == &FieldType::OptionalI64);
+
+        if let Some(value) = self.create_generate_ids_dialog(initial_value, is_i64) {
             let mut real_cells = vec![];
             let mut values = vec![];
 
             for (id, index) in indexes_sorted.iter().enumerate() {
                 if index.is_valid() {
                     real_cells.push(self.table_filter.map_to_source(*index));
-                    values.push((value + id as i32).to_string());
+                    if is_i64 {
+                        values.push((value + id as i64).to_string());
+                    } else {
+                        values.push((value as i32 + id as i32).to_string());
+                    }
                 }
             }
 
@@ -1269,7 +1276,6 @@ impl TableView {
             }
             realer_cells.reverse();
 
-            let fields_processed = self.table_definition().fields_processed();
             self.set_data_on_cells(&realer_cells, 0, &[], &fields_processed, app_ui, pack_file_contents_ui);
         }
     }
@@ -2114,7 +2120,7 @@ impl TableView {
     }
 
     /// This function creates the entire "Generate Ids" dialog for tables. It returns the starting id, or None.
-    pub unsafe fn create_generate_ids_dialog(&self, initial_value: i32) -> Option<i32> {
+    pub unsafe fn create_generate_ids_dialog(&self, initial_value: i64, is_i64: bool) -> Option<i64> {
 
         // Create and configure the dialog.
         let dialog = QDialog::new_1a(&self.table_view);
@@ -2129,10 +2135,19 @@ impl TableView {
         let instructions_label = QLabel::from_q_string_q_widget(&qtr("generate_ids_instructions"), &instructions_frame);
         instructions_grid.add_widget_5a(& instructions_label, 0, 0, 1, 1);
 
-        let starting_id_spin_box = QSpinBox::new_1a(&dialog);
-        starting_id_spin_box.set_minimum(i32::MIN);
-        starting_id_spin_box.set_maximum(i32::MAX);
-        starting_id_spin_box.set_value(initial_value);
+        let starting_id_spin_box = if is_i64 {
+            let starting_id_spin_box = QSpinBox::new_1a(&dialog);
+            starting_id_spin_box.set_minimum(i32::MIN);
+            starting_id_spin_box.set_maximum(i32::MAX);
+            starting_id_spin_box.set_value(initial_value as i32);
+            starting_id_spin_box.static_upcast()
+        } else {
+            let starting_id_spin_box = new_q_spinbox_i64_safe(&dialog.static_upcast());
+            set_min_q_spinbox_i64_safe(&starting_id_spin_box, i64::MIN);
+            set_max_q_spinbox_i64_safe(&starting_id_spin_box, i64::MAX);
+            set_value_q_spinbox_i64_safe(&starting_id_spin_box, initial_value);
+            starting_id_spin_box
+        };
         let accept_button = QPushButton::from_q_string(&qtr("generate_ids_accept"));
 
         main_grid.add_widget_5a(&instructions_frame, 0, 0, 1, 1);
@@ -2142,7 +2157,11 @@ impl TableView {
         accept_button.released().connect(dialog.slot_accept());
 
         if dialog.exec() == 1 {
-            Some(starting_id_spin_box.value())
+            if is_i64 {
+                Some(value_q_spinbox_i64_safe(&starting_id_spin_box))
+            } else {
+                Some(starting_id_spin_box.static_downcast::<QSpinBox>().value() as i64)
+            }
         } else { None }
     }
 
