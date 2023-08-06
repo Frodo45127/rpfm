@@ -90,6 +90,15 @@ pub struct Dependencies {
     #[serde(skip_serializing, skip_deserializing)]
     parent_folders: HashSet<String>,
 
+    /// List of vanilla paths lowercased, with their casing counterparts. To quickly find files.
+    vanilla_paths: HashMap<String, Vec<String>>,
+
+    /// List of parent paths lowercased, with their casing counterparts. To quickly find files.
+    ///
+    /// Not serialized, regenerated from parent Packs on rebuild.
+    #[serde(skip_serializing, skip_deserializing)]
+    parent_paths: HashMap<String, Vec<String>>,
+
     /// Cached data for local tables.
     ///
     /// This is for runtime caching, and it must not be serialized to disk.
@@ -200,6 +209,14 @@ impl Dependencies {
             }
         }).flatten().collect::<HashSet<String>>();
 
+        self.parent_files.keys().for_each(|path| {
+            let lower = path.to_lowercase();
+            match self.parent_paths.get_mut(&lower) {
+                Some(paths) => paths.push(path.to_owned()),
+                None => { self.parent_paths.insert(lower, vec![path.to_owned()]); },
+            }
+        });
+
         // Only decode the tables if we passed a schema. If not, it's responsability of the user to decode them later.
         if let Some(schema) = schema {
             let mut decode_extra_data = DecodeableExtraData::default();
@@ -288,6 +305,14 @@ impl Dependencies {
                 Some(paths)
             }
         }).flatten().collect::<HashSet<String>>();
+
+        cache.vanilla_files.keys().for_each(|path| {
+            let lower = path.to_lowercase();
+            match cache.vanilla_paths.get_mut(&lower) {
+                Some(paths) => paths.push(path.to_owned()),
+                None => { cache.vanilla_paths.insert(lower, vec![path.to_owned()]); },
+            }
+        });
 
         // This one can fail, leaving the dependencies with only game data.
         if let Some(path) = asskit_path {
@@ -416,7 +441,7 @@ impl Dependencies {
         });
 
         let mut file_path_3 = file_path.to_path_buf();
-        let handle_3: JoinHandle<Result<(HashMap<String, Vec<String>>, HashSet<String>, HashSet<String>, HashMap<String, DB>)>> = spawn(move || {
+        let handle_3: JoinHandle<Result<(HashMap<String, Vec<String>>, HashSet<String>, HashSet<String>, HashMap<String, Vec<String>>, HashMap<String, DB>)>> = spawn(move || {
             file_path_3.set_extension("pak3");
             let mut file = BufReader::new(File::open(&file_path_3)?);
             let mut data = Vec::with_capacity(file.get_ref().metadata()?.len() as usize);
@@ -442,7 +467,8 @@ impl Dependencies {
         dependencies.vanilla_tables = data_3.0;
         dependencies.vanilla_locs = data_3.1;
         dependencies.vanilla_folders = data_3.2;
-        dependencies.asskit_only_db_tables = data_3.3;
+        dependencies.vanilla_paths = data_3.3;
+        dependencies.asskit_only_db_tables = data_3.4;
 
         // Only decode the tables if we passed a schema. If not, it's responsability of the user to decode them later.
         if let Some(schema) = schema {
@@ -491,7 +517,7 @@ impl Dependencies {
         // Never serialize directly into the file. It's bloody slow!!!
         let serialized_1: Vec<u8> = bincode::serialize(&(&self.build_date, &vanilla_files_1))?;
         let serialized_2: Vec<u8> = bincode::serialize(&vanilla_files_2)?;
-        let serialized_3: Vec<u8> = bincode::serialize(&(&self.vanilla_tables, &self.vanilla_locs, &self.vanilla_folders, &self.asskit_only_db_tables))?;
+        let serialized_3: Vec<u8> = bincode::serialize(&(&self.vanilla_tables, &self.vanilla_locs, &self.vanilla_folders, &self.vanilla_paths, &self.asskit_only_db_tables))?;
 
         file_1.write_all(&serialized_1).map_err(RLibError::from)?;
         file_2.write_all(&serialized_2).map_err(RLibError::from)?;
@@ -592,6 +618,12 @@ impl Dependencies {
 
     /// This function returns a reference to a specific file from the cache, if exists.
     pub fn file(&self, file_path: &str, include_vanilla: bool, include_parent: bool, case_insensitive: bool) -> Result<&RFile> {
+        let file_path = if file_path.starts_with('/') {
+            &file_path[1..]
+        } else {
+            file_path
+        };
+
         if include_parent {
 
             // Even on case-insensitive searches, try to use get first. We may get lucky.
@@ -600,7 +632,8 @@ impl Dependencies {
             }
 
             if case_insensitive {
-                if let Some(file) = self.parent_files.par_iter().find_map_first(|(path, file)| if caseless::default_caseless_match_str(path, file_path) { Some(file) } else { None }) {
+                let lower = file_path.to_lowercase();
+                if let Some(file) = self.parent_paths.get(&lower).map(|paths| self.parent_files.get(&paths[0])).flatten() {
                     return Ok(file);
                 }
             }
@@ -614,7 +647,8 @@ impl Dependencies {
             }
 
             if case_insensitive {
-                if let Some(file) = self.vanilla_files.par_iter().find_map_first(|(path, file)| if caseless::default_caseless_match_str(path, file_path) { Some(file) } else { None }) {
+                let lower = file_path.to_lowercase();
+                if let Some(file) = self.vanilla_paths.get(&lower).map(|paths| self.vanilla_files.get(&paths[0])).flatten() {
                     return Ok(file);
                 }
             }
@@ -651,34 +685,7 @@ impl Dependencies {
 
         // File check.
         if !file_paths.is_empty() {
-
-            // For case-sensitive paths, call the file directly, because that one already has that code optimised.
-            if !case_insensitive {
-                hashmap.extend(file_paths.par_iter().filter_map(|file_path| self.file(file_path, include_vanilla, include_parent, case_insensitive).ok().map(|file| (file_path.to_owned(), file))).collect::<Vec<(_,_)>>());
-            }
-
-            // For case insensitive paths, it's faster to search them in batch than one by one.
-            else {
-
-                // For each one, do a case sensitive search first, as that's way faster and we may get lucky.
-                hashmap.extend(file_paths.par_iter().filter_map(|file_path| self.file(file_path, include_vanilla, include_parent, false).ok().map(|file| (file_path.to_owned(), file))).collect::<Vec<(_,_)>>());
-
-                let file_paths_not_yet_found = file_paths.iter().filter(|x| hashmap.get(&**x).is_none()).collect::<Vec<_>>();
-                if !file_paths_not_yet_found.is_empty() {
-                    if include_vanilla {
-                        hashmap.extend(self.vanilla_files.par_iter()
-                            .filter_map(|(path, file)| file_paths_not_yet_found.iter().find_map(|file_path| if caseless::default_caseless_match_str(path, file_path) { Some((path.to_owned(), file)) } else { None }))
-                            .collect::<Vec<(_,_)>>());
-                    }
-
-                    if include_parent {
-                        hashmap.extend(self.parent_files.par_iter()
-                            .filter_map(|(path, file)| file_paths_not_yet_found.iter().find_map(|file_path| if caseless::default_caseless_match_str(path, file_path) { Some((path.to_owned(), file)) } else { None }))
-                            .collect::<Vec<(_,_)>>());
-                    }
-                }
-
-            }
+            hashmap.extend(file_paths.par_iter().filter_map(|file_path| self.file(file_path, include_vanilla, include_parent, case_insensitive).ok().map(|file| (file_path.to_owned(), file))).collect::<Vec<(_,_)>>());
         }
 
         // Folder check.
