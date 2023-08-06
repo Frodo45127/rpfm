@@ -1544,6 +1544,22 @@ impl TableView {
 
             for text in row {
 
+                // Ignore hidden columns.
+                let mut found = true;
+                while horizontal_header.is_section_hidden(horizontal_header.logical_index(visual_column)) {
+                    visual_column += 1;
+
+                    if visual_column as usize == fields_processed.len() {
+                        found = false;
+                        break;
+                    }
+                }
+
+                // If we found no visible columns to the end of the table, stop pasting this line.
+                if !found {
+                    break;
+                }
+
                 // Depending on the column, we try to encode the data in one format or another, or we just skip it.
                 let real_column = horizontal_header.logical_index(visual_column);
 
