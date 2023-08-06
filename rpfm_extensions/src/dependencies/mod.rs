@@ -1390,21 +1390,37 @@ impl Dependencies {
                 .collect::<Vec<_>>()
         };
 
-        for table in db_tables {
+        // Merge tables of the same name and version, so we got more chances of loc data being found.
+        let mut db_tables_dedup: Vec<DB> = vec![];
+        for table in &db_tables {
+            match db_tables_dedup.iter_mut().find(|x| x.table_name() == table.table_name() && x.definition().version() == table.definition().version()) {
+                Some(db_source) => *db_source = DB::merge(&[db_source, table])?,
+                None => db_tables_dedup.push((*table).clone()),
+            }
+        }
+
+        for table in &db_tables_dedup {
             let definition = table.definition();
             let mut loc_fields = definition.localised_fields().to_vec();
 
-            // If we received possible loc info, remove the loc data the definition has, and add the one we received.
+            // We assume the fields that came with the table are correct, as they probably come from the normal procedure to get these.
+            //let mut loc_fields_final: Vec<Field> = vec![];
+            let mut loc_fields_final = loc_fields.to_vec();
+
+            // If we received possible loc info, add the one we received.
             if let Some(ref loc_fields_info) = locs {
                 loc_fields.clear();
 
                 if let Some(loc_names) = loc_fields_info.get(&table.table_name_without_tables()) {
                     for name in loc_names {
-                        let mut field = Field::default();
-                        field.set_name(name.to_string());
-                        field.set_field_type(FieldType::OptionalStringU8);
+                        if loc_fields.iter().all(|x| x.name() != name) {
 
-                        loc_fields.push(field);
+                            let mut field = Field::default();
+                            field.set_name(name.to_string());
+                            field.set_field_type(FieldType::StringU8);
+
+                            loc_fields.push(field);
+                        }
                     }
                 }
             }
@@ -1417,10 +1433,11 @@ impl Dependencies {
 
             // Check which fields from the missing field list are actually loc fields.
             let short_table_name = table.table_name_without_tables();
-            let mut loc_fields_final = vec![];
             for localised_field in &loc_fields {
                 let localised_key = format!("{}_{}_", short_table_name, localised_field.name());
-                if loc_table.keys().any(|x| x.starts_with(&localised_key)) {
+
+                // Note: the second check is to avoid a weird bug I'm still not sure why it happens where loc fields get duplicated.
+                if loc_table.keys().any(|x| x.starts_with(&localised_key)) && loc_fields_final.iter().all(|x| x.name() != localised_field.name()) {
                     loc_fields_final.push(localised_field.clone());
                 }
             }

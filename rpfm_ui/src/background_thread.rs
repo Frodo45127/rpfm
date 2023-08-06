@@ -373,7 +373,12 @@ pub fn background_loop() {
                                     if let Ok(RFileDecoded::DB(table)) = table_to_check.decoded() {
                                         match tables_to_check_split.get_mut(table.table_name()) {
                                             Some(tables) => {
-                                                tables.push(table.clone());
+
+                                                // Merge tables of the same name and version, so we got more chances of loc data being found.
+                                                match tables.iter_mut().find(|x| x.definition().version() == table.definition().version()) {
+                                                    Some(db_source) => *db_source = DB::merge(&[db_source, table]).unwrap(),
+                                                    None => tables.push((table.clone()).clone()),
+                                                }
                                             }
                                             None => {
                                                 tables_to_check_split.insert(table.table_name().to_owned(), vec![table.clone()]);

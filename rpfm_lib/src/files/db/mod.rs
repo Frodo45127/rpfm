@@ -532,7 +532,7 @@ impl DB {
     /// The metadata used (definition, patches) is taken from the first table on the list.
     ///
     /// May fail if the tables do not have the same table name.
-    pub(crate) fn merge(sources: &[&Self]) -> Result<Self> {
+    pub fn merge(sources: &[&Self]) -> Result<Self> {
 
         let table_names = sources.iter().map(|file| file.table_name()).collect::<HashSet<_>>();
         if table_names.len() > 1 {
