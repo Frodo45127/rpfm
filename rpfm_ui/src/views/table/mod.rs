@@ -712,16 +712,12 @@ impl TableView {
             // Block signals so the header doesn't trigger weird things while doing this.
             header.block_signals(true);
 
-            // Column order && hidden columns.
+            // Column order && hidden columns. Remember to set the sidebar status accordingly.
             for (dest_index, logical_index) in profile.column_order.iter().enumerate() {
                 let visual_index = header.visual_index(*logical_index);
                 header.move_section(visual_index, dest_index as i32);
 
-                if profile.columns_hidden.contains(logical_index) {
-                    header.hide_section(*logical_index);
-                } else {
-                    header.show_section(*logical_index);
-                }
+                self.sidebar_hide_checkboxes()[*logical_index as usize].set_checked(profile.columns_hidden.contains(logical_index));
             }
 
             header.block_signals(false);
