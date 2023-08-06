@@ -85,10 +85,6 @@ pub fn update_schema_from_raw_files(
     let (raw_definitions, raw_localisable_fields) = match raw_db_version {
         2 | 1 => {
 
-            let mut ass_kit_path = ass_kit_path.to_owned();
-            ass_kit_path.push("raw_data");
-            ass_kit_path.push("db");
-
             // This one is notably missing in Warhammer 2, so it's optional.
             let raw_localisable_fields: Option<RawLocalisableFields> =
                 if let Ok(file_path) = get_raw_localisable_fields_path(&ass_kit_path, *raw_db_version) {
@@ -100,11 +96,7 @@ pub fn update_schema_from_raw_files(
         }
 
         // For these ones, we expect the path to point to the folder with each game's table folder.
-        0 => {
-
-            let ass_kit_path = ass_kit_path.join(game_info.key());
-            (RawDefinition::read_all(&ass_kit_path, *raw_db_version, tables_to_skip)?, None)
-        }
+        0 => (RawDefinition::read_all(&ass_kit_path, *raw_db_version, tables_to_skip)?, None),
         _ => return Err(RLibError::AssemblyKitUnsupportedVersion(*raw_db_version)),
     };
 

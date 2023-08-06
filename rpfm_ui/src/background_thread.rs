@@ -359,43 +359,47 @@ pub fn background_loop() {
             // In case we want to update the Schema for our Game Selected...
             Command::UpdateCurrentSchemaFromAssKit => {
                 if let Some(ref mut schema) = *SCHEMA.write().unwrap() {
-                    let game_selected = GAME_SELECTED.read().unwrap();
-                    let asskit_path = setting_path(&format!("{}_assembly_kit", game_selected.key()));
-                    let schema_path = schemas_path().unwrap().join(game_selected.schema_file_name());
+                    match assembly_kit_path() {
+                        Ok(asskit_path) => {
+                            let game_selected = GAME_SELECTED.read().unwrap();
+                            let schema_path = schemas_path().unwrap().join(game_selected.schema_file_name());
 
-                    let dependencies = dependencies.read().unwrap();
-                    if let Ok(tables_to_check) = dependencies.db_and_loc_data(true, false, true, false) {
+                            let dependencies = dependencies.read().unwrap();
+                            if let Ok(tables_to_check) = dependencies.db_and_loc_data(true, false, true, false) {
 
-                        // Split the tables to check by table name.
-                        let mut tables_to_check_split: HashMap<String, Vec<DB>> = HashMap::new();
-                        for table_to_check in tables_to_check {
-                            if let Ok(RFileDecoded::DB(table)) = table_to_check.decoded() {
-                                match tables_to_check_split.get_mut(table.table_name()) {
-                                    Some(tables) => {
-                                        tables.push(table.clone());
+                                // Split the tables to check by table name.
+                                let mut tables_to_check_split: HashMap<String, Vec<DB>> = HashMap::new();
+                                for table_to_check in tables_to_check {
+                                    if let Ok(RFileDecoded::DB(table)) = table_to_check.decoded() {
+                                        match tables_to_check_split.get_mut(table.table_name()) {
+                                            Some(tables) => {
+                                                tables.push(table.clone());
+                                            }
+                                            None => {
+                                                tables_to_check_split.insert(table.table_name().to_owned(), vec![table.clone()]);
+                                            }
+                                        }
                                     }
-                                    None => {
-                                        tables_to_check_split.insert(table.table_name().to_owned(), vec![table.clone()]);
-                                    }
+                                }
+
+                                let tables_to_skip = dependencies.vanilla_tables().keys().map(|x| &**x).collect::<Vec<_>>();
+                                match update_schema_from_raw_files(schema, &game_selected, &asskit_path, &schema_path, &tables_to_skip, &tables_to_check_split) {
+                                    Ok(possible_loc_fields) => {
+
+                                        if dependencies.bruteforce_loc_key_order(schema, possible_loc_fields, None).is_ok() {
+                                            match schema.save(&schemas_path().unwrap().join(GAME_SELECTED.read().unwrap().schema_file_name())) {
+                                                Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                                                Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                                            }
+                                        } else {
+                                            CentralCommand::send_back(&sender, Response::Success)
+                                        }
+                                    },
+                                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                                 }
                             }
                         }
-
-                        let tables_to_skip = dependencies.vanilla_tables().keys().map(|x| &**x).collect::<Vec<_>>();
-                        match update_schema_from_raw_files(schema, &game_selected, &asskit_path, &schema_path, &tables_to_skip, &tables_to_check_split) {
-                            Ok(possible_loc_fields) => {
-
-                                if dependencies.bruteforce_loc_key_order(schema, possible_loc_fields, None).is_ok() {
-                                    match schema.save(&schemas_path().unwrap().join(GAME_SELECTED.read().unwrap().schema_file_name())) {
-                                        Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                                        Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
-                                    }
-                                } else {
-                                    CentralCommand::send_back(&sender, Response::Success)
-                                }
-                            },
-                            Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
-                        }
+                        Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                     }
                 } else {
                     CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected.")));
