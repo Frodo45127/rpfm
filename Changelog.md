@@ -19,6 +19,11 @@ If you're looking for the changes included in the latest beta (against the lates
     + RigidModel
     + Unit Variant
     + Unknown
+- Implemented downloader for Empire and Napoleon's AK-like XML files.
+- Implemented parser for Empire and Napoleon's AK-like XML files.
+- Implemented support for all the features that required the Assembly Kit for Empire and Napoleon.
+- Implemented icon viewer in Portrait Settings views.
+- Implemented icon view in table fields that reference an image.
 - Added button to toggle regex on table filters (enabled by default).
 
 ### Changed
@@ -34,6 +39,8 @@ If you're looking for the changes included in the latest beta (against the lates
 - Global search matched text is now trimmed to focus on the part of the match.
 - Global search's row column is now show right after the matched text.
 - I64 and OptionalI64 fields in tables now use spinboxes, like the other numeric fields.
+- Generate Ids now supports I64 ids when all selected fields admit i64 numbers.
+- Heavely optimized code for finding files in the dependencies.
 
 ### Removed
 - Removed 4.0 warning message on first start.
@@ -54,6 +61,15 @@ If you're looking for the changes included in the latest beta (against the lates
 - Fixed global replace replacing all matches on the same line/cell if there were more than one.
 - Fixed a myriad of inconsistencies when using different search modes.
 - Fixed a bug where ESF files may lost numeric data when dealing with very large integers.
+- Fixed Portrait Settings view not changing variant names properly.
+- Fixed dependencies cache failing to generate for Thrones due to exe name change.
+- Fixed decryption logic failing silently to decrypt half the files.
+- Fixed open empty tabs with no name when a file fails to open after the tab is created.
+- Fixed WH2 dependencies ignoring audio_base.pack due to a typo.
+- Fixed "All" diagnostic filter checkbox toggling instead of checking all filters.
+- Fixed resizable labels with images doing weird things when they are wider than their container.
+- Fixed duplicated keys diagnostic not working on loc tables.
+- Fixed paste commands pasting in the wrong cells when there are hidden columns in the table.
 
 
 ## [4.0.22]
