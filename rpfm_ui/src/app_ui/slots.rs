@@ -982,7 +982,7 @@ impl AppUISlots {
                 if AppUI::are_you_sure_edition(&app_ui, "generate_dependencies_cache_are_you_sure") {
                     info!("Triggering `Generate Dependencies Cache` By Slot");
 
-                    if !setting_path(&format!("{}_assembly_kit", GAME_SELECTED.read().unwrap().key())).is_dir() ||
+                    if (GAME_SELECTED.read().unwrap().raw_db_version() > &0 && !setting_path(&format!("{}_assembly_kit", GAME_SELECTED.read().unwrap().key())).is_dir()) ||
                         (*GAME_SELECTED.read().unwrap().raw_db_version() == 0 && !old_ak_files_path().unwrap_or(PathBuf::new()).join(GAME_SELECTED.read().unwrap().key()).is_dir()) {
                         show_dialog(&app_ui.main_window, tr("generate_dependencies_cache_warn"), false);
                     }
