@@ -389,7 +389,7 @@ impl ToolUnitEditor {
     unsafe fn load_data(&self) -> Result<()> {
 
         // Note: this data is HashMap<DataSource, HashMap<Path, RFile>>.
-        let receiver = CENTRAL_COMMAND.send_background(Command::GetRFilesFromAllSources(self.tool.used_paths.to_vec()));
+        let receiver = CENTRAL_COMMAND.send_background(Command::GetRFilesFromAllSources(self.tool.used_paths.to_vec(), false));
         let response = CentralCommand::recv(&receiver);
         let mut data = if let Response::HashMapDataSourceHashMapStringRFile(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
 
@@ -550,7 +550,7 @@ impl ToolUnitEditor {
                 }
             }
 
-            let receiver = CENTRAL_COMMAND.send_background(Command::GetRFilesFromAllSources(icon_paths.to_vec()));
+            let receiver = CENTRAL_COMMAND.send_background(Command::GetRFilesFromAllSources(icon_paths.to_vec(), false));
             let response = CentralCommand::recv(&receiver);
             let images_data = if let Response::HashMapDataSourceHashMapStringRFile(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
 

@@ -548,7 +548,7 @@ impl SubToolVariantUnitEditor {
                 ContainerPath::File(icon_path_tga_lowres.to_owned()),
             ];
 
-            let receiver = CENTRAL_COMMAND.send_background(Command::GetRFilesFromAllSources(icon_paths));
+            let receiver = CENTRAL_COMMAND.send_background(Command::GetRFilesFromAllSources(icon_paths, false));
             let response = CentralCommand::recv(&receiver);
             let images_data = if let Response::HashMapDataSourceHashMapStringRFile(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
             let image_file = if let Some(image_file) = Tool::get_most_relevant_file(&images_data, &icon_path_png_lowres) {
@@ -599,7 +599,7 @@ impl SubToolVariantUnitEditor {
                 ContainerPath::File(variant_path.to_owned()),
             ];
 
-            let receiver = CENTRAL_COMMAND.send_background(Command::GetRFilesFromAllSources(variant_paths));
+            let receiver = CENTRAL_COMMAND.send_background(Command::GetRFilesFromAllSources(variant_paths, false));
             let response = CentralCommand::recv(&receiver);
             let variant_data = if let Response::HashMapDataSourceHashMapStringRFile(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
             let file = Tool::get_most_relevant_file(&variant_data, &variant_path);
