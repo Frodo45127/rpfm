@@ -18,6 +18,7 @@ use qt_widgets::q_header_view::ResizeMode;
 
 use qt_gui::QIcon;
 use qt_gui::QListOfQStandardItem;
+use qt_gui::QPixmap;
 use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;
 
@@ -45,7 +46,7 @@ use std::sync::{atomic::AtomicPtr, RwLock};
 
 use rpfm_extensions::dependencies::TableReferences;
 
-use rpfm_lib::files::table::Table;
+use rpfm_lib::files::{ContainerPath, RFileDecoded, table::Table};
 use rpfm_lib::integrations::log::*;
 use rpfm_lib::schema::{Definition, DefinitionPatch, Field, FieldType};
 
@@ -468,8 +469,20 @@ pub unsafe fn load_data(
         let fields_processed = definition.fields_processed();
         let patches = Some(definition.patches());
         let keys = fields_processed.iter().enumerate().filter_map(|(x, y)| if y.is_key(patches) { Some(x as i32) } else { None }).collect::<Vec<i32>>();
-        let tooltip_string = tr("original_data");
         let enable_lookups = setting_bool("enable_lookups");
+        let enable_icons = setting_bool("enable_icons");
+
+        let icons: BTreeMap<i32, (String, HashMap<String, AtomicPtr<QIcon>>)> = if enable_icons {
+            let mut map = BTreeMap::new();
+            for (column, field) in fields_processed.iter().enumerate() {
+                if field.is_filename() {
+                    let _ = request_backend_files(&data, column, field, &mut map);
+                }
+            }
+            map
+        } else {
+            BTreeMap::new()
+        };
 
         // Get each row in a mass loop.
         let qlists = data.par_iter().map(|entry| {
@@ -477,7 +490,7 @@ pub unsafe fn load_data(
             qlist.reserve(entry.len() as i32);
 
             for (column, field) in entry.iter().enumerate() {
-                let item = get_item_from_decoded_data(field, &keys, column, &tooltip_string);
+                let item = get_item_from_decoded_data(field, &keys, column);
 
                 if data_source != DataSource::PackFile {
                     item.set_editable(false);
@@ -489,6 +502,17 @@ pub unsafe fn load_data(
                             if !data.is_empty() {
                                 item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(lookup)), ITEM_SUB_DATA);
                             }
+                        }
+                    }
+                }
+
+                if enable_icons {
+                    if let Some(column_data) = icons.get(&(column as i32)) {
+                        let path = column_data.0.replace('%', &entry[column].data_to_string()).to_lowercase();
+                        if let Some(icon) = column_data.1.get(&path) {
+                            let icon = ref_from_atomic(&icon);
+                            item.set_icon(icon);
+                            item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(path)), 52);
                         }
                     }
                 }
@@ -526,7 +550,7 @@ pub unsafe fn load_data(
 }
 
 /// This function generates a StandardItem for the provided DecodedData.
-pub unsafe fn get_item_from_decoded_data(data: &DecodedData, keys: &[i32], column: usize, tooltip_string: &str) -> CppBox<QStandardItem> {
+pub unsafe fn get_item_from_decoded_data(data: &DecodedData, keys: &[i32], column: usize) -> CppBox<QStandardItem> {
     let item = match *data {
 
         // This one needs a couple of changes before turning it into an item in the table.
@@ -535,7 +559,6 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData, keys: &[i32], colum
             item.set_data_2a(ref_from_atomic(&QVARIANT_TRUE), ITEM_HAS_SOURCE_VALUE);
             item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_SEQUENCE);
             item.set_data_2a(&QVariant::from_bool(*data), ITEM_SOURCE_VALUE);
-            item.set_tool_tip(&QString::from_std_str(tooltip_string.replacen("{}", &data.to_string(), 1)));
             item.set_editable(false);
             item.set_checkable(true);
             item.set_check_state(if *data { CheckState::Checked } else { CheckState::Unchecked });
@@ -559,10 +582,9 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData, keys: &[i32], colum
 
             let qdata = QVariant::from_float(data);
             let item = QStandardItem::new();
-            item.set_tool_tip(&QString::from_std_str(tooltip_string.replacen("{}", &string, 1)));
             item.set_data_2a(ref_from_atomic(&QVARIANT_TRUE), ITEM_HAS_SOURCE_VALUE);
             item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_SEQUENCE);
-            item.set_data_2a(&qdata, ITEM_SOURCE_VALUE);
+            item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(string)), ITEM_SOURCE_VALUE);
             item.set_data_2a(&qdata, 2);
             item
         },
@@ -582,10 +604,9 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData, keys: &[i32], colum
 
             let qdata = QVariant::from_double(data);
             let item = QStandardItem::new();
-            item.set_tool_tip(&QString::from_std_str(tooltip_string.replacen("{}", &string, 1)));
             item.set_data_2a(ref_from_atomic(&QVARIANT_TRUE), ITEM_HAS_SOURCE_VALUE);
             item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_SEQUENCE);
-            item.set_data_2a(&qdata, ITEM_SOURCE_VALUE);
+            item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(string)), ITEM_SOURCE_VALUE);
             item.set_data_2a(&qdata, 2);
             item
         },
@@ -593,7 +614,6 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData, keys: &[i32], colum
         DecodedData::OptionalI16(ref data) => {
             let item = QStandardItem::new();
             let qdata = QVariant::from_int(*data as i32);
-            item.set_tool_tip(&QString::from_std_str(tooltip_string.replacen("{}", &data.to_string(), 1)));
             item.set_data_2a(ref_from_atomic(&QVARIANT_TRUE), ITEM_HAS_SOURCE_VALUE);
             item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_SEQUENCE);
             item.set_data_2a(&qdata, ITEM_SOURCE_VALUE);
@@ -604,7 +624,6 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData, keys: &[i32], colum
         DecodedData::OptionalI32(ref data) => {
             let item = QStandardItem::new();
             let qdata = QVariant::from_int(*data);
-            item.set_tool_tip(&QString::from_std_str(tooltip_string.replacen("{}", &data.to_string(), 1)));
             item.set_data_2a(ref_from_atomic(&QVARIANT_TRUE), ITEM_HAS_SOURCE_VALUE);
             item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_SEQUENCE);
             item.set_data_2a(&qdata, ITEM_SOURCE_VALUE);
@@ -615,7 +634,6 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData, keys: &[i32], colum
         DecodedData::OptionalI64(ref data) => {
             let item = QStandardItem::new();
             let qdata = QVariant::from_i64(*data);
-            item.set_tool_tip(&QString::from_std_str(tooltip_string.replacen("{}", &data.to_string(), 1)));
             item.set_data_2a(ref_from_atomic(&QVARIANT_TRUE), ITEM_HAS_SOURCE_VALUE);
             item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_SEQUENCE);
             item.set_data_2a(&qdata, ITEM_SOURCE_VALUE);
@@ -631,7 +649,6 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData, keys: &[i32], colum
         DecodedData::OptionalStringU16(ref data) => {
             let qdata = QString::from_std_str(data);
             let item = QStandardItem::from_q_string(&qdata);
-            item.set_tool_tip(&QString::from_std_str(tooltip_string.replacen("{}", &data, 1)));
             item.set_data_2a(ref_from_atomic(&QVARIANT_TRUE), ITEM_HAS_SOURCE_VALUE);
             item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_SEQUENCE);
             item.set_data_2a(&QVariant::from_q_string(&qdata), ITEM_SOURCE_VALUE);
@@ -1045,36 +1062,7 @@ pub unsafe fn get_table_from_view(
 
         // Bitwise columns can span across multiple columns. That means we have to keep track of the column ourselves.
         for (column, field) in definition.fields_processed().iter().enumerate() {
-
-            // Create a new Item.
-            let item = match field.field_type() {
-
-                // This one needs a couple of changes before turning it into an item in the table.
-                FieldType::Boolean => DecodedData::Boolean(model.item_2a(row, column as i32).check_state() == CheckState::Checked),
-
-                // Numbers need parsing, and this can fail.
-                FieldType::F32 => DecodedData::F32(model.item_2a(row, column as i32).data_1a(2).to_float_0a()),
-                FieldType::F64 => DecodedData::F64(model.item_2a(row, column as i32).data_1a(2).to_double_0a()),
-                FieldType::I16 => DecodedData::I16(model.item_2a(row, column as i32).data_1a(2).to_int_0a() as i16),
-                FieldType::I32 => DecodedData::I32(model.item_2a(row, column as i32).data_1a(2).to_int_0a()),
-                FieldType::I64 => DecodedData::I64(model.item_2a(row, column as i32).data_1a(2).to_long_long_0a()),
-                FieldType::OptionalI16 => DecodedData::OptionalI16(model.item_2a(row, column as i32).data_1a(2).to_int_0a() as i16),
-                FieldType::OptionalI32 => DecodedData::OptionalI32(model.item_2a(row, column as i32).data_1a(2).to_int_0a()),
-                FieldType::OptionalI64 => DecodedData::OptionalI64(model.item_2a(row, column as i32).data_1a(2).to_long_long_0a()),
-
-                // Colours need parsing to turn them into integers.
-                FieldType::ColourRGB => DecodedData::ColourRGB(QString::to_std_string(&model.item_2a(row, column as i32).text())),
-
-                // All these are just normal Strings.
-                FieldType::StringU8 => DecodedData::StringU8(QString::to_std_string(&model.item_2a(row, column as i32).text())),
-                FieldType::StringU16 => DecodedData::StringU16(QString::to_std_string(&model.item_2a(row, column as i32).text())),
-                FieldType::OptionalStringU8 => DecodedData::OptionalStringU8(QString::to_std_string(&model.item_2a(row, column as i32).text())),
-                FieldType::OptionalStringU16 => DecodedData::OptionalStringU16(QString::to_std_string(&model.item_2a(row, column as i32).text())),
-
-                // Sequences in the UI are not yet supported.
-                FieldType::SequenceU16(_) => DecodedData::SequenceU16(model.item_2a(row, column as i32).data_1a(ITEM_SEQUENCE_DATA).to_byte_array().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>()),
-                FieldType::SequenceU32(_) => DecodedData::SequenceU32(model.item_2a(row, column as i32).data_1a(ITEM_SEQUENCE_DATA).to_byte_array().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>()),
-            };
+            let item = get_field_from_view(model, field, row, column as i32);
             new_row.push(item);
         }
         entries.push(new_row);
@@ -1083,6 +1071,37 @@ pub unsafe fn get_table_from_view(
     let mut table = Table::new(definition, None, "", false);
     table.set_data(None, &entries)?;
     Ok(table)
+}
+
+pub unsafe fn get_field_from_view(model: &QPtr<QStandardItemModel>, field: &Field, row: i32, column: i32) -> DecodedData {
+    match field.field_type() {
+
+        // This one needs a couple of changes before turning it into an item in the table.
+        FieldType::Boolean => DecodedData::Boolean(model.item_2a(row, column as i32).check_state() == CheckState::Checked),
+
+        // Numbers need parsing, and this can fail.
+        FieldType::F32 => DecodedData::F32(model.item_2a(row, column as i32).data_1a(2).to_float_0a()),
+        FieldType::F64 => DecodedData::F64(model.item_2a(row, column as i32).data_1a(2).to_double_0a()),
+        FieldType::I16 => DecodedData::I16(model.item_2a(row, column as i32).data_1a(2).to_int_0a() as i16),
+        FieldType::I32 => DecodedData::I32(model.item_2a(row, column as i32).data_1a(2).to_int_0a()),
+        FieldType::I64 => DecodedData::I64(model.item_2a(row, column as i32).data_1a(2).to_long_long_0a()),
+        FieldType::OptionalI16 => DecodedData::OptionalI16(model.item_2a(row, column as i32).data_1a(2).to_int_0a() as i16),
+        FieldType::OptionalI32 => DecodedData::OptionalI32(model.item_2a(row, column as i32).data_1a(2).to_int_0a()),
+        FieldType::OptionalI64 => DecodedData::OptionalI64(model.item_2a(row, column as i32).data_1a(2).to_long_long_0a()),
+
+        // Colours need parsing to turn them into integers.
+        FieldType::ColourRGB => DecodedData::ColourRGB(QString::to_std_string(&model.item_2a(row, column as i32).text())),
+
+        // All these are just normal Strings.
+        FieldType::StringU8 => DecodedData::StringU8(QString::to_std_string(&model.item_2a(row, column as i32).text())),
+        FieldType::StringU16 => DecodedData::StringU16(QString::to_std_string(&model.item_2a(row, column as i32).text())),
+        FieldType::OptionalStringU8 => DecodedData::OptionalStringU8(QString::to_std_string(&model.item_2a(row, column as i32).text())),
+        FieldType::OptionalStringU16 => DecodedData::OptionalStringU16(QString::to_std_string(&model.item_2a(row, column as i32).text())),
+
+        // Sequences in the UI are not yet supported.
+        FieldType::SequenceU16(_) => DecodedData::SequenceU16(model.item_2a(row, column as i32).data_1a(ITEM_SEQUENCE_DATA).to_byte_array().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>()),
+        FieldType::SequenceU32(_) => DecodedData::SequenceU32(model.item_2a(row, column as i32).data_1a(ITEM_SEQUENCE_DATA).to_byte_array().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>()),
+    }
 }
 
 /// This function creates a new subtable from the current table.
@@ -1127,4 +1146,47 @@ pub unsafe fn open_subtable(
             None
         }
     } else { None }
+}
+
+pub unsafe fn request_backend_files(data: &[Vec<DecodedData>], column: usize, field: &Field, map: &mut BTreeMap<i32, (String, HashMap<String, AtomicPtr<QIcon>>)>) -> Result<()> {
+    let base_path = field.filename_relative_path().as_deref().unwrap_or("%");
+    let paths = data.par_iter().map(|entry| ContainerPath::File(base_path.replace('%', &entry[column].data_to_string()))).collect::<Vec<_>>();
+
+    if !paths.is_empty() {
+        let receiver = CENTRAL_COMMAND.send_background(Command::GetRFilesFromAllSources(paths, true));
+        let response = CentralCommand::recv(&receiver);
+        match response {
+            Response::HashMapDataSourceHashMapStringRFile(mut files) => {
+                let mut files_merge = HashMap::new();
+                if let Some(files) = files.remove(&DataSource::GameFiles) {
+                    files_merge.extend(files);
+                }
+
+                if let Some(files) = files.remove(&DataSource::ParentFiles) {
+                    files_merge.extend(files);
+                }
+
+                let icons = files_merge.par_iter_mut()
+                    .filter_map(|(path, file)| {
+                        if file.file_type() == FileType::Image {
+                            if let Ok(Some(RFileDecoded::Image(data))) = file.decode(&None, false, true) {
+                                let byte_array = QByteArray::from_slice(&data.data());
+                                let image = QPixmap::new();
+
+                                if image.load_from_data_q_byte_array(&byte_array) {
+                                    let icon = QIcon::from_q_pixmap(&image);
+                                    Some((path.to_owned(), atomic_from_ptr(icon.into_ptr())))
+                                } else { None }
+                            } else { None }
+                        } else { None }
+                    })
+                    .collect::<HashMap<String, AtomicPtr<QIcon>>>();
+
+                map.insert(column as i32, (base_path.to_owned(), icons));
+            },
+            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+        }
+    }
+
+    Ok(())
 }

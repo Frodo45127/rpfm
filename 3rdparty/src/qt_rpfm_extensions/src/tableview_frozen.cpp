@@ -5,10 +5,18 @@
 #include <QList>
 #include <QSortFilterProxyModel>
 #include <QScrollBar>
+#include <QHelpEvent>
+#include <QToolTip>
+#include <QByteArray>
+#include <QBuffer>
+#include <QImage>
+#include <QStandardItem>
+#include <QStandardItemModel>
+#include <QHelpEvent>
 
 // Fuction to be able to create a QTableViewFrozen from other languages.
-extern "C" QTableView* new_tableview_frozen(QWidget* parent) {
-    QTableViewFrozen* tableview = new QTableViewFrozen(parent);
+extern "C" QTableView* new_tableview_frozen(QWidget* parent, void (*generate_tooltip_message)(QTableView* view, int globalPosX, int globalPosY)) {
+    QTableViewFrozen* tableview = new QTableViewFrozen(parent, generate_tooltip_message);
     return dynamic_cast<QTableView*>(tableview);
 }
 
@@ -23,11 +31,16 @@ extern "C" void toggle_freezer(QTableView* tableView, int column) {
 //-----------------------------------------------------------
 
 // Constructor of QTableViewFrozen.
-QTableViewFrozen::QTableViewFrozen(QWidget* parent) {
+QTableViewFrozen::QTableViewFrozen(QWidget* parent, void (*generate_tooltip_message)(QTableView* view, int globalPosX, int globalPosY)) {
 
     this->setParent(parent);
     frozenColumns = QList<int>();
     tableViewFrozen = new QTableView(this);
+    generateTooltipMessage = generate_tooltip_message;
+
+    if (generateTooltipMessage != nullptr) {
+        qDebug("non-nul");
+    }
 
     // Connect the header's resize signal of both QTableViews together, so they keep the same size.
     connect(
@@ -85,12 +98,14 @@ QTableViewFrozen::QTableViewFrozen(QWidget* parent) {
     horizontalHeader()->setVisible(true);
     verticalHeader()->setVisible(true);
 
+    setMouseTracking(true);
     setSortingEnabled(true);
     setAlternatingRowColors(true);
     setContextMenuPolicy(Qt::ContextMenuPolicy::CustomContextMenu);
     setHorizontalScrollMode(ScrollPerPixel);
     setVerticalScrollMode(ScrollPerPixel);
 
+    tableViewFrozen->setMouseTracking(true);
     tableViewFrozen->setSortingEnabled(true);
     tableViewFrozen->setAlternatingRowColors(true);
     tableViewFrozen->setContextMenuPolicy(Qt::ContextMenuPolicy::CustomContextMenu);
@@ -228,4 +243,16 @@ void QTableViewFrozen::toggleFreezer(int column) {
         tableViewFrozen->setColumnHidden(column, false);
     }
     updateFrozenTableGeometry();
+}
+
+bool QTableViewFrozen::viewportEvent(QEvent *event) {
+    if (event->type() == QEvent::ToolTip) {
+        _lastPosition = static_cast<QHelpEvent*>(event)->globalPos();
+        QTableView* view = static_cast<QTableView*>(this);
+
+        if (generateTooltipMessage != nullptr) {
+            generateTooltipMessage(view, _lastPosition.x(), _lastPosition.y());
+        }
+    }
+    return QTableView::viewportEvent(event);
 }

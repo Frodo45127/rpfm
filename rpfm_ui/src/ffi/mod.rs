@@ -29,10 +29,13 @@ use qt_gui::QPixmap;
 use qt_gui::QStandardItemModel;
 
 use qt_core::QBox;
+use qt_core::QBuffer;
+use qt_core::QByteArray;
 #[cfg(any(feature = "support_rigidmodel", feature = "support_modern_dds"))] use qt_core::QByteArray;
 use qt_core::QListOfQObject;
 use qt_core::QModelIndex;
 use qt_core::QObject;
+use qt_core::QPoint;
 use qt_core::QRegExp;
 use qt_core::Signal;
 use qt_core::QSortFilterProxyModel;
@@ -41,6 +44,7 @@ use qt_core::QStringList;
 use qt_core::QPtr;
 use qt_core::QTimer;
 use qt_core::QListOfInt;
+use qt_core::QVariant;
 use qt_core::CaseSensitivity;
 
 #[cfg(any(feature = "support_rigidmodel", feature = "enable_tools"))] use cpp_core::CppBox;
@@ -50,10 +54,11 @@ use cpp_core::Ptr;
 
 #[cfg(feature = "support_rigidmodel")] use rpfm_lib::integrations::log;
 
-use rpfm_ui_common::locale::qtr;
+use rpfm_ui_common::locale::{qtr, tr};
 
 use crate::settings_ui::backend::*;
 use crate::UI_STATE;
+use crate::views::table::ITEM_SOURCE_VALUE;
 
 //---------------------------------------------------------------------------//
 // Custom delegates stuff.
@@ -289,9 +294,9 @@ pub fn toggle_animated_safe(spoiler: &Ptr<QWidget>) {
 //---------------------------------------------------------------------------//
 
 // This function allows you to create a table capable of freezing columns.
-extern "C" { fn new_tableview_frozen(parent: *mut QWidget) -> *mut QTableView; }
-pub fn new_tableview_frozen_safe(parent: &Ptr<QWidget>) -> QBox<QTableView> {
-    unsafe { QBox::from_raw(new_tableview_frozen(parent.as_mut_raw_ptr())) }
+extern "C" { fn new_tableview_frozen(parent: *mut QWidget, generate_tooltip_message: extern fn(*mut QTableView, i32, i32) -> ()) -> *mut QTableView; }
+pub fn new_tableview_frozen_safe(parent: &Ptr<QWidget>, generate_tooltip_message: extern fn(*mut QTableView, i32, i32) -> ()) -> QBox<QTableView> {
+    unsafe { QBox::from_raw(new_tableview_frozen(parent.as_mut_raw_ptr(), generate_tooltip_message)) }
 }
 
 // This function allows you to freeze/unfreeze a column.
@@ -543,4 +548,62 @@ pub extern fn are_you_sure(main_window: *mut QMainWindow, is_delete_my_mod: bool
         1, // By default, select yes.
         main_window,
     ).exec() == 3 }
+}
+
+pub extern fn generate_tooltip_message(view: *mut QTableView, global_pos_x: i32, global_pos_y: i32) {
+    unsafe {
+        let view = view.as_ref().unwrap();
+        let global_pos = QPoint::new_2a(global_pos_x, global_pos_y);
+        if view.under_mouse() {
+
+            let filter_index = view.index_at(&view.viewport().map_from_global(&global_pos));
+            if filter_index.is_valid() {
+
+                let filter = view.model().static_downcast::<QSortFilterProxyModel>();
+                let model = filter.source_model().static_downcast::<QStandardItemModel>();
+
+                let model_index = filter.map_to_source(&filter_index);
+                if model_index.is_valid() {
+
+                    let item = model.item_from_index(&model_index);
+                    model.block_signals(true);
+
+                    // Only generate the icon base64 if we don't have one generated and the item has an icon.
+                    //
+                    // Further updates of this data need to be done through a dataChanged signal.
+                    if model_index.data_1a(50).is_null() && !item.icon().is_null() {
+                        let icon = item.icon();
+                        let image = icon.pixmap_q_size(icon.available_sizes_0a().at(0)).to_image();
+                        let bytes = QByteArray::new();
+                        let buffer = QBuffer::from_q_byte_array(&bytes);
+
+                        image.save_q_io_device_char(&buffer, QString::from_std_str("PNG").to_latin1().data());
+                        item.set_data_2a(&QVariant::from_q_string(&QString::from_q_byte_array(&bytes.to_base64_0a())), 50);
+                    }
+
+                    // Store the original tooltip elsewere so we can re-access it.
+                    let mut tooltip_string = String::new();
+                    let source_value = item.data_1a(ITEM_SOURCE_VALUE);
+
+                    // Put toghether the message.
+                    if !source_value.is_null() {
+                        tooltip_string.push_str(&tr("original_data").replacen("{}", &source_value.to_string().to_std_string(), 1));
+
+                        let icon_data = model_index.data_1a(50);
+                        let image_path = item.data_1a(52);
+                        if !image_path.is_null() && !icon_data.is_null() {
+                            tooltip_string.push_str(&format!("<br/>Image path: {}<br/><img src=\"data:image/png;base64, {}\"/>", image_path.to_string().to_std_string(), icon_data.to_string().to_std_string()));
+
+                        }
+                    }
+
+                    if !tooltip_string.is_empty() {
+                        item.set_tool_tip(&QString::from_std_str(tooltip_string));
+                    }
+
+                    model.block_signals(false);
+                }
+            }
+        }
+    }
 }

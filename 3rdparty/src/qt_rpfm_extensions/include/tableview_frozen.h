@@ -3,15 +3,16 @@
 
 #include "qt_subclasses_global.h"
 #include <QTableView>
+#include <QEvent>
 
-extern "C" QTableView* new_tableview_frozen(QWidget* parent = nullptr);
+extern "C" QTableView* new_tableview_frozen(QWidget* parent = nullptr, void (*generate_tooltip_message)(QTableView* view, int globalPosX, int globalPosY) = nullptr);
 extern "C" void toggle_freezer(QTableView* tableView = nullptr, int column = 0);
 
 class QTableViewFrozen : public QTableView {
      Q_OBJECT
 
 public:
-    QTableViewFrozen(QWidget* parent);
+    QTableViewFrozen(QWidget* parent, void (*generate_tooltip_message)(QTableView* view, int globalPosX, int globalPosY) = nullptr);
     ~QTableViewFrozen() override;
 
     void setModel(QAbstractItemModel * model) override;
@@ -25,6 +26,8 @@ protected:
 
 private:
     QList<int> frozenColumns;
+    QPoint _lastPosition;
+    void (*generateTooltipMessage)(QTableView* view, int globalPosX, int globalPosY);
     void init();
     void updateFrozenTableGeometry();
 
@@ -34,5 +37,6 @@ public slots:
 private slots:
     void updateSectionWidth(int logicalIndex, int oldSize, int newSize);
     void updateSectionHeight(int logicalIndex, int oldSize, int newSize);
+    bool viewportEvent(QEvent *event) override;
 };
 #endif // TABLEVIEW_FROZEN_H
