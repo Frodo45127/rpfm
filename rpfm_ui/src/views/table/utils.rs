@@ -1166,6 +1166,10 @@ pub unsafe fn request_backend_files(data: &[Vec<DecodedData>], column: usize, fi
                     files_merge.extend(files);
                 }
 
+                if let Some(files) = files.remove(&DataSource::PackFile) {
+                    files_merge.extend(files);
+                }
+
                 let icons = files_merge.par_iter_mut()
                     .filter_map(|(path, file)| {
                         if file.file_type() == FileType::Image {
