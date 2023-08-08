@@ -68,6 +68,9 @@ pub struct AnimPack {
     /// we use LazyLoading.
     local_timestamp: u64,
 
+    /// List of file paths lowercased, with their casing counterparts. To quickly find files.
+    paths: HashMap<String, Vec<String>>,
+
     /// List of files within this AnimPack.
     files: HashMap<String, RFile>,
 }
@@ -101,6 +104,14 @@ impl Container for AnimPack {
     /// If the AnimPack hasn't yet be saved to disk or it's not within another file, this returns 0.
     fn disk_file_offset(&self) -> u64 {
        self.disk_file_offset
+    }
+
+    fn paths_cache(&self) -> &HashMap<String, Vec<String>> {
+        &self.paths
+    }
+
+    fn paths_cache_mut(&mut self) -> &mut HashMap<String, Vec<String>> {
+        &mut self.paths
     }
 
     /// This method returns the `Last modified date` the filesystem reports for the container file, in seconds.
@@ -170,6 +181,7 @@ impl Decodeable for AnimPack {
             disk_file_path,
             disk_file_offset,
             local_timestamp,
+            paths: HashMap::new(),
             files: if file_count < 50_000 { HashMap::with_capacity(file_count as usize) } else { HashMap::new() },
         };
 
@@ -200,6 +212,8 @@ impl Decodeable for AnimPack {
                 anim_pack.files.insert(path_in_container, file);
             }
         }
+
+        anim_pack.paths_cache_generate();
 
         anim_pack.files.par_iter_mut().map(|(_, file)| file.guess_file_type()).collect::<Result<()>>()?;
 

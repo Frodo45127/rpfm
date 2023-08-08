@@ -159,6 +159,9 @@ pub struct Pack {
     /// List of files this Pack contains.
     files: HashMap<String, RFile>,
 
+    /// List of file paths lowercased, with their casing counterparts. To quickly find files.
+    paths: HashMap<String, Vec<String>>,
+
     /// Notes added to the Pack. Exclusive of this lib.
     notes: PackNotes,
 
@@ -309,10 +312,11 @@ impl Container for Pack {
 
         // If it's not filtered out, add it to the Pack.
         else {
+            self.paths_cache_insert_path(path);
             self.files.insert(path.to_owned(), file);
+
             Ok(Some(path_container))
         }
-
     }
 
     fn disk_file_path(&self) -> &str {
@@ -329,6 +333,14 @@ impl Container for Pack {
 
     fn disk_file_offset(&self) -> u64 {
        self.disk_file_offset
+    }
+
+    fn paths_cache(&self) -> &HashMap<String, Vec<String>> {
+        &self.paths
+    }
+
+    fn paths_cache_mut(&mut self) -> &mut HashMap<String, Vec<String>> {
+        &mut self.paths
     }
 
     fn internal_timestamp(&self) -> u64 {
@@ -354,6 +366,7 @@ impl Container for Pack {
                         return Err(RLibError::EmptyDestiny);
                     }
 
+                    self.paths_cache_remove_path(source_path);
                     let mut moved = self.files_mut()
                         .remove(source_path)
                         .ok_or_else(|| RLibError::FileNotFound(source_path.to_string()))?;
@@ -386,7 +399,10 @@ impl Container for Pack {
                         .collect::<Vec<_>>();
 
                     let moved = moved_paths.iter()
-                        .filter_map(|x| self.files_mut().remove(x))
+                        .filter_map(|x| {
+                            self.paths_cache_remove_path(x);
+                            self.files_mut().remove(x)
+                        })
                         .collect::<Vec<_>>();
 
                     let mut new_paths = Vec::with_capacity(moved.len());
@@ -527,6 +543,9 @@ impl Pack {
             let data = settings.cached()?;
             pack.settings = PackSettings::load(data)?;
         }
+
+        // Generate the path list.
+        pack.paths_cache_generate();
 
         // If at this point we have not reached the end of the Pack, there is something wrong with it.
         // NOTE: Arena Packs have extra data at the end. If we detect one of those Packs, take that into account.

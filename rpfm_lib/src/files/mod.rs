@@ -576,6 +576,8 @@ pub trait Container {
     fn insert(&mut self, file: RFile) -> Result<Option<ContainerPath>> {
         let path = file.path_in_container();
         let path_raw = file.path_in_container_raw();
+
+        self.paths_cache_insert_path(path_raw);
         self.files_mut().insert(path_raw.to_owned(), file);
         Ok(Some(path))
     }
@@ -748,6 +750,7 @@ pub trait Container {
                     path.remove(0);
                 }
 
+                self.paths_cache_remove_path(&path);
                 self.files_mut().remove(&path);
                 vec![ContainerPath::File(path.to_owned())]
             },
@@ -780,6 +783,7 @@ pub trait Container {
                         }).collect::<Vec<String>>();
 
                     paths_to_remove.iter().for_each(|path| {
+                        self.paths_cache_remove_path(path);
                         self.files_mut().remove(path);
                     });
 
@@ -834,13 +838,23 @@ pub trait Container {
     }
 
     /// This method returns a reference to a RFile in the Container, if the file exists.
-    fn file(&self, path: &str) -> Option<&RFile> {
-        self.files().get(path)
+    fn file(&self, path: &str, case_insensitive: bool) -> Option<&RFile> {
+        if case_insensitive {
+            let lower = path.to_lowercase();
+            self.paths_cache().get(&lower).map(|paths| self.files().get(&paths[0])).flatten()
+        } else {
+            self.files().get(path)
+        }
     }
 
     /// This method returns a mutable reference to a RFile in the Container, if the file exists.
-    fn file_mut(&mut self, path: &str) -> Option<&mut RFile> {
-        self.files_mut().get_mut(path)
+    fn file_mut(&mut self, path: &str, case_insensitive: bool) -> Option<&mut RFile> {
+        if case_insensitive {
+            let lower = path.to_lowercase();
+            self.paths_cache().get(&lower).cloned().map(|paths| self.files_mut().get_mut(&paths[0])).flatten()
+        } else {
+            self.files_mut().get_mut(path)
+        }
     }
 
     /// This method returns a reference to the RFiles inside the provided Container.
@@ -865,19 +879,7 @@ pub trait Container {
     /// meaning passing this will return all RFiles within the container.
     fn files_by_path(&self, path: &ContainerPath, case_insensitive: bool) -> Vec<&RFile> {
         match path {
-            ContainerPath::File(path) => {
-                if case_insensitive {
-                    match self.files().par_iter().find_map_first(|(path_file, file)| if caseless::canonical_caseless_match_str(path, path_file) { Some(file) } else { None }) {
-                        Some(file) => vec![file],
-                        None => vec![],
-                    }
-                } else {
-                    match self.files().get(path) {
-                        Some(file) => vec![file],
-                        None => vec![],
-                    }
-                }
-            },
+            ContainerPath::File(path) => self.file(path, case_insensitive).map(|file| vec![file]).unwrap_or(vec![]),
             ContainerPath::Folder(path) => {
 
                 // If the path is empty, get everything.
@@ -908,19 +910,7 @@ pub trait Container {
     /// meaning passing this will return all RFiles within the container.
     fn files_by_path_mut(&mut self, path: &ContainerPath, case_insensitive: bool) -> Vec<&mut RFile> {
         match path {
-            ContainerPath::File(path) => {
-                if case_insensitive {
-                    match self.files_mut().par_iter_mut().find_map_first(|(path_file, file)| if caseless::canonical_caseless_match_str(path, path_file) { Some(file) } else { None }) {
-                        Some(file) => vec![file],
-                        None => vec![],
-                    }
-                } else {
-                    match self.files_mut().get_mut(path) {
-                        Some(file) => vec![file],
-                        None => vec![],
-                    }
-                }
-            },
+            ContainerPath::File(path) => self.file_mut(path, case_insensitive).map(|file| vec![file]).unwrap_or(vec![]),
             ContainerPath::Folder(path) => {
 
                 // If the path is empty, get everything.
@@ -998,6 +988,62 @@ pub trait Container {
     fn files_by_type_and_paths_mut(&mut self, file_types: &[FileType], paths: &[ContainerPath], case_insensitive: bool) -> Vec<&mut RFile> {
         self.files_by_paths_mut(paths, case_insensitive).into_iter().filter(|file| file_types.contains(&file.file_type())).collect()
     }
+
+    /// This method generate the paths cache of the container.
+    fn paths_cache_generate(&mut self) {
+        self.paths_cache_mut().clear();
+
+        let mut cache: HashMap<String, Vec<String>> = HashMap::new();
+        self.files().keys().for_each(|path| {
+            let lower = path.to_lowercase();
+            match cache.get_mut(&lower) {
+                Some(paths) => paths.push(path.to_owned()),
+                None => { cache.insert(lower, vec![path.to_owned()]); },
+            }
+        });
+
+        *self.paths_cache_mut() = cache;
+    }
+
+    /// This method adds a path to the paths cache.
+    fn paths_cache_insert_path(&mut self, path: &str) {
+        let path_lower = path.to_lowercase();
+        match self.paths_cache_mut().get_mut(&path_lower) {
+            Some(paths) => if paths.iter().all(|x| x != path) {
+                paths.push(path.to_owned());
+            }
+            None => { self.paths_cache_mut().insert(path_lower, vec![path.to_owned()]); }
+        }
+    }
+
+    /// This method removes a path from the paths cache.
+    fn paths_cache_remove_path(&mut self, path: &str) {
+        let path_lower = path.to_lowercase();
+        match self.paths_cache_mut().get_mut(&path_lower) {
+            Some(paths) => {
+                match paths.iter().position(|x| x == path) {
+                    Some(pos) => {
+                        paths.remove(pos);
+                        if paths.is_empty() {
+                            self.paths_cache_mut().remove(&path_lower);
+                        }
+                    },
+                    None => { dbg!("remove_path received a valid path, but we don't have casing equivalence for it. This is a bug."); },
+                }
+            }
+            None => { dbg!("remove_path received an invalid path. This is a bug."); },
+        }
+    }
+
+    /// This method returns the cache of paths (lowecased -> cased variants) conntained within the Container.
+    ///
+    /// Please keep in mind if you manipulate the file list in any way, you NEED to update this cache too.
+    fn paths_cache(&self) -> &HashMap<String, Vec<String>>;
+
+    /// This method returns the cache of paths (lowecased -> cased variants) conntained within the Container.
+    ///
+    /// Please keep in mind if you manipulate the file list in any way, you NEED to update this cache too.
+    fn paths_cache_mut(&mut self) -> &mut HashMap<String, Vec<String>>;
 
     /// This method returns the list of folders conntained within the Container.
     fn paths_folders_raw(&self) -> HashSet<String> {
@@ -1111,6 +1157,7 @@ pub trait Container {
                         return Err(RLibError::EmptyDestiny);
                     }
 
+                    self.paths_cache_remove_path(source_path);
                     let mut moved = self
                         .files_mut()
                         .remove(source_path)
@@ -1144,7 +1191,10 @@ pub trait Container {
                         .collect::<Vec<_>>();
 
                     let moved = moved_paths.iter()
-                        .filter_map(|x| self.files_mut().remove(x))
+                        .filter_map(|x| {
+                            self.paths_cache_remove_path(x);
+                            self.files_mut().remove(x)
+                        })
                         .collect::<Vec<_>>();
 
                     let mut new_paths = Vec::with_capacity(moved.len());

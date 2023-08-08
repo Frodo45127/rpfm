@@ -938,7 +938,7 @@ pub fn background_loop() {
             // In case we want to update a table...
             Command::UpdateTable(path) => {
                 let path = path.path_raw();
-                if let Some(rfile) = pack_file_decoded.file_mut(path) {
+                if let Some(rfile) = pack_file_decoded.file_mut(path, false) {
                     if let Ok(decoded) = rfile.decoded_mut() {
                         match dependencies.write().unwrap().update_db(decoded) {
                             Ok((old_version, new_version)) => CentralCommand::send_back(&sender, Response::I32I32(old_version, new_version)),
@@ -1036,7 +1036,7 @@ pub fn background_loop() {
                 let schema = SCHEMA.read().unwrap();
                 match &*schema {
                     Some(ref schema) => {
-                        match pack_file_decoded.file_mut(&internal_path) {
+                        match pack_file_decoded.file_mut(&internal_path, false) {
                             Some(file) => match file.tsv_export_to_path(&external_path, schema) {
                                 Ok(_) => CentralCommand::send_back(&sender, Response::Success),
                                 Err(error) =>  CentralCommand::send_back(&sender, Response::Error(From::from(error))),
@@ -1054,7 +1054,7 @@ pub fn background_loop() {
                 let schema = SCHEMA.read().unwrap();
                 match &*schema {
                     Some(ref schema) => {
-                        match pack_file_decoded.file_mut(&internal_path) {
+                        match pack_file_decoded.file_mut(&internal_path, false) {
                             Some(file) => {
                                 match RFile::tsv_import_from_path(&external_path, schema) {
                                     Ok(imported) => {
@@ -2042,7 +2042,7 @@ fn save_files_from_external_path(pack: &mut Pack, internal_path: &str, external_
     let mut file = BufReader::new(File::open(external_path)?);
     let mut data = vec![];
     file.read_to_end(&mut data)?;
-    match pack.file_mut(internal_path) {
+    match pack.file_mut(internal_path, false) {
         Some(file) => {
 
             // If we're dealing with a TSV, make sure to import it before setting up the data.
