@@ -2149,7 +2149,7 @@ impl TableView {
         let instructions_label = QLabel::from_q_string_q_widget(&qtr("generate_ids_instructions"), &instructions_frame);
         instructions_grid.add_widget_5a(& instructions_label, 0, 0, 1, 1);
 
-        let starting_id_spin_box = if is_i64 {
+        let starting_id_spin_box = if !is_i64 {
             let starting_id_spin_box = QSpinBox::new_1a(&dialog);
             starting_id_spin_box.set_minimum(i32::MIN);
             starting_id_spin_box.set_maximum(i32::MAX);
