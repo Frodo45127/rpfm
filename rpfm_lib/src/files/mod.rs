@@ -1018,10 +1018,12 @@ pub trait Container {
                             self.paths_cache_mut().remove(&path_lower);
                         }
                     },
-                    None => { dbg!("remove_path received a valid path, but we don't have casing equivalence for it. This is a bug."); },
+                    #[cfg(feature = "integration_log")]None => { warn!("remove_path received a valid path, but we don't have casing equivalence for it. This is a bug. {}, {}", path_lower, path); },
+                    #[cfg(not(feature = "integration_log"))]None => { dbg!("remove_path received a valid path, but we don't have casing equivalence for it. This is a bug. {}, {}", path_lower, path); },
                 }
             }
-            None => { dbg!("remove_path received an invalid path. This is a bug."); },
+            #[cfg(feature = "integration_log")] None => { warn!("remove_path received an invalid path. This is a bug. {}, {}", path_lower, path); },
+            #[cfg(not(feature = "integration_log"))]None => { dbg!("remove_path received an invalid path. This is a bug. {}, {}", path_lower, path); },
         }
     }
 
