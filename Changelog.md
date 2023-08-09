@@ -32,6 +32,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - Optimized Pack TreeView UI loading process.
 - Optimized the UI's file loading logic.
 - Optimized table's UI loading logic.
+- Optimized file-loading logic.
 - Improved Crash recording to avoid duplicate reports.
 - Improved table filter performance.
 - DB Table automatic cell size now can vary between 60 and 800px, so you don't get too small columns, nor extremely big columns.
@@ -41,9 +42,11 @@ If you're looking for the changes included in the latest beta (against the lates
 - I64 and OptionalI64 fields in tables now use spinboxes, like the other numeric fields.
 - Generate Ids now supports I64 ids when all selected fields admit i64 numbers.
 - Heavely optimized code for finding files in the dependencies.
+- Compressing packs no longer requires 7zip.
 
 ### Removed
 - Removed 4.0 warning message on first start.
+- Removed unused SQLite backend.
 
 ### Fixed
 - Fixed missing window icon when using RPFM on linux under Wayland.
