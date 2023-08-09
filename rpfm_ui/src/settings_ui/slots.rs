@@ -48,7 +48,6 @@ use crate::utils::show_dialog;
 pub struct SettingsUISlots {
     pub restore_default: QBox<SlotNoArgs>,
     pub select_mymod_path: QBox<SlotNoArgs>,
-    pub select_zip_path: QBox<SlotNoArgs>,
     pub select_game_paths: BTreeMap<String, QBox<SlotNoArgs>>,
     pub select_asskit_paths: BTreeMap<String, QBox<SlotNoArgs>>,
     pub shortcuts: QBox<SlotNoArgs>,
@@ -136,12 +135,6 @@ impl SettingsUISlots {
                 ui.update_entry_path(MYMOD_BASE_PATH, false);
             }
         ));
-
-        // What happens when we hit the "..." button for 7Zip.
-        let select_zip_path = SlotNoArgs::new(&ui.dialog, clone!(
-            ui => move || {
-            ui.update_entry_path(ZIP_PATH, false);
-        }));
 
         // What happens when we hit any of the "..." buttons for the games.
         let mut select_game_paths = BTreeMap::new();
@@ -299,7 +292,6 @@ impl SettingsUISlots {
 		Self {
             restore_default,
             select_mymod_path,
-            select_zip_path,
             select_game_paths,
             select_asskit_paths,
             shortcuts,

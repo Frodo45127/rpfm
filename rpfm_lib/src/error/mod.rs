@@ -24,6 +24,9 @@ pub type Result<T, E = RLibError> = core::result::Result<T, E>;
 /// Custom error type for the lib.
 #[derive(Error, Debug)]
 pub enum RLibError {
+    #[error("This file's compression failed for some reason. This means this File cannot be compressed RPFM.")]
+    DataCannotBeCompressed,
+
     #[error("This is a compressed file and the decompression failed for some reason. This means this File cannot be opened in RPFM.")]
     DataCannotBeDecompressed,
 
@@ -222,9 +225,6 @@ pub enum RLibError {
 
     #[error("At least one of the files (`{3}`) on this {0} is too big for it. The maximum supported size for files is {1}, but your file has {2} bytes.")]
     DataTooBigForContainer(String, u64, usize, String),
-
-    #[error("The Pack you're trying to save is set to be compressed, but no valid 7Zip path has been provided.")]
-    PackSaveCompressionEnabledButInvalidOrNotFound7ZipPath,
 
     #[error("The following file hasn't been found: {0}.")]
     FileNotFound(String),

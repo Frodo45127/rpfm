@@ -131,20 +131,11 @@ impl Pack {
 
     /// This function writes a `Pack` of version 5 into the provided buffer.
     pub(crate) fn write_pfh5<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
-        let (sevenzip_exe_path, test_mode, nullify_dates) = if let Some(extra_data) = extra_data {
-            (&extra_data.sevenzip_path, extra_data.test_mode, extra_data.nullify_dates)
+        let (test_mode, nullify_dates) = if let Some(extra_data) = extra_data {
+            (extra_data.test_mode, extra_data.nullify_dates)
         } else {
-            (&None, false, false)
+            (false, false)
         };
-
-        // If we want compression, make sure the 7zip path is valid.
-        if *self.compress() &&
-            (sevenzip_exe_path.is_none() ||
-            !sevenzip_exe_path.as_ref().unwrap().is_file() ||
-            sevenzip_exe_path.as_ref().unwrap().file_name().is_none() ||
-            sevenzip_exe_path.as_ref().unwrap().file_name().unwrap() != "7z.exe") {
-            return Err(RLibError::PackSaveCompressionEnabledButInvalidOrNotFound7ZipPath)
-        }
 
         // We need our files sorted before trying to write them. But we don't want to duplicate
         // them on memory. And we also need to load them to memory on the pack. So...  we do this.
@@ -161,10 +152,8 @@ impl Pack {
 
                 let mut has_been_compressed = false;
                 if self.compress && file.is_compressible() {
-                    if let Some(sevenzip_exe_path) = sevenzip_exe_path {
-                        data = data.compress(sevenzip_exe_path)?;
-                        has_been_compressed = true;
-                    }
+                    data = data.compress()?;
+                    has_been_compressed = true;
                 }
 
                 // 6 because 4 (size) + 1 (compressed?) + 1 (null), 10 because + 4 (timestamp).

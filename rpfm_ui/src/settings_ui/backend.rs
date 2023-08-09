@@ -36,9 +36,6 @@ use crate::GAME_SELECTED;
 use crate::SUPPORTED_GAMES;
 use crate::updater::STABLE;
 
-/// Key of the 7Zip path in the settings";
-pub const ZIP_PATH: &str = "7zip_path";
-
 /// Key of the MyMod path in the settings";
 pub const MYMOD_BASE_PATH: &str = "mymods_base_path";
 
@@ -56,7 +53,6 @@ pub unsafe fn init_settings(main_window: &QPtr<QMainWindow>) {
     set_setting_if_new_q_byte_array(&q_settings, "originalWindowState", main_window.save_state_0a().as_ref());
 
     set_setting_if_new_string(&q_settings, MYMOD_BASE_PATH, "");
-    set_setting_if_new_string(&q_settings, ZIP_PATH, "");
 
     for game in &SUPPORTED_GAMES.games() {
         let game_key = game.key();

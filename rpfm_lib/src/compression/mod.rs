@@ -35,17 +35,18 @@
 //!
 //! * Compressed files are **only supported on PFH5 Packs** (Since Total War: Warhammer 2).
 
+use xz2::bufread::XzEncoder;
 use xz2::{read::XzDecoder, stream::Stream};
+use xz2::stream::LzmaOptions;
 
-use std::env::temp_dir;
-use std::fs::{File, remove_file};
-use std::io::{BufReader, prelude::*, Read, SeekFrom};
-use std::path::Path;
-use std::process::Command;
+use std::io::Read;
 use std::u64;
 
-use crate::binary::{ReadBytes, WriteBytes};
+use crate::binary::WriteBytes;
 use crate::error::{RLibError, Result};
+
+//#[cfg(test)]
+//mod test;
 
 //---------------------------------------------------------------------------//
 //                                  Traits
@@ -63,7 +64,7 @@ pub trait Compressible {
     /// to 7z LZMA1 Level 3 format, read the compressed file, and remove the 7z part.
     /// Sadly, this means we have to ship 7z with RPFM. But hey, we're not the ones doing a
     /// fucking exception to a known format because we don't want to support the original format.
-    fn compress(&self, sevenzip_path: &Path) -> Result<Vec<u8>>;
+    fn compress(&self) -> Result<Vec<u8>>;
 }
 
 /// Internal trait to implement decompression over a data type.
@@ -78,40 +79,17 @@ pub trait Decompressible {
 //---------------------------------------------------------------------------//
 
 impl Compressible for [u8] {
-    fn compress(&self, sevenzip_path: &Path) -> Result<Vec<u8>> {
-
-        // Prepare both paths, uncompressed and compressed.
-        let mut uncompressed_path = temp_dir();
-        let mut compressed_path = temp_dir();
-        let file_name = format!("frodo_best_waifu_{}", rand::random::<u64>());
-        uncompressed_path.push(&file_name);
-        compressed_path.push(file_name + ".7z");
-
-        // Get the data into the uncompressed file, and launch 7z.
-        File::create(&uncompressed_path)?.write_all(self)?;
-        Command::new(sevenzip_path).arg("a").arg("-m0=lzma").arg("-mx=3").arg(&compressed_path).arg(&uncompressed_path).output()?;
-
-        // Get the compressed LZMA data (and only that data) from the compressed file. To get it, we know:
-        // - The header of a 7z file is 32 bytes.
-        // - The bytes 12-16 are the offset of the footer from the end of the header.
-        // - We have just one file, so the offset is the exact length of that file.
-        // - Then we read the offset from the end of the header. And done.
-        let mut reader = BufReader::new(File::open(&compressed_path)?);
-        reader.seek(SeekFrom::Start(12))?;
-        let compressed_data_length = reader.read_u32()?;
-
-        let mut compressed_data = vec![0; compressed_data_length as usize];
-        reader.seek(SeekFrom::Start(32))?;
-        reader.read_exact(&mut compressed_data)?;
-
-        // Keep the temp folder clean to avoid filling it with data.
-        let _ = remove_file(uncompressed_path);
-        let _ = remove_file(compressed_path);
-
+    fn compress(&self) -> Result<Vec<u8>> {
         let mut fixed_data = vec![];
         fixed_data.write_i32(self.len() as i32)?;
-        fixed_data.extend_from_slice(&[0x5D, 0x00, 0x00, 0x40, 0x00]);
-        fixed_data.append(&mut compressed_data);
+
+        let mut compressed_data = vec![];
+        let options = LzmaOptions::new_preset(3).map_err(|_| RLibError::DataCannotBeCompressed)?;
+        let stream = Stream::new_lzma_encoder(&options).map_err(|_| RLibError::DataCannotBeCompressed)?;
+        let mut encoder = XzEncoder::new_stream(self, stream);
+        encoder.read_to_end(&mut compressed_data)?;
+        fixed_data.extend_from_slice(&compressed_data[..5]);
+        fixed_data.extend_from_slice(&compressed_data[13..]);
 
         Ok(fixed_data)
     }

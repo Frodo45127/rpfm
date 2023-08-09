@@ -22,7 +22,6 @@ use super::{SettingsUI, slots::SettingsUISlots};
 /// to not polute the other modules with a ton of connections.
 pub unsafe fn set_connections(settings_ui: &SettingsUI, slots: &SettingsUISlots) {
     settings_ui.paths_mymod_button.released().connect(&slots.select_mymod_path);
-    settings_ui.paths_zip_button.released().connect(&slots.select_zip_path);
 
     for (key, button) in settings_ui.paths_games_buttons.iter() {
         button.released().connect(&slots.select_game_paths[key]);

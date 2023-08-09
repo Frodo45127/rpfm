@@ -79,8 +79,6 @@ pub struct SettingsUI {
     //-------------------------------------------------------------------------------//
     // `Path` section of the `Settings` dialog.
     //-------------------------------------------------------------------------------//
-    paths_zip_line_edit: QBox<QLineEdit>,
-    paths_zip_button: QBox<QPushButton>,
     paths_mymod_line_edit: QBox<QLineEdit>,
     paths_mymod_button: QBox<QPushButton>,
 
@@ -333,16 +331,6 @@ impl SettingsUI {
         extra_paths_grid.add_widget_5a(&paths_mymod_label, 0, 0, 1, 1);
         extra_paths_grid.add_widget_5a(&paths_mymod_line_edit, 0, 1, 1, 1);
         extra_paths_grid.add_widget_5a(&paths_mymod_button, 0, 2, 1, 1);
-
-        // Create the 7Zip path stuff.
-        let paths_zip_label = QLabel::from_q_string_q_widget(&qtr("settings_paths_zip"), &extra_paths_frame);
-        let paths_zip_line_edit = QLineEdit::from_q_widget(&extra_paths_frame);
-        let paths_zip_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("..."), &extra_paths_frame);
-        paths_zip_line_edit.set_placeholder_text(&qtr("settings_paths_zip_ph"));
-
-        extra_paths_grid.add_widget_5a(&paths_zip_label, 1, 0, 1, 1);
-        extra_paths_grid.add_widget_5a(&paths_zip_line_edit, 1, 1, 1, 1);
-        extra_paths_grid.add_widget_5a(&paths_zip_button, 1, 2, 1, 1);
 
         paths_grid.add_widget_5a(&extra_paths_frame, 1, 0, 1, 3);
 
@@ -726,8 +714,6 @@ impl SettingsUI {
             //-------------------------------------------------------------------------------//
             // `Path` section of the `Settings` dialog.
             //-------------------------------------------------------------------------------//
-            paths_zip_line_edit,
-            paths_zip_button,
             paths_mymod_line_edit,
             paths_mymod_button,
             paths_spoilers,
@@ -851,7 +837,6 @@ impl SettingsUI {
 
         // Load the MyMod and 7Zip paths, if exists.
         self.paths_mymod_line_edit.set_text(&QString::from_std_str(setting_string_from_q_setting(&q_settings, MYMOD_BASE_PATH)));
-        self.paths_zip_line_edit.set_text(&QString::from_std_str(setting_string_from_q_setting(&q_settings, ZIP_PATH)));
 
         // Load the Game Paths, if they exists.
         for (key, path) in self.paths_games_line_edits.iter() {
@@ -976,7 +961,6 @@ impl SettingsUI {
         let q_settings = settings();
 
         set_setting_string_to_q_setting(&q_settings, MYMOD_BASE_PATH, &self.paths_mymod_line_edit.text().to_std_string());
-        set_setting_string_to_q_setting(&q_settings, ZIP_PATH, &self.paths_zip_line_edit.text().to_std_string());
 
         // For each entry, we check if it's a valid directory and save it into Settings.
         for (key, line_edit) in self.paths_games_line_edits.iter() {
@@ -1075,7 +1059,6 @@ impl SettingsUI {
                 Some(line_edit) => (line_edit, false),
                 None => match game {
                     MYMOD_BASE_PATH => (&self.paths_mymod_line_edit, false),
-                    ZIP_PATH => (&self.paths_zip_line_edit, true),
                     _ => return,
                 }
             }
@@ -1084,7 +1067,6 @@ impl SettingsUI {
                 Some(line_edit) => (line_edit, false),
                 None => match game {
                     MYMOD_BASE_PATH => (&self.paths_mymod_line_edit, false),
-                    ZIP_PATH => (&self.paths_zip_line_edit, true),
                     _ => return,
                 }
             }

@@ -365,9 +365,6 @@ pub struct EncodeableExtraData<'a> {
 
     /// Key of the game.
     game_key: Option<&'a str>,
-
-    /// Path of 7z.exe. Used for compressing.
-    sevenzip_path: Option<PathBuf>,
 }
 
 //---------------------------------------------------------------------------//
