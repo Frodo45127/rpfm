@@ -424,8 +424,8 @@ impl ESFDetailedView {
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
-                    let mut table = Table::new(&definition, None, "", false);
-                    let _ = table.set_data(None, &values.iter().map(|x| vec![DecodedData::I32((*x).into())]).collect::<Vec<Vec<DecodedData>>>());
+                    let mut table = Table::new(&definition, None, "");
+                    let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::I32((*x).into())]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
                     let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
@@ -445,8 +445,8 @@ impl ESFDetailedView {
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
-                    let mut table = Table::new(&definition, None, "", false);
-                    let _ = table.set_data(None, &values.iter().map(|x| vec![DecodedData::Boolean(*x)]).collect::<Vec<Vec<DecodedData>>>());
+                    let mut table = Table::new(&definition, None, "");
+                    let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::Boolean(*x)]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
                     let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
@@ -466,8 +466,8 @@ impl ESFDetailedView {
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
-                    let mut table = Table::new(&definition, None, "", false);
-                    let _ = table.set_data(None, &values.iter().map(|x| vec![DecodedData::I16((*x).into())]).collect::<Vec<Vec<DecodedData>>>());
+                    let mut table = Table::new(&definition, None, "");
+                    let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::I16((*x).into())]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
                     let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
@@ -487,8 +487,8 @@ impl ESFDetailedView {
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
-                    let mut table = Table::new(&definition, None, "", false);
-                    let _ = table.set_data(None, &values.iter().map(|x| vec![DecodedData::I16(*x)]).collect::<Vec<Vec<DecodedData>>>());
+                    let mut table = Table::new(&definition, None, "");
+                    let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::I16(*x)]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
                     let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
@@ -508,8 +508,8 @@ impl ESFDetailedView {
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
-                    let mut table = Table::new(&definition, None, "", false);
-                    let _ = table.set_data(None, &values.value().iter().map(|x| vec![DecodedData::I32(*x)]).collect::<Vec<Vec<DecodedData>>>());
+                    let mut table = Table::new(&definition, None, "");
+                    let _ = table.set_data(&values.value().iter().map(|x| vec![DecodedData::I32(*x)]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
                     let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
@@ -529,8 +529,8 @@ impl ESFDetailedView {
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
-                    let mut table = Table::new(&definition, None, "", false);
-                    let _ = table.set_data(None, &values.iter().map(|x| vec![DecodedData::I64(*x)]).collect::<Vec<Vec<DecodedData>>>());
+                    let mut table = Table::new(&definition, None, "");
+                    let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::I64(*x)]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
                     let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
@@ -550,8 +550,8 @@ impl ESFDetailedView {
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
-                    let mut table = Table::new(&definition, None, "", false);
-                    let _ = table.set_data(None, &values.iter().map(|x| vec![DecodedData::I16((*x).into())]).collect::<Vec<Vec<DecodedData>>>());
+                    let mut table = Table::new(&definition, None, "");
+                    let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::I16((*x).into())]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
                     let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
@@ -571,8 +571,8 @@ impl ESFDetailedView {
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
-                    let mut table = Table::new(&definition, None, "", false);
-                    let _ = table.set_data(None, &values.iter().map(|x| vec![DecodedData::I16(*x as i16)]).collect::<Vec<Vec<DecodedData>>>());
+                    let mut table = Table::new(&definition, None, "");
+                    let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::I16(*x as i16)]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
                     let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
@@ -592,8 +592,8 @@ impl ESFDetailedView {
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
-                    let mut table = Table::new(&definition, None, "", false);
-                    let _ = table.set_data(None, &values.value().iter().map(|x| vec![DecodedData::I32(*x as i32)]).collect::<Vec<Vec<DecodedData>>>());
+                    let mut table = Table::new(&definition, None, "");
+                    let _ = table.set_data(&values.value().iter().map(|x| vec![DecodedData::I32(*x as i32)]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
                     let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
@@ -613,8 +613,8 @@ impl ESFDetailedView {
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
-                    let mut table = Table::new(&definition, None, "", false);
-                    let _ = table.set_data(None, &values.iter().map(|x| vec![DecodedData::I64(*x as i64)]).collect::<Vec<Vec<DecodedData>>>());
+                    let mut table = Table::new(&definition, None, "");
+                    let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::I64(*x as i64)]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
                     let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
@@ -634,8 +634,8 @@ impl ESFDetailedView {
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
-                    let mut table = Table::new(&definition, None, "", false);
-                    let _ = table.set_data(None, &values.iter().map(|x| vec![DecodedData::F32(*x)]).collect::<Vec<Vec<DecodedData>>>());
+                    let mut table = Table::new(&definition, None, "");
+                    let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::F32(*x)]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
                     let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
@@ -655,8 +655,8 @@ impl ESFDetailedView {
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
-                    let mut table = Table::new(&definition, None, "", false);
-                    let _ = table.set_data(None, &values.iter().map(|x| vec![DecodedData::F32(*x as f32)]).collect::<Vec<Vec<DecodedData>>>());
+                    let mut table = Table::new(&definition, None, "");
+                    let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::F32(*x as f32)]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
                     let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
@@ -678,8 +678,8 @@ impl ESFDetailedView {
                     definition.fields_mut().push(x_field);
                     definition.fields_mut().push(y_field);
 
-                    let mut table = Table::new(&definition, None, "", false);
-                    let _ = table.set_data(None, &values.iter().map(|x| vec![DecodedData::F32(*x.x()), DecodedData::F32(*x.y())]).collect::<Vec<Vec<DecodedData>>>());
+                    let mut table = Table::new(&definition, None, "");
+                    let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::F32(*x.x()), DecodedData::F32(*x.y())]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
                     let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
@@ -703,8 +703,8 @@ impl ESFDetailedView {
                     definition.fields_mut().push(y_field);
                     definition.fields_mut().push(z_field);
 
-                    let mut table = Table::new(&definition, None, "", false);
-                    let _ = table.set_data(None, &values.iter().map(|x| vec![DecodedData::F32(*x.x()), DecodedData::F32(*x.y()), DecodedData::F32(*x.z())]).collect::<Vec<Vec<DecodedData>>>());
+                    let mut table = Table::new(&definition, None, "");
+                    let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::F32(*x.x()), DecodedData::F32(*x.y()), DecodedData::F32(*x.z())]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
                     let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
@@ -724,8 +724,8 @@ impl ESFDetailedView {
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
-                    let mut table = Table::new(&definition, None, "", false);
-                    let _ = table.set_data(None, &values.iter().map(|x| vec![DecodedData::StringU8(x.to_owned())]).collect::<Vec<Vec<DecodedData>>>());
+                    let mut table = Table::new(&definition, None, "");
+                    let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::StringU8(x.to_owned())]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
                     let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
@@ -745,8 +745,8 @@ impl ESFDetailedView {
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
-                    let mut table = Table::new(&definition, None, "", false);
-                    let _ = table.set_data(None, &values.iter().map(|x| vec![DecodedData::StringU8(x.to_owned())]).collect::<Vec<Vec<DecodedData>>>());
+                    let mut table = Table::new(&definition, None, "");
+                    let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::StringU8(x.to_owned())]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
                     let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
@@ -766,8 +766,8 @@ impl ESFDetailedView {
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
-                    let mut table = Table::new(&definition, None, "", false);
-                    let _ = table.set_data(None, &values.iter().map(|x| vec![DecodedData::I16(*x)]).collect::<Vec<Vec<DecodedData>>>());
+                    let mut table = Table::new(&definition, None, "");
+                    let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::I16(*x)]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
                     let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
@@ -881,91 +881,91 @@ impl ESFDetailedView {
                             let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
                             let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
                             let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
-                            *values = data.data(&None).unwrap().iter().filter_map(|x| if let DecodedData::I32(value) = &x[0] { Some(*value as u8) } else { None }).collect();
+                            *values = data.data().iter().filter_map(|x| if let DecodedData::I32(value) = &x[0] { Some(*value as u8) } else { None }).collect();
                             index += 1;
                         },
                         NodeType::BoolArray(values) => if let DataType::BoolArray(table_view) = &self.data_types[index] {
                             let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
                             let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
                             let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
-                            *values = data.data(&None).unwrap().iter().filter_map(|x| if let DecodedData::Boolean(value) = &x[0] { Some(*value) } else { None }).collect();
+                            *values = data.data().iter().filter_map(|x| if let DecodedData::Boolean(value) = &x[0] { Some(*value) } else { None }).collect();
                             index += 1;
                         },
                         NodeType::I8Array(values) => if let DataType::I8Array(table_view) = &self.data_types[index] {
                             let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
                             let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
                             let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
-                            *values = data.data(&None).unwrap().iter().filter_map(|x| if let DecodedData::I16(value) = &x[0] { Some(*value as i8) } else { None }).collect();
+                            *values = data.data().iter().filter_map(|x| if let DecodedData::I16(value) = &x[0] { Some(*value as i8) } else { None }).collect();
                             index += 1;
                         },
                         NodeType::I16Array(values) => if let DataType::I16Array(table_view) = &self.data_types[index] {
                             let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
                             let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
                             let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
-                            *values = data.data(&None).unwrap().iter().filter_map(|x| if let DecodedData::I16(value) = &x[0] { Some(*value) } else { None }).collect();
+                            *values = data.data().iter().filter_map(|x| if let DecodedData::I16(value) = &x[0] { Some(*value) } else { None }).collect();
                             index += 1;
                         },
                         NodeType::I32Array(values) => if let DataType::I32Array((table_view, _)) = &self.data_types[index] {
                             let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
                             let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
                             let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
-                            *values.value_mut() = data.data(&None).unwrap().iter().filter_map(|x| if let DecodedData::I32(value) = &x[0] { Some(*value) } else { None }).collect();
+                            *values.value_mut() = data.data().iter().filter_map(|x| if let DecodedData::I32(value) = &x[0] { Some(*value) } else { None }).collect();
                             index += 1;
                         },
                         NodeType::I64Array(values) => if let DataType::I64Array(table_view) = &self.data_types[index] {
                             let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
                             let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
                             let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
-                            *values = data.data(&None).unwrap().iter().filter_map(|x| if let DecodedData::I64(value) = &x[0] { Some(*value) } else { None }).collect();
+                            *values = data.data().iter().filter_map(|x| if let DecodedData::I64(value) = &x[0] { Some(*value) } else { None }).collect();
                             index += 1;
                         },
                         NodeType::U8Array(values) => if let DataType::U8Array(table_view) = &self.data_types[index] {
                             let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
                             let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
                             let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
-                            *values = data.data(&None).unwrap().iter().filter_map(|x| if let DecodedData::I16(value) = &x[0] { Some(*value as u8) } else { None }).collect();
+                            *values = data.data().iter().filter_map(|x| if let DecodedData::I16(value) = &x[0] { Some(*value as u8) } else { None }).collect();
                             index += 1;
                         },
                         NodeType::U16Array(values) => if let DataType::U16Array(table_view) = &self.data_types[index] {
                             let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
                             let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
                             let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
-                            *values = data.data(&None).unwrap().iter().filter_map(|x| if let DecodedData::I16(value) = &x[0] { Some(*value as u16) } else { None }).collect();
+                            *values = data.data().iter().filter_map(|x| if let DecodedData::I16(value) = &x[0] { Some(*value as u16) } else { None }).collect();
                             index += 1;
                         },
                         NodeType::U32Array(values) => if let DataType::U32Array((table_view, _)) = &self.data_types[index] {
                             let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
                             let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
                             let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
-                            *values.value_mut() = data.data(&None).unwrap().iter().filter_map(|x| if let DecodedData::I32(value) = &x[0] { Some(*value as u32) } else { None }).collect();
+                            *values.value_mut() = data.data().iter().filter_map(|x| if let DecodedData::I32(value) = &x[0] { Some(*value as u32) } else { None }).collect();
                             index += 1;
                         },
                         NodeType::U64Array(values) => if let DataType::U64Array(table_view) = &self.data_types[index] {
                             let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
                             let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
                             let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
-                            *values = data.data(&None).unwrap().iter().filter_map(|x| if let DecodedData::I64(value) = &x[0] { Some(*value as u64) } else { None }).collect();
+                            *values = data.data().iter().filter_map(|x| if let DecodedData::I64(value) = &x[0] { Some(*value as u64) } else { None }).collect();
                             index += 1;
                         },
                         NodeType::F32Array(values) => if let DataType::F32Array(table_view) = &self.data_types[index] {
                             let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
                             let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
                             let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
-                            *values = data.data(&None).unwrap().iter().filter_map(|x| if let DecodedData::F32(value) = &x[0] { Some(*value) } else { None }).collect();
+                            *values = data.data().iter().filter_map(|x| if let DecodedData::F32(value) = &x[0] { Some(*value) } else { None }).collect();
                             index += 1;
                         },
                         NodeType::F64Array(values) => if let DataType::F64Array(table_view) = &self.data_types[index] {
                             let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
                             let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
                             let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
-                            *values = data.data(&None).unwrap().iter().filter_map(|x| if let DecodedData::F32(value) = &x[0] { Some(*value as f64) } else { None }).collect();
+                            *values = data.data().iter().filter_map(|x| if let DecodedData::F32(value) = &x[0] { Some(*value as f64) } else { None }).collect();
                             index += 1;
                         },
                         NodeType::Coord2dArray(values) => if let DataType::Coord2dArray(table_view) = &self.data_types[index] {
                             let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
                             let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
                             let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
-                            *values = data.data(&None).unwrap().iter().filter_map(|row|
+                            *values = data.data().iter().filter_map(|row|
                                 if let DecodedData::F32(x) = &row[0] {
                                     if let DecodedData::F32(y) = &row[1] {
                                         let mut coords = Coordinates2DNode::default();
@@ -980,7 +980,7 @@ impl ESFDetailedView {
                             let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
                             let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
                             let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
-                            *values = data.data(&None).unwrap().iter().filter_map(|row|
+                            *values = data.data().iter().filter_map(|row|
                                 if let DecodedData::F32(x) = &row[0] {
                                     if let DecodedData::F32(y) = &row[1] {
                                         if let DecodedData::F32(z) = &row[2] {
@@ -998,14 +998,14 @@ impl ESFDetailedView {
                             let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
                             let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
                             let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
-                            *values = data.data(&None).unwrap().iter().filter_map(|x| if let DecodedData::StringU8(value) = &x[0] { Some(value.to_owned()) } else { None }).collect();
+                            *values = data.data().iter().filter_map(|x| if let DecodedData::StringU8(value) = &x[0] { Some(value.to_owned()) } else { None }).collect();
                             index += 1;
                         },
                         NodeType::AsciiArray(values) => if let DataType::AsciiArray(table_view) = &self.data_types[index] {
                             let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
                             let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
                             let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
-                            *values = data.data(&None).unwrap().iter().filter_map(|x| if let DecodedData::StringU8(value) = &x[0] { Some(value.to_owned()) } else { None }).collect();
+                            *values = data.data().iter().filter_map(|x| if let DecodedData::StringU8(value) = &x[0] { Some(value.to_owned()) } else { None }).collect();
                             index += 1;
                         },
 
@@ -1013,7 +1013,7 @@ impl ESFDetailedView {
                             let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
                             let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
                             let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
-                            *values = data.data(&None).unwrap().iter().filter_map(|x| if let DecodedData::I16(value) = &x[0] { Some(*value) } else { None }).collect();
+                            *values = data.data().iter().filter_map(|x| if let DecodedData::I16(value) = &x[0] { Some(*value) } else { None }).collect();
                             index += 1;
                         },
 

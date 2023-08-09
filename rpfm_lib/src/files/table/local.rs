@@ -10,6 +10,10 @@
 
 //! Module to hold all table functions specific of the local backend.
 
+use crate::error::Result;
+use crate::files::ReadBytes;
+use crate::schema::{Definition, DefinitionPatch};
+
 use super::Table;
 
 //----------------------------------------------------------------//
@@ -18,10 +22,10 @@ use super::Table;
 
 impl Table {
 
-    #[cfg(not(feature = "integration_sqlite"))]
-    pub(crate) fn decode<R: ReadBytes>(
+    pub fn decode<R: ReadBytes>(
         data: &mut R,
         definition: &Definition,
+        definition_patch: &DefinitionPatch,
         entry_count: Option<u32>,
         return_incomplete: bool,
         table_name: &str,
@@ -30,8 +34,9 @@ impl Table {
         let table_data = Self::decode_table(data, definition, entry_count, return_incomplete)?;
         let table = Self {
             definition: definition.clone(),
+            definition_patch: definition_patch.clone(),
             table_name: table_name.to_owned(),
-            table_data: TableData::Local(table_data),
+            table_data,
         };
 
         Ok(table)

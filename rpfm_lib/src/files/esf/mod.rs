@@ -131,7 +131,7 @@ const COMPRESSED_DATA_INFO_TAG: &str = "COMPRESSED_DATA_INFO";
 bitflags! {
 
     /// This represents the bitmasks a Record Block can have applied to its type byte.
-    #[derive(Default, Serialize, Deserialize)]
+    #[derive(PartialEq, Clone, Copy, Default, Debug, Serialize, Deserialize)]
     pub struct RecordNodeFlags: u8 {
 
         /// Used to specify that the type is indeed a record block.

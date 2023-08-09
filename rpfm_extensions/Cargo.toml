@@ -21,7 +21,7 @@ rpfm_lib = { path = "../rpfm_lib", version = "4.0.105", features = ["integration
 getset = "^0.1"
 
 # Support for advanced iter stuff.
-itertools = "^0.10"
+itertools = "^0.11"
 
 # Regex support.
 regex = "^1"

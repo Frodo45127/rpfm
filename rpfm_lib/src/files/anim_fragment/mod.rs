@@ -88,7 +88,7 @@ pub struct AnimRef {
 bitflags! {
 
     /// This represents the bitmasks of weapon_bone values.
-    #[derive(Default, Getters, Setters, Serialize, Deserialize)]
+    #[derive(PartialEq, Clone, Copy, Debug, Default, Serialize, Deserialize)]
     pub struct WeaponBone: u32 {
         const WEAPON_BONE_1 = 0b0000_0000_0000_0001;
         const WEAPON_BONE_2 = 0b0000_0000_0000_0010;

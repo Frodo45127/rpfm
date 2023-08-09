@@ -238,7 +238,7 @@ impl Dependencies {
         let loc_files = self.loc_data(true, true).unwrap_or(vec![]);
         let loc_decoded = loc_files.iter()
             .filter_map(|file| if let Ok(RFileDecoded::Loc(loc)) = file.decoded() { Some(loc) } else { None })
-            .map(|file| file.data(&None).unwrap())
+            .map(|file| file.data())
             .collect::<Vec<_>>();
 
         self.localisation_data = loc_decoded.par_iter()
@@ -918,7 +918,7 @@ impl Dependencies {
         let loc_files = pack.files_by_type(&[FileType::Loc]);
         let loc_decoded = loc_files.iter()
             .filter_map(|file| if let Ok(RFileDecoded::Loc(loc)) = file.decoded() { Some(loc) } else { None })
-            .map(|file| file.data(&None).unwrap())
+            .map(|file| file.data())
             .collect::<Vec<_>>();
 
         let loc_data = loc_decoded.par_iter()
@@ -978,45 +978,43 @@ impl Dependencies {
                         }
                     }).collect::<Vec<_>>();
 
-                    if let Ok(data) = db.data(&None) {
-                        let name_short = db.table_name_without_tables();
-                        for row in &*data {
-                            let mut reference_data = String::new();
-                            let mut lookup_data = vec![];
+                    let name_short = db.table_name_without_tables();
+                    for row in &*db.data() {
+                        let mut reference_data = String::new();
+                        let mut lookup_data = vec![];
 
-                            // First, we get the reference data.
-                            if let Some(index) = ref_column_index {
-                                reference_data = row[index].data_to_string().to_string();
-                            }
-
-                            // Then, we get the lookup data.
-                            for (is_loc, column) in ref_lookup_columns_index.iter() {
-                                if *is_loc {
-                                    let loc_key = format!("{}_{}_{}", name_short, localised_fields[*column].name(), localised_order.iter().map(|pos| row[*pos as usize].data_to_string()).collect::<Vec<_>>().join(""));
-                                    match self.localisation_data.get(&loc_key) {
-                                        Some(data) => lookup_data.push(data.to_string()),
-                                        None => lookup_data.push(String::new()),
-                                    }
-                                }
-
-                                else {
-                                    lookup_data.push(row[*column].data_to_string().to_string());
-                                }
-                            }
-
-                            references.data.insert(reference_data, lookup_data.join(":"));
+                        // First, we get the reference data.
+                        if let Some(index) = ref_column_index {
+                            reference_data = row[index].data_to_string().to_string();
                         }
 
-                        // Once done with the table, check if we should return its definition.
-                        match data_found {
-                            Some(ref definition) => {
-                                if db.definition().version() > definition.version() {
-                                    data_found = Some(db.definition().clone());
+                        // Then, we get the lookup data.
+                        for (is_loc, column) in ref_lookup_columns_index.iter() {
+                            if *is_loc {
+                                let loc_key = format!("{}_{}_{}", name_short, localised_fields[*column].name(), localised_order.iter().map(|pos| row[*pos as usize].data_to_string()).collect::<Vec<_>>().join(""));
+                                match self.localisation_data.get(&loc_key) {
+                                    Some(data) => lookup_data.push(data.to_string()),
+                                    None => lookup_data.push(String::new()),
                                 }
                             }
 
-                            None => data_found = Some(db.definition().clone()),
+                            else {
+                                lookup_data.push(row[*column].data_to_string().to_string());
+                            }
                         }
+
+                        references.data.insert(reference_data, lookup_data.join(":"));
+                    }
+
+                    // Once done with the table, check if we should return its definition.
+                    match data_found {
+                        Some(ref definition) => {
+                            if db.definition().version() > definition.version() {
+                                data_found = Some(db.definition().clone());
+                            }
+                        }
+
+                        None => data_found = Some(db.definition().clone()),
                     }
                 }
             });
@@ -1034,27 +1032,25 @@ impl Dependencies {
 
         match self.asskit_only_db_tables.get(ref_table) {
             Some(table) => {
-                if let Ok(data) = table.data(&None) {
-                    let fields_processed = table.definition().fields_processed();
-                    let ref_column_index = fields_processed.iter().position(|x| x.name() == ref_column);
-                    let ref_lookup_columns_index = ref_lookup_columns.iter().map(|column| fields_processed.iter().position(|x| x.name() == column)).collect::<Vec<_>>();
+                let fields_processed = table.definition().fields_processed();
+                let ref_column_index = fields_processed.iter().position(|x| x.name() == ref_column);
+                let ref_lookup_columns_index = ref_lookup_columns.iter().map(|column| fields_processed.iter().position(|x| x.name() == column)).collect::<Vec<_>>();
 
-                    for row in &*data {
-                        let mut reference_data = String::new();
-                        let mut lookup_data = vec![];
+                for row in &*table.data() {
+                    let mut reference_data = String::new();
+                    let mut lookup_data = vec![];
 
-                        // First, we get the reference data.
-                        if let Some(index) = ref_column_index {
-                            reference_data = row[index].data_to_string().to_string();
-                        }
-
-                        // Then, we get the lookup data.
-                        for column in ref_lookup_columns_index.iter().flatten() {
-                            lookup_data.push(row[*column].data_to_string());
-                        }
-
-                        references.data.insert(reference_data, lookup_data.join(" "));
+                    // First, we get the reference data.
+                    if let Some(index) = ref_column_index {
+                        reference_data = row[index].data_to_string().to_string();
                     }
+
+                    // Then, we get the lookup data.
+                    for column in ref_lookup_columns_index.iter().flatten() {
+                        lookup_data.push(row[*column].data_to_string());
+                    }
+
+                    references.data.insert(reference_data, lookup_data.join(" "));
                 }
                 true
             },
@@ -1087,39 +1083,37 @@ impl Dependencies {
                     }
                 }).collect::<Vec<_>>();
 
-                if let Ok(data) = db.data(&None) {
+                let data = db.data();
+                for row in &*db.data() {
+                    let mut reference_data = String::new();
+                    let mut lookup_data = vec![];
 
-                    for row in &*data {
-                        let mut reference_data = String::new();
-                        let mut lookup_data = vec![];
+                    // First, we get the reference data.
+                    if let Some(index) = ref_column_index {
+                        reference_data = row[index].data_to_string().to_string();
+                    }
 
-                        // First, we get the reference data.
-                        if let Some(index) = ref_column_index {
-                            reference_data = row[index].data_to_string().to_string();
-                        }
-
-                        // Then, we get the lookup data.
-                        for (is_loc, column) in ref_lookup_columns_index.iter() {
-                            if *is_loc {
-                                let loc_key = format!("{}_{}_{}", ref_table, localised_fields[*column].name(), localised_order.iter().map(|pos| row[*pos as usize].data_to_string()).collect::<Vec<_>>().join(""));
-                                match loc_data.get(&*loc_key) {
-                                    Some(data) => lookup_data.push(data.to_string()),
-                                    None => lookup_data.push(String::new()),
-                                }
-                            }
-
-                            else {
-                                lookup_data.push(row[*column].data_to_string().to_string());
+                    // Then, we get the lookup data.
+                    for (is_loc, column) in ref_lookup_columns_index.iter() {
+                        if *is_loc {
+                            let loc_key = format!("{}_{}_{}", ref_table, localised_fields[*column].name(), localised_order.iter().map(|pos| row[*pos as usize].data_to_string()).collect::<Vec<_>>().join(""));
+                            match loc_data.get(&*loc_key) {
+                                Some(data) => lookup_data.push(data.to_string()),
+                                None => lookup_data.push(String::new()),
                             }
                         }
 
-                        references.data.insert(reference_data, lookup_data.join(" "));
-
+                        else {
+                            lookup_data.push(row[*column].data_to_string().to_string());
+                        }
                     }
 
-                    if !&data.is_empty() && !data_found {
-                        data_found = true;
-                    }
+                    references.data.insert(reference_data, lookup_data.join(" "));
+
+                }
+
+                if !&data.is_empty() && !data_found {
+                    data_found = true;
                 }
             }
         });
@@ -1173,13 +1167,12 @@ impl Dependencies {
 
                                     // Once we get the key, we need to use the stored loc order to find out to what specific line it belongs.
                                     // And yes, this means checking every single fucking line in every single table.
-                                    if let Ok(data) = table.data(&None) {
-                                        for row in data.iter() {
-                                            let generated_key_split = localised_key_order.iter().map(|col| row[*col as usize].data_to_string()).collect::<Vec<_>>();
-                                            let generated_key = generated_key_split.join("");
-                                            if &generated_key == key_data {
-                                                return Some((table_name, field, generated_key_split.iter().map(|x| x.to_string()).collect()));
-                                            }
+                                    let data = table.data();
+                                    for row in data.iter() {
+                                        let generated_key_split = localised_key_order.iter().map(|col| row[*col as usize].data_to_string()).collect::<Vec<_>>();
+                                        let generated_key = generated_key_split.join("");
+                                        if &generated_key == key_data {
+                                            return Some((table_name, field, generated_key_split.iter().map(|x| x.to_string()).collect()));
                                         }
                                     }
                                 }
@@ -1309,10 +1302,8 @@ impl Dependencies {
             for file in &files {
                 if let Ok(RFileDecoded::DB(table)) = file.decoded() {
                     if let Some(column) = table.definition().column_position_by_name(column_name) {
-                        if let Ok(data) = table.data(&None) {
-                            for row in data.iter() {
-                                values.insert(row[column].data_to_string().to_string());
-                            }
+                        for row in table.data().iter() {
+                            values.insert(row[column].data_to_string().to_string());
                         }
                     }
                 }
@@ -1323,10 +1314,8 @@ impl Dependencies {
             for file in &pack.files_by_path(&ContainerPath::Folder(format!("db/{table_name}")), true) {
                 if let Ok(RFileDecoded::DB(table)) = file.decoded() {
                     if let Some(column) = table.definition().column_position_by_name(column_name) {
-                        if let Ok(data) = table.data(&None) {
-                            for row in data.iter() {
-                                values.insert(row[column].data_to_string().to_string());
-                            }
+                        for row in table.data().iter() {
+                            values.insert(row[column].data_to_string().to_string());
                         }
                     }
                 }
@@ -1371,7 +1360,7 @@ impl Dependencies {
         let loc_files = self.loc_data(true, false)?;
         let loc_table = loc_files.iter()
             .filter_map(|file| if let Ok(RFileDecoded::Loc(loc)) = file.decoded() { Some(loc) } else { None })
-            .flat_map(|file| file.data(&None).unwrap().to_vec())
+            .flat_map(|file| file.data().to_vec())
             .map(|entry| (entry[0].data_to_string().to_string(), entry[1].data_to_string().to_string()))
             .collect::<HashMap<_,_>>();
 
@@ -1482,7 +1471,7 @@ impl Dependencies {
                 else {
                     let mut order = Vec::with_capacity(key_fields.len());
                     let combos = key_fields.iter().permutations(key_fields.len());
-                    let table_data = table.data(&None)?;
+                    let table_data = table.data();
                     for combo in combos {
 
                         // Many multikeyed tables admit empty values as part of the key. We need rows with no empty values.

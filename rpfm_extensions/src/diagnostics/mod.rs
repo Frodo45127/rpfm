@@ -398,7 +398,7 @@ impl Diagnostics {
             let fields_processed = table.definition().fields_processed();
             let patches = Some(table.definition().patches());
             let key_amount = fields_processed.iter().filter(|field| field.is_key(patches)).count();
-            let table_data = table.data(&None).ok()?;
+            let table_data = table.data();
             let mut columns_without_reference_table = vec![];
             let mut columns_with_reference_table_and_no_column = vec![];
             let mut keys: HashMap<String, Vec<(i32, i32)>> = HashMap::with_capacity(table_data.len());
@@ -677,7 +677,7 @@ impl Diagnostics {
             let mut duplicated_rows_already_marked = vec![];
             let mut duplicated_combined_keys_already_marked = vec![];
 
-            for (row, cells) in table.data(&None).ok()?.iter().enumerate() {
+            for (row, cells) in table.data().iter().enumerate() {
                 let key = if let DecodedData::StringU16(ref data) = cells[0] { data } else { unimplemented!() };
                 let data = if let DecodedData::StringU16(ref data) = cells[1] { data } else { unimplemented!() };
 

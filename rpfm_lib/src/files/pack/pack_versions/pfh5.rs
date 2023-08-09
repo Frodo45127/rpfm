@@ -211,7 +211,7 @@ impl Pack {
         // Write the entire header to a memory buffer.
         let mut header = vec![];
         header.write_string_u8(self.header.pfh_version.value())?;
-        header.write_u32(self.header.bitmask.bits | self.header.pfh_file_type.value())?;
+        header.write_u32(self.header.bitmask.bits() | self.header.pfh_file_type.value())?;
         header.write_u32(self.dependencies.len() as u32)?;
         header.write_u32(dependencies_index.len() as u32)?;
         header.write_u32(sorted_files.len() as u32)?;

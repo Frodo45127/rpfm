@@ -165,7 +165,7 @@ impl TryFrom<&RawTable> for Table {
             format!("{x}_tables")
         } else { String::new() };
 
-        let mut table = Self::new(&From::from(raw_definition), None, &table_name, false);
+        let mut table = Self::new(&From::from(raw_definition), None, &table_name);
         let mut entries = vec![];
         for row in &raw_table.rows {
             let mut entry = vec![];
@@ -227,7 +227,7 @@ impl TryFrom<&RawTable> for Table {
             entries.push(entry);
         }
 
-        table.set_data(None, &entries)?;
+        table.set_data(&entries)?;
         Ok(table)
     }
 }

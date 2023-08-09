@@ -53,12 +53,10 @@
 //! [`Unknown`]: crate::files::unknown::Unknown
 //! [`Video`]: crate::files::video::Video
 
-#[cfg(feature = "integration_log")] use log::warn;
-#[cfg(feature = "integration_sqlite")] use r2d2::Pool;
-#[cfg(feature = "integration_sqlite")] use r2d2_sqlite::SqliteConnectionManager;
 
 use csv::{QuoteStyle, ReaderBuilder, WriterBuilder};
 use getset::*;
+#[cfg(feature = "integration_log")] use log::warn;
 use rayon::prelude::*;
 use serde_derive::{Serialize, Deserialize};
 
@@ -324,10 +322,6 @@ pub struct DecodeableExtraData<'a> {
     /// Name of the folder that contains a table fragment.
     table_name: Option<&'a str>,
 
-    /// SQLite Database Pool. For allowing connections to the database.
-    #[cfg(feature = "integration_sqlite")]
-    pool: Option<&'a Pool<SqliteConnectionManager>>,
-
     //------------------------------//
     // General-purpouse config data //
     //------------------------------//
@@ -374,10 +368,6 @@ pub struct EncodeableExtraData<'a> {
 
     /// Path of 7z.exe. Used for compressing.
     sevenzip_path: Option<PathBuf>,
-
-    /// SQLite Database Pool. For allowing connections to the database.
-    #[cfg(feature = "integration_sqlite")]
-    pool: Option<&'a Pool<SqliteConnectionManager>>,
 }
 
 //---------------------------------------------------------------------------//

@@ -389,8 +389,8 @@ impl FileView {
 
                                         // If this crashes, it's a bug somewhere else.
                                         let table_name = view.get_ref_table().table_name().as_ref().unwrap();
-                                        let mut table = DB::new(&view.get_ref_table().table_definition(), None, table_name, false);
-                                        table.set_data(None, &new_table.data(&None)?)?;
+                                        let mut table = DB::new(&view.get_ref_table().table_definition(), None, table_name);
+                                        table.set_data(&new_table.data())?;
                                         RFileDecoded::DB(table)
                                     }
                                     FileType::Loc => {

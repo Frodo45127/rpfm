@@ -72,7 +72,7 @@ bitflags! {
     ///
     /// Keep in mind that this lib supports decoding Packs with any of these flags enabled,
     /// but it only supports enconding for the `HAS_INDEX_WITH_TIMESTAMPS` flag.
-    #[derive(Serialize, Deserialize)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
     pub struct PFHFlags: u32 {
 
         /// Used to specify that the header of the Pack is extended by 20 bytes. Used in Arena.
@@ -842,11 +842,11 @@ impl Pack {
 
         let db_tables = self.files_by_type(&[FileType::DB]);
         let loc_tables = self.files_by_type(&[FileType::Loc]);
-        let mut missing_trads_file = Loc::new(false);
+        let mut missing_trads_file = Loc::new();
 
         let loc_keys_from_memory = loc_tables.par_iter().filter_map(|rfile| {
             if let Ok(RFileDecoded::Loc(table)) = rfile.decoded() {
-                Some(table.data(&None).unwrap().iter().filter_map(|x| {
+                Some(table.data().iter().filter_map(|x| {
                     if let DecodedData::StringU16(data) = &x[0] {
                         Some(data.to_owned())
                     } else {
@@ -861,7 +861,7 @@ impl Pack {
                 let definition = table.definition();
                 let loc_fields = definition.localised_fields();
                 if !loc_fields.is_empty() {
-                    let table_data = table.data(&None).unwrap();
+                    let table_data = table.data();
                     let table_name = table.table_name_without_tables();
 
                     // Get the keys, which may be concatenated. We get them IN THE ORDER THEY ARE IN THE BINARY FILE.

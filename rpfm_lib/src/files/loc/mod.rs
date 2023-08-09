@@ -36,8 +36,6 @@
 
 use csv::{StringRecordsIter, Writer};
 use getset::{Getters, Setters};
-#[cfg(feature = "integration_sqlite")] use r2d2::Pool;
-#[cfg(feature = "integration_sqlite")] use r2d2_sqlite::SqliteConnectionManager;
 use rayon::prelude::*;
 use serde_derive::{Serialize, Deserialize};
 
@@ -93,11 +91,11 @@ pub struct Loc {
 impl Loc {
 
     /// This function creates a new empty `Loc`.
-    pub fn new(use_sql_backend: bool) -> Self {
+    pub fn new() -> Self {
         let definition = Self::new_definition();
 
         Self {
-            table: Table::new(&definition, None, TSV_NAME_LOC, use_sql_backend),
+            table: Table::new(&definition, None, TSV_NAME_LOC),
         }
     }
 
@@ -119,14 +117,14 @@ impl Loc {
     }
 
     /// This function returns a reference to the entries of this Loc table.
-    pub fn data(&self, pool: &Option<&Pool<SqliteConnectionManager>>) -> Result<Cow<[Vec<DecodedData>]>> {
-        self.table.data(pool)
+    pub fn data(&self) -> Cow<[Vec<DecodedData>]> {
+        self.table.data()
     }
 
     /// This function returns a reference to the entries of this Loc table.
     ///
     /// Make sure to keep the table structure valid for the table definition.
-    pub fn data_mut(&mut self) -> Result<&mut Vec<Vec<DecodedData>>> {
+    pub fn data_mut(&mut self) -> &mut Vec<Vec<DecodedData>> {
         self.table.data_mut()
     }
 
@@ -139,7 +137,7 @@ impl Loc {
     ///
     /// This can (and will) fail if the data is not in the format defined by the definition of the table.
     pub fn set_data(&mut self, data: &[Vec<DecodedData>]) -> Result<()> {
-        self.table.set_data(None, data)
+        self.table.set_data(data)
     }
 
     /// This function returns the position of a column in a definition, or None if the column is not found.
@@ -149,7 +147,7 @@ impl Loc {
 
     /// This function returns the amount of entries in this Loc Table.
     pub fn len(&self) -> usize {
-        self.table.len(None).unwrap()
+        self.table.len()
     }
 
     /// This function replaces the definition of this table with the one provided.
@@ -185,7 +183,7 @@ impl Loc {
 
     /// This function merges the data of a few Loc tables into a new Loc table.
     pub(crate) fn merge(sources: &[&Self]) -> Result<Self> {
-        let mut new_table = Self::new(false);
+        let mut new_table = Self::new();
         let sources = sources.par_iter()
             .map(|table| {
                 let mut table = table.table().clone();
@@ -195,8 +193,7 @@ impl Loc {
             .collect::<Vec<_>>();
 
         let new_data = sources.par_iter()
-            .filter_map(|table| table.data(&None).ok())
-            .map(|data| data.to_vec())
+            .map(|table| table.data().to_vec())
             .flatten()
             .collect::<Vec<_>>();
         new_table.set_data(&new_data)?;
@@ -220,15 +217,13 @@ impl Loc {
 
 impl Decodeable for Loc {
 
-    fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
-        let extra_data = extra_data.as_ref().ok_or(RLibError::DecodingMissingExtraData)?;
-        let pool = extra_data.pool;
+    fn decode<R: ReadBytes>(data: &mut R, _extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
 
         // Version is always 1, so we ignore it.
         let (_version, entry_count) = Self::read_header(data)?;
 
         let definition = Self::new_definition();
-        let table = Table::decode(&pool, data, &definition, &HashMap::new(), Some(entry_count), false, TSV_NAME_LOC)?;
+        let table = Table::decode(data, &definition, &HashMap::new(), Some(entry_count), false, TSV_NAME_LOC)?;
 
         // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt.
         check_size_mismatch(data.stream_position()? as usize, data.len()? as usize)?;
@@ -241,16 +236,14 @@ impl Decodeable for Loc {
 
 impl Encodeable for Loc {
 
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
-        let pool = if let Some (extra_data) = extra_data { extra_data.pool } else { None };
-
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         buffer.write_u16(BYTEORDER_MARK)?;
         buffer.write_string_u8(FILE_TYPE)?;
         buffer.write_u8(0)?;
         buffer.write_i32(*self.table.definition().version())?;
-        buffer.write_u32(self.table.len(pool)? as u32)?;
+        buffer.write_u32(self.table.len() as u32)?;
 
-        self.table.encode(buffer, &None, &pool)
+        self.table.encode(buffer, &None)
     }
 }
 

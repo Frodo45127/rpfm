@@ -162,7 +162,7 @@ impl ESF {
     ) -> Result<NodeType> {
 
         let next_byte = data.read_u8()?;
-        let is_record = next_byte & RecordNodeFlags::IS_RECORD_NODE.bits == RecordNodeFlags::IS_RECORD_NODE.bits;
+        let is_record = next_byte & RecordNodeFlags::IS_RECORD_NODE.bits() == RecordNodeFlags::IS_RECORD_NODE.bits();
 
         // Get the node type. If it's a record, process it separately from the rest, as records are significantly more complex than standard nodes.
         let node_type = if is_record {

@@ -1348,7 +1348,7 @@ impl PackedFileDecoderView {
         let raw_localisable_fields: RawLocalisableFields = RawLocalisableFields::read(&raw_db_path, raw_db_version).map_err(|error| anyhow!("{}. This happens when the TExc_LocalisableFields.xml file is missing/empty/broken in raw_data/db. If it's so, copy it from another game and try again.", error))?;
         let mut raw_columns: Vec<Vec<String>> = vec![];
 
-        let table_data = imported_table.data(&None)?;
+        let table_data = imported_table.data();
         for row in table_data.iter() {
             for (index, field) in row.iter().enumerate() {
                 match raw_columns.get_mut(index) {
@@ -1595,44 +1595,43 @@ impl PackedFileDecoderView {
             let mut data = data.clone();
             let db = DB::decode(&mut data, &Some(extra_data));
             if let Ok(db) = db {
-                if let Ok(table) = db.data(&None) {
-                    if !table.is_empty() {
-                        let mut mapper: BTreeMap<usize, usize> = BTreeMap::new();
-                        let mut decoded_columns: Vec<Vec<String>> = vec![];
-                        let fields_processed = db.definition().fields_processed();
+                let table = db.data();
+                if !table.is_empty() {
+                    let mut mapper: BTreeMap<usize, usize> = BTreeMap::new();
+                    let mut decoded_columns: Vec<Vec<String>> = vec![];
+                    let fields_processed = db.definition().fields_processed();
 
-                        // Organized in columns, not in rows, so we can match by columns.
-                        for row in table.iter() {
-                            for (index, field) in row.iter().enumerate() {
-                                match decoded_columns.get_mut(index) {
-                                    Some(ref mut column) => column.push(field.data_to_string().to_string()),
-                                    None => decoded_columns.push(vec![field.data_to_string().to_string()])
-                                }
+                    // Organized in columns, not in rows, so we can match by columns.
+                    for row in table.iter() {
+                        for (index, field) in row.iter().enumerate() {
+                            match decoded_columns.get_mut(index) {
+                                Some(ref mut column) => column.push(field.data_to_string().to_string()),
+                                None => decoded_columns.push(vec![field.data_to_string().to_string()])
                             }
                         }
-
-                        let mut already_matched_columns = vec![];
-                        for (index, column) in decoded_columns.iter().enumerate() {
-                            match raw_columns.iter().enumerate().position(|(pos, x)| !already_matched_columns.contains(&pos) && x == column) {
-                                Some(raw_column) => {
-                                    mapper.insert(index, raw_column);
-                                    already_matched_columns.push(raw_column);
-                                },
-
-                                // If no equivalent has been found, drop the definition.
-                                None => return None,
-                            }
-                        }
-
-                        // Filter the mapped data to see if we have a common one in every cell.
-                        let fields = mapper.iter().map(|(x, y)| {
-                            let mut field: Field = From::from(raw_definition.fields.get(*y).unwrap());
-                            field.set_field_type(fields_processed[*x].field_type().clone());
-                            field
-                        }).collect();
-
-                        return Some(fields);
                     }
+
+                    let mut already_matched_columns = vec![];
+                    for (index, column) in decoded_columns.iter().enumerate() {
+                        match raw_columns.iter().enumerate().position(|(pos, x)| !already_matched_columns.contains(&pos) && x == column) {
+                            Some(raw_column) => {
+                                mapper.insert(index, raw_column);
+                                already_matched_columns.push(raw_column);
+                            },
+
+                            // If no equivalent has been found, drop the definition.
+                            None => return None,
+                        }
+                    }
+
+                    // Filter the mapped data to see if we have a common one in every cell.
+                    let fields = mapper.iter().map(|(x, y)| {
+                        let mut field: Field = From::from(raw_definition.fields.get(*y).unwrap());
+                        field.set_field_type(fields_processed[*x].field_type().clone());
+                        field
+                    }).collect();
+
+                    return Some(fields);
                 }
             }
             None

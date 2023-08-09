@@ -23,4 +23,3 @@
 #[cfg(feature = "integration_assembly_kit")] pub mod assembly_kit;
 #[cfg(feature = "integration_git")] pub mod git;
 #[cfg(feature = "integration_log")] pub mod log;
-#[cfg(feature = "integration_sqlite")] pub mod sqlite;

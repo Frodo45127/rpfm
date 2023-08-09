@@ -38,8 +38,6 @@
 
 use csv::{StringRecordsIter, Writer};
 use getset::Getters;
-#[cfg(feature = "integration_sqlite")] use r2d2::Pool;
-#[cfg(feature = "integration_sqlite")] use r2d2_sqlite::SqliteConnectionManager;
 use rayon::prelude::*;
 use serde_derive::{Serialize, Deserialize};
 use uuid::Uuid;
@@ -96,7 +94,6 @@ impl Decodeable for DB {
         let schema = extra_data.schema.ok_or_else(|| RLibError::DecodingMissingExtraDataField("schema".to_owned()))?;
         let table_name = extra_data.table_name.ok_or_else(|| RLibError::DecodingMissingExtraDataField("table_name".to_owned()))?;
         let return_incomplete = extra_data.return_incomplete;
-        let pool = extra_data.pool;
 
         let (version, mysterious_byte, guid, entry_count) = Self::read_header(data)?;
 
@@ -133,7 +130,7 @@ impl Decodeable for DB {
 
             // Reset the index before the table, and now decode the table with proper backend support.
             data.seek(SeekFrom::Start(index_reset))?;
-            Table::decode(&pool, data, definition, &definition_patch, Some(entry_count), return_incomplete, table_name)?
+            Table::decode(data, definition, &definition_patch, Some(entry_count), return_incomplete, table_name)?
         }
 
         // For +0 versions, we expect unique definitions.
@@ -144,7 +141,7 @@ impl Decodeable for DB {
                 .ok_or(RLibError::DecodingDBNoDefinitionsFound)?;
 
             let definition_patch = schema.patches_for_table(table_name).cloned().unwrap_or_default();
-            Table::decode(&pool, data, definition, &definition_patch, Some(entry_count), return_incomplete, table_name)?
+            Table::decode(data, definition, &definition_patch, Some(entry_count), return_incomplete, table_name)?
         };
 
         // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt, or the decoding failed and we bailed early.
@@ -166,7 +163,6 @@ impl Decodeable for DB {
 impl Encodeable for DB {
 
     fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
-        let pool = if let Some (ref extra_data) = extra_data { extra_data.pool } else { None };
         let table_has_guid = if let Some (ref extra_data) = extra_data { extra_data.table_has_guid } else { false };
         let regenerate_table_guid = if let Some (ref extra_data) = extra_data { extra_data.regenerate_table_guid } else { false };
 
@@ -188,17 +184,17 @@ impl Encodeable for DB {
         }
 
         buffer.write_bool(self.mysterious_byte)?;
-        buffer.write_u32(self.table.len(pool)? as u32)?;
+        buffer.write_u32(self.table.len() as u32)?;
 
-        self.table.encode(buffer, &None, &pool)
+        self.table.encode(buffer, &None)
     }
 }
 
 impl DB {
 
     /// This function creates a new empty [DB] table.
-    pub fn new(definition: &Definition, definition_patch: Option<&DefinitionPatch>, table_name: &str, use_sql_backend: bool) -> Self {
-        let table = Table::new(definition, definition_patch, table_name, use_sql_backend);
+    pub fn new(definition: &Definition, definition_patch: Option<&DefinitionPatch>, table_name: &str) -> Self {
+        let table = Table::new(definition, definition_patch, table_name);
 
         Self {
             mysterious_byte: true,
@@ -272,22 +268,22 @@ impl DB {
     }
 
     /// This function returns a reference to the entries of this DB table.
-    pub fn data(&self, pool: &Option<&Pool<SqliteConnectionManager>>) -> Result<Cow<[Vec<DecodedData>]>> {
-        self.table.data(pool)
+    pub fn data(&self) -> Cow<[Vec<DecodedData>]> {
+        self.table.data()
     }
 
     /// This function returns a reference to the entries of this DB table.
     ///
     /// Make sure to keep the table structure valid for the table definition.
-    pub fn data_mut(&mut self) -> Result<&mut Vec<Vec<DecodedData>>> {
+    pub fn data_mut(&mut self) -> &mut Vec<Vec<DecodedData>> {
         self.table.data_mut()
     }
 
     /// This function replaces the data of this table with the one provided.
     ///
     /// This can (and will) fail if the data is not in the format defined by the definition of the table.
-    pub fn set_data(&mut self, pool: Option<&Pool<SqliteConnectionManager>>, data: &[Vec<DecodedData>]) -> Result<()> {
-        self.table.set_data(pool, data)
+    pub fn set_data(&mut self, data: &[Vec<DecodedData>]) -> Result<()> {
+        self.table.set_data(data)
     }
 
     /// This function returns a valid empty (with default values if any) row for this table.
@@ -348,8 +344,8 @@ impl DB {
     }
 
     /// This function returns the amount of entries in this DB Table.
-    pub fn len(&self, pool: Option<&Pool<SqliteConnectionManager>>) -> Result<usize> {
-        self.table.len(pool)
+    pub fn len(&self) -> usize {
+        self.table.len()
     }
 
     /// This function replaces the definition of this table with the one provided.
@@ -426,7 +422,7 @@ impl DB {
                     let patches = table.definition().patches().clone();
                     let table_name = table.table_name().to_owned();
                     let table_name_no_tables = table.table_name_without_tables();
-                    let table_data = table.data_mut().unwrap();
+                    let table_data = table.data_mut();
 
                     let mut keys_edited = vec![];
 
@@ -498,7 +494,7 @@ impl DB {
             for file in &mut loc_files {
                 let path = file.path_in_container();
                 if let Ok(RFileDecoded::Loc(data)) = file.decoded_mut() {
-                    let data = data.data_mut().unwrap();
+                    let data = data.data_mut();
                     for row in data.iter_mut() {
                         if let Some(field_data) = row.get_mut(0) {
                             match field_data {
@@ -539,7 +535,7 @@ impl DB {
             return Err(RLibError::RFileMergeTablesDifferentNames);
         }
 
-        let mut new_table = Self::new(sources[0].definition(), Some(sources[0].patches()), sources[0].table_name(), false);
+        let mut new_table = Self::new(sources[0].definition(), Some(sources[0].patches()), sources[0].table_name());
         let sources = sources.par_iter()
             .map(|table| {
                 let mut table = table.table().clone();
@@ -549,11 +545,10 @@ impl DB {
             .collect::<Vec<_>>();
 
         let new_data = sources.par_iter()
-            .filter_map(|table| table.data(&None).ok())
-            .map(|data| data.to_vec())
+            .map(|table| table.data().to_vec())
             .flatten()
             .collect::<Vec<_>>();
-        new_table.set_data(None, &new_data)?;
+        new_table.set_data(&new_data)?;
 
         Ok(new_table)
     }

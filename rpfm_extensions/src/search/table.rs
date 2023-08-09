@@ -71,13 +71,11 @@ impl Searchable for DB {
     fn search(&self, file_path: &str, pattern_to_search: &str, case_sensitive: bool, matching_mode: &MatchingMode) -> TableMatches {
         let mut matches = TableMatches::new(file_path);
 
-        if let Ok(table_data) = self.data(&None) {
-            let fields_processed = self.definition().fields_processed();
+        let fields_processed = self.definition().fields_processed();
 
-            for (row_number, row) in table_data.iter().enumerate() {
-                for (column_number, cell) in row.iter().enumerate() {
-                    matches.match_decoded_data(&cell.data_to_string(), pattern_to_search, case_sensitive, matching_mode, &fields_processed, column_number as u32, row_number as i64);
-                }
+        for (row_number, row) in self.data().iter().enumerate() {
+            for (column_number, cell) in row.iter().enumerate() {
+                matches.match_decoded_data(&cell.data_to_string(), pattern_to_search, case_sensitive, matching_mode, &fields_processed, column_number as u32, row_number as i64);
             }
         }
 
@@ -91,15 +89,14 @@ impl Searchable for Loc {
     fn search(&self, file_path: &str, pattern_to_search: &str, case_sensitive: bool, matching_mode: &MatchingMode) -> TableMatches {
         let mut matches = TableMatches::new(file_path);
 
-        if let Ok(table_data) = self.data(&None) {
-            let fields_processed = self.definition().fields_processed();
+        let fields_processed = self.definition().fields_processed();
 
-            for (row_number, row) in table_data.iter().enumerate() {
-                for (column_number, cell) in row.iter().enumerate() {
-                    matches.match_decoded_data(&cell.data_to_string(), pattern_to_search, case_sensitive, matching_mode, &fields_processed, column_number as u32, row_number as i64);
-                }
+        for (row_number, row) in self.data().iter().enumerate() {
+            for (column_number, cell) in row.iter().enumerate() {
+                matches.match_decoded_data(&cell.data_to_string(), pattern_to_search, case_sensitive, matching_mode, &fields_processed, column_number as u32, row_number as i64);
             }
         }
+
         matches
     }
 }
@@ -109,12 +106,10 @@ impl Replaceable for DB {
     fn replace(&mut self, pattern: &str, replace_pattern: &str, case_sensitive: bool, matching_mode: &MatchingMode, search_matches: &TableMatches) -> bool {
         let mut edited = false;
 
-        if let Ok(data) = self.data_mut() {
-            for search_match in search_matches.matches() {
-                if let Some(row) = data.get_mut(search_match.row_number as usize) {
-                    if let Some(data) = row.get_mut(search_match.column_number as usize) {
-                        edited |= search_match.replace(pattern, replace_pattern, case_sensitive, matching_mode, data);
-                    }
+        for search_match in search_matches.matches() {
+            if let Some(row) = self.data_mut().get_mut(search_match.row_number as usize) {
+                if let Some(data) = row.get_mut(search_match.column_number as usize) {
+                    edited |= search_match.replace(pattern, replace_pattern, case_sensitive, matching_mode, data);
                 }
             }
         }
@@ -128,12 +123,10 @@ impl Replaceable for Loc {
     fn replace(&mut self, pattern: &str, replace_pattern: &str, case_sensitive: bool, matching_mode: &MatchingMode, search_matches: &TableMatches) -> bool {
         let mut edited = false;
 
-        if let Ok(data) = self.data_mut() {
-            for search_match in search_matches.matches() {
-                if let Some(row) = data.get_mut(search_match.row_number as usize) {
-                    if let Some(data) = row.get_mut(search_match.column_number as usize) {
-                        edited |= search_match.replace(pattern, replace_pattern, case_sensitive, matching_mode, data);
-                    }
+        for search_match in search_matches.matches() {
+            if let Some(row) = self.data_mut().get_mut(search_match.row_number as usize) {
+                if let Some(data) = row.get_mut(search_match.column_number as usize) {
+                    edited |= search_match.replace(pattern, replace_pattern, case_sensitive, matching_mode, data);
                 }
             }
         }

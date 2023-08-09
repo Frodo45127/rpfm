@@ -17,8 +17,6 @@ This module contains the struct `Table`, used to manage the decoded data of a ta
 use csv::{StringRecordsIter, Writer};
 use float_eq::float_eq;
 use getset::*;
-#[cfg(feature = "integration_sqlite")] use r2d2::Pool;
-#[cfg(feature = "integration_sqlite")] use r2d2_sqlite::SqliteConnectionManager;
 use serde_derive::{Serialize, Deserialize};
 
 use std::borrow::Cow;
@@ -32,7 +30,6 @@ use crate::schema::*;
 use crate::utils::parse_str_as_bool;
 
 mod local;
-#[cfg(feature = "integration_sqlite")] mod sqlite;
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
@@ -55,23 +52,7 @@ pub struct Table {
     definition_patch: DefinitionPatch,
 
     #[getset(skip)]
-    table_data: TableData
-}
-
-/// Internal enum to hold the table's data.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum TableData {
-
-    /// Variant to hold the table's data internally in memory.
-    Local(Vec<Vec<DecodedData>>),
-
-    /// Variant to hold the unique key of this table in the SQL backend.
-    Sql(SQLData)
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct SQLData {
-    table_unique_id: u64,
+    table_data: Vec<Vec<DecodedData>>
 }
 
 /// This enum is used to store different types of data in a unified way. Used, for example, to store the data from each field in a DB Table.
@@ -428,15 +409,8 @@ impl DecodedData {
 impl Table {
 
     /// This function creates a new Table from an existing definition.
-    pub fn new(definition: &Definition, definition_patch: Option<&DefinitionPatch>, table_name: &str, use_sql_backend: bool) -> Self {
-        let table_data = if use_sql_backend {
-            TableData::Sql(SQLData {
-                table_unique_id: rand::random::<u64>(),
-            })
-        } else {
-            TableData::Local(vec![])
-        };
-
+    pub fn new(definition: &Definition, definition_patch: Option<&DefinitionPatch>, table_name: &str) -> Self {
+        let table_data = vec![];
         let definition_patch = if let Some(patch) = definition_patch { patch.clone() } else { HashMap::new() };
 
         Self {
@@ -460,11 +434,8 @@ impl Table {
     /// This function returns a mutable reference to the data of the table.
     ///
     /// Note that using this makes you responsible of keeping the structure of the table "valid".
-    pub fn data_mut(&mut self) -> Result<&mut Vec<Vec<DecodedData>>> {
-        match &mut self.table_data {
-            TableData::Local(data) => Ok(data),
-            TableData::Sql(_) => unimplemented!(),
-        }
+    pub fn data_mut(&mut self) -> &mut Vec<Vec<DecodedData>> {
+        &mut self.table_data
     }
 
     /// This function returns the position of a column in a definition before sorting, or None if the column is not found.
@@ -498,40 +469,35 @@ impl Table {
         positions.sort_by_key(|x| x.1);
 
         // Then, we create the new data using the old one and the column changes.
-        match self.table_data {
-            TableData::Local(ref mut entries) => {
-                let mut new_entries: Vec<Vec<DecodedData>> = Vec::with_capacity(entries.len());
-                for row in entries.iter() {
-                    let mut entry = vec![];
-                    for (old_pos, new_pos) in &positions {
+        let mut new_entries: Vec<Vec<DecodedData>> = Vec::with_capacity(self.table_data.len());
+        for row in self.table_data.iter() {
+            let mut entry = vec![];
+            for (old_pos, new_pos) in &positions {
 
-                        // If the new position is -1, it means the column got removed. We skip it.
-                        if *new_pos == -1 { continue; }
+                // If the new position is -1, it means the column got removed. We skip it.
+                if *new_pos == -1 { continue; }
 
-                        // If the old position is -1, it means we got a new column. We need to get his type and create a `Default` field with it.
-                        else if *old_pos == -1 {
-                            let field_type = new_fields_processed[*new_pos as usize].field_type();
-                            let default_value = new_fields_processed[*new_pos as usize].default_value(Some(&self.definition_patch));
-                            entry.push(DecodedData::new_from_type_and_value(field_type, &default_value));
-                        }
-
-                        // Otherwise, we got a moved column. Check here if it needs type conversion.
-                        else if new_fields_processed[*new_pos as usize].field_type() != old_fields_processed[*old_pos as usize].field_type() {
-                            entry.push(row[*old_pos as usize].convert_between_types(new_fields_processed[*new_pos as usize].field_type()).unwrap());
-                        }
-
-                        // If we reach this, we just got a moved column without any extra change.
-                        else {
-                            entry.push(row[*old_pos as usize].clone());
-                        }
-                    }
-                    new_entries.push(entry);
+                // If the old position is -1, it means we got a new column. We need to get his type and create a `Default` field with it.
+                else if *old_pos == -1 {
+                    let field_type = new_fields_processed[*new_pos as usize].field_type();
+                    let default_value = new_fields_processed[*new_pos as usize].default_value(Some(&self.definition_patch));
+                    entry.push(DecodedData::new_from_type_and_value(field_type, &default_value));
                 }
 
-                *entries = new_entries;
-            },
-            TableData::Sql(_) => todo!("Support updating definition in SQL Backend"),
+                // Otherwise, we got a moved column. Check here if it needs type conversion.
+                else if new_fields_processed[*new_pos as usize].field_type() != old_fields_processed[*old_pos as usize].field_type() {
+                    entry.push(row[*old_pos as usize].convert_between_types(new_fields_processed[*new_pos as usize].field_type()).unwrap());
+                }
+
+                // If we reach this, we just got a moved column without any extra change.
+                else {
+                    entry.push(row[*old_pos as usize].clone());
+                }
+            }
+            new_entries.push(entry);
         }
+
+        self.table_data = new_entries;
 
         // Then, we finally replace our definition and our data.
         self.definition = new_definition.clone();
@@ -540,50 +506,32 @@ impl Table {
     /// This function replaces the data of this table with the one provided.
     ///
     /// This can (and will) fail if the data is not of the format defined by the definition of the table.
-    pub fn set_data(&mut self, pool: Option<&Pool<SqliteConnectionManager>>, data: &[Vec<DecodedData>]) -> Result<()> {
-        match self.table_data {
-            TableData::Local(ref mut table_data) => {
-                let fields_processed = self.definition.fields_processed();
-                for row in data {
+    pub fn set_data(&mut self, data: &[Vec<DecodedData>]) -> Result<()> {
+        let fields_processed = self.definition.fields_processed();
+        for row in data {
 
-                    // First, we need to make sure all rows we have are exactly what we expect.
-                    if row.len() != fields_processed.len() {
-                        return Err(RLibError::TableRowWrongFieldCount(fields_processed.len(), row.len()))
-                    }
-
-                    for (index, cell) in row.iter().enumerate() {
-
-                        // Next, we need to ensure each file is of the type we expected.
-                        let field = fields_processed.get(index).unwrap();
-                        if !cell.is_field_type_correct(field.field_type()) {
-                            return Err(RLibError::EncodingTableWrongFieldType(FieldType::from(cell).to_string(), field.field_type().to_string()))
-                        }
-                    }
-                }
-
-                // If we passed all the checks, replace the data.
-                *table_data = data.to_vec();
-                Ok(())
+            // First, we need to make sure all rows we have are exactly what we expect.
+            if row.len() != fields_processed.len() {
+                return Err(RLibError::TableRowWrongFieldCount(fields_processed.len(), row.len()))
             }
 
-            // TODO: Make this work for sql_backed tables.
-            TableData::Sql(ref mut _table_data) => {
-                match pool {
-                    Some(_pool) => todo!(),
-                    None => Err(RLibError::MissingSQLitePool),
+            for (index, cell) in row.iter().enumerate() {
+
+                // Next, we need to ensure each file is of the type we expected.
+                let field = fields_processed.get(index).unwrap();
+                if !cell.is_field_type_correct(field.field_type()) {
+                    return Err(RLibError::EncodingTableWrongFieldType(FieldType::from(cell).to_string(), field.field_type().to_string()))
                 }
             }
         }
+
+        // If we passed all the checks, replace the data.
+        self.table_data = data.to_vec();
+        Ok(())
     }
 
-    pub fn len(&self, pool: Option<&Pool<SqliteConnectionManager>>) -> Result<usize> {
-        match &self.table_data {
-            TableData::Local(data) => Ok(data.len()),
-            TableData::Sql(sqldata) => match pool {
-                Some(pool) => Self::count_table(pool, &self.table_name, *self.definition().version(), sqldata.table_unique_id).map(|x| x as usize),
-                None => Err(RLibError::MissingSQLitePool),
-            }
-        }
+    pub fn len(&self) -> usize {
+        self.table_data.len()
     }
 
     pub(crate) fn decode_table<R: ReadBytes>(data: &mut R, definition: &Definition, entry_count: Option<u32>, return_incomplete: bool) -> Result<Vec<Vec<DecodedData>>> {
@@ -833,10 +781,10 @@ impl Table {
         }
     }
 
-    pub fn encode<W: WriteBytes>(&self, data: &mut W, schema_patches: &Option<&DefinitionPatch>, pool: &Option<&Pool<SqliteConnectionManager>>) -> Result<()> {
+    pub fn encode<W: WriteBytes>(&self, data: &mut W, schema_patches: &Option<&DefinitionPatch>) -> Result<()> {
 
         // Get the table data in local format, no matter in what backend we stored it.
-        let entries = self.data(pool)?;
+        let entries = self.data();
         let fields = self.definition.fields();
         let fields_processed = self.definition.fields_processed();
 
@@ -998,10 +946,10 @@ impl Table {
 
                                 // If there are no problems, encode the data.
                                 match field.field_type() {
-                                    FieldType::StringU8 => data.write_sized_string_u8(&Self::unescape_special_chars(field_data))?,
-                                    FieldType::StringU16 => data.write_sized_string_u16(&Self::unescape_special_chars(field_data))?,
-                                    FieldType::OptionalStringU8 => data.write_optional_string_u8(&Self::unescape_special_chars(field_data))?,
-                                    FieldType::OptionalStringU16 => data.write_optional_string_u16(&Self::unescape_special_chars(field_data))?,
+                                    FieldType::StringU8 => data.write_sized_string_u8(&Self::unescape_special_chars(&field_data))?,
+                                    FieldType::StringU16 => data.write_sized_string_u16(&Self::unescape_special_chars(&field_data))?,
+                                    FieldType::OptionalStringU8 => data.write_optional_string_u8(&Self::unescape_special_chars(&field_data))?,
+                                    FieldType::OptionalStringU16 => data.write_optional_string_u16(&Self::unescape_special_chars(&field_data))?,
                                     _ => return Err(RLibError::EncodingTableWrongFieldType(field_data.to_string(), field.field_type().to_string()))
                                 }
                             }
@@ -1012,14 +960,14 @@ impl Table {
                             if field_data.len() < 2 {
                                 data.write_all(&[0, 0])?
                             } else {
-                                data.write_all(field_data)?
+                                data.write_all(&field_data)?
                             }
                         },
                         DecodedData::SequenceU32(field_data) => {
                             if field_data.len() < 4 {
                                 data.write_all(&[0, 0, 0, 0])?
                             } else {
-                                data.write_all(field_data)?
+                                data.write_all(&field_data)?
                             }
                         }
                     }
@@ -1033,21 +981,8 @@ impl Table {
     }
 
     /// This function returns the data stored in the table.
-    pub fn data(&self, pool: &Option<&Pool<SqliteConnectionManager>>) -> Result<Cow<[Vec<DecodedData>]>> {
-
-        // Get the table data in local format, no matter in what backend we stored it.
-        match self.table_data {
-            TableData::Local(ref data) => Ok(Cow::from(data)),
-            TableData::Sql(ref sqldata) => match pool {
-                Some(pool) => {
-                    let fields_processed = self.definition().fields_processed();
-                    let version = self.definition().version();
-                    let data = Self::select_all_from_table(pool, &self.table_name, *version, sqldata.table_unique_id, &fields_processed)?;
-                    Ok(Cow::from(data))
-                }
-                None => Err(RLibError::MissingSQLitePool),
-            },
-        }
+    pub fn data(&self) -> Cow<[Vec<DecodedData>]> {
+        Cow::from(&self.table_data)
     }
 
     /// This function returns a new empty row for the provided definition.
@@ -1269,7 +1204,7 @@ impl Table {
         let mut row_indexes = vec![];
 
         let column_index = self.column_position_by_name(column_name)?;
-        for (row_index, row) in self.data(&None).ok()?.iter().enumerate() {
+        for (row_index, row) in self.data().iter().enumerate() {
             if let Some(cell_data) = row.get(column_index) {
                 if cell_data.data_to_string() == data {
                     row_indexes.push(row_index);
@@ -1290,7 +1225,7 @@ impl Table {
 
     /// This function tries to imports a TSV file on the path provided into a binary db table.
     pub(crate) fn tsv_import(records: StringRecordsIter<File>, definition: &Definition, field_order: &HashMap<u32, String>, table_name: &str, schema_patches: Option<&DefinitionPatch>) -> Result<Self> {
-        let mut table = Table::new(definition, None, table_name, false);
+        let mut table = Table::new(definition, None, table_name);
         let mut entries = vec![];
 
         let fields_processed = definition.fields_processed();
@@ -1340,7 +1275,7 @@ impl Table {
         }
 
         // If we reached this point without errors, we replace the old data with the new one and return success.
-        table.set_data(None, &entries)?;
+        table.set_data(&entries)?;
         Ok(table)
     }
 
@@ -1359,7 +1294,7 @@ impl Table {
         writer.serialize(metadata)?;
 
         // Then we serialize each entry in the DB Table.
-        let entries = self.data(&None)?;
+        let entries = self.data();
         for entry in &*entries {
             let sorted_entry = fields_sorted_properly.iter()
                 .map(|(index, _)| entry[*index].data_to_string())

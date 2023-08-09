@@ -471,7 +471,7 @@ pub fn background_loop() {
                             match schema.definition_by_name_and_version(&table, version) {
                                 Some(definition) => {
                                     let patches = schema.patches_for_table(&table);
-                                    let file = DB::new(definition, patches, &table, false);
+                                    let file = DB::new(definition, patches, &table);
                                     RFileDecoded::DB(file)
                                 }
                                 None => {
@@ -485,7 +485,7 @@ pub fn background_loop() {
                         }
                     },
                     NewFile::Loc(_) => {
-                        let file = Loc::new(false);
+                        let file = Loc::new();
                         RFileDecoded::Loc(file)
                     }
                     NewFile::PortraitSettings(_, version, entries) => {

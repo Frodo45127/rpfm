@@ -179,44 +179,28 @@ impl Optimizable for DB {
     ///
     /// It returns if the DB is empty, meaning it can be safetly deleted.
     fn optimize(&mut self, dependencies: &mut Dependencies) -> bool {
-        match self.data(&None) {
-            Ok(entries) => {
 
-                // Get a manipulable copy of all the entries, so we can optimize it.
-                let mut entries = entries.to_vec();
-                let definition = self.definition();
-                let patches = Some(definition.patches());
-                let first_key = definition.fields_processed_sorted(true).iter().position(|x| x.is_key(patches)).unwrap_or(0);
+        // Get a manipulable copy of all the entries, so we can optimize it.
+        let mut entries = self.data().to_vec();
+        let definition = self.definition();
+        let patches = Some(definition.patches());
+        let first_key = definition.fields_processed_sorted(true).iter().position(|x| x.is_key(patches)).unwrap_or(0);
 
-                match dependencies.db_data(self.table_name(), true, true) {
-                    Ok(mut vanilla_tables) => {
+        match dependencies.db_data(self.table_name(), true, true) {
+            Ok(mut vanilla_tables) => {
 
-                        // First, merge all vanilla and parent db fragments into a single HashSet.
-                        let vanilla_table = vanilla_tables.iter_mut()
-                            .filter_map(|file| {
-                                if let Ok(RFileDecoded::DB(table)) = file.decoded() {
-                                    table.data(&None).ok().map(|x| x.to_vec())
-                                } else { None }
-                            })
-                            .flatten()
-                            .map(|x| {
+                // First, merge all vanilla and parent db fragments into a single HashSet.
+                let vanilla_table = vanilla_tables.iter_mut()
+                    .filter_map(|file| {
+                        if let Ok(RFileDecoded::DB(table)) = file.decoded() {
+                            Some(table.data().to_vec())
+                        } else { None }
+                    })
+                    .flatten()
+                    .map(|x| {
 
-                                // We map all floats here to string representations of floats, so we can actually compare them reliably.
-                                let json = x.iter().map(|data|
-                                    if let DecodedData::F32(value) = data {
-                                        DecodedData::StringU8(format!("{value:.4}"))
-                                    } else if let DecodedData::F64(value) = data {
-                                        DecodedData::StringU8(format!("{value:.4}"))
-                                    } else {
-                                        data.to_owned()
-                                    }
-                                ).collect::<Vec<DecodedData>>();
-                                serde_json::to_string(&json).unwrap()
-                            })
-                            .collect::<HashSet<String>>();
-
-                        // Remove ITM and ITNR entries.
-                        let new_row = self.new_row().iter().map(|data|
+                        // We map all floats here to string representations of floats, so we can actually compare them reliably.
+                        let json = x.iter().map(|data|
                             if let DecodedData::F32(value) = data {
                                 DecodedData::StringU8(format!("{value:.4}"))
                             } else if let DecodedData::F64(value) = data {
@@ -225,55 +209,64 @@ impl Optimizable for DB {
                                 data.to_owned()
                             }
                         ).collect::<Vec<DecodedData>>();
+                        serde_json::to_string(&json).unwrap()
+                    })
+                    .collect::<HashSet<String>>();
 
-                        entries.retain(|entry| {
-                            let entry_json = entry.iter().map(|data|
-                                if let DecodedData::F32(value) = data {
-                                    DecodedData::StringU8(format!("{value:.4}"))
-                                } else if let DecodedData::F64(value) = data {
-                                    DecodedData::StringU8(format!("{value:.4}"))
-                                } else {
-                                    data.to_owned()
-                                }
-                            ).collect::<Vec<DecodedData>>();
-                            !vanilla_table.contains(&serde_json::to_string(&entry_json).unwrap()) && entry != &new_row
-                        });
-
-                        // Sort the table so it can be dedup. Sorting floats is a pain in the ass.
-                        entries.par_sort_by(|a, b| {
-                            let ordering = if let DecodedData::F32(x) = a[first_key] {
-                                if let DecodedData::F32(y) = b[first_key] {
-                                    if float_eq::float_eq!(x, y, abs <= 0.0001) {
-                                        Some(Ordering::Equal)
-                                    } else { None }
-                                } else { None }
-                            } else if let DecodedData::F64(x) = a[first_key] {
-                                if let DecodedData::F64(y) = b[first_key] {
-                                    if float_eq::float_eq!(x, y, abs <= 0.0001) {
-                                        Some(Ordering::Equal)
-                                    } else { None }
-                                } else { None }
-                            } else { None };
-
-                            match ordering {
-                                Some(ordering) => ordering,
-                                None => a[first_key].data_to_string().partial_cmp(&b[first_key].data_to_string()).unwrap_or(Ordering::Equal)
-                            }
-                        });
-
-                        entries.dedup();
-
-                        // Then we overwrite the entries and return if the table is empty or now, so we can optimize it further at the Container level.
-                        //
-                        // NOTE: This may fail, but in that case the table will not be left empty, which we check in the next line.
-                        let _ = self.set_data(None, &entries);
-                        self.data(&None).unwrap().is_empty()
+                // Remove ITM and ITNR entries.
+                let new_row = self.new_row().iter().map(|data|
+                    if let DecodedData::F32(value) = data {
+                        DecodedData::StringU8(format!("{value:.4}"))
+                    } else if let DecodedData::F64(value) = data {
+                        DecodedData::StringU8(format!("{value:.4}"))
+                    } else {
+                        data.to_owned()
                     }
-                    Err(_) => false,
-                }
-            }
+                ).collect::<Vec<DecodedData>>();
 
-            // We don't optimize sql-backed data.
+                entries.retain(|entry| {
+                    let entry_json = entry.iter().map(|data|
+                        if let DecodedData::F32(value) = data {
+                            DecodedData::StringU8(format!("{value:.4}"))
+                        } else if let DecodedData::F64(value) = data {
+                            DecodedData::StringU8(format!("{value:.4}"))
+                        } else {
+                            data.to_owned()
+                        }
+                    ).collect::<Vec<DecodedData>>();
+                    !vanilla_table.contains(&serde_json::to_string(&entry_json).unwrap()) && entry != &new_row
+                });
+
+                // Sort the table so it can be dedup. Sorting floats is a pain in the ass.
+                entries.par_sort_by(|a, b| {
+                    let ordering = if let DecodedData::F32(x) = a[first_key] {
+                        if let DecodedData::F32(y) = b[first_key] {
+                            if float_eq::float_eq!(x, y, abs <= 0.0001) {
+                                Some(Ordering::Equal)
+                            } else { None }
+                        } else { None }
+                    } else if let DecodedData::F64(x) = a[first_key] {
+                        if let DecodedData::F64(y) = b[first_key] {
+                            if float_eq::float_eq!(x, y, abs <= 0.0001) {
+                                Some(Ordering::Equal)
+                            } else { None }
+                        } else { None }
+                    } else { None };
+
+                    match ordering {
+                        Some(ordering) => ordering,
+                        None => a[first_key].data_to_string().partial_cmp(&b[first_key].data_to_string()).unwrap_or(Ordering::Equal)
+                    }
+                });
+
+                entries.dedup();
+
+                // Then we overwrite the entries and return if the table is empty or now, so we can optimize it further at the Container level.
+                //
+                // NOTE: This may fail, but in that case the table will not be left empty, which we check in the next line.
+                let _ = self.set_data(&entries);
+                self.data().is_empty()
+            }
             Err(_) => false,
         }
     }
@@ -291,54 +284,47 @@ impl Optimizable for Loc {
     ///
     /// It returns if the Loc is empty, meaning it can be safetly deleted.
     fn optimize(&mut self, dependencies: &mut Dependencies) -> bool {
-        match self.data(&None) {
-            Ok(entries) => {
 
-                // Get a manipulable copy of all the entries, so we can optimize it.
-                let mut entries = entries.to_vec();
-                match dependencies.loc_data(true, true) {
-                    Ok(mut vanilla_tables) => {
+        // Get a manipulable copy of all the entries, so we can optimize it.
+        let mut entries = self.data().to_vec();
+        match dependencies.loc_data(true, true) {
+            Ok(mut vanilla_tables) => {
 
-                        // First, merge all vanilla and parent locs into a single HashMap<key, value>. We don't care about the third column.
-                        let vanilla_table = vanilla_tables.iter_mut()
-                            .filter_map(|file| {
-                                if let Ok(RFileDecoded::Loc(table)) = file.decoded() {
-                                    table.data(&None).ok().map(|x| x.to_vec())
-                                } else { None }
-                            })
-                            .flat_map(|data| data.iter()
-                                .map(|data| (data[0].data_to_string().to_string(), data[1].data_to_string().to_string()))
-                                .collect::<Vec<(String, String)>>())
-                            .collect::<HashMap<String, String>>();
+                // First, merge all vanilla and parent locs into a single HashMap<key, value>. We don't care about the third column.
+                let vanilla_table = vanilla_tables.iter_mut()
+                    .filter_map(|file| {
+                        if let Ok(RFileDecoded::Loc(table)) = file.decoded() {
+                            Some(table.data().to_vec())
+                        } else { None }
+                    })
+                    .flat_map(|data| data.iter()
+                        .map(|data| (data[0].data_to_string().to_string(), data[1].data_to_string().to_string()))
+                        .collect::<Vec<(String, String)>>())
+                    .collect::<HashMap<String, String>>();
 
-                        // Remove ITM and ITNR entries.
-                        let new_row = self.new_row();
-                        entries.retain(|entry| {
-                            if entry == &new_row {
-                                return false;
-                            }
-
-                            match vanilla_table.get(&*entry[0].data_to_string()) {
-                                Some(vanilla_value) => &*entry[1].data_to_string() != vanilla_value,
-                                None => true
-                            }
-                        });
-
-                        // Sort the table so it can be dedup.
-                        entries.par_sort_by(|a, b| a[0].data_to_string().partial_cmp(&b[0].data_to_string()).unwrap_or(Ordering::Equal));
-                        entries.dedup();
-
-                        // Then we overwrite the entries and return if the table is empty or now, so we can optimize it further at the Container level.
-                        //
-                        // NOTE: This may fail, but in that case the table will not be left empty, which we check in the next line.
-                        let _ = self.set_data(&entries);
-                        self.data(&None).unwrap().is_empty()
+                // Remove ITM and ITNR entries.
+                let new_row = self.new_row();
+                entries.retain(|entry| {
+                    if entry == &new_row {
+                        return false;
                     }
-                    Err(_) => false,
-                }
-            }
 
-            // We don't optimize sql-backed data.
+                    match vanilla_table.get(&*entry[0].data_to_string()) {
+                        Some(vanilla_value) => &*entry[1].data_to_string() != vanilla_value,
+                        None => true
+                    }
+                });
+
+                // Sort the table so it can be dedup.
+                entries.par_sort_by(|a, b| a[0].data_to_string().partial_cmp(&b[0].data_to_string()).unwrap_or(Ordering::Equal));
+                entries.dedup();
+
+                // Then we overwrite the entries and return if the table is empty or now, so we can optimize it further at the Container level.
+                //
+                // NOTE: This may fail, but in that case the table will not be left empty, which we check in the next line.
+                let _ = self.set_data(&entries);
+                self.data().is_empty()
+            }
             Err(_) => false,
         }
     }

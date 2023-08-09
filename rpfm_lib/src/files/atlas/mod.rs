@@ -60,7 +60,7 @@ pub struct AtlasEntry {
 
 impl From<Table> for Atlas {
     fn from(value: Table) -> Self {
-        let entries = value.data(&None).unwrap()
+        let entries = value.data()
             .iter()
             .map(|row| AtlasEntry {
                 string1: if let DecodedData::StringU8(data) = &row[0] { data.to_string() } else { panic!("WTF?!")},
@@ -84,7 +84,7 @@ impl From<Table> for Atlas {
 
 impl From<Atlas> for Table {
     fn from(value: Atlas) -> Self {
-        let mut table = Self::new(&Atlas::definition(), None, "", false);
+        let mut table = Self::new(&Atlas::definition(), None, "");
         let data = value.entries.iter()
             .map(|entry| {
                  vec![
@@ -99,7 +99,7 @@ impl From<Atlas> for Table {
                 ]
             })
             .collect::<Vec<_>>();
-        let _ = table.set_data(None, &data);
+        let _ = table.set_data(&data);
         table
     }
 }

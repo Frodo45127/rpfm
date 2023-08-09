@@ -389,7 +389,7 @@ pub unsafe fn get_default_item_from_field(field: &Field, patches: Option<&Defini
         },
 
         FieldType::SequenceU16(ref definition) | FieldType::SequenceU32(ref definition)  => {
-            let table = serde_json::to_string(&Table::new(definition, None, field.name(), false)).unwrap();
+            let table = serde_json::to_string(&Table::new(definition, None, field.name())).unwrap();
             let item = QStandardItem::new();
 
             item.set_text(&qtr("packedfile_editable_sequence"));
@@ -453,11 +453,11 @@ pub unsafe fn load_data(
 
     // Set the right data, depending on the table type you get.
     let data = match data {
-        TableType::Atlas(data) => data.data(&None).unwrap(),
+        TableType::Atlas(data) => data.data(),
         TableType::DependencyManager(data) => Cow::from(data),
-        TableType::DB(data) => data.data(&None).unwrap(),
-        TableType::Loc(data) => data.data(&None).unwrap(),
-        TableType::NormalTable(data) => data.data(&None).unwrap(),
+        TableType::DB(data) => data.data(),
+        TableType::Loc(data) => data.data(),
+        TableType::NormalTable(data) => data.data(),
     };
 
     if !data.is_empty() {
@@ -777,7 +777,7 @@ pub unsafe fn build_columns(
                         FieldType::StringU16 |
                         FieldType::OptionalStringU8 |
                         FieldType::OptionalStringU16 => {
-                            let mut size = table.data(&None).unwrap()
+                            let mut size = table.data()
                                 .par_iter()
                                 .max_by_key(|row| row[index].data_to_string().len())
                                 .map(|row| row[index].data_to_string().len() * 6)
@@ -799,7 +799,7 @@ pub unsafe fn build_columns(
                     match field.field_type() {
                         FieldType::Boolean => table_view.set_column_width(index as i32, model.horizontal_header_item(index as i32).text().length() * 6 + 30),
                         FieldType::StringU16 => {
-                            let size = table.data(&None).unwrap()
+                            let size = table.data()
                                 .par_iter()
                                 .max_by_key(|row| row[index].data_to_string().len())
                                 .map(|row| row[index].data_to_string().len() * 6)
@@ -1068,8 +1068,8 @@ pub unsafe fn get_table_from_view(
         entries.push(new_row);
     }
 
-    let mut table = Table::new(definition, None, "", false);
-    table.set_data(None, &entries)?;
+    let mut table = Table::new(definition, None, "");
+    table.set_data(&entries)?;
     Ok(table)
 }
 
@@ -1138,7 +1138,7 @@ pub unsafe fn open_subtable(
     if dialog.exec() == 1 {
         if let Ok(table) = get_table_from_view(&table_view.table_model.static_upcast(), &table_view.table_definition()) {
             let mut data = Cursor::new(vec![]);
-            let _ = table.encode(&mut data, &None, &None);
+            let _ = table.encode(&mut data, &None);
 
             Some(data.into_inner())
         } else {

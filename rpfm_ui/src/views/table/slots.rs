@@ -760,7 +760,7 @@ impl TableViewSlots {
                     let fields_processed = definition.fields_processed();
                     if let Some(field) = fields_processed.get(model_index.column() as usize) {
                         if let FieldType::SequenceU32(definition) = field.field_type() {
-                            if let Ok(table) = Table::decode(&None, &mut data, definition, &HashMap::new(), None, false, field.name()) {
+                            if let Ok(table) = Table::decode(&mut data, definition, &HashMap::new(), None, false, field.name()) {
                                 let table_data = match *view.packed_file_type {
                                     FileType::DB => TableType::DB(From::from(table)),
                                     FileType::Loc => TableType::Loc(From::from(table)),
