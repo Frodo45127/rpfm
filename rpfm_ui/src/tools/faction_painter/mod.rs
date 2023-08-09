@@ -622,7 +622,7 @@ impl ToolFactionPainter {
                     let uniform_tertiary_colour_column = if GAME_SELECTED.read().unwrap().key() == KEY_WARHAMMER_3 { table.column_position_by_name(uniform_tertiary_colour_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), uniform_tertiary_colour_column_name.to_string()))? } else { 0 };
 
                     let definition = serde_json::to_string(table.definition())?;
-                    for row in table.data(&None)?.iter() {
+                    for row in table.data().iter() {
                         let mut data = HashMap::new();
 
                         match Tool::get_row_by_column_index(row, flag_path_column)? {
@@ -741,7 +741,7 @@ impl ToolFactionPainter {
             if path.to_lowercase().ends_with(".loc") {
                 if let Ok(RFileDecoded::Loc(table)) = packed_file.decoded() {
                     let base_name = "factions_screen_name_".to_owned();
-                    let table_data = table.data(&None)?;
+                    let table_data = table.data();
 
                     processed_data.iter_mut().for_each(|(key, values)| {
                         let key = format!("{}{}", base_name, key);
@@ -786,7 +786,7 @@ impl ToolFactionPainter {
                     let secondary_colour_column = table.column_position_by_name(secondary_colour_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), secondary_colour_column_name.to_string()))?;
                     let tertiary_colour_column = table.column_position_by_name(tertiary_colour_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), tertiary_colour_column_name.to_string()))?;
 
-                    for row in table.data(&None)?.iter() {
+                    for row in table.data().iter() {
                         let key = match Tool::get_row_by_column_index(row, key_column)? {
                             DecodedData::StringU8(ref value) |
                             DecodedData::StringU16(ref value) |
@@ -870,7 +870,7 @@ impl ToolFactionPainter {
                     let secondary_colour_column = table.column_position_by_name(secondary_colour_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), secondary_colour_column_name.to_string()))?;
                     let tertiary_colour_column = table.column_position_by_name(tertiary_colour_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), tertiary_colour_column_name.to_string()))?;
 
-                    for row in table.data(&None)?.iter() {
+                    for row in table.data().iter() {
                         let key = match Tool::get_row_by_column_index(row, key_column)? {
                             DecodedData::StringU8(ref value) |
                             DecodedData::StringU16(ref value) |
@@ -947,7 +947,7 @@ impl ToolFactionPainter {
 
         if let Some(first) = data.iter().next() {
             if let Some(definition) = first.get(table_definition_name) {
-                let mut table = DB::new(&serde_json::from_str(definition)?, None, table_name, false);
+                let mut table = DB::new(&serde_json::from_str(definition)?, None, table_name);
 
                 let banner_primary_colour_column = table.column_position_by_name(banner_primary_colour_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), banner_primary_colour_column_name.to_string()))?;
                 let banner_secondary_colour_column = table.column_position_by_name(banner_secondary_colour_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), banner_secondary_colour_column_name.to_string()))?;
@@ -992,7 +992,7 @@ impl ToolFactionPainter {
                         }
                     }).collect::<Vec<Vec<DecodedData>>>();
 
-                table.set_data(None, &table_data)?;
+                table.set_data(&table_data)?;
                 let path = format!("db/{}/{}", table_name, self.get_file_name());
                 Ok(RFile::new_from_decoded(&RFileDecoded::DB(table), 0, &path))
             } else { Err(ToolsError::Impossibru.into()) }
@@ -1014,7 +1014,7 @@ impl ToolFactionPainter {
         if let Some(first) = data.iter().next() {
             if let Some(definition) = first.get(table_definition_name) {
                 let definition = serde_json::from_str(definition)?;
-                let mut table = DB::new(&definition, None, table_name, false);
+                let mut table = DB::new(&definition, None, table_name);
 
                 let fields_processed = definition.fields_processed();
                 let key_column = table.column_position_by_name(key_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), key_column_name.to_string()))?;
@@ -1057,7 +1057,7 @@ impl ToolFactionPainter {
                         }
                     }).collect::<Vec<Vec<DecodedData>>>();
 
-                table.set_data(None, &table_data)?;
+                table.set_data(&table_data)?;
                 let path = format!("db/{}/{}", table_name, self.get_file_name());
                 Ok(RFile::new_from_decoded(&RFileDecoded::DB(table), 0, &path))
             } else { Err(ToolsError::Impossibru.into()) }
@@ -1079,7 +1079,7 @@ impl ToolFactionPainter {
         if let Some(first) = data.iter().next() {
             if let Some(definition) = first.get(table_definition_name) {
                 let definition = serde_json::from_str(definition)?;
-                let mut table = DB::new(&definition, None, table_name, false);
+                let mut table = DB::new(&definition, None, table_name);
 
                 let fields_processed = definition.fields_processed();
                 let key_column = table.column_position_by_name(key_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), key_column_name.to_string()))?;
@@ -1123,7 +1123,7 @@ impl ToolFactionPainter {
                         }
                     }).collect::<Vec<Vec<DecodedData>>>();
 
-                table.set_data(None, &table_data)?;
+                table.set_data(&table_data)?;
                 let path = format!("db/{}/{}", table_name, self.get_file_name());
                 Ok(RFile::new_from_decoded(&RFileDecoded::DB(table), 0, &path))
             } else { Err(ToolsError::Impossibru.into()) }

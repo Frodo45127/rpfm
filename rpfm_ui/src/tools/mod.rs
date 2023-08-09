@@ -333,7 +333,7 @@ impl Tool {
                                         }
                                     } else { continue };
 
-                                    let rows = table.data(&None)?.par_iter().filter_map(|row| {
+                                    let rows = table.data().par_iter().filter_map(|row| {
                                         match Tool::get_row_by_column_index(row, key_column) {
                                             Ok(data) => match data {
                                                 DecodedData::StringU8(data) |
@@ -386,7 +386,7 @@ impl Tool {
 
                                 // If it's not a linked table... just add each row to our data.
                                 let append_key_indexes = append_keys.iter().filter_map(|key_name| table.column_position_by_name(key_name)).collect::<Vec<usize>>();
-                                for row in table.data(&None)?.iter() {
+                                for row in table.data().iter() {
                                     let mut data = HashMap::new();
                                     let key = Tool::get_row_by_column_index(row, key_column)?.data_to_string().to_string();
 
@@ -442,7 +442,7 @@ impl Tool {
         // Get the table definition from its first entry, if there is one.
         if let Some(first) = data.first() {
             if let Some(definition) = first.get(&definition_key) {
-                let mut table = DB::new(&serde_json::from_str(definition)?, None, &table_name_end_tables, false);
+                let mut table = DB::new(&serde_json::from_str(definition)?, None, &table_name_end_tables);
 
                 // Generate the table's data from empty rows + our data.
                 let table_fields = table.definition().fields_processed();
@@ -515,7 +515,7 @@ impl Tool {
                     .flatten()
                     .collect::<Vec<Vec<DecodedData>>>();
 
-                table.set_data(None, &table_data)?;
+                table.set_data(&table_data)?;
                 let path = format!("db/{}/{}", table_name_end_tables, file_name);
                 Ok(RFile::new_from_decoded(&RFileDecoded::DB(table), 0, &path))
             } else { Err(ToolsError::Impossibru.into()) }
@@ -532,7 +532,7 @@ impl Tool {
         for (path, packed_file) in data.iter_mut() {
             if path.to_lowercase().ends_with(".loc") {
                 if let Ok(RFileDecoded::Loc(table)) = packed_file.decoded() {
-                    let table = table.data(&None)?.par_iter()
+                    let table = table.data().par_iter()
                         .filter_map(|row| {
                             let key = if let DecodedData::StringU16(key) = &row[0] { key.to_owned() } else { None? };
                             let value = if let DecodedData::StringU16(value) = &row[1] { value.to_owned() } else { None? };
@@ -563,7 +563,7 @@ impl Tool {
 
     /// This function takes care of saving all the loc-related data in a generic way into a PackedFile.
     fn save_loc_data(&self, data: &[HashMap<String, String>], file_name: &str, loc_keys: &[(&str, &str)]) -> Result<RFile> {
-        let mut table = Loc::new(false);
+        let mut table = Loc::new();
 
         // Generate the table's data from empty rows + our data.
         let table_data = data.par_iter()
