@@ -88,6 +88,11 @@ impl Compressible for [u8] {
         let stream = Stream::new_lzma_encoder(&options).map_err(|_| RLibError::DataCannotBeCompressed)?;
         let mut encoder = XzEncoder::new_stream(self, stream);
         encoder.read_to_end(&mut compressed_data)?;
+
+        if compressed_data.len() < 13 {
+            return Err(RLibError::DataCannotBeCompressed);
+        }
+
         fixed_data.extend_from_slice(&compressed_data[..5]);
         fixed_data.extend_from_slice(&compressed_data[13..]);
 

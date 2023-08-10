@@ -152,8 +152,10 @@ impl Pack {
 
                 let mut has_been_compressed = false;
                 if self.compress && file.is_compressible() {
-                    data = data.compress()?;
-                    has_been_compressed = true;
+                    if let Ok(data_compressed) = data.compress() {
+                        data = data_compressed;
+                        has_been_compressed = true;
+                    }
                 }
 
                 // 6 because 4 (size) + 1 (compressed?) + 1 (null), 10 because + 4 (timestamp).
