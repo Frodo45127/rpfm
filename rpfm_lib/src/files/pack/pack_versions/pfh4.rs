@@ -157,9 +157,6 @@ impl Pack {
             .into_par_iter()
             .unzip();
 
-        let files_index = files_index.into_par_iter().flatten().collect::<Vec<_>>();
-        let files_data = files_data.into_par_iter().flatten().collect::<Vec<_>>();
-
         // Build the dependencies index on memory. This one is never big, so no need of par_iter.
         let mut dependencies_index = vec![];
         for dependency in &self.dependencies {
@@ -173,7 +170,7 @@ impl Pack {
         header.write_u32(self.dependencies.len() as u32)?;
         header.write_u32(dependencies_index.len() as u32)?;
         header.write_u32(sorted_files.len() as u32)?;
-        header.write_u32(files_index.len() as u32)?;
+        header.write_u32(files_index.par_iter().map(|x| x.len() as u32).sum())?;
 
         // If we're not in testing mode, update the header timestamp.
         if nullify_dates {
@@ -187,8 +184,14 @@ impl Pack {
         // Finally, write everything in one go.
         buffer.write_all(&header)?;
         buffer.write_all(&dependencies_index)?;
-        buffer.write_all(&files_index)?;
-        buffer.write_all(&files_data)?;
+
+        for index in files_index {
+            buffer.write_all(&index)?;
+        }
+
+        for data in files_data {
+            buffer.write_all(&data)?;
+        }
 
         Ok(())
     }
