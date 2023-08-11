@@ -721,13 +721,13 @@ pub unsafe fn build_columns(
             match field.field_type() {
                 FieldType::Boolean => table_view.set_column_width(index as i32, COLUMN_SIZE_BOOLEAN),
                 FieldType::F32 => table_view.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
-                FieldType::F64 => table_view.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
+                FieldType::F64 => table_view.set_column_width(index as i32, COLUMN_SIZE_NUMBER * 2),
                 FieldType::I16 => table_view.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
                 FieldType::I32 => table_view.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
-                FieldType::I64 => table_view.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
+                FieldType::I64 => table_view.set_column_width(index as i32, COLUMN_SIZE_NUMBER * 2),
                 FieldType::OptionalI16 => table_view.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
                 FieldType::OptionalI32 => table_view.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
-                FieldType::OptionalI64 => table_view.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
+                FieldType::OptionalI64 => table_view.set_column_width(index as i32, COLUMN_SIZE_NUMBER * 2),
                 FieldType::ColourRGB => table_view.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
                 FieldType::StringU8 => table_view.set_column_width(index as i32, COLUMN_SIZE_STRING),
                 FieldType::StringU16 => table_view.set_column_width(index as i32, COLUMN_SIZE_STRING),
@@ -764,7 +764,7 @@ pub unsafe fn build_columns(
                         FieldType::OptionalI32 |
                         FieldType::OptionalI64 |
                         FieldType::ColourRGB => {
-                            let mut size = model.horizontal_header_item(index as i32).text().length() * 6 + 30;
+                            let mut size = model.horizontal_header_item(index as i32).text().length() * 6 + 40;
 
                             // Fix some columns getting their title eaten by description icon.
                             if size < 60 {
