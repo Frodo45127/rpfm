@@ -1134,6 +1134,8 @@ impl GlobalSearchUI {
                         column_name.set_text(&QString::from_std_str(match_row.column_name()));
                         row.set_data_2a(&QVariant::from_i64(match_row.row_number() + 1), 2);
                         column_number.set_data_2a(&QVariant::from_uint(*match_row.column_number()), 2);
+                        start.set_data_2a(&QVariant::from_uint(*match_row.start() as u32), 2);
+                        end.set_data_2a(&QVariant::from_uint(*match_row.end() as u32), 2);
 
                         // Add an empty row to the list.
                         qlist_boi.append_q_standard_item(&text.into_ptr().as_mut_raw_ptr());
