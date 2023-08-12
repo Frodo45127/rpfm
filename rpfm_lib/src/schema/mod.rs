@@ -235,6 +235,22 @@ pub enum FieldType {
 /// Implementation of `Schema`.
 impl Schema {
 
+    /// This function will save a new patch to the local patches list.
+    pub fn new_patch(&mut self, patches: &HashMap<String, DefinitionPatch>, path: &Path) -> Result<()> {
+        let mut file = BufReader::new(File::open(path)?);
+        let mut data = Vec::with_capacity(file.get_ref().metadata()?.len() as usize);
+        file.read_to_end(&mut data)?;
+        let mut local_patches: HashMap<String, DefinitionPatch> = from_bytes(&data)?;
+
+        Self::add_patch_to_patch_set(&mut local_patches, patches);
+
+        let mut file = BufWriter::new(File::create(path)?);
+        let config = PrettyConfig::default();
+        file.write_all(to_string_pretty(&local_patches, config)?.as_bytes())?;
+
+        Ok(())
+    }
+
     /// This function retrieves a value from a patch for a specific table, column and key.
     pub fn patch_value(&self, table_name: &str, column_name: &str, key: &str) -> Option<&String> {
         self.patches.get(table_name)?.get(column_name)?.get(key)
@@ -248,9 +264,9 @@ impl Schema {
     /// This function adds a list of patches into the currently loaded schema.
     ///
     /// Note: if you add a patch, you'll need to re-retrieve any definition you retrieved before in order for them to get patched.
-    pub fn add_patch(&mut self, patches: HashMap<String, DefinitionPatch>) {
+    pub fn add_patch_to_patch_set(patch_set: &mut HashMap<String, DefinitionPatch>, patches: &HashMap<String, DefinitionPatch>) {
         patches.iter().for_each(|(table_name, column_patch)| {
-            match self.patches.get_mut(table_name) {
+            match patch_set.get_mut(table_name) {
                 Some(column_patch_current) => {
                     column_patch.iter().for_each(|(column_name, patch)| {
                         match column_patch_current.get_mut(column_name) {
@@ -262,7 +278,7 @@ impl Schema {
                     });
                 }
                 None => {
-                    self.patches.insert(table_name.to_owned(), column_patch.clone());
+                    patch_set.insert(table_name.to_owned(), column_patch.clone());
                 }
             }
         });
@@ -338,15 +354,31 @@ impl Schema {
     }
 
     /// This function loads a [Schema] to memory from a provided `.ron` file.
-    pub fn load(path: &Path) -> Result<Self> {
+    pub fn load(path: &Path, local_patches: Option<&Path>) -> Result<Self> {
         let mut file = BufReader::new(File::open(path)?);
         let mut data = Vec::with_capacity(file.get_ref().metadata()?.len() as usize);
         file.read_to_end(&mut data)?;
         let mut schema: Self = from_bytes(&data)?;
+        let mut patches = schema.patches().clone();
+
+        // If we got local patches, add them to the patches list.
+        //
+        // NOTE: we separate the patches from the schemas because otherwise an schema edit will save local patches into the schema,
+        // and we want them to remain local.
+        if let Some(path) = local_patches {
+            if let Ok(file) = File::open(path) {
+                let mut file = BufReader::new(file);
+                let mut data = Vec::with_capacity(file.get_ref().metadata()?.len() as usize);
+                file.read_to_end(&mut data)?;
+                if let Ok(local_patches) = from_bytes::<HashMap<String, DefinitionPatch>>(&data) {
+                    Self::add_patch_to_patch_set(&mut patches, &local_patches);
+                }
+            }
+        }
 
         // Preload all patches to their respective definitions.
-        for (table_name, patches) in schema.patches().clone() {
-            if let Some(definitions) = schema.definitions_by_table_name_mut(&table_name) {
+        for (table_name, patches) in &patches {
+            if let Some(definitions) = schema.definitions_by_table_name_mut(table_name) {
                 for definition in definitions {
                     definition.set_patches(patches.clone());
                 }
@@ -393,7 +425,7 @@ impl Schema {
             // Fix for empty dependencies, again.
             definitions.iter_mut().for_each(|definition| {
                 definition.fields.iter_mut().for_each(|field| {
-                    if let Some((ref_table, ref_column)) = field.is_reference() {
+                    if let Some((ref_table, ref_column)) = field.is_reference(None) {
                         if ref_table.trim().is_empty() || ref_column.trim().is_empty() {
                             dbg!(&table_name);
                             dbg!(field.name());
@@ -439,7 +471,7 @@ impl Schema {
             let mut schema_path = schema_folder_path.to_owned();
             schema_path.push(schema_file);
 
-            let mut schema = Schema::load(&schema_path)?;
+            let mut schema = Schema::load(&schema_path, None)?;
             schema_path.set_extension("json");
             schema.save_json(&schema_path)?;
             Ok(())
@@ -484,9 +516,10 @@ impl Schema {
 
             let references = definitions.par_iter().filter_map(|(ver_name, ver_definitions)| {
                 let mut references = ver_definitions.iter().filter_map(|ver_definition| {
+                    let ver_patches = Some(ver_definition.patches());
                     let references = ver_definition.fields_processed().iter().filter_map(|ver_field| {
-                        if let Some((source_table_name, source_column_name)) = ver_field.is_reference() {
-                            if &table_name_no_tables == source_table_name && field.name() == source_column_name {
+                        if let Some((source_table_name, source_column_name)) = ver_field.is_reference(ver_patches) {
+                            if table_name_no_tables == source_table_name && field.name() == source_column_name {
                                 Some(ver_field.name().to_owned())
                             } else { None }
                         } else { None }
@@ -623,30 +656,60 @@ impl Definition {
                     match split_colour_fields.get_mut(&colour_index) {
 
                         // If found, add the default value to the other previously known default value.
-                        // TODO: fix the combined default value of colour columns.
                         Some(field) => {
-                            let colour_split = x.name().rsplitn(2, '_').collect::<Vec<&str>>();
-                            let colour_field_name = if colour_split.len() == 2 { format!("{}{}", colour_split[1].to_lowercase(), MERGE_COLOUR_POST) } else { format!("{}_{}", MERGE_COLOUR_NO_NAME.to_lowercase(), colour_index) };
+                            let default_value = match x.default_value(None) {
+                                Some(default_value) => {
+                                    if x.name.ends_with("_r") || x.name.ends_with("_red") || x.name == "r" || x.name == "red" {
+                                        field.default_value.clone().map(|df| {
+                                            format!("{:X}{}", default_value.parse::<i32>().unwrap_or(0), &df[2..])
+                                        })
+                                    } else if x.name.ends_with("_g") || x.name.ends_with("_green") || x.name == "g" || x.name == "green" {
+                                        field.default_value.clone().map(|df| {
+                                            format!("{}{:X}{}", &df[..2], default_value.parse::<i32>().unwrap_or(0), &df[4..])
+                                        })
+                                    } else if x.name.ends_with("_b") || x.name.ends_with("_blue") || x.name == "b" || x.name == "blue" {
+                                        field.default_value.clone().map(|df| {
+                                            format!("{}{:X}", &df[..4], default_value.parse::<i32>().unwrap_or(0))
+                                        })
+                                    } else {
+                                        Some("000000".to_owned())
+                                    }
+                                }
+                                None => Some("000000".to_owned())
+                            };
 
-                            let mut field = x.clone();
-                            field.set_name(colour_field_name);
-                            field.set_field_type(FieldType::ColourRGB);
-
-                            // We need to fix the default value so it's a ColourRGB one.
-                            field.set_default_value(Some("000000".to_owned()));
-
-                            split_colour_fields.insert(colour_index, field);
+                            // Update the default value with the one for this colour.
+                            field.set_default_value(default_value);
                         },
                         None => {
                             let colour_split = x.name().rsplitn(2, '_').collect::<Vec<&str>>();
-                            let colour_field_name = if colour_split.len() == 2 { format!("{}{}", colour_split[1].to_lowercase(), MERGE_COLOUR_POST) } else { format!("{}_{}", MERGE_COLOUR_NO_NAME.to_lowercase(), colour_index) };
+                            let colour_field_name = if colour_split.len() == 2 {
+                                format!("{}{}", colour_split[1].to_lowercase(), MERGE_COLOUR_POST)
+                            } else {
+                                format!("{}_{}", MERGE_COLOUR_NO_NAME.to_lowercase(), colour_index)
+                            };
 
                             let mut field = x.clone();
                             field.set_name(colour_field_name);
                             field.set_field_type(FieldType::ColourRGB);
 
                             // We need to fix the default value so it's a ColourRGB one.
-                            field.set_default_value(Some("000000".to_owned()));
+                            let default_value = match field.default_value(None) {
+                                Some(default_value) => {
+                                    if x.name.ends_with("_r") || x.name.ends_with("_red") || x.name == "r" || x.name == "red" {
+                                        Some(format!("{:X}0000", default_value.parse::<i32>().unwrap_or(0)))
+                                    } else if x.name.ends_with("_g") || x.name.ends_with("_green") || x.name == "g" || x.name == "green" {
+                                        Some(format!("00{:X}00", default_value.parse::<i32>().unwrap_or(0)))
+                                    } else if x.name.ends_with("_b") || x.name.ends_with("_blue") || x.name == "b" || x.name == "blue" {
+                                        Some(format!("0000{:X}", default_value.parse::<i32>().unwrap_or(0)))
+                                    } else {
+                                        Some("000000".to_owned())
+                                    }
+                                }
+                                None => Some("000000".to_owned())
+                            };
+
+                            field.set_default_value(default_value);
 
                             split_colour_fields.insert(colour_index, field);
                         }
@@ -867,47 +930,97 @@ impl Field {
     pub fn is_key(&self, schema_patches: Option<&DefinitionPatch>) -> bool {
         if let Some(schema_patches) = schema_patches {
             if let Some(patch) = schema_patches.get(self.name()) {
-                if let Some(is_key) = patch.get("is_key") {
-                    return is_key.parse().unwrap_or(false);
+                if let Some(field_patch) = patch.get("is_key") {
+                    return field_patch.parse().unwrap_or(false);
                 }
             }
         }
 
         self.is_key
     }
+
     pub fn default_value(&self, schema_patches: Option<&DefinitionPatch>) -> Option<String> {
         if let Some(schema_patches) = schema_patches {
             if let Some(patch) = schema_patches.get(self.name()) {
-                if let Some(default_value) = patch.get("default_value") {
-                    return Some(default_value.to_string());
+                if let Some(field_patch) = patch.get("default_value") {
+                    return Some(field_patch.to_string());
                 }
             }
         }
 
         self.default_value.clone()
     }
-    pub fn is_filename(&self) -> bool {
+
+    pub fn is_filename(&self, schema_patches: Option<&DefinitionPatch>) -> bool {
+        if let Some(schema_patches) = schema_patches {
+            if let Some(patch) = schema_patches.get(self.name()) {
+                if let Some(field_patch) = patch.get("is_filename") {
+                    return field_patch.parse().unwrap_or(false);
+                }
+            }
+        }
+
         self.is_filename
     }
-    pub fn filename_relative_path(&self) -> &Option<String>{
-        &self.filename_relative_path
+
+    pub fn filename_relative_path(&self, schema_patches: Option<&DefinitionPatch>) -> Option<String> {
+        if let Some(schema_patches) = schema_patches {
+            if let Some(patch) = schema_patches.get(self.name()) {
+                if let Some(field_patch) = patch.get("filename_relative_path") {
+                    return Some(field_patch.to_string());
+                }
+            }
+        }
+
+        self.filename_relative_path.clone()
     }
-    pub fn is_reference(&self) -> &Option<(String,String)>{
-        &self.is_reference
+
+    pub fn is_reference(&self, schema_patches: Option<&DefinitionPatch>) -> Option<(String,String)> {
+        if let Some(schema_patches) = schema_patches {
+            if let Some(patch) = schema_patches.get(self.name()) {
+                if let Some(field_patch) = patch.get("is_reference") {
+                    let split = field_patch.splitn(2, ";").collect::<Vec<_>>();
+                    if split.len() == 2 {
+                        return Some((split[0].to_string(), split[1].to_string()));
+                    }
+                }
+            }
+        }
+
+        self.is_reference.clone()
     }
-    pub fn lookup(&self) -> &Option<Vec<String> >{
-        &self.lookup
+
+    pub fn lookup(&self, schema_patches: Option<&DefinitionPatch>) -> Option<Vec<String>> {
+        if let Some(schema_patches) = schema_patches {
+            if let Some(patch) = schema_patches.get(self.name()) {
+                if let Some(field_patch) = patch.get("lookup") {
+                    return Some(field_patch.split(";").map(|x| x.to_string()).collect());
+                }
+            }
+        }
+
+        self.lookup.clone()
     }
-    pub fn description(&self) -> &str {
-        &self.description
+
+    pub fn description(&self, schema_patches: Option<&DefinitionPatch>) -> String {
+        if let Some(schema_patches) = schema_patches {
+            if let Some(patch) = schema_patches.get(self.name()) {
+                if let Some(field_patch) = patch.get("description") {
+                    return field_patch.to_owned();
+                }
+            }
+        }
+
+        self.description.to_owned()
     }
+
     pub fn ca_order(&self) ->  i16 {
         self.ca_order
     }
     pub fn is_bitwise(&self) -> i32 {
         self.is_bitwise
     }
-    pub fn enum_values(&self) -> &BTreeMap<i32,String>{
+    pub fn enum_values(&self) -> &BTreeMap<i32,String> {
         &self.enum_values
     }
 
@@ -937,19 +1050,6 @@ impl Field {
         }
 
         false
-    }
-
-    /// Getter for the `explanation` field for schema patches.
-    pub fn schema_patch_explanation(&self, schema_patches: Option<&DefinitionPatch>) -> String {
-        if let Some(schema_patches) = schema_patches {
-            if let Some(patch) = schema_patches.get(self.name()) {
-                if let Some(explanation) = patch.get("explanation") {
-                    return explanation.to_string();
-                }
-            }
-        }
-
-        String::new()
     }
 }
 

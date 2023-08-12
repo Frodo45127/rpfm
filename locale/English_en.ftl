@@ -1218,18 +1218,6 @@ label_value_cannot_be_empty = Value Cannot be Empty:
 value_cannot_be_empty_explanation = The value of this column cannot be empty. This basically means your game may crash if you leave a value of this column empty.
     If you think this is a false positive, feel free to submit a schema patch to fix it.
 
-context_menu_patch_column = Patch Column Definition
-new_schema_patch_dialog = Schema Patcher
-schema_patch_instructions = This allows you to submit a patch of the currently selected column in the table.
-
-    Submitted Patches are distributed (if approved) as part of a Schema update.
-
-default_value = Default Value
-not_empty = Cannot Be Empty
-explanation = Explanation
-explanation_placeholder_text = Why this patch is needed. Submissions are anonymous, so patches without explanation will probably be rejected.
-schema_patch_submitted_correctly = Schema Patch submitted correctly.
-
 context_menu_find_references = Find References
 gen_loc_references = References
 reference_search_data_source = Data Source
@@ -1401,3 +1389,29 @@ update_no_local_old_ak = <p>No local Old AK (Empire/Napoleon) data found. Do you
 old_ak_update_success = <h4>Old AK Data updated.</h4><p>You can continue using RPFM now, but remember to regenerate the dependencies cache for Empire and Napoleon, so the Old AK data is added to it.</p>
 portrait_settings_file_icon_label = Icons
 settings_enable_icons = Enable Icons
+
+context_menu_patch_column = Patch Column
+new_column_patch_dialog = Column Patcher
+column_patch_instructions = <p>This allows you to make a patch for the currently selected column. What each option does:</p>
+    <ul>
+        <li><b>Is Key</b>: The column will be treated like a key column.</li>
+        <li><b>Default Value</b>: If set, this value will be used as default when creating new rows.</li>
+        <li><b>Is File</b>: Check it if the column is meant to be referencing a file (NOT A FOLDER), either its name or its full path.</li>
+        <li><b>File Relative Path</b>: If the column is meant to be referencing a file (NOT A FOLDER) and it doesn't contain the full path, put the path here, replacing whatever is in the column with %. For example, if the column is a file name without extension, put "path/to/file/%.extension</li>
+        <li><b>Reference Data</b>: If the column is meant to reference another table's column, put here the table name without the "_tables" ending and the column name, separated with ";". For example, "abilities;key" for a column referencing the table "abilities", and the column "key".</li>
+        <li><b>Lookup Columns</b>: List of column names, separated with ";", which will be shown as lookups in each cell. Only works on columns referencing other tables (valid values: columns on the other table or loc columns dependant on the other table), or on key columnns on single-key tables (valid values: columns on this table or loc columns dependant on this table).</li>
+        <li><b>Cannot Be Empty</b>: If empty values should be marked as errors in diagnostics.</li>
+        <li><b>Description</b>: Text that can be added to the column description that appears on a tooltip when you hover over the column title.</li>
+    </ul>
+
+    <p>If you think a patch can improve RPFM's usability for everyone, feel free to share it with the tool's author so it can be distributed in a schema update.</p>
+
+is_key = Is Key
+default_value = Default Value
+is_filename = Is File
+filename_relative_path = File Relative Path
+is_reference = Reference Data
+lookup = Lookup Columns
+not_empty = Cannot Be Empty
+description = Description
+patch_success = Patch saved correctly. It'll be used from the next time you restart RPFM onwards.

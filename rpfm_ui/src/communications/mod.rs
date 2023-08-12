@@ -320,8 +320,7 @@ pub enum Command {
     /// This command is used to request all notes under a path, no matter their source.
     NotesForPath(String),
 
-    /// This command is used to upload a schema patch.
-    UploadSchemaPatch(String, HashMap<String, DefinitionPatch>),
+    SaveLocalSchemaPatch(HashMap<String, DefinitionPatch>),
 
     /// This command is used to import a schema patch in the local schema patches.
     ImportSchemaPatch(HashMap<String, DefinitionPatch>),

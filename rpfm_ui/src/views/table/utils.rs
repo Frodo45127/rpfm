@@ -475,8 +475,8 @@ pub unsafe fn load_data(
         let icons: BTreeMap<i32, (String, HashMap<String, AtomicPtr<QIcon>>)> = if enable_icons {
             let mut map = BTreeMap::new();
             for (column, field) in fields_processed.iter().enumerate() {
-                if field.is_filename() {
-                    let _ = request_backend_files(&data, column, field, &mut map);
+                if field.is_filename(patches) {
+                    let _ = request_backend_files(&data, column, field, patches, &mut map);
                 }
             }
             map
@@ -693,7 +693,7 @@ pub unsafe fn build_columns(
     model.set_column_count(fields_processed.len() as i32);
 
     let patches = Some(definition.patches());
-    let tooltips = get_column_tooltips(&schema, &fields_processed, table_name);
+    let tooltips = get_column_tooltips(&schema, &fields_processed, patches, table_name);
     let adjust_columns = setting_bool("adjust_columns_to_content");
     let header = table_view.horizontal_header();
 
@@ -709,7 +709,7 @@ pub unsafe fn build_columns(
         let item = QStandardItem::from_q_string(&QString::from_std_str(name));
         if let Some(ref tooltip) = tooltips.get(index) {
             item.set_tool_tip(&QString::from_std_str(tooltip));
-            if !field.description().is_empty() {
+            if !field.description(patches).is_empty() {
                 item.set_icon(&description_icon);
             }
         }   
@@ -859,6 +859,7 @@ pub unsafe fn build_columns(
 pub unsafe fn get_column_tooltips(
     schema: &Option<Schema>,
     fields: &[Field],
+    patches: Option<&DefinitionPatch>,
     table_name: Option<&str>,
 ) -> Vec<String> {
 
@@ -874,19 +875,19 @@ pub unsafe fn get_column_tooltips(
             let ref_definitions = schema.definitions();
             tooltips = fields.par_iter().map(|field| {
                 let mut tooltip_text = String::new();
-                if !field.description().is_empty() {
-                    tooltip_text.push_str(&format!("<p>{}</p>", field.description()));
+                if !field.description(patches).is_empty() {
+                    tooltip_text.push_str(&format!("<p>{}</p>", field.description(patches)));
                 }
 
-                if field.is_filename() {
-                    if let Some(path) = field.filename_relative_path() {
+                if field.is_filename(patches) {
+                    if let Some(path) = field.filename_relative_path(patches) {
                         tooltip_text.push_str(&format!("<p>{} <ul><li>{}</li></ul></p>", tr("column_tooltip_5"), path));
                     } else {
                         tooltip_text.push_str(&format!("<p>{}</p>", tr("column_tooltip_4")));
                     }
                 }
 
-                if let Some(ref reference) = field.is_reference() {
+                if let Some(ref reference) = field.is_reference(patches) {
                     tooltip_text.push_str(&format!("<p>{}</p><p><i>\"{}/{}\"</i></p>", tr("column_tooltip_1"), reference.0, reference.1));
                 }
 
@@ -899,8 +900,9 @@ pub unsafe fn get_column_tooltips(
                         for (ref_table_name, ref_definition) in ref_definitions.iter() {
                             let mut found = false;
                             for ref_version in ref_definition {
+                                let ref_patches = Some(ref_version.patches());
                                 for ref_field in ref_version.fields_processed() {
-                                    if let Some((ref_ref_table, ref_ref_field)) = ref_field.is_reference() {
+                                    if let Some((ref_ref_table, ref_ref_field)) = ref_field.is_reference(ref_patches) {
                                         if ref_ref_table == short_table_name && ref_ref_field == field.name() {
                                             found = true;
                                             columns.push((ref_table_name.to_owned(), ref_field.name().to_owned()));
@@ -1148,8 +1150,9 @@ pub unsafe fn open_subtable(
     } else { None }
 }
 
-pub unsafe fn request_backend_files(data: &[Vec<DecodedData>], column: usize, field: &Field, map: &mut BTreeMap<i32, (String, HashMap<String, AtomicPtr<QIcon>>)>) -> Result<()> {
-    let base_path = field.filename_relative_path().as_deref().unwrap_or("%");
+pub unsafe fn request_backend_files(data: &[Vec<DecodedData>], column: usize, field: &Field, patches: Option<&DefinitionPatch>, map: &mut BTreeMap<i32, (String, HashMap<String, AtomicPtr<QIcon>>)>) -> Result<()> {
+    let relative_path = field.filename_relative_path(patches);
+    let base_path = relative_path.as_deref().unwrap_or("%");
     let paths = data.par_iter().map(|entry| ContainerPath::File(base_path.replace('%', &entry[column].data_to_string()))).collect::<Vec<_>>();
 
     if !paths.is_empty() {

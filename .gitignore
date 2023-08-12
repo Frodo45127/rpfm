@@ -64,6 +64,9 @@
 # Ignore autogen folder on debug builds.
 /tw_autogen/
 
+# Ignore the table patches.
+/table_patches/
+
 # Ignore the table profiles.
 /table_profiles/
 

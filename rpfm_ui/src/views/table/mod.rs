@@ -2497,13 +2497,14 @@ impl TableView {
             // If the edited column has icons we need to fetch the new icon from the backend and apply it.
             if setting_bool("enable_icons") {
                 let definition = self.table_definition();
+                let patches = Some(definition.patches());
                 let fields_processed = definition.fields_processed();
                 let field = &fields_processed[item.column() as usize];
-                if field.is_filename() {
+                if field.is_filename(patches) {
                     let mut icons = BTreeMap::new();
                     let data = vec![vec![get_field_from_view(&self.table_model.static_upcast(), field, item.row(), item.column())]];
 
-                    if request_backend_files(&data, 0, &field, &mut icons).is_ok() {
+                    if request_backend_files(&data, 0, &field, patches, &mut icons).is_ok() {
                         if let Some(column_data) = icons.get(&0) {
                             let path = column_data.0.replace('%', &data[0][0].data_to_string()).to_lowercase();
                             if let Some(icon) = column_data.1.get(&path) {
@@ -2703,57 +2704,125 @@ impl TableView {
         let ui_loader = QUiLoader::new_0a();
         let main_widget = ui_loader.load_bytes_with_parent(&data, &self.table_view);
 
-        let schema_patch_instructions_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "schema_patch_instructions_label")?;
+        let instructions_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "instructions_label")?;
+        let is_key_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "is_key_label")?;
         let default_value_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "default_value_label")?;
+        let is_filename_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "is_filename_label")?;
+        let filename_relative_path_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "filename_relative_path_label")?;
+        let is_reference_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "is_reference_label")?;
+        let lookup_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "lookup_label")?;
         let not_empty_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "not_empty_label")?;
-        let explanation_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "explanation_label")?;
+        let description_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "description_label")?;
 
-        let button_box: QPtr<QDialogButtonBox> = find_widget(&main_widget.static_upcast(), "button_box")?;
+        let is_key_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "is_key_checkbox")?;
         let default_value_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "default_value_line_edit")?;
+        let is_filename_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "is_filename_checkbox")?;
+        let filename_relative_path_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "filename_relative_path_line_edit")?;
+        let is_reference_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "is_reference_line_edit")?;
+        let lookup_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "lookup_line_edit")?;
         let not_empty_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "not_empty_checkbox")?;
-        let explanation_text_edit: QPtr<QTextEdit> = find_widget(&main_widget.static_upcast(), "explanation_text_edit")?;
+        let description_text_edit: QPtr<QTextEdit> = find_widget(&main_widget.static_upcast(), "description_text_edit")?;
+        let button_box: QPtr<QDialogButtonBox> = find_widget(&main_widget.static_upcast(), "button_box")?;
 
         let dialog = main_widget.static_downcast::<QDialog>();
         button_box.button(StandardButton::Cancel).released().connect(dialog.slot_close());
         button_box.button(StandardButton::Ok).released().connect(dialog.slot_accept());
 
         // Setup translations.
-        dialog.set_window_title(&qtr("new_schema_patch_dialog"));
-        schema_patch_instructions_label.set_text(&qtr("schema_patch_instructions"));
+        dialog.set_window_title(&qtr("new_column_patch_dialog"));
+        instructions_label.set_text(&qtr("column_patch_instructions"));
+        is_key_label.set_text(&qtr("is_key"));
         default_value_label.set_text(&qtr("default_value"));
+        is_filename_label.set_text(&qtr("is_filename"));
+        filename_relative_path_label.set_text(&qtr("filename_relative_path"));
+        is_reference_label.set_text(&qtr("is_reference"));
+        lookup_label.set_text(&qtr("lookup"));
         not_empty_label.set_text(&qtr("not_empty"));
-        explanation_label.set_text(&qtr("explanation"));
-        explanation_text_edit.set_placeholder_text(&qtr("explanation_placeholder_text"));
+        description_label.set_text(&qtr("description"));
 
         // Setup data.
-        if let Some(default_value) = field.default_value(Some(self.table_definition().patches())) {
-            default_value_line_edit.set_text(&QString::from_std_str(default_value));
+        let definition = self.table_definition();
+        let patches = Some(definition.patches());
+
+        is_key_checkbox.set_checked(field.is_key(patches));
+
+        if let Some(value) = field.default_value(patches) {
+            default_value_line_edit.set_text(&QString::from_std_str(value));
         }
+
+        is_filename_checkbox.set_checked(field.is_filename(patches));
+
+        if let Some(value) = field.filename_relative_path(patches) {
+            filename_relative_path_line_edit.set_text(&QString::from_std_str(value));
+        }
+
+        if let Some(value) = field.is_reference(patches) {
+            is_reference_line_edit.set_text(&QString::from_std_str(&format!("{};{}", value.0, value.1)));
+        }
+
+        if let Some(value) = field.lookup(patches) {
+            lookup_line_edit.set_text(&QString::from_std_str(&value.join(";")));
+        }
+
         not_empty_checkbox.set_checked(field.cannot_be_empty(Some(self.table_definition().patches())));
-        explanation_text_edit.set_text(&QString::from_std_str(field.schema_patch_explanation(Some(self.table_definition().patches()))));
+        description_text_edit.set_text(&QString::from_std_str(field.description(patches)));
 
         // Launch.
         if dialog.exec() == 1 {
-            if explanation_text_edit.to_plain_text().to_std_string() == "" {
-                show_dialog(&self.table_view, tr("schema_patch_submitted_with_empty_explanation"), false);
-                return Ok(())
-            }
-
             let mut column_data = HashMap::new();
 
-            column_data.insert("default_value".to_owned(), default_value_line_edit.text().to_std_string());
-            column_data.insert("not_empty".to_owned(), not_empty_checkbox.is_checked().to_string());
-            column_data.insert("explanation".to_owned(), explanation_text_edit.to_plain_text().to_std_string());
+            // Only save the values that have changed.
+            if field.is_key(patches) != is_key_checkbox.is_checked() {
+                column_data.insert("is_key".to_owned(), is_key_checkbox.is_checked().to_string());
+            }
+
+            let default_value = field.default_value(patches);
+            let default_value_new = default_value_line_edit.text().to_std_string();
+            if !default_value_new.is_empty() && (default_value.is_none() || default_value.unwrap() != default_value_new) {
+                column_data.insert("default_value".to_owned(), default_value_line_edit.text().to_std_string());
+            }
+
+            if field.is_filename(patches) != is_filename_checkbox.is_checked() {
+                column_data.insert("is_filename".to_owned(), is_filename_checkbox.is_checked().to_string());
+            }
+
+            let relative_value = field.filename_relative_path(patches);
+            let relative_value_new = filename_relative_path_line_edit.text().to_std_string();
+            if !relative_value_new.is_empty() && (relative_value.is_none() || relative_value.unwrap() != relative_value_new) {
+                column_data.insert("filename_relative_path".to_owned(), filename_relative_path_line_edit.text().to_std_string());
+            }
+
+            let is_reference_value = field.is_reference(patches);
+            let is_reference_value_new = is_reference_line_edit.text().to_std_string();
+            if !is_reference_value_new.is_empty() && (is_reference_value.is_none() || format!("{};{}", is_reference_value.as_ref().unwrap().0, is_reference_value.as_ref().unwrap().1) != is_reference_value_new) {
+                column_data.insert("is_reference".to_owned(), is_reference_line_edit.text().to_std_string());
+            }
+
+            let lookup_value = field.lookup(patches);
+            let lookup_value_new = lookup_line_edit.text().to_std_string();
+            if !lookup_value_new.is_empty() && (lookup_value.is_none() || lookup_value.unwrap().join(";") != lookup_value_new) {
+                column_data.insert("lookup".to_owned(), lookup_line_edit.text().to_std_string());
+            }
+
+            if field.cannot_be_empty(patches) != not_empty_checkbox.is_checked() {
+                column_data.insert("not_empty".to_owned(), not_empty_checkbox.is_checked().to_string());
+            }
+
+            let description_value = field.description(patches);
+            let description_value_new = description_text_edit.to_plain_text().to_std_string();
+            if !description_value_new.is_empty() && description_value_new != description_value {
+                column_data.insert("description".to_owned(), description_value_new);
+            }
 
             let mut patch = HashMap::new();
             let mut table_data = HashMap::new();
             table_data.insert(field.name().to_owned(), column_data);
             patch.insert(edited_table_name.to_owned(), table_data);
 
-            let receiver = CENTRAL_COMMAND.send_background(Command::UploadSchemaPatch(edited_table_name, patch));
+            let receiver = CENTRAL_COMMAND.send_background(Command::SaveLocalSchemaPatch(patch));
             let response = CentralCommand::recv(&receiver);
             match response {
-                Response::Success => show_dialog(&self.table_view, tr("schema_patch_submitted_correctly"), true),
+                Response::Success => show_dialog(&self.table_view, tr("patch_success"), true),
                 Response::Error(error) => return Err(error),
                 _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
             }
@@ -2829,7 +2898,7 @@ impl TableView {
                 FileType::DB => {
                     let index = self.table_filter.map_to_source(self.table_view.selection_model().selection().indexes().at(0));
                     if let Some(field) = self.table_definition().fields_processed().get(index.column() as usize) {
-                        if let Some((ref_table, ref_column)) = field.is_reference() {
+                        if let Some((ref_table, ref_column)) = field.is_reference(Some(self.table_definition().patches())) {
                             Some((ref_table.to_owned(), ref_column.to_owned(), vec![index.data_0a().to_string().to_std_string()]))
                         } else { None }
                     } else { None }

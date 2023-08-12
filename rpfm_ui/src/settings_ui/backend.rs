@@ -22,13 +22,16 @@ use qt_widgets::QMainWindow;
 use qt_core::QPtr;
 
 use anyhow::{anyhow, Result};
+use ron::ser::{PrettyConfig, to_string_pretty};
 
-use std::fs::DirBuilder;
+use std::collections::HashMap;
+use std::fs::{DirBuilder, File};
+use std::io::{BufWriter, Write};
 use std::path::PathBuf;
 
 use rpfm_lib::error::RLibError;
 use rpfm_lib::games::{*, supported_games::*};
-use rpfm_lib::schema::SCHEMA_FOLDER;
+use rpfm_lib::schema::{SCHEMA_FOLDER, DefinitionPatch};
 
 pub use rpfm_ui_common::settings::*;
 
@@ -40,6 +43,7 @@ use crate::updater::STABLE;
 pub const MYMOD_BASE_PATH: &str = "mymods_base_path";
 
 const DEPENDENCIES_FOLDER: &str = "dependencies";
+const TABLE_PATCHES_FOLDER: &str = "table_patches";
 const TABLE_PROFILES_FOLDER: &str = "table_profiles";
 
 //-------------------------------------------------------------------------------//
@@ -177,8 +181,21 @@ pub fn init_config_path() -> Result<()> {
     DirBuilder::new().recursive(true).create(backup_autosave_path()?)?;
     DirBuilder::new().recursive(true).create(error_path()?)?;
     DirBuilder::new().recursive(true).create(schemas_path()?)?;
+    DirBuilder::new().recursive(true).create(table_patches_path()?)?;
     DirBuilder::new().recursive(true).create(table_profiles_path()?)?;
     DirBuilder::new().recursive(true).create(old_ak_files_path()?)?;
+
+    // Schema patches need their file existing to even save.
+    let games = SupportedGames::default();
+    for game in games.games_sorted() {
+        let path = table_patches_path().unwrap().join(game.schema_file_name());
+        if !path.is_file() {
+            let base: HashMap<String, DefinitionPatch> = HashMap::new();
+            let mut file = BufWriter::new(File::create(path)?);
+            let config = PrettyConfig::default();
+            file.write_all(to_string_pretty(&base, config)?.as_bytes())?;
+        }
+    }
 
     Ok(())
 }
@@ -186,6 +203,10 @@ pub fn init_config_path() -> Result<()> {
 /// This function returns the schema path.
 pub fn schemas_path() -> Result<PathBuf> {
     Ok(config_path()?.join(SCHEMA_FOLDER))
+}
+
+pub fn table_patches_path() -> Result<PathBuf> {
+    Ok(config_path()?.join(TABLE_PATCHES_FOLDER))
 }
 
 pub fn table_profiles_path() -> Result<PathBuf> {

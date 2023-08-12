@@ -882,11 +882,11 @@ impl PackedFileDecoderView {
         field_is_key.set_checkable(true);
         field_is_key.set_check_state(if field.is_key(None) { CheckState::Checked } else { CheckState::Unchecked });
 
-        let (field_reference_table, field_reference_field) = if let Some(ref reference) = field.is_reference() {
+        let (field_reference_table, field_reference_field) = if let Some(ref reference) = field.is_reference(None) {
             (QStandardItem::from_q_string(&QString::from_std_str(&reference.0)), QStandardItem::from_q_string(&QString::from_std_str(&reference.1)))
         } else { (QStandardItem::new(), QStandardItem::new()) };
 
-        let field_lookup_columns = if let Some(ref columns) = field.lookup() {
+        let field_lookup_columns = if let Some(ref columns) = field.lookup(None) {
             QStandardItem::from_q_string(&QString::from_std_str(columns.join(",")))
         } else { QStandardItem::new() };
 
@@ -900,14 +900,14 @@ impl PackedFileDecoderView {
         let field_is_filename = QStandardItem::new();
         field_is_filename.set_editable(false);
         field_is_filename.set_checkable(true);
-        field_is_filename.set_check_state(if field.is_filename() { CheckState::Checked } else { CheckState::Unchecked });
+        field_is_filename.set_check_state(if field.is_filename(None) { CheckState::Checked } else { CheckState::Unchecked });
 
-        let field_filename_relative_path = if let Some(ref filename_relative_path) = field.filename_relative_path() {
+        let field_filename_relative_path = if let Some(ref filename_relative_path) = field.filename_relative_path(None) {
             QStandardItem::from_q_string(&QString::from_std_str(filename_relative_path))
         } else { QStandardItem::new() };
 
         let field_ca_order = QStandardItem::from_q_string(&QString::from_std_str(&format!("{}", field.ca_order())));
-        let field_description = QStandardItem::from_q_string(&QString::from_std_str(field.description()));
+        let field_description = QStandardItem::from_q_string(&QString::from_std_str(field.description(None)));
         let field_enum_values = QStandardItem::from_q_string(&QString::from_std_str(field.enum_values_to_string()));
 
         let field_is_bitwise = QStandardItem::new();

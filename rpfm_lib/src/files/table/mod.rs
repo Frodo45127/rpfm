@@ -1155,9 +1155,10 @@ impl Table {
                 let mut columns: Vec<String> = vec![];
                 for ref_version in ref_definition {
                     let ref_fields = ref_version.fields_processed();
+                    let ref_patches = Some(ref_version.patches());
                     let ref_fields_localised = ref_version.localised_fields();
                     for ref_field in &ref_fields {
-                        if let Some((ref_ref_table, ref_ref_field)) = ref_field.is_reference() {
+                        if let Some((ref_ref_table, ref_ref_field)) = ref_field.is_reference(ref_patches) {
 
                             // As this applies to all versions of a table, skip repeated fields.
                             if ref_ref_table == short_table_name && ref_ref_field == column_name && !columns.iter().any(|x| x == ref_field.name()) {

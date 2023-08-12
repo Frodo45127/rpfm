@@ -383,13 +383,15 @@ impl Dependencies {
 
     /// This function builds the local db references data for the table with the definition you pass to, and returns it.
     pub fn generate_references(&self, definition: &Definition) -> HashMap<i32, TableReferences> {
+        let patches = Some(definition.patches());
+
         definition.fields_processed().into_iter().enumerate().filter_map(|(column, field)| {
-            if let Some((ref ref_table, ref ref_column)) = field.is_reference() {
+            if let Some((ref ref_table, ref ref_column)) = field.is_reference(patches) {
                 if !ref_table.is_empty() && !ref_column.is_empty() {
                     let ref_table = format!("{ref_table}_tables");
 
                     // Get his lookup data if it has it.
-                    let lookup_data = if let Some(ref data) = field.lookup() { data.to_vec() } else { Vec::with_capacity(0) };
+                    let lookup_data = if let Some(ref data) = field.lookup(patches) { data.to_vec() } else { Vec::with_capacity(0) };
                     let mut references = TableReferences::default();
                     *references.field_name_mut() = field.name().to_owned();
 
@@ -927,12 +929,13 @@ impl Dependencies {
                 .collect::<Vec<(_,_)>>()
             ).collect::<HashMap<_,_>>();
 
+        let patches = Some(definition.patches());
         let local_references = definition.fields_processed().into_par_iter().enumerate().filter_map(|(column, field)| {
-            if let Some((ref ref_table, ref ref_column)) = field.is_reference() {
+            if let Some((ref ref_table, ref ref_column)) = field.is_reference(patches) {
                 if !ref_table.is_empty() && !ref_column.is_empty() {
 
                     // Get his lookup data if it has it.
-                    let lookup_data = if let Some(ref data) = field.lookup() { data.to_vec() } else { Vec::with_capacity(0) };
+                    let lookup_data = if let Some(ref data) = field.lookup(patches) { data.to_vec() } else { Vec::with_capacity(0) };
                     let mut references = TableReferences::default();
                     *references.field_name_mut() = field.name().to_owned();
 

@@ -113,7 +113,7 @@ pub fn add(config: &Config, schema_path: &Option<PathBuf>, pack_path: &Path, fil
     // Load the schema if we try to import tsv files.
     let schema = if let Some(schema_path) = schema_path {
         if schema_path.is_file() {
-            Some(Schema::load(schema_path)?)
+            Some(Schema::load(schema_path, None)?)
         } else {
             warn!("Schema path provided, but it doesn't point to a valid schema. Disabling `TSV to Binary`.");
             None
@@ -208,7 +208,7 @@ pub fn extract(config: &Config, schema_path: &Option<PathBuf>, pack_path: &Path,
     // Load the schema if we try to import tsv files.
     let schema = if let Some(schema_path) = schema_path {
         if schema_path.is_file() {
-            Some(Schema::load(schema_path)?)
+            Some(Schema::load(schema_path, None)?)
         } else {
             warn!("Schema path provided, but it doesn't point to a valid schema. Disabling `Table as TSV`.");
             None
@@ -267,7 +267,7 @@ pub fn diagnose(config: &Config, game_path: &Path, pak_path: &Path, schema_path:
     }
 
     // Load both, the schema and the Packs to memory.
-    let schema = Schema::load(schema_path)?;
+    let schema = Schema::load(schema_path, None)?;
     let mut pack = Pack::read_and_merge(pack_paths, true, false)?;
 
     // Prepare the table's extra data,
@@ -292,12 +292,12 @@ pub fn diagnose(config: &Config, game_path: &Path, pak_path: &Path, schema_path:
 
             // Build the dependencies cache for the game and generate the references for our specific Pack.
             let mut dependencies = Dependencies::default();
-            dependencies.rebuild(&Some(schema.clone()), pack.dependencies(), Some(pak_path), game_info, game_path)?;
+            dependencies.rebuild(&Some(schema), pack.dependencies(), Some(pak_path), game_info, game_path)?;
             dependencies.generate_local_db_references(&pack, &tables);
 
             // Trigger a diagnostics check.
             let mut diagnostics = Diagnostics::default();
-            diagnostics.check(&pack, &mut dependencies, game_info, game_path, &[], &schema, false);
+            diagnostics.check(&pack, &mut dependencies, game_info, game_path, &[], false);
 
             if config.verbose {
                 info!("Diagnosed problems in the following Packs:");

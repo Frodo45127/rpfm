@@ -32,7 +32,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use rpfm_lib::error::Result;
 use rpfm_lib::files::{ContainerPath, Container, FileType, pack::Pack, RFile, RFileDecoded, table::DecodedData};
 use rpfm_lib::games::{GameInfo, VanillaDBTableNameLogic};
-use rpfm_lib::schema::{FieldType, Schema};
+use rpfm_lib::schema::FieldType;
 
 use crate::dependencies::{Dependencies, TableReferences};
 use crate::REGEX_INVALID_ESCAPES;
@@ -142,7 +142,7 @@ impl DiagnosticType {
 impl Diagnostics {
 
     /// This function performs a search over the parts of a `PackFile` you specify it, storing his results.
-    pub fn check(&mut self, pack: &Pack, dependencies: &mut Dependencies, game_info: &GameInfo, game_path: &Path, paths_to_check: &[ContainerPath], schema: &Schema, check_ak_only_refs: bool) {
+    pub fn check(&mut self, pack: &Pack, dependencies: &mut Dependencies, game_info: &GameInfo, game_path: &Path, paths_to_check: &[ContainerPath], check_ak_only_refs: bool) {
 
         // Clear the diagnostics first if we're doing a full check, or only the config ones and the ones for the path to update if we're doing a partial check.
         if paths_to_check.is_empty() {
@@ -283,7 +283,6 @@ impl Diagnostics {
                             &ignored_diagnostics,
                             &ignored_diagnostics_for_fields,
                             game_info,
-                            schema,
                             &local_file_path_list,
                             &local_folder_path_list,
                             &table_references,
@@ -333,7 +332,6 @@ impl Diagnostics {
         ignored_diagnostics: &HashSet<String>,
         ignored_diagnostics_for_fields: &HashMap<String, Vec<String>>,
         game_info: &GameInfo,
-        schema: &Schema,
         local_path_list: &HashSet<&str>,
         local_folder_list: &HashSet<String>,
         dependency_data: &HashMap<i32, TableReferences>,
@@ -403,7 +401,6 @@ impl Diagnostics {
             let mut columns_with_reference_table_and_no_column = vec![];
             let mut keys: HashMap<String, Vec<(i32, i32)>> = HashMap::with_capacity(table_data.len());
             let mut duplicated_combined_keys_already_marked = vec![];
-            let schema_patches = schema.patches_for_table(table.table_name());
 
             for (row, cells) in table_data.iter().enumerate() {
                 let mut row_is_empty = true;
@@ -413,10 +410,10 @@ impl Diagnostics {
                     let cell_data = cells[column].data_to_string();
 
                     // Path checks.
-                    if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field.name()), Some("FieldWithPathNotFound"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && !cell_data.is_empty() && fields_processed[column].is_filename() {
+                    if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field.name()), Some("FieldWithPathNotFound"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && !cell_data.is_empty() && fields_processed[column].is_filename(patches) {
                         let mut path_found = false;
                         let paths = {
-                            let path = if let Some(relative_path) = fields_processed[column].filename_relative_path() {
+                            let path = if let Some(relative_path) = fields_processed[column].filename_relative_path(patches) {
                                 relative_path.replace('%', &cell_data)
                             } else {
                                 cell_data.to_string()
@@ -466,7 +463,7 @@ impl Diagnostics {
                     }
 
                     // Dependency checks.
-                    if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field.name()), None, ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && field.is_reference().is_some() {
+                    if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field.name()), None, ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && field.is_reference(patches).is_some() {
                         match dependency_data.get(&(column as i32)) {
                             Some(ref_data) => {
 
@@ -519,7 +516,7 @@ impl Diagnostics {
                         diagnostic.results_mut().push(result);
                     }
 
-                    if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field.name()), Some("ValueCannotBeEmpty"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && cell_data.is_empty() && field.cannot_be_empty(schema_patches) {
+                    if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field.name()), Some("ValueCannotBeEmpty"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && cell_data.is_empty() && field.cannot_be_empty(patches) {
                         let result = TableDiagnosticReport::new(TableDiagnosticReportType::ValueCannotBeEmpty(field.name().to_string()), &[(row as i32, column as i32)], &fields_processed);
                         diagnostic.results_mut().push(result);
                     }

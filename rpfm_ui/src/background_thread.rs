@@ -46,7 +46,7 @@ use rpfm_ui_common::locale::tr;
 use rpfm_ui_common::PROGRAM_PATH;
 
 use crate::app_ui::NewFile;
-use crate::{backend::*, SENTRY_GUARD};
+use crate::backend::*;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::FIRST_GAME_CHANGE_DONE;
@@ -1123,6 +1123,7 @@ pub fn background_loop() {
                             Ok(_) => {
                                 let game = GAME_SELECTED.read().unwrap();
                                 let schema_path = schemas_path().unwrap().join(game.schema_file_name());
+                                let patches_path = table_patches_path().unwrap().join(game.schema_file_name());
 
                                 // Encode the decoded tables with the old schema, then re-decode them with the new one.
                                 let mut tables = pack_file_decoded.files_by_type_mut(&[FileType::DB]);
@@ -1130,7 +1131,7 @@ pub fn background_loop() {
 
                                 tables.par_iter_mut().for_each(|x| { let _ = x.encode(&extra_data, true, true, false); });
 
-                                *SCHEMA.write().unwrap() = Schema::load(&schema_path).ok();
+                                *SCHEMA.write().unwrap() = Schema::load(&schema_path, Some(&patches_path)).ok();
 
                                 if let Some(ref schema) = *SCHEMA.read().unwrap() {
                                     let mut extra_data = DecodeableExtraData::default();
@@ -1243,14 +1244,12 @@ pub fn background_loop() {
                     let mut diagnostics = Diagnostics::default();
                     *diagnostics.diagnostics_ignored_mut() = diagnostics_ignored;
 
-                    if let Some(schema) = &*SCHEMA.read().unwrap() {
-                        if pack_file_decoded.pfh_file_type() == PFHFileType::Mod ||
-                            pack_file_decoded.pfh_file_type() == PFHFileType::Movie {
-                            diagnostics.check(&pack_file_decoded, &mut dependencies.write().unwrap(), &game_selected, &game_path, &[], schema, check_ak_only_refs);
-                        }
-
-                        info!("Checking diagnostics: done.");
+                    if pack_file_decoded.pfh_file_type() == PFHFileType::Mod ||
+                        pack_file_decoded.pfh_file_type() == PFHFileType::Movie {
+                        diagnostics.check(&pack_file_decoded, &mut dependencies.write().unwrap(), &game_selected, &game_path, &[], check_ak_only_refs);
                     }
+
+                    info!("Checking diagnostics: done.");
 
                     CentralCommand::send_back(&sender, Response::Diagnostics(diagnostics));
                 }));
@@ -1265,14 +1264,12 @@ pub fn background_loop() {
                     let game_selected = GAME_SELECTED.read().unwrap().clone();
                     let game_path = setting_path(game_selected.key());
 
-                    if let Some(schema) = &*SCHEMA.read().unwrap() {
-                        if pack_file_decoded.pfh_file_type() == PFHFileType::Mod ||
-                            pack_file_decoded.pfh_file_type() == PFHFileType::Movie {
-                            diagnostics.check(&pack_file_decoded, &mut dependencies.write().unwrap(), &game_selected, &game_path, &path_types, schema, check_ak_only_refs);
-                        }
-
-                        info!("Checking diagnostics (update): done.");
+                    if pack_file_decoded.pfh_file_type() == PFHFileType::Mod ||
+                        pack_file_decoded.pfh_file_type() == PFHFileType::Movie {
+                        diagnostics.check(&pack_file_decoded, &mut dependencies.write().unwrap(), &game_selected, &game_path, &path_types, check_ak_only_refs);
                     }
+
+                    info!("Checking diagnostics (update): done.");
 
                     CentralCommand::send_back(&sender, Response::Diagnostics(diagnostics));
                 }));
@@ -1707,20 +1704,23 @@ pub fn background_loop() {
             Command::AddNote(note) => CentralCommand::send_back(&sender, Response::Note(pack_file_decoded.notes_mut().add_note(note))),
             Command::DeleteNote(path, id) => pack_file_decoded.notes_mut().delete_note(&path, id),
 
-            Command::UploadSchemaPatch(table_name, patch) => {
-                let filename = "definitionpatch.json";
-                let data = serde_json::to_string_pretty(&patch).unwrap();
-                dbg!(&data);
-                match Logger::send_event(&SENTRY_GUARD.read().unwrap(), Level::Info, &format!("Schema patch for game: {}, table: {}", GAME_SELECTED.read().unwrap().display_name(), table_name), Some((filename, data.as_bytes()))) {
-                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+            Command::SaveLocalSchemaPatch(patches) => {
+                match *SCHEMA.write().unwrap() {
+                    Some(ref mut schema) => {
+                        let path = table_patches_path().unwrap().join(GAME_SELECTED.read().unwrap().schema_file_name());
+                        match schema.new_patch(&patches, &path) {
+                            Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                        }
+                    }
+                    None => CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected."))),
                 }
             }
 
             Command::ImportSchemaPatch(patch) => {
                 match *SCHEMA.write().unwrap() {
                     Some(ref mut schema) => {
-                        schema.add_patch(patch);
+                        Schema::add_patch_to_patch_set(schema.patches_mut(), &patch);
                         match schema.save(&schemas_path().unwrap().join(GAME_SELECTED.read().unwrap().schema_file_name())) {
                             Ok(_) => CentralCommand::send_back(&sender, Response::Success),
                             Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
@@ -1969,7 +1969,8 @@ fn load_schemas(sender: &Sender<Response>, pack: &mut Pack, game: &GameInfo) {
 
     // Load the new schema.
     let schema_path = schemas_path().unwrap().join(game.schema_file_name());
-    *SCHEMA.write().unwrap() = Schema::load(&schema_path).ok();
+    let local_patches_path = table_patches_path().unwrap().join(game.schema_file_name());
+    *SCHEMA.write().unwrap() = Schema::load(&schema_path, Some(&local_patches_path)).ok();
 
     // Redecode all the tables in the open file.
     if let Some(ref schema) = *SCHEMA.read().unwrap() {

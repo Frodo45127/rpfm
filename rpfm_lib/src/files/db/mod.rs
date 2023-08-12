@@ -380,15 +380,16 @@ impl DB {
 
         // Just in case we're in a reference field, find the source, and trigger the edition from there.
         let mut definition = definition.clone();
+        let patches = Some(definition.patches().clone());
         let mut field = field.clone();
         let mut table_name = table_name.to_owned();
-        while let Some((ref_table, ref_column)) = field.is_reference() {
+        while let Some((ref_table, ref_column)) = field.is_reference(patches.as_ref()) {
             let ref_table_name = format!("{ref_table}_tables");
             let table_folder = format!("db/{ref_table_name}");
             let parent_files = pack.files_by_type_and_paths_mut(&[FileType::DB], &[ContainerPath::Folder(table_folder.to_owned())], true);
             if !parent_files.is_empty() {
                 if let Ok(RFileDecoded::DB(table)) = parent_files[0].decoded() {
-                    if let Some(index) = table.definition().column_position_by_name(ref_column) {
+                    if let Some(index) = table.definition().column_position_by_name(&ref_column) {
                         definition = table.definition().clone();
                         field = definition.fields_processed()[index].clone();
                         table_name = table.table_name().to_owned();
