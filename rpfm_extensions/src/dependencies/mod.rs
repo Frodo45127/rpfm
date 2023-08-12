@@ -368,7 +368,7 @@ impl Dependencies {
 
                 // Only generate references for the tables you pass it, or for all if we pass the list of tables empty.
                 if table_names.is_empty() || table_names.iter().any(|x| x == db.table_name()) {
-                     Some((db.table_name().to_owned(), self.generate_references(db.definition())))
+                     Some((db.table_name().to_owned(), self.generate_references(db.table_name(), db.definition())))
                 } else { None }
             } else { None }
         }).collect::<HashMap<_, _>>();
@@ -378,39 +378,73 @@ impl Dependencies {
 
     /// This function builds the local db references data for the table with the definition you pass to and stores it in the cache.
     pub fn generate_local_definition_references(&mut self, table_name: &str, definition: &Definition) {
-        self.local_tables_references.insert(table_name.to_owned(), self.generate_references(definition));
+        self.local_tables_references.insert(table_name.to_owned(), self.generate_references(table_name, definition));
     }
 
     /// This function builds the local db references data for the table with the definition you pass to, and returns it.
-    pub fn generate_references(&self, definition: &Definition) -> HashMap<i32, TableReferences> {
+    pub fn generate_references(&self, local_table_name: &str, definition: &Definition) -> HashMap<i32, TableReferences> {
         let patches = Some(definition.patches());
+        let fields_processed = definition.fields_processed();
 
-        definition.fields_processed().into_iter().enumerate().filter_map(|(column, field)| {
-            if let Some((ref ref_table, ref ref_column)) = field.is_reference(patches) {
-                if !ref_table.is_empty() && !ref_column.is_empty() {
-                    let ref_table = format!("{ref_table}_tables");
+        fields_processed.iter().enumerate().filter_map(|(column, field)| {
+            match field.is_reference(patches) {
+                Some((ref ref_table, ref ref_column)) => {
+                    if !ref_table.is_empty() && !ref_column.is_empty() {
+                        let ref_table = format!("{ref_table}_tables");
 
-                    // Get his lookup data if it has it.
-                    let lookup_data = if let Some(ref data) = field.lookup(patches) { data.to_vec() } else { Vec::with_capacity(0) };
-                    let mut references = TableReferences::default();
-                    *references.field_name_mut() = field.name().to_owned();
+                        // Get his lookup data if it has it.
+                        let lookup_data = if let Some(ref data) = field.lookup(patches) { data.to_vec() } else { Vec::with_capacity(0) };
+                        let mut references = TableReferences::default();
+                        *references.field_name_mut() = field.name().to_owned();
 
-                    let fake_found = self.db_reference_data_from_asskit_tables(&mut references, (&ref_table, ref_column, &lookup_data));
-                    let real_found = self.db_reference_data_from_from_vanilla_and_modded_tables(&mut references, (&ref_table, ref_column, &lookup_data));
+                        let fake_found = self.db_reference_data_from_asskit_tables(&mut references, (&ref_table, ref_column, &lookup_data));
+                        let real_found = self.db_reference_data_from_from_vanilla_and_modded_tables(&mut references, (&ref_table, ref_column, &lookup_data));
 
-                    if fake_found && real_found.is_none() {
-                        references.referenced_table_is_ak_only = true;
-                    }
-
-                    if let Some(ref_definition) = real_found {
-                        if ref_definition.localised_fields().iter().any(|x| x.name() == ref_column) {
-                            references.referenced_column_is_localised = true;
+                        if fake_found && real_found.is_none() {
+                            references.referenced_table_is_ak_only = true;
                         }
-                    }
 
-                    Some((column as i32, references))
-                } else { None }
-            } else { None }
+                        if let Some(ref_definition) = real_found {
+                            if ref_definition.localised_fields().iter().any(|x| x.name() == ref_column) {
+                                references.referenced_column_is_localised = true;
+                            }
+                        }
+
+                        Some((column as i32, references))
+                    } else { None }
+                },
+
+                // In the fallback case (no references) we still need to check for lookup data within our table and the locs.
+                None => {
+                    if let Some(ref lookup_data) = field.lookup(patches) {
+
+                        // Only single-keyed tables can have lookups.
+                        if field.is_key(patches) && fields_processed.iter().filter(|x| x.is_key(patches)).count() == 1 {
+                            let ref_table = local_table_name;
+                            let ref_column = field.name();
+
+                            // Get his lookup data if it has it.
+                            let mut references = TableReferences::default();
+                            *references.field_name_mut() = field.name().to_owned();
+
+                            let fake_found = self.db_reference_data_from_asskit_tables(&mut references, (&ref_table, ref_column, &lookup_data));
+                            let real_found = self.db_reference_data_from_from_vanilla_and_modded_tables(&mut references, (&ref_table, ref_column, &lookup_data));
+
+                            if fake_found && real_found.is_none() {
+                                references.referenced_table_is_ak_only = true;
+                            }
+
+                            if let Some(ref_definition) = real_found {
+                                if ref_definition.localised_fields().iter().any(|x| x.name() == ref_column) {
+                                    references.referenced_column_is_localised = true;
+                                }
+                            }
+
+                            Some((column as i32, references))
+                        } else { None }
+                    } else { None }
+                },
+            }
         }).collect::<HashMap<_, _>>()
     }
 
@@ -930,20 +964,43 @@ impl Dependencies {
             ).collect::<HashMap<_,_>>();
 
         let patches = Some(definition.patches());
-        let local_references = definition.fields_processed().into_par_iter().enumerate().filter_map(|(column, field)| {
-            if let Some((ref ref_table, ref ref_column)) = field.is_reference(patches) {
-                if !ref_table.is_empty() && !ref_column.is_empty() {
+        let fields_processed = definition.fields_processed();
+        let local_references = fields_processed.par_iter().enumerate().filter_map(|(column, field)| {
+            match field.is_reference(patches) {
+                Some((ref ref_table, ref ref_column)) => {
+                    if !ref_table.is_empty() && !ref_column.is_empty() {
 
-                    // Get his lookup data if it has it.
-                    let lookup_data = if let Some(ref data) = field.lookup(patches) { data.to_vec() } else { Vec::with_capacity(0) };
-                    let mut references = TableReferences::default();
-                    *references.field_name_mut() = field.name().to_owned();
+                        // Get his lookup data if it has it.
+                        let lookup_data = if let Some(ref data) = field.lookup(patches) { data.to_vec() } else { Vec::with_capacity(0) };
+                        let mut references = TableReferences::default();
+                        *references.field_name_mut() = field.name().to_owned();
 
-                    let _local_found = Self::db_reference_data_from_local_pack(&mut references, (ref_table, ref_column, &lookup_data), pack, &loc_data);
+                        let _local_found = Self::db_reference_data_from_local_pack(&mut references, (ref_table, ref_column, &lookup_data), pack, &loc_data);
 
-                    Some((column as i32, references))
-                } else { None }
-            } else { None }
+                        Some((column as i32, references))
+                    } else { None }
+                }
+
+                // In the fallback case (no references) we still need to check for lookup data within our table and the locs.
+                None => {
+                    if let Some(ref lookup_data) = field.lookup(patches) {
+
+                        // Only single-keyed tables can have lookups.
+                        if field.is_key(patches) && fields_processed.iter().filter(|x| x.is_key(patches)).count() == 1 {
+                            let ref_table = table_name;
+                            let ref_column = field.name();
+
+                            // Get his lookup data if it has it.
+                            let mut references = TableReferences::default();
+                            *references.field_name_mut() = field.name().to_owned();
+
+                            let _local_found = Self::db_reference_data_from_local_pack(&mut references, (ref_table, ref_column, &lookup_data), pack, &loc_data);
+
+                            Some((column as i32, references))
+                        } else { None }
+                    } else { None }
+                }
+            }
         }).collect::<HashMap<_, _>>();
 
         vanilla_references.par_iter_mut().for_each(|(key, value)|
