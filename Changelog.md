@@ -21,6 +21,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - Fixed CTD when trying to replace a db table global search match.
 - Fixed compression errors while saving causing the entire pack to fail to save and be left broken on disk.
 - Fixed lookups pointing to the same table they're shown in not working.
+- Fixed lookups not updating when pasting.
 
 ## [4.1.0]
 ### Added

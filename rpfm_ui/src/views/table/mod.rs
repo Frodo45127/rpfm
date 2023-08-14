@@ -2494,6 +2494,16 @@ impl TableView {
 
             item.set_data_2a(&QVariant::from_bool(true), ITEM_IS_MODIFIED);
 
+            // Update the lookup data while the model is blocked.
+            if setting_bool("enable_lookups") {
+                let dependency_data = self.dependency_data.read().unwrap();
+                if let Some(column_data) = dependency_data.get(&item.column()) {
+                    if let Some(lookup) = column_data.data().get(&item.text().to_std_string()) {
+                        item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(lookup)), ITEM_SUB_DATA);
+                    }
+                }
+            }
+
             // If the edited column has icons we need to fetch the new icon from the backend and apply it.
             if setting_bool("enable_icons") {
                 let definition = self.table_definition();
