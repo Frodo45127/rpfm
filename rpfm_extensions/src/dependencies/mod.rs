@@ -1133,7 +1133,7 @@ impl Dependencies {
         let ref_column = reference_info.1;
         let ref_lookup_columns = reference_info.2;
 
-        pack.files_by_path(&ContainerPath::Folder(format!("db/{ref_table}_tables")), false).iter()
+        pack.files_by_path(&ContainerPath::Folder(format!("db/{ref_table}_tables")), true).iter()
             .for_each(|file| {
             if let Ok(RFileDecoded::DB(db)) = file.decoded() {
                 let definition = db.definition();
