@@ -714,7 +714,6 @@ impl Default for SupportedGames {
                 "audio_metadata_tags/game_expansion_key".to_owned(),
                 "audio_metadata_tags/path".to_owned(),
                 "audio_metadata_tags/require_hero_opponent".to_owned(),
-                "audio_vo_actor_groups/key".to_owned(),
                 "battle_animations_table/game_expansion_key".to_owned(),
                 "battle_personalities/game_expansion_key".to_owned(),
                 "battle_personalities/is_hero".to_owned(),
