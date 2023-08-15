@@ -508,11 +508,16 @@ pub unsafe fn load_data(
 
                 if enable_icons {
                     if let Some(column_data) = icons.get(&(column as i32)) {
-                        let path = column_data.0.replace('%', &entry[column].data_to_string()).to_lowercase();
-                        if let Some(icon) = column_data.1.get(&path) {
-                            let icon = ref_from_atomic(&icon);
-                            item.set_icon(icon);
-                            item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(path)), 52);
+                        let paths_join = column_data.0.replace('%', &entry[column].data_to_string().replace("\\", "/")).to_lowercase();
+                        let paths_split = paths_join.split(';');
+
+                        for path in paths_split {
+                            if let Some(icon) = column_data.1.get(path) {
+                                let icon = ref_from_atomic(&icon);
+                                item.set_icon(icon);
+                                item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(path)), 52);
+                                break;
+                            }
                         }
                     }
                 }
@@ -881,7 +886,7 @@ pub unsafe fn get_column_tooltips(
 
                 if field.is_filename(patches) {
                     if let Some(path) = field.filename_relative_path(patches) {
-                        tooltip_text.push_str(&format!("<p>{} <ul><li>{}</li></ul></p>", tr("column_tooltip_5"), path));
+                        tooltip_text.push_str(&format!("<p>{} <ul><li>{}</li></ul></p>", tr("column_tooltip_5"), path.join("</li><li>")));
                     } else {
                         tooltip_text.push_str(&format!("<p>{}</p>", tr("column_tooltip_4")));
                     }
@@ -1152,8 +1157,13 @@ pub unsafe fn open_subtable(
 
 pub unsafe fn request_backend_files(data: &[Vec<DecodedData>], column: usize, field: &Field, patches: Option<&DefinitionPatch>, map: &mut BTreeMap<i32, (String, HashMap<String, AtomicPtr<QIcon>>)>) -> Result<()> {
     let relative_path = field.filename_relative_path(patches);
-    let base_path = relative_path.as_deref().unwrap_or("%");
-    let paths = data.par_iter().map(|entry| ContainerPath::File(base_path.replace('%', &entry[column].data_to_string()))).collect::<Vec<_>>();
+    let empty_path = vec!["%".to_owned()];
+    let base_path = relative_path.as_deref().unwrap_or(&empty_path);
+    let paths = data.par_iter()
+        .flat_map(|entry| base_path.iter()
+            .map(|base_path| ContainerPath::File(base_path.replace('%', &entry[column].data_to_string().replace("\\", "/"))))
+            .collect::<Vec<_>>()
+        ).collect::<Vec<_>>();
 
     if !paths.is_empty() {
         let receiver = CENTRAL_COMMAND.send_background(Command::GetRFilesFromAllSources(paths, true));
@@ -1189,7 +1199,7 @@ pub unsafe fn request_backend_files(data: &[Vec<DecodedData>], column: usize, fi
                     })
                     .collect::<HashMap<String, AtomicPtr<QIcon>>>();
 
-                map.insert(column as i32, (base_path.to_owned(), icons));
+                map.insert(column as i32, (base_path.join(";"), icons));
             },
             _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
         }

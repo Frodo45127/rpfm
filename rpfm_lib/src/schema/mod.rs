@@ -963,16 +963,16 @@ impl Field {
         self.is_filename
     }
 
-    pub fn filename_relative_path(&self, schema_patches: Option<&DefinitionPatch>) -> Option<String> {
+    pub fn filename_relative_path(&self, schema_patches: Option<&DefinitionPatch>) -> Option<Vec<String>> {
         if let Some(schema_patches) = schema_patches {
             if let Some(patch) = schema_patches.get(self.name()) {
                 if let Some(field_patch) = patch.get("filename_relative_path") {
-                    return Some(field_patch.to_string());
+                    return Some(field_patch.replace("\\", "/").split(";").map(|x| x.to_string()).collect::<Vec<String>>());
                 }
             }
         }
 
-        self.filename_relative_path.clone()
+        self.filename_relative_path.clone().map(|x| x.replace("\\", "/").split(";").map(|x| x.to_string()).collect::<Vec<String>>())
     }
 
     pub fn is_reference(&self, schema_patches: Option<&DefinitionPatch>) -> Option<(String,String)> {

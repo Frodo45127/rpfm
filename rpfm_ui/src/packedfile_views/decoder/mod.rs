@@ -903,7 +903,7 @@ impl PackedFileDecoderView {
         field_is_filename.set_check_state(if field.is_filename(None) { CheckState::Checked } else { CheckState::Unchecked });
 
         let field_filename_relative_path = if let Some(ref filename_relative_path) = field.filename_relative_path(None) {
-            QStandardItem::from_q_string(&QString::from_std_str(filename_relative_path))
+            QStandardItem::from_q_string(&QString::from_std_str(filename_relative_path.join(";")))
         } else { QStandardItem::new() };
 
         let field_ca_order = QStandardItem::from_q_string(&QString::from_std_str(&format!("{}", field.ca_order())));

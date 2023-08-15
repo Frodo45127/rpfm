@@ -217,19 +217,22 @@ impl TableViewSlots {
 
                                     if request_backend_files(&data, 0, &field, patches, &mut icons).is_ok() {
                                         if let Some(column_data) = icons.get(&0) {
-                                            let path = column_data.0.replace('%', &data[0][0].data_to_string()).to_lowercase();
-                                            if let Some(icon) = column_data.1.get(&path) {
-                                                let icon = ref_from_atomic(&icon);
-                                                item.set_icon(icon);
-                                                item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(path)), 52);
+                                            let paths_join = column_data.0.replace('%', &data[0][0].data_to_string().replace("\\", "/")).to_lowercase();
+                                            let paths_split = paths_join.split(';');
+                                            for path in paths_split {
+                                                if let Some(icon) = column_data.1.get(path) {
+                                                    let icon = ref_from_atomic(&icon);
+                                                    item.set_icon(icon);
+                                                    item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(path)), 52);
 
-                                                // For tooltips, we put the data in a specific place so the c++ code picks it up.
-                                                let image = icon.pixmap_q_size(icon.available_sizes_0a().at(0)).to_image();
-                                                let bytes = QByteArray::new();
-                                                let buffer = QBuffer::from_q_byte_array(&bytes);
+                                                    // For tooltips, we put the data in a specific place so the c++ code picks it up.
+                                                    let image = icon.pixmap_q_size(icon.available_sizes_0a().at(0)).to_image();
+                                                    let bytes = QByteArray::new();
+                                                    let buffer = QBuffer::from_q_byte_array(&bytes);
 
-                                                image.save_q_io_device_char(&buffer, QString::from_std_str("PNG").to_latin1().data());
-                                                item.set_data_2a(&QVariant::from_q_string(&QString::from_q_byte_array(&bytes.to_base64_0a())), 50);
+                                                    image.save_q_io_device_char(&buffer, QString::from_std_str("PNG").to_latin1().data());
+                                                    item.set_data_2a(&QVariant::from_q_string(&QString::from_q_byte_array(&bytes.to_base64_0a())), 50);
+                                                }
                                             }
                                         }
                                     }

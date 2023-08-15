@@ -408,12 +408,12 @@ impl Diagnostics {
                 let mut row_keys: BTreeMap<i32, String> = BTreeMap::new();
                 for (column, field) in fields_processed.iter().enumerate() {
                     let cell_data = cells[column].data_to_string();
-
+                    /*
                     // Path checks.
                     if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field.name()), Some("FieldWithPathNotFound"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && !cell_data.is_empty() && fields_processed[column].is_filename(patches) {
                         let mut path_found = false;
                         let paths = {
-                            let path = if let Some(relative_path) = fields_processed[column].filename_relative_path(patches) {
+                            let path = if let Some(relative_paths) = fields_processed[column].filename_relative_path(patches) {
                                 relative_path.replace('%', &cell_data)
                             } else {
                                 cell_data.to_string()
@@ -460,7 +460,7 @@ impl Diagnostics {
                             let result = TableDiagnosticReport::new(TableDiagnosticReportType::FieldWithPathNotFound(paths), &[(row as i32, column as i32)], &fields_processed);
                             diagnostic.results_mut().push(result);
                         }
-                    }
+                    }*/
 
                     // Dependency checks.
                     if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field.name()), None, ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && field.is_reference(patches).is_some() {
