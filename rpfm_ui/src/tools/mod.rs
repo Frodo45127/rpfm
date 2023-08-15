@@ -642,6 +642,7 @@ impl Tool {
         match data.get(&definition_name) {
             Some(definition) => {
                 let definition: Definition = serde_json::from_str(definition).unwrap();
+                let patches = Some(definition.patches());
                 definition.fields_processed()
                     .iter()
                     .filter(|field| !fields_to_ignore.contains(&field.name()))
@@ -656,7 +657,7 @@ impl Tool {
                         };
 
                         // If field is reference, always search for a combobox.
-                        match field.is_reference() {
+                        match field.is_reference(patches) {
                             Some(_) => {
                                 let widget_name = format!("{}_{}_combobox", table_name, field.name());
                                 let widget: Result<QPtr<QComboBox>> = self.find_widget(&widget_name);
@@ -1002,13 +1003,14 @@ impl Tool {
         match data.get(&definition_name) {
             Some(definition) => {
                 let definition: Definition = serde_json::from_str(&definition).unwrap();
+                let patches = Some(definition.patches());
                 definition.fields_processed()
                     .iter()
                     .filter(|field| !fields_to_ignore.contains(&field.name()))
                     .for_each(|field| {
 
                         // If field is reference, we use a combobox.
-                        match field.is_reference() {
+                        match field.is_reference(patches) {
                             Some(_) => {
                                 let widget_name = format!("{}_{}_combobox", table_name, field.name());
                                 let widget: Result<QPtr<QComboBox>> = self.find_widget(&widget_name);
@@ -1136,12 +1138,13 @@ impl Tool {
 
         // Then go, definition by definition, searching source values within our data, and updating our data from them.
         for (table_name, definition) in &mut definitions {
+            let patches = Some(definition.patches());
             definition.fields_processed()
                 .iter()
                 .for_each(|field| {
 
                     // Try to get its source data and, if found, replace ours.
-                    if let Some((table_name_source, field_name_source)) = field.is_reference() {
+                    if let Some((table_name_source, field_name_source)) = field.is_reference(patches) {
                         let full_name_source = format!("{}_{}", table_name_source, field_name_source);
 
                         // If our entry is a 1-many table relation, we need to update all the relations.
