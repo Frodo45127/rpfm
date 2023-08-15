@@ -987,14 +987,21 @@ impl Dependencies {
 
                         // Only single-keyed tables can have lookups.
                         if field.is_key(patches) && fields_processed.iter().filter(|x| x.is_key(patches)).count() == 1 {
-                            let ref_table = table_name;
+
+                            // The fallback here is to avoid crashes on packs that have renamed folders.
+                            let ref_table = if table_name.ends_with("_tables") && table_name.len() > 7 {
+                                table_name.to_owned().drain(..table_name.len() - 7).collect()
+                            } else {
+                                table_name.to_owned()
+                            };
+
                             let ref_column = field.name();
 
                             // Get his lookup data if it has it.
                             let mut references = TableReferences::default();
                             *references.field_name_mut() = field.name().to_owned();
 
-                            let _local_found = Self::db_reference_data_from_local_pack(&mut references, (ref_table, ref_column, &lookup_data), pack, &loc_data);
+                            let _local_found = Self::db_reference_data_from_local_pack(&mut references, (&ref_table, ref_column, &lookup_data), pack, &loc_data);
 
                             Some((column as i32, references))
                         } else { None }
