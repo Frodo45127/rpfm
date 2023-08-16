@@ -195,6 +195,11 @@ impl TableViewSlots {
                             let blocker = QSignalBlocker::from_q_object(&view.table_model);
                             item.set_data_2a(&QVariant::from_bool(true), ITEM_IS_MODIFIED);
 
+                            let definition = view.table_definition();
+                            let patches = Some(definition.patches());
+                            let fields_processed = definition.fields_processed();
+                            let field = &fields_processed[item.column() as usize];
+
                             // Update the lookup data while the model is blocked.
                             if setting_bool("enable_lookups") {
                                 let dependency_data = view.dependency_data.read().unwrap();
@@ -203,14 +208,31 @@ impl TableViewSlots {
                                         item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(lookup)), ITEM_SUB_DATA);
                                     }
                                 }
+
+                                // If the edited field is used as lookup of another field on the same table, update it too.
+                                //
+                                // Only non-reference key columns in single-key tables can have lookups, so we only check those.
+                                let key_amount = fields_processed.iter().filter(|x| x.is_key(patches)).count();
+                                if key_amount == 1 {
+
+                                    for (column, field_ref) in fields_processed.iter().enumerate() {
+                                        if field_ref.is_key(patches) && field_ref.is_reference(patches).is_none() {
+                                            if let Some(lookups_ref) = field_ref.lookup(patches) {
+                                                for lookup_ref in lookups_ref {
+                                                    if field.name() == lookup_ref {
+                                                        let item_looking_up = view.table_model.item_2a(item.row(), column as i32);
+                                                        let data = item.data_1a(2).to_string();
+                                                        item_looking_up.set_data_2a(&QVariant::from_q_string(&data), ITEM_SUB_DATA);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
 
                             // If the edited column has icons we need to fetch the new icon from the backend and apply it.
                             if setting_bool("enable_icons") {
-                                let definition = view.table_definition();
-                                let patches = Some(definition.patches());
-                                let fields_processed = definition.fields_processed();
-                                let field = &fields_processed[item.column() as usize];
                                 if field.is_filename(patches) {
                                     let mut icons = BTreeMap::new();
                                     let data = vec![vec![get_field_from_view(&view.table_model.static_upcast(), field, item.row(), item.column())]];
