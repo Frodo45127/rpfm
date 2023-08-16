@@ -24,10 +24,11 @@ use itertools::Itertools;
 use rayon::prelude::*;
 use serde_derive::{Serialize, Deserialize};
 
-use std::path::Path;
-use std::{fmt, fmt::Display};
-use std::cmp::Ordering;
+use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap, HashSet};
+use std::cmp::Ordering;
+use std::{fmt, fmt::Display};
+use std::path::Path;
 
 use rpfm_lib::error::Result;
 use rpfm_lib::files::{ContainerPath, Container, FileType, pack::Pack, RFile, RFileDecoded, table::DecodedData};
@@ -230,8 +231,20 @@ impl Diagnostics {
         }
 
         // Getting this here speeds up a lot path-checking later.
-        let local_file_path_list = pack.paths_raw().into_iter().collect::<HashSet<_>>();
+        let local_file_path_list = pack.paths_cache();
         let local_folder_path_list = pack.paths_folders_raw();
+
+        let loc_files = pack.files_by_type(&[FileType::Loc]);
+        let loc_decoded = loc_files.iter()
+            .filter_map(|file| if let Ok(RFileDecoded::Loc(loc)) = file.decoded() { Some(loc) } else { None })
+            .map(|file| file.data())
+            .collect::<Vec<_>>();
+
+        let loc_data = Some(loc_decoded.par_iter()
+            .flat_map(|data| data.par_iter()
+                .map(|entry| (entry[0].data_to_string(), entry[1].data_to_string()))
+                .collect::<Vec<(_,_)>>()
+            ).collect::<HashMap<_,_>>());
 
         // TODO: Currently, AnimFragments are only check if they've been preloaded. Fix that
 
@@ -271,7 +284,7 @@ impl Diagnostics {
                         let file_decoded = file.decoded().ok()?;
                         if table_references.is_empty() {
                             if let RFileDecoded::DB(table) = file_decoded {
-                                table_references = dependencies.db_reference_data(pack, table.table_name(), table.definition());
+                                table_references = dependencies.db_reference_data(pack, table.table_name(), table.definition(), &loc_data);
                             }
                         }
 
@@ -283,7 +296,7 @@ impl Diagnostics {
                             &ignored_diagnostics,
                             &ignored_diagnostics_for_fields,
                             game_info,
-                            &local_file_path_list,
+                            local_file_path_list,
                             &local_folder_path_list,
                             &table_references,
                             check_ak_only_refs,
@@ -332,7 +345,7 @@ impl Diagnostics {
         ignored_diagnostics: &HashSet<String>,
         ignored_diagnostics_for_fields: &HashMap<String, Vec<String>>,
         game_info: &GameInfo,
-        local_path_list: &HashSet<&str>,
+        local_path_list: &HashMap<String, Vec<String>>,
         local_folder_list: &HashSet<String>,
         dependency_data: &HashMap<i32, TableReferences>,
         check_ak_only_refs: bool,
@@ -405,7 +418,7 @@ impl Diagnostics {
             for (row, cells) in table_data.iter().enumerate() {
                 let mut row_is_empty = true;
                 let mut row_keys_are_empty = true;
-                let mut row_keys: BTreeMap<i32, String> = BTreeMap::new();
+                let mut row_keys: BTreeMap<i32, Cow<str>> = BTreeMap::new();
                 for (column, field) in fields_processed.iter().enumerate() {
                     let cell_data = cells[column].data_to_string();
                     /*
@@ -522,7 +535,7 @@ impl Diagnostics {
                     }
 
                     if field.is_key(patches) {
-                        row_keys.insert(column as i32, cell_data.to_string());
+                        row_keys.insert(column as i32, cell_data);
                     }
                 }
 
@@ -675,8 +688,8 @@ impl Diagnostics {
             let mut duplicated_combined_keys_already_marked = vec![];
 
             for (row, cells) in table.data().iter().enumerate() {
-                let key = if let DecodedData::StringU16(ref data) = cells[0] { data } else { unimplemented!() };
-                let data = if let DecodedData::StringU16(ref data) = cells[1] { data } else { unimplemented!() };
+                let key = cells[0].data_to_string();
+                let data = cells[1].data_to_string();
 
                 if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field_key_name), Some("InvalidLocKey"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && !key.is_empty() && (key.contains('\n') || key.contains('\t')) {
                     let result = TableDiagnosticReport::new(TableDiagnosticReportType::InvalidLocKey, &[(row as i32, 0)], &fields);
@@ -695,15 +708,39 @@ impl Diagnostics {
                 }
 
                 // Magic Regex. It works. Don't ask why.
-                if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field_text_name), Some("InvalidEscape"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && !data.is_empty() && REGEX_INVALID_ESCAPES.is_match(data).unwrap() {
+                if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field_text_name), Some("InvalidEscape"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && !data.is_empty() && REGEX_INVALID_ESCAPES.is_match(&data).unwrap() {
                     let result = TableDiagnosticReport::new(TableDiagnosticReportType::InvalidEscape, &[(row as i32, 1)], &fields);
                     diagnostic.results_mut().push(result);
                 }
 
+                if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field_key_name), Some("DuplicatedCombinedKeys"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
+
+                    // If this returns something, it means there is a duplicate.
+                    if let Some(old_position) = keys.insert(key.to_string(), vec![(row as i32, 0)]) {
+                        if let Some(old_pos) = old_position.first() {
+
+                            // Mark previous row, if not yet marked.
+                            if !duplicated_rows_already_marked.contains(&old_pos.0) {
+                                let result = TableDiagnosticReport::new(TableDiagnosticReportType::DuplicatedCombinedKeys(key.to_string()), &old_position, &fields);
+                                diagnostic.results_mut().push(result);
+                                duplicated_combined_keys_already_marked.push(old_pos.0);
+                            }
+
+                            // Mark current row, if not yet marked.
+                            if !duplicated_rows_already_marked.contains(&(row as i32)) {
+                                let cells_affected = vec![(row as i32, 0)];
+                                let result = TableDiagnosticReport::new(TableDiagnosticReportType::DuplicatedCombinedKeys(key.to_string()), &cells_affected, &fields);
+                                diagnostic.results_mut().push(result);
+                                duplicated_combined_keys_already_marked.push(row as i32);
+                            }
+                        }
+                    }
+                }
+
                 if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field_key_name), Some("DuplicatedRow"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
-                    let mut row_keys: BTreeMap<i32, String> = BTreeMap::new();
-                    row_keys.insert(0, key.to_owned());
-                    row_keys.insert(1, data.to_owned());
+                    let mut row_keys: BTreeMap<i32, Cow<str>> = BTreeMap::new();
+                    row_keys.insert(0, key);
+                    row_keys.insert(1, data);
 
                     // If this returns something, it means there is a duplicate.
                     let combined_keys = row_keys.values().join("| |");
@@ -723,31 +760,6 @@ impl Diagnostics {
                                 let result = TableDiagnosticReport::new(TableDiagnosticReportType::DuplicatedRow(combined_keys), &cells_affected, &fields);
                                 diagnostic.results_mut().push(result);
                                 duplicated_rows_already_marked.push(row as i32);
-                            }
-                        }
-                    }
-                }
-
-                if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field_key_name), Some("DuplicatedCombinedKeys"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
-
-                    // If this returns something, it means there is a duplicate.
-                    let combined_keys = key.to_owned();
-                    if let Some(old_position) = keys.insert(combined_keys.to_owned(), vec![(row as i32, 0)]) {
-                        if let Some(old_pos) = old_position.first() {
-
-                            // Mark previous row, if not yet marked.
-                            if !duplicated_rows_already_marked.contains(&old_pos.0) {
-                                let result = TableDiagnosticReport::new(TableDiagnosticReportType::DuplicatedCombinedKeys(combined_keys.to_string()), &old_position, &fields);
-                                diagnostic.results_mut().push(result);
-                                duplicated_combined_keys_already_marked.push(old_pos.0);
-                            }
-
-                            // Mark current row, if not yet marked.
-                            if !duplicated_rows_already_marked.contains(&(row as i32)) {
-                                let cells_affected = vec![(row as i32, 0)];
-                                let result = TableDiagnosticReport::new(TableDiagnosticReportType::DuplicatedCombinedKeys(combined_keys), &cells_affected, &fields);
-                                diagnostic.results_mut().push(result);
-                                duplicated_combined_keys_already_marked.push(row as i32);
                             }
                         }
                     }

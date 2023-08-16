@@ -874,18 +874,21 @@ pub trait Container {
                     self.files().values().collect()
                 }
 
-                // Otherwise, only get the files under our folder.
                 else {
-                    self.files().par_iter()
-                        .filter_map(|(key, file)|
-                            if case_insensitive {
-                                if starts_with_case_insensitive(key, path) { Some(file) } else { None }
-                            } else if key.starts_with(path) {
-                                Some(file)
-                            } else {
-                                None
-                            }
-                        ).collect::<Vec<&RFile>>()
+                    let mut path = if case_insensitive { path.to_lowercase() } else { path.to_owned() };
+                    if !path.ends_with('/') {
+                        path.push_str("/");
+                    }
+
+                    // Otherwise, only get the files under our folder.
+                    let real_paths = self.paths_cache()
+                        .par_iter()
+                        .filter_map(|(lower_path, real_paths)| if lower_path.starts_with(&path) { Some(real_paths) } else { None })
+                        .map(|paths| paths.iter().map(|path| ContainerPath::File(path.to_owned())).collect::<Vec<_>>())
+                        .flatten()
+                        .collect::<Vec<_>>();
+
+                    self.files_by_paths(&real_paths, false)
                 }
             },
         }

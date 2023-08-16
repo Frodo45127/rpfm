@@ -943,7 +943,7 @@ impl Dependencies {
     /// This function returns the reference/lookup data of all relevant columns of a DB Table.
     ///
     /// NOTE: This assumes you've populated the runtime references before this. If not, it'll fail.
-    pub fn db_reference_data(&self, pack: &Pack, table_name: &str, definition: &Definition) -> HashMap<i32, TableReferences> {
+    pub fn db_reference_data(&self, pack: &Pack, table_name: &str, definition: &Definition, loc_data: &Option<HashMap<Cow<str>, Cow<str>>>) -> HashMap<i32, TableReferences> {
 
         // First check if the data is already cached, to speed up things.
         let mut vanilla_references = match self.local_tables_references.get(table_name) {
@@ -951,17 +951,29 @@ impl Dependencies {
             None => panic!("To be fixed: If you see this, you forgot to call generate_local_db_references before this."),
         };
 
-        let loc_files = pack.files_by_type(&[FileType::Loc]);
-        let loc_decoded = loc_files.iter()
-            .filter_map(|file| if let Ok(RFileDecoded::Loc(loc)) = file.decoded() { Some(loc) } else { None })
-            .map(|file| file.data())
-            .collect::<Vec<_>>();
+        // If we receive prenade loc data (because this may trigger on many files at the same time), don't calculate it here.
+        let (_loc_files, loc_decoded) = if loc_data.is_some() {
+            (vec![], vec![])
+        } else {
+            let loc_files = pack.files_by_type(&[FileType::Loc]);
+            let loc_decoded = loc_files.iter()
+                .filter_map(|file| if let Ok(RFileDecoded::Loc(loc)) = file.decoded() { Some(loc) } else { None })
+                .map(|file| file.data())
+                .collect::<Vec<_>>();
+            (loc_files, loc_decoded)
+        };
 
-        let loc_data = loc_decoded.par_iter()
-            .flat_map(|data| data.par_iter()
-                .map(|entry| (entry[0].data_to_string(), entry[1].data_to_string()))
-                .collect::<Vec<(_,_)>>()
-            ).collect::<HashMap<_,_>>();
+        let mut _loc_data_dummy = HashMap::new();
+        let loc_data = if let Some(ref loc_data) = loc_data {
+            loc_data
+        } else {
+            _loc_data_dummy = loc_decoded.par_iter()
+                .flat_map(|data| data.par_iter()
+                    .map(|entry| (entry[0].data_to_string(), entry[1].data_to_string()))
+                    .collect::<Vec<(_,_)>>()
+                ).collect::<HashMap<_,_>>();
+            &_loc_data_dummy
+        };
 
         let patches = Some(definition.patches());
         let fields_processed = definition.fields_processed();
@@ -1037,40 +1049,50 @@ impl Dependencies {
                     let localised_order = definition.localised_key_order();
                     let ref_column_index = fields_processed.iter().position(|x| x.name() == ref_column);
 
-                    // This one is over localised first, then over normal fields.
-                    let ref_lookup_columns_index = ref_lookup_columns.iter().flat_map(|column| {
-                        match localised_fields.iter().position(|x| x.name() == column) {
-                            Some(index) => Some((true, index)),
-                            None => fields_processed.iter().position(|x| x.name() == column).map(|index| (false, index))
-                        }
-                    }).collect::<Vec<_>>();
+                    // Due to how it works, if we don't have reference data, we CANNOT have lookup data, as we'll save it in a hashmap and we'll need the ref data to use it as key.
+                    if let Some(ref_column_index) = ref_column_index {
 
-                    let name_short = db.table_name_without_tables();
-                    for row in &*db.data() {
-                        let mut reference_data = String::new();
-                        let mut lookup_data = vec![];
+                        // This one is over localised first, then over normal fields.
+                        let ref_lookup_columns_index = ref_lookup_columns.iter().flat_map(|column| {
+                            match localised_fields.iter().position(|x| x.name() == column) {
+                                Some(index) => Some((true, index)),
+                                None => fields_processed.iter().position(|x| x.name() == column).map(|index| (false, index))
+                            }
+                        }).collect::<Vec<_>>();
 
-                        // First, we get the reference data.
-                        if let Some(index) = ref_column_index {
-                            reference_data = row[index].data_to_string().to_string();
-                        }
+                        let name_short = db.table_name_without_tables();
+                        let data = db.data().par_iter().map(|row| {
+                            let mut lookup_data = Vec::with_capacity(ref_lookup_columns_index.len());
 
-                        // Then, we get the lookup data.
-                        for (is_loc, column) in ref_lookup_columns_index.iter() {
-                            if *is_loc {
-                                let loc_key = format!("{}_{}_{}", name_short, localised_fields[*column].name(), localised_order.iter().map(|pos| row[*pos as usize].data_to_string()).collect::<Vec<_>>().join(""));
-                                match self.localisation_data.get(&loc_key) {
-                                    Some(data) => lookup_data.push(data.to_string()),
-                                    None => lookup_data.push(String::new()),
+                            // First, we get the reference data.
+                            let reference_data = row[ref_column_index].data_to_string().to_string();
+
+                            // Then, we get the lookup data.
+                            for (is_loc, column) in ref_lookup_columns_index.iter() {
+                                if *is_loc {
+
+                                    // Optimisation: This is way faster than format when done in-mass.
+                                    let loc_values = localised_order.iter().map(|pos| row[*pos as usize].data_to_string()).join("");
+                                    let mut loc_key = String::with_capacity(2 + name_short.len() + localised_fields[*column].name().len() + loc_values.len());
+                                    loc_key.push_str(&name_short);
+                                    loc_key.push('_');
+                                    loc_key.push_str(localised_fields[*column].name());
+                                    loc_key.push('_');
+                                    loc_key.push_str(&loc_values);
+
+                                    if let Some(data) = self.localisation_data.get(&loc_key) {
+                                        lookup_data.push(Cow::from(data));
+                                    }
+                                }
+
+                                else {
+                                    lookup_data.push(row[*column].data_to_string());
                                 }
                             }
+                            (reference_data, lookup_data.join(":"))
+                        }).collect::<Vec<(_,_)>>();
 
-                            else {
-                                lookup_data.push(row[*column].data_to_string().to_string());
-                            }
-                        }
-
-                        references.data.insert(reference_data, lookup_data.join(":"));
+                        references.data.extend(data);
                     }
 
                     // Once done with the table, check if we should return its definition.
@@ -1153,7 +1175,7 @@ impl Dependencies {
                 let data = db.data();
                 for row in &*db.data() {
                     let mut reference_data = String::new();
-                    let mut lookup_data = vec![];
+                    let mut lookup_data = Vec::with_capacity(ref_lookup_columns_index.len());
 
                     // First, we get the reference data.
                     if let Some(index) = ref_column_index {
@@ -1163,20 +1185,25 @@ impl Dependencies {
                     // Then, we get the lookup data.
                     for (is_loc, column) in ref_lookup_columns_index.iter() {
                         if *is_loc {
-                            let loc_key = format!("{}_{}_{}", ref_table, localised_fields[*column].name(), localised_order.iter().map(|pos| row[*pos as usize].data_to_string()).collect::<Vec<_>>().join(""));
-                            match loc_data.get(&*loc_key) {
-                                Some(data) => lookup_data.push(data.to_string()),
-                                None => lookup_data.push(String::new()),
+                            let loc_values = localised_order.iter().map(|pos| row[*pos as usize].data_to_string()).join("");
+                            let mut loc_key = String::with_capacity(2 + ref_table.len() + localised_fields[*column].name().len() + loc_values.len());
+                            loc_key.push_str(&ref_table);
+                            loc_key.push('_');
+                            loc_key.push_str(localised_fields[*column].name());
+                            loc_key.push('_');
+                            loc_key.push_str(&loc_values);
+
+                            if let Some(data) = loc_data.get(&*loc_key) {
+                                lookup_data.push(data.clone());
                             }
                         }
 
                         else {
-                            lookup_data.push(row[*column].data_to_string().to_string());
+                            lookup_data.push(row[*column].data_to_string());
                         }
                     }
 
-                    references.data.insert(reference_data, lookup_data.join(" "));
-
+                    references.data.insert(reference_data, lookup_data.into_iter().join(" "));
                 }
 
                 if !&data.is_empty() && !data_found {
@@ -1366,27 +1393,24 @@ impl Dependencies {
         let mut values = HashSet::new();
 
         if let Ok(files) = self.db_data(table_name, include_vanilla, include_parent) {
-            for file in &files {
+            values.extend(files.par_iter().filter_map(|file| {
                 if let Ok(RFileDecoded::DB(table)) = file.decoded() {
                     if let Some(column) = table.definition().column_position_by_name(column_name) {
-                        for row in table.data().iter() {
-                            values.insert(row[column].data_to_string().to_string());
-                        }
-                    }
-                }
-            }
+                        Some(table.data().par_iter().map(|row| row[column].data_to_string().to_string()).collect::<Vec<_>>())
+                    } else { None }
+                } else { None }
+            }).flatten().collect::<Vec<_>>());
         }
 
         if let Some(pack) = pack {
-            for file in &pack.files_by_path(&ContainerPath::Folder(format!("db/{table_name}")), true) {
+            let files = pack.files_by_path(&ContainerPath::Folder(format!("db/{table_name}")), true);
+            values.extend(files.par_iter().filter_map(|file| {
                 if let Ok(RFileDecoded::DB(table)) = file.decoded() {
                     if let Some(column) = table.definition().column_position_by_name(column_name) {
-                        for row in table.data().iter() {
-                            values.insert(row[column].data_to_string().to_string());
-                        }
-                    }
-                }
-            }
+                        Some(table.data().par_iter().map(|row| row[column].data_to_string().to_string()).collect::<Vec<_>>())
+                    } else { None }
+                } else { None }
+            }).flatten().collect::<Vec<_>>());
         }
 
         values

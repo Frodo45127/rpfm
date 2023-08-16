@@ -988,7 +988,7 @@ pub fn background_loop() {
                     dependencies.write().unwrap().generate_local_definition_references(&table_name, &definition);
                 }
 
-                let reference_data = dependencies.read().unwrap().db_reference_data(&pack_file_decoded, &table_name, &definition);
+                let reference_data = dependencies.read().unwrap().db_reference_data(&pack_file_decoded, &table_name, &definition, &None);
                 CentralCommand::send_back(&sender, Response::HashMapI32TableReferences(reference_data));
             }
 
