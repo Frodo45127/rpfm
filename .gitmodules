@@ -9,3 +9,4 @@
 [submodule "old_ak_files"]
 	path = old_ak_files
 	url = git@github.com:Frodo45127/total_war_ak_files_pre_shogun_2.git
+    update = "none"
