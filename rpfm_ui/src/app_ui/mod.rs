@@ -45,6 +45,7 @@ use qt_gui::QStandardItemModel;
 use qt_core::QTimer;
 use qt_core::ContextMenuPolicy;
 use qt_core::QBox;
+use qt_core::QEventLoop;
 use qt_core::QFlags;
 use qt_core::QListOfQObject;
 use qt_core::QPtr;
@@ -2981,6 +2982,11 @@ impl AppUI {
         for diagnostic_type in UI_STATE.get_diagnostics().results() {
             DiagnosticsUI::paint_diagnostics_to_table(app_ui, diagnostic_type);
         }
+
+        // This forces the UI to process the events related to making the file view's visible before returning,
+        // so stuff that opens a file and scrolls its view actually works.
+        let event_loop = QEventLoop::new_0a();
+        event_loop.process_events_0a();
     }
 
     /// This function is used to open views that cannot be open with the normal open_file_view function.
