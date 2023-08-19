@@ -14,7 +14,7 @@ members = [
 [workspace.package]
 version = "4.1.1"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
-rust-version = "1.64"
+rust-version = "1.67"
 edition = "2021"
 
 [profile.dev]
