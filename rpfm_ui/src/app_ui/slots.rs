@@ -26,6 +26,8 @@ use qt_gui::QCursor;
 use qt_gui::QDesktopServices;
 use qt_gui::QFont;
 
+use qt_core::QBuffer;
+use qt_core::QByteArray;
 use qt_core::QBox;
 use qt_core::{SlotNoArgs, SlotOfBool, SlotOfInt};
 use qt_core::QFlags;
@@ -35,6 +37,7 @@ use qt_core::QPtr;
 use qt_core::QSignalBlocker;
 use qt_core::QString;
 use qt_core::QUrl;
+use qt_core::QVariant;
 use qt_core::WidgetAttribute;
 
 use std::collections::BTreeMap;
@@ -74,7 +77,7 @@ use crate::{ui_state::OperationalMode, UI_STATE};
 use crate::utils::*;
 use crate::VERSION;
 use crate::VERSION_SUBTITLE;
-use crate::views::table::utils::{get_reference_data, setup_item_delegates};
+use crate::views::table::{ITEM_SUB_DATA, utils::{get_reference_data, get_table_from_view, request_backend_files, setup_item_delegates}};
 
 const TOOLS_NOT_ENABLED_ERROR: &str = "Tools not enabled at compile time.";
 
@@ -1489,6 +1492,68 @@ impl AppUISlots {
                             let table_name = if let Some(name) = table.table_name() { name.to_owned() } else { "".to_owned() };
                             if let Ok(data) = get_reference_data(*table.get_packed_file_type(), &table_name, &table.table_definition()) {
                                 table.set_dependency_data(&data);
+                                table.table_model().block_signals(true);
+
+                                let definition = table.table_definition();
+                                let fields_processed = definition.fields_processed();
+                                let patches = Some(definition.patches());
+
+                                for (column, field) in fields_processed.iter().enumerate() {
+
+                                    // Update lookups pointing to other tables/locs. We don't need to update self-referencing lookups, as those update on edit.
+                                    if setting_bool("enable_lookups") && field.lookup(patches).is_some() {
+                                        if let Some(column_data) = data.get(&(column as i32)) {
+                                            let column_data = column_data.data();
+                                            if !column_data.is_empty() {
+
+                                                for row in 0..table.table_model().row_count_0a() {
+                                                    let item = table.table_model().item_2a(row, column as i32);
+                                                    if let Some(lookup) = column_data.get(&item.text().to_std_string()) {
+                                                        item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(lookup)), ITEM_SUB_DATA);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // Update icons.
+                                    if setting_bool("enable_icons") && field.is_filename(patches) {
+                                        let mut icons = BTreeMap::new();
+                                        if let Ok(table_data) = get_table_from_view(&table.table_model().static_upcast(), &definition) {
+
+                                            if request_backend_files(&table_data.data(), column, &field, patches, &mut icons).is_ok() {
+                                                if let Some(column_data) = icons.get(&(column as i32)) {
+                                                    for row in 0..table.table_model().row_count_0a() {
+                                                        let item = table.table_model().item_2a(row, column as i32);
+                                                        let paths_join = column_data.0.replace('%', &item.text().to_std_string().replace("\\", "/")).to_lowercase();
+                                                        let paths_split = paths_join.split(';');
+
+                                                        for path in paths_split {
+                                                            if let Some(icon) = column_data.1.get(path) {
+                                                                let icon = ref_from_atomic(&icon);
+                                                                item.set_icon(icon);
+                                                                item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(path)), 52);
+
+                                                                // For tooltips, we put the data in a specific place so the c++ code picks it up.
+                                                                let image = icon.pixmap_q_size(icon.available_sizes_0a().at(0)).to_image();
+                                                                let bytes = QByteArray::new();
+                                                                let buffer = QBuffer::from_q_byte_array(&bytes);
+
+                                                                image.save_q_io_device_char(&buffer, QString::from_std_str("PNG").to_latin1().data());
+                                                                item.set_data_2a(&QVariant::from_q_string(&QString::from_q_byte_array(&bytes.to_base64_0a())), 50);
+
+                                                                break;
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                table.table_model().block_signals(false);
+
                                 let _ = table.load_table_view_profiles();
 
                                 setup_item_delegates(

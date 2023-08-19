@@ -892,6 +892,14 @@ pub unsafe fn get_column_tooltips(
                     }
                 }
 
+                if let Some(ref lookup) = field.lookup(patches) {
+                    if let Some(ref reference) = field.is_reference(patches) {
+                        tooltip_text.push_str(&format!("<p>{}</p><ul><li><i>{}</i></li></ul>", tr("column_tooltip_lookup_remote"), lookup.iter().map(|lookup| format!("{}/{}", reference.0, lookup)).join("</i></li><li><i>")));
+                    } else {
+                        tooltip_text.push_str(&format!("<p>{}</p><ul><li><i>{}</i></li></ul>", tr("column_tooltip_lookup_local"), lookup.join("</i></li><li><i>")));
+                    }
+                }
+
                 if let Some(ref reference) = field.is_reference(patches) {
                     tooltip_text.push_str(&format!("<p>{}</p><p><i>\"{}/{}\"</i></p>", tr("column_tooltip_1"), reference.0, reference.1));
                 }

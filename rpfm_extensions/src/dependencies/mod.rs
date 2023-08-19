@@ -1203,7 +1203,7 @@ impl Dependencies {
                         }
                     }
 
-                    references.data.insert(reference_data, lookup_data.into_iter().join(" "));
+                    references.data.insert(reference_data, lookup_data.into_iter().join(":"));
                 }
 
                 if !&data.is_empty() && !data_found {

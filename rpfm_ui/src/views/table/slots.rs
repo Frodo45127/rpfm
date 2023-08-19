@@ -216,16 +216,27 @@ impl TableViewSlots {
                                 if key_amount == 1 {
 
                                     for (column, field_ref) in fields_processed.iter().enumerate() {
+                                        let mut lookup_string = String::new();
+                                        let item_looking_up = view.table_model.item_2a(item.row(), column as i32);
+
                                         if field_ref.is_key(patches) && field_ref.is_reference(patches).is_none() {
                                             if let Some(lookups_ref) = field_ref.lookup(patches) {
                                                 for lookup_ref in lookups_ref {
                                                     if field.name() == lookup_ref {
-                                                        let item_looking_up = view.table_model.item_2a(item.row(), column as i32);
-                                                        let data = item.data_1a(2).to_string();
-                                                        item_looking_up.set_data_2a(&QVariant::from_q_string(&data), ITEM_SUB_DATA);
+                                                        let data = item.data_1a(2).to_string().to_std_string();
+
+                                                        if !lookup_string.is_empty() {
+                                                            lookup_string.push(':');
+                                                        }
+
+                                                        lookup_string.push_str(&data);
                                                     }
                                                 }
                                             }
+                                        }
+
+                                        if !lookup_string.is_empty() {
+                                            item_looking_up.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(lookup_string)), ITEM_SUB_DATA);
                                         }
                                     }
                                 }
