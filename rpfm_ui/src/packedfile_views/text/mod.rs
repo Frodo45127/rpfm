@@ -72,6 +72,7 @@ impl PackedFileTextView {
         let highlighting_mode = match data.format() {
             TextFormat::Cpp => QString::from_std_str(CPP),
             TextFormat::Html => QString::from_std_str(HTML),
+            TextFormat::Hlsl => QString::from_std_str(CPP),
             TextFormat::Lua => QString::from_std_str(LUA),
             TextFormat::Xml => QString::from_std_str(XML),
             TextFormat::Plain => QString::from_std_str(PLAIN),
@@ -111,6 +112,7 @@ impl PackedFileTextView {
         let highlighting_mode = match data.format() {
             TextFormat::Cpp => QString::from_std_str(CPP),
             TextFormat::Html => QString::from_std_str(HTML),
+            TextFormat::Hlsl => QString::from_std_str(CPP),
             TextFormat::Lua => QString::from_std_str(LUA),
             TextFormat::Xml => QString::from_std_str(XML),
             TextFormat::Plain => QString::from_std_str(PLAIN),

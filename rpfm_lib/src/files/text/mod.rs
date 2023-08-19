@@ -77,7 +77,7 @@ const BOM_UTF_8: [u8;3] = [0xEF,0xBB,0xBF];
 const BOM_UTF_16_LE: [u8;2] = [0xFF,0xFE];
 
 /// List of extensions we recognize as `Text` files, with their respective known format.
-pub const EXTENSIONS: [(&str, TextFormat); 35] = [
+pub const EXTENSIONS: [(&str, TextFormat); 39] = [
     (".battle_speech_camera", TextFormat::Plain),
     (".benchmark", TextFormat::Xml),
     (".bob", TextFormat::Plain),
@@ -88,6 +88,10 @@ pub const EXTENSIONS: [(&str, TextFormat); 35] = [
     (".css", TextFormat::Css),
     (".csv", TextFormat::Plain),
     (".environment", TextFormat::Xml),
+    (".fx", TextFormat::Cpp),
+    (".fx_fragment", TextFormat::Cpp),
+    (".h", TextFormat::Cpp),
+    (".hlsl", TextFormat::Hlsl),
     (".htm", TextFormat::Html),
     (".html", TextFormat::Html),
     (".inl", TextFormat::Cpp),
@@ -150,6 +154,7 @@ pub enum Encoding {
 pub enum TextFormat {
     Cpp,
     Html,
+    Hlsl,
     Json,
     Js,
     Css,

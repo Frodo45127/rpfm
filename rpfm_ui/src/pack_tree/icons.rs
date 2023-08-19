@@ -76,6 +76,7 @@ pub struct Icons {
     pub text_md: AtomicPtr<QIcon>,
     pub text_json: AtomicPtr<QIcon>,
     pub text_html: AtomicPtr<QIcon>,
+    pub text_hlsl: AtomicPtr<QIcon>,
     pub text_txt: AtomicPtr<QIcon>,
     pub text_xml: AtomicPtr<QIcon>,
     pub text_lua: AtomicPtr<QIcon>,
@@ -122,6 +123,7 @@ impl Icons {
             text_md: atomic_from_cpp_box(Self::load_icon("text_md", "text-markdown")),
             text_json: atomic_from_cpp_box(Self::load_icon("text_json", "application-json")),
             text_html: atomic_from_cpp_box(Self::load_icon("text_html", "text-html")),
+            text_hlsl: atomic_from_cpp_box(Self::load_icon("text_hlsl", "text-html")),
             text_txt: atomic_from_cpp_box(Self::load_icon("text_txt", "text-plain")),
             text_xml: atomic_from_cpp_box(Self::load_icon("text_xml", "text-xml")),
             text_lua: atomic_from_cpp_box(Self::load_icon("text_lua", "text-x-lua")),
@@ -215,6 +217,7 @@ impl Icons {
                 else if let Some((_, text_type)) = text::EXTENSIONS.iter().find(|(extension, _)| path.ends_with(extension)) {
                     match text_type {
                         TextFormat::Html => &self.text_html,
+                        TextFormat::Hlsl => &self.text_hlsl,
                         TextFormat::Xml => &self.text_xml,
                         TextFormat::Lua => &self.text_lua,
                         TextFormat::Cpp => &self.text_cpp,
@@ -311,6 +314,7 @@ impl Icons {
                             Some((_, text_type)) => {
                                 match text_type {
                                     TextFormat::Html => &self.text_html,
+                                    TextFormat::Hlsl => &self.text_hlsl,
                                     TextFormat::Xml => &self.text_xml,
                                     TextFormat::Lua => &self.text_lua,
                                     TextFormat::Cpp => &self.text_cpp,
