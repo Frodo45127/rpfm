@@ -77,10 +77,12 @@ const BOM_UTF_8: [u8;3] = [0xEF,0xBB,0xBF];
 const BOM_UTF_16_LE: [u8;2] = [0xFF,0xFE];
 
 /// List of extensions we recognize as `Text` files, with their respective known format.
-pub const EXTENSIONS: [(&str, TextFormat); 39] = [
+pub const EXTENSIONS: [(&str, TextFormat); 55] = [
+    (".bat", TextFormat::Bat),
     (".battle_speech_camera", TextFormat::Plain),
     (".benchmark", TextFormat::Xml),
     (".bob", TextFormat::Plain),
+    (".cco", TextFormat::Plain),
     (".cindyscene", TextFormat::Xml),
     (".cindyscenemanager", TextFormat::Xml),
     (".code-snippets", TextFormat::Json),
@@ -88,6 +90,9 @@ pub const EXTENSIONS: [(&str, TextFormat); 39] = [
     (".css", TextFormat::Css),
     (".csv", TextFormat::Plain),
     (".environment", TextFormat::Xml),
+    (".environment_group", TextFormat::Xml),
+    (".environment_group.override", TextFormat::Xml),
+    (".fbx", TextFormat::Plain),
     (".fx", TextFormat::Cpp),
     (".fx_fragment", TextFormat::Cpp),
     (".h", TextFormat::Cpp),
@@ -98,13 +103,23 @@ pub const EXTENSIONS: [(&str, TextFormat); 39] = [
     (".json", TextFormat::Json),
     (".js", TextFormat::Js),
     (".kfa", TextFormat::Xml),
+    (".kfc", TextFormat::Xml),
     (".kfe", TextFormat::Xml),
+    (".kfe_temp", TextFormat::Xml),
     (".kfl", TextFormat::Xml),
+    (".kfl_temp", TextFormat::Xml),
     (".kfsl", TextFormat::Xml),
     (".kfp", TextFormat::Xml),
     (".kfcs", TextFormat::Xml),
+    (".kfcs_temp", TextFormat::Xml),
+    (".ktr", TextFormat::Xml),
+    (".ktr_temp", TextFormat::Xml),
     (".lighting", TextFormat::Xml),
     (".lua", TextFormat::Lua),
+    (".mvscene", TextFormat::Xml),
+    (".py", TextFormat::Python),
+    (".sbs", TextFormat::Xml),
+    (".shader", TextFormat::Xml),
     (".tai", TextFormat::Plain),
     (".technique", TextFormat::Xml),
     (".texture_array", TextFormat::Plain),
@@ -114,6 +129,7 @@ pub const EXTENSIONS: [(&str, TextFormat); 39] = [
     (".variantmeshdefinition", TextFormat::Xml),
     (".wsmodel", TextFormat::Xml),
     (".xml", TextFormat::Xml),
+    (".xml_temp", TextFormat::Xml),
     (".xml.shader", TextFormat::Xml),
     (".xml.material", TextFormat::Xml),
     (".material", TextFormat::Xml),     // This has to be under xml.material
@@ -152,6 +168,7 @@ pub enum Encoding {
 /// This enum represents the formats we know.
 #[derive(PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum TextFormat {
+    Bat,
     Cpp,
     Html,
     Hlsl,
@@ -161,6 +178,7 @@ pub enum TextFormat {
     Lua,
     Markdown,
     Plain,
+    Python,
     Xml,
 }
 

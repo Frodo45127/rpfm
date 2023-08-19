@@ -33,6 +33,7 @@ use crate::packedfile_views::text::slots::PackedFileTextViewSlots;
 mod connections;
 mod slots;
 
+const BAT: &str = "MS-DOS Batch";
 const CPP: &str = "C++";
 const HTML: &str = "HTML";
 const LUA: &str = "Lua";
@@ -42,6 +43,7 @@ const MARKDOWN: &str = "Markdown";
 const JSON: &str = "JSON";
 const CSS: &str = "CSS";
 const JS: &str = "Javascript";
+const PYTHON: &str = "Python";
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -70,6 +72,7 @@ impl PackedFileTextView {
     ) {
 
         let highlighting_mode = match data.format() {
+            TextFormat::Bat => QString::from_std_str(BAT),
             TextFormat::Cpp => QString::from_std_str(CPP),
             TextFormat::Html => QString::from_std_str(HTML),
             TextFormat::Hlsl => QString::from_std_str(CPP),
@@ -80,6 +83,7 @@ impl PackedFileTextView {
             TextFormat::Json => QString::from_std_str(JSON),
             TextFormat::Css => QString::from_std_str(CSS),
             TextFormat::Js => QString::from_std_str(JS),
+            TextFormat::Python => QString::from_std_str(PYTHON),
         };
 
         let editor = new_text_editor_safe(&file_view.main_widget().static_upcast());
@@ -110,6 +114,7 @@ impl PackedFileTextView {
     pub unsafe fn reload_view(&self, data: &Text) {
 
         let highlighting_mode = match data.format() {
+            TextFormat::Bat => QString::from_std_str(BAT),
             TextFormat::Cpp => QString::from_std_str(CPP),
             TextFormat::Html => QString::from_std_str(HTML),
             TextFormat::Hlsl => QString::from_std_str(CPP),
@@ -120,6 +125,7 @@ impl PackedFileTextView {
             TextFormat::Json => QString::from_std_str(JSON),
             TextFormat::Css => QString::from_std_str(CSS),
             TextFormat::Js => QString::from_std_str(JS),
+            TextFormat::Python => QString::from_std_str(PYTHON),
         };
 
         let row_number = cursor_row_safe(&self.editor.as_ptr());

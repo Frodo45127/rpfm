@@ -71,6 +71,7 @@ pub struct Icons {
     pub sound_bank: AtomicPtr<QIcon>,
 
     pub text_generic: AtomicPtr<QIcon>,
+    pub text_bat: AtomicPtr<QIcon>,
     pub text_csv: AtomicPtr<QIcon>,
     pub text_cpp: AtomicPtr<QIcon>,
     pub text_md: AtomicPtr<QIcon>,
@@ -82,6 +83,7 @@ pub struct Icons {
     pub text_lua: AtomicPtr<QIcon>,
     pub text_js: AtomicPtr<QIcon>,
     pub text_css: AtomicPtr<QIcon>,
+    pub text_python: AtomicPtr<QIcon>,
 
     pub rigid_model: AtomicPtr<QIcon>,
     pub unit_variant: AtomicPtr<QIcon>,
@@ -118,6 +120,7 @@ impl Icons {
             portrait_settings: atomic_from_cpp_box(Self::load_icon("portrait_settings", "x-office-contact")),
             sound_bank: atomic_from_cpp_box(Self::load_icon("sound_bank", "view-bank")),
             text_generic: atomic_from_cpp_box(Self::load_icon("text_generic", "text-x-generic")),
+            text_bat: atomic_from_cpp_box(Self::load_icon("text_bat", "application-x-shellscript")),
             text_csv: atomic_from_cpp_box(Self::load_icon("text_csv", "text-csv")),
             text_cpp: atomic_from_cpp_box(Self::load_icon("text_cpp", "text-x-c++src")),
             text_md: atomic_from_cpp_box(Self::load_icon("text_md", "text-markdown")),
@@ -129,6 +132,7 @@ impl Icons {
             text_lua: atomic_from_cpp_box(Self::load_icon("text_lua", "text-x-lua")),
             text_js: atomic_from_cpp_box(Self::load_icon("text_js", "text-javascript")),
             text_css: atomic_from_cpp_box(Self::load_icon("text_css", "text-css")),
+            text_python: atomic_from_cpp_box(Self::load_icon("text_python", "text-x-python")),
             rigid_model: atomic_from_cpp_box(Self::load_icon("rigid_model", "application-x-blender")),
             unit_variant: atomic_from_cpp_box(Self::load_icon("unit_variant", "application-vnd.openxmlformats-officedocument.spreadsheetml.sheet")),
             uic: atomic_from_cpp_box(Self::load_icon("uic", "application-x-designer")),
@@ -216,6 +220,7 @@ impl Icons {
 
                 else if let Some((_, text_type)) = text::EXTENSIONS.iter().find(|(extension, _)| path.ends_with(extension)) {
                     match text_type {
+                        TextFormat::Bat => &self.text_bat,
                         TextFormat::Html => &self.text_html,
                         TextFormat::Hlsl => &self.text_hlsl,
                         TextFormat::Xml => &self.text_xml,
@@ -226,6 +231,7 @@ impl Icons {
                         TextFormat::Json => &self.text_json,
                         TextFormat::Css => &self.text_css,
                         TextFormat::Js => &self.text_js,
+                        TextFormat::Python => &self.text_python,
                     }
                 }
 
@@ -313,6 +319,7 @@ impl Icons {
                         match text::EXTENSIONS.iter().find(|(extension, _)| name.ends_with(extension)) {
                             Some((_, text_type)) => {
                                 match text_type {
+                                    TextFormat::Bat => &self.text_bat,
                                     TextFormat::Html => &self.text_html,
                                     TextFormat::Hlsl => &self.text_hlsl,
                                     TextFormat::Xml => &self.text_xml,
@@ -323,6 +330,7 @@ impl Icons {
                                     TextFormat::Json => &self.text_json,
                                     TextFormat::Css => &self.text_css,
                                     TextFormat::Js => &self.text_js,
+                                    TextFormat::Python => &self.text_python,
                                 }
                             },
                             None => &self.text_generic,
