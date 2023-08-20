@@ -6,6 +6,42 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [4.1.2]
+### Added
+- Improved formatting of the paths used for icons in the table column tooltips.
+- In tables, the column tooltips now say where do lookups get their data.
+- General optimisations to the dependencies and diagnostics systems.
+- Implemented support for the following Text files:
+    - ".bat"
+    - ".cco"
+    - ".environment_group"
+    - ".environment_group.override"
+    - ".fbx"
+    - ".fx"
+    - ".fx_fragment"
+    - ".h"
+    - ".hlsl"
+    - ".kfc"
+    - ".kfe_temp"
+    - ".kfl_temp"
+    - ".kfcs_temp"
+    - ".ktr"
+    - ".ktr_temp"
+    - ".mvscene"
+    - ".py"
+    - ".sbs"
+    - ".shader"
+    - ".xml_temp"
+
+### Fixed
+- Fixed multiple issues related with lookups not showing up or not updating on certain columns.
+- Fixed locs in the open pack not being used correctly for searching for lookup data.
+- Fixed a bug that caused certain files in the open pack to not be used for reference data if something in their path had uppercases.
+- Fixed icon fields not resolving icons when the provided path used \\ instead of / as separator.
+- Fixed icon search not working correctly when the field can be searched in multiple paths.
+- Fixed lookups not working correctly when the lookup pointed to multiple columns.
+- Fixed actions that open files and scroll them failing to do the scroll part.
+
 ## [4.1.1]
 ### Added
 - Implemented local schema patches.
@@ -1129,7 +1165,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.1.1...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.1.2...HEAD
+[4.1.2]: https://github.com/Frodo45127/rpfm/compare/v4.1.1...v4.1.2
 [4.1.1]: https://github.com/Frodo45127/rpfm/compare/v4.1.0...v4.1.1
 [4.1.0]: https://github.com/Frodo45127/rpfm/compare/v4.0.22...v4.1.0
 [4.0.22]: https://github.com/Frodo45127/rpfm/compare/v4.0.21...v4.0.22
