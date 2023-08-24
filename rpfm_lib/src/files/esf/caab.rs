@@ -63,16 +63,11 @@ impl ESF {
             strings_utf8.insert(index, name);
         }
 
-        // If we're not at the end of the file, either something failed, or there's the weird padding shogun 2 files have.
-        // If it's the padding, just ignore it.
+        // If we're not at the end of the file, something failed.
         let data_len = data.len()?;
         let curr_pos = data.stream_position()?;
         if curr_pos != data_len {
-            let remainder_size = (data_len - curr_pos) as usize;
-            let padding = vec![0; remainder_size];
-            if data.read_slice(remainder_size, true)? != padding {
-                return Err(RLibError::DecodingMismatchSizeError(data_len as usize, curr_pos as usize));
-            }
+            return Err(RLibError::DecodingMismatchSizeError(data_len as usize, curr_pos as usize));
         }
 
         // Restore the index before continuing.
