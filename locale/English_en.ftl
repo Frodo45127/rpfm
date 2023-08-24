@@ -1419,3 +1419,15 @@ patch_success = Patch saved correctly. It'll be used from the next time you rest
 
 column_tooltip_lookup_remote = This column fetch lookup values from the following tables and columns, or their loc values:
 column_tooltip_lookup_local = This column fetch lookup values from the following columns of this table, or their loc values:
+
+anim_fragment_version = Version
+anim_fragment_subversion = Subversion
+anim_fragment_min_id = Min Id
+anim_fragment_max_id = Max Id
+anim_fragment_skeleton_name = Skeleton Name
+anim_fragment_table_name = Table Name
+anim_fragment_mount_table_name = Mount Table Name
+anim_fragment_unmount_table_name = Unmount Table Name
+anim_fragment_locomotion_graph = Locomotion Graph
+anim_fragment_is_simple_flight = Is Simple Flight
+anim_fragment_is_new_cavalry_tech = Is New Cavalry Tech

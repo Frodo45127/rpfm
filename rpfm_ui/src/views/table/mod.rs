@@ -146,6 +146,7 @@ const NEW_PROFILE_VIEW_RELEASE: &str = "ui/new_table_view_profile_dialog.ui";
 /// This enum is used to distinguish between the different types of tables we can decode.
 #[derive(Clone, Debug)]
 pub enum TableType {
+    AnimFragment(Table),
     Atlas(Table),
     DependencyManager(Vec<Vec<DecodedData>>),
     DB(DB),
@@ -309,6 +310,7 @@ impl TableView {
     ) -> Result<Arc<Self>> {
 
         let (table_definition, table_name, packed_file_type) = match table_data {
+            TableType::AnimFragment(ref table) => (table.definition().clone(), None, FileType::AnimFragment),
             TableType::Atlas(ref table) => (table.definition().clone(), None, FileType::Atlas),
             TableType::DependencyManager(_) => {
                 let mut definition = Definition::new(-1, None);
@@ -840,6 +842,7 @@ impl TableView {
 
         // Update the stored definition.
         let table_definition = match data {
+            TableType::AnimFragment(ref table) => table.definition().clone(),
             TableType::Atlas(ref table) => table.definition().clone(),
             TableType::DB(ref table) => table.definition().clone(),
             TableType::Loc(ref table) => table.definition().clone(),

@@ -41,7 +41,7 @@ use crate::UI_STATE;
 use crate::views::table::utils::get_table_from_view;
 use crate::views::table::TableType;
 
-use self::anim_fragment::FileAnimFragmentDebugView;
+use self::anim_fragment::FileAnimFragmentView;
 use self::animpack::PackedFileAnimPackView;
 use self::anims_table::FileAnimsTableDebugView;
 use self::audio::FileAudioView;
@@ -149,7 +149,7 @@ pub enum DataSource {
 
 /// This enum is used to hold in a common way all the view types we have.
 pub enum View {
-    AnimFragmentDebug(Arc<FileAnimFragmentDebugView>),
+    AnimFragment(Arc<FileAnimFragmentView>),
     AnimPack(Arc<PackedFileAnimPackView>),
     AnimsTableDebug(Arc<FileAnimsTableDebugView>),
     Audio(Arc<FileAudioView>),
@@ -308,7 +308,7 @@ impl FileView {
                     ViewType::Internal(view) => {
 
                         let data = match view {
-                            View::AnimFragmentDebug(_) => return Ok(()),
+                            View::AnimFragment(view) => RFileDecoded::AnimFragment(view.save_view()?),
                             View::AnimPack(_) => return Ok(()),
                             View::AnimsTableDebug(_) => return Ok(()),
                             View::Audio(_) => return Ok(()),
@@ -477,7 +477,7 @@ impl FileView {
                     match response {
 
                         Response::AnimFragmentRFileInfo(fragment, packed_file_info) => {
-                            if let View::AnimFragmentDebug(old_fragment) = view {
+                            if let View::AnimFragment(old_fragment) = view {
                                 if old_fragment.reload_view(fragment).is_err() {
                                     return Err(anyhow!(RFILE_RELOAD_ERROR));
                                 }

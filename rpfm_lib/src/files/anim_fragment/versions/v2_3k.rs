@@ -23,11 +23,12 @@ use crate::files::anim_fragment::*;
 impl AnimFragment {
 
     pub fn read_v2_3k<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
-        self.table_name = data.read_sized_string_u8()?; dbg!(&self.table_name);
-        self.mount_table_name = data.read_sized_string_u8()?; dbg!(&self.mount_table_name);
-        self.unmount_table_name = data.read_sized_string_u8()?; dbg!(&self.unmount_table_name);
-        self.skeleton_name = data.read_sized_string_u8()?; dbg!(&self.skeleton_name);
-        self.uk_4 = data.read_sized_string_u8()?; dbg!(&self.uk_4);
+        self.table_name = data.read_sized_string_u8()?;
+        self.mount_table_name = data.read_sized_string_u8()?;
+        self.unmount_table_name = data.read_sized_string_u8()?;
+        self.skeleton_name = data.read_sized_string_u8()?;
+        self.is_simple_flight = data.read_bool()?;
+        self.is_new_cavalry_tech = data.read_bool()?;
 
         let entry_count = data.read_u32()?;
         for _ in 0..entry_count {
@@ -70,7 +71,8 @@ impl AnimFragment {
         buffer.write_sized_string_u8(&self.mount_table_name)?;
         buffer.write_sized_string_u8(&self.unmount_table_name)?;
         buffer.write_sized_string_u8(&self.skeleton_name)?;
-        buffer.write_sized_string_u8(&self.uk_4)?;
+        buffer.write_bool(self.is_simple_flight)?;
+        buffer.write_bool(self.is_new_cavalry_tech)?;
 
         buffer.write_u32(self.entries.len() as u32)?;
         for entry in &self.entries {

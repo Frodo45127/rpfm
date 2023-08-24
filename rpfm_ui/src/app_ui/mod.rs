@@ -2500,7 +2500,7 @@ impl AppUI {
 
                         Response::AnimFragmentRFileInfo(data, ref file_info) => {
                             let file_info = file_info.clone();
-                            match FileAnimFragmentDebugView::new_view(&mut tab, data) {
+                            match FileAnimFragmentView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, data) {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.

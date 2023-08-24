@@ -46,6 +46,7 @@ use std::sync::{atomic::AtomicPtr, RwLock};
 
 use rpfm_extensions::dependencies::TableReferences;
 
+use rpfm_lib::binary::WriteBytes;
 use rpfm_lib::files::{ContainerPath, RFileDecoded, table::Table};
 use rpfm_lib::integrations::log::*;
 use rpfm_lib::schema::{Definition, DefinitionPatch, Field, FieldType};
@@ -453,6 +454,7 @@ pub unsafe fn load_data(
 
     // Set the right data, depending on the table type you get.
     let data = match data {
+        TableType::AnimFragment(data) => data.data(),
         TableType::Atlas(data) => data.data(),
         TableType::DependencyManager(data) => Cow::from(data),
         TableType::DB(data) => data.data(),

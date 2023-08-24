@@ -29,7 +29,8 @@ impl AnimFragment {
         self.unmount_table_name = data.read_sized_string_u8()?;
         self.skeleton_name = data.read_sized_string_u8()?;
         self.locomotion_graph = data.read_sized_string_u8()?;
-        self.uk_4 = data.read_sized_string_u8()?;
+        self.is_simple_flight = data.read_bool()?;
+        self.is_new_cavalry_tech = data.read_bool()?;
 
         let entries_count = data.read_u32()?;
 
@@ -76,7 +77,8 @@ impl AnimFragment {
         buffer.write_sized_string_u8(&self.unmount_table_name)?;
         buffer.write_sized_string_u8(&self.skeleton_name)?;
         buffer.write_sized_string_u8(&self.locomotion_graph)?;
-        buffer.write_sized_string_u8(&self.uk_4)?;
+        buffer.write_bool(self.is_simple_flight)?;
+        buffer.write_bool(self.is_new_cavalry_tech)?;
 
         buffer.write_u32(self.entries.len() as u32)?;
         for entry in &self.entries {
