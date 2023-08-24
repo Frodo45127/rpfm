@@ -1153,6 +1153,9 @@ pub unsafe fn open_subtable(
     if dialog.exec() == 1 {
         if let Ok(table) = get_table_from_view(&table_view.table_model.static_upcast(), &table_view.table_definition()) {
             let mut data = Cursor::new(vec![]);
+
+            // Subtables come from Sequence fields, and in those we NEED to manually write the amount of rows before the data, or we will get broken data.
+            data.write_u32(table.data().len() as u32).unwrap();
             let _ = table.encode(&mut data, &None);
 
             Some(data.into_inner())
