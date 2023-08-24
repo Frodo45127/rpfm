@@ -132,8 +132,8 @@ impl DecodedData {
                 FieldType::OptionalStringU16 => DecodedData::OptionalStringU16(default_value.to_owned()),
 
                 // For these two ignore the default value.
-                FieldType::SequenceU16(_) => DecodedData::SequenceU16(vec![]),
-                FieldType::SequenceU32(_) => DecodedData::SequenceU32(vec![]),
+                FieldType::SequenceU16(_) => DecodedData::SequenceU16(vec![0, 0]),
+                FieldType::SequenceU32(_) => DecodedData::SequenceU32(vec![0, 0, 0, 0]),
             }
             None => match field_type {
                 FieldType::Boolean => DecodedData::Boolean(false),
@@ -150,8 +150,8 @@ impl DecodedData {
                 FieldType::OptionalI64 => DecodedData::OptionalI64(0),
                 FieldType::OptionalStringU8 => DecodedData::OptionalStringU8("".to_owned()),
                 FieldType::OptionalStringU16 => DecodedData::OptionalStringU16("".to_owned()),
-                FieldType::SequenceU16(_) => DecodedData::SequenceU16(vec![]),
-                FieldType::SequenceU32(_) => DecodedData::SequenceU32(vec![]),
+                FieldType::SequenceU16(_) => DecodedData::SequenceU16(vec![0, 0]),
+                FieldType::SequenceU32(_) => DecodedData::SequenceU32(vec![0, 0, 0, 0]),
             }
         }
     }
@@ -222,8 +222,8 @@ impl DecodedData {
                 FieldType::OptionalI64 => Self::OptionalI64(i64::from(*data)),
                 FieldType::OptionalStringU8 => Self::OptionalStringU8(data.to_string()),
                 FieldType::OptionalStringU16 => Self::OptionalStringU16(data.to_string()),
-                FieldType::SequenceU16(_) => Self::SequenceU16(vec![]),
-                FieldType::SequenceU32(_) => Self::SequenceU16(vec![]),
+                FieldType::SequenceU16(_) => Self::SequenceU16(vec![0, 0]),
+                FieldType::SequenceU32(_) => Self::SequenceU32(vec![0, 0, 0, 0]),
             }
 
             Self::F32(ref data) => match new_field_type {
@@ -241,8 +241,8 @@ impl DecodedData {
                 FieldType::OptionalI64 => Self::OptionalI64(*data as i64),
                 FieldType::OptionalStringU8 => Self::OptionalStringU8(data.to_string()),
                 FieldType::OptionalStringU16 => Self::OptionalStringU16(data.to_string()),
-                FieldType::SequenceU16(_) => Self::SequenceU16(vec![]),
-                FieldType::SequenceU32(_) => Self::SequenceU16(vec![]),
+                FieldType::SequenceU16(_) => Self::SequenceU16(vec![0, 0]),
+                FieldType::SequenceU32(_) => Self::SequenceU32(vec![0, 0, 0, 0]),
             }
 
             Self::F64(ref data) => match new_field_type {
@@ -260,8 +260,8 @@ impl DecodedData {
                 FieldType::OptionalI64 => Self::OptionalI64(*data as i64),
                 FieldType::OptionalStringU8 => Self::OptionalStringU8(data.to_string()),
                 FieldType::OptionalStringU16 => Self::OptionalStringU16(data.to_string()),
-                FieldType::SequenceU16(_) => Self::SequenceU16(vec![]),
-                FieldType::SequenceU32(_) => Self::SequenceU16(vec![]),
+                FieldType::SequenceU16(_) => Self::SequenceU16(vec![0, 0]),
+                FieldType::SequenceU32(_) => Self::SequenceU32(vec![0, 0, 0, 0]),
             }
 
             Self::OptionalI16(ref data) |
@@ -280,8 +280,8 @@ impl DecodedData {
                 FieldType::OptionalI64 => Self::OptionalI64(*data as i64),
                 FieldType::OptionalStringU8 => Self::OptionalStringU8(data.to_string()),
                 FieldType::OptionalStringU16 => Self::OptionalStringU16(data.to_string()),
-                FieldType::SequenceU16(_) => Self::SequenceU16(vec![]),
-                FieldType::SequenceU32(_) => Self::SequenceU16(vec![]),
+                FieldType::SequenceU16(_) => Self::SequenceU16(vec![0, 0]),
+                FieldType::SequenceU32(_) => Self::SequenceU32(vec![0, 0, 0, 0]),
             }
 
             Self::OptionalI32(ref data) |
@@ -300,8 +300,8 @@ impl DecodedData {
                 FieldType::OptionalI64 => Self::OptionalI64(*data as i64),
                 FieldType::OptionalStringU8 => Self::OptionalStringU8(data.to_string()),
                 FieldType::OptionalStringU16 => Self::OptionalStringU16(data.to_string()),
-                FieldType::SequenceU16(_) => Self::SequenceU16(vec![]),
-                FieldType::SequenceU32(_) => Self::SequenceU16(vec![]),
+                FieldType::SequenceU16(_) => Self::SequenceU16(vec![0, 0]),
+                FieldType::SequenceU32(_) => Self::SequenceU32(vec![0, 0, 0, 0]),
             }
 
             Self::OptionalI64(ref data) |
@@ -320,8 +320,8 @@ impl DecodedData {
                 FieldType::OptionalI64 => Self::OptionalI64(*data),
                 FieldType::OptionalStringU8 => Self::OptionalStringU8(data.to_string()),
                 FieldType::OptionalStringU16 => Self::OptionalStringU16(data.to_string()),
-                FieldType::SequenceU16(_) => Self::SequenceU16(vec![]),
-                FieldType::SequenceU32(_) => Self::SequenceU16(vec![]),
+                FieldType::SequenceU16(_) => Self::SequenceU16(vec![0, 0]),
+                FieldType::SequenceU32(_) => Self::SequenceU32(vec![0, 0, 0, 0]),
             }
 
             Self::ColourRGB(ref data) |
@@ -343,12 +343,30 @@ impl DecodedData {
                 FieldType::OptionalI64 => Self::OptionalI64(data.parse::<i64>()?),
                 FieldType::OptionalStringU8 => Self::OptionalStringU8(data.to_string()),
                 FieldType::OptionalStringU16 => Self::OptionalStringU16(data.to_string()),
-                FieldType::SequenceU16(_) => Self::SequenceU16(vec![]),
-                FieldType::SequenceU32(_) => Self::SequenceU16(vec![]),
+                FieldType::SequenceU16(_) => Self::SequenceU16(vec![0, 0]),
+                FieldType::SequenceU32(_) => Self::SequenceU32(vec![0, 0, 0, 0]),
             }
 
-            Self::SequenceU16(_) |
-            Self::SequenceU32(_) => Self::new_from_type_and_value(new_field_type, &None)
+            Self::SequenceU16(data) => match new_field_type {
+                FieldType::SequenceU16(_) => Self::SequenceU16(data.to_vec()),
+                FieldType::SequenceU32(_) => Self::SequenceU32({
+                    let mut vec = vec![];
+                    vec.extend_from_slice(&data[0..2]);
+                    vec.extend_from_slice(&[0, 0]);
+                    vec.extend_from_slice(&data[2..]);
+                    vec
+                }),
+                _ => Self::new_from_type_and_value(new_field_type, &None),
+            }
+            Self::SequenceU32(data) => match new_field_type {
+                FieldType::SequenceU16(_) => Self::SequenceU16({
+                    let mut vec = data[0..2].to_vec();
+                    vec.extend_from_slice(&data[4..]);
+                    vec
+                }),
+                FieldType::SequenceU32(_) => Self::SequenceU32(data.to_vec()),
+                _ => Self::new_from_type_and_value(new_field_type, &None),
+            }
         })
     }
 
