@@ -1292,22 +1292,24 @@ impl Dependencies {
     /// This function returns if a specific file exists in the dependencies cache.
     pub fn file_exists(&self, file_path: &str, include_vanilla: bool, include_parent: bool, case_insensitive: bool) -> bool {
         if include_parent {
-            if case_insensitive {
-                if self.parent_files.par_iter().any(|(path, _)| caseless::canonical_caseless_match_str(path, file_path)) {
+            if self.parent_files.get(file_path).is_some() {
+                return true
+            } else if case_insensitive {
+                let lower = file_path.to_lowercase();
+                if self.parent_paths.get(&lower).is_some() {
                     return true
                 }
-            } else if self.parent_files.get(file_path).is_some() {
-                return true
             }
         }
 
         if include_vanilla {
-            if case_insensitive {
-                if self.vanilla_files.par_iter().any(|(path, _)| caseless::canonical_caseless_match_str(path, file_path)) {
+            if self.vanilla_files.get(file_path).is_some() {
+                return true
+            } else if case_insensitive {
+                let lower = file_path.to_lowercase();
+                if self.vanilla_paths.get(&lower).is_some() {
                     return true
                 }
-            } else if self.vanilla_files.get(file_path).is_some() {
-                return true
             }
         }
 
@@ -1317,21 +1319,17 @@ impl Dependencies {
     /// This function returns if a specific folder exists in the dependencies cache.
     pub fn folder_exists(&self, folder_path: &str, include_vanilla: bool, include_parent: bool, case_insensitive: bool) -> bool {
         if include_parent {
-            if case_insensitive {
-                if self.parent_folders.par_iter().any(|path| caseless::canonical_caseless_match_str(path, folder_path)) {
-                    return true
-                }
-            } else if self.parent_folders.get(folder_path).is_some() {
+            if self.parent_folders.get(folder_path).is_some() {
+                return true
+            } else if case_insensitive && self.parent_folders.par_iter().any(|path| caseless::canonical_caseless_match_str(path, folder_path)) {
                 return true
             }
         }
 
         if include_vanilla {
-            if case_insensitive {
-                if self.vanilla_folders.par_iter().any(|path| caseless::canonical_caseless_match_str(path, folder_path)) {
-                    return true
-                }
-            } else if self.vanilla_folders.get(folder_path).is_some() {
+            if self.vanilla_folders.get(folder_path).is_some() {
+                return true
+            } else if case_insensitive && self.vanilla_folders.par_iter().any(|path| caseless::canonical_caseless_match_str(path, folder_path)) {
                 return true
             }
         }
