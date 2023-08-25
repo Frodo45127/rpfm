@@ -970,13 +970,15 @@ impl DiagnosticsUI {
                         let list_filter: QPtr<QSortFilterProxyModel> = list_view.model().static_downcast();
                         let list_model: QPtr<QStandardItemModel> = list_filter.source_model().static_downcast();
                         let list_selection_model = list_view.selection_model();
-
                         list_selection_model.clear_selection();
-                        let data_merged = model.item_2a(model_index.row(), 2).text().to_std_string();
-                        let data: Vec<&str> = data_merged.split('|').collect::<Vec<_>>();
-                        let mut art_set_id_found = false;
 
+                        let data_merged = model.item_2a(model_index.row(), 2).text().to_std_string();
+                        let data = data_merged.split('|').collect::<Vec<_>>();
+
+                        // If we have an art set id, select it.
                         if let Some(art_set_id) = data.first() {
+                            let mut art_set_id_found = false;
+
                             let q_string = QString::from_std_str(art_set_id);
                             for row in 0..list_model.row_count_0a() {
                                 let list_model_index = list_model.index_2a(row, 0);
@@ -988,23 +990,49 @@ impl DiagnosticsUI {
                                         list_view.scroll_to_2a(list_model_index_filtered.as_ref(), ScrollHint::EnsureVisible);
                                         list_selection_model.select_q_model_index_q_flags_selection_flag(list_model_index_filtered.as_ref(), QFlags::from(SelectionFlag::SelectCurrent));
                                         art_set_id_found = true;
+                                        break;
                                     }
                                 }
                             }
-                        }
 
-                        if art_set_id_found {
-                            if let Some(variant_filename) = data.get(1) {
-                                let q_string = QString::from_std_str(variant_filename);
-                                for row in 0..view.variants_list_model().row_count_0a() {
-                                    let list_model_index = view.variants_list_model().index_2a(row, 0);
-                                    if view.variants_list_model().data_1a(&list_model_index).to_string().compare_q_string(&q_string) == 0 {
-                                        let list_model_index_filtered = view.variants_list_filter().map_from_source(&list_model_index);
-                                        if list_model_index_filtered.is_valid() {
-                                            view.variants_list_view().set_focus_0a();
-                                            view.variants_list_view().set_current_index(list_model_index_filtered.as_ref());
-                                            view.variants_list_view().scroll_to_2a(list_model_index_filtered.as_ref(), ScrollHint::EnsureVisible);
-                                            view.variants_list_view().selection_model().select_q_model_index_q_flags_selection_flag(list_model_index_filtered.as_ref(), QFlags::from(SelectionFlag::SelectCurrent));
+                            // If we also have a variant name, select it.
+                            if art_set_id_found {
+                                if let Some(variant_filename) = data.get(1) {
+                                    let q_string = QString::from_std_str(variant_filename);
+                                    for row in 0..view.variants_list_model().row_count_0a() {
+                                        let list_model_index = view.variants_list_model().index_2a(row, 0);
+                                        if view.variants_list_model().data_1a(&list_model_index).to_string().compare_q_string(&q_string) == 0 {
+                                            let list_model_index_filtered = view.variants_list_filter().map_from_source(&list_model_index);
+                                            if list_model_index_filtered.is_valid() {
+                                                view.variants_list_view().set_focus_0a();
+                                                view.variants_list_view().set_current_index(list_model_index_filtered.as_ref());
+                                                view.variants_list_view().scroll_to_2a(list_model_index_filtered.as_ref(), ScrollHint::EnsureVisible);
+                                                view.variants_list_view().selection_model().select_q_model_index_q_flags_selection_flag(list_model_index_filtered.as_ref(), QFlags::from(SelectionFlag::SelectCurrent));
+
+                                                // We need to check the report type to see if we have to select a line edit.
+                                                let report_type = model.item_2a(model_index.row(), 5).text().to_std_string();
+                                                match &*report_type {
+                                                    "FileDiffuseNotFoundForVariant" => {
+                                                        view.file_diffuse_line_edit().select_all();
+                                                        view.file_diffuse_line_edit().set_focus_0a();
+                                                    },
+                                                    "FileMask1NotFoundForVariant" => {
+                                                        view.file_mask_1_line_edit().select_all();
+                                                        view.file_mask_1_line_edit().set_focus_0a();
+                                                    },
+                                                    "FileMask2NotFoundForVariant" => {
+                                                        view.file_mask_2_line_edit().select_all();
+                                                        view.file_mask_2_line_edit().set_focus_0a();
+                                                    },
+                                                    "FileMask3NotFoundForVariant" => {
+                                                        view.file_mask_3_line_edit().select_all();
+                                                        view.file_mask_3_line_edit().set_focus_0a();
+                                                    }
+                                                    _ => {},
+                                                }
+
+                                                break;
+                                            }
                                         }
                                     }
                                 }
