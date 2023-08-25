@@ -14,6 +14,7 @@
 
 use pelite::pe64;
 use pelite::resources::{FindError, Resources, version_info::VersionInfo};
+use rayon::prelude::*;
 
 use std::cmp::Ordering;
 use std::fs::{File, read_dir};
@@ -72,6 +73,20 @@ pub fn closest_valid_char_byte(string: &str, start_byte: usize) -> usize {
 
 /// This function retuns a `Vec<PathBuf>` containing all the files in the provided folder.
 pub fn files_from_subdir(current_path: &Path, scan_subdirs: bool) -> Result<Vec<PathBuf>> {
+
+    // Fast path. Takes a few ms less than the other one.
+    if !scan_subdirs {
+        return Ok(read_dir(current_path)?
+            .flatten()
+            .filter(|file| {
+                if let Ok(metadata) = file.metadata() {
+                    metadata.is_file()
+                } else { false }
+            })
+            .map(|file| file.path()).collect());
+    }
+
+    // Slow path. Can scan subdirs.
     let mut file_list: Vec<PathBuf> = vec![];
     match read_dir(current_path) {
         Ok(files_in_current_path) => {
@@ -191,18 +206,12 @@ pub fn last_modified_time_from_file(file: &File) -> Result<u64> {
 
 /// This function gets the newer last modified time from the provided list.
 pub fn last_modified_time_from_files(paths: &[PathBuf]) -> Result<u64> {
-    let mut last_time = 0;
-    for path in paths {
-        if path.is_file() {
-            let file = File::open(path)?;
-            let time = last_modified_time_from_file(&file)?;
-            if time > last_time {
-                last_time = time
-            }
-        }
-    }
-
-    Ok(last_time)
+    Ok(paths
+        .par_iter()
+        .filter_map(|path| File::open(path).ok())
+        .filter_map(|file| last_modified_time_from_file(&file).ok())
+        .max().unwrap_or_else(|| 0)
+    )
 }
 
 //--------------------------------------------------------//

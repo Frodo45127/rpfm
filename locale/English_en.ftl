@@ -1452,3 +1452,8 @@ anim_fragment_battle_metadata = Metadata
 anim_fragment_battle_metadata_sound = Metadata Sound
 anim_fragment_battle_skeleton_type = Skeleton Type
 anim_fragment_battle_uk_4 = Uk4
+
+label_locomotion_graph_path_not_found = Locomotion Graph not found
+label_file_path_not_found = File Path not found
+label_meta_file_path_not_found = Meta File Path not found
+label_snd_file_path_not_found = Snd File Path not found

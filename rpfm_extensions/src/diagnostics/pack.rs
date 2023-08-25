@@ -15,8 +15,9 @@ use serde_derive::{Serialize, Deserialize};
 
 use std::{fmt, fmt::Display};
 
-use crate::diagnostics::DiagnosticReport;
-use super::DiagnosticLevel;
+use rpfm_lib::files::pack::Pack;
+
+use crate::diagnostics::*;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -73,4 +74,23 @@ impl Display for PackDiagnosticReportType {
             Self::InvalidPackName(_) => "InvalidPackFileName",
         }, f)
     }
+}
+
+impl PackDiagnostic {
+
+    /// This function takes care of checking for PackFile-Related for errors.
+    pub fn check(pack: &Pack) -> Option<DiagnosticType> {
+        let mut diagnostic = PackDiagnostic::default();
+
+        let name = pack.disk_file_name();
+        if name.contains(' ') {
+            let result = PackDiagnosticReport::new(PackDiagnosticReportType::InvalidPackName(name));
+            diagnostic.results_mut().push(result);
+        }
+
+        if !diagnostic.results().is_empty() {
+            Some(DiagnosticType::Pack(diagnostic))
+        } else { None }
+    }
+
 }

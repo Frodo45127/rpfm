@@ -17,8 +17,7 @@ use std::{fmt, fmt::Display};
 
 use rpfm_lib::files::pack::RESERVED_NAME_DEPENDENCIES_MANAGER;
 
-use crate::diagnostics::DiagnosticReport;
-use super::DiagnosticLevel;
+use crate::diagnostics::*;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -90,5 +89,25 @@ impl Display for DependencyDiagnosticReportType {
         Display::fmt(match self {
             Self::InvalidDependencyPackName(_) => "InvalidPackName",
         }, f)
+    }
+}
+
+impl DependencyDiagnostic {
+
+    /// This function takes care of checking for errors in the Dependency Manager.
+    pub fn check(pack: &Pack) ->Option<DiagnosticType> {
+        let mut diagnostic = DependencyDiagnostic::default();
+        for (index, pack) in pack.dependencies().iter().enumerate() {
+
+            // TODO: Make it so this also checks if the PackFile actually exists,
+            if pack.is_empty() || !pack.ends_with(".pack") || pack.contains(' ') {
+                let result = DependencyDiagnosticReport::new(DependencyDiagnosticReportType::InvalidDependencyPackName(pack.to_string()), &[(index as i32, 0)]);
+                diagnostic.results_mut().push(result);
+            }
+        }
+
+        if !diagnostic.results().is_empty() {
+            Some(DiagnosticType::Dependency(diagnostic))
+        } else { None }
     }
 }

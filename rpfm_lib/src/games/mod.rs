@@ -20,6 +20,7 @@ use std::{fmt, fmt::Display};
 use std::fs::{DirBuilder, File};
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, RwLock};
 
 use crate::error::{RLibError, Result};
 use crate::utils::*;
@@ -122,6 +123,10 @@ pub struct GameInfo {
 
     /// Table/fields ignored on the assembly kit integration for this game. These are fields that are "lost" when exporting the tables from Dave.
     ak_lost_fields: Vec<String>,
+
+    /// Internal cache to speedup operations related with the install type.
+    #[getset(skip)]
+    install_type_cache: Arc<RwLock<HashMap<PathBuf, InstallType>>>
 }
 
 /// This enum holds the info about each game approach at naming db tables.
@@ -233,6 +238,12 @@ impl GameInfo {
     /// This function tries to get the correct InstallType for the currently configured installation of the game.
     pub fn install_type(&self, game_path: &Path) -> Result<InstallType> {
 
+        // This function takes 10ms to execute. In a few places, it's executed 2-5 times, and quickly adds up.
+        // So before executing it, check the cache to see if it has been executed before.
+        if let Some(install_type) = self.install_type_cache.read().unwrap().get(game_path) {
+            return Ok(install_type.clone());
+        }
+
         // Checks to guess what kind of installation we have.
         let base_path_files = files_from_subdir(game_path, false)?;
         let install_type_by_exe = self.install_data.iter().filter_map(|(install_type, install_data)|
@@ -243,11 +254,14 @@ impl GameInfo {
 
         // If no compatible install data was found, use the first one we have.
         if install_type_by_exe.is_empty() {
-            Ok(self.install_data.keys().next().unwrap().clone())
+            let install_type = self.install_data.keys().next().unwrap();
+            self.install_type_cache.write().unwrap().insert(game_path.to_path_buf(), install_type.clone());
+            Ok(install_type.clone())
         }
 
         // If we only have one install type compatible with the executable we have, return it.
         else if install_type_by_exe.len() == 1 {
+            self.install_type_cache.write().unwrap().insert(game_path.to_path_buf(), install_type_by_exe[0].clone());
             Ok(install_type_by_exe[0].clone())
         }
 
@@ -257,29 +271,32 @@ impl GameInfo {
             // First, identify if we have a windows or linux build (mac only exists in your dreams.....).
             // Can't be both because they have different exe names. Unless you're retarded and you merge both, in which case, fuck you.
             let is_windows = install_type_by_exe.iter().any(|install_type| install_type == &&InstallType::WinSteam || install_type == &&InstallType::WinEpic || install_type == &&InstallType::WinWargaming);
-
             if is_windows {
 
                 // Steam versions of the game have a "steam_api.dll" or "steam_api64.dll" file. Epic has "EOSSDK-Win64-Shipping.dll".
                 let has_steam_api_dll = base_path_files.iter().filter_map(|path| path.file_name()).any(|filename| filename == "steam_api.dll" || filename == "steam_api64.dll");
                 let has_eos_sdk_dll = base_path_files.iter().filter_map(|path| path.file_name()).any(|filename| filename == "EOSSDK-Win64-Shipping.dll");
                 if has_steam_api_dll && install_type_by_exe.contains(&&InstallType::WinSteam) {
+                    self.install_type_cache.write().unwrap().insert(game_path.to_path_buf(), InstallType::WinSteam);
                     Ok(InstallType::WinSteam)
                 }
 
                 // If not, check wether we have epic libs.
                 else if has_eos_sdk_dll && install_type_by_exe.contains(&&InstallType::WinEpic) {
+                    self.install_type_cache.write().unwrap().insert(game_path.to_path_buf(), InstallType::WinEpic);
                     Ok(InstallType::WinEpic)
                 }
 
                 // If neither of those are true, assume it's wargaming/netease (arena?).
                 else {
+                    self.install_type_cache.write().unwrap().insert(game_path.to_path_buf(), InstallType::WinWargaming);
                     Ok(InstallType::WinWargaming)
                 }
             }
 
             // Otherwise, assume it's linux
             else {
+                self.install_type_cache.write().unwrap().insert(game_path.to_path_buf(), InstallType::LnxSteam);
                 Ok(InstallType::LnxSteam)
             }
         }
@@ -473,7 +490,7 @@ impl GameInfo {
 
                                     // Filter out other language's packfiles.
                                     if entry.relative_path().contains("local_") {
-                                        let language = format!("local_{language}");
+                                        let language = "local_".to_owned() + language;
                                         if entry.relative_path().contains(&language) {
                                             entry.path_from_manifest_entry(pack_file_path)
                                         } else {

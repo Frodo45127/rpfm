@@ -14,8 +14,11 @@ use getset::{Getters, MutGetters};
 use serde_derive::{Serialize, Deserialize};
 
 use std::{fmt, fmt::Display};
+use std::path::Path;
 
-use super::{DiagnosticLevel, DiagnosticReport};
+use rpfm_lib::games::GameInfo;
+
+use crate::diagnostics::*;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -83,5 +86,43 @@ impl Display for ConfigDiagnosticReportType {
             Self::DependenciesCacheCouldNotBeLoaded(_) => "DependenciesCacheCouldNotBeLoaded",
             Self::IncorrectGamePath => "IncorrectGamePath",
         }, f)
+    }
+}
+
+impl ConfigDiagnostic {
+
+    /// This function takes care of checking RPFM's configuration for errors.
+    pub fn check(dependencies: &Dependencies, game_info: &GameInfo, game_path: &Path) -> Option<DiagnosticType> {
+        let mut diagnostic = ConfigDiagnostic::default();
+
+        // First, check if we have the game folder correctly configured. We can't do anything without it.
+        let exe_path = game_info.executable_path(game_path).filter(|path| path.is_file());
+        if exe_path.is_none() {
+            diagnostic.results_mut().push(ConfigDiagnosticReport::new(ConfigDiagnosticReportType::IncorrectGamePath));
+        }
+
+        // If we have the correct folder, check if the vanilla data of the dependencies is loaded.
+        else if !dependencies.is_vanilla_data_loaded(false) {
+            diagnostic.results_mut().push(ConfigDiagnosticReport::new(ConfigDiagnosticReportType::DependenciesCacheNotGenerated));
+        }
+
+        // If we have vanilla data, check if the dependencies need updating due to changes in the game files.
+        else {
+            match dependencies.needs_updating(game_info, game_path) {
+                Ok(needs_updating) => {
+                    if needs_updating {
+                        diagnostic.results_mut().push(ConfigDiagnosticReport::new(ConfigDiagnosticReportType::DependenciesCacheOutdated));
+                    }
+                }
+
+                Err(error) => {
+                    diagnostic.results_mut().push(ConfigDiagnosticReport::new(ConfigDiagnosticReportType::DependenciesCacheCouldNotBeLoaded(error.to_string())));
+                }
+            }
+        }
+
+        if !diagnostic.results().is_empty() {
+            Some(DiagnosticType::Config(diagnostic))
+        } else { None }
     }
 }

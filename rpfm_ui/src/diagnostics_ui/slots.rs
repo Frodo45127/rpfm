@@ -91,10 +91,8 @@ impl DiagnosticsUISlots {
             diagnostics_ui => move || {
                 info!("Triggering `Check PackFile (Diags)` By Slot");
 
-                app_ui.main_window().set_disabled(true);
                 let _ = AppUI::back_to_back_end_all(&app_ui, &pack_file_contents_ui);
                 DiagnosticsUI::check(&app_ui, &diagnostics_ui);
-                app_ui.main_window().set_disabled(false);
             }
         ));
 
@@ -104,11 +102,9 @@ impl DiagnosticsUISlots {
             diagnostics_ui => move || {
                 info!("Triggering `Check Open PackedFiles (Diag)` By Slot");
 
-                app_ui.main_window().set_disabled(true);
                 let _ = AppUI::back_to_back_end_all(&app_ui, &pack_file_contents_ui);
                 let path_types = UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).map(|x| ContainerPath::File(x.path_copy())).collect::<Vec<ContainerPath>>();
                 DiagnosticsUI::check_on_path(&app_ui, &diagnostics_ui, path_types);
-                app_ui.main_window().set_disabled(false);
             }
         ));
 
@@ -432,6 +428,10 @@ impl DiagnosticsUISlots {
                 let _blocker_28 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_file_mask_1_not_found_for_variant.static_upcast::<QObject>());
                 let _blocker_29 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_file_mask_2_not_found_for_variant.static_upcast::<QObject>());
                 let _blocker_30 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_file_mask_3_not_found_for_variant.static_upcast::<QObject>());
+                let _blocker_31 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_loocomotion_graph_path_not_found.static_upcast::<QObject>());
+                let _blocker_32 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_file_path_not_found.static_upcast::<QObject>());
+                let _blocker_33 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_meta_file_path_not_found.static_upcast::<QObject>());
+                let _blocker_34 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_snd_file_path_not_found.static_upcast::<QObject>());
 
                 if toggled {
                     diagnostics_ui.checkbox_outdated_table.set_checked(true);
@@ -465,6 +465,10 @@ impl DiagnosticsUISlots {
                     diagnostics_ui.checkbox_file_mask_2_not_found_for_variant.set_checked(true);
                     diagnostics_ui.checkbox_file_mask_3_not_found_for_variant.set_checked(true);
                     diagnostics_ui.checkbox_datacored_portrait_settings.set_checked(true);
+                    diagnostics_ui.checkbox_loocomotion_graph_path_not_found.set_checked(true);
+                    diagnostics_ui.checkbox_file_path_not_found.set_checked(true);
+                    diagnostics_ui.checkbox_meta_file_path_not_found.set_checked(true);
+                    diagnostics_ui.checkbox_snd_file_path_not_found.set_checked(true);
                 }
 
                 DiagnosticsUI::filter(&app_ui, &diagnostics_ui);

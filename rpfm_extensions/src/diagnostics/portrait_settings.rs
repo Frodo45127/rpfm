@@ -11,13 +11,12 @@
 //! Module with the structs and functions specific for `PortraitSettings` diagnostics.
 
 use getset::{Getters, MutGetters};
-use rpfm_lib::files::RFileDecoded;
 use serde_derive::{Serialize, Deserialize};
 
 use std::collections::{HashMap, HashSet};
 use std::{fmt, fmt::Display};
 
-use rpfm_lib::files::RFile;
+use rpfm_lib::files::{RFile, RFileDecoded};
 
 use crate::dependencies::Dependencies;
 use crate::diagnostics::*;

@@ -16,6 +16,7 @@ You should have no business here, except for supporting a new game.
 !*/
 
 use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
 
 use super::{GameInfo, InstallData, InstallType, pfh_file_type::PFHFileType, pfh_version::PFHVersion, VanillaDBTableNameLogic};
 
@@ -270,6 +271,7 @@ impl Default for SupportedGames {
                 "wind_levels/magnitudeX".to_owned(),
                 "wind_levels/magnitudeY".to_owned(),
             ],
+            install_type_cache: Arc::new(RwLock::new(HashMap::new())),
         });
 
         // Troy
@@ -493,6 +495,7 @@ impl Default for SupportedGames {
                 "wind_levels/magnitudeX".to_owned(),
                 "wind_levels/magnitudeY".to_owned(),
             ],
+            install_type_cache: Arc::new(RwLock::new(HashMap::new())),
         });
 
         // Three Kingdoms
@@ -858,6 +861,7 @@ impl Default for SupportedGames {
                 "wind_levels/magnitudeX".to_owned(),
                 "wind_levels/magnitudeY".to_owned(),
             ],
+            install_type_cache: Arc::new(RwLock::new(HashMap::new())),
         });
         // Warhammer 2
         game_list.insert(KEY_WARHAMMER_2, GameInfo {
@@ -1393,6 +1397,7 @@ impl Default for SupportedGames {
                 "wind_levels/magnitudeX".to_owned(),
                 "wind_levels/magnitudeY".to_owned(),
             ],
+            install_type_cache: Arc::new(RwLock::new(HashMap::new())),
         });
 
         // Warhammer
@@ -1665,6 +1670,7 @@ impl Default for SupportedGames {
                 "wind_levels/magnitudeX".to_owned(),
                 "wind_levels/magnitudeY".to_owned(),
             ],
+            install_type_cache: Arc::new(RwLock::new(HashMap::new())),
         });
 
         // Thrones of Britannia
@@ -1945,6 +1951,7 @@ impl Default for SupportedGames {
                 "wind_levels/magnitudeX".to_owned(),
                 "wind_levels/magnitudeY".to_owned(),
             ],
+            install_type_cache: Arc::new(RwLock::new(HashMap::new())),
         });
 
         // Attila
@@ -2173,6 +2180,7 @@ impl Default for SupportedGames {
                 "wind_levels/magnitudeX".to_owned(),
                 "wind_levels/magnitudeY".to_owned(),
             ],
+            install_type_cache: Arc::new(RwLock::new(HashMap::new())),
         });
 
         // Rome 2
@@ -2374,6 +2382,7 @@ impl Default for SupportedGames {
                 "wind_levels/magnitudeX".to_owned(),
                 "wind_levels/magnitudeY".to_owned(),
             ],
+            install_type_cache: Arc::new(RwLock::new(HashMap::new())),
         });
 
         // Shogun 2
@@ -2596,6 +2605,7 @@ impl Default for SupportedGames {
                 "wind_levels/magnitudeX".to_owned(),
                 "wind_levels/magnitudeY".to_owned(),
             ],
+            install_type_cache: Arc::new(RwLock::new(HashMap::new())),
         });
 
         // Napoleon
@@ -2922,6 +2932,7 @@ impl Default for SupportedGames {
                 "wind_levels/magnitudeX".to_owned(),
                 "wind_levels/magnitudeY".to_owned(),
             ],
+            install_type_cache: Arc::new(RwLock::new(HashMap::new())),
         });
 
         // Empire
@@ -3380,6 +3391,7 @@ impl Default for SupportedGames {
                 "wind_levels/magnitudeX".to_owned(),
                 "wind_levels/magnitudeY".to_owned(),
             ],
+            install_type_cache: Arc::new(RwLock::new(HashMap::new())),
         });
 
         // NOTE: There are things that depend on the order of this list, and this game must ALWAYS be the last one.
@@ -3428,6 +3440,7 @@ impl Default for SupportedGames {
             tool_vars: HashMap::new(),
             lua_autogen_folder: None,
             ak_lost_fields: vec![],
+            install_type_cache: Arc::new(RwLock::new(HashMap::new())),
         });
 
         let order_list = vec![

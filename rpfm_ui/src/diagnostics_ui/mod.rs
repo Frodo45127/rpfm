@@ -47,6 +47,7 @@ use cpp_core::Ptr;
 
 use anyhow::Result;
 use getset::Getters;
+use rayon::prelude::*;
 
 use std::rc::Rc;
 
@@ -72,7 +73,7 @@ use crate::settings_ui::backend::*;
 use crate::UI_STATE;
 use crate::references_ui::ReferencesUI;
 use crate::utils::*;
-use crate::views::table::{ITEM_HAS_ERROR, ITEM_HAS_WARNING, ITEM_HAS_INFO};
+use crate::views::table::{ITEM_HAS_ERROR, ITEM_HAS_WARNING, ITEM_HAS_INFO, utils::open_subtable};
 
 pub mod connections;
 pub mod slots;
@@ -153,6 +154,10 @@ pub struct DiagnosticsUI {
     checkbox_file_mask_2_not_found_for_variant: QBox<QCheckBox>,
     checkbox_file_mask_3_not_found_for_variant: QBox<QCheckBox>,
     checkbox_datacored_portrait_settings: QBox<QCheckBox>,
+    checkbox_loocomotion_graph_path_not_found: QBox<QCheckBox>,
+    checkbox_file_path_not_found: QBox<QCheckBox>,
+    checkbox_meta_file_path_not_found: QBox<QCheckBox>,
+    checkbox_snd_file_path_not_found: QBox<QCheckBox>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -295,6 +300,10 @@ impl DiagnosticsUI {
         let checkbox_file_mask_2_not_found_for_variant = QCheckBox::from_q_string_q_widget(&qtr("label_file_mask_2_not_found_for_variant"), &sidebar_scroll_area);
         let checkbox_file_mask_3_not_found_for_variant = QCheckBox::from_q_string_q_widget(&qtr("label_file_mask_3_not_found_for_variant"), &sidebar_scroll_area);
         let checkbox_datacored_portrait_settings = QCheckBox::from_q_string_q_widget(&qtr("label_datacored_portrait_settings"), &sidebar_scroll_area);
+        let checkbox_loocomotion_graph_path_not_found = QCheckBox::from_q_string_q_widget(&qtr("label_locomotion_graph_path_not_found"), &sidebar_scroll_area);
+        let checkbox_file_path_not_found = QCheckBox::from_q_string_q_widget(&qtr("label_file_path_not_found"), &sidebar_scroll_area);
+        let checkbox_meta_file_path_not_found = QCheckBox::from_q_string_q_widget(&qtr("label_meta_file_path_not_found"), &sidebar_scroll_area);
+        let checkbox_snd_file_path_not_found = QCheckBox::from_q_string_q_widget(&qtr("label_snd_file_path_not_found"), &sidebar_scroll_area);
 
         checkbox_all.set_checked(false);
         checkbox_outdated_table.set_checked(true);
@@ -328,6 +337,10 @@ impl DiagnosticsUI {
         checkbox_file_mask_2_not_found_for_variant.set_checked(true);
         checkbox_file_mask_3_not_found_for_variant.set_checked(true);
         checkbox_datacored_portrait_settings.set_checked(true);
+        checkbox_loocomotion_graph_path_not_found.set_checked(true);
+        checkbox_file_path_not_found.set_checked(true);
+        checkbox_meta_file_path_not_found.set_checked(true);
+        checkbox_snd_file_path_not_found.set_checked(true);
 
         sidebar_grid.add_widget_1a(&checkbox_all);
         sidebar_grid.add_widget_1a(&checkbox_outdated_table);
@@ -361,6 +374,10 @@ impl DiagnosticsUI {
         sidebar_grid.add_widget_1a(&checkbox_file_mask_2_not_found_for_variant);
         sidebar_grid.add_widget_1a(&checkbox_file_mask_3_not_found_for_variant);
         sidebar_grid.add_widget_1a(&checkbox_datacored_portrait_settings);
+        sidebar_grid.add_widget_1a(&checkbox_loocomotion_graph_path_not_found);
+        sidebar_grid.add_widget_1a(&checkbox_file_path_not_found);
+        sidebar_grid.add_widget_1a(&checkbox_meta_file_path_not_found);
+        sidebar_grid.add_widget_1a(&checkbox_snd_file_path_not_found);
 
         Ok(Self {
 
@@ -428,6 +445,10 @@ impl DiagnosticsUI {
             checkbox_file_mask_2_not_found_for_variant,
             checkbox_file_mask_3_not_found_for_variant,
             checkbox_datacored_portrait_settings,
+            checkbox_loocomotion_graph_path_not_found,
+            checkbox_file_path_not_found,
+            checkbox_meta_file_path_not_found,
+            checkbox_snd_file_path_not_found,
         })
     }
 
@@ -444,7 +465,6 @@ impl DiagnosticsUI {
         info!("Triggering check.");
         let receiver = CENTRAL_COMMAND.send_background(Command::DiagnosticsCheck(diagnostics_ignored, diagnostics_ui.diagnostics_button_check_ak_only_refs().is_checked()));
         let response = CENTRAL_COMMAND.recv_try(&receiver);
-        diagnostics_ui.diagnostics_table_model.clear();
 
         match response {
             Response::Diagnostics(diagnostics) => {
@@ -471,10 +491,9 @@ impl DiagnosticsUI {
 
         let mut diagnostics = UI_STATE.get_diagnostics();
         *diagnostics.diagnostics_ignored_mut() = diagnostics_ui.diagnostics_ignored();
-
+        info!("Triggering check update.");
         let receiver = CENTRAL_COMMAND.send_background(Command::DiagnosticsUpdate(diagnostics, paths, diagnostics_ui.diagnostics_button_check_ak_only_refs().is_checked()));
         let response = CENTRAL_COMMAND.recv_try(&receiver);
-        diagnostics_ui.diagnostics_table_model.clear();
 
         match response {
             Response::Diagnostics(diagnostics) => {
@@ -495,351 +514,348 @@ impl DiagnosticsUI {
         // First, clean the current diagnostics.
         Self::clean_diagnostics_from_views(app_ui);
 
+        // Build the table columns without data in them, because otherwise it becomes very slow.
+        diagnostics_ui.diagnostics_table_model.clear();
+        diagnostics_ui.diagnostics_table_model.set_column_count(7);
+
+        diagnostics_ui.diagnostics_table_model.set_header_data_3a(0, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_level")));
+        diagnostics_ui.diagnostics_table_model.set_header_data_3a(1, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_diag")));
+        diagnostics_ui.diagnostics_table_model.set_header_data_3a(2, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_cells_affected")));
+        diagnostics_ui.diagnostics_table_model.set_header_data_3a(3, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_path")));
+        diagnostics_ui.diagnostics_table_model.set_header_data_3a(4, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_message")));
+        diagnostics_ui.diagnostics_table_model.set_header_data_3a(5, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_report_type")));
+        diagnostics_ui.diagnostics_table_model.set_header_data_3a(6, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_column_names")));
+
+        // Hide the column number column for tables.
+        diagnostics_ui.diagnostics_table_view.hide_column(1);
+        diagnostics_ui.diagnostics_table_view.hide_column(2);
+        diagnostics_ui.diagnostics_table_view.hide_column(5);
+        diagnostics_ui.diagnostics_table_view.hide_column(6);
+        diagnostics_ui.diagnostics_table_view.sort_by_column_2a(3, SortOrder::AscendingOrder);
+
+        diagnostics_ui.diagnostics_table_view.horizontal_header().set_stretch_last_section(true);
+        diagnostics_ui.diagnostics_table_view.horizontal_header().set_section_resize_mode_2a(0, ResizeMode::Fixed);
+        diagnostics_ui.diagnostics_table_view.horizontal_header().set_default_section_size(70);
+        diagnostics_ui.diagnostics_table_view.set_column_width(3, 600);
+
         if !diagnostics.is_empty() {
-            let blocker = QSignalBlocker::from_q_object(&diagnostics_ui.diagnostics_table_model);
-            for (index, diagnostic_type) in diagnostics.iter().enumerate() {
 
-                // Unlock in the last step.
-                if index == diagnostics.len() - 1 {
-                    blocker.unblock();
+            // Microoptimization: block the model from triggering signals on each item added.
+            diagnostics_ui.diagnostics_table_model.block_signals(true);
+
+            let result_type_info = atomic_from_cpp_box(QString::from_std_str("Info"));
+            let result_type_warning = atomic_from_cpp_box(QString::from_std_str("Warning"));
+            let result_type_error = atomic_from_cpp_box(QString::from_std_str("Error"));
+
+            let color_info = atomic_from_cpp_box(QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_info()))));
+            let color_warning = atomic_from_cpp_box(QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_warning()))));
+            let color_error = atomic_from_cpp_box(QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_error()))));
+
+            let rows = diagnostics.par_iter()
+                .map(|diagnostic_type| {
+
+                    match diagnostic_type {
+                        DiagnosticType::AnimFragmentBattle(ref diagnostic) => {
+                            let mut reports = Vec::with_capacity(diagnostic.results().len());
+
+                            for result in diagnostic.results() {
+                                let qlist = QListOfQStandardItem::new();
+
+                                // Create an empty row.
+                                let level = Self::new_item();
+                                let diag_type = Self::new_item();
+                                let data_affected = Self::new_item();
+                                let path = Self::new_item();
+                                let message = Self::new_item();
+                                let report_type = Self::new_item();
+                                let extra_data_1 = Self::new_item();
+
+                                let (result_type, color) = match result.level() {
+                                    DiagnosticLevel::Info => (ref_from_atomic(&result_type_info), ref_from_atomic(&color_info)),
+                                    DiagnosticLevel::Warning => (ref_from_atomic(&result_type_warning), ref_from_atomic(&color_warning)),
+                                    DiagnosticLevel::Error => (ref_from_atomic(&result_type_error), ref_from_atomic(&color_error)),
+                                };
+
+                                level.set_background(color);
+                                level.set_text(result_type);
+                                diag_type.set_text(&QString::from_std_str(diagnostic_type.to_string()));
+                                data_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&result).unwrap())), 2);
+                                path.set_text(&QString::from_std_str(diagnostic.path()));
+                                message.set_text(&QString::from_std_str(result.message()));
+                                report_type.set_text(&QString::from_std_str(result.report_type().to_string()));
+
+                                // Set the tooltips to the diag type and description columns.
+                                Self::set_tooltips_anim_fragment(&[&level, &path, &message], result.report_type());
+
+                                qlist.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&diag_type.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&data_affected.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&path.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&message.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&report_type.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&extra_data_1.into_ptr().as_mut_raw_ptr());
+
+                                reports.push(atomic_from_cpp_box(qlist));
+                            }
+
+                            reports
+                        }
+                        DiagnosticType::DB(ref diagnostic) |
+                        DiagnosticType::Loc(ref diagnostic) => {
+                            let mut reports = Vec::with_capacity(diagnostic.results().len());
+
+                            for result in diagnostic.results() {
+                                let qlist = QListOfQStandardItem::new();
+
+                                // Create an empty row.
+                                let level = Self::new_item();
+                                let diag_type = Self::new_item();
+                                let data_affected = Self::new_item();
+                                let path = Self::new_item();
+                                let message = Self::new_item();
+                                let report_type = Self::new_item();
+                                let extra_data_1 = Self::new_item();
+
+                                let (result_type, color) = match result.level() {
+                                    DiagnosticLevel::Info => (ref_from_atomic(&result_type_info), ref_from_atomic(&color_info)),
+                                    DiagnosticLevel::Warning => (ref_from_atomic(&result_type_warning), ref_from_atomic(&color_warning)),
+                                    DiagnosticLevel::Error => (ref_from_atomic(&result_type_error), ref_from_atomic(&color_error)),
+                                };
+
+                                level.set_background(color);
+                                level.set_text(result_type);
+                                diag_type.set_text(&QString::from_std_str(diagnostic_type.to_string()));
+                                data_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&result.cells_affected()).unwrap())), 2);
+                                path.set_text(&QString::from_std_str(diagnostic.path()));
+                                message.set_text(&QString::from_std_str(result.message()));
+                                report_type.set_text(&QString::from_std_str(result.report_type().to_string()));
+                                extra_data_1.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&result.column_names()).unwrap())), 2);
+
+
+                                // Set the tooltips to the diag type and description columns.
+                                Self::set_tooltips_table(&[&level, &path, &message], result.report_type());
+
+                                qlist.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&diag_type.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&data_affected.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&path.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&message.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&report_type.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&extra_data_1.into_ptr().as_mut_raw_ptr());
+
+                                reports.push(atomic_from_cpp_box(qlist));
+                            }
+
+                            reports
+                        },
+                        DiagnosticType::Pack(ref diagnostic) => {
+                            let mut reports = Vec::with_capacity(diagnostic.results().len());
+
+                            for result in diagnostic.results() {
+                                let qlist = QListOfQStandardItem::new();
+
+                                // Create an empty row.
+                                let level = Self::new_item();
+                                let diag_type = Self::new_item();
+                                let data_affected = Self::new_item();
+                                let path = Self::new_item();
+                                let message = Self::new_item();
+                                let report_type = Self::new_item();
+                                let extra_data_1 = Self::new_item();
+
+                                let (result_type, color) = match result.level() {
+                                    DiagnosticLevel::Info => (ref_from_atomic(&result_type_info), ref_from_atomic(&color_info)),
+                                    DiagnosticLevel::Warning => (ref_from_atomic(&result_type_warning), ref_from_atomic(&color_warning)),
+                                    DiagnosticLevel::Error => (ref_from_atomic(&result_type_error), ref_from_atomic(&color_error)),
+                                };
+
+                                level.set_background(color);
+                                level.set_text(result_type);
+                                diag_type.set_text(&QString::from_std_str(diagnostic_type.to_string()));
+                                message.set_text(&QString::from_std_str(result.message()));
+                                report_type.set_text(&QString::from_std_str(result.report_type().to_string()));
+
+                                // Set the tooltips to the diag type and description columns.
+                                Self::set_tooltips_packfile(&[&level, &path, &message], result.report_type());
+
+                                qlist.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&diag_type.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&data_affected.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&path.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&message.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&report_type.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&extra_data_1.into_ptr().as_mut_raw_ptr());
+
+                                reports.push(atomic_from_cpp_box(qlist));
+                            }
+
+                            reports
+                        }
+                        DiagnosticType::PortraitSettings(ref diagnostic) => {
+                            let mut reports = Vec::with_capacity(diagnostic.results().len());
+
+                            for result in diagnostic.results() {
+                                let qlist = QListOfQStandardItem::new();
+
+                                // Create an empty row.
+                                let level = Self::new_item();
+                                let diag_type = Self::new_item();
+                                let data_affected = Self::new_item();
+                                let path = Self::new_item();
+                                let message = Self::new_item();
+                                let report_type = Self::new_item();
+                                let extra_data_1 = Self::new_item();
+
+                                let (result_type, color) = match result.level() {
+                                    DiagnosticLevel::Info => (ref_from_atomic(&result_type_info), ref_from_atomic(&color_info)),
+                                    DiagnosticLevel::Warning => (ref_from_atomic(&result_type_warning), ref_from_atomic(&color_warning)),
+                                    DiagnosticLevel::Error => (ref_from_atomic(&result_type_error), ref_from_atomic(&color_error)),
+                                };
+
+                                level.set_background(color);
+                                level.set_text(result_type);
+                                diag_type.set_text(&QString::from_std_str(diagnostic_type.to_string()));
+
+                                let data_affected_string = match result.report_type() {
+                                    PortraitSettingsDiagnosticReportType::DatacoredPortraitSettings => String::new(),
+                                    PortraitSettingsDiagnosticReportType::InvalidArtSetId(art_set_id) => art_set_id.to_owned(),
+                                    PortraitSettingsDiagnosticReportType::InvalidVariantFilename(art_set_id, variant_filename) => art_set_id.to_owned() + "|" + variant_filename,
+                                    PortraitSettingsDiagnosticReportType::FileDiffuseNotFoundForVariant(art_set_id, variant_filename, _) => art_set_id.to_owned() + "|" + variant_filename,
+                                    PortraitSettingsDiagnosticReportType::FileMask1NotFoundForVariant(art_set_id, variant_filename, _) => art_set_id.to_owned() + "|" + variant_filename,
+                                    PortraitSettingsDiagnosticReportType::FileMask2NotFoundForVariant(art_set_id, variant_filename, _) => art_set_id.to_owned() + "|" + variant_filename,
+                                    PortraitSettingsDiagnosticReportType::FileMask3NotFoundForVariant(art_set_id, variant_filename, _) => art_set_id.to_owned() + "|" + variant_filename,
+                                };
+
+                                data_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(data_affected_string)), 2);
+                                path.set_text(&QString::from_std_str(diagnostic.path()));
+                                message.set_text(&QString::from_std_str(result.message()));
+                                report_type.set_text(&QString::from_std_str(result.report_type().to_string()));
+
+                                // Set the tooltips to the diag type and description columns.
+                                Self::set_tooltips_portrait_settings(&[&level, &path, &message], result.report_type());
+
+                                qlist.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&diag_type.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&data_affected.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&path.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&message.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&report_type.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&extra_data_1.into_ptr().as_mut_raw_ptr());
+
+                                reports.push(atomic_from_cpp_box(qlist));
+                            }
+
+                            reports
+                        }
+                        DiagnosticType::Dependency(ref diagnostic) => {
+                            let mut reports = Vec::with_capacity(diagnostic.results().len());
+
+                            for result in diagnostic.results() {
+                                let qlist = QListOfQStandardItem::new();
+
+                                // Create an empty row.
+                                let level = Self::new_item();
+                                let diag_type = Self::new_item();
+                                let data_affected = Self::new_item();
+                                let path = Self::new_item();
+                                let message = Self::new_item();
+                                let report_type = Self::new_item();
+                                let extra_data_1 = Self::new_item();
+
+                                let (result_type, color) = match result.level() {
+                                    DiagnosticLevel::Info => (ref_from_atomic(&result_type_info), ref_from_atomic(&color_info)),
+                                    DiagnosticLevel::Warning => (ref_from_atomic(&result_type_warning), ref_from_atomic(&color_warning)),
+                                    DiagnosticLevel::Error => (ref_from_atomic(&result_type_error), ref_from_atomic(&color_error)),
+                                };
+
+                                level.set_background(color);
+                                level.set_text(result_type);
+                                diag_type.set_text(&QString::from_std_str(diagnostic_type.to_string()));
+                                data_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&result.cells_affected()).unwrap())), 2);
+                                path.set_text(&QString::from_std_str(diagnostic.path()));
+                                message.set_text(&QString::from_std_str(result.message()));
+                                report_type.set_text(&QString::from_std_str(result.report_type().to_string()));
+
+                                // Set the tooltips to the diag type and description columns.
+                                Self::set_tooltips_dependency_manager(&[&level, &path, &message], result.report_type());
+
+                                qlist.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&diag_type.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&data_affected.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&path.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&message.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&report_type.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&extra_data_1.into_ptr().as_mut_raw_ptr());
+
+                                reports.push(atomic_from_cpp_box(qlist));
+                            }
+
+                            reports
+                        }
+
+                        DiagnosticType::Config(ref diagnostic) => {
+                            let mut reports = Vec::with_capacity(diagnostic.results().len());
+
+                            for result in diagnostic.results() {
+                                let qlist = QListOfQStandardItem::new();
+
+                                // Create an empty row.
+                                let level = Self::new_item();
+                                let diag_type = Self::new_item();
+                                let data_affected = Self::new_item();
+                                let path = Self::new_item();
+                                let message = Self::new_item();
+                                let report_type = Self::new_item();
+                                let extra_data_1 = Self::new_item();
+
+                                let (result_type, color) = match result.level() {
+                                    DiagnosticLevel::Info => (ref_from_atomic(&result_type_info), ref_from_atomic(&color_info)),
+                                    DiagnosticLevel::Warning => (ref_from_atomic(&result_type_warning), ref_from_atomic(&color_warning)),
+                                    DiagnosticLevel::Error => (ref_from_atomic(&result_type_error), ref_from_atomic(&color_error)),
+                                };
+
+                                level.set_background(color);
+                                level.set_text(result_type);
+                                diag_type.set_text(&QString::from_std_str(diagnostic_type.to_string()));
+                                message.set_text(&QString::from_std_str(result.message()));
+                                report_type.set_text(&QString::from_std_str(result.report_type().to_string()));
+
+                                // Set the tooltips to the diag type and description columns.
+                                Self::set_tooltips_config(&[&level, &path, &message], result.report_type());
+
+                                qlist.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&diag_type.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&data_affected.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&path.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&message.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&report_type.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&extra_data_1.into_ptr().as_mut_raw_ptr());
+
+                                reports.push(atomic_from_cpp_box(qlist));
+                            }
+
+                            reports
+                        }
+                    }
+                })
+                .flatten()
+                .collect::<Vec<_>>();
+
+            for (index, row) in rows.iter().enumerate() {
+
+                // Unlock the model before the last insertion.
+                if index == rows.len() - 1 {
+                    diagnostics_ui.diagnostics_table_model.block_signals(false);
                 }
 
-                match diagnostic_type {
-                    DiagnosticType::AnimFragmentBattle(ref diagnostic) => {
-                        for result in diagnostic.results() {
-                            let qlist_boi = QListOfQStandardItem::new();
+                diagnostics_ui.diagnostics_table_model.append_row_q_list_of_q_standard_item(ref_from_atomic(row));
 
-                            // Create an empty row.
-                            let level = QStandardItem::new();
-                            let diag_type = QStandardItem::new();
-                            let cells_affected = QStandardItem::new();
-                            let path = QStandardItem::new();
-                            let message = QStandardItem::new();
-                            let report_type = QStandardItem::new();
-                            let fill_1 = QStandardItem::new();
-                            let (result_type, color) = match result.level() {
-                                DiagnosticLevel::Info => ("Info".to_owned(), get_color_info()),
-                                DiagnosticLevel::Warning => ("Warning".to_owned(), get_color_warning()),
-                                DiagnosticLevel::Error => ("Error".to_owned(), get_color_error()),
-                            };
-
-                            level.set_background(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(color))));
-                            level.set_text(&QString::from_std_str(result_type));
-                            diag_type.set_text(&QString::from_std_str(format!("{diagnostic_type}")));
-                            cells_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&result.cells_affected()).unwrap())), 2);
-                            path.set_text(&QString::from_std_str(diagnostic.path()));
-                            message.set_text(&QString::from_std_str(result.message()));
-                            report_type.set_text(&QString::from_std_str(format!("{}", result.report_type())));
-
-                            level.set_editable(false);
-                            diag_type.set_editable(false);
-                            cells_affected.set_editable(false);
-                            path.set_editable(false);
-                            message.set_editable(false);
-                            report_type.set_editable(false);
-                            fill_1.set_editable(false);
-
-                            // Set the tooltips to the diag type and description columns.
-                            Self::set_tooltips_anim_fragment(&[&level, &path, &message], result.report_type());
-
-                            // Add an empty row to the list.
-                            qlist_boi.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&diag_type.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&cells_affected.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&path.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&message.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&report_type.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&fill_1.into_ptr().as_mut_raw_ptr());
-
-                            // Append the new row.
-                            diagnostics_ui.diagnostics_table_model.append_row_q_list_of_q_standard_item(qlist_boi.into_ptr().as_ref().unwrap());
-                        }
-                    }
-                    DiagnosticType::DB(ref diagnostic) |
-                    DiagnosticType::Loc(ref diagnostic) => {
-                        for result in diagnostic.results() {
-                            let qlist_boi = QListOfQStandardItem::new();
-
-                            // Create an empty row.
-                            let level = QStandardItem::new();
-                            let diag_type = QStandardItem::new();
-                            let cells_affected = QStandardItem::new();
-                            let path = QStandardItem::new();
-                            let message = QStandardItem::new();
-                            let report_type = QStandardItem::new();
-                            let column_names = QStandardItem::new();
-                            let (result_type, color) = match result.level() {
-                                DiagnosticLevel::Info => ("Info".to_owned(), get_color_info()),
-                                DiagnosticLevel::Warning => ("Warning".to_owned(), get_color_warning()),
-                                DiagnosticLevel::Error => ("Error".to_owned(), get_color_error()),
-                            };
-
-                            level.set_background(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(color))));
-                            level.set_text(&QString::from_std_str(result_type));
-                            diag_type.set_text(&QString::from_std_str(format!("{diagnostic_type}")));
-                            cells_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&result.cells_affected()).unwrap())), 2);
-                            path.set_text(&QString::from_std_str(diagnostic.path()));
-                            message.set_text(&QString::from_std_str(result.message()));
-                            report_type.set_text(&QString::from_std_str(format!("{}", result.report_type())));
-                            column_names.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&result.column_names()).unwrap())), 2);
-
-                            level.set_editable(false);
-                            diag_type.set_editable(false);
-                            cells_affected.set_editable(false);
-                            path.set_editable(false);
-                            message.set_editable(false);
-                            report_type.set_editable(false);
-                            column_names.set_editable(false);
-
-                            // Set the tooltips to the diag type and description columns.
-                            Self::set_tooltips_table(&[&level, &path, &message], result.report_type());
-
-                            // Add an empty row to the list.
-                            qlist_boi.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&diag_type.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&cells_affected.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&path.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&message.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&report_type.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&column_names.into_ptr().as_mut_raw_ptr());
-
-                            // Append the new row.
-                            diagnostics_ui.diagnostics_table_model.append_row_q_list_of_q_standard_item(qlist_boi.into_ptr().as_ref().unwrap());
-                        }
-                    }
-
-                    DiagnosticType::Pack(ref diagnostic) => {
-                        for result in diagnostic.results() {
-                            let qlist_boi = QListOfQStandardItem::new();
-
-                            // Create an empty row.
-                            let level = QStandardItem::new();
-                            let diag_type = QStandardItem::new();
-                            let fill1 = QStandardItem::new();
-                            let fill2 = QStandardItem::new();
-                            let message = QStandardItem::new();
-                            let report_type = QStandardItem::new();
-                            let fill3 = QStandardItem::new();
-                            let (result_type, color) = match result.level() {
-                                DiagnosticLevel::Info => ("Info".to_owned(), get_color_info()),
-                                DiagnosticLevel::Warning => ("Warning".to_owned(), get_color_warning()),
-                                DiagnosticLevel::Error => ("Error".to_owned(), get_color_error()),
-                            };
-
-                            level.set_background(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(color))));
-                            level.set_text(&QString::from_std_str(result_type));
-                            diag_type.set_text(&QString::from_std_str(format!("{diagnostic_type}")));
-                            message.set_text(&QString::from_std_str(result.message()));
-                            report_type.set_text(&QString::from_std_str(format!("{}", result.report_type())));
-
-                            level.set_editable(false);
-                            diag_type.set_editable(false);
-                            fill1.set_editable(false);
-                            fill2.set_editable(false);
-                            message.set_editable(false);
-                            report_type.set_editable(false);
-                            fill3.set_editable(false);
-
-                            // Set the tooltips to the diag type and description columns.
-                            Self::set_tooltips_packfile(&[&level, &fill2, &message], result.report_type());
-
-                            // Add an empty row to the list.
-                            qlist_boi.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&diag_type.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&fill1.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&fill2.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&message.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&report_type.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&fill3.into_ptr().as_mut_raw_ptr());
-
-                            // Append the new row.
-                            diagnostics_ui.diagnostics_table_model.append_row_q_list_of_q_standard_item(qlist_boi.as_ref());
-                        }
-                    }
-                    DiagnosticType::PortraitSettings(ref diagnostic) => {
-                        for result in diagnostic.results() {
-                            let qlist_boi = QListOfQStandardItem::new();
-
-                            // Create an empty row.
-                            let level = QStandardItem::new();
-                            let diag_type = QStandardItem::new();
-                            let cells_affected = QStandardItem::new();
-                            let path = QStandardItem::new();
-                            let message = QStandardItem::new();
-                            let report_type = QStandardItem::new();
-                            let fill1 = QStandardItem::new();
-                            let (result_type, color) = match result.level() {
-                                DiagnosticLevel::Info => ("Info".to_owned(), get_color_info()),
-                                DiagnosticLevel::Warning => ("Warning".to_owned(), get_color_warning()),
-                                DiagnosticLevel::Error => ("Error".to_owned(), get_color_error()),
-                            };
-
-                            let cells_affected_string = match result.report_type() {
-                                PortraitSettingsDiagnosticReportType::DatacoredPortraitSettings => String::new(),
-                                PortraitSettingsDiagnosticReportType::InvalidArtSetId(art_set_id) => art_set_id.to_owned(),
-                                PortraitSettingsDiagnosticReportType::InvalidVariantFilename(art_set_id, variant_filename) => format!("{art_set_id}|{variant_filename}"),
-                                PortraitSettingsDiagnosticReportType::FileDiffuseNotFoundForVariant(art_set_id, variant_filename, _) => format!("{art_set_id}|{variant_filename}"),
-                                PortraitSettingsDiagnosticReportType::FileMask1NotFoundForVariant(art_set_id, variant_filename, _) => format!("{art_set_id}|{variant_filename}"),
-                                PortraitSettingsDiagnosticReportType::FileMask2NotFoundForVariant(art_set_id, variant_filename, _) => format!("{art_set_id}|{variant_filename}"),
-                                PortraitSettingsDiagnosticReportType::FileMask3NotFoundForVariant(art_set_id, variant_filename, _) => format!("{art_set_id}|{variant_filename}"),
-                            };
-
-                            level.set_background(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(color))));
-                            level.set_text(&QString::from_std_str(result_type));
-                            diag_type.set_text(&QString::from_std_str(format!("{diagnostic_type}")));
-                            cells_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(cells_affected_string)), 2);
-                            path.set_text(&QString::from_std_str(diagnostic.path()));
-                            message.set_text(&QString::from_std_str(result.message()));
-                            report_type.set_text(&QString::from_std_str(format!("{}", result.report_type())));
-
-                            level.set_editable(false);
-                            diag_type.set_editable(false);
-                            cells_affected.set_editable(false);
-                            path.set_editable(false);
-                            message.set_editable(false);
-                            report_type.set_editable(false);
-                            fill1.set_editable(false);
-
-                            // Set the tooltips to the diag type and description columns.
-                            Self::set_tooltips_portrait_settings(&[&level, &path, &message], result.report_type());
-
-                            // Add an empty row to the list.
-                            qlist_boi.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&diag_type.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&cells_affected.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&path.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&message.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&report_type.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&fill1.into_ptr().as_mut_raw_ptr());
-
-                            // Append the new row.
-                            diagnostics_ui.diagnostics_table_model.append_row_q_list_of_q_standard_item(qlist_boi.into_ptr().as_ref().unwrap());
-                        }
-                    }
-                    DiagnosticType::Dependency(ref diagnostic) => {
-                        for result in diagnostic.results() {
-                            let qlist_boi = QListOfQStandardItem::new();
-
-                            // Create an empty row.
-                            let level = QStandardItem::new();
-                            let diag_type = QStandardItem::new();
-                            let cells_affected = QStandardItem::new();
-                            let path = QStandardItem::new();
-                            let message = QStandardItem::new();
-                            let report_type = QStandardItem::new();
-                            let fill1 = QStandardItem::new();
-                            let (result_type, color) = match result.level() {
-                                DiagnosticLevel::Info => ("Info".to_owned(), get_color_info()),
-                                DiagnosticLevel::Warning => ("Warning".to_owned(), get_color_warning()),
-                                DiagnosticLevel::Error => ("Error".to_owned(), get_color_error()),
-                            };
-
-                            level.set_background(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(color))));
-                            level.set_text(&QString::from_std_str(result_type));
-                            diag_type.set_text(&QString::from_std_str(format!("{diagnostic_type}")));
-                            cells_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&result.cells_affected()).unwrap())), 2);
-                            path.set_text(&QString::from_std_str(diagnostic.path()));
-                            message.set_text(&QString::from_std_str(result.message()));
-                            report_type.set_text(&QString::from_std_str(format!("{}", result.report_type())));
-
-                            level.set_editable(false);
-                            diag_type.set_editable(false);
-                            cells_affected.set_editable(false);
-                            path.set_editable(false);
-                            message.set_editable(false);
-                            report_type.set_editable(false);
-                            fill1.set_editable(false);
-
-                            // Set the tooltips to the diag type and description columns.
-                            Self::set_tooltips_dependency_manager(&[&level, &path, &message], result.report_type());
-
-                            // Add an empty row to the list.
-                            qlist_boi.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&diag_type.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&cells_affected.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&path.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&message.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&report_type.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&fill1.into_ptr().as_mut_raw_ptr());
-
-                            // Append the new row.
-                            diagnostics_ui.diagnostics_table_model.append_row_q_list_of_q_standard_item(qlist_boi.as_ref());
-                        }
-                    }
-
-                    DiagnosticType::Config(ref diagnostic) => {
-                        for result in diagnostic.results() {
-                            let qlist_boi = QListOfQStandardItem::new();
-
-                            // Create an empty row.
-                            let level = QStandardItem::new();
-                            let diag_type = QStandardItem::new();
-                            let fill1 = QStandardItem::new();
-                            let fill2 = QStandardItem::new();
-                            let message = QStandardItem::new();
-                            let report_type = QStandardItem::new();
-                            let fill3 = QStandardItem::new();
-                            let (result_type, color) = match result.level() {
-                                DiagnosticLevel::Info => ("Info".to_owned(), get_color_info()),
-                                DiagnosticLevel::Warning => ("Warning".to_owned(), get_color_warning()),
-                                DiagnosticLevel::Error => ("Error".to_owned(), get_color_error()),
-                            };
-
-                            level.set_background(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(color))));
-                            level.set_text(&QString::from_std_str(result_type));
-                            diag_type.set_text(&QString::from_std_str(format!("{diagnostic_type}")));
-                            message.set_text(&QString::from_std_str(result.message()));
-                            report_type.set_text(&QString::from_std_str(format!("{}", result.report_type())));
-
-                            level.set_editable(false);
-                            diag_type.set_editable(false);
-                            fill1.set_editable(false);
-                            fill2.set_editable(false);
-                            message.set_editable(false);
-                            report_type.set_editable(false);
-                            fill3.set_editable(false);
-
-                            // Set the tooltips to the diag type and description columns.
-                            Self::set_tooltips_config(&[&level, &fill2, &message], result.report_type());
-
-                            // Add an empty row to the list.
-                            qlist_boi.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&diag_type.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&fill1.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&fill2.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&message.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&report_type.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&fill3.into_ptr().as_mut_raw_ptr());
-
-                            // Append the new row.
-                            diagnostics_ui.diagnostics_table_model.append_row_q_list_of_q_standard_item(qlist_boi.as_ref());
-                        }
-                    }
-                }
-
-                // After that, check if the table is open, and paint the results into it.
-                Self::paint_diagnostics_to_table(app_ui, diagnostic_type);
             }
 
-            diagnostics_ui.diagnostics_table_model.set_header_data_3a(0, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_level")));
-            diagnostics_ui.diagnostics_table_model.set_header_data_3a(1, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_diag")));
-            diagnostics_ui.diagnostics_table_model.set_header_data_3a(2, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_cells_affected")));
-            diagnostics_ui.diagnostics_table_model.set_header_data_3a(3, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_path")));
-            diagnostics_ui.diagnostics_table_model.set_header_data_3a(4, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_message")));
-            diagnostics_ui.diagnostics_table_model.set_header_data_3a(5, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_report_type")));
-            diagnostics_ui.diagnostics_table_model.set_header_data_3a(6, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_column_names")));
-
-            // Hide the column number column for tables.
-            diagnostics_ui.diagnostics_table_view.hide_column(1);
-            diagnostics_ui.diagnostics_table_view.hide_column(2);
-            diagnostics_ui.diagnostics_table_view.hide_column(5);
-            diagnostics_ui.diagnostics_table_view.hide_column(6);
-            diagnostics_ui.diagnostics_table_view.sort_by_column_2a(3, SortOrder::AscendingOrder);
-
-            diagnostics_ui.diagnostics_table_view.horizontal_header().set_stretch_last_section(true);
-            diagnostics_ui.diagnostics_table_view.horizontal_header().set_section_resize_mode_2a(0, ResizeMode::Fixed);
-            diagnostics_ui.diagnostics_table_view.horizontal_header().set_default_section_size(70);
-            diagnostics_ui.diagnostics_table_view.resize_column_to_contents(3);
+            // After that, check if the table is open, and paint the results into it.
+            for diagnostic_type in diagnostics {
+                Self::paint_diagnostics_to_table(app_ui, diagnostic_type);
+            }
         }
     }
 
@@ -884,34 +900,41 @@ impl DiagnosticsUI {
 
         // If it's a table, focus on the matched cell.
         match &*model.item_2a(model_index.row(), 1).text().to_std_string() {
-            /*
-            "AnimFragment" => {
-
-                if let Some(file_view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).find(|x| *x.get_ref_path() == path) {
+            "AnimFragmentBattle" => {
+                if let Some(file_view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).find(|x| *x.path_read() == path) {
 
                     // In case of tables, we have to get the logical row/column of the match and select it.
-                    if let ViewType::Internal(View::AnimFragment(view)) = file_view.get_view() {
-                        let table_view = view.table_view();
-                        let table_view = table_view.table_view();
-                        let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
-                        let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
-                        let table_selection_model = table_view.selection_model();
-
-                        table_selection_model.clear_selection();
-                        let cells_affected: Vec<(i32, i32)> = serde_json::from_str(&model.item_2a(model_index.row(), 2).text().to_std_string()).unwrap();
-                        for (row, column) in cells_affected {
-                            let table_model_index = table_model.index_2a(row, column);
-                            let table_model_index_filtered = table_filter.map_from_source(&table_model_index);
+                    if let ViewType::Internal(View::AnimFragmentBattle(view)) = file_view.view_type() {
+                        let results: AnimFragmentBattleDiagnosticReport = serde_json::from_str(&model.item_2a(model_index.row(), 2).text().to_std_string()).unwrap();
+                        if *results.locomotion_graph() {
+                            view.locomotion_graph_line_edit().select_all();
+                            view.locomotion_graph_line_edit().set_focus_0a();
+                        } else if let Some((row, Some((subrow, file_path, meta_file_path, snd_file_path)))) = results.entry() {
+                            let table_selection_model = view.table().table_view().selection_model();
+                            let table_model_index = view.table().table_model().index_2a(*row as i32, 9);
+                            let table_model_index_filtered = view.table().table_filter().map_from_source(&table_model_index);
                             if table_model_index_filtered.is_valid() {
-                                table_view.set_focus_0a();
-                                table_view.set_current_index(table_model_index_filtered.as_ref());
-                                table_view.scroll_to_2a(table_model_index_filtered.as_ref(), ScrollHint::EnsureVisible);
+                                view.table().table_view().set_focus_0a();
+                                view.table().table_view().set_current_index(table_model_index_filtered.as_ref());
+                                view.table().table_view().scroll_to_2a(table_model_index_filtered.as_ref(), ScrollHint::EnsureVisible);
                                 table_selection_model.select_q_model_index_q_flags_selection_flag(table_model_index_filtered.as_ref(), QFlags::from(SelectionFlag::SelectCurrent));
+
+                                let column = if *file_path {
+                                    0
+                                } else if *meta_file_path {
+                                    1
+                                } else if *snd_file_path {
+                                    2
+                                } else {
+                                    return;
+                                };
+
+                                open_subtable(table_model_index_filtered.as_ref(), view.table(), app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, Some((*subrow as i32, column)));
                             }
                         }
                     }
                 }
-            }*/
+            }
 
             "DB" | "Loc" | "DependencyManager" => {
 
@@ -1204,6 +1227,7 @@ impl DiagnosticsUI {
                         }
                     },
 
+                    /*
                     DiagnosticType::AnimFragmentBattle(ref diagnostic) => {
                         for result in diagnostic.results() {
                             for (row, column) in result.cells_affected() {
@@ -1253,6 +1277,7 @@ impl DiagnosticsUI {
                             }
                         }
                     },
+                    */
                     _ => return,
                 }
 
@@ -1498,6 +1523,19 @@ impl DiagnosticsUI {
             diagnostic_type_pattern.push_str(&format!("{}|", PortraitSettingsDiagnosticReportType::FileMask3NotFoundForVariant(String::new(), String::new(), String::new())));
         }
 
+        if diagnostics_ui.checkbox_loocomotion_graph_path_not_found.is_checked() {
+            diagnostic_type_pattern.push_str(&format!("{}|", AnimFragmentBattleDiagnosticReportType::LocomotionGraphPathNotFound(String::new())));
+        }
+        if diagnostics_ui.checkbox_file_path_not_found.is_checked() {
+            diagnostic_type_pattern.push_str(&format!("{}|", AnimFragmentBattleDiagnosticReportType::FilePathNotFound(String::new())));
+        }
+        if diagnostics_ui.checkbox_meta_file_path_not_found.is_checked() {
+            diagnostic_type_pattern.push_str(&format!("{}|", AnimFragmentBattleDiagnosticReportType::MetaFilePathNotFound(String::new())));
+        }
+        if diagnostics_ui.checkbox_snd_file_path_not_found.is_checked() {
+            diagnostic_type_pattern.push_str(&format!("{}|", AnimFragmentBattleDiagnosticReportType::SndFilePathNotFound(String::new())));
+        }
+
         diagnostic_type_pattern.pop();
 
         if diagnostic_type_pattern.is_empty() {
@@ -1612,7 +1650,10 @@ impl DiagnosticsUI {
 
     pub unsafe fn set_tooltips_anim_fragment(items: &[&CppBox<QStandardItem>], report_type: &AnimFragmentBattleDiagnosticReportType) {
         let tool_tip = match report_type {
-            AnimFragmentBattleDiagnosticReportType::FieldWithPathNotFound(_) => qtr("field_with_path_not_found_explanation"),
+            AnimFragmentBattleDiagnosticReportType::LocomotionGraphPathNotFound(_) => qtr("field_with_path_not_found_explanation"),
+            AnimFragmentBattleDiagnosticReportType::FilePathNotFound(_) => qtr("field_with_path_not_found_explanation"),
+            AnimFragmentBattleDiagnosticReportType::MetaFilePathNotFound(_) => qtr("field_with_path_not_found_explanation"),
+            AnimFragmentBattleDiagnosticReportType::SndFilePathNotFound(_) => qtr("field_with_path_not_found_explanation"),
         };
 
         for item in items {
@@ -1797,6 +1838,20 @@ impl DiagnosticsUI {
         if !self.checkbox_file_mask_3_not_found_for_variant.is_checked() {
             diagnostics_ignored.push(PortraitSettingsDiagnosticReportType::FileMask3NotFoundForVariant(String::new(), String::new(), String::new()).to_string());
         }
+
+        if !self.checkbox_loocomotion_graph_path_not_found.is_checked() {
+            diagnostics_ignored.push(AnimFragmentBattleDiagnosticReportType::LocomotionGraphPathNotFound(String::new()).to_string());
+        }
+        if !self.checkbox_file_path_not_found.is_checked() {
+            diagnostics_ignored.push(AnimFragmentBattleDiagnosticReportType::FilePathNotFound(String::new()).to_string());
+        }
+        if !self.checkbox_meta_file_path_not_found.is_checked() {
+            diagnostics_ignored.push(AnimFragmentBattleDiagnosticReportType::MetaFilePathNotFound(String::new()).to_string());
+        }
+        if !self.checkbox_snd_file_path_not_found.is_checked() {
+            diagnostics_ignored.push(AnimFragmentBattleDiagnosticReportType::SndFilePathNotFound(String::new()).to_string());
+        }
+
         diagnostics_ignored
     }
 
@@ -1811,5 +1866,11 @@ impl DiagnosticsUI {
         selection.sort_by_key(|index| index.row());
         selection.dedup_by_key(|index| index.row());
         selection
+    }
+
+    unsafe fn new_item() -> CppBox<QStandardItem> {
+        let item = QStandardItem::new();
+        item.set_editable(false);
+        item
     }
 }
