@@ -801,7 +801,7 @@ impl TableViewSlots {
                         if let FieldType::SequenceU32(definition) = field.field_type() {
                             if let Ok(table) = Table::decode(&mut data, definition, &HashMap::new(), None, false, field.name()) {
                                 let table_data = match *view.packed_file_type {
-                                    FileType::AnimFragment => TableType::NormalTable(From::from(table)),
+                                    FileType::AnimFragmentBattle => TableType::AnimFragmentBattle(From::from(table)),
                                     FileType::DB => TableType::DB(From::from(table)),
                                     FileType::Loc => TableType::Loc(From::from(table)),
                                     _ => unimplemented!("You forgot to implement subtables for this kind of packedfile"),

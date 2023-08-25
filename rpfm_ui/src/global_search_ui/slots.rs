@@ -133,7 +133,7 @@ impl GlobalSearchSlots {
         let toggle_all = SlotOfBool::new(&global_search_ui.dock_widget, clone!(
         global_search_ui => move |state| {
             global_search_ui.search_on_anim_checkbox.set_enabled(!state);
-            global_search_ui.search_on_anim_fragment_checkbox.set_enabled(!state);
+            global_search_ui.search_on_anim_fragment_battle_checkbox.set_enabled(!state);
             global_search_ui.search_on_anim_pack_checkbox.set_enabled(!state);
             global_search_ui.search_on_anims_table_checkbox.set_enabled(!state);
             global_search_ui.search_on_atlas_checkbox.set_enabled(!state);
@@ -163,7 +163,7 @@ impl GlobalSearchSlots {
                 global_search_ui.search_on_all_common_checkbox.block_signals(false);
 
                 global_search_ui.search_on_anim_checkbox.set_checked(state);
-                global_search_ui.search_on_anim_fragment_checkbox.set_checked(state);
+                global_search_ui.search_on_anim_fragment_battle_checkbox.set_checked(state);
                 global_search_ui.search_on_anim_pack_checkbox.set_checked(state);
                 global_search_ui.search_on_anims_table_checkbox.set_checked(state);
                 global_search_ui.search_on_atlas_checkbox.set_checked(state);
@@ -192,7 +192,7 @@ impl GlobalSearchSlots {
         let toggle_all_common = SlotOfBool::new(&global_search_ui.dock_widget, clone!(
         global_search_ui => move |state| {
             global_search_ui.search_on_anim_checkbox.set_enabled(!state);
-            global_search_ui.search_on_anim_fragment_checkbox.set_enabled(!state);
+            global_search_ui.search_on_anim_fragment_battle_checkbox.set_enabled(!state);
             global_search_ui.search_on_anim_pack_checkbox.set_enabled(!state);
             global_search_ui.search_on_anims_table_checkbox.set_enabled(!state);
             global_search_ui.search_on_atlas_checkbox.set_enabled(!state);
@@ -222,7 +222,7 @@ impl GlobalSearchSlots {
                 global_search_ui.search_on_all_checkbox.block_signals(false);
 
                 global_search_ui.search_on_anim_checkbox.set_checked(false);
-                global_search_ui.search_on_anim_fragment_checkbox.set_checked(false);
+                global_search_ui.search_on_anim_fragment_battle_checkbox.set_checked(false);
                 global_search_ui.search_on_anim_pack_checkbox.set_checked(false);
                 global_search_ui.search_on_anims_table_checkbox.set_checked(false);
                 global_search_ui.search_on_atlas_checkbox.set_checked(false);

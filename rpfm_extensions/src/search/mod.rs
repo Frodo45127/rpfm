@@ -135,7 +135,7 @@ pub enum MatchingMode {
 #[derive(Debug, Clone)]
 pub enum MatchHolder {
     Anim(UnknownMatches),
-    AnimFragment(UnknownMatches),
+    AnimFragmentBattle(UnknownMatches),
     AnimPack(UnknownMatches),
     AnimsTable(UnknownMatches),
     Atlas(AtlasMatches),
@@ -174,7 +174,7 @@ pub enum SearchSource {
 #[getset(get = "pub", set = "pub")]
 pub struct SearchOn {
     anim: bool,
-    anim_fragment: bool,
+    anim_fragment_battle: bool,
     anim_pack: bool,
     anims_table: bool,
     atlas: bool,
@@ -203,7 +203,7 @@ pub struct SearchOn {
 #[getset(get = "pub")]
 pub struct Matches {
     anim: Vec<UnknownMatches>,
-    anim_fragment: Vec<UnknownMatches>,
+    anim_fragment_battle: Vec<UnknownMatches>,
     anim_pack: Vec<UnknownMatches>,
     anims_table: Vec<UnknownMatches>,
     atlas: Vec<AtlasMatches>,
@@ -355,7 +355,7 @@ impl GlobalSearch {
         // Error out if at least one of the matches requires special conditions.
         if matches.iter().any(|m| match m {
             MatchHolder::Anim(_) => false,
-            MatchHolder::AnimFragment(_) => false,
+            MatchHolder::AnimFragmentBattle(_) => false,
             MatchHolder::AnimPack(_) => false,
             MatchHolder::AnimsTable(_) => false,
             MatchHolder::Atlas(_) => false,
@@ -424,7 +424,7 @@ impl GlobalSearch {
         for match_file in matches {
             match match_file {
                 MatchHolder::Anim(_) => continue,
-                MatchHolder::AnimFragment(_) => continue,
+                MatchHolder::AnimFragmentBattle(_) => continue,
                 MatchHolder::AnimPack(_) => continue,
                 MatchHolder::AnimsTable(_) => continue,
                 MatchHolder::Atlas(search_matches) => {
@@ -619,7 +619,7 @@ impl GlobalSearch {
         let mut matches = vec![];
 
         matches.extend(self.matches.anim.iter().map(|x| MatchHolder::Unknown(x.clone())).collect::<Vec<_>>());
-        matches.extend(self.matches.anim_fragment.iter().map(|x| MatchHolder::Unknown(x.clone())).collect::<Vec<_>>());
+        matches.extend(self.matches.anim_fragment_battle.iter().map(|x| MatchHolder::Unknown(x.clone())).collect::<Vec<_>>());
         matches.extend(self.matches.anim_pack.iter().map(|x| MatchHolder::Unknown(x.clone())).collect::<Vec<_>>());
         matches.extend(self.matches.anims_table.iter().map(|x| MatchHolder::Unknown(x.clone())).collect::<Vec<_>>());
         matches.extend(self.matches.atlas.iter().map(|x| MatchHolder::Atlas(x.clone())).collect::<Vec<_>>());
@@ -650,7 +650,7 @@ impl SearchOn {
         let mut types = vec![];
 
         if *self.anim() { types.push(FileType::Anim); }
-        if *self.anim_fragment() { types.push(FileType::AnimFragment); }
+        if *self.anim_fragment_battle() { types.push(FileType::AnimFragmentBattle); }
         if *self.anim_pack() { types.push(FileType::AnimPack); }
         if *self.anims_table() { types.push(FileType::AnimsTable); }
         if *self.atlas() { types.push(FileType::Atlas); }
@@ -680,7 +680,7 @@ impl Matches {
     pub fn retain_paths(&mut self, paths: &[String]) {
         for path in paths {
             self.anim.retain(|x| x.path() != path);
-            self.anim_fragment.retain(|x| x.path() != path);
+            self.anim_fragment_battle.retain(|x| x.path() != path);
             self.anim_pack.retain(|x| x.path() != path);
             self.anims_table.retain(|x| x.path() != path);
             self.atlas.retain(|x| x.path() != path);
@@ -720,7 +720,7 @@ impl Matches {
                         None
                     }*/
                     None
-                } else if search_on.anim_fragment && file.file_type() == FileType::AnimFragment {
+                } else if search_on.anim_fragment_battle && file.file_type() == FileType::AnimFragmentBattle {
                     /*
                     if let Ok(RFileDecoded::AnimFragment(data)) = file.decode(&None, false, true).transpose().unwrap() {
                         let result = data.search(file.path_in_container_raw(), pattern, case_sensitive, &matching_mode);
@@ -988,7 +988,7 @@ impl Matches {
         )>>();
 
         self.anim = matches.iter().filter_map(|x| x.0.clone()).collect::<Vec<_>>();
-        self.anim_fragment = matches.iter().filter_map(|x| x.1.clone()).collect::<Vec<_>>();
+        self.anim_fragment_battle = matches.iter().filter_map(|x| x.1.clone()).collect::<Vec<_>>();
         self.anim_pack = matches.iter().filter_map(|x| x.2.clone()).collect::<Vec<_>>();
         self.anims_table = matches.iter().filter_map(|x| x.3.clone()).collect::<Vec<_>>();
         self.atlas = matches.iter().filter_map(|x| x.4.clone()).collect::<Vec<_>>();

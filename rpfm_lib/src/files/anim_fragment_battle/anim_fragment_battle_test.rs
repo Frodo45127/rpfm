@@ -16,7 +16,7 @@ use std::fs::File;
 use crate::binary::ReadBytes;
 use crate::files::*;
 
-use super::AnimFragment;
+use super::AnimFragmentBattle;
 
 #[test]
 fn test_encode_anim_fragment_3k() {
@@ -29,7 +29,7 @@ fn test_encode_anim_fragment_3k() {
 
     let data_len = reader.len().unwrap();
     let before = reader.read_slice(data_len as usize, true).unwrap();
-    let mut data = AnimFragment::decode(&mut reader, &Some(extra_data)).unwrap();
+    let mut data = AnimFragmentBattle::decode(&mut reader, &Some(extra_data)).unwrap();
 
     let mut extra_data = EncodeableExtraData::default();
     extra_data.game_key = Some("three_kingdoms");
@@ -54,7 +54,7 @@ fn test_encode_anim_fragment_wh2() {
 
     let data_len = reader.len().unwrap();
     let before = reader.read_slice(data_len as usize, true).unwrap();
-    let mut data = AnimFragment::decode(&mut reader, &Some(extra_data)).unwrap();
+    let mut data = AnimFragmentBattle::decode(&mut reader, &Some(extra_data)).unwrap();
 
     let mut extra_data = EncodeableExtraData::default();
     extra_data.game_key = Some("warhammer_2");
@@ -79,7 +79,7 @@ fn test_encode_anim_fragment_wh3() {
 
     let data_len = reader.len().unwrap();
     let before = reader.read_slice(data_len as usize, true).unwrap();
-    let mut data = AnimFragment::decode(&mut reader, &Some(extra_data)).unwrap();
+    let mut data = AnimFragmentBattle::decode(&mut reader, &Some(extra_data)).unwrap();
 
     let mut extra_data = EncodeableExtraData::default();
     extra_data.game_key = Some("warhammer_3");

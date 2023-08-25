@@ -263,7 +263,7 @@ global_search_search_on = Search On
 
 global_search_all = All
 global_search_anim = Anim
-global_search_anim_fragment = Anim Fragment
+global_search_anim_fragment_battle = Anim Fragment Battle
 global_search_anim_pack = Anim Pack
 global_search_anims_table = Anims Table
 global_search_audio = Audio

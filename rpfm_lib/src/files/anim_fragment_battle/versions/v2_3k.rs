@@ -8,33 +8,30 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! This is a module to read/write binary Anim Fragment files, v4.
+//! This is a module to read/write binary Anim Fragment files, v2 for Three Kingdoms.
 //!
 //! For internal use only.
 
 use crate::error::Result;
 use crate::binary::{ReadBytes, WriteBytes};
-use crate::files::anim_fragment::*;
+use crate::files::anim_fragment_battle::*;
 
 //---------------------------------------------------------------------------//
 //                            Implementation
 //---------------------------------------------------------------------------//
 
-impl AnimFragment {
+impl AnimFragmentBattle {
 
-    pub fn read_v4<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
-        self.subversion = data.read_u32()?;
+    pub fn read_v2_3k<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
         self.table_name = data.read_sized_string_u8()?;
         self.mount_table_name = data.read_sized_string_u8()?;
         self.unmount_table_name = data.read_sized_string_u8()?;
         self.skeleton_name = data.read_sized_string_u8()?;
-        self.locomotion_graph = data.read_sized_string_u8()?;
         self.is_simple_flight = data.read_bool()?;
         self.is_new_cavalry_tech = data.read_bool()?;
 
-        let entries_count = data.read_u32()?;
-
-        for _ in 0..entries_count {
+        let entry_count = data.read_u32()?;
+        for _ in 0..entry_count {
             let animation_id = data.read_u32()?;
             let blend_in_time = data.read_f32()?;
             let selection_weight = data.read_f32()?;
@@ -54,7 +51,8 @@ impl AnimFragment {
                     snd_file_path,
                 });
             }
-            let entry = Entry {
+
+            self.entries.push(Entry {
                 animation_id,
                 blend_in_time,
                 selection_weight,
@@ -62,21 +60,17 @@ impl AnimFragment {
                 single_frame_variant,
                 anim_refs,
                 ..Default::default()
-            };
-
-            self.entries.push(entry);
+            });
         }
 
         Ok(())
     }
 
-    pub fn write_v4<W: WriteBytes>(&self, buffer: &mut W) -> Result<()> {
-        buffer.write_u32(self.subversion)?;
+    pub fn write_v2_3k<W: WriteBytes>(&self, buffer: &mut W) -> Result<()> {
         buffer.write_sized_string_u8(&self.table_name)?;
         buffer.write_sized_string_u8(&self.mount_table_name)?;
         buffer.write_sized_string_u8(&self.unmount_table_name)?;
         buffer.write_sized_string_u8(&self.skeleton_name)?;
-        buffer.write_sized_string_u8(&self.locomotion_graph)?;
         buffer.write_bool(self.is_simple_flight)?;
         buffer.write_bool(self.is_new_cavalry_tech)?;
 

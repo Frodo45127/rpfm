@@ -21,13 +21,14 @@ use crate::files::{DecodeableExtraData, Decodeable, EncodeableExtraData, Encodea
 use crate::schema::*;
 use crate::utils::check_size_mismatch;
 
-pub const BASE_PATH: &str = "animations";
+pub const BASE_PATH: &str = "animations/";
+pub const MID_PATH: &str = "/battle/";
 
 pub const EXTENSIONS: [&str; 2] = [".frg", ".bin"];
 
 mod versions;
 
-#[cfg(test)] mod anim_fragment_test;
+#[cfg(test)] mod anim_fragment_battle_test;
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
@@ -35,7 +36,7 @@ mod versions;
 
 #[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", set = "pub")]
-pub struct AnimFragment {
+pub struct AnimFragmentBattle {
 
     // Common stuff.
     version: u32,
@@ -110,7 +111,7 @@ bitflags! {
 //                      Implementation of AnimFragment
 //---------------------------------------------------------------------------//
 
-impl AnimFragment {
+impl AnimFragmentBattle {
 
     pub fn definitions() -> (Definition, Definition) {
         let mut anim_refs_definition = Definition::default();
@@ -297,7 +298,7 @@ impl AnimFragment {
     }
 }
 
-impl Decodeable for AnimFragment {
+impl Decodeable for AnimFragmentBattle {
 
     fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
         let extra_data = extra_data.as_ref().ok_or(RLibError::DecodingMissingExtraData)?;
@@ -325,7 +326,7 @@ impl Decodeable for AnimFragment {
     }
 }
 
-impl Encodeable for AnimFragment {
+impl Encodeable for AnimFragmentBattle {
 
     fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         let extra_data = extra_data.as_ref().ok_or(RLibError::DecodingMissingExtraData)?;

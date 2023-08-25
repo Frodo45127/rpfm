@@ -38,14 +38,14 @@ use rpfm_lib::schema::FieldType;
 use crate::dependencies::{Dependencies, TableReferences};
 use crate::REGEX_INVALID_ESCAPES;
 
-use self::anim_fragment::*;
+use self::anim_fragment_battle::*;
 use self::config::*;
 use self::dependency::*;
 use self::pack::*;
 use self::portrait_settings::*;
 use self::table::*;
 
-pub mod anim_fragment;
+pub mod anim_fragment_battle;
 pub mod config;
 pub mod dependency;
 pub mod pack;
@@ -98,7 +98,7 @@ pub struct Diagnostics {
 /// One enum to hold them all.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum DiagnosticType {
-    AnimFragment(AnimFragmentDiagnostic),
+    AnimFragmentBattle(AnimFragmentBattleDiagnostic),
     Config(ConfigDiagnostic),
     Dependency(DependencyDiagnostic),
     DB(TableDiagnostic),
@@ -129,7 +129,7 @@ impl Default for DiagnosticType {
 impl DiagnosticType {
     pub fn path(&self) -> &str {
         match self {
-            Self::AnimFragment(ref diag) => diag.path(),
+            Self::AnimFragmentBattle(ref diag) => diag.path(),
             Self::DB(ref diag) |
             Self::Loc(ref diag) => diag.path(),
             Self::Pack(_) => "",
@@ -186,20 +186,20 @@ impl Diagnostics {
         // Logic here: we want to process the tables on batches containing all the tables of the same type, so we can check duplicates in different tables.
         // To do that, we have to sort/split the file list, the process that.
         let files = if paths_to_check.is_empty() {
-            pack.files_by_type(&[FileType::AnimFragment, FileType::DB, FileType::Loc, FileType::PortraitSettings])
+            pack.files_by_type(&[FileType::AnimFragmentBattle, FileType::DB, FileType::Loc, FileType::PortraitSettings])
         } else {
-            pack.files_by_type_and_paths(&[FileType::AnimFragment, FileType::DB, FileType::Loc, FileType::PortraitSettings], paths_to_check, false)
+            pack.files_by_type_and_paths(&[FileType::AnimFragmentBattle, FileType::DB, FileType::Loc, FileType::PortraitSettings], paths_to_check, false)
         };
 
         let mut files_split: HashMap<&str, Vec<&RFile>> = HashMap::new();
 
         for file in &files {
             match file.file_type() {
-                FileType::AnimFragment => {
-                    if let Some(table_set) = files_split.get_mut("anim_fragments") {
+                FileType::AnimFragmentBattle => {
+                    if let Some(table_set) = files_split.get_mut("anim_fragment_battle") {
                         table_set.push(file);
                     } else {
-                        files_split.insert("anim_fragments", vec![file]);
+                        files_split.insert("anim_fragment_battle", vec![file]);
                     }
                 },
                 FileType::DB => {
@@ -250,7 +250,7 @@ impl Diagnostics {
 
         // TODO: Get the table reference data here, outside the parallel loop.
         // That way we can get it fast on the first try, and skip.
-        let table_names = files_split.iter().filter(|(key, _)| **key != "anim_fragments" && **key != "locs" && **key != "portrait_settings").map(|(key, _)| key.to_string()).collect::<Vec<_>>();
+        let table_names = files_split.iter().filter(|(key, _)| **key != "anim_fragment_battle" && **key != "locs" && **key != "portrait_settings").map(|(key, _)| key.to_string()).collect::<Vec<_>>();
         dependencies.generate_local_db_references(pack, &table_names);
 
         // Caches for Portrait Settings diagnostics.
@@ -940,7 +940,7 @@ impl Diagnostics {
 impl Display for DiagnosticType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         Display::fmt(match self {
-            Self::AnimFragment(_) => "AnimFragment",
+            Self::AnimFragmentBattle(_) => "AnimFragmentBattle",
             Self::Config(_) => "Config",
             Self::DB(_) => "DB",
             Self::Loc(_) => "Loc",

@@ -27,7 +27,7 @@ use anyhow::Result;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use rpfm_lib::files::{anim_fragment::{AnimFragment}, FileType};
+use rpfm_lib::files::{anim_fragment_battle::AnimFragmentBattle, FileType};
 use rpfm_ui_common::locale::qtr;
 use rpfm_ui_common::utils::*;
 
@@ -40,14 +40,14 @@ use crate::references_ui::ReferencesUI;
 use crate::views::table::utils::get_table_from_view;
 use crate::views::table::{TableType, TableView};
 
-const VIEW_DEBUG: &str = "rpfm_ui/ui_templates/anim_fragment_view.ui";
-const VIEW_RELEASE: &str = "ui/anim_fragment_view.ui";
+const VIEW_DEBUG: &str = "rpfm_ui/ui_templates/anim_fragment_battle_view.ui";
+const VIEW_RELEASE: &str = "ui/anim_fragment_battle_view.ui";
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
-pub struct FileAnimFragmentView {
+pub struct FileAnimFragmentBattleView {
     version_spinbox: QPtr<QSpinBox>,
     subversion_spinbox: QPtr<QSpinBox>,
     min_id_spinbox: QPtr<QSpinBox>,
@@ -67,7 +67,7 @@ pub struct FileAnimFragmentView {
 //                             Implementations
 //-------------------------------------------------------------------------------//
 
-impl FileAnimFragmentView {
+impl FileAnimFragmentBattleView {
 
     pub unsafe fn new_view(
         file_view: &mut FileView,
@@ -77,7 +77,7 @@ impl FileAnimFragmentView {
         diagnostics_ui: &Rc<DiagnosticsUI>,
         dependencies_ui: &Rc<DependenciesUI>,
         references_ui: &Rc<ReferencesUI>,
-        data: AnimFragment
+        data: AnimFragmentBattle
     ) -> Result<()> {
 
         // Load the UI Template.
@@ -133,7 +133,7 @@ impl FileAnimFragmentView {
 
         let entries_table_view: QPtr<QTableView> = find_widget(&main_widget.static_upcast(), "entries_table_view")?;
 
-        let table_data = TableType::AnimFragment(data.to_table()?);
+        let table_data = TableType::AnimFragmentBattle(data.to_table()?);
         let table = TableView::new_view(&main_widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, Some(file_view.path_raw()), file_view.data_source.clone())?;
 
         let layout = main_widget.layout().static_downcast::<QGridLayout>();
@@ -228,14 +228,14 @@ impl FileAnimFragmentView {
             view.table.table_view().hide_column(16);
         }
 
-        file_view.view_type = ViewType::Internal(View::AnimFragment(Arc::new(view)));
-        file_view.file_type = FileType::AnimFragment;
+        file_view.view_type = ViewType::Internal(View::AnimFragmentBattle(Arc::new(view)));
+        file_view.file_type = FileType::AnimFragmentBattle;
 
         Ok(())
     }
 
     /// Function to reload the data of the view without having to delete the view itself.
-    pub unsafe fn reload_view(&self, data: AnimFragment) -> Result<()> {
+    pub unsafe fn reload_view(&self, data: AnimFragmentBattle) -> Result<()> {
         self.version_spinbox.set_value(*data.version() as i32);
         self.subversion_spinbox.set_value(*data.subversion() as i32);
         self.min_id_spinbox.set_value(*data.min_id() as i32);
@@ -248,13 +248,13 @@ impl FileAnimFragmentView {
         self.is_simple_flight_checkbox.set_checked(*data.is_simple_flight());
         self.is_new_cavalry_tech_checkbox.set_checked(*data.is_new_cavalry_tech());
 
-        self.table.reload_view(TableType::AnimFragment(data.to_table()?));
+        self.table.reload_view(TableType::AnimFragmentBattle(data.to_table()?));
 
         Ok(())
     }
 
-    pub unsafe fn save_view(&self) -> Result<AnimFragment> {
-        let mut data = AnimFragment::default();
+    pub unsafe fn save_view(&self) -> Result<AnimFragmentBattle> {
+        let mut data = AnimFragmentBattle::default();
         data.set_version(self.version_spinbox.value() as u32);
         data.set_subversion(self.subversion_spinbox.value() as u32);
         data.set_min_id(self.min_id_spinbox.value() as u32);
@@ -268,7 +268,7 @@ impl FileAnimFragmentView {
         data.set_is_new_cavalry_tech(self.is_new_cavalry_tech_checkbox.is_checked());
 
         let table = get_table_from_view(&self.table.table_model().static_upcast(), &self.table.table_definition())?;
-        data.set_entries(AnimFragment::from_table(&table)?);
+        data.set_entries(AnimFragmentBattle::from_table(&table)?);
 
         Ok(data)
     }

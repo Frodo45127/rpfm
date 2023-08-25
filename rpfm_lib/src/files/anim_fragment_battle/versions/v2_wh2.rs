@@ -14,13 +14,13 @@
 
 use crate::error::Result;
 use crate::binary::{ReadBytes, WriteBytes};
-use crate::files::anim_fragment::*;
+use crate::files::anim_fragment_battle::*;
 
 //---------------------------------------------------------------------------//
 //                            Implementation
 //---------------------------------------------------------------------------//
 
-impl AnimFragment {
+impl AnimFragmentBattle {
 
     pub fn read_v2_wh2<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
         self.skeleton_name = data.read_sized_string_u8()?;

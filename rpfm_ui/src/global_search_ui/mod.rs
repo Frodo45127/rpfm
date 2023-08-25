@@ -133,7 +133,7 @@ pub struct GlobalSearchUI {
     search_on_all_checkbox: QPtr<QCheckBox>,
     search_on_all_common_checkbox: QPtr<QCheckBox>,
     search_on_anim_checkbox: QPtr<QCheckBox>,
-    search_on_anim_fragment_checkbox: QPtr<QCheckBox>,
+    search_on_anim_fragment_battle_checkbox: QPtr<QCheckBox>,
     search_on_anim_pack_checkbox: QPtr<QCheckBox>,
     search_on_anims_table_checkbox: QPtr<QCheckBox>,
     search_on_atlas_checkbox: QPtr<QCheckBox>,
@@ -247,7 +247,7 @@ impl GlobalSearchUI {
         let search_on_all_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "search_all")?;
         let search_on_all_common_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "search_all_common")?;
         let search_on_anim_checkbox: QPtr<QCheckBox> = QCheckBox::from_q_widget(&main_widget).into_q_ptr();//find_widget(&main_widget.static_upcast(), "search_anim")?;
-        let search_on_anim_fragment_checkbox: QPtr<QCheckBox> = QCheckBox::from_q_widget(&main_widget).into_q_ptr();//find_widget(&main_widget.static_upcast(), "search_anim_fragment")?;
+        let search_on_anim_fragment_battle_checkbox: QPtr<QCheckBox> = QCheckBox::from_q_widget(&main_widget).into_q_ptr();//find_widget(&main_widget.static_upcast(), "search_anim_fragment")?;
         let search_on_anim_pack_checkbox: QPtr<QCheckBox> = QCheckBox::from_q_widget(&main_widget).into_q_ptr();//find_widget(&main_widget.static_upcast(), "search_anim_pack")?;
         let search_on_anims_table_checkbox: QPtr<QCheckBox> = QCheckBox::from_q_widget(&main_widget).into_q_ptr();//find_widget(&main_widget.static_upcast(), "search_anims_table")?;
         let search_on_atlas_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "search_atlas")?;
@@ -273,7 +273,7 @@ impl GlobalSearchUI {
         search_on_all_checkbox.set_text(&qtr("global_search_all"));
         search_on_all_common_checkbox.set_text(&qtr("global_search_all_common"));
         search_on_anim_checkbox.set_text(&qtr("global_search_anim"));
-        search_on_anim_fragment_checkbox.set_text(&qtr("global_search_anim_fragment"));
+        search_on_anim_fragment_battle_checkbox.set_text(&qtr("global_search_anim_fragment_battle"));
         search_on_anim_pack_checkbox.set_text(&qtr("global_search_anim_pack"));
         search_on_anims_table_checkbox.set_text(&qtr("global_search_anims_table"));
         search_on_atlas_checkbox.set_text(&qtr("global_search_atlas"));
@@ -297,7 +297,7 @@ impl GlobalSearchUI {
         search_on_video_checkbox.set_text(&qtr("global_search_video"));
 
         search_on_anim_checkbox.set_visible(false);
-        search_on_anim_fragment_checkbox.set_visible(false);
+        search_on_anim_fragment_battle_checkbox.set_visible(false);
         search_on_anim_pack_checkbox.set_visible(false);
         search_on_anims_table_checkbox.set_visible(false);
         search_on_atlas_checkbox.set_visible(true);
@@ -392,7 +392,7 @@ impl GlobalSearchUI {
             search_on_all_checkbox,
             search_on_all_common_checkbox,
             search_on_anim_checkbox,
-            search_on_anim_fragment_checkbox,
+            search_on_anim_fragment_battle_checkbox,
             search_on_anim_pack_checkbox,
             search_on_anims_table_checkbox,
             search_on_audio_checkbox,
@@ -1537,7 +1537,7 @@ impl GlobalSearchUI {
 
                     match file_type {
                         FileType::Anim => todo!(),
-                        FileType::AnimFragment => todo!(),
+                        FileType::AnimFragmentBattle => todo!(),
                         FileType::AnimPack => todo!(),
                         FileType::AnimsTable => todo!(),
                         FileType::Atlas => {
@@ -1768,7 +1768,7 @@ impl GlobalSearchUI {
                     // If it already exists, delete it, as the new one contains the entire set for it.
                     match file_type {
                         FileType::Anim => todo!(),
-                        FileType::AnimFragment => todo!(),
+                        FileType::AnimFragmentBattle => todo!(),
                         FileType::AnimPack => todo!(),
                         FileType::AnimsTable => todo!(),
                         FileType::Atlas => {
@@ -1986,7 +1986,7 @@ impl GlobalSearchUI {
         let mut matches = vec![];
 
         matches.append(&mut anim_matches.into_iter().map(MatchHolder::Anim).collect::<Vec<_>>());
-        matches.append(&mut anim_fragment_matches.into_iter().map(MatchHolder::AnimFragment).collect::<Vec<_>>());
+        matches.append(&mut anim_fragment_matches.into_iter().map(MatchHolder::AnimFragmentBattle).collect::<Vec<_>>());
         matches.append(&mut anim_pack_matches.into_iter().map(MatchHolder::AnimPack).collect::<Vec<_>>());
         matches.append(&mut anims_table_matches.into_iter().map(MatchHolder::AnimsTable).collect::<Vec<_>>());
         matches.append(&mut atlas_matches.into_iter().map(MatchHolder::Atlas).collect::<Vec<_>>());
@@ -2045,7 +2045,7 @@ impl GlobalSearchUI {
 
         if self.search_on_all_checkbox.is_checked() {
             global_search.search_on_mut().set_anim(true);
-            global_search.search_on_mut().set_anim_fragment(true);
+            global_search.search_on_mut().set_anim_fragment_battle(true);
             global_search.search_on_mut().set_anim_pack(true);
             global_search.search_on_mut().set_anims_table(true);
             global_search.search_on_mut().set_atlas(true);
@@ -2071,7 +2071,7 @@ impl GlobalSearchUI {
 
         else if self.search_on_all_common_checkbox.is_checked() {
             global_search.search_on_mut().set_anim(false);
-            global_search.search_on_mut().set_anim_fragment(false);
+            global_search.search_on_mut().set_anim_fragment_battle(false);
             global_search.search_on_mut().set_anim_pack(false);
             global_search.search_on_mut().set_anims_table(false);
             global_search.search_on_mut().set_atlas(false);
@@ -2096,7 +2096,7 @@ impl GlobalSearchUI {
 
         } else {
             global_search.search_on_mut().set_anim(self.search_on_anim_checkbox.is_checked());
-            global_search.search_on_mut().set_anim_fragment(self.search_on_anim_fragment_checkbox.is_checked());
+            global_search.search_on_mut().set_anim_fragment_battle(self.search_on_anim_fragment_battle_checkbox.is_checked());
             global_search.search_on_mut().set_anim_pack(self.search_on_anim_pack_checkbox.is_checked());
             global_search.search_on_mut().set_anims_table(self.search_on_anims_table_checkbox.is_checked());
             global_search.search_on_mut().set_atlas(self.search_on_atlas_checkbox.is_checked());

@@ -50,7 +50,7 @@ use getset::Getters;
 
 use std::rc::Rc;
 
-use rpfm_extensions::diagnostics::{*, anim_fragment::*, config::*, dependency::*, pack::*, portrait_settings::*, table::*};
+use rpfm_extensions::diagnostics::{*, anim_fragment_battle::*, config::*, dependency::*, pack::*, portrait_settings::*, table::*};
 
 use rpfm_lib::files::ContainerPath;
 use rpfm_lib::games::supported_games::*;
@@ -490,7 +490,7 @@ impl DiagnosticsUI {
                 }
 
                 match diagnostic_type {
-                    DiagnosticType::AnimFragment(ref diagnostic) => {
+                    DiagnosticType::AnimFragmentBattle(ref diagnostic) => {
                         for result in diagnostic.results() {
                             let qlist_boi = QListOfQStandardItem::new();
 
@@ -1034,7 +1034,7 @@ impl DiagnosticsUI {
     ) {
 
         let path = match diagnostic {
-            DiagnosticType::AnimFragment(ref diagnostic) => diagnostic.path(),
+            DiagnosticType::AnimFragmentBattle(ref diagnostic) => diagnostic.path(),
             DiagnosticType::DB(ref diagnostic) |
             DiagnosticType::Loc(ref diagnostic) => diagnostic.path(),
             DiagnosticType::Dependency(ref diagnostic) => diagnostic.path(),
@@ -1158,7 +1158,7 @@ impl DiagnosticsUI {
                         }
                     },
 
-                    DiagnosticType::AnimFragment(ref diagnostic) => {
+                    DiagnosticType::AnimFragmentBattle(ref diagnostic) => {
                         for result in diagnostic.results() {
                             for (row, column) in result.cells_affected() {
                                 if *row != -1 || *column != -1 {
@@ -1463,7 +1463,7 @@ impl DiagnosticsUI {
     pub unsafe fn update_level_counts(diagnostics_ui: &Rc<Self>, diagnostics: &[DiagnosticType]) {
         let info = diagnostics.iter().map(|x|
             match x {
-                DiagnosticType::AnimFragment(ref diag) => diag.results()
+                DiagnosticType::AnimFragmentBattle(ref diag) => diag.results()
                     .iter()
                     .filter(|y| matches!(y.level(), DiagnosticLevel::Info))
                     .count(),
@@ -1492,7 +1492,7 @@ impl DiagnosticsUI {
 
         let warning = diagnostics.iter().map(|x|
             match x {
-                DiagnosticType::AnimFragment(ref diag) => diag.results()
+                DiagnosticType::AnimFragmentBattle(ref diag) => diag.results()
                     .iter()
                     .filter(|y| matches!(y.level(), DiagnosticLevel::Warning))
                     .count(),
@@ -1522,7 +1522,7 @@ impl DiagnosticsUI {
 
         let error = diagnostics.iter().map(|x|
             match x {
-                DiagnosticType::AnimFragment(ref diag) => diag.results()
+                DiagnosticType::AnimFragmentBattle(ref diag) => diag.results()
                     .iter()
                     .filter(|y| matches!(y.level(), DiagnosticLevel::Error))
                     .count(),
@@ -1554,9 +1554,9 @@ impl DiagnosticsUI {
         diagnostics_ui.diagnostics_button_error.set_text(&QString::from_std_str(format!("({})", error)));
     }
 
-    pub unsafe fn set_tooltips_anim_fragment(items: &[&CppBox<QStandardItem>], report_type: &AnimFragmentDiagnosticReportType) {
+    pub unsafe fn set_tooltips_anim_fragment(items: &[&CppBox<QStandardItem>], report_type: &AnimFragmentBattleDiagnosticReportType) {
         let tool_tip = match report_type {
-            AnimFragmentDiagnosticReportType::FieldWithPathNotFound(_) => qtr("field_with_path_not_found_explanation"),
+            AnimFragmentBattleDiagnosticReportType::FieldWithPathNotFound(_) => qtr("field_with_path_not_found_explanation"),
         };
 
         for item in items {

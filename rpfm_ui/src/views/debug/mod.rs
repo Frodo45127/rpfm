@@ -71,7 +71,7 @@ impl DebugView {
         layout.add_widget_5a(&save_button, 2, 0, 1, 1);
 
         let (packed_file_type, text) = match packed_file {
-            RFileDecoded::AnimFragment(data) => (FileType::AnimFragment, serde_json::to_string_pretty(&data)?),
+            RFileDecoded::AnimFragmentBattle(data) => (FileType::AnimFragmentBattle, serde_json::to_string_pretty(&data)?),
             RFileDecoded::AnimsTable(data) => (FileType::AnimsTable, serde_json::to_string_pretty(&data)?),
             RFileDecoded::MatchedCombat(data) => (FileType::MatchedCombat, serde_json::to_string_pretty(&data)?),
             RFileDecoded::UnitVariant(data) => (FileType::UnitVariant, serde_json::to_string_pretty(&data)?),
@@ -99,7 +99,7 @@ impl DebugView {
         let string = get_text_safe(&self.editor).to_std_string();
 
         let decoded_packed_file = match self.packed_file_type {
-            FileType::AnimFragment => RFileDecoded::AnimFragment(serde_json::from_str(&string)?),
+            FileType::AnimFragmentBattle => RFileDecoded::AnimFragmentBattle(serde_json::from_str(&string)?),
             FileType::AnimsTable => RFileDecoded::AnimsTable(serde_json::from_str(&string)?),
             FileType::MatchedCombat => RFileDecoded::MatchedCombat(serde_json::from_str(&string)?),
             FileType::UnitVariant => RFileDecoded::UnitVariant(serde_json::from_str(&string)?),

@@ -2106,7 +2106,7 @@ fn decode_and_send_file(file: &mut RFile, sender: &Sender<Response>) {
     let result = file.decode(&Some(extra_data), true, true).transpose().unwrap();
 
     match result {
-        Ok(RFileDecoded::AnimFragment(data)) => CentralCommand::send_back(&sender, Response::AnimFragmentRFileInfo(data, From::from(&*file))),
+        Ok(RFileDecoded::AnimFragmentBattle(data)) => CentralCommand::send_back(&sender, Response::AnimFragmentBattleRFileInfo(data, From::from(&*file))),
         Ok(RFileDecoded::AnimPack(data)) => CentralCommand::send_back(&sender, Response::AnimPackRFileInfo(data.files().values().map(From::from).collect(), From::from(&*file))),
         Ok(RFileDecoded::AnimsTable(data)) => CentralCommand::send_back(&sender, Response::AnimsTableRFileInfo(data, From::from(&*file))),
         Ok(RFileDecoded::Anim(_)) => CentralCommand::send_back(&sender, Response::Unknown),

@@ -41,7 +41,7 @@ use crate::UI_STATE;
 use crate::views::table::utils::get_table_from_view;
 use crate::views::table::TableType;
 
-use self::anim_fragment::FileAnimFragmentView;
+use self::anim_fragment_battle::FileAnimFragmentBattleView;
 use self::animpack::PackedFileAnimPackView;
 use self::anims_table::FileAnimsTableDebugView;
 use self::audio::FileAudioView;
@@ -67,7 +67,7 @@ use self::rigidmodel::PackedFileRigidModelView;
 #[cfg(feature = "support_uic")]
 use self::uic::FileUICView;
 
-pub mod anim_fragment;
+pub mod anim_fragment_battle;
 pub mod animpack;
 pub mod anims_table;
 pub mod audio;
@@ -149,7 +149,7 @@ pub enum DataSource {
 
 /// This enum is used to hold in a common way all the view types we have.
 pub enum View {
-    AnimFragment(Arc<FileAnimFragmentView>),
+    AnimFragmentBattle(Arc<FileAnimFragmentBattleView>),
     AnimPack(Arc<PackedFileAnimPackView>),
     AnimsTableDebug(Arc<FileAnimsTableDebugView>),
     Audio(Arc<FileAudioView>),
@@ -308,7 +308,7 @@ impl FileView {
                     ViewType::Internal(view) => {
 
                         let data = match view {
-                            View::AnimFragment(view) => RFileDecoded::AnimFragment(view.save_view()?),
+                            View::AnimFragmentBattle(view) => RFileDecoded::AnimFragmentBattle(view.save_view()?),
                             View::AnimPack(_) => return Ok(()),
                             View::AnimsTableDebug(_) => return Ok(()),
                             View::Audio(_) => return Ok(()),
@@ -476,8 +476,8 @@ impl FileView {
 
                     match response {
 
-                        Response::AnimFragmentRFileInfo(fragment, packed_file_info) => {
-                            if let View::AnimFragment(old_fragment) = view {
+                        Response::AnimFragmentBattleRFileInfo(fragment, packed_file_info) => {
+                            if let View::AnimFragmentBattle(old_fragment) = view {
                                 if old_fragment.reload_view(fragment).is_err() {
                                     return Err(anyhow!(RFILE_RELOAD_ERROR));
                                 }

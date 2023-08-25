@@ -96,7 +96,7 @@ use crate::GAME_SELECTED;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::NEW_FILE_VIEW_CREATED;
 use crate::pack_tree::{BuildData, icons::IconType, new_pack_file_tooltip, PackTree, TreeViewOperation};
-use crate::packedfile_views::{anim_fragment::*, animpack::*, anims_table::*, audio::FileAudioView, bmd::FileBMDView, DataSource, decoder::*, dependencies_manager::*, esf::*, external::*, image::*, matched_combat::*, FileView, packfile::PackFileExtraView, packfile_settings::*, portrait_settings::PortraitSettingsView, SpecialView, table::*, text::*, unit_variant::*, video::*};
+use crate::packedfile_views::{anim_fragment_battle::*, animpack::*, anims_table::*, audio::FileAudioView, bmd::FileBMDView, DataSource, decoder::*, dependencies_manager::*, esf::*, external::*, image::*, matched_combat::*, FileView, packfile::PackFileExtraView, packfile_settings::*, portrait_settings::PortraitSettingsView, SpecialView, table::*, text::*, unit_variant::*, video::*};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::references_ui::ReferencesUI;
 use crate::SCHEMA;
@@ -2498,9 +2498,9 @@ impl AppUI {
                     let response = CentralCommand::recv(&receiver);
                     match response {
 
-                        Response::AnimFragmentRFileInfo(data, ref file_info) => {
+                        Response::AnimFragmentBattleRFileInfo(data, ref file_info) => {
                             let file_info = file_info.clone();
-                            match FileAnimFragmentView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, data) {
+                            match FileAnimFragmentBattleView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, data) {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.

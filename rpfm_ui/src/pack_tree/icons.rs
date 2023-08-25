@@ -22,7 +22,7 @@ use cpp_core::Ref;
 
 use std::sync::atomic::AtomicPtr;
 
-use rpfm_lib::files::{animpack, anim_fragment, anims_table, atlas, audio, esf, bmd, FileType, image, loc, matched_combat, pack, portrait_settings, rigidmodel, soundbank, text, text::*, unit_variant, video, uic};
+use rpfm_lib::files::{animpack, anim_fragment_battle, anims_table, atlas, audio, esf, bmd, FileType, image, loc, matched_combat, pack, portrait_settings, rigidmodel, soundbank, text, text::*, unit_variant, video, uic};
 use rpfm_lib::{REGEX_DB, REGEX_PORTRAIT_SETTINGS};
 use rpfm_ui_common::ASSETS_PATH;
 
@@ -51,7 +51,7 @@ pub struct Icons {
     pub file: AtomicPtr<QIcon>,
 
     pub animpack: AtomicPtr<QIcon>,
-    pub anim_fragment: AtomicPtr<QIcon>,
+    pub anim_fragment_battle: AtomicPtr<QIcon>,
     pub anims_table: AtomicPtr<QIcon>,
     pub atlas: AtomicPtr<QIcon>,
     pub audio: AtomicPtr<QIcon>,
@@ -103,7 +103,7 @@ impl Icons {
             folder: atomic_from_cpp_box(Self::load_icon("folder", "folder-orange")),
             file: atomic_from_cpp_box(Self::load_icon("file", "none")),
             animpack: atomic_from_cpp_box(Self::load_icon("animpack", "package-x-generic")),
-            anim_fragment: atomic_from_cpp_box(Self::load_icon("anim_fragment", "animation-stage")),
+            anim_fragment_battle: atomic_from_cpp_box(Self::load_icon("anim_fragment_battle", "animation-stage")),
             anims_table: atomic_from_cpp_box(Self::load_icon("anims_table", "gnumeric-pivottable")),
             atlas: atomic_from_cpp_box(Self::load_icon("atlas", "android-studio")),
             audio: atomic_from_cpp_box(Self::load_icon("audio", "audio-mp3")),
@@ -252,8 +252,8 @@ impl Icons {
                     &self.anims_table
                 }
 
-                else if path.starts_with(anim_fragment::BASE_PATH) && anim_fragment::EXTENSIONS.iter().any(|x| path.ends_with(*x)) {
-                    &self.anim_fragment
+                else if path.starts_with(anim_fragment_battle::BASE_PATH) && path.contains(anim_fragment_battle::MID_PATH) && anim_fragment_battle::EXTENSIONS.iter().any(|x| path.ends_with(*x)) {
+                    &self.anim_fragment_battle
                 }
 
                 // If that failed, check if it's in a folder which is known to only have specific files.
@@ -290,7 +290,7 @@ impl Icons {
                         }
                     },
                     FileType::Anim => &self.file,
-                    FileType::AnimFragment => &self.anim_fragment,
+                    FileType::AnimFragmentBattle => &self.anim_fragment_battle,
                     FileType::AnimPack => &self.animpack,
                     FileType::AnimsTable => &self.anims_table,
                     FileType::Atlas => &self.atlas,

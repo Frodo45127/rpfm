@@ -76,7 +76,7 @@ use crate::{REGEX_DB, REGEX_PORTRAIT_SETTINGS};
 use crate::schema::{Schema, Definition};
 use crate::utils::*;
 
-use self::anim_fragment::AnimFragment;
+use self::anim_fragment_battle::AnimFragmentBattle;
 use self::animpack::AnimPack;
 use self::anims_table::AnimsTable;
 use self::atlas::Atlas;
@@ -97,7 +97,7 @@ use self::unit_variant::UnitVariant;
 use self::unknown::Unknown;
 use self::video::Video;
 
-pub mod anim_fragment;
+pub mod anim_fragment_battle;
 pub mod animpack;
 pub mod anims_table;
 pub mod atlas;
@@ -210,7 +210,7 @@ struct OnDisk {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum RFileDecoded {
     Anim(Unknown),
-    AnimFragment(AnimFragment),
+    AnimFragmentBattle(AnimFragmentBattle),
     AnimPack(AnimPack),
     AnimsTable(AnimsTable),
     Atlas(Atlas),
@@ -241,7 +241,7 @@ pub enum RFileDecoded {
 #[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub enum FileType {
     Anim,
-    AnimFragment,
+    AnimFragmentBattle,
     AnimPack,
     AnimsTable,
     Atlas,
@@ -1381,7 +1381,7 @@ impl RFile {
     pub fn set_decoded(&mut self, decoded: RFileDecoded) -> Result<()> {
         match (self.file_type(), &decoded) {
             (FileType::Anim, &RFileDecoded::Anim(_)) |
-            (FileType::AnimFragment, &RFileDecoded::AnimFragment(_)) |
+            (FileType::AnimFragmentBattle, &RFileDecoded::AnimFragmentBattle(_)) |
             (FileType::AnimPack, &RFileDecoded::AnimPack(_)) |
             (FileType::AnimsTable, &RFileDecoded::AnimsTable(_)) |
             (FileType::Atlas, &RFileDecoded::Atlas(_)) |
@@ -1449,7 +1449,7 @@ impl RFile {
                 let mut data = Cursor::new(data);
                 match self.file_type {
                     FileType::Anim => RFileDecoded::Anim(Unknown::decode(&mut data, &Some(extra_data))?),
-                    FileType::AnimFragment => RFileDecoded::AnimFragment(AnimFragment::decode(&mut data, &Some(extra_data))?),
+                    FileType::AnimFragmentBattle => RFileDecoded::AnimFragmentBattle(AnimFragmentBattle::decode(&mut data, &Some(extra_data))?),
                     FileType::AnimPack => RFileDecoded::AnimPack(AnimPack::decode(&mut data, &Some(extra_data))?),
                     FileType::AnimsTable => RFileDecoded::AnimsTable(AnimsTable::decode(&mut data, &Some(extra_data))?),
                     FileType::Atlas => RFileDecoded::Atlas(Atlas::decode(&mut data, &Some(extra_data))?),
@@ -1485,7 +1485,7 @@ impl RFile {
             RFileInnerData::OnDisk(data) => {
                 match self.file_type {
                     FileType::Anim |
-                    FileType::AnimFragment |
+                    FileType::AnimFragmentBattle |
                     FileType::AnimsTable |
                     FileType::Atlas |
                     FileType::Audio |
@@ -1519,7 +1519,7 @@ impl RFile {
                         let mut data = Cursor::new(raw_data);
                         match self.file_type {
                             FileType::Anim => RFileDecoded::Anim(Unknown::decode(&mut data, &Some(extra_data))?),
-                            FileType::AnimFragment => RFileDecoded::AnimFragment(AnimFragment::decode(&mut data, &Some(extra_data))?),
+                            FileType::AnimFragmentBattle => RFileDecoded::AnimFragmentBattle(AnimFragmentBattle::decode(&mut data, &Some(extra_data))?),
                             FileType::AnimsTable => RFileDecoded::AnimsTable(AnimsTable::decode(&mut data, &Some(extra_data))?),
                             FileType::Atlas => RFileDecoded::Atlas(Atlas::decode(&mut data, &Some(extra_data))?),
                             FileType::Audio => RFileDecoded::Audio(Audio::decode(&mut data, &Some(extra_data))?),
@@ -1626,7 +1626,7 @@ impl RFile {
                 let mut buffer = vec![];
                 match &mut **data {
                     RFileDecoded::Anim(data) => data.encode(&mut buffer, extra_data)?,
-                    RFileDecoded::AnimFragment(data) => data.encode(&mut buffer, extra_data)?,
+                    RFileDecoded::AnimFragmentBattle(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::AnimPack(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::AnimsTable(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::Atlas(data) => data.encode(&mut buffer, extra_data)?,
@@ -1859,8 +1859,8 @@ impl RFile {
             self.file_type =  FileType::AnimsTable;
         }
 
-        else if path.starts_with(anim_fragment::BASE_PATH) && anim_fragment::EXTENSIONS.iter().any(|x| path.ends_with(*x)) {
-            self.file_type = FileType::AnimFragment;
+        else if path.starts_with(anim_fragment_battle::BASE_PATH) && path.contains(anim_fragment_battle::MID_PATH) && anim_fragment_battle::EXTENSIONS.iter().any(|x| path.ends_with(*x)) {
+            self.file_type = FileType::AnimFragmentBattle;
         }
 
         // If that failed, check if it's in a folder which is known to only have specific files.
@@ -2245,7 +2245,7 @@ impl Display for FileType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             FileType::Anim => write!(f, "Anim"),
-            FileType::AnimFragment => write!(f, "AnimFragment"),
+            FileType::AnimFragmentBattle => write!(f, "AnimFragmentBattle"),
             FileType::AnimPack => write!(f, "AnimPack"),
             FileType::AnimsTable => write!(f, "AnimsTable"),
             FileType::Atlas => write!(f, "Atlas"),
@@ -2274,7 +2274,7 @@ impl From<&str> for FileType {
     fn from(value: &str) -> Self {
         match value {
             "Anim" => FileType::Anim,
-            "AnimFragment" => FileType::AnimFragment,
+            "AnimFragmentBattle" => FileType::AnimFragmentBattle,
             "AnimPack" => FileType::AnimPack,
             "AnimsTable" => FileType::AnimsTable,
             "Atlas" => FileType::Atlas,
@@ -2304,7 +2304,7 @@ impl From<FileType> for String {
     fn from(value: FileType) -> String {
         match value {
             FileType::Anim => "Anim",
-            FileType::AnimFragment => "AnimFragment",
+            FileType::AnimFragmentBattle => "AnimFragmentBattle",
             FileType::AnimPack => "AnimPack",
             FileType::AnimsTable => "AnimsTable",
             FileType::Atlas => "Atlas",
@@ -2333,7 +2333,7 @@ impl From<&RFileDecoded> for FileType {
     fn from(file: &RFileDecoded) -> Self {
         match file {
             RFileDecoded::Anim(_) => Self::Anim,
-            RFileDecoded::AnimFragment(_) => Self::AnimFragment,
+            RFileDecoded::AnimFragmentBattle(_) => Self::AnimFragmentBattle,
             RFileDecoded::AnimPack(_) => Self::AnimPack,
             RFileDecoded::AnimsTable(_) => Self::AnimsTable,
             RFileDecoded::Atlas(_) => Self::Atlas,
