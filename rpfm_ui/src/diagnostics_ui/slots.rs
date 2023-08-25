@@ -87,10 +87,12 @@ impl DiagnosticsUISlots {
         // Checker slots.
         let diagnostics_check_packfile = SlotNoArgs::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
             app_ui,
+            pack_file_contents_ui,
             diagnostics_ui => move || {
                 info!("Triggering `Check PackFile (Diags)` By Slot");
 
                 app_ui.main_window().set_disabled(true);
+                let _ = AppUI::back_to_back_end_all(&app_ui, &pack_file_contents_ui);
                 DiagnosticsUI::check(&app_ui, &diagnostics_ui);
                 app_ui.main_window().set_disabled(false);
             }
