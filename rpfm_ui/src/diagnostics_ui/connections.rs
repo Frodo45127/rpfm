@@ -75,5 +75,8 @@ pub unsafe fn set_connections(ui: &DiagnosticsUI, slots: &DiagnosticsUISlots) {
     ui.checkbox_invalid_art_set_id.toggled().connect(slots.toggle_filters());
     ui.checkbox_invalid_variant_filename.toggled().connect(slots.toggle_filters());
     ui.checkbox_file_diffuse_not_found_for_variant.toggled().connect(slots.toggle_filters());
+    ui.checkbox_file_mask_1_not_found_for_variant.toggled().connect(slots.toggle_filters());
+    ui.checkbox_file_mask_2_not_found_for_variant.toggled().connect(slots.toggle_filters());
+    ui.checkbox_file_mask_3_not_found_for_variant.toggled().connect(slots.toggle_filters());
     ui.checkbox_datacored_portrait_settings.toggled().connect(slots.toggle_filters());
 }

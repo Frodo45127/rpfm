@@ -149,6 +149,9 @@ pub struct DiagnosticsUI {
     checkbox_invalid_art_set_id: QBox<QCheckBox>,
     checkbox_invalid_variant_filename: QBox<QCheckBox>,
     checkbox_file_diffuse_not_found_for_variant: QBox<QCheckBox>,
+    checkbox_file_mask_1_not_found_for_variant: QBox<QCheckBox>,
+    checkbox_file_mask_2_not_found_for_variant: QBox<QCheckBox>,
+    checkbox_file_mask_3_not_found_for_variant: QBox<QCheckBox>,
     checkbox_datacored_portrait_settings: QBox<QCheckBox>,
 }
 
@@ -288,6 +291,9 @@ impl DiagnosticsUI {
         let checkbox_invalid_art_set_id = QCheckBox::from_q_string_q_widget(&qtr("label_invalid_art_set_id"), &sidebar_scroll_area);
         let checkbox_invalid_variant_filename = QCheckBox::from_q_string_q_widget(&qtr("label_invalid_variant_filename"), &sidebar_scroll_area);
         let checkbox_file_diffuse_not_found_for_variant = QCheckBox::from_q_string_q_widget(&qtr("label_file_diffuse_not_found_for_variant"), &sidebar_scroll_area);
+        let checkbox_file_mask_1_not_found_for_variant = QCheckBox::from_q_string_q_widget(&qtr("label_file_mask_1_not_found_for_variant"), &sidebar_scroll_area);
+        let checkbox_file_mask_2_not_found_for_variant = QCheckBox::from_q_string_q_widget(&qtr("label_file_mask_2_not_found_for_variant"), &sidebar_scroll_area);
+        let checkbox_file_mask_3_not_found_for_variant = QCheckBox::from_q_string_q_widget(&qtr("label_file_mask_3_not_found_for_variant"), &sidebar_scroll_area);
         let checkbox_datacored_portrait_settings = QCheckBox::from_q_string_q_widget(&qtr("label_datacored_portrait_settings"), &sidebar_scroll_area);
 
         checkbox_all.set_checked(false);
@@ -317,8 +323,11 @@ impl DiagnosticsUI {
         checkbox_value_cannot_be_empty.set_checked(true);
         checkbox_invalid_art_set_id.set_checked(true);
         checkbox_invalid_variant_filename.set_checked(true);
-        checkbox_file_diffuse_not_found_for_variant.set_checked(false);
-        checkbox_datacored_portrait_settings.set_checked(false);
+        checkbox_file_diffuse_not_found_for_variant.set_checked(true);
+        checkbox_file_mask_1_not_found_for_variant.set_checked(true);
+        checkbox_file_mask_2_not_found_for_variant.set_checked(true);
+        checkbox_file_mask_3_not_found_for_variant.set_checked(true);
+        checkbox_datacored_portrait_settings.set_checked(true);
 
         sidebar_grid.add_widget_1a(&checkbox_all);
         sidebar_grid.add_widget_1a(&checkbox_outdated_table);
@@ -348,6 +357,9 @@ impl DiagnosticsUI {
         sidebar_grid.add_widget_1a(&checkbox_invalid_art_set_id);
         sidebar_grid.add_widget_1a(&checkbox_invalid_variant_filename);
         sidebar_grid.add_widget_1a(&checkbox_file_diffuse_not_found_for_variant);
+        sidebar_grid.add_widget_1a(&checkbox_file_mask_1_not_found_for_variant);
+        sidebar_grid.add_widget_1a(&checkbox_file_mask_2_not_found_for_variant);
+        sidebar_grid.add_widget_1a(&checkbox_file_mask_3_not_found_for_variant);
         sidebar_grid.add_widget_1a(&checkbox_datacored_portrait_settings);
 
         Ok(Self {
@@ -412,6 +424,9 @@ impl DiagnosticsUI {
             checkbox_invalid_art_set_id,
             checkbox_invalid_variant_filename,
             checkbox_file_diffuse_not_found_for_variant,
+            checkbox_file_mask_1_not_found_for_variant,
+            checkbox_file_mask_2_not_found_for_variant,
+            checkbox_file_mask_3_not_found_for_variant,
             checkbox_datacored_portrait_settings,
         })
     }
@@ -664,6 +679,9 @@ impl DiagnosticsUI {
                                 PortraitSettingsDiagnosticReportType::InvalidArtSetId(art_set_id) => art_set_id.to_owned(),
                                 PortraitSettingsDiagnosticReportType::InvalidVariantFilename(art_set_id, variant_filename) => format!("{art_set_id}|{variant_filename}"),
                                 PortraitSettingsDiagnosticReportType::FileDiffuseNotFoundForVariant(art_set_id, variant_filename, _) => format!("{art_set_id}|{variant_filename}"),
+                                PortraitSettingsDiagnosticReportType::FileMask1NotFoundForVariant(art_set_id, variant_filename, _) => format!("{art_set_id}|{variant_filename}"),
+                                PortraitSettingsDiagnosticReportType::FileMask2NotFoundForVariant(art_set_id, variant_filename, _) => format!("{art_set_id}|{variant_filename}"),
+                                PortraitSettingsDiagnosticReportType::FileMask3NotFoundForVariant(art_set_id, variant_filename, _) => format!("{art_set_id}|{variant_filename}"),
                             };
 
                             level.set_background(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(color))));
@@ -1442,6 +1460,16 @@ impl DiagnosticsUI {
         if diagnostics_ui.checkbox_file_diffuse_not_found_for_variant.is_checked() {
             diagnostic_type_pattern.push_str(&format!("{}|", PortraitSettingsDiagnosticReportType::FileDiffuseNotFoundForVariant(String::new(), String::new(), String::new())));
         }
+        if diagnostics_ui.checkbox_file_mask_1_not_found_for_variant.is_checked() {
+            diagnostic_type_pattern.push_str(&format!("{}|", PortraitSettingsDiagnosticReportType::FileMask1NotFoundForVariant(String::new(), String::new(), String::new())));
+        }
+        if diagnostics_ui.checkbox_file_mask_2_not_found_for_variant.is_checked() {
+            diagnostic_type_pattern.push_str(&format!("{}|", PortraitSettingsDiagnosticReportType::FileMask2NotFoundForVariant(String::new(), String::new(), String::new())));
+        }
+        if diagnostics_ui.checkbox_file_mask_3_not_found_for_variant.is_checked() {
+            diagnostic_type_pattern.push_str(&format!("{}|", PortraitSettingsDiagnosticReportType::FileMask3NotFoundForVariant(String::new(), String::new(), String::new())));
+        }
+
         diagnostic_type_pattern.pop();
 
         if diagnostic_type_pattern.is_empty() {
@@ -1630,6 +1658,9 @@ impl DiagnosticsUI {
             PortraitSettingsDiagnosticReportType::InvalidArtSetId(_) => qtr("invalid_art_set_id_explanation"),
             PortraitSettingsDiagnosticReportType::InvalidVariantFilename(_, _) => qtr("invalid_variant_filename_explanation"),
             PortraitSettingsDiagnosticReportType::FileDiffuseNotFoundForVariant(_, _, _) => qtr("file_diffuse_not_found_for_variant_explanation"),
+            PortraitSettingsDiagnosticReportType::FileMask1NotFoundForVariant(_, _, _) => qtr("file_mask_1_not_found_for_variant_explanation"),
+            PortraitSettingsDiagnosticReportType::FileMask2NotFoundForVariant(_, _, _) => qtr("file_mask_2_not_found_for_variant_explanation"),
+            PortraitSettingsDiagnosticReportType::FileMask3NotFoundForVariant(_, _, _) => qtr("file_mask_3_not_found_for_variant_explanation"),
         };
 
         for item in items {
@@ -1727,6 +1758,16 @@ impl DiagnosticsUI {
         }
         if !self.checkbox_file_diffuse_not_found_for_variant.is_checked() {
             diagnostics_ignored.push(PortraitSettingsDiagnosticReportType::FileDiffuseNotFoundForVariant(String::new(), String::new(), String::new()).to_string());
+        }
+
+        if !self.checkbox_file_mask_1_not_found_for_variant.is_checked() {
+            diagnostics_ignored.push(PortraitSettingsDiagnosticReportType::FileMask1NotFoundForVariant(String::new(), String::new(), String::new()).to_string());
+        }
+        if !self.checkbox_file_mask_2_not_found_for_variant.is_checked() {
+            diagnostics_ignored.push(PortraitSettingsDiagnosticReportType::FileMask2NotFoundForVariant(String::new(), String::new(), String::new()).to_string());
+        }
+        if !self.checkbox_file_mask_3_not_found_for_variant.is_checked() {
+            diagnostics_ignored.push(PortraitSettingsDiagnosticReportType::FileMask3NotFoundForVariant(String::new(), String::new(), String::new()).to_string());
         }
         diagnostics_ignored
     }

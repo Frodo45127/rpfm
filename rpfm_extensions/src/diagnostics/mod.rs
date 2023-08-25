@@ -232,7 +232,6 @@ impl Diagnostics {
 
         // Getting this here speeds up a lot path-checking later.
         let local_file_path_list = pack.paths_cache();
-        let local_folder_path_list = pack.paths_folders_raw();
 
         let loc_files = pack.files_by_type(&[FileType::Loc]);
         let loc_decoded = loc_files.iter()
@@ -297,13 +296,12 @@ impl Diagnostics {
                             &ignored_diagnostics_for_fields,
                             game_info,
                             local_file_path_list,
-                            &local_folder_path_list,
                             &table_references,
                             check_ak_only_refs,
                         )
                     },
                     FileType::Loc => Self::check_loc(file, &self.diagnostics_ignored, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields),
-                    FileType::PortraitSettings => PortraitSettingsDiagnostic::check(file, &art_set_ids, &variant_filenames, dependencies, &self.diagnostics_ignored, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields),
+                    FileType::PortraitSettings => PortraitSettingsDiagnostic::check(file, &art_set_ids, &variant_filenames, dependencies, &self.diagnostics_ignored, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields, &local_file_path_list),
                     _ => None,
                 };
 
@@ -346,7 +344,6 @@ impl Diagnostics {
         ignored_diagnostics_for_fields: &HashMap<String, Vec<String>>,
         game_info: &GameInfo,
         local_path_list: &HashMap<String, Vec<String>>,
-        local_folder_list: &HashSet<String>,
         dependency_data: &HashMap<i32, TableReferences>,
         check_ak_only_refs: bool,
     ) ->Option<DiagnosticType> {
@@ -415,52 +412,39 @@ impl Diagnostics {
             let mut keys: HashMap<String, Vec<(i32, i32)>> = HashMap::with_capacity(table_data.len());
             let mut duplicated_combined_keys_already_marked = vec![];
 
+            // Columns we can try to check for paths.
+            let mut ignore_path_columns = vec![];
+            for (column, field) in fields_processed.iter().enumerate() {
+                if let Some(rel_paths) = field.filename_relative_path(patches) {
+                    if rel_paths.iter().any(|path| path.contains('*')) {
+                        ignore_path_columns.push(column);
+                    }
+                }
+            }
+
             for (row, cells) in table_data.iter().enumerate() {
                 let mut row_is_empty = true;
                 let mut row_keys_are_empty = true;
                 let mut row_keys: BTreeMap<i32, Cow<str>> = BTreeMap::new();
                 for (column, field) in fields_processed.iter().enumerate() {
                     let cell_data = cells[column].data_to_string();
-                    /*
-                    // Path checks.
-                    if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field.name()), Some("FieldWithPathNotFound"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && !cell_data.is_empty() && fields_processed[column].is_filename(patches) {
-                        let mut path_found = false;
-                        let paths = {
-                            let path = if let Some(relative_paths) = fields_processed[column].filename_relative_path(patches) {
-                                relative_path.replace('%', &cell_data)
-                            } else {
-                                cell_data.to_string()
-                            };
 
-                            // Skip paths with wildcards, as we do not support them.
-                            if path.contains('*') {
-                                path_found = true;
-                                vec![]
-                            } else {
-                                path.replace('\\', "/").replace(';', ",").split(',').map(|x| {
-                                    let mut x = x.to_owned();
-                                    if x.ends_with('/') {
-                                        x.pop();
-                                    }
-                                    x
-                                }).collect::<Vec<String>>()
-                            }
+                    // Path checks.
+                    if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field.name()), Some("FieldWithPathNotFound"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && !cell_data.is_empty() && fields_processed[column].is_filename(patches) && !ignore_path_columns.contains(&column) {
+                        let mut path_found = false;
+                        let relative_paths = fields_processed[column].filename_relative_path(patches);
+                        let paths = if let Some(relative_paths) = relative_paths {
+                            relative_paths.iter().map(|x| x.replace('%', &cell_data.replace('\\', "/"))).collect::<Vec<_>>()
+                        } else {
+                            vec![cell_data.replace('\\', "/")]
                         };
 
                         for path in &paths {
-                            if local_path_list.par_iter().any(|path_2| caseless::canonical_caseless_match_str(path_2, path)) {
-                                path_found = true;
-                            }
-
-                            if !path_found && local_folder_list.par_iter().any(|path_2| caseless::canonical_caseless_match_str(path_2, path)) {
+                            if !path_found && local_path_list.get(&path.to_lowercase()).is_some() {
                                 path_found = true;
                             }
 
                             if !path_found && dependencies.file_exists(path, true, true, true) {
-                                path_found = true;
-                            }
-
-                            if !path_found && dependencies.folder_exists(path, true, true, true) {
                                 path_found = true;
                             }
 
@@ -473,7 +457,7 @@ impl Diagnostics {
                             let result = TableDiagnosticReport::new(TableDiagnosticReportType::FieldWithPathNotFound(paths), &[(row as i32, column as i32)], &fields_processed);
                             diagnostic.results_mut().push(result);
                         }
-                    }*/
+                    }
 
                     // Dependency checks.
                     if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field.name()), None, ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && field.is_reference(patches).is_some() {

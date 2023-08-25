@@ -427,6 +427,9 @@ impl DiagnosticsUISlots {
                 let _blocker_25 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_invalid_variant_filename.static_upcast::<QObject>());
                 let _blocker_26 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_file_diffuse_not_found_for_variant.static_upcast::<QObject>());
                 let _blocker_27 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_datacored_portrait_settings.static_upcast::<QObject>());
+                let _blocker_28 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_file_mask_1_not_found_for_variant.static_upcast::<QObject>());
+                let _blocker_29 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_file_mask_2_not_found_for_variant.static_upcast::<QObject>());
+                let _blocker_30 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_file_mask_3_not_found_for_variant.static_upcast::<QObject>());
 
                 if toggled {
                     diagnostics_ui.checkbox_outdated_table.set_checked(true);
@@ -456,6 +459,9 @@ impl DiagnosticsUISlots {
                     diagnostics_ui.checkbox_invalid_art_set_id.set_checked(true);
                     diagnostics_ui.checkbox_invalid_variant_filename.set_checked(true);
                     diagnostics_ui.checkbox_file_diffuse_not_found_for_variant.set_checked(true);
+                    diagnostics_ui.checkbox_file_mask_1_not_found_for_variant.set_checked(true);
+                    diagnostics_ui.checkbox_file_mask_2_not_found_for_variant.set_checked(true);
+                    diagnostics_ui.checkbox_file_mask_3_not_found_for_variant.set_checked(true);
                     diagnostics_ui.checkbox_datacored_portrait_settings.set_checked(true);
                 }
 

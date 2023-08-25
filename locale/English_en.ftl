@@ -1301,6 +1301,9 @@ delete_definition = Delete Definition
 label_invalid_art_set_id = Invalid Art Set Id
 label_invalid_variant_filename = Invalid Variant Filename
 label_file_diffuse_not_found_for_variant = File Diffuse not found for Variant
+label_file_mask_1_not_found_for_variant = File Mask 1 not found for Variant
+label_file_mask_2_not_found_for_variant = File Mask 2 not found for Variant
+label_file_mask_3_not_found_for_variant = File Mask 3 not found for Variant
 label_datacored_portrait_settings = Datacored Portrait Settings file
 invalid_art_set_id_explanation = You have an Art Set Id in a Portrait Settings file that doesn't exists in the 'campaign_character_arts' table.
 
@@ -1313,6 +1316,10 @@ invalid_variant_filename_explanation = You have an Art Set Id containing a Varia
 file_diffuse_not_found_for_variant_explanation = You have a diffuse path (the path to the file used for a 2D Portrait) on a Portrait Settings file pointing to a non-existant file.
 
     This causes units to use default portraits.
+
+file_mask_1_not_found_for_variant_explanation = You have a file mask 1 path on a Portrait Settings file pointing to a non-existant file.
+file_mask_2_not_found_for_variant_explanation = You have a file mask 2 path on a Portrait Settings file pointing to a non-existant file.
+file_mask_3_not_found_for_variant_explanation = You have a file mask 3 path on a Portrait Settings file pointing to a non-existant file.
 
 datacored_portrait_settings_explanation = You're overwriting/datacoring a Portrait Settings file.
 
