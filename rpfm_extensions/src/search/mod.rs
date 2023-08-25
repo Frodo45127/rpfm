@@ -19,14 +19,14 @@ use regex::{RegexBuilder, Regex};
 use rayon::prelude::*;
 
 use rpfm_lib::error::{Result, RLibError};
-use rpfm_lib::files::{Container, ContainerPath, FileType, pack::Pack, RFile, RFileDecoded};
+use rpfm_lib::files::{Container, ContainerPath, DecodeableExtraData, FileType, pack::Pack, RFile, RFileDecoded};
 use rpfm_lib::games::{GameInfo, VanillaDBTableNameLogic};
 use rpfm_lib::schema::Schema;
 
 use crate::dependencies::Dependencies;
 
 //use self::anim::AnimMatches;
-//use self::anim_fragment::AnimFragmentMatches;
+use self::anim_fragment_battle::AnimFragmentBattleMatches;
 //use self::anim_pack::AnimPackMatches;
 //use self::anims_table::AnimsTableMatches;
 use self::atlas::AtlasMatches;
@@ -49,7 +49,7 @@ use self::unknown::UnknownMatches;
 use self::schema::SchemaMatches;
 
 //pub mod anim;
-//pub mod anim_fragment;
+pub mod anim_fragment_battle;
 //pub mod anim_pack;
 //pub mod anims_table;
 pub mod atlas;
@@ -120,7 +120,10 @@ pub struct GlobalSearch {
     search_on: SearchOn,
 
     /// Matches returned by this search.
-    matches: Matches
+    matches: Matches,
+
+    /// Key of the game the files we're searching over belong. This is needed to decode certain file formats.
+    game_key: String,
 }
 
 /// This enum defines the matching mode of the search. We use `Pattern` by default, and fall back to it
@@ -135,7 +138,7 @@ pub enum MatchingMode {
 #[derive(Debug, Clone)]
 pub enum MatchHolder {
     Anim(UnknownMatches),
-    AnimFragmentBattle(UnknownMatches),
+    AnimFragmentBattle(AnimFragmentBattleMatches),
     AnimPack(UnknownMatches),
     AnimsTable(UnknownMatches),
     Atlas(AtlasMatches),
@@ -203,7 +206,7 @@ pub struct SearchOn {
 #[getset(get = "pub")]
 pub struct Matches {
     anim: Vec<UnknownMatches>,
-    anim_fragment_battle: Vec<UnknownMatches>,
+    anim_fragment_battle: Vec<AnimFragmentBattleMatches>,
     anim_pack: Vec<UnknownMatches>,
     anims_table: Vec<UnknownMatches>,
     atlas: Vec<AtlasMatches>,
@@ -288,6 +291,11 @@ impl GlobalSearch {
         let case_sensitive = self.case_sensitive;
         let search_on = self.search_on().clone();
 
+        let game_key = self.game_key.to_owned();
+        let mut extra_data = DecodeableExtraData::default();
+        extra_data.set_game_key(Some(&game_key));
+        let extra_data = Some(extra_data);
+
         match self.source {
             SearchSource::Pack => {
 
@@ -298,21 +306,21 @@ impl GlobalSearch {
                     pack.files_by_type_mut(&files_to_search)
                 };
 
-                self.matches_mut().find_matches(&pattern, case_sensitive, &matching_mode, &search_on, &mut files, schema);
+                self.matches_mut().find_matches(&pattern, case_sensitive, &matching_mode, &search_on, &mut files, schema, extra_data);
             }
             SearchSource::ParentFiles => {
 
                 let files_to_search = self.search_on().types_to_search();
                 let files = dependencies.files_by_types_mut(&files_to_search, false, true);
 
-                self.matches_mut().find_matches(&pattern, case_sensitive, &matching_mode, &search_on, &mut files.into_values().collect::<Vec<_>>(), schema);
+                self.matches_mut().find_matches(&pattern, case_sensitive, &matching_mode, &search_on, &mut files.into_values().collect::<Vec<_>>(), schema, extra_data);
             },
             SearchSource::GameFiles => {
 
                 let files_to_search = self.search_on().types_to_search();
                 let files = dependencies.files_by_types_mut(&files_to_search, true, false);
 
-                self.matches_mut().find_matches(&pattern, case_sensitive, &matching_mode, &search_on, &mut files.into_values().collect::<Vec<_>>(), schema);
+                self.matches_mut().find_matches(&pattern, case_sensitive, &matching_mode, &search_on, &mut files.into_values().collect::<Vec<_>>(), schema, extra_data);
             },
 
             // Asskit files are only tables.
@@ -403,6 +411,11 @@ impl GlobalSearch {
         // Make sure we can actually do the replacements.
         self.replace_possible(matches)?;
 
+        let game_key = self.game_key.to_owned();
+        let mut extra_data = DecodeableExtraData::default();
+        extra_data.set_game_key(Some(&game_key));
+        let extra_data = Some(extra_data);
+
         // If we want to use regex and the pattern is invalid, use normal pattern instead of Regex.
         let matching_mode = if self.use_regex {
             match RegexBuilder::new(&self.pattern).case_insensitive(!self.case_sensitive).build() {
@@ -424,7 +437,25 @@ impl GlobalSearch {
         for match_file in matches {
             match match_file {
                 MatchHolder::Anim(_) => continue,
-                MatchHolder::AnimFragmentBattle(_) => continue,
+                MatchHolder::AnimFragmentBattle(search_matches) => {
+                    let container_path = ContainerPath::File(search_matches.path().to_string());
+                    let mut file = pack.files_by_path_mut(&container_path, false);
+                    if let Some(file) = file.get_mut(0) {
+
+                        // Make sure it has been decoded.
+                        let _ = file.decode(&extra_data, true, false);
+                        if let Ok(decoded) = file.decoded_mut() {
+                            let edited = match decoded {
+                                RFileDecoded::AnimFragmentBattle(table) => table.replace(&self.pattern, &self.replace_text, self.case_sensitive, &matching_mode, search_matches),
+                                _ => unimplemented!(),
+                            };
+
+                            if edited {
+                                edited_paths.push(container_path);
+                            }
+                        }
+                    }
+                },
                 MatchHolder::AnimPack(_) => continue,
                 MatchHolder::AnimsTable(_) => continue,
                 MatchHolder::Atlas(search_matches) => {
@@ -619,7 +650,7 @@ impl GlobalSearch {
         let mut matches = vec![];
 
         matches.extend(self.matches.anim.iter().map(|x| MatchHolder::Unknown(x.clone())).collect::<Vec<_>>());
-        matches.extend(self.matches.anim_fragment_battle.iter().map(|x| MatchHolder::Unknown(x.clone())).collect::<Vec<_>>());
+        matches.extend(self.matches.anim_fragment_battle.iter().map(|x| MatchHolder::AnimFragmentBattle(x.clone())).collect::<Vec<_>>());
         matches.extend(self.matches.anim_pack.iter().map(|x| MatchHolder::Unknown(x.clone())).collect::<Vec<_>>());
         matches.extend(self.matches.anims_table.iter().map(|x| MatchHolder::Unknown(x.clone())).collect::<Vec<_>>());
         matches.extend(self.matches.atlas.iter().map(|x| MatchHolder::Atlas(x.clone())).collect::<Vec<_>>());
@@ -704,7 +735,7 @@ impl Matches {
         }
     }
 
-    pub fn find_matches(&mut self, pattern: &str, case_sensitive: bool, matching_mode: &MatchingMode, search_on: &SearchOn, files: &mut Vec<&mut RFile>, schema: &Schema) {
+    pub fn find_matches(&mut self, pattern: &str, case_sensitive: bool, matching_mode: &MatchingMode, search_on: &SearchOn, files: &mut Vec<&mut RFile>, schema: &Schema, extra_data: Option<DecodeableExtraData>) {
         let matches = files.par_iter_mut()
             .filter_map(|file| {
                 if search_on.anim && file.file_type() == FileType::Anim {
@@ -721,8 +752,7 @@ impl Matches {
                     }*/
                     None
                 } else if search_on.anim_fragment_battle && file.file_type() == FileType::AnimFragmentBattle {
-                    /*
-                    if let Ok(RFileDecoded::AnimFragment(data)) = file.decode(&None, false, true).transpose().unwrap() {
+                    if let Ok(RFileDecoded::AnimFragmentBattle(data)) = file.decode(&extra_data, false, true).transpose().unwrap() {
                         let result = data.search(file.path_in_container_raw(), pattern, case_sensitive, &matching_mode);
                         if !result.matches().is_empty() {
                             Some((None, Some(result), None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None))
@@ -731,8 +761,7 @@ impl Matches {
                         }
                     } else {
                         None
-                    }*/
-                    None
+                    }
                 } else if search_on.anim_pack && file.file_type() == FileType::AnimPack {
                     /*
                     if let Ok(RFileDecoded::AnimPack(data)) = file.decode(&None, false, true).transpose().unwrap() {
@@ -982,7 +1011,7 @@ impl Matches {
                 }
             }
         ).collect::<Vec<(
-            Option<UnknownMatches>, Option<UnknownMatches>, Option<UnknownMatches>, Option<UnknownMatches>, Option<AtlasMatches>, Option<UnknownMatches>, Option<UnknownMatches>, Option<TableMatches>,
+            Option<UnknownMatches>, Option<AnimFragmentBattleMatches>, Option<UnknownMatches>, Option<UnknownMatches>, Option<AtlasMatches>, Option<UnknownMatches>, Option<UnknownMatches>, Option<TableMatches>,
             Option<UnknownMatches>, Option<UnknownMatches>, Option<UnknownMatches>, Option<TableMatches>, Option<UnknownMatches>, Option<UnknownMatches>, Option<PortraitSettingsMatches>,
             Option<RigidModelMatches>, Option<UnknownMatches>, Option<TextMatches>, Option<UnknownMatches>, Option<UnitVariantMatches>, Option<UnknownMatches>, Option<UnknownMatches>
         )>>();

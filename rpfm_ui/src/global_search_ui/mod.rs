@@ -55,6 +55,7 @@ use rayon::prelude::*;
 use std::rc::Rc;
 
 use rpfm_extensions::search::{GlobalSearch, MatchHolder,
+    anim_fragment_battle::{AnimFragmentBattleMatches, AnimFragmentBattleMatch},
     atlas::{AtlasMatches, AtlasMatch},
     portrait_settings::{PortraitSettingsMatches, PortraitSettingsMatch},
     rigid_model::{RigidModelMatches, RigidModelMatch},
@@ -85,6 +86,7 @@ use crate::settings_ui::backend::*;
 use crate::TREEVIEW_ICONS;
 use crate::utils::*;
 use crate::UI_STATE;
+use crate::views::table::utils::open_subtable;
 
 pub mod connections;
 pub mod slots;
@@ -93,6 +95,10 @@ pub mod tips;
 /// Tool's ui template path.
 const VIEW_DEBUG: &str = "rpfm_ui/ui_templates/global_search_dock_widget.ui";
 const VIEW_RELEASE: &str = "ui/global_search_dock_widget.ui";
+
+const ANIM_FRAGMENT_BATTLE_ENTRY_INDEX: i32 = 40;
+const ANIM_FRAGMENT_BATTLE_SUBENTRY_INDEX: i32 = 41;
+const ANIM_FRAGMENT_BATTLE_BOOL_DATA: i32 = 42;
 
 const PORTRAIT_SETTINGS_ENTRY_INDEX: i32 = 40;
 const PORTRAIT_SETTINGS_BOOL_DATA: i32 = 41;
@@ -247,7 +253,7 @@ impl GlobalSearchUI {
         let search_on_all_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "search_all")?;
         let search_on_all_common_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "search_all_common")?;
         let search_on_anim_checkbox: QPtr<QCheckBox> = QCheckBox::from_q_widget(&main_widget).into_q_ptr();//find_widget(&main_widget.static_upcast(), "search_anim")?;
-        let search_on_anim_fragment_battle_checkbox: QPtr<QCheckBox> = QCheckBox::from_q_widget(&main_widget).into_q_ptr();//find_widget(&main_widget.static_upcast(), "search_anim_fragment")?;
+        let search_on_anim_fragment_battle_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "search_anim_fragment_battle")?;
         let search_on_anim_pack_checkbox: QPtr<QCheckBox> = QCheckBox::from_q_widget(&main_widget).into_q_ptr();//find_widget(&main_widget.static_upcast(), "search_anim_pack")?;
         let search_on_anims_table_checkbox: QPtr<QCheckBox> = QCheckBox::from_q_widget(&main_widget).into_q_ptr();//find_widget(&main_widget.static_upcast(), "search_anims_table")?;
         let search_on_atlas_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "search_atlas")?;
@@ -297,7 +303,7 @@ impl GlobalSearchUI {
         search_on_video_checkbox.set_text(&qtr("global_search_video"));
 
         search_on_anim_checkbox.set_visible(false);
-        search_on_anim_fragment_battle_checkbox.set_visible(false);
+        search_on_anim_fragment_battle_checkbox.set_visible(true);
         search_on_anim_pack_checkbox.set_visible(false);
         search_on_anims_table_checkbox.set_visible(false);
         search_on_atlas_checkbox.set_visible(true);
@@ -459,6 +465,7 @@ impl GlobalSearchUI {
                     self.matches_tab_widget().set_current_index(1);
                 }
 
+                self.load_anim_fragment_battle_matches_to_ui(&global_search.matches().anim_fragment_battle(), FileType::AnimFragmentBattle);
                 self.load_atlas_matches_to_ui(&global_search.matches().atlas(), FileType::Atlas);
                 self.load_portrait_settings_matches_to_ui(&global_search.matches().portrait_settings(), FileType::PortraitSettings);
                 self.load_rigid_model_matches_to_ui(&global_search.matches().rigid_model(), FileType::RigidModel);
@@ -689,10 +696,76 @@ impl GlobalSearchUI {
 
         AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui, Some(path.to_owned()), false, false, data_source);
 
-        // If it's a table, focus on the matched cell.
         if is_match {
             if let Some(file_view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == data_source).find(|x| *x.path_read() == path) {
                 match file_view.view_type() {
+
+                    // If it's a anim fragment battle file, open and select the matched value.
+                    ViewType::Internal(View::AnimFragmentBattle(view)) => {
+                        let parent = gidhora.parent();
+                        let bool_data = parent.child_2a(model_index.row(), 0).data_1a(ANIM_FRAGMENT_BATTLE_BOOL_DATA).to_u_int_0a();
+
+                        if bool_data == 1 {
+                            view.skeleton_name_line_edit().select_all();
+                            view.skeleton_name_line_edit().set_focus_0a();
+                        } else if bool_data == 2 {
+                            view.table_name_line_edit().select_all();
+                            view.table_name_line_edit().set_focus_0a();
+                        } else if bool_data == 3 {
+                            view.mount_table_name_line_edit().select_all();
+                            view.mount_table_name_line_edit().set_focus_0a();
+                        } else if bool_data == 4 {
+                            view.unmount_table_name_line_edit().select_all();
+                            view.unmount_table_name_line_edit().set_focus_0a();
+                        } else if bool_data == 5 {
+                            view.locomotion_graph_line_edit().select_all();
+                            view.locomotion_graph_line_edit().set_focus_0a();
+                        } else {
+                            let entry_index = parent.child_2a(model_index.row(), 0).data_1a(ANIM_FRAGMENT_BATTLE_ENTRY_INDEX).to_u_int_0a();
+                            let column = if bool_data == 6 || bool_data == 7 || bool_data == 8 {
+                                9
+                            } else if bool_data == 9 {
+                                11
+                            } else if bool_data == 10 {
+                                12
+                            } else if bool_data == 11 {
+                                13
+                            } else if bool_data == 12 {
+                                14
+                            } else if bool_data == 13 {
+                                16
+                            } else {
+                                return;
+                            };
+
+                            let item_to_select = view.table().table_model().index_2a(entry_index as i32, column);
+                            let item_to_select_filter = view.table().table_filter().map_from_source(&item_to_select);
+
+                            let selection = view.table().table_view().selection_model().selection();
+                            view.table().table_view().selection_model().select_q_item_selection_q_flags_selection_flag(&selection, SelectionFlag::Toggle.into());
+                            view.table().table_view().selection_model().select_q_model_index_q_flags_selection_flag(&item_to_select_filter, SelectionFlag::Toggle.into());
+
+                            view.table().table_view().set_focus_0a();
+                            view.table().table_view().set_current_index(item_to_select_filter.as_ref());
+                            view.table().table_view().scroll_to_2a(item_to_select_filter.as_ref(), ScrollHint::EnsureVisible);
+
+                            // If it's a subtable, we also have to open said subtable and select the item in question.
+                            if bool_data == 6 || bool_data == 7 || bool_data == 8 {
+                                let subentry_index = parent.child_2a(model_index.row(), 0).data_1a(ANIM_FRAGMENT_BATTLE_SUBENTRY_INDEX).to_u_int_0a();
+                                let column = if bool_data == 6 {
+                                    0
+                                } else if bool_data == 7 {
+                                    1
+                                } else if bool_data == 8 {
+                                    2
+                                } else {
+                                    return;
+                                };
+
+                                open_subtable(item_to_select_filter.as_ref(), view.table(), app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, Some((subentry_index as i32, column)));
+                            }
+                        }
+                    }
 
                     // In case of tables, we have to get the logical row/column of the match and select it.
                     ViewType::Internal(View::Table(view)) => {
@@ -818,6 +891,142 @@ impl GlobalSearchUI {
                     // Ignore the rest.
                     _ => {},
                 }
+            }
+        }
+    }
+
+
+    /// This function takes care of loading the results of a global search of `AnimFragmentBattleMatches` into a model.
+    unsafe fn load_anim_fragment_battle_matches_to_ui(&self, matches: &[AnimFragmentBattleMatches], file_type: FileType) {
+        let model = &self.matches_table_and_text_tree_model;
+
+        if !matches.is_empty() {
+
+            // Microoptimization: block the model from triggering signals on each item added. It reduce add times on 200 ms, depending on the case.
+            model.block_signals(true);
+
+            let file_type_item = Self::new_item();
+            file_type_item.set_text(&QString::from_std_str::<String>(From::from(file_type)));
+            let file_type_item = atomic_from_cpp_box(file_type_item);
+
+            let rows = matches.par_iter()
+                .filter(|match_afb| !match_afb.matches().is_empty())
+                .map(|match_afb| {
+                    let path = match_afb.path();
+                    let qlist_daddy = QListOfQStandardItem::new();
+                    let file = Self::new_item();
+                    file.set_text(&QString::from_std_str(path));
+                    TREEVIEW_ICONS.set_standard_item_icon(&file, Some(&file_type));
+
+                    for match_row in match_afb.matches() {
+
+                        // Create a new list of StandardItem.
+                        let qlist_boi = QListOfQStandardItem::new();
+
+                        // Create an empty row.
+                        let text = Self::new_item();
+                        let match_type = Self::new_item();
+                        let start = Self::new_item();
+                        let end = Self::new_item();
+
+                        text.set_text(&QString::from_std_str(Self::format_search_match(match_row.text(), *match_row.start(), *match_row.end())));
+
+                        // Store the data needed to pin-point the match in the file in the text item.
+                        let bool_data = if *match_row.skeleton_name() {
+                            1
+                        }else if *match_row.table_name() {
+                            2
+                        } else if *match_row.mount_table_name() {
+                            3
+                        } else if *match_row.unmount_table_name() {
+                            4
+                        } else if *match_row.locomotion_graph() {
+                            5
+                        } else if let Some(entry) = match_row.entry() {
+                            text.set_data_2a(&QVariant::from_uint(entry.0 as u32), ANIM_FRAGMENT_BATTLE_ENTRY_INDEX);
+                            if let Some(subentry) = entry.1 {
+                                text.set_data_2a(&QVariant::from_uint(subentry.0 as u32), ANIM_FRAGMENT_BATTLE_SUBENTRY_INDEX);
+                                if subentry.1 {
+                                    6
+                                } else if subentry.2 {
+                                    7
+                                } else if subentry.3 {
+                                    8
+                                } else {
+                                    panic!()
+                                }
+
+                            } else if entry.2 {
+                                9
+                            } else if entry.3 {
+                                10
+                            } else if entry.4 {
+                                11
+                            } else if entry.5 {
+                                12
+                            } else if entry.6 {
+                                13
+                            } else {
+                                panic!()
+                            }
+                        } else {
+                            panic!()
+                        };
+
+                        text.set_data_2a(&QVariant::from_uint(bool_data), ANIM_FRAGMENT_BATTLE_BOOL_DATA);
+
+                        let string = match bool_data {
+                            1 => qtr("anim_fragment_battle_skeleton_name"),
+                            2 => qtr("anim_fragment_battle_table_name"),
+                            3 => qtr("anim_fragment_battle_mount_table_name"),
+                            4 => qtr("anim_fragment_battle_unmount_table_name"),
+                            5 => qtr("anim_fragment_battle_locomotion_graph"),
+                            6 => qtr("anim_fragment_battle_file_path"),
+                            7 => qtr("anim_fragment_battle_meta_file_path"),
+                            8 => qtr("anim_fragment_battle_snd_file_path"),
+                            9 => qtr("anim_fragment_battle_filename"),
+                            10 => qtr("anim_fragment_battle_metadata"),
+                            11 => qtr("anim_fragment_battle_metadata_sound"),
+                            12 => qtr("anim_fragment_battle_skeleton_type"),
+                            13 => qtr("anim_fragment_battle_uk_4"),
+                            _ => QString::new(),
+                        };
+
+                        match_type.set_text(&string);
+
+                        start.set_data_2a(&QVariant::from_uint(*match_row.start() as u32), 2);
+                        end.set_data_2a(&QVariant::from_uint(*match_row.end() as u32), 2);
+
+                        // Add an empty row to the list.
+                        qlist_boi.append_q_standard_item(&text.into_ptr().as_mut_raw_ptr());
+                        qlist_boi.append_q_standard_item(&match_type.into_ptr().as_mut_raw_ptr());
+                        qlist_boi.append_q_standard_item(&Self::new_item().into_ptr().as_mut_raw_ptr());
+                        qlist_boi.append_q_standard_item(&Self::new_item().into_ptr().as_mut_raw_ptr());
+                        qlist_boi.append_q_standard_item(&start.into_ptr().as_mut_raw_ptr());
+                        qlist_boi.append_q_standard_item(&end.into_ptr().as_mut_raw_ptr());
+
+                        // Append the new row.
+                        file.append_row_q_list_of_q_standard_item(qlist_boi.as_ref());
+                    }
+
+                    qlist_daddy.append_q_standard_item(&file.into_ptr().as_mut_raw_ptr());
+                    qlist_daddy.append_q_standard_item(&Self::new_item().into_ptr().as_mut_raw_ptr());
+                    qlist_daddy.append_q_standard_item(&Self::new_item().into_ptr().as_mut_raw_ptr());
+                    qlist_daddy.append_q_standard_item(&Self::new_item().into_ptr().as_mut_raw_ptr());
+                    qlist_daddy.append_q_standard_item(&Self::new_item().into_ptr().as_mut_raw_ptr());
+                    qlist_daddy.append_q_standard_item(&((*ptr_from_atomic(&file_type_item)).clone()).as_mut_raw_ptr());
+                    atomic_from_cpp_box(qlist_daddy)
+                })
+                .collect::<Vec<_>>();
+
+            for (index, row) in rows.iter().enumerate() {
+
+                // Unlock the model before the last insertion.
+                if index == rows.len() - 1 {
+                    model.block_signals(false);
+                }
+
+                model.append_row_q_list_of_q_standard_item(ref_from_atomic(row));
             }
         }
     }
@@ -1497,7 +1706,7 @@ impl GlobalSearchUI {
         let items = tree_view.get_items_from_selection(true);
 
         let anim_matches: Vec<UnknownMatches> = vec![];
-        let anim_fragment_matches: Vec<UnknownMatches> = vec![];
+        let mut anim_fragment_battle_matches: Vec<AnimFragmentBattleMatches> = vec![];
         let anim_pack_matches: Vec<UnknownMatches> = vec![];
         let anims_table_matches: Vec<UnknownMatches> = vec![];
         let mut atlas_matches: Vec<AtlasMatches> = vec![];
@@ -1537,7 +1746,61 @@ impl GlobalSearchUI {
 
                     match file_type {
                         FileType::Anim => todo!(),
-                        FileType::AnimFragmentBattle => todo!(),
+                        FileType::AnimFragmentBattle => {
+                            let item = parent.child_2a(item.row(), 0);
+                            let start = parent.child_2a(item.row(), 4).text().to_std_string().parse::<usize>().unwrap();
+                            let end = parent.child_2a(item.row(), 5).text().to_std_string().parse::<usize>().unwrap();
+                            let entry_index = item.data_1a(ANIM_FRAGMENT_BATTLE_ENTRY_INDEX).to_u_int_0a() as usize;
+                            let subentry_index = item.data_1a(ANIM_FRAGMENT_BATTLE_SUBENTRY_INDEX).to_u_int_0a() as usize;
+                            let bool_data = item.data_1a(ANIM_FRAGMENT_BATTLE_BOOL_DATA).to_u_int_0a();
+
+                            let match_file = match anim_fragment_battle_matches.iter_mut().find(|x| x.path() == &path) {
+                                Some(match_file) => match_file,
+                                None => {
+                                    let matches = AnimFragmentBattleMatches::new(&path);
+                                    anim_fragment_battle_matches.push(matches);
+                                    anim_fragment_battle_matches.last_mut().unwrap()
+                                }
+                            };
+
+
+                            let match_entry = AnimFragmentBattleMatch::new(
+                                bool_data == 1,
+                                bool_data == 2,
+                                bool_data == 3,
+                                bool_data == 4,
+                                bool_data == 5,
+                                if bool_data > 5 {
+                                    Some((
+                                        entry_index,
+                                        if bool_data > 5 && bool_data < 9 {
+                                            Some((
+                                                subentry_index,
+                                                bool_data == 6,
+                                                bool_data == 7,
+                                                bool_data == 8,
+                                            ))
+                                        } else {
+                                            None
+                                        },
+                                        bool_data == 9,
+                                        bool_data == 10,
+                                        bool_data == 11,
+                                        bool_data == 12,
+                                        bool_data == 13
+                                    ))
+                                } else {
+                                    None
+                                },
+                                start,
+                                end,
+                                item.text().to_std_string()
+                            );
+
+                            if !match_file.matches_mut().contains(&match_entry) {
+                                match_file.matches_mut().push(match_entry);
+                            }
+                        },
                         FileType::AnimPack => todo!(),
                         FileType::AnimsTable => todo!(),
                         FileType::Atlas => {
@@ -1768,7 +2031,61 @@ impl GlobalSearchUI {
                     // If it already exists, delete it, as the new one contains the entire set for it.
                     match file_type {
                         FileType::Anim => todo!(),
-                        FileType::AnimFragmentBattle => todo!(),
+                        FileType::AnimFragmentBattle => {
+                            if let Some(position) = anim_fragment_battle_matches.iter().position(|x| x.path() == &path) {
+                                anim_fragment_battle_matches.remove(position);
+                            }
+
+                            let matches = AnimFragmentBattleMatches::new(&path);
+                            anim_fragment_battle_matches.push(matches);
+                            let match_file = anim_fragment_battle_matches.last_mut().unwrap();
+
+                            // For the individual matches, we have to get them from the view, so the filtered out items are not added.
+                            for row in 0..item.row_count() {
+                                let start = item.child_2a(row, 4).text().to_std_string().parse::<usize>().unwrap();
+                                let end = item.child_2a(row, 5).text().to_std_string().parse::<usize>().unwrap();
+
+                                let item = item.child_2a(row, 0);
+                                let entry_index = item.data_1a(ANIM_FRAGMENT_BATTLE_ENTRY_INDEX).to_u_int_0a() as usize;
+                                let subentry_index = item.data_1a(ANIM_FRAGMENT_BATTLE_SUBENTRY_INDEX).to_u_int_0a() as usize;
+                                let bool_data = item.data_1a(ANIM_FRAGMENT_BATTLE_BOOL_DATA).to_u_int_0a();
+
+                                let match_entry = AnimFragmentBattleMatch::new(
+                                    bool_data == 1,
+                                    bool_data == 2,
+                                    bool_data == 3,
+                                    bool_data == 4,
+                                    bool_data == 5,
+                                    if bool_data > 5 {
+                                        Some((
+                                            entry_index,
+                                            if bool_data > 5 && bool_data < 9 {
+                                                Some((
+                                                    subentry_index,
+                                                    bool_data == 6,
+                                                    bool_data == 7,
+                                                    bool_data == 8,
+                                                ))
+                                            } else {
+                                                None
+                                            },
+                                            bool_data == 9,
+                                            bool_data == 10,
+                                            bool_data == 11,
+                                            bool_data == 12,
+                                            bool_data == 13
+                                        ))
+                                    } else {
+                                        None
+                                    },
+                                    start,
+                                    end,
+                                    item.text().to_std_string()
+                                );
+
+                                match_file.matches_mut().push(match_entry);
+                            }
+                        },
                         FileType::AnimPack => todo!(),
                         FileType::AnimsTable => todo!(),
                         FileType::Atlas => {
@@ -1852,12 +2169,13 @@ impl GlobalSearchUI {
 
                             // For the individual matches, we have to get them from the view, so the filtered out items are not added.
                             for row in 0..item.row_count() {
+                                let start = item.child_2a(row, 4).text().to_std_string().parse::<usize>().unwrap();
+                                let end = item.child_2a(row, 5).text().to_std_string().parse::<usize>().unwrap();
+
                                 let item = item.child_2a(row, 0);
                                 let index = item.data_1a(PORTRAIT_SETTINGS_ENTRY_INDEX).to_u_int_0a() as usize;
                                 let bool_data = item.data_1a(PORTRAIT_SETTINGS_BOOL_DATA).to_u_int_0a();
                                 let vindex = item.data_1a(PORTRAIT_SETTINGS_VARIANT_INDEX).to_u_int_0a() as usize;
-                                let start = item.child_2a(row, 4).text().to_std_string().parse::<usize>().unwrap();
-                                let end = item.child_2a(row, 5).text().to_std_string().parse::<usize>().unwrap();
 
                                 let match_entry = PortraitSettingsMatch::new(
                                     index,
@@ -1986,7 +2304,7 @@ impl GlobalSearchUI {
         let mut matches = vec![];
 
         matches.append(&mut anim_matches.into_iter().map(MatchHolder::Anim).collect::<Vec<_>>());
-        matches.append(&mut anim_fragment_matches.into_iter().map(MatchHolder::AnimFragmentBattle).collect::<Vec<_>>());
+        matches.append(&mut anim_fragment_battle_matches.into_iter().map(MatchHolder::AnimFragmentBattle).collect::<Vec<_>>());
         matches.append(&mut anim_pack_matches.into_iter().map(MatchHolder::AnimPack).collect::<Vec<_>>());
         matches.append(&mut anims_table_matches.into_iter().map(MatchHolder::AnimsTable).collect::<Vec<_>>());
         matches.append(&mut atlas_matches.into_iter().map(MatchHolder::Atlas).collect::<Vec<_>>());

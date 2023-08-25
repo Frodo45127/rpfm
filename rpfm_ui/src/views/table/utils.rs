@@ -1123,49 +1123,84 @@ pub unsafe fn get_field_from_view(model: &QPtr<QStandardItemModel>, field: &Fiel
 
 /// This function creates a new subtable from the current table.
 pub unsafe fn open_subtable(
-    parent: QPtr<QWidget>,
+    model_index: Ref<QModelIndex>,
+    view: &Arc<TableView>,
     app_ui: &Rc<AppUI>,
     global_search_ui: &Rc<GlobalSearchUI>,
     pack_file_contents_ui: &Rc<PackFileContentsUI>,
     diagnostics_ui: &Rc<DiagnosticsUI>,
     dependencies_ui: &Rc<DependenciesUI>,
     references_ui: &Rc<ReferencesUI>,
-    table_data: TableType,
-    data_source: Arc<RwLock<DataSource>>
-) -> Option<Vec<u8>> {
+    default_selection: Option<(i32, i32)>
+) {
 
-    // Create and configure the dialog.
-    let dialog = QDialog::new_1a(parent);
-    dialog.set_window_title(&qtr("nested_table_title"));
-    dialog.set_modal(true);
-    dialog.resize_2a(600, 200);
+    if model_index.data_1a(ITEM_IS_SEQUENCE).to_bool() {
+        let mut data = Cursor::new(model_index.data_1a(ITEM_SEQUENCE_DATA).to_byte_array().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>());
+        let definition = view.table_definition();
+        let fields_processed = definition.fields_processed();
+        if let Some(field) = fields_processed.get(model_index.column() as usize) {
+            if let FieldType::SequenceU32(definition) = field.field_type() {
+                if let Ok(table) = Table::decode(&mut data, &definition, &HashMap::new(), None, false, field.name()) {
+                    let table_data = match *view.packed_file_type {
+                        FileType::AnimFragmentBattle => TableType::AnimFragmentBattle(From::from(table)),
+                        FileType::DB => TableType::DB(From::from(table)),
+                        FileType::Loc => TableType::Loc(From::from(table)),
+                        _ => unimplemented!("You forgot to implement subtables for this kind of packedfile"),
+                    };
 
-    let main_grid = create_grid_layout(dialog.static_upcast());
-    let main_widget = QWidget::new_1a(&dialog);
-    let _widget_grid = create_grid_layout(main_widget.static_upcast());
-    let accept_button = QPushButton::from_q_string(&qtr("nested_table_accept"));
+                    // Create and configure the dialog.
+                    let dialog = QDialog::new_1a(view.table_view().static_upcast::<QWidget>());
+                    dialog.set_window_title(&qtr("nested_table_title"));
+                    dialog.set_modal(true);
+                    dialog.resize_2a(1200, 600);
 
-    let table_view = TableView::new_view(&main_widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, data_source).unwrap();
+                    let main_grid = create_grid_layout(dialog.static_upcast());
+                    let main_widget = QWidget::new_1a(&dialog);
+                    let _widget_grid = create_grid_layout(main_widget.static_upcast());
+                    let accept_button = QPushButton::from_q_string(&qtr("nested_table_accept"));
 
-    main_grid.add_widget_5a(&main_widget, 0, 0, 1, 1);
-    main_grid.add_widget_5a(&accept_button, 1, 0, 1, 1);
+                    let table_view = TableView::new_view(&main_widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, view.data_source.clone()).unwrap();
 
-    accept_button.released().connect(dialog.slot_accept());
+                    main_grid.add_widget_5a(&main_widget, 0, 0, 1, 1);
+                    main_grid.add_widget_5a(&accept_button, 1, 0, 1, 1);
 
-    if dialog.exec() == 1 {
-        if let Ok(table) = get_table_from_view(&table_view.table_model.static_upcast(), &table_view.table_definition()) {
-            let mut data = Cursor::new(vec![]);
+                    // If we have a default selection, scroll to it and select it.
+                    if let Some((x, y)) = default_selection {
+                        let item_to_select = table_view.table_model().index_2a(x as i32, y);
+                        let item_to_select_filter = table_view.table_filter().map_from_source(&item_to_select);
 
-            // Subtables come from Sequence fields, and in those we NEED to manually write the amount of rows before the data, or we will get broken data.
-            data.write_u32(table.data().len() as u32).unwrap();
-            let _ = table.encode(&mut data, &None);
+                        let selection = table_view.table_view().selection_model().selection();
+                        table_view.table_view().selection_model().select_q_item_selection_q_flags_selection_flag(&selection, SelectionFlag::Toggle.into());
+                        table_view.table_view().selection_model().select_q_model_index_q_flags_selection_flag(&item_to_select_filter, SelectionFlag::Toggle.into());
 
-            Some(data.into_inner())
-        } else {
-            show_dialog(&table_view.table_view, "This should never happen.", false);
-            None
+                        table_view.table_view().set_focus_0a();
+                        table_view.table_view().set_current_index(item_to_select_filter.as_ref());
+                        table_view.table_view().scroll_to_2a(item_to_select_filter.as_ref(), ScrollHint::EnsureVisible);
+                    }
+
+                    accept_button.released().connect(dialog.slot_accept());
+
+                    if dialog.exec() == 1 {
+                        if let Ok(table) = get_table_from_view(&table_view.table_model.static_upcast(), &table_view.table_definition()) {
+                            let mut data = Cursor::new(vec![]);
+
+                            // Subtables come from Sequence fields, and in those we NEED to manually write the amount of rows before the data, or we will get broken data.
+                            data.write_u32(table.data().len() as u32).unwrap();
+                            let _ = table.encode(&mut data, &None);
+
+                            view.table_filter().set_data_3a(
+                                model_index,
+                                &QVariant::from_q_byte_array(&QByteArray::from_slice(&data.into_inner())),
+                                ITEM_SEQUENCE_DATA
+                            );
+                        } else {
+                            show_dialog(&table_view.table_view, "This should never happen.", false);
+                        }
+                    }
+                }
+            }
         }
-    } else { None }
+    }
 }
 
 pub unsafe fn request_backend_files(data: &[Vec<DecodedData>], column: usize, field: &Field, patches: Option<&DefinitionPatch>, map: &mut BTreeMap<i32, (String, HashMap<String, AtomicPtr<QIcon>>)>) -> Result<()> {

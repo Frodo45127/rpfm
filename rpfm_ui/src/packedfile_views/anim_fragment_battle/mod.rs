@@ -23,6 +23,7 @@ use qt_core::QString;
 use cpp_core::CppDeletable;
 
 use anyhow::Result;
+use getset::*;
 
 use std::rc::Rc;
 use std::sync::Arc;
@@ -47,6 +48,8 @@ const VIEW_RELEASE: &str = "ui/anim_fragment_battle_view.ui";
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
+#[derive(Getters)]
+#[getset(get = "pub")]
 pub struct FileAnimFragmentBattleView {
     version_spinbox: QPtr<QSpinBox>,
     subversion_spinbox: QPtr<QSpinBox>,

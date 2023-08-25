@@ -1431,3 +1431,17 @@ anim_fragment_unmount_table_name = Unmount Table Name
 anim_fragment_locomotion_graph = Locomotion Graph
 anim_fragment_is_simple_flight = Is Simple Flight
 anim_fragment_is_new_cavalry_tech = Is New Cavalry Tech
+
+anim_fragment_battle_skeleton_name = Skeleton Name
+anim_fragment_battle_table_name = Table Name
+anim_fragment_battle_mount_table_name = Mount Table Name
+anim_fragment_battle_unmount_table_name = Unmount Table Name
+anim_fragment_battle_locomotion_graph = Locomotion Graph
+anim_fragment_battle_file_path = File Path
+anim_fragment_battle_meta_file_path = Meta File Path
+anim_fragment_battle_snd_file_path = Snd File Path
+anim_fragment_battle_filename = Filename
+anim_fragment_battle_metadata = Metadata
+anim_fragment_battle_metadata_sound = Metadata Sound
+anim_fragment_battle_skeleton_type = Skeleton Type
+anim_fragment_battle_uk_4 = Uk4

@@ -9,7 +9,7 @@
 //---------------------------------------------------------------------------//
 
 use bitflags::bitflags;
-use getset::{Getters, Setters};
+use getset::*;
 use serde_derive::{Serialize, Deserialize};
 
 use std::collections::{BTreeMap, HashMap};
@@ -34,8 +34,8 @@ mod versions;
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
-#[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
-#[getset(get = "pub", set = "pub")]
+#[derive(PartialEq, Clone, Debug, Default, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct AnimFragmentBattle {
 
     // Common stuff.
@@ -59,8 +59,8 @@ pub struct AnimFragmentBattle {
     max_id: u32,
 }
 
-#[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
-#[getset(get = "pub", set = "pub")]
+#[derive(PartialEq, Clone, Debug, Default, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Entry {
 
     // Common stuff.
@@ -85,8 +85,8 @@ pub struct Entry {
     single_frame_variant: bool,
 }
 
-#[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
-#[getset(get = "pub", set = "pub")]
+#[derive(PartialEq, Clone, Debug, Default, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct AnimRef {
     file_path: String,
     meta_file_path: String,

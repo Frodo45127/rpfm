@@ -28,12 +28,11 @@ use qt_core::QItemSelection;
 use qt_core::QSignalBlocker;
 use qt_core::{SlotOfBool, SlotOfInt, SlotNoArgs, SlotOfQItemSelectionQItemSelection, SlotOfQModelIndex, SlotOfQString};
 
-use std::io::Cursor;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::{Arc, atomic::Ordering, RwLock};
 
-use rpfm_lib::files::{ContainerPath, RFileDecoded, table::Table};
+use rpfm_lib::files::{ContainerPath, RFileDecoded};
 use rpfm_lib::integrations::log::*;
 
 use rpfm_ui_common::clone;
@@ -793,41 +792,17 @@ impl TableViewSlots {
             references_ui,
             view => move |model_index| {
                 info!("Triggering `Open Subtable` By Slot");
-                if model_index.data_1a(ITEM_IS_SEQUENCE).to_bool() {
-                    let mut data = Cursor::new(model_index.data_1a(ITEM_SEQUENCE_DATA).to_byte_array().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>());
-                    let definition = view.table_definition();
-                    let fields_processed = definition.fields_processed();
-                    if let Some(field) = fields_processed.get(model_index.column() as usize) {
-                        if let FieldType::SequenceU32(definition) = field.field_type() {
-                            if let Ok(table) = Table::decode(&mut data, definition, &HashMap::new(), None, false, field.name()) {
-                                let table_data = match *view.packed_file_type {
-                                    FileType::AnimFragmentBattle => TableType::AnimFragmentBattle(From::from(table)),
-                                    FileType::DB => TableType::DB(From::from(table)),
-                                    FileType::Loc => TableType::Loc(From::from(table)),
-                                    _ => unimplemented!("You forgot to implement subtables for this kind of packedfile"),
-                                };
-
-                                if let Some(new_data) = open_subtable(
-                                    view.table_view.static_upcast(),
-                                    &app_ui,
-                                    &global_search_ui,
-                                    &pack_file_contents_ui,
-                                    &diagnostics_ui,
-                                    &dependencies_ui,
-                                    &references_ui,
-                                    table_data,
-                                    view.data_source.clone()
-                                ) {
-                                    view.table_filter.set_data_3a(
-                                        model_index,
-                                        &QVariant::from_q_byte_array(&QByteArray::from_slice(&new_data)),
-                                        ITEM_SEQUENCE_DATA
-                                    );
-                                }
-                            }
-                        }
-                    }
-                }
+                open_subtable(
+                    model_index,
+                    &view,
+                    &app_ui,
+                    &global_search_ui,
+                    &pack_file_contents_ui,
+                    &diagnostics_ui,
+                    &dependencies_ui,
+                    &references_ui,
+                    None
+                )
             }
         ));
 
