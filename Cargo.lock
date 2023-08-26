@@ -2657,6 +2657,7 @@ dependencies = [
  "anyhow",
  "cpp_core",
  "crossbeam",
+ "csv",
  "directories",
  "float_eq",
  "fs_extra",

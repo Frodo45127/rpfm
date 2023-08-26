@@ -36,6 +36,7 @@ use cpp_core::CppBox;
 use cpp_core::Ptr;
 use cpp_core::Ref;
 
+use csv::ReaderBuilder;
 use rayon::prelude::*;
 
 use std::borrow::Cow;
@@ -958,9 +959,39 @@ pub unsafe fn get_column_tooltips(
     tooltips
 }
 
+pub unsafe fn read_anim_ids_file() -> Result<HashMap<i32, TableReferences>> {
+    let path = schemas_path()?.join(format!("anim_ids_{}.csv", GAME_SELECTED.read().unwrap().key()));
+    let mut refs_hashmap = HashMap::new();
+    let mut reader = ReaderBuilder::new()
+        .delimiter(b'\t')
+        .quoting(false)
+        .has_headers(false)
+        .flexible(false)
+        .from_path(path)?;
+
+    reader.records().flatten().for_each(|record| {
+        if let Some(id) = record.get(0) {
+            if let Some(value) = record.get(3) {
+                refs_hashmap.insert(id.trim().to_string(), value.trim().to_string());
+            }
+        }
+    });
+
+    let mut refs = TableReferences::default();
+    *refs.data_mut() = refs_hashmap;
+
+    let mut refs_final = HashMap::new();
+    refs_final.insert(0, refs);
+
+    Ok(refs_final)
+}
+
 /// This function returns the reference data for an entire table.
 pub unsafe fn get_reference_data(file_type: FileType, table_name: &str, definition: &Definition) -> Result<HashMap<i32, TableReferences>> {
     match file_type {
+
+        // For AnimFragmentBattle files, return the custom lookups for the animation id column.
+        FileType::AnimFragmentBattle => read_anim_ids_file(),
         FileType::DB => {
 
             // Call the backend passing it the files we have open (so we don't get them from the backend too), and get the frontend data while we wait for it to finish.
