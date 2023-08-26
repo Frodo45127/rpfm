@@ -991,7 +991,7 @@ pub unsafe fn get_reference_data(file_type: FileType, table_name: &str, definiti
     match file_type {
 
         // For AnimFragmentBattle files, return the custom lookups for the animation id column.
-        FileType::AnimFragmentBattle => read_anim_ids_file(),
+        FileType::AnimFragmentBattle => Ok(read_anim_ids_file().unwrap_or_else(|_| HashMap::new())),
         FileType::DB => {
 
             // Call the backend passing it the files we have open (so we don't get them from the backend too), and get the frontend data while we wait for it to finish.
