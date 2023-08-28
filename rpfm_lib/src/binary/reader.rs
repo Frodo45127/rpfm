@@ -63,7 +63,7 @@ pub trait ReadBytes: Read + Seek {
     /// assert!(ReadBytes::is_empty(&mut cursor).unwrap());
     /// ```
     fn is_empty(&mut self) -> Result<bool> {
-        Ok(self.seek(SeekFrom::End(0))? == 0)
+        self.len().map(|len| len == 0)
     }
 
     /// This function returns the amount of bytes specified in the `size` argument as a [`Vec<u8>`].
