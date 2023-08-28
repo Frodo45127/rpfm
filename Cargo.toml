@@ -1,5 +1,6 @@
 # Workspace containing all RPFM crates.
 [workspace]
+resolver = "2"
 members = [
     # Libs
     "rpfm_lib",
