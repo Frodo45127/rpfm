@@ -113,8 +113,7 @@ impl Decompressible for &[u8] {
         // CA Tweaks their headers to remove 4 bytes per file, while losing +4GB File Compression Support.
         // We need to fix their headers so the normal LZMA lib can read them.
         let mut fixed_data: Vec<u8> = vec![];
-        fixed_data.extend_from_slice(&self[4..8]);
-        fixed_data.push(0);
+        fixed_data.extend_from_slice(&self[4..9]);
         fixed_data.extend_from_slice(&self[0..4]);
         fixed_data.extend_from_slice(&[0; 4]);
         fixed_data.extend_from_slice(&self[9..]);
