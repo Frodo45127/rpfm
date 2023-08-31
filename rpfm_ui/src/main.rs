@@ -187,7 +187,7 @@ lazy_static! {
 /// This constant gets RPFM's version from the `Cargo.toml` file, so we don't have to change it
 /// in two different places in every update.
 const VERSION: &str = env!("CARGO_PKG_VERSION");
-const VERSION_SUBTITLE: &str = " -- 2.0 2: Electric Boogaloo";
+const VERSION_SUBTITLE: &str = " -- When the animations got fragmented";
 
 const MANUAL_URL: &str = "https://frodo45127.github.io/rpfm/";
 const GITHUB_URL: &str = "https://github.com/Frodo45127/rpfm";

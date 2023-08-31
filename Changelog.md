@@ -6,6 +6,35 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [4.1.3]
+### Added
+- Implemented Anim Fragment Battle view.
+- Implemented support for Troy's Anim Fragment Battle files.
+- Implemented Global Search&Replace support for Anim Fragment Battle files.
+- Implemented diagnostics support for Anim Fragment Battle files.
+- Implemented path checking diagnostics for Portrait Settings files.
+- Implemented support for loading animation index files as lookup data for Anim Fragment Battle files.
+
+### Changed
+- Anim Fragment Battle files now use their own view instead of the debug one.
+- Optimized code to check if a file/path exists as a file in a pack.
+- Diagnostics for Portrait Settings files and Anim Fragment Battle files are now enabled by default.
+- Performing a diagnostic check should no longer disable the entire window.
+- More optimizations to the diagnostic code.
+
+### Fixed
+- Fixed subtables not saving correctly.
+- Fixed type conversion functions breaking subtables.
+- Fixed AnimFragmentCampaign bins being marked as AnimFragmentBattle bins, causing RPFM to give them an incorrect icon and error out when clicking on them.
+- Fixed error when opening certain flyer's and cavalry AnimFragmentBattle files.
+- Fixed ESF files for Shogun 2 breaking after saving their pack.
+- Fixed "Field with Path not found" diagnostic not working.
+- Fixed diagnostics sometimes missing recent changes in the views.
+- Fixed double-clicking on a portrait settings diagnostic not selecting the diagnosed field.
+- Fixed diagnostics not being executed in files that have not yet been open.
+- Fixed a situation that would cause an "only open files" diagnostic to trigger a partial full diagnostic of a pack instead.
+- Fixed CTD when trying to use Global Replace over an entire Portrait Settings file.
+
 ## [4.1.2]
 ### Added
 - Improved formatting of the paths used for icons in the table column tooltips.
@@ -1165,7 +1194,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.1.2...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.1.3...HEAD
+[4.1.3]: https://github.com/Frodo45127/rpfm/compare/v4.1.2...v4.1.3
 [4.1.2]: https://github.com/Frodo45127/rpfm/compare/v4.1.1...v4.1.2
 [4.1.1]: https://github.com/Frodo45127/rpfm/compare/v4.1.0...v4.1.1
 [4.1.0]: https://github.com/Frodo45127/rpfm/compare/v4.0.22...v4.1.0
