@@ -45,8 +45,8 @@ use std::u64;
 use crate::binary::WriteBytes;
 use crate::error::{RLibError, Result};
 
-//#[cfg(test)]
-//mod test;
+#[cfg(test)]
+mod test;
 
 //---------------------------------------------------------------------------//
 //                                  Traits

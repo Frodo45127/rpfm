@@ -45,6 +45,9 @@
 /test_files/fastbin/v27_encode_*
 /test_files/fastbin/test_prefab.layer
 /test_files/fastbin/prefabs
+/test_files/test_compression_compressed.bmd
+/test_files/test_compression_decompressed.bmd
+/test_files/test_compression_recompressed.bmd
 
 # This one is another separate thing, not tracked.
 /autosaves/
