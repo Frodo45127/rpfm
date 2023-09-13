@@ -48,6 +48,7 @@
 /test_files/test_compression_compressed.bmd
 /test_files/test_compression_decompressed.bmd
 /test_files/test_compression_recompressed.bmd
+/test_files/fastbin/test_encode.hlsl_compiled
 
 # This one is another separate thing, not tracked.
 /autosaves/

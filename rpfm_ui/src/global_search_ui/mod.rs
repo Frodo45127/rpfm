@@ -1851,6 +1851,7 @@ impl GlobalSearchUI {
                         },
                         FileType::ESF => todo!(),
                         FileType::GroupFormations => todo!(),
+                        FileType::HlslCompiled => todo!(),
                         FileType::Image => todo!(),
                         FileType::Loc => {
                             let column_name = parent.child_2a(item.row(), 1).text().to_std_string();
@@ -2134,6 +2135,7 @@ impl GlobalSearchUI {
                         }
                         FileType::ESF => todo!(),
                         FileType::GroupFormations => todo!(),
+                        FileType::HlslCompiled => todo!(),
                         FileType::Image => todo!(),
                         FileType::Loc => {
                             if let Some(position) = loc_matches.iter().position(|x| x.path() == &path) {

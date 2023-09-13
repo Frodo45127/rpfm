@@ -84,6 +84,7 @@ use self::audio::Audio;
 use self::bmd::Bmd;
 use self::db::DB;
 use self::esf::ESF;
+use self::hlsl_compiled::HlslCompiled;
 use self::image::Image;
 use self::loc::Loc;
 use self::matched_combat::MatchedCombat;
@@ -107,6 +108,7 @@ pub mod bmd_vegetation;
 pub mod cs2_parsed;
 pub mod db;
 pub mod esf;
+pub mod hlsl_compiled;
 pub mod image;
 pub mod loc;
 pub mod matched_combat;
@@ -219,6 +221,7 @@ pub enum RFileDecoded {
     DB(DB),
     ESF(ESF),
     GroupFormations(Unknown),
+    HlslCompiled(HlslCompiled),
     Image(Image),
     Loc(Loc),
     MatchedCombat(MatchedCombat),
@@ -250,6 +253,7 @@ pub enum FileType {
     DB,
     ESF,
     GroupFormations,
+    HlslCompiled,
     Image,
     Loc,
     MatchedCombat,
@@ -1390,6 +1394,7 @@ impl RFile {
             (FileType::DB, &RFileDecoded::DB(_)) |
             (FileType::ESF, &RFileDecoded::ESF(_)) |
             (FileType::GroupFormations, &RFileDecoded::GroupFormations(_)) |
+            (FileType::HlslCompiled, &RFileDecoded::HlslCompiled(_)) |
             (FileType::Image, &RFileDecoded::Image(_)) |
             (FileType::Loc, &RFileDecoded::Loc(_)) |
             (FileType::MatchedCombat, &RFileDecoded::MatchedCombat(_)) |
@@ -1464,6 +1469,7 @@ impl RFile {
                     },
                     FileType::ESF => RFileDecoded::ESF(ESF::decode(&mut data, &Some(extra_data))?),
                     FileType::GroupFormations => RFileDecoded::GroupFormations(Unknown::decode(&mut data, &Some(extra_data))?),
+                    FileType::HlslCompiled => RFileDecoded::HlslCompiled(HlslCompiled::decode(&mut data, &Some(extra_data))?),
                     FileType::Image => RFileDecoded::Image(Image::decode(&mut data, &Some(extra_data))?),
                     FileType::Loc => RFileDecoded::Loc(Loc::decode(&mut data, &Some(extra_data))?),
                     FileType::MatchedCombat => RFileDecoded::MatchedCombat(MatchedCombat::decode(&mut data, &Some(extra_data))?),
@@ -1493,6 +1499,7 @@ impl RFile {
                     FileType::DB |
                     FileType::ESF |
                     FileType::GroupFormations |
+                    FileType::HlslCompiled |
                     FileType::Image |
                     FileType::Loc |
                     FileType::MatchedCombat |
@@ -1533,6 +1540,7 @@ impl RFile {
                             },
                             FileType::ESF => RFileDecoded::ESF(ESF::decode(&mut data, &Some(extra_data))?),
                             FileType::GroupFormations => RFileDecoded::GroupFormations(Unknown::decode(&mut data, &Some(extra_data))?),
+                            FileType::HlslCompiled => RFileDecoded::HlslCompiled(HlslCompiled::decode(&mut data, &Some(extra_data))?),
                             FileType::Image => RFileDecoded::Image(Image::decode(&mut data, &Some(extra_data))?),
                             FileType::Loc => RFileDecoded::Loc(Loc::decode(&mut data, &Some(extra_data))?),
                             FileType::MatchedCombat => RFileDecoded::MatchedCombat(MatchedCombat::decode(&mut data, &Some(extra_data))?),
@@ -1635,6 +1643,7 @@ impl RFile {
                     RFileDecoded::DB(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::ESF(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::GroupFormations(data) => data.encode(&mut buffer, extra_data)?,
+                    RFileDecoded::HlslCompiled(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::Image(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::Loc(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::MatchedCombat(data) => data.encode(&mut buffer, extra_data)?,
@@ -1875,6 +1884,10 @@ impl RFile {
 
         else if path.ends_with(atlas::EXTENSION) {
             self.file_type = FileType::Atlas;
+        }
+
+        else if path.ends_with(hlsl_compiled::EXTENSION) {
+            self.file_type = FileType::HlslCompiled;
         }
 
         // If we reach this... we're clueless. Leave it unknown.
@@ -2253,6 +2266,7 @@ impl Display for FileType {
             FileType::BMD => write!(f, "Battle Map Definition"),
             FileType::DB => write!(f, "DB Table"),
             FileType::ESF => write!(f, "ESF"),
+            FileType::HlslCompiled => write!(f, "Hlsl Compiled"),
             FileType::GroupFormations => write!(f, "Group Formations"),
             FileType::Image => write!(f, "Image"),
             FileType::Loc => write!(f, "Loc Table"),
@@ -2282,6 +2296,7 @@ impl From<&str> for FileType {
             "BMD" => FileType::BMD,
             "DB" => FileType::DB,
             "ESF" => FileType::ESF,
+            "HlslCompiled" => FileType::HlslCompiled,
             "GroupFormations" => FileType::GroupFormations,
             "Image" => FileType::Image,
             "Loc" => FileType::Loc,
@@ -2312,6 +2327,7 @@ impl From<FileType> for String {
             FileType::BMD => "BMD",
             FileType::DB => "DB",
             FileType::ESF => "ESF",
+            FileType::HlslCompiled => "HlslCompiled",
             FileType::GroupFormations => "GroupFormations",
             FileType::Image => "Image",
             FileType::Loc => "Loc",
@@ -2341,6 +2357,7 @@ impl From<&RFileDecoded> for FileType {
             RFileDecoded::BMD(_) => Self::BMD,
             RFileDecoded::DB(_) => Self::DB,
             RFileDecoded::ESF(_) => Self::ESF,
+            RFileDecoded::HlslCompiled(_) => Self::HlslCompiled,
             RFileDecoded::GroupFormations(_) => Self::GroupFormations,
             RFileDecoded::Image(_) => Self::Image,
             RFileDecoded::Loc(_) => Self::Loc,

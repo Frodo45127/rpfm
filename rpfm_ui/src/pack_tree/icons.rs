@@ -22,7 +22,7 @@ use cpp_core::Ref;
 
 use std::sync::atomic::AtomicPtr;
 
-use rpfm_lib::files::{animpack, anim_fragment_battle, anims_table, atlas, audio, esf, bmd, FileType, image, loc, matched_combat, pack, portrait_settings, rigidmodel, soundbank, text, text::*, unit_variant, video, uic};
+use rpfm_lib::files::{animpack, anim_fragment_battle, anims_table, atlas, audio, esf, bmd, FileType, hlsl_compiled, image, loc, matched_combat, pack, portrait_settings, rigidmodel, soundbank, text, text::*, unit_variant, video, uic};
 use rpfm_lib::{REGEX_DB, REGEX_PORTRAIT_SETTINGS};
 use rpfm_ui_common::ASSETS_PATH;
 
@@ -58,6 +58,7 @@ pub struct Icons {
     pub bmd: AtomicPtr<QIcon>,
     pub db: AtomicPtr<QIcon>,
     pub esf: AtomicPtr<QIcon>,
+    pub hlsl_compiled: AtomicPtr<QIcon>,
 
     pub image_generic: AtomicPtr<QIcon>,
     pub image_png: AtomicPtr<QIcon>,
@@ -110,6 +111,7 @@ impl Icons {
             bmd: atomic_from_cpp_box(Self::load_icon("bmd", "application-xmind")),
             db: atomic_from_cpp_box(Self::load_icon("db", "application-sql")),
             esf: atomic_from_cpp_box(Self::load_icon("esf", "application-x-bzdvi")),
+            hlsl_compiled: atomic_from_cpp_box(Self::load_icon("hlsl_compiled", "application-x-bzdvi")),
             image_generic: atomic_from_cpp_box(Self::load_icon("image_generic", "image-x-generic")),
             image_png: atomic_from_cpp_box(Self::load_icon("image_png", "image-png")),
             image_jpg: atomic_from_cpp_box(Self::load_icon("image_jpg", "image-jpeg")),
@@ -270,6 +272,10 @@ impl Icons {
                     &self.atlas
                 }
 
+                else if path.ends_with(hlsl_compiled::EXTENSION) {
+                    &self.hlsl_compiled
+                }
+
                 // If we reach this... we're clueless. Leave it unknown.
                 else {
                     &self.file
@@ -298,6 +304,7 @@ impl Icons {
                     FileType::BMD => &self.bmd,
                     FileType::DB => &self.db,
                     FileType::ESF => &self.esf,
+                    FileType::HlslCompiled => &self.hlsl_compiled,
                     FileType::GroupFormations => &self.file,
                     FileType::Image => {
                         let name = item.text().to_std_string();
