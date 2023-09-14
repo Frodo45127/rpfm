@@ -110,7 +110,7 @@ use self::slots::*;
 use self::utils::*;
 
 mod connections;
-mod filter;
+pub mod filter;
 mod search;
 pub mod slots;
 pub mod utils;
@@ -154,6 +154,9 @@ pub enum TableType {
 
     /// This one is for random views that just need a table with advanced behavior.
     NormalTable(Table),
+
+    /// This one is for the translator view.
+    TranslatorTable(Table),
 }
 
 /// Enum to know what operation was done while editing tables, so we can revert them with undo.
@@ -320,6 +323,7 @@ impl TableView {
             TableType::DB(ref table) => (table.definition().clone(), Some(table.table_name()), FileType::DB),
             TableType::Loc(ref table) => (table.definition().clone(), None, FileType::Loc),
             TableType::NormalTable(ref table) => (table.definition().clone(), None, FileType::Unknown),
+            TableType::TranslatorTable(ref table) => (table.definition().clone(), None, FileType::Unknown),
         };
 
         // Get the dependency data of this Table.
@@ -847,6 +851,7 @@ impl TableView {
             TableType::DB(ref table) => table.definition().clone(),
             TableType::Loc(ref table) => table.definition().clone(),
             TableType::NormalTable(ref table) => table.definition().clone(),
+            TableType::TranslatorTable(ref table) => table.definition().clone(),
             TableType::DependencyManager(_) => {
                 let mut definition = Definition::new(-1, None);
                 definition.fields_mut().push(Field::new("Parent Packs".to_owned(), FieldType::StringU8, true, None, false, None, None, None, String::new(), -1, 0, BTreeMap::new(), None));

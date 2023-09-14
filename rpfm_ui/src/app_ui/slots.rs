@@ -71,7 +71,7 @@ use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::PATREON_URL;
 use crate::references_ui::ReferencesUI;
 use crate::settings_ui::{backend::*, SettingsUI};
-#[cfg(feature = "enable_tools")]use crate::tools::{faction_painter::ToolFactionPainter, unit_editor::ToolUnitEditor};
+#[cfg(feature = "enable_tools")]use crate::tools::{faction_painter::ToolFactionPainter, translator::ToolTranslator, unit_editor::ToolUnitEditor};
 use crate::ui::GameSelectedIcons;
 use crate::{ui_state::OperationalMode, UI_STATE};
 use crate::utils::*;
@@ -151,6 +151,7 @@ pub struct AppUISlots {
     //-----------------------------------------------//
     pub tools_faction_painter: QBox<SlotNoArgs>,
     pub tools_unit_editor: QBox<SlotNoArgs>,
+    pub tools_translator: QBox<SlotNoArgs>,
 
     //-----------------------------------------------//
     // `About` menu slots.
@@ -1282,6 +1283,27 @@ impl AppUISlots {
             show_dialog(&app_ui.main_window, TOOLS_NOT_ENABLED_ERROR, false);
         }));
 
+        #[cfg(feature = "enable_tools")]let tools_translator = SlotNoArgs::new(&app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui,
+            references_ui,
+            dependencies_ui => move || {
+                info!("Triggering `Translator Tool` By Slot");
+
+                app_ui.toggle_main_window(false);
+                if let Err(error) = ToolTranslator::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui) {
+                    show_dialog(&app_ui.main_window, error, false);
+                }
+                app_ui.toggle_main_window(true);
+            }
+        ));
+
+        #[cfg(not(feature = "enable_tools"))]let tools_translator = SlotNoArgs::new(&app_ui.main_window, clone!(app_ui => move || {
+            show_dialog(&app_ui.main_window, TOOLS_NOT_ENABLED_ERROR, false);
+        }));
+
 		//-----------------------------------------------//
         // `About` menu logic.
         //-----------------------------------------------//
@@ -1929,6 +1951,7 @@ impl AppUISlots {
             //-----------------------------------------------//
             tools_faction_painter,
             tools_unit_editor,
+            tools_translator,
 
     		//-----------------------------------------------//
 	        // `About` menu slots.

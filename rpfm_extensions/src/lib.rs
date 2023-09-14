@@ -17,6 +17,7 @@ pub mod dependencies;
 pub mod diagnostics;
 pub mod optimizer;
 pub mod search;
+pub mod translator;
 
 lazy_static! {
 

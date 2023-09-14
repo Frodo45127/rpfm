@@ -182,7 +182,7 @@ impl Loc {
     }
 
     /// This function merges the data of a few Loc tables into a new Loc table.
-    pub(crate) fn merge(sources: &[&Self]) -> Result<Self> {
+    pub fn merge(sources: &[&Self]) -> Result<Self> {
         let mut new_table = Self::new();
         let sources = sources.par_iter()
             .map(|table| {

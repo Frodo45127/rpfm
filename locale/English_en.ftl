@@ -1457,3 +1457,6 @@ label_locomotion_graph_path_not_found = Locomotion Graph not found
 label_file_path_not_found = File Path not found
 label_meta_file_path_not_found = Meta File Path not found
 label_snd_file_path_not_found = Snd File Path not found
+
+tools_translator = Translator
+translator_title = Translator

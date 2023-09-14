@@ -25,7 +25,7 @@ use qt_core::QString;
 use qt_core::QTimer;
 
 use anyhow::Result;
-use getset::Getters;
+use getset::{Getters, MutGetters};
 
 use std::sync::Arc;
 
@@ -49,8 +49,8 @@ const VIEW_RELEASE: &str = "ui/table_filter_groupbox.ui";
 //-------------------------------------------------------------------------------//
 
 /// This struct contains the stuff needed for a filter row.
-#[derive(Getters)]
-#[getset(get = "pub")]
+#[derive(Getters, MutGetters)]
+#[getset(get = "pub", get_mut = "pub")]
 pub struct FilterView {
     main_widget: QBox<QWidget>,
     not_checkbox: QPtr<QCheckBox>,

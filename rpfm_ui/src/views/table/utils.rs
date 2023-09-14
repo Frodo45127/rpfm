@@ -461,6 +461,7 @@ pub unsafe fn load_data(
         TableType::DB(data) => data.data(),
         TableType::Loc(data) => data.data(),
         TableType::NormalTable(data) => data.data(),
+        TableType::TranslatorTable(data) => data.data(),
     };
 
     if !data.is_empty() {

@@ -94,6 +94,7 @@ macro_rules! get_data_from_all_sources {
 
 mod error;
 pub mod faction_painter;
+pub mod translator;
 pub mod unit_editor;
 
 //-------------------------------------------------------------------------------//

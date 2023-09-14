@@ -34,6 +34,7 @@ use std::thread;
 use rpfm_extensions::dependencies::Dependencies;
 use rpfm_extensions::diagnostics::Diagnostics;
 use rpfm_extensions::optimizer::OptimizableContainer;
+use rpfm_extensions::translator::PackTranslation;
 
 use rpfm_lib::files::{animpack::AnimPack, Container, ContainerPath, db::DB, DecodeableExtraData, FileType, loc::Loc, pack::*, portrait_settings::PortraitSettings, RFile, RFileDecoded, text::*};
 use rpfm_lib::games::{GameInfo, LUA_REPO, LUA_BRANCH, LUA_REMOTE, OLD_AK_REPO, OLD_AK_BRANCH, OLD_AK_REMOTE, pfh_file_type::PFHFileType};
@@ -1878,6 +1879,22 @@ pub fn background_loop() {
                         let git_integration = GitIntegration::new(&local_path, OLD_AK_REPO, OLD_AK_BRANCH, OLD_AK_REMOTE);
                         match git_integration.update_repo() {
                             Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                        }
+                    },
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                }
+            }
+
+            Command::GetPackTranslation => {
+
+                // TODO: Unhardcode this.
+                let language = "ES";
+                let game_key = GAME_SELECTED.read().unwrap().key();
+                match translations_local_path() {
+                    Ok(local_path) => {
+                        match PackTranslation::new(&local_path, &pack_file_decoded, game_key, language) {
+                            Ok(tr) => CentralCommand::send_back(&sender, Response::PackTranslation(tr)),
                             Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                         }
                     },
