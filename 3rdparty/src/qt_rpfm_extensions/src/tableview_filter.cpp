@@ -88,8 +88,8 @@ bool QTableViewSortFilterProxyModel::filterAcceptsRow(int source_row, const QMod
                     }
 
                     if (
-                        ((pattern_lower == "true" || pattern_lower == "1") && isChecked) ||
-                        ((pattern_lower == "false" || pattern_lower == "0") && !isChecked)) {
+                        ((pattern_lower == "true" || pattern_lower == "1") && !isChecked) ||
+                        ((pattern_lower == "false" || pattern_lower == "0") && isChecked)) {
                         is_group_valid = false;
                         break;
                     }
