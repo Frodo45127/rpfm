@@ -114,8 +114,7 @@ impl Decompressible for &[u8] {
         // We need to fix their headers so the normal LZMA lib can read them.
         let mut fixed_data: Vec<u8> = vec![];
         fixed_data.extend_from_slice(&self[4..9]);
-        fixed_data.extend_from_slice(&self[0..4]);
-        fixed_data.extend_from_slice(&[0; 4]);
+        fixed_data.extend_from_slice(&[0xFF; 8]);
         fixed_data.extend_from_slice(&self[9..]);
 
         // Vanilla compressed files are LZMA Alone (or legacy) level 3 compressed files, reproducible by compressing them
