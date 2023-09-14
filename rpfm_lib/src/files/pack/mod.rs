@@ -668,6 +668,11 @@ impl Pack {
 
         // Sort the decoded Packs by name and type, so each type has their own Packs also sorted by name.
         packs.sort_by_key(|pack| pack.disk_file_path.to_owned());
+
+        // Reverse the pack list here, so we end up with the packs in the the correct order within the same Pack Types.
+        //
+        // If my understanding is correct, this is the logic the game uses.
+        packs.reverse();
         packs.sort_by_key(|pack| pack.header.pfh_file_type as u8);
 
         packs.iter_mut()
