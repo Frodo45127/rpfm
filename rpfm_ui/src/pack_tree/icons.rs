@@ -111,7 +111,7 @@ impl Icons {
             bmd: atomic_from_cpp_box(Self::load_icon("bmd", "application-xmind")),
             db: atomic_from_cpp_box(Self::load_icon("db", "application-sql")),
             esf: atomic_from_cpp_box(Self::load_icon("esf", "application-x-bzdvi")),
-            hlsl_compiled: atomic_from_cpp_box(Self::load_icon("hlsl_compiled", "application-x-bzdvi")),
+            hlsl_compiled: atomic_from_cpp_box(Self::load_icon("hlsl_compiled", "application-x-macbinary")),
             image_generic: atomic_from_cpp_box(Self::load_icon("image_generic", "image-x-generic")),
             image_png: atomic_from_cpp_box(Self::load_icon("image_png", "image-png")),
             image_jpg: atomic_from_cpp_box(Self::load_icon("image_jpg", "image-jpeg")),
