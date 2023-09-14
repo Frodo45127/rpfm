@@ -268,10 +268,11 @@ impl AnimFragmentBattle {
             let mut anim_refs_subtable = Table::new(&anim_refs_definition, None, "anim_refs");
             let mut anim_ref_rows = Vec::with_capacity(entry.anim_refs().len());
             for anim_ref in entry.anim_refs() {
-                let mut anim_ref_row = Vec::with_capacity(3);
-                anim_ref_row.push(DecodedData::StringU8(anim_ref.file_path().to_string()));
-                anim_ref_row.push(DecodedData::StringU8(anim_ref.meta_file_path().to_string()));
-                anim_ref_row.push(DecodedData::StringU8(anim_ref.snd_file_path().to_string()));
+                let anim_ref_row = vec![
+                    DecodedData::StringU8(anim_ref.file_path().to_string()),
+                    DecodedData::StringU8(anim_ref.meta_file_path().to_string()),
+                    DecodedData::StringU8(anim_ref.snd_file_path().to_string()),
+                ];
                 anim_ref_rows.push(anim_ref_row)
             }
             anim_refs_subtable.set_data(&anim_ref_rows).unwrap();

@@ -241,7 +241,7 @@ impl RawDefinition {
                 Ok(v0s.iter()
                     .map(|def_v0| {
                         let mut new_def = Self::from(def_v0);
-                        if let Some(ref elements) = def_v0.xsd_element.get(1) {
+                        if let Some(elements) = def_v0.xsd_element.get(1) {
                             if let Some(ref table_name) = elements.name {
                                 if let Some(ref ann) = elements.xsd_annotation {
                                     if let Some(ref app) = ann.xsd_appinfo {
@@ -290,7 +290,7 @@ impl RawDefinition {
                                                 // Now we need to find the primary key of the remote table, if any.
                                                 if !remote_table_name.is_empty() {
                                                     if let Some(remote_def) = v0s.par_iter().find_map_first(|def_v0| {
-                                                        if let Some(ref elements) = def_v0.xsd_element.get(1) {
+                                                        if let Some(elements) = def_v0.xsd_element.get(1) {
                                                             if let Some(ref table_name) = elements.name {
                                                                 if table_name == &remote_table_name {
                                                                     Some(def_v0)
@@ -299,7 +299,7 @@ impl RawDefinition {
                                                         } else { None }
                                                     }) {
 
-                                                        if let Some(ref elements) = remote_def.xsd_element.get(1) {
+                                                        if let Some(elements) = remote_def.xsd_element.get(1) {
                                                             let primary_keys = if let Some(ref ann) = elements.xsd_annotation {
                                                                 if let Some(ref app) = ann.xsd_appinfo {
                                                                     if let Some(ref od_index) = app.od_index {
@@ -307,7 +307,7 @@ impl RawDefinition {
                                                                             if index.name == "PrimaryKey" {
 
                                                                                 // Always trim to remove the final space, then split by space to find all the keys of the table.
-                                                                                let keys = index.key.trim().split(" ").collect::<Vec<_>>();
+                                                                                let keys = index.key.trim().split(' ').collect::<Vec<_>>();
                                                                                 if keys.len() == 1 && IGNORABLE_FIELDS.contains(&keys[0]) {
                                                                                     None
                                                                                 } else {
@@ -419,12 +419,10 @@ impl From<&RawField> for Field {
                         FieldType::StringU8
                     }
                 }
-                else {
-                    if is_old_game {
-                        FieldType::OptionalStringU16
-                    } else {
-                        FieldType::OptionalStringU8
-                    }
+                else if is_old_game {
+                    FieldType::OptionalStringU16
+                } else {
+                    FieldType::OptionalStringU8
                 }
             },
             _ => if is_old_game {
@@ -476,31 +474,31 @@ impl RawDefinitionV0 {
         }
 
         // Rust doesn't like : in variable names when deserializing.
-        buffer = buffer.replace(&format!("xsd:schema"), "xsd_schema");
-        buffer = buffer.replace(&format!("xsd:element"), "xsd_element");
-        buffer = buffer.replace(&format!("xsd:complexType"), "xsd_complexType");
-        buffer = buffer.replace(&format!("xsd:sequence"), "xsd_sequence");
-        buffer = buffer.replace(&format!("xsd:attribute"), "xsd_attribute");
-        buffer = buffer.replace(&format!("xsd:annotation"), "xsd_annotation");
-        buffer = buffer.replace(&format!("xsd:appinfo"), "xsd_appinfo");
-        buffer = buffer.replace(&format!("od:index"), "od_index");
-        buffer = buffer.replace(&format!("xsd:sequence"), "xsd_sequence");
-        buffer = buffer.replace(&format!("xsd:simpleType"), "xsd_simpleType");
-        buffer = buffer.replace(&format!("xsd:restriction"), "xsd_restriction");
-        buffer = buffer.replace(&format!("xsd:maxLength"), "xsd_maxLength");
-        buffer = buffer.replace(&format!("od:jetType"), "od_jetType");
+        buffer = buffer.replace("xsd:schema", "xsd_schema");
+        buffer = buffer.replace("xsd:element", "xsd_element");
+        buffer = buffer.replace("xsd:complexType", "xsd_complexType");
+        buffer = buffer.replace("xsd:sequence", "xsd_sequence");
+        buffer = buffer.replace("xsd:attribute", "xsd_attribute");
+        buffer = buffer.replace("xsd:annotation", "xsd_annotation");
+        buffer = buffer.replace("xsd:appinfo", "xsd_appinfo");
+        buffer = buffer.replace("od:index", "od_index");
+        buffer = buffer.replace("xsd:sequence", "xsd_sequence");
+        buffer = buffer.replace("xsd:simpleType", "xsd_simpleType");
+        buffer = buffer.replace("xsd:restriction", "xsd_restriction");
+        buffer = buffer.replace("xsd:maxLength", "xsd_maxLength");
+        buffer = buffer.replace("od:jetType", "od_jetType");
 
-        buffer = buffer.replace(&format!("xs:schema"), "xsd_schema");
-        buffer = buffer.replace(&format!("xs:element"), "xsd_element");
-        buffer = buffer.replace(&format!("xs:complexType"), "xsd_complexType");
-        buffer = buffer.replace(&format!("xs:sequence"), "xsd_sequence");
-        buffer = buffer.replace(&format!("xs:attribute"), "xsd_attribute");
-        buffer = buffer.replace(&format!("xs:annotation"), "xsd_annotation");
-        buffer = buffer.replace(&format!("xs:appinfo"), "xsd_appinfo");
-        buffer = buffer.replace(&format!("xs:sequence"), "xsd_sequence");
-        buffer = buffer.replace(&format!("xs:simpleType"), "xsd_simpleType");
-        buffer = buffer.replace(&format!("xs:restriction"), "xsd_restriction");
-        buffer = buffer.replace(&format!("xs:maxLength"), "xsd_maxLength");
+        buffer = buffer.replace("xs:schema", "xsd_schema");
+        buffer = buffer.replace("xs:element", "xsd_element");
+        buffer = buffer.replace("xs:complexType", "xsd_complexType");
+        buffer = buffer.replace("xs:sequence", "xsd_sequence");
+        buffer = buffer.replace("xs:attribute", "xsd_attribute");
+        buffer = buffer.replace("xs:annotation", "xsd_annotation");
+        buffer = buffer.replace("xs:appinfo", "xsd_appinfo");
+        buffer = buffer.replace("xs:sequence", "xsd_sequence");
+        buffer = buffer.replace("xs:simpleType", "xsd_simpleType");
+        buffer = buffer.replace("xs:restriction", "xsd_restriction");
+        buffer = buffer.replace("xs:maxLength", "xsd_maxLength");
 
         // Only if the table has data we deserialize it. If not, we just create an empty one.
         let definition: RawDefinitionV0 = from_reader(buffer.as_bytes())?;
@@ -528,7 +526,7 @@ impl From<&RawDefinitionV0> for RawDefinition {
                             if index.name == "PrimaryKey" {
 
                                 // Always trim to remove the final space, then split by space to find all the keys of the table.
-                                let keys = index.key.trim().split(" ").collect::<Vec<_>>();
+                                let keys = index.key.trim().split(' ').collect::<Vec<_>>();
                                 if keys.len() == 1 && IGNORABLE_FIELDS.contains(&keys[0]) {
                                     None
                                 } else {

@@ -210,7 +210,7 @@ pub fn last_modified_time_from_files(paths: &[PathBuf]) -> Result<u64> {
         .par_iter()
         .filter_map(|path| File::open(path).ok())
         .filter_map(|file| last_modified_time_from_file(&file).ok())
-        .max().unwrap_or_else(|| 0)
+        .max().unwrap_or(0)
     )
 }
 

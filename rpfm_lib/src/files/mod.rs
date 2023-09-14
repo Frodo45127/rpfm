@@ -832,7 +832,7 @@ pub trait Container {
     fn file(&self, path: &str, case_insensitive: bool) -> Option<&RFile> {
         if case_insensitive {
             let lower = path.to_lowercase();
-            self.paths_cache().get(&lower).map(|paths| self.files().get(&paths[0])).flatten()
+            self.paths_cache().get(&lower).and_then(|paths| self.files().get(&paths[0]))
         } else {
             self.files().get(path)
         }
@@ -842,7 +842,7 @@ pub trait Container {
     fn file_mut(&mut self, path: &str, case_insensitive: bool) -> Option<&mut RFile> {
         if case_insensitive {
             let lower = path.to_lowercase();
-            self.paths_cache().get(&lower).cloned().map(|paths| self.files_mut().get_mut(&paths[0])).flatten()
+            self.paths_cache().get(&lower).cloned().and_then(|paths| self.files_mut().get_mut(&paths[0]))
         } else {
             self.files_mut().get_mut(path)
         }
@@ -881,7 +881,7 @@ pub trait Container {
                 else {
                     let mut path = if case_insensitive { path.to_lowercase() } else { path.to_owned() };
                     if !path.ends_with('/') {
-                        path.push_str("/");
+                        path.push('/');
                     }
 
                     // Otherwise, only get the files under our folder.

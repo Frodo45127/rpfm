@@ -87,16 +87,16 @@ pub fn update_schema_from_raw_files(
 
             // This one is notably missing in Warhammer 2, so it's optional.
             let raw_localisable_fields: Option<RawLocalisableFields> =
-                if let Ok(file_path) = get_raw_localisable_fields_path(&ass_kit_path, *raw_db_version) {
+                if let Ok(file_path) = get_raw_localisable_fields_path(ass_kit_path, *raw_db_version) {
                     let file = BufReader::new(File::open(file_path)?);
                     from_reader(file).ok()
                 } else { None };
 
-            (RawDefinition::read_all(&ass_kit_path, *raw_db_version, tables_to_skip)?, raw_localisable_fields)
+            (RawDefinition::read_all(ass_kit_path, *raw_db_version, tables_to_skip)?, raw_localisable_fields)
         }
 
         // For these ones, we expect the path to point to the folder with each game's table folder.
-        0 => (RawDefinition::read_all(&ass_kit_path, *raw_db_version, tables_to_skip)?, None),
+        0 => (RawDefinition::read_all(ass_kit_path, *raw_db_version, tables_to_skip)?, None),
         _ => return Err(RLibError::AssemblyKitUnsupportedVersion(*raw_db_version)),
     };
 
@@ -123,7 +123,7 @@ pub fn update_schema_from_raw_files(
 
     // Sort and remove the known non-exported ones.
     unfound_fields.sort();
-    unfound_fields.retain(|table| !game_info.ak_lost_fields().contains(&*table));
+    unfound_fields.retain(|table| !game_info.ak_lost_fields().contains(table));
 
     schema.save(schema_path)?;
 

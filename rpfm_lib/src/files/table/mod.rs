@@ -964,10 +964,10 @@ impl Table {
 
                                 // If there are no problems, encode the data.
                                 match field.field_type() {
-                                    FieldType::StringU8 => data.write_sized_string_u8(&Self::unescape_special_chars(&field_data))?,
-                                    FieldType::StringU16 => data.write_sized_string_u16(&Self::unescape_special_chars(&field_data))?,
-                                    FieldType::OptionalStringU8 => data.write_optional_string_u8(&Self::unescape_special_chars(&field_data))?,
-                                    FieldType::OptionalStringU16 => data.write_optional_string_u16(&Self::unescape_special_chars(&field_data))?,
+                                    FieldType::StringU8 => data.write_sized_string_u8(&Self::unescape_special_chars(field_data))?,
+                                    FieldType::StringU16 => data.write_sized_string_u16(&Self::unescape_special_chars(field_data))?,
+                                    FieldType::OptionalStringU8 => data.write_optional_string_u8(&Self::unescape_special_chars(field_data))?,
+                                    FieldType::OptionalStringU16 => data.write_optional_string_u16(&Self::unescape_special_chars(field_data))?,
                                     _ => return Err(RLibError::EncodingTableWrongFieldType(field_data.to_string(), field.field_type().to_string()))
                                 }
                             }
@@ -978,14 +978,14 @@ impl Table {
                             if field_data.len() < 2 {
                                 data.write_all(&[0, 0])?
                             } else {
-                                data.write_all(&field_data)?
+                                data.write_all(field_data)?
                             }
                         },
                         DecodedData::SequenceU32(field_data) => {
                             if field_data.len() < 4 {
                                 data.write_all(&[0, 0, 0, 0])?
                             } else {
-                                data.write_all(&field_data)?
+                                data.write_all(field_data)?
                             }
                         }
                     }

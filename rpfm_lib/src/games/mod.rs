@@ -586,7 +586,7 @@ impl GameInfo {
         let install_data = self.install_data.get(&install_type)?;
         let config_folder = install_data.config_folder.as_ref()?;
 
-        ProjectDirs::from("com", "The Creative Assembly", &config_folder).map(|dir| {
+        ProjectDirs::from("com", "The Creative Assembly", config_folder).map(|dir| {
             let mut dir = dir.config_dir().to_path_buf();
             dir.pop();
             dir

@@ -157,7 +157,7 @@ impl PackTranslation {
     }
 
     /// This function applies a [PackTranslation] to a Pack.
-    pub fn apply(&self, pack: &mut Pack) -> Result<()> {
+    pub fn apply(&self, _pack: &mut Pack) -> Result<()> {
         todo!()
     }
 

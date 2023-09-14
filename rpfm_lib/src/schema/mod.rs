@@ -967,19 +967,19 @@ impl Field {
         if let Some(schema_patches) = schema_patches {
             if let Some(patch) = schema_patches.get(self.name()) {
                 if let Some(field_patch) = patch.get("filename_relative_path") {
-                    return Some(field_patch.replace("\\", "/").split(";").map(|x| x.to_string()).collect::<Vec<String>>());
+                    return Some(field_patch.replace('\\', "/").split(';').map(|x| x.to_string()).collect::<Vec<String>>());
                 }
             }
         }
 
-        self.filename_relative_path.clone().map(|x| x.replace("\\", "/").split(";").map(|x| x.to_string()).collect::<Vec<String>>())
+        self.filename_relative_path.clone().map(|x| x.replace('\\', "/").split(';').map(|x| x.to_string()).collect::<Vec<String>>())
     }
 
     pub fn is_reference(&self, schema_patches: Option<&DefinitionPatch>) -> Option<(String,String)> {
         if let Some(schema_patches) = schema_patches {
             if let Some(patch) = schema_patches.get(self.name()) {
                 if let Some(field_patch) = patch.get("is_reference") {
-                    let split = field_patch.splitn(2, ";").collect::<Vec<_>>();
+                    let split = field_patch.splitn(2, ';').collect::<Vec<_>>();
                     if split.len() == 2 {
                         return Some((split[0].to_string(), split[1].to_string()));
                     }
@@ -994,7 +994,7 @@ impl Field {
         if let Some(schema_patches) = schema_patches {
             if let Some(patch) = schema_patches.get(self.name()) {
                 if let Some(field_patch) = patch.get("lookup") {
-                    return Some(field_patch.split(";").map(|x| x.to_string()).collect());
+                    return Some(field_patch.split(';').map(|x| x.to_string()).collect());
                 }
             }
         }
