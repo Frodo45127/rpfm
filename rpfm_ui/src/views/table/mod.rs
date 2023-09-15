@@ -882,7 +882,6 @@ impl TableView {
 
         // Prepare the diagnostic pass.
         self.start_delayed_updates_timer();
-        self.update_line_counter();
 
         // Reset the undo model and the undo/redo history.
         update_undo_model(&model, undo_model);
@@ -1810,7 +1809,6 @@ impl TableView {
         }
 
         self.start_delayed_updates_timer();
-        self.update_line_counter();
     }
 
     /// This function returns the provided indexes's data as a LUA table.
@@ -2024,7 +2022,6 @@ impl TableView {
         self.history_undo.write().unwrap().push(TableOperations::AddRows(range));
         self.history_redo.write().unwrap().clear();
         self.start_delayed_updates_timer();
-        self.update_line_counter();
         update_undo_model(&self.table_model_ptr(), &self.undo_model_ptr());
     }
 
@@ -2095,7 +2092,6 @@ impl TableView {
         self.history_undo.write().unwrap().push(TableOperations::AddRows(row_numbers));
         self.history_redo.write().unwrap().clear();
         self.start_delayed_updates_timer();
-        self.update_line_counter();
         update_undo_model(&self.table_model_ptr(), &self.undo_model_ptr());
     }
 

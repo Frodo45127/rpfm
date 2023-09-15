@@ -148,6 +148,9 @@ impl TableViewSlots {
                     }
                 }
             }
+
+            // Update the line counter, just in case data changed that caused the counter to be incorrect.
+            view.update_line_counter();
         }));
 
         let sort_order_column_changed = SlotOfIntSortOrder::new(&view.table_view, clone!(
@@ -546,7 +549,6 @@ impl TableViewSlots {
 
                                 // Prepare the diagnostic pass.
                                 view.start_delayed_updates_timer();
-                                view.update_line_counter();
 
                                 view.undo_lock.store(false, Ordering::SeqCst);
 
