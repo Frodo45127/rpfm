@@ -9,6 +9,8 @@
 //---------------------------------------------------------------------------//
 
 use qt_core::QBox;
+use qt_core::QFlags;
+use qt_core::SlotNoArgs;
 use qt_core::SlotOfQItemSelectionQItemSelection;
 
 use std::rc::Rc;
@@ -27,6 +29,9 @@ use super::*;
 #[getset(get = "pub")]
 pub struct ToolTranslatorSlots {
     load_data_to_detailed_view: QBox<SlotOfQItemSelectionQItemSelection>,
+    move_selection_up: QBox<SlotNoArgs>,
+    move_selection_down: QBox<SlotNoArgs>,
+    import_from_translated_pack: QBox<SlotNoArgs>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -62,8 +67,73 @@ impl ToolTranslatorSlots {
             }
         ));
 
+        let move_selection_up = SlotNoArgs::new(ui.tool.main_widget(), clone!(
+            ui => move || {
+                info!("Triggering 'move_selection_up' for Translator.");
+
+                let selection_model = ui.table().table_view().selection_model();
+                let selection = selection_model.selection();
+                let indexes = selection.indexes();
+                if indexes.count_0a() > 0 {
+                    let index = indexes.at(0);
+                    let row = index.row();
+                    if row > 0 {
+                        let new_row = row - 1;
+                        selection_model.clear();
+
+                        for column in 0..ui.table().table_model().column_count_0a() {
+                            let new_index = ui.table().table_filter().index_2a(new_row, column);
+                            selection_model.select_q_model_index_q_flags_selection_flag(
+                                &new_index,
+                                QFlags::from(SelectionFlag::Select)
+                            );
+                        }
+                    }
+                }
+            }
+        ));
+
+        let move_selection_down = SlotNoArgs::new(ui.tool.main_widget(), clone!(
+            ui => move || {
+                info!("Triggering 'move_selection_down' for Translator.");
+
+                let selection_model = ui.table().table_view().selection_model();
+                let selection = selection_model.selection();
+                let indexes = selection.indexes();
+                if indexes.count_0a() > 0 {
+                    let index = indexes.at(0);
+                    let row = index.row();
+                    if ui.table().table_filter().row_count_0a() > 0 && row < ui.table().table_filter().row_count_0a() - 1 {
+                        let new_row = row + 1;
+                        selection_model.clear();
+
+                        for column in 0..ui.table().table_model().column_count_0a() {
+                            let new_index = ui.table().table_filter().index_2a(new_row, column);
+                            selection_model.select_q_model_index_q_flags_selection_flag(
+                                &new_index,
+                                QFlags::from(SelectionFlag::Select)
+                            );
+                        }
+                    }
+                }
+            }
+        ));
+
+        let import_from_translated_pack = SlotNoArgs::new(ui.tool.main_widget(), clone!(
+            ui => move || {
+                info!("Triggering 'import_from_translated_pack' for Translator.");
+
+                if let Err(error) = ui.import_from_another_pack() {
+                    show_dialog(ui.tool.main_widget(), error, false);
+                }
+            }
+        ));
+
         ToolTranslatorSlots {
             load_data_to_detailed_view,
+            move_selection_up,
+            move_selection_down,
+            import_from_translated_pack,
         }
     }
 }

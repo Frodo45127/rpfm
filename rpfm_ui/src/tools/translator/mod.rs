@@ -8,6 +8,11 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
+use qt_widgets::QAction;
+use qt_widgets::QFileDialog;
+use qt_widgets::q_file_dialog::FileMode;
+use qt_widgets::QGroupBox;
+use qt_widgets::QToolButton;
 use qt_widgets::q_abstract_item_view::{SelectionBehavior, SelectionMode};
 use qt_widgets::QGridLayout;
 use qt_widgets::QTableView;
@@ -23,13 +28,14 @@ use cpp_core::Ref;
 
 use getset::*;
 
+use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
 use rpfm_extensions::translator::*;
 
-use rpfm_lib::files::{ContainerPath, RFileDecoded, table::DecodedData};
+use rpfm_lib::files::{Container, ContainerPath, FileType, pack::Pack, RFileDecoded, table::DecodedData};
 
-use rpfm_ui_common::locale::tr;
+use rpfm_ui_common::locale::{tr, qtr};
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
@@ -62,6 +68,15 @@ pub struct ToolTranslator {
     tool: Tool,
     pack_tr: Arc<PackTranslation>,
     table: Arc<TableView>,
+
+    action_move_up: QPtr<QAction>,
+    action_move_down: QPtr<QAction>,
+    action_import_from_translated_pack: QPtr<QAction>,
+
+    move_selection_up: QPtr<QToolButton>,
+    move_selection_down: QPtr<QToolButton>,
+    import_from_translated_pack: QPtr<QToolButton>,
+
     original_value_textedit: QPtr<QTextEdit>,
     translated_value_textedit: QPtr<QTextEdit>,
 }
@@ -128,6 +143,27 @@ impl ToolTranslator {
             filter_retranslation.use_regex_button().set_checked(false);
         }
 
+        let info_groupbox: QPtr<QGroupBox> = tool.find_widget("info_groupbox")?;
+        let original_value_groupbox: QPtr<QGroupBox> = tool.find_widget("original_value_groupbox")?;
+        let translated_value_groupbox: QPtr<QGroupBox> = tool.find_widget("translated_value_groupbox")?;
+        info_groupbox.set_title(&qtr("translator_info_title"));
+        original_value_groupbox.set_title(&qtr("translator_original_value_title"));
+        translated_value_groupbox.set_title(&qtr("translator_translated_value_title"));
+
+        let info_label: QPtr<QLabel> = tool.find_widget("info_label")?;
+        info_label.set_text(&qtr("translator_info"));
+
+        let move_selection_up: QPtr<QToolButton> = tool.find_widget("move_selection_up")?;
+        let move_selection_down: QPtr<QToolButton> = tool.find_widget("move_selection_down")?;
+        let import_from_translated_pack: QPtr<QToolButton> = tool.find_widget("import_from_translated_pack")?;
+        move_selection_up.set_tool_tip(&qtr("translator_move_selection_up"));
+        move_selection_down.set_tool_tip(&qtr("translator_move_selection_down"));
+        import_from_translated_pack.set_tool_tip(&qtr("translator_import_from_translated_pack"));
+
+        let action_move_up = add_action_to_widget(app_ui.shortcuts().as_ref(), "translator", "move_up", Some(table.table_view().static_upcast()));
+        let action_move_down = add_action_to_widget(app_ui.shortcuts().as_ref(), "translator", "move_down", Some(table.table_view().static_upcast()));
+        let action_import_from_translated_pack = add_action_to_widget(app_ui.shortcuts().as_ref(), "translator", "import_from_translated_pack", Some(table.table_view().static_upcast()));
+
         let original_value_textedit: QPtr<QTextEdit> = tool.find_widget("original_value_textedit")?;
         let translated_value_textedit: QPtr<QTextEdit> = tool.find_widget("translated_value_textedit")?;
 
@@ -136,6 +172,12 @@ impl ToolTranslator {
             tool,
             pack_tr: Arc::new(data),
             table,
+            action_move_up,
+            action_move_down,
+            action_import_from_translated_pack,
+            move_selection_up,
+            move_selection_down,
+            import_from_translated_pack,
             original_value_textedit,
             translated_value_textedit,
         });
@@ -143,9 +185,6 @@ impl ToolTranslator {
         // Build the slots and connect them to the view.
         let slots = ToolTranslatorSlots::new(&view);
         connections::set_connections(&view, &slots);
-
-        // Setup text translations.
-        view.setup_translations();
 
         // If we hit ok, save the data back to the Pack.
         if view.tool.get_ref_dialog().exec() == 1 {
@@ -218,11 +257,50 @@ impl ToolTranslator {
         }
     }
 
-    /// Function to setup all the translations of this view.
-    pub unsafe fn setup_translations(&self) {
-        /*
-        self.banner_groupbox.set_title(&qtr("banner"));
-        self.uniform_groupbox.set_title(&qtr("uniform"));
-        */
+    pub unsafe fn import_from_another_pack(&self) -> Result<()> {
+        let file_dialog = QFileDialog::from_q_widget_q_string(
+            self.tool.main_widget(),
+            &qtr("open_packfiles"),
+        );
+        file_dialog.set_name_filter(&QString::from_std_str("PackFiles (*.pack)"));
+        file_dialog.set_file_mode(FileMode::ExistingFiles);
+
+        if file_dialog.exec() == 1 {
+
+            let mut paths = vec![];
+            for index in 0..file_dialog.selected_files().count_0a() {
+                paths.push(PathBuf::from(file_dialog.selected_files().at(index).to_std_string()));
+            }
+
+            let mut pack = Pack::read_and_merge(&paths, true, false)?;
+            {
+                let mut locs = pack.files_by_type_mut(&[FileType::Loc]);
+                locs.par_iter_mut().for_each(|file| {
+                    let _ = file.decode(&None, true, false);
+                });
+            }
+            let mut locs = pack.files_by_type(&[FileType::Loc]);
+
+            let merged_loc = PackTranslation::sort_and_merge_locs_for_translation(&mut locs)?;
+            for data in merged_loc.data().iter() {
+                let key = data[0].data_to_string();
+                let value = data[1].data_to_string();
+
+                // We check against the original pack_tr because it's faster than just searching on the table.
+                if let Some(tr) = self.pack_tr.translations().get(&*key) {
+                    if tr.value_original() != &value && tr.value_translated() != &value {
+                        for row in 0..self.table().table_model().row_count_0a() {
+                            let key_item = self.table().table_model().item_1a(row);
+                            if key_item.text().to_std_string() == key {
+                                let value_translated_item = self.table().table_model().item_2a(row, 4);
+                                value_translated_item.set_text(&QString::from_std_str(&value));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(())
     }
 }

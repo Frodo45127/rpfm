@@ -1460,3 +1460,10 @@ label_snd_file_path_not_found = Snd File Path not found
 
 tools_translator = Translator
 translator_title = Translator
+translator_info_title = Info
+translator_original_value_title = Original Value
+translator_translated_value_title = Translated Value
+translator_info = TBFilled
+translator_move_selection_up = Move up
+translator_move_selection_down = Move down
+translator_import_from_translated_pack = Import from translated Pack

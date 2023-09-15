@@ -18,7 +18,7 @@ use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::Path;
 
 use rpfm_lib::error::Result;
-use rpfm_lib::files::{Container, FileType, loc::Loc, pack::Pack, RFileDecoded, table::*};
+use rpfm_lib::files::{Container, FileType, loc::Loc, pack::Pack, RFile, RFileDecoded, table::*};
 use rpfm_lib::schema::*;
 
 pub const TRANSLATED_FILE_NAME: &str = "!!!!!!translated_locs.loc";
@@ -79,36 +79,7 @@ impl PackTranslation {
 
         // Once we got the previous translation loaded, get the files to translate from the Pack, updating our translation.
         let mut locs = pack.files_by_type(&[FileType::Loc]);
-
-        // We need them in a specific order so the file priority removes unused loc entries from the translation.
-        locs.sort_by(|a, b| a.path_in_container_raw().cmp(b.path_in_container_raw()));
-        let locs = locs.iter()
-            .filter(|file| {
-                if let Some(name) = file.file_name() {
-                    !name.is_empty() && name != TRANSLATED_FILE_NAME
-                } else {
-                    false
-                }
-            })
-            .filter_map(|file| if let Ok(RFileDecoded::Loc(loc)) = file.decoded() { Some(loc) } else { None })
-            .collect::<Vec<_>>();
-
-        // Once we merge all the locs in the correct order, remove duplicated keys except the first one.
-        let mut merged_loc = Loc::merge(&locs)?;
-        let mut keys_found = HashSet::new();
-        let mut rows_to_delete = vec![];
-        for (index, row) in merged_loc.data().iter().enumerate() {
-            if keys_found.get(&row[0].data_to_string()).is_some() {
-                rows_to_delete.push(index);
-            } else {
-                keys_found.insert(row[0].data_to_string());
-            }
-        }
-
-        rows_to_delete.reverse();
-        for row in &rows_to_delete {
-            merged_loc.data_mut().remove(*row);
-        }
+        let merged_loc = Self::sort_and_merge_locs_for_translation(&mut locs)?;
 
         // Once we have the clean list of loc entries we have in our Pack, we need to update the translation with it.
         // First we do a pass to mark all removed translations as such. This is separated from the rest because this pass is way slower than the rest.
@@ -153,6 +124,42 @@ impl PackTranslation {
         }
 
         Ok(translations)
+    }
+
+    // TODO: Move this to the normal merge functions.
+    pub fn sort_and_merge_locs_for_translation(locs: &mut Vec<&RFile>) -> Result<Loc> {
+
+        // We need them in a specific order so the file priority removes unused loc entries from the translation.
+        locs.sort_by(|a, b| a.path_in_container_raw().cmp(b.path_in_container_raw()));
+        let locs = locs.iter()
+            .filter(|file| {
+                if let Some(name) = file.file_name() {
+                    !name.is_empty() && name != TRANSLATED_FILE_NAME
+                } else {
+                    false
+                }
+            })
+            .filter_map(|file| if let Ok(RFileDecoded::Loc(loc)) = file.decoded() { Some(loc) } else { None })
+            .collect::<Vec<_>>();
+
+        // Once we merge all the locs in the correct order, remove duplicated keys except the first one.
+        let mut merged_loc = Loc::merge(&locs)?;
+        let mut keys_found = HashSet::new();
+        let mut rows_to_delete = vec![];
+        for (index, row) in merged_loc.data().iter().enumerate() {
+            if keys_found.get(&row[0].data_to_string()).is_some() {
+                rows_to_delete.push(index);
+            } else {
+                keys_found.insert(row[0].data_to_string());
+            }
+        }
+
+        rows_to_delete.reverse();
+        for row in &rows_to_delete {
+            merged_loc.data_mut().remove(*row);
+        }
+
+        Ok(merged_loc)
     }
 
     /// This function applies a [PackTranslation] to a Pack.

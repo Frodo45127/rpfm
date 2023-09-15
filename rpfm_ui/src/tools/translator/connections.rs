@@ -25,6 +25,14 @@ use super::{ToolTranslator, slots::ToolTranslatorSlots};
 pub unsafe fn set_connections(ui: &ToolTranslator, slots: &ToolTranslatorSlots) {
     ui.table().table_view().selection_model().selection_changed().connect(slots.load_data_to_detailed_view());
 
+    ui.move_selection_up().released().connect(slots.move_selection_up());
+    ui.move_selection_down().released().connect(slots.move_selection_down());
+    ui.import_from_translated_pack().released().connect(slots.import_from_translated_pack());
+
+    ui.action_move_up().triggered().connect(slots.move_selection_up());
+    ui.action_move_down().triggered().connect(slots.move_selection_down());
+    ui.action_import_from_translated_pack().triggered().connect(slots.import_from_translated_pack());
+
     ui.tool.button_box.button(StandardButton::Cancel).released().connect(ui.tool.get_ref_dialog().slot_close());
     ui.tool.button_box.button(StandardButton::Ok).released().connect(ui.tool.get_ref_dialog().slot_accept());
 }

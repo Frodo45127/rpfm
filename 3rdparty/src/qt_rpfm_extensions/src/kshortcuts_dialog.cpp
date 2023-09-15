@@ -223,6 +223,13 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     new_action(unit_variant_actions, "delete", "Delete", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+Del"), "edit-table-delete-row");
     unit_variant_actions->readSettings();
 
+    KActionCollection* translator_actions = new KActionCollection(parent, "translator");
+    translator_actions->setComponentDisplayName("Translator");
+    new_action(translator_actions, "move_up", "Move Up", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+Up"), "go-up");
+    new_action(translator_actions, "move_down", "Move Down", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+Down"), "go-down");
+    new_action(translator_actions, "import_from_translated_pack", "Import from translated Pack", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+I"), "document-import-ocal");
+    translator_actions->readSettings();
+
     // Text Editor actions.
     KTextEditor::Editor *editor = KTextEditor::Editor::instance();
     KTextEditor::Document *doc = editor->createDocument(nullptr);
@@ -248,6 +255,7 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     shortcuts->append(dynamic_cast<QObject*>(portrait_settings_actions));
     shortcuts->append(dynamic_cast<QObject*>(unit_variant_actions));
     shortcuts->append(dynamic_cast<QObject*>(text_editor_actions));
+    shortcuts->append(dynamic_cast<QObject*>(translator_actions));
 }
 
 extern "C" QAction* shortcut_action(QList<QObject*> const &shortcuts, QString const action_group, QString const action_name) {

@@ -14,6 +14,21 @@
    <string>Dialog</string>
   </property>
   <layout class="QGridLayout" name="gridLayout_3">
+   <property name="leftMargin">
+    <number>2</number>
+   </property>
+   <property name="topMargin">
+    <number>2</number>
+   </property>
+   <property name="rightMargin">
+    <number>2</number>
+   </property>
+   <property name="bottomMargin">
+    <number>2</number>
+   </property>
+   <property name="spacing">
+    <number>2</number>
+   </property>
    <item row="0" column="0">
     <widget class="QSplitter" name="splitter">
      <property name="orientation">
@@ -21,32 +36,196 @@
      </property>
      <widget class="QWidget" name="table_view_container" native="true">
       <layout class="QGridLayout" name="gridLayout">
+       <property name="leftMargin">
+        <number>2</number>
+       </property>
+       <property name="topMargin">
+        <number>2</number>
+       </property>
+       <property name="rightMargin">
+        <number>2</number>
+       </property>
+       <property name="bottomMargin">
+        <number>2</number>
+       </property>
+       <property name="spacing">
+        <number>2</number>
+       </property>
        <item row="0" column="0">
         <widget class="QTableView" name="table_view"/>
        </item>
       </layout>
      </widget>
      <widget class="QWidget" name="widget" native="true">
-      <layout class="QGridLayout" name="gridLayout_2" rowstretch="0,0,0">
+      <layout class="QGridLayout" name="gridLayout_2" rowstretch="0,0,0,0,0,0">
+       <property name="leftMargin">
+        <number>2</number>
+       </property>
+       <property name="topMargin">
+        <number>2</number>
+       </property>
+       <property name="rightMargin">
+        <number>2</number>
+       </property>
+       <property name="bottomMargin">
+        <number>2</number>
+       </property>
+       <property name="spacing">
+        <number>2</number>
+       </property>
        <item row="1" column="0">
-        <widget class="QToolButton" name="toolButton">
-         <property name="text">
-          <string>...</string>
+        <widget class="QGroupBox" name="original_value_groupbox">
+         <property name="title">
+          <string>GroupBox</string>
          </property>
+         <layout class="QGridLayout" name="gridLayout_4">
+          <property name="leftMargin">
+           <number>2</number>
+          </property>
+          <property name="topMargin">
+           <number>2</number>
+          </property>
+          <property name="rightMargin">
+           <number>2</number>
+          </property>
+          <property name="bottomMargin">
+           <number>2</number>
+          </property>
+          <property name="spacing">
+           <number>2</number>
+          </property>
+          <item row="0" column="0">
+           <widget class="QTextEdit" name="original_value_textedit"/>
+          </item>
+         </layout>
         </widget>
-       </item>
-       <item row="0" column="0" colspan="2">
-        <widget class="QTextEdit" name="original_value_textedit"/>
        </item>
        <item row="2" column="0">
-        <widget class="QToolButton" name="toolButton_2">
-         <property name="text">
-          <string>...</string>
+        <widget class="QGroupBox" name="translated_value_groupbox">
+         <property name="title">
+          <string>GroupBox</string>
          </property>
+         <layout class="QGridLayout" name="gridLayout_5">
+          <property name="leftMargin">
+           <number>2</number>
+          </property>
+          <property name="topMargin">
+           <number>2</number>
+          </property>
+          <property name="rightMargin">
+           <number>2</number>
+          </property>
+          <property name="bottomMargin">
+           <number>2</number>
+          </property>
+          <property name="spacing">
+           <number>2</number>
+          </property>
+          <item row="0" column="0">
+           <widget class="QWidget" name="aliexpress_toolbar" native="true">
+            <layout class="QGridLayout" name="gridLayout_7" rowstretch="0,0,0">
+             <property name="leftMargin">
+              <number>2</number>
+             </property>
+             <property name="topMargin">
+              <number>2</number>
+             </property>
+             <property name="rightMargin">
+              <number>2</number>
+             </property>
+             <property name="bottomMargin">
+              <number>2</number>
+             </property>
+             <property name="spacing">
+              <number>2</number>
+             </property>
+             <item row="0" column="0">
+              <widget class="QToolButton" name="move_selection_up">
+               <property name="text">
+                <string>...</string>
+               </property>
+               <property name="iconSize">
+                <size>
+                 <width>22</width>
+                 <height>22</height>
+                </size>
+               </property>
+               <property name="arrowType">
+                <enum>Qt::UpArrow</enum>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="0">
+              <widget class="QToolButton" name="move_selection_down">
+               <property name="text">
+                <string>...</string>
+               </property>
+               <property name="iconSize">
+                <size>
+                 <width>22</width>
+                 <height>22</height>
+                </size>
+               </property>
+               <property name="arrowType">
+                <enum>Qt::DownArrow</enum>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="0">
+              <widget class="QToolButton" name="import_from_translated_pack">
+               <property name="text">
+                <string/>
+               </property>
+               <property name="icon">
+                <iconset theme="document-import-ocal"/>
+               </property>
+               <property name="iconSize">
+                <size>
+                 <width>22</width>
+                 <height>22</height>
+                </size>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QTextEdit" name="translated_value_textedit"/>
+          </item>
+         </layout>
         </widget>
        </item>
-       <item row="1" column="1" rowspan="2">
-        <widget class="QTextEdit" name="translated_value_textedit"/>
+       <item row="0" column="0">
+        <widget class="QGroupBox" name="info_groupbox">
+         <property name="title">
+          <string>GroupBox</string>
+         </property>
+         <layout class="QGridLayout" name="gridLayout_6">
+          <property name="leftMargin">
+           <number>2</number>
+          </property>
+          <property name="topMargin">
+           <number>2</number>
+          </property>
+          <property name="rightMargin">
+           <number>2</number>
+          </property>
+          <property name="bottomMargin">
+           <number>2</number>
+          </property>
+          <property name="spacing">
+           <number>2</number>
+          </property>
+          <item row="0" column="0">
+           <widget class="QLabel" name="info_label">
+            <property name="text">
+             <string>TextLabel</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
        </item>
       </layout>
      </widget>
@@ -83,8 +262,8 @@
    <slot>accept()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>248</x>
-     <y>254</y>
+     <x>257</x>
+     <y>628</y>
     </hint>
     <hint type="destinationlabel">
      <x>157</x>
@@ -99,8 +278,8 @@
    <slot>reject()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>316</x>
-     <y>260</y>
+     <x>325</x>
+     <y>628</y>
     </hint>
     <hint type="destinationlabel">
      <x>286</x>
