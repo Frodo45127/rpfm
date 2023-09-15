@@ -9,7 +9,6 @@
 //---------------------------------------------------------------------------//
 
 use getset::{Getters, MutGetters, Setters};
-use rpfm_lib::files::{Container, FileType, RFileDecoded};
 use serde::{Serialize as SerdeSerialize, Serializer};
 use serde_derive::{Serialize, Deserialize};
 
@@ -19,7 +18,7 @@ use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::Path;
 
 use rpfm_lib::error::Result;
-use rpfm_lib::files::{loc::Loc, pack::Pack, table::*};
+use rpfm_lib::files::{Container, FileType, loc::Loc, pack::Pack, RFileDecoded, table::*};
 use rpfm_lib::schema::*;
 
 pub const TRANSLATED_FILE_NAME: &str = "!!!!!!translated_locs.loc";
@@ -71,7 +70,7 @@ pub struct Translation {
 impl PackTranslation {
 
     pub fn new(path: &Path, pack: &Pack, game_key: &str, language: &str) -> Result<Self> {
-        let mut translations = Self::load(path, pack, game_key, language).unwrap_or_else(|_| {
+        let mut translations = Self::load(path, &pack.disk_file_name(), game_key, language).unwrap_or_else(|_| {
             let mut tr = Self::default();
             tr.language = language.to_owned();
             tr.pack_name = pack.disk_file_name();
@@ -164,8 +163,8 @@ impl PackTranslation {
     /// This function loads a [PackTranslation] to memory from a provided `.json` file.
     ///
     /// If there's no json file, it tries to load from pre-translated files inside the open Pack.
-    pub fn load(path: &Path, pack: &Pack, game_key: &str, language: &str) -> Result<Self> {
-        let path = path.join(format!("{}/{}/{}.json", game_key, pack.disk_file_name(), language));
+    pub fn load(path: &Path, pack_name: &str, game_key: &str, language: &str) -> Result<Self> {
+        let path = path.join(format!("{}/{}/{}.json", game_key, pack_name, language));
         let mut file = BufReader::new(File::open(path)?);
         let mut data = Vec::with_capacity(file.get_ref().metadata()?.len() as usize);
         file.read_to_end(&mut data)?;
