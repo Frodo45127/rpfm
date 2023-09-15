@@ -247,6 +247,7 @@ pub struct TableView {
     search_view: Arc<RwLock<Option<Arc<SearchView>>>>,
 
     table_name: Option<String>,
+    is_translator: bool,
 
     #[getset(skip)]
     data_source: Arc<RwLock<DataSource>>,
@@ -312,18 +313,18 @@ impl TableView {
         data_source: Arc<RwLock<DataSource>>,
     ) -> Result<Arc<Self>> {
 
-        let (table_definition, table_name, packed_file_type) = match table_data {
-            TableType::AnimFragmentBattle(ref table) => (table.definition().clone(), None, FileType::AnimFragmentBattle),
-            TableType::Atlas(ref table) => (table.definition().clone(), None, FileType::Atlas),
+        let (table_definition, table_name, packed_file_type, is_translator) = match table_data {
+            TableType::AnimFragmentBattle(ref table) => (table.definition().clone(), None, FileType::AnimFragmentBattle, false),
+            TableType::Atlas(ref table) => (table.definition().clone(), None, FileType::Atlas, false),
             TableType::DependencyManager(_) => {
                 let mut definition = Definition::new(-1, None);
                 definition.fields_mut().push(Field::new("Parent Packs".to_owned(), FieldType::StringU8, true, None, false, None, None, None, String::new(), -1, 0, BTreeMap::new(), None));
-                (definition, None, FileType::Unknown)
+                (definition, None, FileType::Unknown, false)
             },
-            TableType::DB(ref table) => (table.definition().clone(), Some(table.table_name()), FileType::DB),
-            TableType::Loc(ref table) => (table.definition().clone(), None, FileType::Loc),
-            TableType::NormalTable(ref table) => (table.definition().clone(), None, FileType::Unknown),
-            TableType::TranslatorTable(ref table) => (table.definition().clone(), None, FileType::Unknown),
+            TableType::DB(ref table) => (table.definition().clone(), Some(table.table_name()), FileType::DB, false),
+            TableType::Loc(ref table) => (table.definition().clone(), None, FileType::Loc, false),
+            TableType::NormalTable(ref table) => (table.definition().clone(), None, FileType::Unknown, false),
+            TableType::TranslatorTable(ref table) => (table.definition().clone(), None, FileType::Unknown, true),
         };
 
         // Get the dependency data of this Table.
@@ -643,6 +644,7 @@ impl TableView {
             search_view: Arc::new(RwLock::new(None)),
 
             table_name: table_name.map(|x| x.to_owned()),
+            is_translator,
             dependency_data: Arc::new(RwLock::new(dependency_data)),
             table_definition: Arc::new(RwLock::new(table_definition)),
             data_source,
@@ -1043,7 +1045,7 @@ impl TableView {
 
         // Only enable editing if the table is ours and not banned.
         if let DataSource::PackFile = self.get_data_source() {
-            if !self.banned_table {
+            if !self.banned_table && !self.is_translator {
 
                 // These ones are always enabled if the table is editable.
                 self.context_menu_add_rows.set_enabled(true);

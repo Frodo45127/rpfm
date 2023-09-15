@@ -454,14 +454,14 @@ pub unsafe fn load_data(
     let resize_after_data = build_columns(&table_view, &definition, table_name, &data);
 
     // Set the right data, depending on the table type you get.
-    let data = match data {
-        TableType::AnimFragmentBattle(data) => data.data(),
-        TableType::Atlas(data) => data.data(),
-        TableType::DependencyManager(data) => Cow::from(data),
-        TableType::DB(data) => data.data(),
-        TableType::Loc(data) => data.data(),
-        TableType::NormalTable(data) => data.data(),
-        TableType::TranslatorTable(data) => data.data(),
+    let (data, is_translator) = match data {
+        TableType::AnimFragmentBattle(data) => (data.data(), false),
+        TableType::Atlas(data) => (data.data(), false),
+        TableType::DependencyManager(data) => (Cow::from(data), false),
+        TableType::DB(data) => (data.data(), false),
+        TableType::Loc(data) => (data.data(), false),
+        TableType::NormalTable(data) => (data.data(), false),
+        TableType::TranslatorTable(data) => (data.data(), true),
     };
 
     if !data.is_empty() {
@@ -496,7 +496,7 @@ pub unsafe fn load_data(
             for (column, field) in entry.iter().enumerate() {
                 let item = get_item_from_decoded_data(field, &keys, column);
 
-                if data_source != DataSource::PackFile {
+                if data_source != DataSource::PackFile || (is_translator && qlist.count_0a() < 4) {
                     item.set_editable(false);
 
                     // Checkable items do not get properly disabled with the set_editable function.
@@ -818,6 +818,28 @@ pub unsafe fn build_columns(
                                 .max_by_key(|row| row[index].data_to_string().len())
                                 .map(|row| row[index].data_to_string().len() * 6)
                                 .unwrap_or(COLUMN_SIZE_STRING as usize);
+                            table_view.set_column_width(index as i32, size as i32 + 30);
+                        }
+                        _ => table_view.set_column_width(index as i32, COLUMN_SIZE_STRING),
+                    }
+                }
+                TableType::TranslatorTable(ref table) => {
+                    match field.field_type() {
+                        FieldType::Boolean => table_view.set_column_width(index as i32, model.horizontal_header_item(index as i32).text().length() * 6 + 30),
+                        FieldType::StringU8 => {
+                            let mut size = table.data()
+                                .par_iter()
+                                .max_by_key(|row| row[index].data_to_string().len())
+                                .map(|row| row[index].data_to_string().len() * 6)
+                                .unwrap_or(COLUMN_SIZE_STRING as usize);
+
+                            // Fix some columns getting their title eaten by description icon, and some columns being extremely long.
+                            if size < 60 {
+                                size = 60;
+                            } else if size > 600 {
+                                size = 600;
+                            }
+
                             table_view.set_column_width(index as i32, size as i32 + 30);
                         }
                         _ => table_view.set_column_width(index as i32, COLUMN_SIZE_STRING),
