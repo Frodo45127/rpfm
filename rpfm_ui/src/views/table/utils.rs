@@ -498,6 +498,11 @@ pub unsafe fn load_data(
 
                 if data_source != DataSource::PackFile {
                     item.set_editable(false);
+
+                    // Checkable items do not get properly disabled with the set_editable function.
+                    if item.is_checkable() {
+                        item.set_enabled(false);
+                    }
                 }
 
                 if enable_lookups {
