@@ -292,7 +292,10 @@ impl ToolTranslator {
                         for row in 0..self.table().table_model().row_count_0a() {
                             let key_item = self.table().table_model().item_1a(row);
                             if key_item.text().to_std_string() == key {
+                                let needs_retranslation_item = self.table().table_model().item_2a(row, 1);
                                 let value_translated_item = self.table().table_model().item_2a(row, 4);
+
+                                needs_retranslation_item.set_check_state(CheckState::Unchecked);
                                 value_translated_item.set_text(&QString::from_std_str(&value));
                             }
                         }
