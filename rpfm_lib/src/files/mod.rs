@@ -338,6 +338,9 @@ pub struct DecodeableExtraData<'a> {
 
     /// Size of the data in a file, either on disk or in memory.
     data_size: u64,
+
+    /// Flag to skip path cache generation on containers. Be aware that if you skip it, you need to manually do it later or stuff will not work.
+    skip_path_cache_generation: bool,
 }
 
 /// This is a generic struct to easily pass additional data to a [Encodeable::encode] method.

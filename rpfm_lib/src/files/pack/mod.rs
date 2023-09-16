@@ -479,6 +479,7 @@ impl Pack {
         let disk_file_size = if extra_data.data_size > 0 { extra_data.data_size } else { data.len()? };
         let timestamp = extra_data.timestamp;
         let is_encrypted = extra_data.is_encrypted;
+        let skip_path_cache_generation = extra_data.skip_path_cache_generation;
 
         // If we don't have a path, or the file is encrypted, we can't lazy-load.
         let lazy_load = !disk_file_path.is_empty() && !is_encrypted && extra_data.lazy_load;
@@ -545,7 +546,9 @@ impl Pack {
         }
 
         // Generate the path list.
-        pack.paths_cache_generate();
+        if !skip_path_cache_generation {
+            pack.paths_cache_generate();
+        }
 
         // If at this point we have not reached the end of the Pack, there is something wrong with it.
         // NOTE: Arena Packs have extra data at the end. If we detect one of those Packs, take that into account.
@@ -651,6 +654,9 @@ impl Pack {
             return Self::read(&mut data, &Some(extra_data))
         }
 
+        // Skip path cache generation for each pack, as we're not going to use it. Instead we're going to generate one for the merged pack.
+        extra_data.set_skip_path_cache_generation(true);
+
         // Generate a new empty Pack to act as merged one.
         let mut pack_new = Pack::default();
         let mut packs = pack_paths.par_iter()
@@ -700,6 +706,9 @@ impl Pack {
 
         // Fix the pack version.
         pack_new.set_pfh_file_type(packs[0].pfh_file_type());
+
+        // Generate the path list.
+        pack_new.paths_cache_generate();
 
         Ok(pack_new)
     }
