@@ -346,7 +346,7 @@ pub enum Command {
 
     CheckEmpireAndNapoleonAKUpdates,
     UpdateEmpireAndNapoleonAK,
-    GetPackTranslation,
+    GetPackTranslation(String),
 }
 
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.

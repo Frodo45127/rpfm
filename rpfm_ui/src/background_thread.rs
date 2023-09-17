@@ -1886,14 +1886,11 @@ pub fn background_loop() {
                 }
             }
 
-            Command::GetPackTranslation => {
-
-                // TODO: Unhardcode this.
-                let language = "ES";
+            Command::GetPackTranslation(language) => {
                 let game_key = GAME_SELECTED.read().unwrap().key();
                 match translations_local_path() {
                     Ok(local_path) => {
-                        match PackTranslation::new(&local_path, &pack_file_decoded, game_key, language) {
+                        match PackTranslation::new(&local_path, &pack_file_decoded, game_key, &language) {
                             Ok(tr) => CentralCommand::send_back(&sender, Response::PackTranslation(tr)),
                             Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                         }

@@ -605,7 +605,7 @@ impl GameInfo {
     }
 
     /// This function tries to get the language of the game. Defaults to english if not found.
-    fn game_locale_from_file(&self, game_path: &Path) -> Result<Option<String>> {
+    pub fn game_locale_from_file(&self, game_path: &Path) -> Result<Option<String>> {
         match self.locale_file_name() {
             Some(locale_file) => {
                 let language_path = self.language_path(game_path)?;

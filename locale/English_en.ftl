@@ -1463,7 +1463,12 @@ translator_title = Translator
 translator_info_title = Info
 translator_original_value_title = Original Value
 translator_translated_value_title = Translated Value
-translator_info = TBFilled
+translator_info = How does it work? It's simple:<ul>
+        <li>Select the row you want to translate, and write in the lower text field the translation.</li>
+        <li>By default, the view only shows lines that need to be translated or revised (due to the original mod changing them). You can show the hidden entries by tweaking the filters.</li>
+        <li>If you want to import an already translated mod, open the original mod in RPFM, open the translator, click in "Import from translated Pack", and select the translation pack.</li>
+    </ul>
 translator_move_selection_up = Move up
 translator_move_selection_down = Move down
 translator_import_from_translated_pack = Import from translated Pack
+translator_language = Language:

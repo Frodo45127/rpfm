@@ -26,6 +26,7 @@ use qt_core::QString;
 use cpp_core::CppDeletable;
 use cpp_core::Ref;
 
+use anyhow::anyhow;
 use getset::*;
 
 use std::path::PathBuf;
@@ -36,6 +37,7 @@ use rpfm_extensions::translator::*;
 use rpfm_lib::files::{Container, ContainerPath, FileType, pack::Pack, RFileDecoded, table::DecodedData};
 
 use rpfm_ui_common::locale::{tr, qtr};
+use rpfm_ui_common::settings::*;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
@@ -68,6 +70,8 @@ pub struct ToolTranslator {
     tool: Tool,
     pack_tr: Arc<PackTranslation>,
     table: Arc<TableView>,
+
+    language_combobox: QPtr<QComboBox>,
 
     action_move_up: QPtr<QAction>,
     action_move_down: QPtr<QAction>,
@@ -108,12 +112,57 @@ impl ToolTranslator {
         tool.backup_used_paths(app_ui, pack_file_contents_ui)?;
 
         // Translations list.
-        let table_view: QPtr<QTableView> = find_widget(&tool.main_widget().static_upcast(), "table_view")?;
-        let table_view_container: QPtr<QWidget> = find_widget(&tool.main_widget().static_upcast(), "table_view_container")?;
+        let table_view: QPtr<QTableView> = tool.find_widget("table_view")?;
+        let table_view_container: QPtr<QWidget> = tool.find_widget("table_view_container")?;
         let table_view_container = table_view_container.into_q_box();
 
+        let language_label: QPtr<QLabel> = tool.find_widget("language_label")?;
+        let language_combobox: QPtr<QComboBox> = tool.find_widget("language_combobox")?;
+        language_label.set_text(&qtr("translator_language"));
+
+        // For language, we try to get it from the game folder. If we can't, we fallback to whatever local files we have.
+        let game = GAME_SELECTED.read().unwrap().clone();
+        let game_path = setting_path(game.key());
+        let locale = game.game_locale_from_file(&game_path)?;
+        let language = match locale {
+            Some(locale) => {
+                let language = locale.to_uppercase();
+                language_combobox.insert_item_int_q_string(0, &QString::from_std_str(&language));
+                language_combobox.set_current_index(0);
+                language
+            },
+            None => {
+                if let Ok(ca_packs) = game.ca_packs_paths(&game_path) {
+                    let mut languages = ca_packs.iter()
+                        .filter_map(|path| path.file_stem())
+                        .filter(|name| name.to_string_lossy().starts_with("local_"))
+                        .map(|name| name.to_string_lossy().split_at(6).1.to_uppercase())
+                        .collect::<Vec<_>>();
+
+                    // Sort, and remove anything longer than 2 characters to avoid duplicates.
+                    languages.retain(|lang| lang.chars().count() == 2);
+                    languages.sort();
+
+                    for (index, language) in languages.iter().enumerate() {
+                        language_combobox.insert_item_int_q_string(index as i32, &QString::from_std_str(language));
+                    }
+
+                    // If there's more than 1 possible language, allow to alter the language.
+                    if languages.len() > 1 {
+                        language_combobox.set_enabled(true);
+                    }
+
+                    language_combobox.set_current_index(0);
+                    languages[0].to_owned()
+                } else {
+                    return Err(anyhow!("The translator couldn't figure out what languages you have for the game."));
+                }
+            }
+        };
+                    dbg!(&language);
+
         // Unlike other tools, data is loaded here, because we need it to generate the table widget.
-        let receiver = CENTRAL_COMMAND.send_background(Command::GetPackTranslation);
+        let receiver = CENTRAL_COMMAND.send_background(Command::GetPackTranslation(language));
         let response = CentralCommand::recv(&receiver);
         let data = if let Response::PackTranslation(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
 
@@ -172,6 +221,7 @@ impl ToolTranslator {
             tool,
             pack_tr: Arc::new(data),
             table,
+            language_combobox,
             action_move_up,
             action_move_down,
             action_import_from_translated_pack,
@@ -212,6 +262,7 @@ impl ToolTranslator {
         let table = get_table_from_view(&self.table().table_model_ptr().static_upcast(), &self.table().table_definition())?;
         let mut pack_tr = (**self.pack_tr()).clone();
         pack_tr.from_table(&table)?;
+        pack_tr.set_language(self.language_combobox.current_text().to_std_string());
         pack_tr.save(&translations_local_path()?, GAME_SELECTED.read().unwrap().key())?;
 
         let mut loc_file = Loc::new();
