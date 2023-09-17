@@ -23,6 +23,7 @@ use rpfm_lib::schema::*;
 
 pub const TRANSLATED_FILE_NAME: &str = "!!!!!!translated_locs.loc";
 pub const TRANSLATED_PATH: &str = "text/!!!!!!translated_locs.loc";
+pub const TRANSLATED_PATH_OLD: &str = "text/localisation.loc";
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
