@@ -1026,12 +1026,12 @@ optimize_packfile_are_you_sure = <h3>Are you sure you want to optimize this Pack
             <li><b>Remove duplicated entries on LOC tables</b> (unless the table is datacoring).</li>
             <li><b>Remove rows unchanged from default row on DB tables</b> (unless the table is datacoring).</li>
             <li><b>Remove rows unchanged from default row on LOC tables</b> (unless the table is datacoring).</li>
-            <li><b>Remove DB table entries unchanged from the vanilla files</b> (unless the table is datacoring).</li>
-            <li><b>Remove LOC entries unchanged from the vanilla files</b> (unless the table is datacoring).</li>
+            <li><b>Remove DB table entries unchanged from the vanilla or parent files</b> (unless the table is datacoring).</li>
+            <li><b>Remove LOC entries unchanged from the vanilla or parent files</b> (unless the table is datacoring).</li>
             <li><b>Remove empty DB tables.</b></li>
             <li><b>Remove empty LOC files.</b></li>
             <li><b>Remove useless xml on map packs</b>, which are a byproduct of how bob exports map packs.</li>
-            <li><b>Remove ANY PackedFile that's identical to the parent/vanilla file it's overwriting.</b></li>
+            <li><b>Remove useless xml on prefabs</b>, which are a byproduct of how bob exports prefabs.</li>
         </ul>
         So again, are you sure you want to do it?
     </p>
