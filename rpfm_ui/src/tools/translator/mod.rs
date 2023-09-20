@@ -35,6 +35,7 @@ use std::sync::{Arc, RwLock};
 use rpfm_extensions::translator::*;
 
 use rpfm_lib::files::{Container, ContainerPath, FileType, pack::Pack, RFileDecoded, table::DecodedData};
+use rpfm_lib::games::supported_games::*;
 
 use rpfm_ui_common::locale::{tr, qtr};
 use rpfm_ui_common::settings::*;
@@ -56,8 +57,18 @@ const VIEW_DEBUG: &str = "rpfm_ui/ui_templates/tool_translator_editor.ui";
 const VIEW_RELEASE: &str = "ui/tool_translator_editor.ui";
 
 /// List of games this tool supports.
-const TOOL_SUPPORTED_GAMES: [&str; 1] = [
-    "warhammer_3",
+const TOOL_SUPPORTED_GAMES: [&str; 11] = [
+    KEY_WARHAMMER_3,
+    KEY_TROY,
+    KEY_THREE_KINGDOMS,
+    KEY_WARHAMMER_2,
+    KEY_WARHAMMER,
+    KEY_THRONES_OF_BRITANNIA,
+    KEY_ATTILA,
+    KEY_ROME_2,
+    KEY_SHOGUN_2,
+    KEY_NAPOLEON,
+    KEY_EMPIRE,
 ];
 
 //-------------------------------------------------------------------------------//
@@ -159,7 +170,6 @@ impl ToolTranslator {
                 }
             }
         };
-                    dbg!(&language);
 
         // Unlike other tools, data is loaded here, because we need it to generate the table widget.
         let receiver = CENTRAL_COMMAND.send_background(Command::GetPackTranslation(language));
