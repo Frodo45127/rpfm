@@ -2983,6 +2983,7 @@ impl Default for SupportedGames {
                         "local_zh.pack".to_owned(),     // Traditional Chinese
                         "main.pack".to_owned(),
                         "models.pack".to_owned(),
+                        "movies.pack".to_owned(),
                         "patch.pack".to_owned(),
                         "patch_media.pack".to_owned(),
                         "patch_en.pack".to_owned(),     // English Patch
@@ -3052,6 +3053,7 @@ impl Default for SupportedGames {
                         "../languages/local_zh.pack".to_owned(),     // Traditional Chinese
                         "main.pack".to_owned(),
                         "models.pack".to_owned(),
+                        "movies.pack".to_owned(),
                         "patch.pack".to_owned(),
                         "patch_media.pack".to_owned(),
                         "../languages/patch_en.pack".to_owned(),     // English Patch
