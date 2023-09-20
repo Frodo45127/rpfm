@@ -215,7 +215,7 @@ impl Encodeable for Bmd {
 }
 
 impl Bmd {
-    pub fn export_prefab_to_raw_data(&self, name: &str, vegetation: Option<BmdVegetation>, output_path: &Path) -> Result<()> {
+    pub fn export_prefab_to_raw_data(&self, name: &str, vegetation: Option<&BmdVegetation>, output_path: &Path) -> Result<()> {
 
         // We need to generate two files:
         // - .terry: The project file with just one layer.

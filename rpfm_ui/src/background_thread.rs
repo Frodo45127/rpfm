@@ -36,7 +36,7 @@ use rpfm_extensions::diagnostics::Diagnostics;
 use rpfm_extensions::optimizer::OptimizableContainer;
 use rpfm_extensions::translator::PackTranslation;
 
-use rpfm_lib::files::{animpack::AnimPack, Container, ContainerPath, db::DB, DecodeableExtraData, FileType, loc::Loc, pack::*, portrait_settings::PortraitSettings, RFile, RFileDecoded, text::*};
+use rpfm_lib::files::{animpack::AnimPack, bmd::Bmd, bmd_vegetation::BmdVegetation, Container, ContainerPath, db::DB, DecodeableExtraData, FileType, loc::Loc, pack::*, portrait_settings::PortraitSettings, RFile, RFileDecoded, text::*};
 use rpfm_lib::games::{GameInfo, LUA_REPO, LUA_BRANCH, LUA_REMOTE, OLD_AK_REPO, OLD_AK_BRANCH, OLD_AK_REMOTE, pfh_file_type::PFHFileType};
 use rpfm_lib::integrations::{assembly_kit::*, git::*, log::*};
 use rpfm_lib::schema::*;
@@ -2094,6 +2094,7 @@ fn decode_and_send_file(file: &mut RFile, sender: &Sender<Response>) {
     let ignored_file_types = vec![
         FileType::Anim,
         FileType::BMD,
+        FileType::BMDVegetation,
         FileType::GroupFormations,
         FileType::HlslCompiled,
         FileType::Pack,
@@ -2115,6 +2116,7 @@ fn decode_and_send_file(file: &mut RFile, sender: &Sender<Response>) {
         Ok(RFileDecoded::Atlas(data)) => CentralCommand::send_back(&sender, Response::AtlasRFileInfo(data, From::from(&*file))),
         Ok(RFileDecoded::Audio(data)) => CentralCommand::send_back(&sender, Response::AudioRFileInfo(data, From::from(&*file))),
         Ok(RFileDecoded::BMD(_)) => CentralCommand::send_back(&sender, Response::Unknown),
+        Ok(RFileDecoded::BMDVegetation(_)) => CentralCommand::send_back(&sender, Response::Unknown),
         Ok(RFileDecoded::DB(table)) => CentralCommand::send_back(&sender, Response::DBRFileInfo(table, From::from(&*file))),
         Ok(RFileDecoded::ESF(data)) => CentralCommand::send_back(&sender, Response::ESFRFileInfo(data, From::from(&*file))),
         Ok(RFileDecoded::HlslCompiled(_)) => CentralCommand::send_back(&sender, Response::Unknown),

@@ -22,7 +22,7 @@ use cpp_core::Ref;
 
 use std::sync::atomic::AtomicPtr;
 
-use rpfm_lib::files::{animpack, anim_fragment_battle, anims_table, atlas, audio, esf, bmd, FileType, hlsl_compiled, image, loc, matched_combat, pack, portrait_settings, rigidmodel, soundbank, text, text::*, unit_variant, video, uic};
+use rpfm_lib::files::{animpack, anim_fragment_battle, anims_table, atlas, audio, esf, bmd, bmd_vegetation, FileType, hlsl_compiled, image, loc, matched_combat, pack, portrait_settings, rigidmodel, soundbank, text, text::*, unit_variant, video, uic};
 use rpfm_lib::{REGEX_DB, REGEX_PORTRAIT_SETTINGS};
 use rpfm_ui_common::ASSETS_PATH;
 
@@ -56,6 +56,7 @@ pub struct Icons {
     pub atlas: AtomicPtr<QIcon>,
     pub audio: AtomicPtr<QIcon>,
     pub bmd: AtomicPtr<QIcon>,
+    pub bmd_vegetation: AtomicPtr<QIcon>,
     pub db: AtomicPtr<QIcon>,
     pub esf: AtomicPtr<QIcon>,
     pub hlsl_compiled: AtomicPtr<QIcon>,
@@ -109,6 +110,7 @@ impl Icons {
             atlas: atomic_from_cpp_box(Self::load_icon("atlas", "android-studio")),
             audio: atomic_from_cpp_box(Self::load_icon("audio", "audio-mp3")),
             bmd: atomic_from_cpp_box(Self::load_icon("bmd", "application-xmind")),
+            bmd_vegetation: atomic_from_cpp_box(Self::load_icon("bmd_vegetation", "application-xmind")),
             db: atomic_from_cpp_box(Self::load_icon("db", "application-sql")),
             esf: atomic_from_cpp_box(Self::load_icon("esf", "application-x-bzdvi")),
             hlsl_compiled: atomic_from_cpp_box(Self::load_icon("hlsl_compiled", "application-x-macbinary")),
@@ -200,6 +202,10 @@ impl Icons {
                 // TODO: detect .bin files for maps and campaign.
                 else if bmd::EXTENSIONS.iter().any(|x| path.ends_with(x)) {
                     &self.bmd
+                }
+
+                else if bmd_vegetation::EXTENSIONS.iter().any(|x| path.ends_with(x)) {
+                    &self.bmd_vegetation
                 }
 
                 else if cfg!(feature = "support_soundbank") && path.ends_with(soundbank::EXTENSION) {
@@ -302,6 +308,7 @@ impl Icons {
                     FileType::Atlas => &self.atlas,
                     FileType::Audio => &self.audio,
                     FileType::BMD => &self.bmd,
+                    FileType::BMDVegetation => &self.bmd_vegetation,
                     FileType::DB => &self.db,
                     FileType::ESF => &self.esf,
                     FileType::HlslCompiled => &self.hlsl_compiled,

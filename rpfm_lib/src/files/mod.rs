@@ -82,6 +82,7 @@ use self::anims_table::AnimsTable;
 use self::atlas::Atlas;
 use self::audio::Audio;
 use self::bmd::Bmd;
+use self::bmd_vegetation::BmdVegetation;
 use self::db::DB;
 use self::esf::ESF;
 use self::hlsl_compiled::HlslCompiled;
@@ -218,6 +219,7 @@ pub enum RFileDecoded {
     Atlas(Atlas),
     Audio(Audio),
     BMD(Bmd),
+    BMDVegetation(BmdVegetation),
     DB(DB),
     ESF(ESF),
     GroupFormations(Unknown),
@@ -250,6 +252,7 @@ pub enum FileType {
     Atlas,
     Audio,
     BMD,
+    BMDVegetation,
     DB,
     ESF,
     GroupFormations,
@@ -1463,6 +1466,7 @@ impl RFile {
                     FileType::Atlas => RFileDecoded::Atlas(Atlas::decode(&mut data, &Some(extra_data))?),
                     FileType::Audio => RFileDecoded::Audio(Audio::decode(&mut data, &Some(extra_data))?),
                     FileType::BMD => RFileDecoded::BMD(Bmd::decode(&mut data, &Some(extra_data))?),
+                    FileType::BMDVegetation => RFileDecoded::BMDVegetation(BmdVegetation::decode(&mut data, &Some(extra_data))?),
                     FileType::DB => {
 
                         if extra_data.table_name.is_none() {
@@ -1499,6 +1503,7 @@ impl RFile {
                     FileType::Atlas |
                     FileType::Audio |
                     FileType::BMD |
+                    FileType::BMDVegetation |
                     FileType::DB |
                     FileType::ESF |
                     FileType::GroupFormations |
@@ -1534,6 +1539,7 @@ impl RFile {
                             FileType::Atlas => RFileDecoded::Atlas(Atlas::decode(&mut data, &Some(extra_data))?),
                             FileType::Audio => RFileDecoded::Audio(Audio::decode(&mut data, &Some(extra_data))?),
                             FileType::BMD => RFileDecoded::BMD(Bmd::decode(&mut data, &Some(extra_data))?),
+                            FileType::BMDVegetation => RFileDecoded::BMDVegetation(BmdVegetation::decode(&mut data, &Some(extra_data))?),
                             FileType::DB => {
 
                                 if extra_data.table_name.is_none() {
@@ -1643,6 +1649,7 @@ impl RFile {
                     RFileDecoded::Atlas(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::Audio(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::BMD(data) => data.encode(&mut buffer, extra_data)?,
+                    RFileDecoded::BMDVegetation(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::DB(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::ESF(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::GroupFormations(data) => data.encode(&mut buffer, extra_data)?,
@@ -1836,6 +1843,10 @@ impl RFile {
         // TODO: detect bin files for maps and tile maps.
         else if bmd::EXTENSIONS.iter().any(|x| path.ends_with(x)) {
             self.file_type = FileType::BMD;
+        }
+
+        else if bmd_vegetation::EXTENSIONS.iter().any(|x| path.ends_with(x)) {
+            self.file_type = FileType::BMDVegetation;
         }
 
         else if cfg!(feature = "support_soundbank") && path.ends_with(soundbank::EXTENSION) {
@@ -2267,6 +2278,7 @@ impl Display for FileType {
             FileType::Atlas => write!(f, "Atlas"),
             FileType::Audio => write!(f, "Audio"),
             FileType::BMD => write!(f, "Battle Map Definition"),
+            FileType::BMDVegetation => write!(f, "Battle Map Definition (Vegetation)"),
             FileType::DB => write!(f, "DB Table"),
             FileType::ESF => write!(f, "ESF"),
             FileType::HlslCompiled => write!(f, "Hlsl Compiled"),
@@ -2297,6 +2309,7 @@ impl From<&str> for FileType {
             "Atlas" => FileType::Atlas,
             "Audio" => FileType::Audio,
             "BMD" => FileType::BMD,
+            "BMDVegetation" => FileType::BMDVegetation,
             "DB" => FileType::DB,
             "ESF" => FileType::ESF,
             "HlslCompiled" => FileType::HlslCompiled,
@@ -2328,6 +2341,7 @@ impl From<FileType> for String {
             FileType::Atlas => "Atlas",
             FileType::Audio => "Audio",
             FileType::BMD => "BMD",
+            FileType::BMDVegetation => "BMD Vegetation",
             FileType::DB => "DB",
             FileType::ESF => "ESF",
             FileType::HlslCompiled => "HlslCompiled",
@@ -2358,6 +2372,7 @@ impl From<&RFileDecoded> for FileType {
             RFileDecoded::Atlas(_) => Self::Atlas,
             RFileDecoded::Audio(_) => Self::Audio,
             RFileDecoded::BMD(_) => Self::BMD,
+            RFileDecoded::BMDVegetation(_) => Self::BMDVegetation,
             RFileDecoded::DB(_) => Self::DB,
             RFileDecoded::ESF(_) => Self::ESF,
             RFileDecoded::HlslCompiled(_) => Self::HlslCompiled,
