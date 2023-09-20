@@ -117,7 +117,7 @@ impl Icons {
             image_generic: atomic_from_cpp_box(Self::load_icon("image_generic", "image-x-generic")),
             image_png: atomic_from_cpp_box(Self::load_icon("image_png", "image-png")),
             image_jpg: atomic_from_cpp_box(Self::load_icon("image_jpg", "image-jpeg")),
-            image_tga: atomic_from_cpp_box(Self::load_icon("image_tga", "image-tga")),
+            image_tga: atomic_from_cpp_box(Self::load_icon("image_tga", "image-x-tga")),
             image_gif: atomic_from_cpp_box(Self::load_icon("image_gif", "image-gif")),
             loc: atomic_from_cpp_box(Self::load_icon("loc", "text-x-gettext-translation")),
             matched_combat: atomic_from_cpp_box(Self::load_icon("matched_combat", "view-table-of-contents-ltr")),
