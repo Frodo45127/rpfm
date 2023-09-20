@@ -25,7 +25,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use rpfm_extensions::dependencies::TableReferences;
 use rpfm_extensions::diagnostics::Diagnostics;
 use rpfm_extensions::search::{GlobalSearch, MatchHolder};
-use rpfm_extensions::translator::PackTranslation;
+#[cfg(feature = "enable_tools")] use rpfm_extensions::translator::PackTranslation;
 
 use rpfm_lib::files::{anim_fragment_battle::AnimFragmentBattle, anims_table::AnimsTable, atlas::Atlas, audio::Audio, bmd::Bmd, ContainerPath, video::SupportedFormats, db::DB, esf::ESF, image::Image, loc::Loc, matched_combat::MatchedCombat, pack::PackSettings, RFile, RFileDecoded, portrait_settings::PortraitSettings, text::Text, uic::UIC, unit_variant::UnitVariant};
 #[cfg(feature = "support_rigidmodel")] use rpfm_lib::files::rigidmodel::RigidModel;
@@ -346,7 +346,7 @@ pub enum Command {
 
     CheckEmpireAndNapoleonAKUpdates,
     UpdateEmpireAndNapoleonAK,
-    GetPackTranslation(String),
+    #[cfg(feature = "enable_tools")] GetPackTranslation(String),
 }
 
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.
@@ -502,7 +502,7 @@ pub enum Response {
     VecContainerPathVecRFileInfo(Vec<ContainerPath>, Vec<RFileInfo>),
     VecContainerPathVecContainerPath(Vec<ContainerPath>, Vec<ContainerPath>),
     StringVecPathBuf(String, Vec<PathBuf>),
-    PackTranslation(PackTranslation)
+    #[cfg(feature = "enable_tools")] PackTranslation(PackTranslation)
 }
 
 //-------------------------------------------------------------------------------//

@@ -45,7 +45,7 @@ pub const MYMOD_BASE_PATH: &str = "mymods_base_path";
 const DEPENDENCIES_FOLDER: &str = "dependencies";
 const TABLE_PATCHES_FOLDER: &str = "table_patches";
 const TABLE_PROFILES_FOLDER: &str = "table_profiles";
-const TRANSLATIONS_LOCAL_FOLDER: &str = "translations_local";
+#[cfg(feature = "enable_tools")] const TRANSLATIONS_LOCAL_FOLDER: &str = "translations_local";
 
 //-------------------------------------------------------------------------------//
 //                         Setting-related functions
@@ -241,6 +241,7 @@ pub fn old_ak_files_path() -> Result<PathBuf> {
     Ok(config_path()?.join("old_ak_files"))
 }
 
+#[cfg(feature = "enable_tools")]
 pub fn translations_local_path() -> Result<PathBuf> {
     Ok(config_path()?.join(TRANSLATIONS_LOCAL_FOLDER))
 }

@@ -461,7 +461,7 @@ pub unsafe fn load_data(
         TableType::DB(data) => (data.data(), false),
         TableType::Loc(data) => (data.data(), false),
         TableType::NormalTable(data) => (data.data(), false),
-        TableType::TranslatorTable(data) => (data.data(), true),
+        #[cfg(feature = "enable_tools")] TableType::TranslatorTable(data) => (data.data(), true),
     };
 
     if !data.is_empty() {
@@ -823,6 +823,7 @@ pub unsafe fn build_columns(
                         _ => table_view.set_column_width(index as i32, COLUMN_SIZE_STRING),
                     }
                 }
+                #[cfg(feature = "enable_tools")]
                 TableType::TranslatorTable(ref table) => {
                     match field.field_type() {
                         FieldType::Boolean => table_view.set_column_width(index as i32, model.horizontal_header_item(index as i32).text().length() * 6 + 30),

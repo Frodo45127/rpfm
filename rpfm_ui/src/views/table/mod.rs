@@ -156,7 +156,7 @@ pub enum TableType {
     NormalTable(Table),
 
     /// This one is for the translator view.
-    TranslatorTable(Table),
+    #[cfg(feature = "enable_tools")] TranslatorTable(Table),
 }
 
 /// Enum to know what operation was done while editing tables, so we can revert them with undo.
@@ -324,7 +324,7 @@ impl TableView {
             TableType::DB(ref table) => (table.definition().clone(), Some(table.table_name()), FileType::DB, false),
             TableType::Loc(ref table) => (table.definition().clone(), None, FileType::Loc, false),
             TableType::NormalTable(ref table) => (table.definition().clone(), None, FileType::Unknown, false),
-            TableType::TranslatorTable(ref table) => (table.definition().clone(), None, FileType::Unknown, true),
+            #[cfg(feature = "enable_tools")] TableType::TranslatorTable(ref table) => (table.definition().clone(), None, FileType::Unknown, true),
         };
 
         // Get the dependency data of this Table.
@@ -853,7 +853,7 @@ impl TableView {
             TableType::DB(ref table) => table.definition().clone(),
             TableType::Loc(ref table) => table.definition().clone(),
             TableType::NormalTable(ref table) => table.definition().clone(),
-            TableType::TranslatorTable(ref table) => table.definition().clone(),
+            #[cfg(feature = "enable_tools")] TableType::TranslatorTable(ref table) => table.definition().clone(),
             TableType::DependencyManager(_) => {
                 let mut definition = Definition::new(-1, None);
                 definition.fields_mut().push(Field::new("Parent Packs".to_owned(), FieldType::StringU8, true, None, false, None, None, None, String::new(), -1, 0, BTreeMap::new(), None));

@@ -34,9 +34,9 @@ use std::thread;
 use rpfm_extensions::dependencies::Dependencies;
 use rpfm_extensions::diagnostics::Diagnostics;
 use rpfm_extensions::optimizer::OptimizableContainer;
-use rpfm_extensions::translator::PackTranslation;
+#[cfg(feature = "enable_tools")] use rpfm_extensions::translator::PackTranslation;
 
-use rpfm_lib::files::{animpack::AnimPack, bmd::Bmd, bmd_vegetation::BmdVegetation, Container, ContainerPath, db::DB, DecodeableExtraData, FileType, loc::Loc, pack::*, portrait_settings::PortraitSettings, RFile, RFileDecoded, text::*};
+use rpfm_lib::files::{animpack::AnimPack, Container, ContainerPath, db::DB, DecodeableExtraData, FileType, loc::Loc, pack::*, portrait_settings::PortraitSettings, RFile, RFileDecoded, text::*};
 use rpfm_lib::games::{GameInfo, LUA_REPO, LUA_BRANCH, LUA_REMOTE, OLD_AK_REPO, OLD_AK_BRANCH, OLD_AK_REMOTE, pfh_file_type::PFHFileType};
 use rpfm_lib::integrations::{assembly_kit::*, git::*, log::*};
 use rpfm_lib::schema::*;
@@ -1886,6 +1886,7 @@ pub fn background_loop() {
                 }
             }
 
+            #[cfg(feature = "enable_tools")]
             Command::GetPackTranslation(language) => {
                 let game_key = GAME_SELECTED.read().unwrap().key();
                 match translations_local_path() {
