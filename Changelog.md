@@ -6,6 +6,25 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [Unreleased]
+### Added
+- Implemented "Translator" tool, with support for all games.
+- Implemented support for "HlslCompiled" files (lib-only).
+
+### Changed
+- BMD files should no longer have a red cross as icon.
+- BMD Vegetation now have a particular icon.
+- Updated optimizer warning.
+
+### Fixed
+- Fixed a bug in the compression logic that caused errors when compressing/decompressing.
+- Fixed checkbox filtering working on reverse.
+- Fixed functions that merged packs overwriting files in the wrong order.
+- Fixed read-only tables still allowing to edit checkbox columns.
+- Fixed table row counter not updating under certain situations.
+- Fixed many pack features not working for packs open in a special way.
+- Fixed Empire not counting "movies.pack" as a vanilla file.
+
 ## [4.1.3]
 ### Added
 - Implemented Anim Fragment Battle view.
