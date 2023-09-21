@@ -22,6 +22,7 @@ use qt_gui::QPixmap;
 use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;
 
+use qt_core::ItemFlag;
 use qt_core::QByteArray;
 use qt_core::QListOfQModelIndex;
 use qt_core::QModelIndex;
@@ -501,7 +502,9 @@ pub unsafe fn load_data(
 
                     // Checkable items do not get properly disabled with the set_editable function.
                     if item.is_checkable() {
-                        item.set_enabled(false);
+                        let mut flags = item.flags().to_int();
+                        flags &= !ItemFlag::ItemIsUserCheckable.to_int();
+                        item.set_flags(QFlags::from(flags));
                     }
                 }
 

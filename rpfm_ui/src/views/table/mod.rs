@@ -1314,7 +1314,7 @@ impl TableView {
 
                 // If it's checkable, we need to get a bool. Otherwise it's a String.
                 let item = self.table_model.item_from_index(model_index);
-                if item.is_checkable() {
+                if fields_processed[model_index.column() as usize].field_type() == &FieldType::Boolean {
                     match item.check_state() {
                         CheckState::Checked => copy.push_str("true"),
                         CheckState::Unchecked => copy.push_str("false"),
