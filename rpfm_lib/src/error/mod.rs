@@ -151,6 +151,21 @@ pub enum RLibError {
     #[error("Error decoding combined colour.")]
     DecodingTableCombinedColour,
 
+    #[error("Header section not found. This shouldn't happen.")]
+    SoundBankBKHDNotFound,
+
+    #[error("Unsupported section {0} found in SoundBank.")]
+    SoundBankUnsupportedSectionFound(String),
+
+    #[error("Unsupported version {0} for object of type {1} found in SoundBank.")]
+    SoundBankUnsupportedVersionFound(u32, String),
+
+    #[error("Unsupported language id {0} found in SoundBank.")]
+    SoundBankUnsupportedLanguageFound(u32),
+
+    #[error("Unsupported object type {0} found in SoundBank.")]
+    SoundBankUnsupportedObjectTypeFound(u8),
+
     #[error("Error trying to decode the Row {0}, Cell {1} as a {2} value: either the value is not a {2}, or there are insufficient bytes left to decode it as a {2} value.")]
     DecodingTableFieldError(u32, u32, String),
 
