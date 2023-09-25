@@ -49,6 +49,7 @@
 /test_files/test_compression_decompressed.bmd
 /test_files/test_compression_recompressed.bmd
 /test_files/fastbin/test_encode.hlsl_compiled
+/test_files/test_encode.dat
 
 # This one is another separate thing, not tracked.
 /autosaves/

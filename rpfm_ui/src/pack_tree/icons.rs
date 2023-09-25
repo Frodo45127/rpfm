@@ -22,7 +22,7 @@ use cpp_core::Ref;
 
 use std::sync::atomic::AtomicPtr;
 
-use rpfm_lib::files::{animpack, anim_fragment_battle, anims_table, atlas, audio, esf, bmd, bmd_vegetation, FileType, hlsl_compiled, image, loc, matched_combat, pack, portrait_settings, rigidmodel, soundbank, text, text::*, unit_variant, video, uic};
+use rpfm_lib::files::{animpack, anim_fragment_battle, anims_table, atlas, audio, esf, bmd, bmd_vegetation, dat, FileType, hlsl_compiled, image, loc, matched_combat, pack, portrait_settings, rigidmodel, soundbank, text, text::*, unit_variant, video, uic};
 use rpfm_lib::{REGEX_DB, REGEX_PORTRAIT_SETTINGS};
 use rpfm_ui_common::ASSETS_PATH;
 
@@ -57,6 +57,7 @@ pub struct Icons {
     pub audio: AtomicPtr<QIcon>,
     pub bmd: AtomicPtr<QIcon>,
     pub bmd_vegetation: AtomicPtr<QIcon>,
+    pub dat: AtomicPtr<QIcon>,
     pub db: AtomicPtr<QIcon>,
     pub esf: AtomicPtr<QIcon>,
     pub hlsl_compiled: AtomicPtr<QIcon>,
@@ -111,6 +112,7 @@ impl Icons {
             audio: atomic_from_cpp_box(Self::load_icon("audio", "audio-mp3")),
             bmd: atomic_from_cpp_box(Self::load_icon("bmd", "application-vnd.ms-excel.template.macroenabled.12")),
             bmd_vegetation: atomic_from_cpp_box(Self::load_icon("bmd_vegetation", "application-vnd.ms-excel")),
+            dat: atomic_from_cpp_box(Self::load_icon("dat", "audio-prs.sid")),
             db: atomic_from_cpp_box(Self::load_icon("db", "application-sql")),
             esf: atomic_from_cpp_box(Self::load_icon("esf", "application-x-bzdvi")),
             hlsl_compiled: atomic_from_cpp_box(Self::load_icon("hlsl_compiled", "application-x-macbinary")),
@@ -193,6 +195,10 @@ impl Icons {
 
                 else if path.ends_with(video::EXTENSION) {
                     &self.video
+                }
+
+                else if path.ends_with(dat::EXTENSION) {
+                    &self.dat
                 }
 
                 else if audio::EXTENSIONS.iter().any(|x| path.ends_with(x)) {
@@ -309,6 +315,7 @@ impl Icons {
                     FileType::Audio => &self.audio,
                     FileType::BMD => &self.bmd,
                     FileType::BMDVegetation => &self.bmd_vegetation,
+                    FileType::Dat => &self.dat,
                     FileType::DB => &self.db,
                     FileType::ESF => &self.esf,
                     FileType::HlslCompiled => &self.hlsl_compiled,

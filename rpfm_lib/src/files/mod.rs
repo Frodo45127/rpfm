@@ -83,6 +83,7 @@ use self::atlas::Atlas;
 use self::audio::Audio;
 use self::bmd::Bmd;
 use self::bmd_vegetation::BmdVegetation;
+use self::dat::Dat;
 use self::db::DB;
 use self::esf::ESF;
 use self::hlsl_compiled::HlslCompiled;
@@ -107,6 +108,7 @@ pub mod audio;
 pub mod bmd;
 pub mod bmd_vegetation;
 pub mod cs2_parsed;
+pub mod dat;
 pub mod db;
 pub mod esf;
 pub mod hlsl_compiled;
@@ -220,6 +222,7 @@ pub enum RFileDecoded {
     Audio(Audio),
     BMD(Bmd),
     BMDVegetation(BmdVegetation),
+    Dat(Dat),
     DB(DB),
     ESF(ESF),
     GroupFormations(Unknown),
@@ -253,6 +256,7 @@ pub enum FileType {
     Audio,
     BMD,
     BMDVegetation,
+    Dat,
     DB,
     ESF,
     GroupFormations,
@@ -1397,6 +1401,7 @@ impl RFile {
             (FileType::Atlas, &RFileDecoded::Atlas(_)) |
             (FileType::Audio, &RFileDecoded::Audio(_)) |
             (FileType::BMD, &RFileDecoded::BMD(_)) |
+            (FileType::Dat, &RFileDecoded::Dat(_)) |
             (FileType::DB, &RFileDecoded::DB(_)) |
             (FileType::ESF, &RFileDecoded::ESF(_)) |
             (FileType::GroupFormations, &RFileDecoded::GroupFormations(_)) |
@@ -1467,6 +1472,7 @@ impl RFile {
                     FileType::Audio => RFileDecoded::Audio(Audio::decode(&mut data, &Some(extra_data))?),
                     FileType::BMD => RFileDecoded::BMD(Bmd::decode(&mut data, &Some(extra_data))?),
                     FileType::BMDVegetation => RFileDecoded::BMDVegetation(BmdVegetation::decode(&mut data, &Some(extra_data))?),
+                    FileType::Dat => RFileDecoded::Dat(Dat::decode(&mut data, &Some(extra_data))?),
                     FileType::DB => {
 
                         if extra_data.table_name.is_none() {
@@ -1504,6 +1510,7 @@ impl RFile {
                     FileType::Audio |
                     FileType::BMD |
                     FileType::BMDVegetation |
+                    FileType::Dat |
                     FileType::DB |
                     FileType::ESF |
                     FileType::GroupFormations |
@@ -1540,6 +1547,7 @@ impl RFile {
                             FileType::Audio => RFileDecoded::Audio(Audio::decode(&mut data, &Some(extra_data))?),
                             FileType::BMD => RFileDecoded::BMD(Bmd::decode(&mut data, &Some(extra_data))?),
                             FileType::BMDVegetation => RFileDecoded::BMDVegetation(BmdVegetation::decode(&mut data, &Some(extra_data))?),
+                            FileType::Dat => RFileDecoded::Dat(Dat::decode(&mut data, &Some(extra_data))?),
                             FileType::DB => {
 
                                 if extra_data.table_name.is_none() {
@@ -1650,6 +1658,7 @@ impl RFile {
                     RFileDecoded::Audio(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::BMD(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::BMDVegetation(data) => data.encode(&mut buffer, extra_data)?,
+                    RFileDecoded::Dat(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::DB(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::ESF(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::GroupFormations(data) => data.encode(&mut buffer, extra_data)?,
@@ -1829,11 +1838,15 @@ impl RFile {
         }
 
         else if path.ends_with(animpack::EXTENSION) {
-            self.file_type =  FileType::AnimPack
+            self.file_type = FileType::AnimPack
         }
 
         else if path.ends_with(video::EXTENSION) {
-            self.file_type =  FileType::Video;
+            self.file_type = FileType::Video;
+        }
+
+        else if path.ends_with(dat::EXTENSION) {
+            self.file_type = FileType::Dat;
         }
 
         else if audio::EXTENSIONS.iter().any(|x| path.ends_with(x)) {
@@ -1850,15 +1863,15 @@ impl RFile {
         }
 
         else if cfg!(feature = "support_soundbank") && path.ends_with(soundbank::EXTENSION) {
-            self.file_type =  FileType::SoundBank;
+            self.file_type = FileType::SoundBank;
         }
 
         else if image::EXTENSIONS.iter().any(|x| path.ends_with(x)) {
-            self.file_type =  FileType::Image;
+            self.file_type = FileType::Image;
         }
 
         else if cfg!(feature = "support_uic") && path.starts_with(uic::BASE_PATH) && uic::EXTENSIONS.iter().any(|x| path.ends_with(x) || !path.contains('.')) {
-            self.file_type =  FileType::UIC;
+            self.file_type = FileType::UIC;
         }
 
         else if text::EXTENSIONS.iter().any(|(x, _)| path.ends_with(x)) {
@@ -1879,7 +1892,7 @@ impl RFile {
         }
 
         else if path.starts_with(anims_table::BASE_PATH) && path.ends_with(anims_table::EXTENSION) {
-            self.file_type =  FileType::AnimsTable;
+            self.file_type = FileType::AnimsTable;
         }
 
         else if path.starts_with(anim_fragment_battle::BASE_PATH) && path.contains(anim_fragment_battle::MID_PATH) && anim_fragment_battle::EXTENSIONS.iter().any(|x| path.ends_with(*x)) {
@@ -2279,6 +2292,7 @@ impl Display for FileType {
             FileType::Audio => write!(f, "Audio"),
             FileType::BMD => write!(f, "Battle Map Definition"),
             FileType::BMDVegetation => write!(f, "Battle Map Definition (Vegetation)"),
+            FileType::Dat => write!(f, "Dat Audio File"),
             FileType::DB => write!(f, "DB Table"),
             FileType::ESF => write!(f, "ESF"),
             FileType::HlslCompiled => write!(f, "Hlsl Compiled"),
@@ -2310,6 +2324,7 @@ impl From<&str> for FileType {
             "Audio" => FileType::Audio,
             "BMD" => FileType::BMD,
             "BMDVegetation" => FileType::BMDVegetation,
+            "Dat" => FileType::Dat,
             "DB" => FileType::DB,
             "ESF" => FileType::ESF,
             "HlslCompiled" => FileType::HlslCompiled,
@@ -2342,6 +2357,7 @@ impl From<FileType> for String {
             FileType::Audio => "Audio",
             FileType::BMD => "BMD",
             FileType::BMDVegetation => "BMD Vegetation",
+            FileType::Dat => "Dat",
             FileType::DB => "DB",
             FileType::ESF => "ESF",
             FileType::HlslCompiled => "HlslCompiled",
@@ -2373,6 +2389,7 @@ impl From<&RFileDecoded> for FileType {
             RFileDecoded::Audio(_) => Self::Audio,
             RFileDecoded::BMD(_) => Self::BMD,
             RFileDecoded::BMDVegetation(_) => Self::BMDVegetation,
+            RFileDecoded::Dat(_) => Self::Dat,
             RFileDecoded::DB(_) => Self::DB,
             RFileDecoded::ESF(_) => Self::ESF,
             RFileDecoded::HlslCompiled(_) => Self::HlslCompiled,

@@ -1828,6 +1828,7 @@ impl GlobalSearchUI {
                         FileType::Audio => todo!(),
                         FileType::BMD => todo!(),
                         FileType::BMDVegetation => todo!(),
+                        FileType::Dat => todo!(),
                         FileType::DB => {
                             let column_name = parent.child_2a(item.row(), 1).text().to_std_string();
                             let column_number = parent.child_2a(item.row(), 3).text().to_std_string().parse().unwrap();
@@ -2114,6 +2115,7 @@ impl GlobalSearchUI {
                         FileType::Audio => todo!(),
                         FileType::BMD => todo!(),
                         FileType::BMDVegetation => todo!(),
+                        FileType::Dat => todo!(),
                         FileType::DB => {
                             if let Some(position) = db_matches.iter().position(|x| x.path() == &path) {
                                 db_matches.remove(position);
