@@ -1895,7 +1895,7 @@ impl RFile {
             self.file_type = FileType::AnimsTable;
         }
 
-        else if path.starts_with(anim_fragment_battle::BASE_PATH) && path.contains(anim_fragment_battle::MID_PATH) && anim_fragment_battle::EXTENSIONS.iter().any(|x| path.ends_with(*x)) {
+        else if path.ends_with(anim_fragment_battle::EXTENSION_OLD) || (path.starts_with(anim_fragment_battle::BASE_PATH) && path.contains(anim_fragment_battle::MID_PATH) && path.ends_with(anim_fragment_battle::EXTENSION_NEW)) {
             self.file_type = FileType::AnimFragmentBattle;
         }
 

@@ -24,7 +24,8 @@ use crate::utils::check_size_mismatch;
 pub const BASE_PATH: &str = "animations/";
 pub const MID_PATH: &str = "/battle/";
 
-pub const EXTENSIONS: [&str; 2] = [".frg", ".bin"];
+pub const EXTENSION_NEW: &str = ".bin";
+pub const EXTENSION_OLD: &str = ".frg";
 
 mod versions;
 
