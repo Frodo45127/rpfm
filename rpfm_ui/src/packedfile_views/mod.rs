@@ -50,6 +50,7 @@ use self::esf::PackedFileESFView;
 use self::decoder::PackedFileDecoderView;
 use self::dependencies_manager::DependenciesManagerView;
 use self::external::PackedFileExternalView;
+use self::group_formations::FileGroupFormationsDebugView;
 use self::image::PackedFileImageView;
 use self::matched_combat::FileMatchedCombatDebugView;
 use self::notes::NotesView;
@@ -76,6 +77,7 @@ pub mod decoder;
 pub mod dependencies_manager;
 pub mod esf;
 pub mod external;
+pub mod group_formations;
 pub mod image;
 pub mod matched_combat;
 pub mod notes;
@@ -157,6 +159,7 @@ pub enum View {
     Decoder(Arc<PackedFileDecoderView>),
     DependenciesManager(Arc<DependenciesManagerView>),
     Esf(Arc<PackedFileESFView>),
+    GroupFormationsDebug(Arc<FileGroupFormationsDebugView>),
     Image(PackedFileImageView),
     MatchedCombatDebug(Arc<FileMatchedCombatDebugView>),
     PackFile(Arc<PackFileExtraView>),
@@ -364,6 +367,7 @@ impl FileView {
                                 return Ok(())
                             },
                             View::Esf(view) => RFileDecoded::ESF(view.save_view()),
+                            View::GroupFormationsDebug(_) => return Ok(()),
                             View::Image(_) => return Ok(()),
                             View::MatchedCombatDebug(_) => return Ok(()),
                             View::PackFile(_) => return Ok(()),
@@ -560,6 +564,16 @@ impl FileView {
                                 old_esf.reload_view(&esf);
                                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
 
+                            }
+                            else {
+                                return Err(anyhow!(RFILE_RELOAD_ERROR));
+                            }
+                        },
+
+                        Response::GroupFormationsRFileInfo(new, packed_file_info) => {
+                            if let View::GroupFormationsDebug(old) = view {
+                                old.reload_view(&new)?;
+                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
                             }
                             else {
                                 return Err(anyhow!(RFILE_RELOAD_ERROR));

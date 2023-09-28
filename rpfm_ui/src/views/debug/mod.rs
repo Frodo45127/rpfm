@@ -73,6 +73,7 @@ impl DebugView {
         let (packed_file_type, text) = match packed_file {
             RFileDecoded::AnimFragmentBattle(data) => (FileType::AnimFragmentBattle, serde_json::to_string_pretty(&data)?),
             RFileDecoded::AnimsTable(data) => (FileType::AnimsTable, serde_json::to_string_pretty(&data)?),
+            RFileDecoded::GroupFormations(data) => (FileType::GroupFormations, serde_json::to_string_pretty(&data)?),
             RFileDecoded::MatchedCombat(data) => (FileType::MatchedCombat, serde_json::to_string_pretty(&data)?),
             RFileDecoded::UnitVariant(data) => (FileType::UnitVariant, serde_json::to_string_pretty(&data)?),
             RFileDecoded::ESF(data) => (FileType::ESF, serde_json::to_string_pretty(&data)?),
@@ -101,6 +102,7 @@ impl DebugView {
         let decoded_packed_file = match self.packed_file_type {
             FileType::AnimFragmentBattle => RFileDecoded::AnimFragmentBattle(serde_json::from_str(&string)?),
             FileType::AnimsTable => RFileDecoded::AnimsTable(serde_json::from_str(&string)?),
+            FileType::GroupFormations => RFileDecoded::GroupFormations(serde_json::from_str(&string)?),
             FileType::MatchedCombat => RFileDecoded::MatchedCombat(serde_json::from_str(&string)?),
             FileType::UnitVariant => RFileDecoded::UnitVariant(serde_json::from_str(&string)?),
             FileType::ESF => RFileDecoded::ESF(serde_json::from_str(&string)?),

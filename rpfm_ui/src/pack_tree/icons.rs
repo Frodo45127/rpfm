@@ -22,7 +22,7 @@ use cpp_core::Ref;
 
 use std::sync::atomic::AtomicPtr;
 
-use rpfm_lib::files::{animpack, anim_fragment_battle, anims_table, atlas, audio, esf, bmd, bmd_vegetation, dat, FileType, hlsl_compiled, image, loc, matched_combat, pack, portrait_settings, rigidmodel, soundbank, text, text::*, unit_variant, video, uic};
+use rpfm_lib::files::{animpack, anim_fragment_battle, anims_table, atlas, audio, esf, bmd, bmd_vegetation, dat, FileType, group_formations, hlsl_compiled, image, loc, matched_combat, pack, portrait_settings, rigidmodel, soundbank, text, text::*, unit_variant, video, uic};
 use rpfm_lib::{REGEX_DB, REGEX_PORTRAIT_SETTINGS};
 use rpfm_ui_common::ASSETS_PATH;
 
@@ -60,6 +60,7 @@ pub struct Icons {
     pub dat: AtomicPtr<QIcon>,
     pub db: AtomicPtr<QIcon>,
     pub esf: AtomicPtr<QIcon>,
+    pub group_formations: AtomicPtr<QIcon>,
     pub hlsl_compiled: AtomicPtr<QIcon>,
 
     pub image_generic: AtomicPtr<QIcon>,
@@ -115,6 +116,7 @@ impl Icons {
             dat: atomic_from_cpp_box(Self::load_icon("dat", "audio-prs.sid")),
             db: atomic_from_cpp_box(Self::load_icon("db", "application-sql")),
             esf: atomic_from_cpp_box(Self::load_icon("esf", "application-x-bzdvi")),
+            group_formations: atomic_from_cpp_box(Self::load_icon("group_formations", "application-x-macbinary")),
             hlsl_compiled: atomic_from_cpp_box(Self::load_icon("hlsl_compiled", "application-x-macbinary")),
             image_generic: atomic_from_cpp_box(Self::load_icon("image_generic", "image-x-generic")),
             image_png: atomic_from_cpp_box(Self::load_icon("image_png", "image-png")),
@@ -171,11 +173,6 @@ impl Icons {
 
                 // First, try with extensions.
                 let path = path.to_lowercase();
-
-                // TODO: Add autodetection to these, somehow
-                //--Anim,
-                //--GroupFormations,
-                //--UIC,
 
                 if path.ends_with(pack::EXTENSION) {
                     &self.packfile_editable
@@ -253,6 +250,10 @@ impl Icons {
                     &self.unit_variant
                 }
 
+                else if path == group_formations::PATH {
+                    &self.group_formations
+                }
+
                 else if esf::EXTENSIONS.iter().any(|x| path.ends_with(*x)) {
                     &self.esf
                 }
@@ -318,8 +319,8 @@ impl Icons {
                     FileType::Dat => &self.dat,
                     FileType::DB => &self.db,
                     FileType::ESF => &self.esf,
+                    FileType::GroupFormations => &self.group_formations,
                     FileType::HlslCompiled => &self.hlsl_compiled,
-                    FileType::GroupFormations => &self.file,
                     FileType::Image => {
                         let name = item.text().to_std_string();
                         if name.ends_with(".jpg") { &self.image_jpg }

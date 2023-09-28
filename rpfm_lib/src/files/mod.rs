@@ -86,6 +86,7 @@ use self::bmd_vegetation::BmdVegetation;
 use self::dat::Dat;
 use self::db::DB;
 use self::esf::ESF;
+use self::group_formations::GroupFormations;
 use self::hlsl_compiled::HlslCompiled;
 use self::image::Image;
 use self::loc::Loc;
@@ -226,7 +227,7 @@ pub enum RFileDecoded {
     Dat(Dat),
     DB(DB),
     ESF(ESF),
-    GroupFormations(Unknown),
+    GroupFormations(GroupFormations),
     HlslCompiled(HlslCompiled),
     Image(Image),
     Loc(Loc),
@@ -1482,7 +1483,7 @@ impl RFile {
                         RFileDecoded::DB(DB::decode(&mut data, &Some(extra_data))?)
                     },
                     FileType::ESF => RFileDecoded::ESF(ESF::decode(&mut data, &Some(extra_data))?),
-                    FileType::GroupFormations => RFileDecoded::GroupFormations(Unknown::decode(&mut data, &Some(extra_data))?),
+                    FileType::GroupFormations => RFileDecoded::GroupFormations(GroupFormations::decode(&mut data, &Some(extra_data))?),
                     FileType::HlslCompiled => RFileDecoded::HlslCompiled(HlslCompiled::decode(&mut data, &Some(extra_data))?),
                     FileType::Image => RFileDecoded::Image(Image::decode(&mut data, &Some(extra_data))?),
                     FileType::Loc => RFileDecoded::Loc(Loc::decode(&mut data, &Some(extra_data))?),
@@ -1557,7 +1558,7 @@ impl RFile {
                                 RFileDecoded::DB(DB::decode(&mut data, &Some(extra_data))?)
                             },
                             FileType::ESF => RFileDecoded::ESF(ESF::decode(&mut data, &Some(extra_data))?),
-                            FileType::GroupFormations => RFileDecoded::GroupFormations(Unknown::decode(&mut data, &Some(extra_data))?),
+                            FileType::GroupFormations => RFileDecoded::GroupFormations(GroupFormations::decode(&mut data, &Some(extra_data))?),
                             FileType::HlslCompiled => RFileDecoded::HlslCompiled(HlslCompiled::decode(&mut data, &Some(extra_data))?),
                             FileType::Image => RFileDecoded::Image(Image::decode(&mut data, &Some(extra_data))?),
                             FileType::Loc => RFileDecoded::Loc(Loc::decode(&mut data, &Some(extra_data))?),
@@ -1823,9 +1824,6 @@ impl RFile {
         // First, try with extensions.
         let path = self.path.to_lowercase();
 
-        // TODO: Add autodetection to these, somehow
-        //--GroupFormations,
-
         if path.ends_with(pack::EXTENSION) {
             self.file_type = FileType::Pack;
         }
@@ -1881,6 +1879,10 @@ impl RFile {
 
         else if path.ends_with(unit_variant::EXTENSION) {
             self.file_type = FileType::UnitVariant
+        }
+
+        else if path == group_formations::PATH {
+            self.file_type = FileType::GroupFormations;
         }
 
         else if esf::EXTENSIONS.iter().any(|x| path.ends_with(x)) {
