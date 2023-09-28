@@ -111,6 +111,7 @@ pub mod cs2_parsed;
 pub mod dat;
 pub mod db;
 pub mod esf;
+pub mod group_formations;
 pub mod hlsl_compiled;
 pub mod image;
 pub mod loc;
