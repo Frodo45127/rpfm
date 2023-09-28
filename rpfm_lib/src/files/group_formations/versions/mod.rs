@@ -11,4 +11,5 @@
 use super::*;
 
 //mod three_kingdoms;
-mod shogun_2;
+pub mod rome_2;
+pub mod shogun_2;

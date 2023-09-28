@@ -38,13 +38,40 @@ fn test_encode_group_formation_three_kingdoms() {
     extra_data.game_key = Some(KEY_THREE_KINGDOMS);
 
     let mut after = vec![];
-    data.encode(&mut after, &None).unwrap();
+    data.encode(&mut after, &Some(extra_data)).unwrap();
 
     let mut writer = BufWriter::new(File::create(path_2).unwrap());
     writer.write_all(&after).unwrap();
 
     assert_eq!(before, after);
 }*/
+
+#[test]
+fn test_encode_group_formation_rome_2() {
+
+    let path_1 = "../test_files/test_decode_group_formations_rom2.bin";
+    let path_2 = "../test_files/test_encode_group_formations_rom2.bin";
+    let mut reader = BufReader::new(File::open(path_1).unwrap());
+
+    let mut extra_data = DecodeableExtraData::default();
+    extra_data.game_key = Some(KEY_ROME_2);
+
+
+    let data_len = reader.len().unwrap();
+    let before = reader.read_slice(data_len as usize, true).unwrap();
+    let mut data = GroupFormations::decode(&mut reader, &Some(extra_data)).unwrap();
+
+    let mut extra_data = EncodeableExtraData::default();
+    extra_data.game_key = Some(KEY_ROME_2);
+
+    let mut after = vec![];
+    data.encode(&mut after, &Some(extra_data)).unwrap();
+
+    let mut writer = BufWriter::new(File::create(path_2).unwrap());
+    writer.write_all(&after).unwrap();
+
+    assert_eq!(before, after);
+}
 
 #[test]
 fn test_encode_group_formation_shogun_2() {

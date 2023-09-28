@@ -51,6 +51,7 @@
 /test_files/fastbin/test_encode.hlsl_compiled
 /test_files/test_encode.dat
 /test_files/test_encode_group_formations_3k.bin
+/test_files/test_encode_group_formations_rom2.bin
 /test_files/test_encode_group_formations_sho2.bin
 
 # This one is another separate thing, not tracked.
