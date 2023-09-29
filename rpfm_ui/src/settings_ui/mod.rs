@@ -360,7 +360,7 @@ impl SettingsUI {
 
         let extra_global_default_game_model = QStandardItemModel::new_1a(&extra_global_default_game_combobox);
         extra_global_default_game_combobox.set_model(&extra_global_default_game_model);
-        for game in SUPPORTED_GAMES.games().iter() {
+        for game in SUPPORTED_GAMES.games_sorted().iter() {
             extra_global_default_game_combobox.add_item_q_string(&QString::from_std_str(game.display_name()));
         }
 
@@ -854,7 +854,7 @@ impl SettingsUI {
         }
 
         // Get the default game.
-        for (index, game) in SUPPORTED_GAMES.games().iter().enumerate() {
+        for (index, game) in SUPPORTED_GAMES.games_sorted().iter().enumerate() {
             if game.key() == setting_string_from_q_setting(&q_settings, "default_game") {
                 self.extra_global_default_game_combobox.set_current_index(index as i32);
                 break;
