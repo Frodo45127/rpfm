@@ -135,7 +135,7 @@ impl Video {
         buffer.write_u32(1)?; // _mystery_u32: I don't actually know what this is.
 
         // Version 0 files have one less frame here.
-        if self.version == 0 {
+        if self.version == 0 && self.num_frames >= 1 {
             buffer.write_u32(self.num_frames - 1)?;
         } else {
             buffer.write_u32(self.num_frames)?;
