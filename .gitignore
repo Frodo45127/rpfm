@@ -104,6 +104,9 @@ dark-theme-custom.qss
 # This specific lib is generated on UI build. No need to add it to the repo.
 /3rdparty/builds/libqt_rpfm_extensions.a
 
+# This one is the qt lib. AFAIK, Phazer didn't get me permissions to publish it, so to the gitignore it goes.
+/3rdparty/builds/QtRMV2Widget.lib
+
 # Subclasses lib compilation files.
 *.pro.user
 **/Makefile
