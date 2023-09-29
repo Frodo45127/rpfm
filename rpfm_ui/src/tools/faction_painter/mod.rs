@@ -47,7 +47,7 @@ use rayon::prelude::*;
 use std::collections::HashMap;
 
 use rpfm_lib::files::{ContainerPath, db::DB, RFileDecoded, table::DecodedData};
-use rpfm_lib::games::supported_games::KEY_WARHAMMER_3;
+use rpfm_lib::games::supported_games::*;
 
 use rpfm_ui_common::locale::{tr, qtr};
 
@@ -73,16 +73,17 @@ const FACTION_DATA: i32 = 60;
 const FACTION_ICON: i32 = 61;
 
 /// List of games this tool supports.
-const TOOL_SUPPORTED_GAMES: [&str; 9] = [
-    "warhammer_3",
-    "troy",
-    "three_kingdoms",
-    "warhammer_2",
-    "warhammer",
-    "thrones_of_britannia",
-    "attila",
-    "rome_2",
-    "shogun_2",
+const TOOL_SUPPORTED_GAMES: [&str; 10] = [
+    KEY_PHARAOH,
+    KEY_WARHAMMER_3,
+    KEY_TROY,
+    KEY_THREE_KINGDOMS,
+    KEY_WARHAMMER_2,
+    KEY_WARHAMMER,
+    KEY_THRONES_OF_BRITANNIA,
+    KEY_ATTILA,
+    KEY_ROME_2,
+    KEY_SHOGUN_2,
 ];
 
 /// Default name for files saved with this tool.

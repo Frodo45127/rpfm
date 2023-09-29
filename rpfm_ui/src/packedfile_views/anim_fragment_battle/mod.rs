@@ -29,6 +29,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use rpfm_lib::files::{anim_fragment_battle::AnimFragmentBattle, FileType};
+use rpfm_lib::games::supported_games::*;
 use rpfm_ui_common::locale::qtr;
 use rpfm_ui_common::utils::*;
 
@@ -176,7 +177,7 @@ impl FileAnimFragmentBattleView {
 
         // Hide the items not relevant for the current game.
         let game = GAME_SELECTED.read().unwrap();
-        if game.key() == "warhammer_3" {
+        if game.key() == KEY_WARHAMMER_3 {
             min_id_label.hide();
             view.min_id_spinbox.hide();
 
@@ -191,7 +192,7 @@ impl FileAnimFragmentBattleView {
             view.table.table_view().hide_column(15);
             view.table.table_view().hide_column(16);
 
-        } else if game.key() == "warhammer_2" || game.key() == "troy" {
+        } else if game.key() == KEY_WARHAMMER_2 || game.key() == KEY_TROY || game.key() == KEY_PHARAOH {
             subversion_label.hide();
             table_name_label.hide();
             unmount_table_name_label.hide();
@@ -208,8 +209,7 @@ impl FileAnimFragmentBattleView {
 
             view.table.table_view().hide_column(9);
 
-
-        } else if game.key() == "three_kingdoms" {
+        } else if game.key() == KEY_THREE_KINGDOMS {
             subversion_label.hide();
             view.subversion_spinbox.hide();
 

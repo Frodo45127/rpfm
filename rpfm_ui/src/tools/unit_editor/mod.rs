@@ -52,6 +52,7 @@ use std::collections::HashMap;
 use std::sync::RwLock;
 
 use rpfm_lib::files::{ContainerPath, FileType, RFile, text::{Text, TextFormat}};
+use rpfm_lib::games::supported_games::*;
 use rpfm_lib::integrations::log;
 
 use rpfm_ui_common::locale::{qtr, tr};
@@ -83,7 +84,7 @@ const VARIANT_MESH_EXTENSION: &str = "variantmeshdefinition";
 
 /// List of games this tool supports.
 const TOOL_SUPPORTED_GAMES: [&str; 1] = [
-    "warhammer_2",
+    KEY_WARHAMMER_2,
 ];
 
 /// Default name for files saved with this tool.

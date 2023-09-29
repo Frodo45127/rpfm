@@ -19,7 +19,6 @@ use crate::binary::{ReadBytes, WriteBytes};
 use crate::encryption::Decryptable;
 use crate::error::{RLibError, Result};
 use crate::files::{pack::*, RFile};
-use crate::games::pfh_version::PFHVersion;
 
 impl Pack {
 
@@ -43,8 +42,8 @@ impl Pack {
                 (!self.header.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) && data_len < 24) {
                 return Err(RLibError::PackHeaderNotComplete);
             }
-
-            if self.header.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) { 20 } else { 0 }
+            0
+            //if self.header.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) { 20 } else { 0 }
         };
 
         // Optimization: we only really need the header of the Pack, not the data, and reads, if performed from disk, are expensive.
@@ -57,11 +56,9 @@ impl Pack {
         let mut data_pos = data.stream_position()? - extra_data.disk_file_offset;
 
         // If the Pack data is encrypted and it's PFH5, due to how the encryption works the data should start in a multiple of 8.
-        // TODO: This needs revision.
         if self.header.bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA) &&
-            self.header.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) &&
-            self.header.pfh_version == PFHVersion::PFH5 {
-            data_pos = if (data_pos % 8) > 0 { data_pos + 8 - (data_pos % 8) } else { data_pos };
+            self.header.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) {
+            //data_pos = if (data_pos % 8) > 0 { data_pos + 8 - (data_pos % 8) } else { data_pos };
         }
 
         if data_len < data_pos {
@@ -114,15 +111,13 @@ impl Pack {
 
             // Then we move our data position. For encrypted files in PFH5 Packs (only ARENA) we have to start the next one in a multiple of 8.
             // TODO: Revise this.
-            if self.header.bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA) &&
-                self.header.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) &&
-                self.header.pfh_version == PFHVersion::PFH5 {
-                let padding = 8 - (size % 8);
-                let padded_size = if padding < 8 { size + padding } else { size };
-                data_pos += u64::from(padded_size);
-            } else {
+            //if !self.header.bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA) {
+            //    let padding = 8 - (size % 8);
+            //    let padded_size = if padding < 8 { size + padding } else { size };
+            //    data_pos += u64::from(padded_size);
+            //} else {
                 data_pos += u64::from(size);
-            }
+            //}
         }
 
         // Return our current position on the data section for further checks.

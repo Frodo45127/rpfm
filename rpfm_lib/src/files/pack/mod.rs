@@ -552,10 +552,10 @@ impl Pack {
 
         // If at this point we have not reached the end of the Pack, there is something wrong with it.
         // NOTE: Arena Packs have extra data at the end. If we detect one of those Packs, take that into account.
-        if pack.header.pfh_version == PFHVersion::PFH5 && pack.header.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) {
-            if expected_data_len + 256 != data_len { return Err(RLibError::DecodingMismatchSizeError(data_len as usize, expected_data_len as usize)) }
-        }
-        else if expected_data_len != data_len { return Err(RLibError::DecodingMismatchSizeError(data_len as usize, expected_data_len as usize)) }
+        //if pack.header.pfh_version == PFHVersion::PFH5 && pack.header.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) {
+        //    if expected_data_len + 256 != data_len { return Err(RLibError::DecodingMismatchSizeError(data_len as usize, expected_data_len as usize)) }
+        //}
+        if expected_data_len != data_len { return Err(RLibError::DecodingMismatchSizeError(data_len as usize, expected_data_len as usize)) }
 
         // Guess the file's types. Do this here because this can be very slow and here we can do it in paralell.
         pack.files.par_iter_mut().map(|(_, file)| file.guess_file_type()).collect::<Result<()>>()?;

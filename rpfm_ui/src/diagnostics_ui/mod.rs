@@ -1074,6 +1074,7 @@ impl DiagnosticsUI {
                     "DependenciesCacheOutdated" |
                     "DependenciesCacheCouldNotBeLoaded" => {
                         match GAME_SELECTED.read().unwrap().key() {
+                            KEY_PHARAOH => app_ui.special_stuff_ph_generate_dependencies_cache().trigger(),
                             KEY_WARHAMMER_3 => app_ui.special_stuff_wh3_generate_dependencies_cache().trigger(),
                             KEY_TROY => app_ui.special_stuff_troy_generate_dependencies_cache().trigger(),
                             KEY_THREE_KINGDOMS => app_ui.special_stuff_three_k_generate_dependencies_cache().trigger(),

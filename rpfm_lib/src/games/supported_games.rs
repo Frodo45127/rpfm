@@ -21,6 +21,7 @@ use std::sync::{Arc, RwLock};
 use super::{GameInfo, InstallData, InstallType, pfh_file_type::PFHFileType, pfh_version::PFHVersion, VanillaDBTableNameLogic};
 
 // Display Name for all the Supported Games.
+pub const DISPLAY_NAME_PHARAOH: &str = "Pharaoh";
 pub const DISPLAY_NAME_WARHAMMER_3: &str = "Warhammer 3";
 pub const DISPLAY_NAME_TROY: &str = "Troy";
 pub const DISPLAY_NAME_THREE_KINGDOMS: &str = "Three Kingdoms";
@@ -35,6 +36,7 @@ pub const DISPLAY_NAME_EMPIRE: &str = "Empire";
 pub const DISPLAY_NAME_ARENA: &str = "Arena";
 
 // Key for all the supported games.
+pub const KEY_PHARAOH: &str = "pharaoh";
 pub const KEY_WARHAMMER_3: &str = "warhammer_3";
 pub const KEY_TROY: &str = "troy";
 pub const KEY_THREE_KINGDOMS: &str = "three_kingdoms";
@@ -69,6 +71,77 @@ pub struct SupportedGames {
 impl Default for SupportedGames {
     fn default() -> Self {
         let mut game_list = HashMap::new();
+
+        // Pharaoh
+        game_list.insert(KEY_PHARAOH, GameInfo {
+            key: KEY_PHARAOH,
+            display_name: DISPLAY_NAME_PHARAOH,
+            pfh_versions: {
+                let mut data = HashMap::new();
+                data.insert(PFHFileType::Boot, PFHVersion::PFH5);
+                data.insert(PFHFileType::Release, PFHVersion::PFH5);
+                data.insert(PFHFileType::Patch, PFHVersion::PFH5);
+                data.insert(PFHFileType::Mod, PFHVersion::PFH5);
+                data.insert(PFHFileType::Movie, PFHVersion::PFH5);
+                data
+            },
+            schema_file_name: "schema_ph.ron".to_owned(),
+            dependencies_cache_file_name: "ph.pak2".to_owned(),
+            raw_db_version: 2,
+            portrait_settings_version: None,
+            supports_editing: true,
+            db_tables_have_guid: true,
+            locale_file_name: Some("language.txt".to_owned()),
+            banned_packedfiles: vec![],
+            icon_small: "gs_ph.png".to_owned(),
+            icon_big: "gs_big_ph.png".to_owned(),
+            vanilla_db_table_name_logic: VanillaDBTableNameLogic::DefaultName("data__".to_owned()),
+            install_data: {
+                let mut data = HashMap::new();
+                data.insert(InstallType::WinSteam, InstallData {
+                    vanilla_packs: vec![],
+                    use_manifest: true,
+                    //store_id: 1_937_780, // According to steamdb this is the game's id. The other one is the early access beta.
+                    store_id: 2_254_160,
+                    store_id_ak: 9999999, // Unknown, tbfilled when the ak is released.
+                    executable: "Pharaoh.exe".to_owned(),
+                    data_path: "data".to_owned(),
+                    language_path: "data".to_owned(),
+                    local_mods_path: "data".to_owned(),
+                    //downloaded_mods_path: "./../../workshop/content/1937780".to_owned(), // Same as with the store id.
+                    downloaded_mods_path: "./../../workshop/content/2254160".to_owned(),
+                    config_folder: Some("Pharaoh".to_owned()), // TODO: ensure this is correct once the final release of the game is released.
+                });
+
+                data
+            },
+            tool_vars: {
+                let mut vars = HashMap::new();
+                vars.insert("faction_painter_factions_table_name".to_owned(), "factions_tables".to_owned());
+                vars.insert("faction_painter_factions_table_definition".to_owned(), "factions_definition".to_owned());
+                vars.insert("faction_painter_factions_row_key".to_owned(), "faction_row".to_owned());
+
+                vars.insert("faction_painter_banner_table_name".to_owned(), "factions_tables".to_owned());
+                vars.insert("faction_painter_banner_table_definition".to_owned(), "factions_definition".to_owned());
+                vars.insert("faction_painter_banner_key_column_name".to_owned(), "key".to_owned());
+                vars.insert("faction_painter_banner_primary_colour_column_name".to_owned(), "banner_colour_primary".to_owned());
+                vars.insert("faction_painter_banner_secondary_colour_column_name".to_owned(), "banner_colour_secondary".to_owned());
+                vars.insert("faction_painter_banner_tertiary_colour_column_name".to_owned(), "banner_colour_tertiary".to_owned());
+                vars.insert("faction_painter_banner_row_key".to_owned(), "faction_row".to_owned());
+
+                vars.insert("faction_painter_uniform_table_name".to_owned(), "factions_tables".to_owned());
+                vars.insert("faction_painter_uniform_table_definition".to_owned(), "factions_definition".to_owned());
+                vars.insert("faction_painter_uniform_key_column_name".to_owned(), "key".to_owned());
+                vars.insert("faction_painter_uniform_primary_colour_column_name".to_owned(), "uniform_colour_primary".to_owned());
+                vars.insert("faction_painter_uniform_secondary_colour_column_name".to_owned(), "uniform_colour_secondary".to_owned());
+                vars.insert("faction_painter_uniform_tertiary_colour_column_name".to_owned(), "uniform_colour_tertiary".to_owned());
+                vars.insert("faction_painter_uniform_row_key".to_owned(), "faction_row".to_owned());
+                vars
+            },
+            lua_autogen_folder: None,
+            ak_lost_fields: vec![],
+            install_type_cache: Arc::new(RwLock::new(HashMap::new())),
+        });
 
         // Warhammer 3
         game_list.insert(KEY_WARHAMMER_3, GameInfo {
@@ -3446,6 +3519,7 @@ impl Default for SupportedGames {
         });
 
         let order_list = vec![
+            KEY_PHARAOH,
             KEY_WARHAMMER_3,
             KEY_TROY,
             KEY_THREE_KINGDOMS,

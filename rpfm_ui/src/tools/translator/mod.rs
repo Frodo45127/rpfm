@@ -57,7 +57,8 @@ const VIEW_DEBUG: &str = "rpfm_ui/ui_templates/tool_translator_editor.ui";
 const VIEW_RELEASE: &str = "ui/tool_translator_editor.ui";
 
 /// List of games this tool supports.
-const TOOL_SUPPORTED_GAMES: [&str; 11] = [
+const TOOL_SUPPORTED_GAMES: [&str; 12] = [
+    KEY_PHARAOH,
     KEY_WARHAMMER_3,
     KEY_TROY,
     KEY_THREE_KINGDOMS,
