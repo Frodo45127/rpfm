@@ -79,7 +79,9 @@ bool QTableViewSortFilterProxyModel::filterAcceptsRow(int source_row, const QMod
             if (currntIndex.isValid()) {
 
                 // Checkbox matches.
-                if (currntData->isCheckable()) {
+                //
+                // NOTE: isCheckable is broken if the cell is not editable.
+                if (currntData->data(Qt::CheckStateRole).isValid()) {
                     QString pattern_lower = pattern.toLower();
                     bool isChecked = currntData->checkState() == Qt::CheckState::Checked;
 
@@ -156,7 +158,8 @@ bool QTableViewSortFilterProxyModel::lessThan(const QModelIndex &left, const QMo
     QStandardItem *leftData = static_cast<QStandardItemModel*>(sourceModel())->itemFromIndex(left);
     QStandardItem *rightData = static_cast<QStandardItemModel*>(sourceModel())->itemFromIndex(right);
 
-    if (leftData->isCheckable() && rightData->isCheckable()) {
+    // NOTE: isCheckable is broken if the cell is not editable.
+    if (leftData->data(Qt::CheckStateRole).isValid() && rightData->data(Qt::CheckStateRole).isValid()) {
         if (leftData->checkState() == rightData->checkState()) {
             return false;
         } else if (leftData->checkState() == Qt::CheckState::Checked && rightData->checkState() == Qt::CheckState::Unchecked) {
