@@ -4278,7 +4278,7 @@ impl AppUI {
                 }
 
                 // If there is no MyMod path configured, report it.
-                else { show_dialog(&app_ui.main_window, "MyMod path not configured. Go to <i>'PackFile/Preferences'</i> and configure it.", false) }
+                else { show_dialog(&app_ui.main_window, "MyMod path not configured. Go to <i>'PackFile/Settings'</i> and configure it.", false) }
             }
             OperationalMode::Normal => show_dialog(&app_ui.main_window, "This action is only available for MyMods.", false),
         }

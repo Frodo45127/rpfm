@@ -352,7 +352,7 @@ pub fn background_loop() {
                         Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                     }
                 } else {
-                    CentralCommand::send_back(&sender, Response::Error(anyhow!("Game Path not configured. Go to <i>'PackFile/Preferences'</i> and configure it.")));
+                    CentralCommand::send_back(&sender, Response::Error(anyhow!("Game Path not configured. Go to <i>'PackFile/Settings'</i> and configure it.")));
                 }
             }
 

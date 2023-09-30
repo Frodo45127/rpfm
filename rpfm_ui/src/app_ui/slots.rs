@@ -348,7 +348,7 @@ impl AppUISlots {
 
                 if let Ok(mut game_local_mods_path) = GAME_SELECTED.read().unwrap().local_mods_path(&setting_path(GAME_SELECTED.read().unwrap().key())) {
                     if !game_local_mods_path.is_dir() {
-                        return show_dialog(&app_ui.main_window, "Game Path not configured. Go to <i>'PackFile/Preferences'</i> and configure it.", false);
+                        return show_dialog(&app_ui.main_window, "Game Path not configured. Go to <i>'PackFile/Settings'</i> and configure it.", false);
                     }
 
                     if pack_path.starts_with(&game_local_mods_path) {
@@ -406,7 +406,7 @@ impl AppUISlots {
 
                 if let Ok(mut game_local_mods_path) = GAME_SELECTED.read().unwrap().local_mods_path(&setting_path(GAME_SELECTED.read().unwrap().key())) {
                     if !game_local_mods_path.is_dir() {
-                        return show_dialog(&app_ui.main_window, "Game Path not configured. Go to <i>'PackFile/Preferences'</i> and configure it.", false);
+                        return show_dialog(&app_ui.main_window, "Game Path not configured. Go to <i>'PackFile/Settings'</i> and configure it.", false);
                     }
 
                     if pack_path.starts_with(&game_local_mods_path) {
@@ -661,7 +661,7 @@ impl AppUISlots {
             if path.is_dir() {
                 let _ = open::that(&path);
             } else {
-                show_dialog(&app_ui.main_window, "MyMod path not configured. Go to <i>'PackFile/Preferences'</i> and configure it.", false);
+                show_dialog(&app_ui.main_window, "MyMod path not configured. Go to <i>'PackFile/Settings'</i> and configure it.", false);
             }
         }));
 
@@ -834,7 +834,7 @@ impl AppUISlots {
                                 AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &diagnostics_ui, &global_search_ui);
                                 true
                             }
-                            else { return show_dialog(&app_ui.main_window, "MyMod path not configured. Go to <i>'PackFile/Preferences'</i> and configure it.", false); }
+                            else { return show_dialog(&app_ui.main_window, "MyMod path not configured. Go to <i>'PackFile/Settings'</i> and configure it.", false); }
                         }
 
                         // If we have no "MyMod" selected, return an error.
@@ -940,7 +940,7 @@ impl AppUISlots {
             if let Ok(path) = GAME_SELECTED.read().unwrap().data_path(&setting_path(GAME_SELECTED.read().unwrap().key())) {
                 let _ = open::that(path);
             } else {
-                show_dialog(&app_ui.main_window, "Game Path not configured. Go to <i>'PackFile/Preferences'</i> and configure it.", false);
+                show_dialog(&app_ui.main_window, "Game Path not configured. Go to <i>'PackFile/Settings'</i> and configure it.", false);
             }
         }));
 
@@ -951,7 +951,7 @@ impl AppUISlots {
             if path.is_dir() {
                 let _ = open::that(&path);
             } else {
-                show_dialog(&app_ui.main_window, "Game Path not configured. Go to <i>'PackFile/Preferences'</i> and configure it.", false);
+                show_dialog(&app_ui.main_window, "Game Path not configured. Go to <i>'PackFile/Settings'</i> and configure it.", false);
             }
         }));
 
