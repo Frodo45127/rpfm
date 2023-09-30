@@ -10,6 +10,10 @@ If you're looking for the changes included in the latest beta (against the lates
 ### Added
 - Implemented "Translator" tool, with support for all games.
 - Implemented support for "HlslCompiled" files (lib-only).
+- Implemented support for Pharaoh (Early Access).
+- Implemented support for GroupFormation files for:
+    + Rome 2
+    + Shogun 2
 
 ### Changed
 - BMD files should no longer have a red cross as icon.
@@ -24,6 +28,9 @@ If you're looking for the changes included in the latest beta (against the lates
 - Fixed table row counter not updating under certain situations.
 - Fixed many pack features not working for packs open in a special way.
 - Fixed Empire not counting "movies.pack" as a vanilla file.
+- Fixed incorrect order in default game combobox.
+- Fixed CTD when saving a CA_VP8 file with no frames.
+- Fixed frg files not being properly identified when outside of the animations folder.
 
 ## [4.1.3]
 ### Added
