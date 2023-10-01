@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1631</width>
-    <height>657</height>
+    <width>1823</width>
+    <height>990</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -123,7 +123,7 @@
           </property>
           <item row="0" column="0">
            <widget class="QWidget" name="aliexpress_toolbar" native="true">
-            <layout class="QGridLayout" name="gridLayout_7" rowstretch="0,0,0">
+            <layout class="QGridLayout" name="gridLayout_7" rowstretch="0,0,0,0,0">
              <property name="leftMargin">
               <number>2</number>
              </property>
@@ -155,6 +155,23 @@
                </property>
               </widget>
              </item>
+             <item row="3" column="0">
+              <widget class="QToolButton" name="import_from_translated_pack">
+               <property name="text">
+                <string/>
+               </property>
+               <property name="icon">
+                <iconset theme="document-import-ocal">
+                 <normaloff>.</normaloff>.</iconset>
+               </property>
+               <property name="iconSize">
+                <size>
+                 <width>22</width>
+                 <height>22</height>
+                </size>
+               </property>
+              </widget>
+             </item>
              <item row="1" column="0">
               <widget class="QToolButton" name="move_selection_down">
                <property name="text">
@@ -172,13 +189,12 @@
               </widget>
              </item>
              <item row="2" column="0">
-              <widget class="QToolButton" name="import_from_translated_pack">
+              <widget class="QToolButton" name="copy_from_source">
                <property name="text">
                 <string/>
                </property>
                <property name="icon">
-                <iconset theme="document-import-ocal">
-                 <normaloff>.</normaloff>.</iconset>
+                <iconset theme="edit-copy"/>
                </property>
                <property name="iconSize">
                 <size>
@@ -202,7 +218,7 @@
          <property name="title">
           <string>GroupBox</string>
          </property>
-         <layout class="QGridLayout" name="gridLayout_6">
+         <layout class="QGridLayout" name="gridLayout_6" columnstretch="0,1">
           <property name="leftMargin">
            <number>2</number>
           </property>
@@ -236,6 +252,9 @@
            <widget class="QLabel" name="info_label">
             <property name="text">
              <string>TextLabel</string>
+            </property>
+            <property name="wordWrap">
+             <bool>true</bool>
             </property>
            </widget>
           </item>

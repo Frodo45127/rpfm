@@ -87,10 +87,12 @@ pub struct ToolTranslator {
 
     action_move_up: QPtr<QAction>,
     action_move_down: QPtr<QAction>,
+    action_copy_from_source: QPtr<QAction>,
     action_import_from_translated_pack: QPtr<QAction>,
 
     move_selection_up: QPtr<QToolButton>,
     move_selection_down: QPtr<QToolButton>,
+    copy_from_source: QPtr<QToolButton>,
     import_from_translated_pack: QPtr<QToolButton>,
 
     original_value_textedit: QPtr<QTextEdit>,
@@ -215,13 +217,16 @@ impl ToolTranslator {
 
         let move_selection_up: QPtr<QToolButton> = tool.find_widget("move_selection_up")?;
         let move_selection_down: QPtr<QToolButton> = tool.find_widget("move_selection_down")?;
+        let copy_from_source: QPtr<QToolButton> = tool.find_widget("copy_from_source")?;
         let import_from_translated_pack: QPtr<QToolButton> = tool.find_widget("import_from_translated_pack")?;
         move_selection_up.set_tool_tip(&qtr("translator_move_selection_up"));
         move_selection_down.set_tool_tip(&qtr("translator_move_selection_down"));
+        copy_from_source.set_tool_tip(&qtr("translator_copy_from_source"));
         import_from_translated_pack.set_tool_tip(&qtr("translator_import_from_translated_pack"));
 
         let action_move_up = add_action_to_widget(app_ui.shortcuts().as_ref(), "translator", "move_up", Some(table.table_view().static_upcast()));
         let action_move_down = add_action_to_widget(app_ui.shortcuts().as_ref(), "translator", "move_down", Some(table.table_view().static_upcast()));
+        let action_copy_from_source = add_action_to_widget(app_ui.shortcuts().as_ref(), "translator", "copy_from_source", Some(table.table_view().static_upcast()));
         let action_import_from_translated_pack = add_action_to_widget(app_ui.shortcuts().as_ref(), "translator", "import_from_translated_pack", Some(table.table_view().static_upcast()));
 
         let original_value_textedit: QPtr<QTextEdit> = tool.find_widget("original_value_textedit")?;
@@ -235,9 +240,11 @@ impl ToolTranslator {
             language_combobox,
             action_move_up,
             action_move_down,
+            action_copy_from_source,
             action_import_from_translated_pack,
             move_selection_up,
             move_selection_down,
+            copy_from_source,
             import_from_translated_pack,
             original_value_textedit,
             translated_value_textedit,
@@ -315,7 +322,7 @@ impl ToolTranslator {
         // If we have a new translation, save it and remove the "needs_retranslation" flag.
         if !new_value.is_empty() && new_value != old_value {
             old_value_item.set_text(&QString::from_std_str(new_value));
-            self.table.table_model().item_2a(index.row(), 0).set_check_state(CheckState::Unchecked);
+            self.table.table_model().item_2a(index.row(), 1).set_check_state(CheckState::Unchecked);
         }
     }
 

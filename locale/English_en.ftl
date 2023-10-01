@@ -1470,5 +1470,6 @@ translator_info = How does it work? It's simple:<ul>
     </ul>
 translator_move_selection_up = Move up
 translator_move_selection_down = Move down
+translator_copy_from_source = Copy from source
 translator_import_from_translated_pack = Import from translated Pack
 translator_language = Language:

@@ -31,6 +31,7 @@ pub struct ToolTranslatorSlots {
     load_data_to_detailed_view: QBox<SlotOfQItemSelectionQItemSelection>,
     move_selection_up: QBox<SlotNoArgs>,
     move_selection_down: QBox<SlotNoArgs>,
+    copy_from_source: QBox<SlotNoArgs>,
     import_from_translated_pack: QBox<SlotNoArgs>,
 }
 
@@ -119,6 +120,30 @@ impl ToolTranslatorSlots {
             }
         ));
 
+        let copy_from_source = SlotNoArgs::new(ui.tool.main_widget(), clone!(
+            ui => move || {
+                info!("Triggering 'copy_from_source' for Translator.");
+
+                let selection_model = ui.table().table_view().selection_model();
+                let selection = selection_model.selection();
+                let indexes = selection.indexes();
+                if indexes.count_0a() > 0 {
+                    let index = indexes.at(0);
+                    let mapped_index = ui.table().table_filter().map_to_source(index);
+
+                    // This one is just copy the value, mark it as translated, then trigger the move selection down.
+                    let original_value_item = ui.table.table_model().item_2a(mapped_index.row(), 3);
+                    let original_value = original_value_item.text().to_std_string();
+                    let trans_value_item = ui.table.table_model().item_2a(mapped_index.row(), 4);
+                    trans_value_item.set_text(&QString::from_std_str(original_value));
+
+                    ui.table.table_model().item_2a(mapped_index.row(), 1).set_check_state(CheckState::Unchecked);
+
+                    ui.action_move_down().triggered();
+                }
+            }
+        ));
+
         let import_from_translated_pack = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
                 info!("Triggering 'import_from_translated_pack' for Translator.");
@@ -133,6 +158,7 @@ impl ToolTranslatorSlots {
             load_data_to_detailed_view,
             move_selection_up,
             move_selection_down,
+            copy_from_source,
             import_from_translated_pack,
         }
     }
