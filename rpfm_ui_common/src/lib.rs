@@ -104,4 +104,5 @@ lazy_static!{
     /// Formatted date, so we can reuse it instead of re-parsing it on each use.
     pub static ref FULL_DATE_FORMAT: Vec<FormatItem<'static>> = parse("[year]-[month]-[day] [hour]:[minute]:[second]").unwrap();
     pub static ref SLASH_DMY_DATE_FORMAT: Vec<FormatItem<'static>> = parse("[day]/[month]/[year]").unwrap();
+    pub static ref SLASH_MDY_DATE_FORMAT: Vec<FormatItem<'static>> = parse("[month]/[day]/[year]").unwrap();
 }
