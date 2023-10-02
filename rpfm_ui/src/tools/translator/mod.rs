@@ -214,6 +214,7 @@ impl ToolTranslator {
 
         let info_label: QPtr<QLabel> = tool.find_widget("info_label")?;
         info_label.set_text(&qtr("translator_info"));
+        info_label.set_open_external_links(true);
 
         let move_selection_up: QPtr<QToolButton> = tool.find_widget("move_selection_up")?;
         let move_selection_down: QPtr<QToolButton> = tool.find_widget("move_selection_down")?;

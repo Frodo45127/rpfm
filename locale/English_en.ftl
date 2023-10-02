@@ -1467,6 +1467,7 @@ translator_info = How does it work? It's simple:<ul>
         <li>Select the row you want to translate, and write in the lower text field the translation.</li>
         <li>By default, the view only shows lines that need to be translated or revised (due to the original mod changing them). You can show the hidden entries by tweaking the filters.</li>
         <li>If you want to import an already translated mod, open the original mod in RPFM, open the translator, click in "Import from translated Pack", and select the translation pack.</li>
+        <li>Once you're done, if you think this translation would be useful for others, feel free to contribute the translation to the <a href="https://github.com/Frodo45127/total_war_translation_hub">Total War Translation Hub</a>.</li>
     </ul>
 translator_move_selection_up = Move up
 translator_move_selection_down = Move down
