@@ -78,6 +78,9 @@
 # Ignore the table profiles.
 /table_profiles/
 
+# Ignore the translations folder.
+/translations_local/
+
 # Intellij Config folder and files.
 /.idea/
 
