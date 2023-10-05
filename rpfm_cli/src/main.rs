@@ -36,7 +36,7 @@ lazy_static! {
     static ref SENTRY_GUARD: Arc<RwLock<ClientInitGuard>> = Arc::new(RwLock::new(Logger::init(&{
         init_config_path().expect("Error while trying to initialize config path. We're fucked.");
         error_path().unwrap_or_else(|_| PathBuf::from("."))
-    }, true, true).unwrap()));
+    }, true, true, release_name!()).unwrap()));
 }
 
 const SENTRY_DSN_KEY: &str = "https://1bee0e6bab154cd988b309096df932b8@o152833.ingest.sentry.io/4504850526699520";
@@ -63,7 +63,9 @@ fn main() {
     }
 
     // Initialize the logging stuff here. This can fail depending on a lot of things, so trigger a console message if it fails.
-    let logger = Logger::init(&PathBuf::from("."), cli.verbose, true);
+    //
+    // TODO: Figure out why we have two logger inits here.
+    let logger = Logger::init(&PathBuf::from("."), cli.verbose, true, release_name!());
     if logger.is_err() && cli.verbose {
         warn!("Logging initialization has failed. No logs will be saved.");
     }

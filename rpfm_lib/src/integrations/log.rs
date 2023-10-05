@@ -22,10 +22,11 @@ Otherwise, none of them will work.
 use backtrace::Backtrace;
 use lazy_static::lazy_static;
 pub use log::{error, info, warn};
-pub use sentry::{ClientInitGuard, Envelope, integrations::log::SentryLogger, protocol::*, end_session, end_session_with_status};
+pub use sentry::{ClientInitGuard, Envelope, integrations::log::SentryLogger, protocol::*, release_name, end_session, end_session_with_status};
 use serde_derive::Serialize;
 use simplelog::{ColorChoice, CombinedLogger, LevelFilter, SharedLogger, TermLogger, TerminalMode};
 
+use std::borrow::Cow;
 use std::fs::{DirBuilder, File};
 use std::io::{BufWriter, Write};
 use std::{panic, panic::PanicInfo};
@@ -84,7 +85,7 @@ impl Logger {
     /// - Log CTD to files.
     /// - Log CTD to sentry (release only)
     /// - Log execution steps to file/sentry.
-    pub fn init(logging_path: &Path, verbose: bool, set_logger: bool) -> Result<ClientInitGuard> {
+    pub fn init(logging_path: &Path, verbose: bool, set_logger: bool, release: Option<Cow<'static, str>>) -> Result<ClientInitGuard> {
 
         // Make sure the provided folder exists.
         if let Some(parent_folder) = logging_path.parent() {
@@ -113,12 +114,14 @@ impl Logger {
 
         // Initialize Sentry's guard, for remote reporting. Only for release mode.
         let dsn = if cfg!(debug_assertions) { String::new() } else { SENTRY_DSN.read().unwrap().to_string() };
-        let sentry_guard = sentry::init((dsn, sentry::ClientOptions {
-            release: sentry::release_name!(),
+        let client_options = sentry::ClientOptions {
+            release: release.clone(),
             sample_rate: 1.0,
             auto_session_tracking: true,
             ..Default::default()
-        }));
+        };
+
+        let sentry_guard = sentry::init((dsn, client_options));
 
         // Setup the panic hooks to catch panics on all threads, not only the main one.
         let sentry_enabled = sentry_guard.is_enabled();
