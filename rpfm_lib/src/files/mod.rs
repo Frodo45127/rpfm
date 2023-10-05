@@ -1025,6 +1025,12 @@ pub trait Container {
     /// This method removes a path from the paths cache.
     fn paths_cache_remove_path(&mut self, path: &str) {
         let path_lower = path.to_lowercase();
+
+        // Skip reserved paths when using this.
+        if path_lower == RESERVED_NAME_NOTES || path_lower == RESERVED_NAME_SETTINGS {
+            return;
+        }
+
         match self.paths_cache_mut().get_mut(&path_lower) {
             Some(paths) => {
                 match paths.iter().position(|x| x == path) {
