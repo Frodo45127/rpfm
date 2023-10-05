@@ -14,11 +14,13 @@ If you're looking for the changes included in the latest beta (against the lates
 - Implemented support for GroupFormation files for:
     + Rome 2
     + Shogun 2
+- Implemented "Update Manager", and merged all "Check XXX Updates" buttons in it.
 
 ### Changed
 - BMD files should no longer have a red cross as icon.
 - BMD Vegetation now have a particular icon.
 - Updated optimizer warning.
+- The mysterious error non-error message when generating the dependencies cache is now less mysterious.
 
 ### Fixed
 - Fixed a bug in the compression logic that caused errors when compressing/decompressing.
@@ -31,6 +33,10 @@ If you're looking for the changes included in the latest beta (against the lates
 - Fixed incorrect order in default game combobox.
 - Fixed CTD when saving a CA_VP8 file with no frames.
 - Fixed frg files not being properly identified when outside of the animations folder.
+- Fixed outdated error message pointing to "preferences".
+- Fixed crash logger setting the app name incorrectly.
+- Fixed CTD when changing the type of a Pack through the CLI.
+- Fixed logger error spam due to a missing check.
 
 ## [4.1.3]
 ### Added
