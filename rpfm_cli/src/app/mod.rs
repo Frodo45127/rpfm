@@ -194,7 +194,7 @@ pub enum CommandsPack {
         pack_path: PathBuf,
 
         /// Full path of the file to delete.
-        #[arg(short, long, required = true, num_args = 1, value_name = "PACK_TYPE", value_parser = ["boot", "release", "patch", "mod", "movie"])]
+        #[arg(short, long, required = true, num_args = 1, value_name = "PACK_TYPE", value_parser = parse_pfh_file_type)]
         file_type: PFHFileType,
     },
 
@@ -485,4 +485,8 @@ fn extract_from_csv(src: &str) -> Result<(String, PathBuf)> {
 fn game_keys() -> Vec<&'static str> {
     let supported_games = SupportedGames::default();
     supported_games.game_keys_sorted().to_vec()
+}
+
+fn parse_pfh_file_type(src: &str) -> Result<PFHFileType> {
+    PFHFileType::try_from(src).map_err(From::from)
 }
