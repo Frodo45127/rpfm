@@ -46,7 +46,6 @@ use qt_core::QTimer;
 use qt_core::ContextMenuPolicy;
 use qt_core::QBox;
 use qt_core::QEventLoop;
-use qt_core::QFlags;
 use qt_core::QListOfQObject;
 use qt_core::QPtr;
 use qt_core::QStringList;
@@ -67,23 +66,20 @@ use time::OffsetDateTime;
 
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::env::current_exe;
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
-use std::process::{Command as SystemCommand, exit};
 use std::rc::Rc;
 use std::sync::{atomic::Ordering, RwLock};
 
 use rpfm_lib::files::{animpack, ContainerPath, FileType, loc, text, pack::*, portrait_settings, text::TextFormat};
 use rpfm_lib::games::{pfh_file_type::*, pfh_version::*, supported_games::*};
-use rpfm_lib::integrations::{git::*, log::*};
+use rpfm_lib::integrations::log::*;
 use rpfm_lib::utils::*;
 
 use rpfm_ui_common::ASSETS_PATH;
 use rpfm_ui_common::clone;
 use rpfm_ui_common::FULL_DATE_FORMAT;
-use rpfm_ui_common::locale::{qtr, qtre, tre};
-use rpfm_ui_common::PROGRAM_PATH;
+use rpfm_ui_common::locale::{qtr, tre};
 
 use crate::backend::*;
 use crate::CENTRAL_COMMAND;
@@ -107,7 +103,6 @@ use crate::TREEVIEW_ICONS;
 use crate::UI_STATE;
 use crate::ui::GameSelectedIcons;
 use crate::ui_state::OperationalMode;
-use crate::updater::{APIResponse, CHANGELOG_FILE};
 use crate::utils::*;
 
 #[cfg(feature = "support_rigidmodel")]
@@ -323,9 +318,6 @@ pub struct AppUI {
     about_about_qt: QPtr<QAction>,
     about_about_rpfm: QPtr<QAction>,
     about_check_updates: QPtr<QAction>,
-    about_check_schema_updates: QPtr<QAction>,
-    about_check_lua_autogen_updates: QPtr<QAction>,
-    about_check_empire_and_napoleon_ak_updates: QPtr<QAction>,
 
     //-------------------------------------------------------------------------------//
     // "Debug" menu.
@@ -748,9 +740,6 @@ impl AppUI {
         let about_about_qt = add_action_to_menu(&menu_bar_about, shortcuts.as_ref(), "about_menu", "about_qt", "about_about_qt", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let about_about_rpfm = add_action_to_menu(&menu_bar_about, shortcuts.as_ref(), "about_menu", "about_rpfm", "about_about_rpfm", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let about_check_updates = add_action_to_menu(&menu_bar_about, shortcuts.as_ref(), "about_menu", "check_updates", "about_check_updates", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let about_check_schema_updates = add_action_to_menu(&menu_bar_about, shortcuts.as_ref(), "about_menu", "check_schema_updates", "about_check_schema_updates", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let about_check_lua_autogen_updates = add_action_to_menu(&menu_bar_about, shortcuts.as_ref(), "about_menu", "check_tw_autogen_updates", "about_check_lua_autogen_updates", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let about_check_empire_and_napoleon_ak_updates = add_action_to_menu(&menu_bar_about, shortcuts.as_ref(), "about_menu", "check_empire_and_napoleon_ak_updates", "about_check_empire_and_napoleon_ak_updates", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
 
         //-----------------------------------------------//
         // `Debug` Menu.
@@ -958,9 +947,6 @@ impl AppUI {
             about_about_qt,
             about_about_rpfm,
             about_check_updates,
-            about_check_schema_updates,
-            about_check_lua_autogen_updates,
-            about_check_empire_and_napoleon_ak_updates,
 
             //-------------------------------------------------------------------------------//
             // "Debug" menu.
@@ -2084,332 +2070,6 @@ impl AppUI {
                         }
                     }
                 }
-            }
-        }
-    }
-
-    /// This function checks if there is any newer version of RPFM released.
-    ///
-    /// If the `use_dialog` is false, we make the checks in the background, and pop up a dialog only in case there is an update available.
-    pub unsafe fn check_updates(app_ui: &Rc<Self>, use_dialog: bool) {
-        let receiver = CENTRAL_COMMAND.send_network(Command::CheckUpdates);
-
-        let dialog = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
-            q_message_box::Icon::Information,
-            &qtr("update_checker"),
-            &qtr("update_searching"),
-            QFlags::from(q_message_box::StandardButton::Close),
-            &app_ui.main_window,
-        );
-
-        let close_button = dialog.button(q_message_box::StandardButton::Close);
-        let update_button = dialog.add_button_q_string_button_role(&qtr("update_button"), q_message_box::ButtonRole::AcceptRole);
-        update_button.set_enabled(false);
-
-        dialog.set_modal(true);
-        if use_dialog {
-            dialog.show();
-        }
-
-        let response = CENTRAL_COMMAND.recv_try(&receiver);
-        let message = match response {
-            Response::APIResponse(response) => {
-                match response {
-                    APIResponse::NewStableUpdate(last_release) => {
-                        update_button.set_enabled(true);
-                        qtre("api_response_success_new_stable_update", &[&last_release])
-                    }
-                    APIResponse::NewBetaUpdate(last_release) => {
-                        update_button.set_enabled(true);
-                        qtre("api_response_success_new_beta_update", &[&last_release])
-                    }
-                    APIResponse::NewUpdateHotfix(last_release) => {
-                        update_button.set_enabled(true);
-                        qtre("api_response_success_new_update_hotfix", &[&last_release])
-                    }
-                    APIResponse::NoUpdate => {
-                        if !use_dialog { return; }
-                        qtr("api_response_success_no_update")
-                    }
-                    APIResponse::UnknownVersion => {
-                        if !use_dialog { return; }
-                        qtr("api_response_success_unknown_version")
-                    }
-                }
-            }
-
-            Response::Error(error) => {
-                if !use_dialog { return; }
-                qtre("api_response_error", &[&error.to_string()])
-            }
-            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-        };
-
-        dialog.set_text(&message);
-        if dialog.exec() == 0 {
-            let receiver = CENTRAL_COMMAND.send_background(Command::UpdateMainProgram);
-
-            dialog.show();
-            dialog.set_text(&qtr("update_in_prog"));
-            update_button.set_enabled(false);
-            close_button.set_enabled(false);
-
-            let response = CENTRAL_COMMAND.recv_try(&receiver);
-            match response {
-                Response::Success => {
-                    let restart_button = dialog.add_button_q_string_button_role(&qtr("restart_button"), q_message_box::ButtonRole::ApplyRole);
-
-                    let changelog_path = PROGRAM_PATH.join(CHANGELOG_FILE);
-                    dialog.set_text(&qtre("update_success_main_program", &[&changelog_path.to_string_lossy()]));
-                    restart_button.set_enabled(true);
-                    close_button.set_enabled(true);
-
-                    // This closes the program and triggers a restart.
-                    if dialog.exec() == 1 {
-
-                        // Make sure we close both threads and the window. In windows the main window doesn't get closed for some reason.
-                        CENTRAL_COMMAND.send_background(Command::Exit);
-                        CENTRAL_COMMAND.send_network(Command::Exit);
-                        QApplication::close_all_windows();
-
-                        let rpfm_exe_path = current_exe().unwrap();
-                        SystemCommand::new(rpfm_exe_path).spawn().unwrap();
-                        exit(10);
-                    }
-                },
-                Response::Error(error) => {
-                    dialog.set_text(&QString::from_std_str(error.to_string()));
-                    close_button.set_enabled(true);
-                }
-                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-            }
-        }
-    }
-
-    /// This function checks if there is any newer version of RPFM's schemas released.
-    ///
-    /// If the `use_dialog` is false, we only show a dialog in case of update available. Useful for checks at start.
-    pub unsafe fn check_schema_updates(app_ui: &Rc<Self>, use_dialog: bool) {
-        let receiver = CENTRAL_COMMAND.send_network(Command::CheckSchemaUpdates);
-
-        // Create the dialog to show the response and configure it.
-        let dialog = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
-            q_message_box::Icon::Information,
-            &qtr("update_schema_checker"),
-            &qtr("update_searching"),
-            QFlags::from(q_message_box::StandardButton::Close),
-            &app_ui.main_window,
-        );
-
-        let close_button = dialog.button(q_message_box::StandardButton::Close);
-        let update_button = dialog.add_button_q_string_button_role(&qtr("update_button"), q_message_box::ButtonRole::AcceptRole);
-        update_button.set_enabled(false);
-
-        dialog.set_modal(true);
-        if use_dialog {
-            dialog.show();
-        }
-
-        // When we get a response, act depending on the kind of response we got.
-        let response_thread = CENTRAL_COMMAND.recv_try(&receiver);
-        let message = match response_thread {
-            Response::APIResponseGit(ref response) => {
-                match response {
-                    GitResponse::NewUpdate |
-                    GitResponse::Diverged => {
-                        update_button.set_enabled(true);
-                        qtr("schema_new_update")
-                    }
-                    GitResponse::NoUpdate => {
-                        if !use_dialog { return; }
-                        qtr("schema_no_update")
-                    }
-                    GitResponse::NoLocalFiles => {
-                        update_button.set_enabled(true);
-                        qtr("update_no_local_schema")
-                    }
-                }
-            }
-
-            Response::Error(error) => {
-                if !use_dialog { return; }
-                qtre("api_response_error", &[&error.to_string()])
-            }
-            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response_thread:?}"),
-        };
-
-        // If we hit "Update", try to update the schemas.
-        dialog.set_text(&message);
-        if dialog.exec() == 0 {
-            let receiver = CENTRAL_COMMAND.send_background(Command::UpdateSchemas);
-
-            dialog.show();
-            dialog.set_text(&qtr("update_in_prog"));
-            update_button.set_enabled(false);
-            close_button.set_enabled(false);
-
-            let response = CENTRAL_COMMAND.recv_try(&receiver);
-            match response {
-                Response::Success => {
-                    dialog.set_text(&qtr("schema_update_success"));
-                    close_button.set_enabled(true);
-                },
-                Response::Error(error) => {
-                    dialog.set_text(&QString::from_std_str(error.to_string()));
-                    close_button.set_enabled(true);
-                }
-                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-            }
-        }
-    }
-
-    /// This function checks if there is any newer version of RPFM's schemas released.
-    ///
-    /// If the `use_dialog` is false, we only show a dialog in case of update available. Useful for checks at start.
-    pub unsafe fn check_lua_autogen_updates(app_ui: &Rc<Self>, use_dialog: bool) {
-        let receiver = CENTRAL_COMMAND.send_network(Command::CheckLuaAutogenUpdates);
-
-        // Create the dialog to show the response and configure it.
-        let dialog = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
-            q_message_box::Icon::Information,
-            &qtr("update_lua_autogen_checker"),
-            &qtr("update_searching"),
-            QFlags::from(q_message_box::StandardButton::Close),
-            &app_ui.main_window,
-        );
-
-        let close_button = dialog.button(q_message_box::StandardButton::Close);
-        let update_button = dialog.add_button_q_string_button_role(&qtr("update_button"), q_message_box::ButtonRole::AcceptRole);
-        update_button.set_enabled(false);
-
-        dialog.set_modal(true);
-        if use_dialog {
-            dialog.show();
-        }
-
-        // When we get a response, act depending on the kind of response we got.
-        let response_thread = CENTRAL_COMMAND.recv_try(&receiver);
-        let message = match response_thread {
-            Response::APIResponseGit(ref response) => {
-                match response {
-                    GitResponse::NewUpdate |
-                    GitResponse::Diverged => {
-                        update_button.set_enabled(true);
-                        qtr("lua_autogen_new_update")
-                    }
-                    GitResponse::NoUpdate => {
-                        if !use_dialog { return; }
-                        qtr("lua_autogen_no_update")
-                    }
-                    GitResponse::NoLocalFiles => {
-                        update_button.set_enabled(true);
-                        qtr("update_no_local_lua_autogen")
-                    }
-                }
-            }
-
-            Response::Error(error) => {
-                if !use_dialog { return; }
-                qtre("api_response_error", &[&error.to_string()])
-            }
-            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response_thread:?}"),
-        };
-
-        // If we hit "Update", try to update the schemas.
-        dialog.set_text(&message);
-        if dialog.exec() == 0 {
-            let receiver = CENTRAL_COMMAND.send_background(Command::UpdateLuaAutogen);
-
-            dialog.show();
-            dialog.set_text(&qtr("update_in_prog"));
-            update_button.set_enabled(false);
-            close_button.set_enabled(false);
-
-            let response = CENTRAL_COMMAND.recv_try(&receiver);
-            match response {
-                Response::Success => {
-                    dialog.set_text(&qtr("lua_autogen_update_success"));
-                    close_button.set_enabled(true);
-                },
-                Response::Error(error) => {
-                    dialog.set_text(&QString::from_std_str(error.to_string()));
-                    close_button.set_enabled(true);
-                }
-                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-            }
-        }
-    }
-
-    pub unsafe fn check_old_ak_updates(app_ui: &Rc<Self>, use_dialog: bool) {
-        let receiver = CENTRAL_COMMAND.send_network(Command::CheckEmpireAndNapoleonAKUpdates);
-
-        // Create the dialog to show the response and configure it.
-        let dialog = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
-            q_message_box::Icon::Information,
-            &qtr("update_old_ak_autogen_checker"),
-            &qtr("update_searching"),
-            QFlags::from(q_message_box::StandardButton::Close),
-            &app_ui.main_window,
-        );
-
-        let close_button = dialog.button(q_message_box::StandardButton::Close);
-        let update_button = dialog.add_button_q_string_button_role(&qtr("update_button"), q_message_box::ButtonRole::AcceptRole);
-        update_button.set_enabled(false);
-
-        dialog.set_modal(true);
-        if use_dialog {
-            dialog.show();
-        }
-
-        // When we get a response, act depending on the kind of response we got.
-        let response_thread = CENTRAL_COMMAND.recv_try(&receiver);
-        let message = match response_thread {
-            Response::APIResponseGit(ref response) => {
-                match response {
-                    GitResponse::NewUpdate |
-                    GitResponse::Diverged => {
-                        update_button.set_enabled(true);
-                        qtr("old_ak_new_update")
-                    }
-                    GitResponse::NoUpdate => {
-                        if !use_dialog { return; }
-                        qtr("old_ak_no_update")
-                    }
-                    GitResponse::NoLocalFiles => {
-                        update_button.set_enabled(true);
-                        qtr("update_no_local_old_ak")
-                    }
-                }
-            }
-
-            Response::Error(error) => {
-                if !use_dialog { return; }
-                qtre("api_response_error", &[&error.to_string()])
-            }
-            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response_thread:?}"),
-        };
-
-        // If we hit "Update", try to update the schemas.
-        dialog.set_text(&message);
-        if dialog.exec() == 0 {
-            let receiver = CENTRAL_COMMAND.send_background(Command::UpdateEmpireAndNapoleonAK);
-
-            dialog.show();
-            dialog.set_text(&qtr("update_in_prog"));
-            update_button.set_enabled(false);
-            close_button.set_enabled(false);
-
-            let response = CENTRAL_COMMAND.recv_try(&receiver);
-            match response {
-                Response::Success => {
-                    dialog.set_text(&qtr("old_ak_update_success"));
-                    close_button.set_enabled(true);
-                },
-                Response::Error(error) => {
-                    dialog.set_text(&QString::from_std_str(error.to_string()));
-                    close_button.set_enabled(true);
-                }
-                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
             }
         }
     }

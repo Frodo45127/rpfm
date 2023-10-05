@@ -37,7 +37,7 @@ use rpfm_lib::schema::{Definition, DefinitionPatch, Field, Schema};
 use crate::app_ui::NewFile;
 use crate::backend::*;
 use crate::packedfile_views::DataSource;
-use crate::updater::APIResponse;
+use crate::updater_ui::APIResponse;
 
 /// This const is the standard message in case of message communication error. If this happens, crash the program.
 pub const THREADS_COMMUNICATION_ERROR: &str = "Error in thread communication system. Response received: ";

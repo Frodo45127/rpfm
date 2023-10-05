@@ -65,6 +65,7 @@ use crate::packfile_contents_ui;
 use crate::packfile_contents_ui::slots::PackFileContentsSlots;
 use crate::settings_ui::backend::*;
 use crate::UI_STATE;
+use crate::updater_ui::UpdaterUI;
 use crate::utils::*;
 
 //-------------------------------------------------------------------------------//
@@ -206,14 +207,8 @@ impl UI {
             }
         }
 
-        // If we have it enabled in the prefs, check if there are updates.
-        if setting_bool("check_updates_on_start") { AppUI::check_updates(&app_ui, false) };
-
-        // If we have it enabled in the prefs, check if there are schema updates.
-        if setting_bool("check_schema_updates_on_start") { AppUI::check_schema_updates(&app_ui, false) };
-
-        // If we have it enabled in the prefs, check if there are lua autogen updates.
-        if setting_bool("check_lua_autogen_updates_on_start") { AppUI::check_lua_autogen_updates(&app_ui, false) };
+        // Check for updates, ignoring errors.
+        let _ = UpdaterUI::new_with_precheck(&app_ui);
 
         // Clean up folders from previous updates, if they exist.
         if !cfg!(debug_assertions) {

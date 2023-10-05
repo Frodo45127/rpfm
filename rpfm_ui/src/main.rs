@@ -78,7 +78,7 @@ mod settings_ui;
 #[cfg(feature = "enable_tools")]mod tools;
 mod ui;
 mod ui_state;
-mod updater;
+mod updater_ui;
 mod utils;
 mod views;
 

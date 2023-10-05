@@ -23,7 +23,7 @@ use rpfm_lib::schema::*;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::settings_ui::backend::*;
-use crate::updater;
+use crate::updater_ui;
 
 /// This is the network loop that's going to be executed in a parallel thread to the UI. No UI or "Unsafe" stuff here.
 ///
@@ -46,7 +46,7 @@ pub fn network_loop() {
 
             // When we want to check if there is an update available for RPFM...
             Command::CheckUpdates => {
-                match updater::check_updates_rpfm() {
+                match updater_ui::check_updates_rpfm() {
                     Ok(response) => CentralCommand::send_back(&sender, Response::APIResponse(response)),
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                 }

@@ -37,7 +37,7 @@ pub use rpfm_ui_common::settings::*;
 
 use crate::GAME_SELECTED;
 use crate::SUPPORTED_GAMES;
-use crate::updater::STABLE;
+use crate::updater_ui::STABLE;
 
 /// Key of the MyMod path in the settings";
 pub const MYMOD_BASE_PATH: &str = "mymods_base_path";
@@ -121,6 +121,7 @@ pub unsafe fn init_settings(main_window: &QPtr<QMainWindow>) {
     set_setting_if_new_bool(&q_settings, "check_updates_on_start", true);
     set_setting_if_new_bool(&q_settings, "check_schema_updates_on_start", true);
     set_setting_if_new_bool(&q_settings, "check_lua_autogen_updates_on_start", true);
+    set_setting_if_new_bool(&q_settings, "check_old_ak_updates_on_start", true);
     set_setting_if_new_bool(&q_settings, "use_lazy_loading", true);
     set_setting_if_new_bool(&q_settings, "optimize_not_renamed_packedfiles", false);
     set_setting_if_new_bool(&q_settings, "disable_uuid_regeneration_on_db_tables", true);

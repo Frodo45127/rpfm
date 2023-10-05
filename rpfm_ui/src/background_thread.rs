@@ -1181,7 +1181,7 @@ pub fn background_loop() {
 
             // When we want to update our program...
             Command::UpdateMainProgram => {
-                match crate::updater::update_main_program() {
+                match crate::updater_ui::update_main_program() {
                     Ok(_) => CentralCommand::send_back(&sender, Response::Success),
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                 }

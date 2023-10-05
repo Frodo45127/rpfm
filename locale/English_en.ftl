@@ -1474,3 +1474,54 @@ translator_move_selection_down = Move down
 translator_copy_from_source = Copy from source
 translator_import_from_translated_pack = Import from translated Pack
 translator_language = Language:
+
+updater_title = Update Manager
+updater_info_title = Info
+updater_info = <p>This is the central update manager for Rusted Packfile Manager. What each button means:</p>
+    <ul>
+        <li>
+            <b>Program Updates</b>: Updates to the program itself. After updating it, you can click it again to restart into the updated program. Some notes on these updates:<ul>
+                <li>To see the changes, after updating you can <a href='file:///{"{"}{"}"}'>click here</a> or you can open the Changelog.md file in RPFM's folder.</li>
+                <li>Note that there are two update channels: beta and stable. <b>You're currently on the {"{"}{"}"} channel</b>. You can change the channel in the settings.</li>
+                <li>If you select "Stable" channel and you're in a beta, the latest Stable will be always shown as an available update, EVEN IF IT'S OLDER THAN YOUR BETA. This is to allow rollbacks. So if you want to use betas, make sure to select the "Beta" channel.</li>
+            </ul>
+        </li>
+        <li><b>Schema Updates</b>: These files are required to make RPFM able to open tables. Basically, if there's an update of this, download it.</li>
+        <li><b>Lua Autogen Updates</b>: This is for MyMods and Scripting. When creating MyMods, RPFM can create projects for VSCode and Sublime Text automatically. If you have this up-to-date, RPFM will configure said projects so you have linting and autocompletion for Lua Scripts in said projects out of the box.</li>
+        <li><b>Old AK Updates</b>: This is for Empire and Napoleon modders. If you mod these games, download it, then regenerate the Dependencies Cache for those two games. RPFM usually uses the Assembly Kit as part of the Dependencies Cache, for... many features. Empire and Napoleon don't have AK's per-se, but CA released a long time ago their tables to the public. This download said tables so RPFM can "fake" an Assembly Kit for them, and enable the same features the rest of the games have.</li>
+    </ul>
+
+updater_update_schemas = Schema Updates:
+updater_update_program = Program Updates:
+updater_update_twautogen = Lua Autogen Updates:
+updater_update_old_ak = Old AK Updates:
+updater_update_schemas_checking = Checking, pls wait...
+updater_update_program_checking = Checking, pls wait...
+updater_update_twautogen_checking = Checking, pls wait...
+updater_update_old_ak_checking = Checking, pls wait...
+
+updater_update_program_available = Update {"{"}{"}"} available!
+updater_update_program_no_updates = No updates found.
+
+updater_update_schemas_available = Update available!
+updater_update_schemas_no_updates = No update found.
+
+updater_update_twautogen_available = Update available!
+updater_update_twautogen_no_updates = No update found.
+
+updater_update_old_ak_available = Update available!
+updater_update_old_ak_no_updates = No update found.
+
+updater_update_program_error = Error updating RPFM.
+updater_update_program_updated = RPFM updated! Click here to restart it.
+
+updater_update_schemas_error = Error updating schemas.
+updater_update_schemas_updated = Schemas updated!
+
+updater_update_twautogen_error = Error updating Lua Autogen.
+updater_update_twautogen_updated = Lua Autogen updated!
+
+updater_update_old_ak_error = Error updating Old AK.
+updater_update_old_ak_updated = Old AK updated!
+
+settings_check_old_ak_updates_on_start = Check Old AK (Empire & Napoleon) Updates:

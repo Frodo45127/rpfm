@@ -73,6 +73,7 @@ use crate::references_ui::ReferencesUI;
 use crate::settings_ui::{backend::*, SettingsUI};
 #[cfg(feature = "enable_tools")]use crate::tools::{faction_painter::ToolFactionPainter, translator::ToolTranslator, unit_editor::ToolUnitEditor};
 use crate::ui::GameSelectedIcons;
+use crate::updater_ui::UpdaterUI;
 use crate::{ui_state::OperationalMode, UI_STATE};
 use crate::utils::*;
 use crate::VERSION;
@@ -159,9 +160,6 @@ pub struct AppUISlots {
     pub about_about_qt: QBox<SlotOfBool>,
     pub about_about_rpfm: QBox<SlotOfBool>,
     pub about_check_updates: QBox<SlotOfBool>,
-    pub about_check_schema_updates: QBox<SlotOfBool>,
-    pub about_check_lua_autogen_updates: QBox<SlotOfBool>,
-    pub about_check_empire_and_napoleon_ak_updates: QBox<SlotOfBool>,
 
     //-----------------------------------------------//
     // `Debug` menu slots.
@@ -1389,29 +1387,9 @@ impl AppUISlots {
         let about_check_updates = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
                 info!("Triggering `Check Updates` By Slot");
-                AppUI::check_updates(&app_ui, true);
-            }
-        ));
-
-        // What happens when we trigger the "Check Schema Update" action.
-        let about_check_schema_updates = SlotOfBool::new(&app_ui.main_window, clone!(
-            app_ui => move |_| {
-                info!("Triggering `Check Schema Updates` By Slot");
-                AppUI::check_schema_updates(&app_ui, true);
-            }
-        ));
-
-        let about_check_lua_autogen_updates = SlotOfBool::new(&app_ui.main_window, clone!(
-            app_ui => move |_| {
-                info!("Triggering `Check Lua Autogen Updates` By Slot");
-                AppUI::check_lua_autogen_updates(&app_ui, true);
-            }
-        ));
-
-        let about_check_empire_and_napoleon_ak_updates = SlotOfBool::new(&app_ui.main_window, clone!(
-            app_ui => move |_| {
-                info!("Triggering `Check Old AK Updates` By Slot");
-                AppUI::check_old_ak_updates(&app_ui, true);
+                if let Err(error) = UpdaterUI::new(&app_ui, None, None, None, None) {
+                    show_dialog(app_ui.main_window(), error, false);
+                }
             }
         ));
 
@@ -1961,9 +1939,6 @@ impl AppUISlots {
     		about_about_qt,
             about_about_rpfm,
             about_check_updates,
-            about_check_schema_updates,
-            about_check_lua_autogen_updates,
-            about_check_empire_and_napoleon_ak_updates,
 
             //-----------------------------------------------//
             // `Debug` menu slots.
