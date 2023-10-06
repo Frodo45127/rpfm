@@ -581,9 +581,12 @@ pub fn background_loop() {
                     let extra_data = Some(decode_extra_data);
 
                     let mut files = pack_file_decoded.files_by_paths_mut(&added_paths, false);
-                    files.par_iter_mut().for_each(|file| {
-                        let _ = file.decode(&extra_data, true, false);
-                    });
+                    files.par_iter_mut()
+                        .filter(|file| file.file_type() == FileType::DB || file.file_type() == FileType::Loc)
+                        .for_each(|file| {
+                            let _ = file.decode(&extra_data, true, false);
+                        }
+                    );
                 }
             }
 
@@ -609,10 +612,13 @@ pub fn background_loop() {
                             decode_extra_data.set_schema(Some(schema));
                             let extra_data = Some(decode_extra_data);
 
-                            let mut files = pack_file_decoded.files_by_type_mut(&[FileType::DB, FileType::Loc]);
-                            files.par_iter_mut().for_each(|file| {
-                                let _ = file.decode(&extra_data, true, false);
-                            });
+                            let mut files = pack_file_decoded.files_by_paths_mut(&paths, false);
+                            files.par_iter_mut()
+                                .filter(|file| file.file_type() == FileType::DB || file.file_type() == FileType::Loc)
+                                .for_each(|file| {
+                                    let _ = file.decode(&extra_data, true, false);
+                                }
+                            );
                         }
                     }
                     None => CentralCommand::send_back(&sender, Response::Error(anyhow!("Cannot find extra PackFile with path: {}", pack_file_path.to_string_lossy()))),
