@@ -26,8 +26,6 @@ use qt_gui::QCursor;
 use qt_gui::QDesktopServices;
 use qt_gui::QFont;
 
-use qt_core::QBuffer;
-use qt_core::QByteArray;
 use qt_core::QBox;
 use qt_core::{SlotNoArgs, SlotOfBool, SlotOfInt};
 use qt_core::QFlags;
@@ -1485,8 +1483,6 @@ impl AppUISlots {
 
                         // Reload the quick notes view, in case we added notes on another path that affects this one.
                         file_view.notes_view().load_data();
-
-                        // TODO: This lags the ui on switching tabs. Move to the backend + timer.
                         if let ViewType::Internal(View::Table(table)) = file_view.view_type() {
 
                             // For tables, we have to update the dependency data, reload its profiles and reset the dropdown's data.
@@ -1500,6 +1496,7 @@ impl AppUISlots {
                                 let fields_processed = definition.fields_processed();
                                 let patches = Some(definition.patches());
 
+                                let table_data = get_table_from_view(&table.table_model().static_upcast(), &definition);
                                 for (column, field) in fields_processed.iter().enumerate() {
 
                                     // Update lookups pointing to other tables/locs. We don't need to update self-referencing lookups, as those update on edit.
@@ -1521,7 +1518,7 @@ impl AppUISlots {
                                     // Update icons.
                                     if setting_bool("enable_icons") && field.is_filename(patches) {
                                         let mut icons = BTreeMap::new();
-                                        if let Ok(table_data) = get_table_from_view(&table.table_model().static_upcast(), &definition) {
+                                        if let Ok(ref table_data) = table_data {
 
                                             if request_backend_files(&table_data.data(), column, &field, patches, &mut icons).is_ok() {
                                                 if let Some(column_data) = icons.get(&(column as i32)) {
@@ -1536,14 +1533,8 @@ impl AppUISlots {
                                                                 item.set_icon(icon);
                                                                 item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(path)), 52);
 
-                                                                // For tooltips, we put the data in a specific place so the c++ code picks it up.
-                                                                let image = icon.pixmap_q_size(icon.available_sizes_0a().at(0)).to_image();
-                                                                let bytes = QByteArray::new();
-                                                                let buffer = QBuffer::from_q_byte_array(&bytes);
-
-                                                                image.save_q_io_device_char(&buffer, QString::from_std_str("PNG").to_latin1().data());
-                                                                item.set_data_2a(&QVariant::from_q_string(&QString::from_q_byte_array(&bytes.to_base64_0a())), 50);
-
+                                                                // For tooltips, we just nuke all the catched pngs. It's simpler than trying to go one by one and finding the ones that need updating.
+                                                                item.set_data_2a(&QVariant::new(), 50);
                                                                 break;
                                                             }
                                                         }

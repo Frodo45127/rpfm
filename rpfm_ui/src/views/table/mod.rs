@@ -39,8 +39,6 @@ use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;
 
 use qt_core::AlignmentFlag;
-use qt_core::QBuffer;
-use qt_core::QByteArray;
 use qt_core::CaseSensitivity;
 use qt_core::CheckState;
 use qt_core::Orientation;
@@ -2570,13 +2568,8 @@ impl TableView {
                                     item.set_icon(icon);
                                     item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(path)), 52);
 
-                                    // For tooltips, we put the data in a specific place so the c++ code picks it up.
-                                    let image = icon.pixmap_q_size(icon.available_sizes_0a().at(0)).to_image();
-                                    let bytes = QByteArray::new();
-                                    let buffer = QBuffer::from_q_byte_array(&bytes);
-
-                                    image.save_q_io_device_char(&buffer, QString::from_std_str("PNG").to_latin1().data());
-                                    item.set_data_2a(&QVariant::from_q_string(&QString::from_q_byte_array(&bytes.to_base64_0a())), 50);
+                                    // Nuke any cached png from the tooltips.
+                                    item.set_data_2a(&QVariant::new(), 50);
 
                                     self.table_model.block_signals(false);
                                     break;
