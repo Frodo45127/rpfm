@@ -149,6 +149,7 @@ pub unsafe fn init_settings(main_window: &QPtr<QMainWindow>) {
     set_setting_if_new_bool(&q_settings, "spoof_ca_authoring_tool", false);
     set_setting_if_new_bool(&q_settings, "enable_rigidmodel_editor", true);
     set_setting_if_new_bool(&q_settings, "enable_unit_editor", false);
+    set_setting_if_new_bool(&q_settings, "enable_esf_editor", false);
 
     // Diagnostics Settings
     set_setting_if_new_bool(&q_settings, "diagnostics_trigger_on_open", true);

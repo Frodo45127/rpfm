@@ -2098,7 +2098,7 @@ fn decode_and_send_file(file: &mut RFile, sender: &Sender<Response>) {
     extra_data.set_game_key(Some(game_key));
 
     // Do not attempt to decode these.
-    let ignored_file_types = vec![
+    let mut ignored_file_types = vec![
         FileType::Anim,
         FileType::BMD,
         FileType::BMDVegetation,
@@ -2109,6 +2109,11 @@ fn decode_and_send_file(file: &mut RFile, sender: &Sender<Response>) {
         FileType::SoundBank,
         FileType::Unknown
     ];
+
+    // Do not even attempt to decode esf files if the editor is disabled.
+    if !setting_bool("enable_esf_editor") {
+        ignored_file_types.push(FileType::ESF);
+    }
 
     if ignored_file_types.contains(&file.file_type()) {
         return CentralCommand::send_back(&sender, Response::Unknown);
