@@ -1097,8 +1097,8 @@ are_you_sure_rename_db_folder = <p>You are trying to break the golden rule of DB
 
     <p>If you're doing this because someone told you to <i>rename the tables</i>, he/she/it meant the table files, not the table folders.</p>
 
-    <p>The only reason why there is even a button in this dialog to continue is for the very specific situation when you're trying to fix a table folder that someone else renamed.</p>
-    <p>If that's not your case, exit this dialog and remember: <b>NEVER RENAME THE TABLE FOLDERS</b>.</p>
+    <p>The only reason why there is even a button in this dialog to <b>continue (Yes)</b> is for the very specific situation when you're trying to fix a table folder that someone else renamed.</p>
+    <p>If that's not your case, <b>hit No or exit this dialog</b> and remember: <b>NEVER RENAME THE TABLE FOLDERS</b>.</p>
 
 gen_loc_dependencies = Dependencies
 context_menu_import = Import
