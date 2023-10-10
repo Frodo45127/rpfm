@@ -954,10 +954,6 @@ impl TableView {
         self.filters.write().unwrap()
     }
 
-    pub fn dependency_data(&self) -> RwLockReadGuard<HashMap<i32, TableReferences>> {
-        self.dependency_data.read().unwrap()
-    }
-
     /// This function allows you to set a new dependency data to an already created table.
     pub fn set_dependency_data(&self, data: &HashMap<i32, TableReferences>) {
         *self.dependency_data.write().unwrap() = data.clone();
