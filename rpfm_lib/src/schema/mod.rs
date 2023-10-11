@@ -876,8 +876,10 @@ impl Definition {
                 .filter(|x| localisable_fields_names.contains(&&*x.name))
                 .collect::<Vec<&RawField>>();
 
-            let fields = localisable_fields.iter().map(|x| From::from(*x)).collect();
-            self.localised_fields = fields;
+            self.localised_fields = localisable_fields.iter().map(|x| From::from(*x)).collect();
+
+            // Set their type to StringU8 for consistency.
+            self.localised_fields.iter_mut().for_each(|field| field.field_type = FieldType::StringU8);
         }
     }
 }
