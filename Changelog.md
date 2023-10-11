@@ -6,11 +6,11 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
-## [Unreleased]
+## [4.2.0]
 ### Added
 - Implemented "Translator" tool, with support for all games.
 - Implemented support for "HlslCompiled" files (lib-only).
-- Implemented support for Pharaoh (Early Access).
+- Implemented support for Pharaoh.
 - Implemented support for GroupFormation files for:
     + Rome 2
     + Shogun 2
@@ -21,6 +21,8 @@ If you're looking for the changes included in the latest beta (against the lates
 - BMD Vegetation now have a particular icon.
 - Updated optimizer warning.
 - The mysterious error non-error message when generating the dependencies cache is now less mysterious.
+- ESF Editor has been disabled and hidden behind a setting due to bugs.
+- The "move table" error message should be clearer now.
 
 ### Fixed
 - Fixed a bug in the compression logic that caused errors when compressing/decompressing.
@@ -37,6 +39,9 @@ If you're looking for the changes included in the latest beta (against the lates
 - Fixed crash logger setting the app name incorrectly.
 - Fixed CTD when changing the type of a Pack through the CLI.
 - Fixed logger error spam due to a missing check.
+- Fixed "Add to Pack" operation decoding files they shouldn't decode.
+- Fixed certain tables hanging when you click on their tab due to having too many icons.
+- Fixed "Update schema from assembly kit" feature missing localisable fields when a localisable fields file existed.
 
 ## [4.1.3]
 ### Added
@@ -1226,7 +1231,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.1.3...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.2.0...HEAD
+[4.2.0]: https://github.com/Frodo45127/rpfm/compare/v4.1.3...v4.2.0
 [4.1.3]: https://github.com/Frodo45127/rpfm/compare/v4.1.2...v4.1.3
 [4.1.2]: https://github.com/Frodo45127/rpfm/compare/v4.1.1...v4.1.2
 [4.1.1]: https://github.com/Frodo45127/rpfm/compare/v4.1.0...v4.1.1
