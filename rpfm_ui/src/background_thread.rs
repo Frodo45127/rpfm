@@ -391,7 +391,11 @@ pub fn background_loop() {
                                 match update_schema_from_raw_files(schema, &game_selected, &asskit_path, &schema_path, &tables_to_skip, &tables_to_check_split) {
                                     Ok(possible_loc_fields) => {
 
+                                        // NOTE: This deletes all loc fields first, so we need to get the loc fields AGAIN after this from the TExc_LocalisableFields.xml, if said file exists and it's readable.
+                                        // That's why it does the update again, to re-populate the loc fields list with the ones not bruteforced. It's ineficient, but gets the job done.
                                         if dependencies.bruteforce_loc_key_order(schema, possible_loc_fields, None).is_ok() {
+                                            let _ = update_schema_from_raw_files(schema, &game_selected, &asskit_path, &schema_path, &tables_to_skip, &tables_to_check_split);
+
                                             match schema.save(&schemas_path().unwrap().join(GAME_SELECTED.read().unwrap().schema_file_name())) {
                                                 Ok(_) => CentralCommand::send_back(&sender, Response::Success),
                                                 Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
