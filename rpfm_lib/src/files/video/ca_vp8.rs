@@ -12,6 +12,8 @@
 //!
 //! All the functions here are internal, so they should be either private or public only within this crate.
 
+use std::io::SeekFrom;
+
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{RLibError, Result};
 use crate::utils::check_size_mismatch;
@@ -19,7 +21,7 @@ use crate::utils::check_size_mismatch;
 use super::*;
 
 const HEADER_LENGTH_CAVP8_V0: u16 = 40;
-const HEADER_LENGTH_CAVP8_V1: u16 = 41;
+const HEADER_LENGTH_CAVP8_V1: u16 = 40;
 
 //---------------------------------------------------------------------------//
 //                              Implementation
@@ -39,24 +41,24 @@ impl Video {
         let width = data.read_u16()?;
         let height = data.read_u16()?;
         let ms_per_frame = data.read_f32()?;
-        let _mystery_u32 = data.read_u32()?;
-        let mut num_frames = data.read_u32()?;
+        let _mystery_u32 = data.read_u32()?;        // No idea, always 1.
+        let num_frames_minus_1 = data.read_u32()?;  // Same as num_frames, but sometimes is num_frames - 1. When it's the same, there are 9 extra bytes in the header.
         let offset_frame_table = data.read_u32()?;
-        let _num_frames_plus_1 = data.read_u32()?;
-        let _largest_frame_size = data.read_u32()?;
+        let num_frames = data.read_u32()?;
+        let _largest_frame_size = data.read_u32()?; // Largest frame's size, in bytes. Recalculated on save.
 
-        if version == 1 {
-            let _unknown_1 = data.read_u8()?;
-        } else if version == 0 {
-            num_frames += 1;
-        }
+        // If both frame counts are the same, we get some extra data in the header.
+        let extra_data = if num_frames_minus_1 == num_frames {
+            let mystery_u8 = data.read_u8()?;               // No idea, always 0.
+            let mystery_u32_1 = data.read_u32()?;           // No idea, always a very big number.
+            let mystery_u32_2 = data.read_u32()?;           // No idea, always a very big number, but smaller than the one above.
+            Some((mystery_u8, mystery_u32_1, mystery_u32_2))
+        } else {
+            None
+        };
 
-        // Check the header has been read correctly. Fun fact about the header len: it seems is wrong on v0 files.
-        // It's lacking 8 bytes added by CA, so we need to add them to the lenght to get the offsets right.
-        if version == 0 {
-            header_len += 8
-        }
-
+        // Check the header has been read correctly. We need to add 8 bytes to the header lenght to conpensate for the height first bytes of the file.
+        header_len += 8;
         check_size_mismatch(data.stream_position()? as usize, header_len as usize)?;
 
         // Store the frame data for later access.
@@ -95,7 +97,7 @@ impl Video {
             if frame_offset_real_end as u64 > data.len()? {
                 return Err(RLibError::DecodingCAVP8IncorrectOrUnknownFrameSize);
             }
-            use std::io::SeekFrom;
+
             let x = data.stream_position()?;
             data.seek(SeekFrom::Start(frame_offset_real as u64))?;
             frame_table_decoded.extend_from_slice(&data.read_slice(frame.size as usize, false)?);
@@ -112,6 +114,7 @@ impl Video {
             width,
             height,
             num_frames,
+            extra_data,
             framerate: 1_000f32 / ms_per_frame,
             frame_table,
             frame_data,
@@ -121,8 +124,22 @@ impl Video {
     /// This function writes a `CaVp8` into a buffer in the `CaVp8` format.
     pub(crate) fn save_cavp8<W: WriteBytes>(&self, buffer: &mut W) -> Result<()> {
 
-        let header_lenght = if self.version == 0 { HEADER_LENGTH_CAVP8_V0 } else { HEADER_LENGTH_CAVP8_V1 };
-        let header_lenght_broken = if self.version == 0 { HEADER_LENGTH_CAVP8_V0 - 8 } else { HEADER_LENGTH_CAVP8_V1 };
+        let header_lenght = if self.version == 0 {
+            if self.extra_data.is_some() {
+                HEADER_LENGTH_CAVP8_V0 + 9
+            } else {
+                HEADER_LENGTH_CAVP8_V0
+            }
+        } else {
+            if self.extra_data.is_some() {
+                HEADER_LENGTH_CAVP8_V1 + 9
+            } else {
+                HEADER_LENGTH_CAVP8_V1
+            }
+        };
+
+
+        let header_lenght_broken = if self.version == 0 { header_lenght - 8 } else { header_lenght - 8 };
 
         buffer.write_string_u8(SIGNATURE_CAVP8)?;
         buffer.write_u16(self.version)?;
@@ -134,26 +151,31 @@ impl Video {
         buffer.write_f32(1_000f32 / self.framerate)?;
         buffer.write_u32(1)?; // _mystery_u32: I don't actually know what this is.
 
-        // Version 0 files have one less frame here.
-        if self.version == 0 && self.num_frames >= 1 {
-            buffer.write_u32(self.num_frames - 1)?;
-        } else {
+        if self.extra_data.is_some() {
             buffer.write_u32(self.num_frames)?;
+        } else {
+            buffer.write_u32(self.num_frames - 1)?;
         }
 
         buffer.write_u32(header_lenght as u32 + self.frame_data.len() as u32)?;
         buffer.write_u32(self.num_frames)?;
         buffer.write_u32(self.frame_table.iter().map(|x| x.size).max().unwrap())?;
 
-        // Final header byte, only in version 1.
-        if self.version == 1 {
-            buffer.write_u8(0)?; // _unknown_1: no idea.
+        if let Some(extra_data) = self.extra_data {
+            buffer.write_u8(extra_data.0)?;
+            buffer.write_u32(extra_data.1)?;
+            buffer.write_u32(extra_data.2)?;
         }
 
         // Frame data and table.
         buffer.write_all(&self.frame_data)?;
 
-        let mut offset = header_lenght as u32;
+        let mut offset = if self.extra_data.is_some() {
+            header_lenght_broken as u32
+        } else {
+            header_lenght as u32
+        };
+
         for frame in &self.frame_table {
             buffer.write_u32(offset)?;
             buffer.write_u32(frame.size)?;

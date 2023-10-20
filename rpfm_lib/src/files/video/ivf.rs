@@ -84,6 +84,7 @@ impl Video {
             width,
             height,
             num_frames,
+            extra_data: None,
             framerate: timebase_denominator as f32 / timebase_numerator as f32,
             frame_table,
             frame_data,

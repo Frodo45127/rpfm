@@ -136,6 +136,9 @@ pub struct Video {
     /// Framerate of the video.
     framerate: f32,
 
+    /// Extra unknown data at the end of some headers.
+    extra_data: Option<(u8, u32, u32)>,
+
     /// Frame Table of the video.
     frame_table: Vec<Frame>,
 
