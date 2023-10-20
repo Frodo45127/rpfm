@@ -117,12 +117,14 @@ impl FilterViewSlots {
             view,
             parent_view => move || {
             if parent_view.filters().len() > 1 {
-                parent_view.filter_base_widget.layout().remove_widget(view.main_widget.as_ptr());
-                let filter = parent_view.filters_mut().pop();
-                parent_view.filter_table();
+                let pos = parent_view.filters().iter().position(|filter_view| view.main_widget.as_ptr().as_raw_ptr() == filter_view.main_widget.as_ptr().as_raw_ptr());
+                if let Some(pos) = pos {
+                    parent_view.filter_base_widget.layout().remove_widget(view.main_widget.as_ptr());
 
-                // Make sure to delete the widget so it's not kept in the UI.
-                if let Some(filter) = filter {
+                    // Make sure to delete the widget so it's not kept in the UI.
+                    let filter = parent_view.filters_mut().remove(pos);
+                    parent_view.filter_table();
+
                     filter.main_widget.delete_later();
                 }
             }
