@@ -20,7 +20,7 @@ use super::*;
 
 #[test]
 fn test_decode_ca_vp8_v1_to_ivf_and_back() {
-    let path_1 = "../test_files/ca_vp8_v1_decode.ca_vp8";
+    let path_1 = "../test_files/ca_vp8_v1_short_decode.ca_vp8";
     let path_2 = "../test_files/ca_vp8_v1_to_ivf_and_back.ca_vp8";
     let mut reader = BufReader::new(File::open(path_1).unwrap());
 
