@@ -51,7 +51,7 @@ impl UpdaterUISlots {
         let update_program = SlotNoArgs::new(ui.main_widget(), clone!(
             ui => move || {
                 let receiver = CENTRAL_COMMAND.send_background(Command::UpdateMainProgram);
-                ui.update_program_button.set_text(&qtr("updater_update_program_checking"));
+                ui.update_program_button.set_text(&qtr("updater_update_program_updating"));
                 ui.update_program_button.set_enabled(false);
 
                 let response = CENTRAL_COMMAND.recv_try(&receiver);
@@ -85,7 +85,7 @@ impl UpdaterUISlots {
         let update_schemas = SlotNoArgs::new(ui.main_widget(), clone!(
             ui => move || {
                 let receiver = CENTRAL_COMMAND.send_background(Command::UpdateSchemas);
-                ui.update_schemas_button.set_text(&qtr("updater_update_schemas_checking"));
+                ui.update_schemas_button.set_text(&qtr("updater_update_schemas_updating"));
                 ui.update_schemas_button.set_enabled(false);
 
                 let response = CENTRAL_COMMAND.recv_try(&receiver);
@@ -105,7 +105,7 @@ impl UpdaterUISlots {
         let update_twautogen = SlotNoArgs::new(ui.main_widget(), clone!(
             ui => move || {
                 let receiver = CENTRAL_COMMAND.send_background(Command::UpdateLuaAutogen);
-                ui.update_twautogen_button.set_text(&qtr("updater_update_twautogen_checking"));
+                ui.update_twautogen_button.set_text(&qtr("updater_update_twautogen_updating"));
                 ui.update_twautogen_button.set_enabled(false);
 
                 let response = CENTRAL_COMMAND.recv_try(&receiver);
@@ -125,7 +125,7 @@ impl UpdaterUISlots {
         let update_old_ak = SlotNoArgs::new(ui.main_widget(), clone!(
             ui => move || {
                 let receiver = CENTRAL_COMMAND.send_background(Command::UpdateEmpireAndNapoleonAK);
-                ui.update_old_ak_button.set_text(&qtr("updater_update_old_ak_checking"));
+                ui.update_old_ak_button.set_text(&qtr("updater_update_old_ak_updating"));
                 ui.update_old_ak_button.set_enabled(false);
 
                 let response = CENTRAL_COMMAND.recv_try(&receiver);
