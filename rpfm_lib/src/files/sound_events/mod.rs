@@ -34,6 +34,7 @@ mod games;
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct SoundEvents {
+    master_volume: f32,
     categories: Vec<Category>,
     uk_1: Vec<Uk1>,
     uk_2: Vec<Uk2>,
@@ -144,7 +145,7 @@ impl Decodeable for SoundEvents {
         let mut sound_events = Self::default();
 
         match game_key {
-            //KEY_SHOGUN_2 => {},
+            KEY_SHOGUN_2 => sound_events.read_sho2(data)?,
             //KEY_NAPOLEON => {},
             KEY_EMPIRE => sound_events.read_emp(data)?,
             _ => return Err(RLibError::DecodingSoundPackedUnsupportedGame(game_key.to_string())),
@@ -164,7 +165,7 @@ impl Encodeable for SoundEvents {
         let game_key = extra_data.game_key.ok_or_else(|| RLibError::DecodingMissingExtraDataField("game_key".to_owned()))?;
 
         match game_key {
-            //KEY_SHOGUN_2 => {},
+            KEY_SHOGUN_2 => self.write_sho2(buffer),
             //KEY_NAPOLEON => {},
             KEY_EMPIRE => self.write_emp(buffer),
             _ => Err(RLibError::EncodingSoundPackedUnsupportedGame(game_key.to_string())),
