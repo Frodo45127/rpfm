@@ -9,16 +9,21 @@
 //---------------------------------------------------------------------------//
 
 //! This is a module to read/write sound_events files from Shogun 2, Napoleon and Empire.
+//!
+//! These files are NOT VERSIONED, so we only support the latest one per-game.
 
 use getset::*;
 use serde_derive::{Serialize, Deserialize};
 
 use crate::binary::{ReadBytes, WriteBytes};
-use crate::error::Result;
+use crate::error::{Result, RLibError};
 use crate::files::{DecodeableExtraData, Decodeable, EncodeableExtraData, Encodeable};
+use crate::games::supported_games::{KEY_SHOGUN_2, KEY_NAPOLEON, KEY_EMPIRE};
 use crate::utils::check_size_mismatch;
 
 pub const PATH: &str = "sounds_packed/sound_events";
+
+mod games;
 
 #[cfg(test)] mod sound_events_test;
 
@@ -30,23 +35,30 @@ pub const PATH: &str = "sounds_packed/sound_events";
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct SoundEvents {
     categories: Vec<Category>,
-    event_data: Vec<EventData>,
+    uk_1: Vec<Uk1>,
+    uk_2: Vec<Uk2>,
     event_records: Vec<EventRecord>,
     ambience_records: Vec<AmbienceRecord>,
-    extra_data: Vec<ExtraData>,
-
+    uk_3: Vec<Uk3>,
+    movies: Vec<Movie>,
 }
 
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Category {
     name: String,
-    float: f32,
+    uk_1: f32,
 }
 
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct EventData {
+pub struct Uk1 {
+    uk_1: u32,
+}
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct Uk2 {
     uk_1: f32,
     uk_2: f32,
     uk_3: f32,
@@ -73,6 +85,15 @@ pub struct EventData {
     uk_24: f32,
     uk_25: f32,
     uk_26: f32,
+    uk_27: f32,
+    uk_28: f32,
+    uk_29: f32,
+    uk_30: f32,
+    uk_31: f32,
+    uk_32: f32,
+    uk_33: f32,
+    uk_34: f32,
+    uk_35: f32,
 }
 
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
@@ -88,18 +109,26 @@ pub struct EventRecord {
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct AmbienceRecord {
     uk_1: u32,
-    uk_2: u32,
+    event_index: u32,
     uk_3: f32,
     uk_4: f32,
     uk_5: f32,
     uk_6: f32,
     uk_7: f32,
+    uk_8: f32,
 }
 
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct ExtraData {
+pub struct Uk3 {
     uk_1: i32,
+}
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct Movie {
+    file: String,
+    uk_1: f32,
 }
 
 //---------------------------------------------------------------------------//
@@ -108,85 +137,17 @@ pub struct ExtraData {
 
 impl Decodeable for SoundEvents {
 
-    fn decode<R: ReadBytes>(data: &mut R, _extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
+    fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
+        let extra_data = extra_data.as_ref().ok_or(RLibError::DecodingMissingExtraData)?;
+        let game_key = extra_data.game_key.ok_or_else(|| RLibError::DecodingMissingExtraDataField("game_key".to_owned()))?;
+
         let mut sound_events = Self::default();
 
-        // Category records.
-        for _ in 0..data.read_u32()? {
-            sound_events.categories_mut().push(Category {
-                name: data.read_sized_string_u16()?,
-                float: data.read_f32()?
-            });
-        }
-
-        // Event data records?
-        for _ in 0..data.read_u32()? {
-            sound_events.event_data_mut().push(EventData {
-                uk_1: data.read_f32()?,
-                uk_2: data.read_f32()?,
-                uk_3: data.read_f32()?,
-                uk_4: data.read_f32()?,
-                uk_5: data.read_f32()?,
-                uk_6: data.read_f32()?,
-                uk_7: data.read_f32()?,
-                uk_8: data.read_f32()?,
-                uk_9: data.read_f32()?,
-                uk_10: data.read_f32()?,
-                uk_11: data.read_f32()?,
-                uk_12: data.read_f32()?,
-                uk_13: data.read_f32()?,
-                uk_14: data.read_f32()?,
-                uk_15: data.read_f32()?,
-                uk_16: data.read_f32()?,
-                uk_17: data.read_f32()?,
-                uk_18: data.read_f32()?,
-                uk_19: data.read_f32()?,
-                uk_20: data.read_f32()?,
-                uk_21: data.read_f32()?,
-                uk_22: data.read_f32()?,
-                uk_23: data.read_f32()?,
-                uk_24: data.read_f32()?,
-                uk_25: data.read_f32()?,
-                uk_26: data.read_f32()?,
-            });
-        }
-
-        // Event Records
-        for _ in 0..data.read_u32()? {
-            let mut event = EventRecord::default();
-            *event.category_mut() = data.read_u32()?;
-
-            if *event.category() == 1 || *event.category() == 2 || *event.category() == 27 {
-                *event.name_mut() = Some(data.read_sized_string_u16()?);
-            }
-
-            *event.uk_1_mut() = data.read_u32()?;
-
-            for _ in 0..data.read_u32()? {
-                event.sounds_mut().push(data.read_sized_string_u16()?);
-            }
-
-            sound_events.event_records_mut().push(event);
-        }
-
-        // Ambience records?
-        for _ in 0..data.read_u32()? {
-            sound_events.ambience_records_mut().push(AmbienceRecord {
-                uk_1: data.read_u32()?,
-                uk_2: data.read_u32()?,
-                uk_3: data.read_f32()?,
-                uk_4: data.read_f32()?,
-                uk_5: data.read_f32()?,
-                uk_6: data.read_f32()?,
-                uk_7: data.read_f32()?
-            });
-        }
-
-        // Data?
-        for _ in 0..data.read_u32()? {
-            sound_events.extra_data_mut().push(ExtraData {
-                uk_1: data.read_i32()?
-            });
+        match game_key {
+            //KEY_SHOGUN_2 => {},
+            //KEY_NAPOLEON => {},
+            KEY_EMPIRE => sound_events.read_emp(data)?,
+            _ => return Err(RLibError::DecodingSoundPackedUnsupportedGame(game_key.to_string())),
         }
 
         // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt.
@@ -198,76 +159,15 @@ impl Decodeable for SoundEvents {
 
 impl Encodeable for SoundEvents {
 
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: &Option<EncodeableExtraData>) -> Result<()> {
-        buffer.write_u32(self.categories.len() as u32)?;
-        for category in self.categories() {
-            buffer.write_sized_string_u16(&category.name)?;
-            buffer.write_f32(category.float)?;
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+        let extra_data = extra_data.as_ref().ok_or(RLibError::EncodingMissingExtraData)?;
+        let game_key = extra_data.game_key.ok_or_else(|| RLibError::DecodingMissingExtraDataField("game_key".to_owned()))?;
+
+        match game_key {
+            //KEY_SHOGUN_2 => {},
+            //KEY_NAPOLEON => {},
+            KEY_EMPIRE => self.write_emp(buffer),
+            _ => Err(RLibError::EncodingSoundPackedUnsupportedGame(game_key.to_string())),
         }
-
-        buffer.write_u32(self.event_data.len() as u32)?;
-        for data in self.event_data() {
-            buffer.write_f32(data.uk_1)?;
-            buffer.write_f32(data.uk_2)?;
-            buffer.write_f32(data.uk_3)?;
-            buffer.write_f32(data.uk_4)?;
-            buffer.write_f32(data.uk_5)?;
-            buffer.write_f32(data.uk_6)?;
-            buffer.write_f32(data.uk_7)?;
-            buffer.write_f32(data.uk_8)?;
-            buffer.write_f32(data.uk_9)?;
-            buffer.write_f32(data.uk_10)?;
-            buffer.write_f32(data.uk_11)?;
-            buffer.write_f32(data.uk_12)?;
-            buffer.write_f32(data.uk_13)?;
-            buffer.write_f32(data.uk_14)?;
-            buffer.write_f32(data.uk_15)?;
-            buffer.write_f32(data.uk_16)?;
-            buffer.write_f32(data.uk_17)?;
-            buffer.write_f32(data.uk_18)?;
-            buffer.write_f32(data.uk_19)?;
-            buffer.write_f32(data.uk_20)?;
-            buffer.write_f32(data.uk_21)?;
-            buffer.write_f32(data.uk_22)?;
-            buffer.write_f32(data.uk_23)?;
-            buffer.write_f32(data.uk_24)?;
-            buffer.write_f32(data.uk_25)?;
-            buffer.write_f32(data.uk_26)?;
-        }
-
-        buffer.write_u32(self.event_records.len() as u32)?;
-        for event_record in self.event_records() {
-            buffer.write_u32(event_record.category)?;
-
-            if *event_record.category() == 1 || *event_record.category() == 2 || *event_record.category() == 27 {
-                if let Some(name) = event_record.name() {
-                    buffer.write_sized_string_u16(name)?;
-                }
-            }
-
-            buffer.write_u32(event_record.uk_1)?;
-            buffer.write_u32(event_record.sounds.len() as u32)?;
-            for sound in event_record.sounds() {
-                buffer.write_sized_string_u16(sound)?;
-            }
-        }
-
-        buffer.write_u32(self.ambience_records.len() as u32)?;
-        for ambience_record in self.ambience_records() {
-            buffer.write_u32(ambience_record.uk_1)?;
-            buffer.write_u32(ambience_record.uk_2)?;
-            buffer.write_f32(ambience_record.uk_3)?;
-            buffer.write_f32(ambience_record.uk_4)?;
-            buffer.write_f32(ambience_record.uk_5)?;
-            buffer.write_f32(ambience_record.uk_6)?;
-            buffer.write_f32(ambience_record.uk_7)?;
-        }
-
-        buffer.write_u32(self.extra_data.len() as u32)?;
-        for extra_data in self.extra_data() {
-            buffer.write_i32(extra_data.uk_1)?;
-        }
-
-        Ok(())
     }
 }

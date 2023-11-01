@@ -55,6 +55,11 @@
 /test_files/test_encode_group_formations_rom2.bin
 /test_files/test_encode_group_formations_sho2.bin
 /test_files/test_encode_sound_events_emp
+/test_files/test_encode_sound_events_nap
+/test_files/test_encode_sound_events_sho2
+/test_files/test_encode_sound_bank_database_emp
+/test_files/test_encode_sound_bank_database_nap
+/test_files/test_encode_sound_bank_database_sho2
 
 # This one is another separate thing, not tracked.
 /autosaves/

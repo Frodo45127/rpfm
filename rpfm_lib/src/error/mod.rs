@@ -226,6 +226,12 @@ pub enum RLibError {
     #[error("This file is expected to be of {0} type, but the data provided is of {1} type. If you see this, 99% sure it is a bug.")]
     DecodedDataDoesNotMatchFileType(FileType, FileType),
 
+    #[error("Decoding of SoundPacked files is not supported for this game: {0}.")]
+    DecodingSoundPackedUnsupportedGame(String),
+
+    #[error("Encoding of SoundPacked files is not supported for this game: {0}.")]
+    EncodingSoundPackedUnsupportedGame(String),
+
     #[error("Missing extra data required to encode the file. This means the programmer messed up the code while that tries to decode files.")]
     EncodingMissingExtraData,
 
