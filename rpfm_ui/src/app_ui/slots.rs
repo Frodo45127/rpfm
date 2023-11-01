@@ -612,7 +612,7 @@ impl AppUISlots {
                                 QApplication::set_font_1a(&font);
                             }
 
-                            // If we detect a factory reset, reset the window's geometry and state, and the font.
+                            // If we detect a factory reset, reset the window's geometry and state.
                             let factory_reset = setting_bool("factoryReset");
                             if factory_reset {
                                 app_ui.main_window().restore_geometry(&setting_byte_array("originalGeometry"));

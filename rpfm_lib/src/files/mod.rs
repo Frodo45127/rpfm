@@ -121,6 +121,8 @@ pub mod pack;
 pub mod portrait_settings;
 pub mod rigidmodel;
 pub mod soundbank;
+pub mod sound_events;
+pub mod sound_bank_database;
 pub mod table;
 pub mod text;
 pub mod uic;

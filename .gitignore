@@ -54,6 +54,7 @@
 /test_files/test_encode_group_formations_3k.bin
 /test_files/test_encode_group_formations_rom2.bin
 /test_files/test_encode_group_formations_sho2.bin
+/test_files/test_encode_sound_events_emp
 
 # This one is another separate thing, not tracked.
 /autosaves/
