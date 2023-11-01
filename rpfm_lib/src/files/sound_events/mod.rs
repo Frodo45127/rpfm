@@ -191,8 +191,7 @@ impl Decodeable for SoundEvents {
 
         // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt.
         check_size_mismatch(data.stream_position()? as usize, data.len()? as usize)?;
-        dbg!(&sound_events);
-        panic!("");
+
         Ok(sound_events)
     }
 }
