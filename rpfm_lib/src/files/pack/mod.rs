@@ -672,14 +672,12 @@ impl Pack {
                 Self::read(&mut data, &Some(extra_data))
             }).collect::<Result<Vec<Pack>>>()?;
 
-        // Sort the decoded Packs by name and type, so each type has their own Packs also sorted by name.
-        packs.sort_by_key(|pack| pack.disk_file_path.to_owned());
-
-        // Reverse the pack list here, so we end up with the packs in the the correct order within the same Pack Types.
-        //
-        // If my understanding is correct, this is the logic the game uses.
-        packs.reverse();
-        packs.sort_by_key(|pack| pack.header.pfh_file_type as u8);
+        // Group different type files, and sort them by name.
+        packs.sort_by(|pack_a, pack_b| if pack_a.pfh_file_type() != pack_b.pfh_file_type() {
+            pack_a.pfh_file_type().cmp(&pack_b.pfh_file_type())
+        } else {
+            pack_a.disk_file_path.cmp(&pack_b.disk_file_path)
+        });
 
         packs.iter_mut()
             .filter(|pack| {
