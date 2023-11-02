@@ -338,3 +338,56 @@ pub fn merge(config: &Config, save_pack_path: &Path, source_pack_paths: &[PathBu
         None => Err(anyhow!("No Game provided.")),
     }
 }
+
+/// This function adds a dependency to the provided Pack.
+pub fn add_dependency(config: &Config, pack_path: &Path, dependency: &str) -> Result<()> {
+    if config.verbose {
+        info!("Adding a dependency ({}) to the following Pack: {}", dependency, pack_path.file_name().unwrap().to_string_lossy());
+    }
+
+    match &config.game {
+        Some(game) => {
+            let mut pack = Pack::read_and_merge(&[pack_path.to_path_buf()], true, false)?;
+            pack.dependencies_mut().push(dependency.to_owned());
+            pack.save(None, game, &None)?;
+            Ok(())
+        }
+        None => Err(anyhow!("No Game provided.")),
+    }
+}
+
+/// This function removes a dependency from the provided Pack.
+pub fn remove_dependency(config: &Config, pack_path: &Path, dependency: &str) -> Result<()> {
+    if config.verbose {
+        info!("Removing a dependency ({}) from the following Pack: {}", dependency, pack_path.file_name().unwrap().to_string_lossy());
+    }
+
+    match &config.game {
+        Some(game) => {
+            let mut pack = Pack::read_and_merge(&[pack_path.to_path_buf()], true, false)?;
+            if let Some(pos) = pack.dependencies().iter().position(|x| x == dependency) {
+                pack.dependencies_mut().remove(pos);
+            }
+            pack.save(None, game, &None)?;
+            Ok(())
+        }
+        None => Err(anyhow!("No Game provided.")),
+    }
+}
+
+/// This function removes all dependencies from the provided Pack.
+pub fn remove_all_dependencies(config: &Config, pack_path: &Path) -> Result<()> {
+    if config.verbose {
+        info!("Removing all dependencies from the following Pack: {}", pack_path.file_name().unwrap().to_string_lossy());
+    }
+
+    match &config.game {
+        Some(game) => {
+            let mut pack = Pack::read_and_merge(&[pack_path.to_path_buf()], true, false)?;
+            pack.dependencies_mut().clear();
+            pack.save(None, game, &None)?;
+            Ok(())
+        }
+        None => Err(anyhow!("No Game provided.")),
+    }
+}

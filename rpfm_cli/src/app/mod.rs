@@ -326,6 +326,38 @@ pub enum CommandsPack {
         #[arg(short = 's', long, required = true, num_args = 1.., value_name = "SOURCE_PACK_PATHS")]
         source_pack_paths: Vec<PathBuf>,
     },
+
+    /// Adds a Pack as a dependency of the provided Pack.
+    AddDependencyPack {
+
+        /// Path of the Pack this operation will use.
+        #[arg(short, long, required = true, value_name = "PACK_PATH")]
+        pack_path: PathBuf,
+
+        /// Name of the Pack to add as dependency. Must include the .pack extension.
+        #[arg(short, long, required = true, value_name = "DEPENDENCY_NAME")]
+        dependency_pack: String,
+    },
+
+    /// Remove a Pack from the dependencies of the provided Pack.
+    RemoveDependencyPack {
+
+        /// Path of the Pack this operation will use.
+        #[arg(short, long, required = true, value_name = "PACK_PATH")]
+        pack_path: PathBuf,
+
+        /// Name of the Pack to remove from the dependencies. Must include the .pack extension.
+        #[arg(short, long, required = true, value_name = "DEPENDENCY_NAME")]
+        dependency_pack: String,
+    },
+
+    /// Removes all dependencies from the provided Pack.
+    RemoveAllDependencies {
+
+        /// Path of the Pack this operation will use.
+        #[arg(short, long, required = true, value_name = "PACK_PATH")]
+        pack_path: PathBuf,
+    },
 }
 
 #[derive(Subcommand)]

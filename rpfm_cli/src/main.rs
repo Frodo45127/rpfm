@@ -96,6 +96,9 @@ fn main() {
             CommandsPack::SetFileType { pack_path, file_type } => crate::commands::pack::set_pack_type(&config, &pack_path, file_type),
             CommandsPack::Diagnose { game_path, pak_path, schema_path, pack_path } => crate::commands::pack::diagnose(&config, &game_path, &pak_path, &schema_path, &pack_path),
             CommandsPack::Merge { save_pack_path, source_pack_paths } => crate::commands::pack::merge(&config, &save_pack_path, &source_pack_paths),
+            CommandsPack::AddDependencyPack { pack_path, dependency_pack } => crate::commands::pack::add_dependency(&config, &pack_path, &dependency_pack),
+            CommandsPack::RemoveDependencyPack { pack_path, dependency_pack } => crate::commands::pack::remove_dependency(&config, &pack_path, &dependency_pack),
+            CommandsPack::RemoveAllDependencies { pack_path } => crate::commands::pack::remove_all_dependencies(&config, &pack_path),
         }
 
         Commands::Schemas { commands } => match commands {
