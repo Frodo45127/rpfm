@@ -15,7 +15,7 @@ rust-version.workspace = true
 [dependencies]
 
 # Internal dependencies.
-rpfm_lib = { path = "../rpfm_lib", version = "4.2.1", features = ["integration_log", "integration_assembly_kit", "support_error_bincode"] }
+rpfm_lib = { path = "../rpfm_lib", version = "4.2.2", features = ["integration_log", "integration_assembly_kit", "support_error_bincode"] }
 
 # Basic get/set support.
 getset = "^0.1"

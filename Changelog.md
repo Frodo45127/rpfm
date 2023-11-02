@@ -6,6 +6,15 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [4.2.2]
+### Added
+- Implemented commands to manipulate Pack Dependencies through the CLI.
+
+### Fixed
+- Fixed Arch PKGBUILD not building due to a dependency name change.
+- Fixed broken pack sorting logic.
+- Fixed CTD when a CA_VP8 file has 0 frames.
+
 ## [4.2.1]
 ### Fixed
 - Fixed some ca_vp8 videos (mainly Pharaoh ones) not opening correctly.
@@ -1237,7 +1246,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.2.1...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.2.2...HEAD
+[4.2.2]: https://github.com/Frodo45127/rpfm/compare/v4.2.1...v4.2.2
 [4.2.1]: https://github.com/Frodo45127/rpfm/compare/v4.2.0...v4.2.1
 [4.2.0]: https://github.com/Frodo45127/rpfm/compare/v4.1.3...v4.2.0
 [4.1.3]: https://github.com/Frodo45127/rpfm/compare/v4.1.2...v4.1.3
