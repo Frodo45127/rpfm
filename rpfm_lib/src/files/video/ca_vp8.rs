@@ -151,7 +151,7 @@ impl Video {
         buffer.write_f32(1_000f32 / self.framerate)?;
         buffer.write_u32(1)?; // _mystery_u32: I don't actually know what this is.
 
-        if self.extra_data.is_some() {
+        if self.extra_data.is_some() || self.num_frames == 0 {
             buffer.write_u32(self.num_frames)?;
         } else {
             buffer.write_u32(self.num_frames - 1)?;
