@@ -243,27 +243,31 @@ impl UI {
             }
         }
 
-        // Check for changes in dark themee custom.
-        let first_boot_setting = "firstBootCheckDarkTheme".to_owned() + VERSION;
-        let dark_stylesheet_customized = dark_stylesheet_is_customized().unwrap_or(true);
-        if !setting_bool(&first_boot_setting) && dark_stylesheet_customized {
+        // Check for changes in dark theme custom.
+        //
+        // Only in windows, because on linux the program is installed as root, and the copy command will fail.
+        if cfg!(target_os = "windows") {
+            let first_boot_setting = "firstBootCheckDarkTheme".to_owned() + VERSION;
+            let dark_stylesheet_customized = dark_stylesheet_is_customized().unwrap_or(true);
+            if !setting_bool(&first_boot_setting) && dark_stylesheet_customized {
 
-            let title = qtr("title_changes_detected_in_dark_theme_config");
-            let message = qtr("message_changes_detected_in_dark_theme_config");
-            let message_box = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
-                Icon::Warning,
-                &title,
-                &message,
-                StandardButton::Yes | StandardButton::No,
-                app_ui.main_window(),
-            );
+                let title = qtr("title_changes_detected_in_dark_theme_config");
+                let message = qtr("message_changes_detected_in_dark_theme_config");
+                let message_box = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
+                    Icon::Warning,
+                    &title,
+                    &message,
+                    StandardButton::Yes | StandardButton::No,
+                    app_ui.main_window(),
+                );
 
-             if message_box.exec() == 16384 {
-                std::fs::copy(ASSETS_PATH.join("dark-theme.qss"), ASSETS_PATH.join("dark-theme-custom.qss"))?;
+                if message_box.exec() == 16384 {
+                    std::fs::copy(ASSETS_PATH.join("dark-theme.qss"), ASSETS_PATH.join("dark-theme-custom.qss"))?;
+                }
+
+                // Set it so it doesn't popup again for this version.
+                set_setting_bool(&first_boot_setting, true);
             }
-
-            // Set it so it doesn't popup again for this version.
-            set_setting_bool(&first_boot_setting, true);
         }
 
         info!("Initialization complete.");
