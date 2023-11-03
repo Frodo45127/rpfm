@@ -1670,4 +1670,17 @@ impl Dependencies {
 
         Ok(())
     }
+
+    //-----------------------------------//
+    // Dangerous functions.
+    //-----------------------------------//
+
+    /// This function manually inserts a loc file from this into the dependencies as a vanilla loc.
+    ///
+    /// THIS IS DANGEROUS. DO NOT USE IT UNLESS YOU KNOW WHAT YOU'RE DOING.
+    pub fn insert_loc_as_vanilla_loc(&mut self, rfile: RFile) {
+        let path = rfile.path_in_container_raw().to_owned();
+        self.vanilla_files.insert(path.to_owned(), rfile);
+        self.vanilla_locs.insert(path);
+    }
 }
