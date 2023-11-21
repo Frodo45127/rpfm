@@ -711,6 +711,55 @@ impl Pack {
         Ok(pack_new)
     }
 
+    /// Convenience function to merge open Packs as one, taking care of overwriting files when needed.
+    ///
+    /// Packs are merged in the order they are provided. If you need to use a custom order, sort them before merging.
+    ///
+    /// Internal files are left in the state they were before. If you need them loaded, do it after this.
+    pub fn merge(packs: &[Self]) -> Result<Self> {
+        if packs.is_empty() {
+            return Err(RLibError::NoPacksProvided);
+        }
+
+        // If we only got one pack, clone it and return it.
+        if packs.len() == 1 {
+            return Ok(packs[0].clone());
+        }
+
+        // Generate a new empty Pack to act as merged one. If all packs to merge share the same type, use that pack type.
+        let mut pack_new = Pack::default();
+
+        let mut pfh_types = packs.iter().map(|pack| pack.pfh_file_type()).collect::<Vec<_>>();
+        pfh_types.sort();
+        pfh_types.dedup();
+
+        if pfh_types.len() == 1 {
+            pack_new.set_pfh_file_type(pfh_types[0]);
+        }
+
+        packs.iter().for_each(|pack| {
+            pack_new.files_mut().extend(pack.files().clone())
+        });
+
+        // Fix the dependencies of the merged pack.
+        let pack_names = packs.iter().map(|pack| pack.disk_file_name()).collect::<Vec<_>>();
+        let mut dependencies = packs.iter()
+            .flat_map(|pack| pack.dependencies()
+                .iter()
+                .filter(|dependency| !pack_names.contains(dependency))
+                .cloned()
+                .collect::<Vec<_>>())
+            .collect::<Vec<_>>();
+        dependencies.sort();
+        dependencies.dedup();
+        pack_new.set_dependencies(dependencies);
+
+        // Generate the path list.
+        pack_new.paths_cache_generate();
+
+        Ok(pack_new)
+    }
+
     /// Convenience function to easily save a Pack to disk.
     ///
     /// If a path is provided, the Pack will be saved to that path. Otherwise, it'll use whatever path it had set before.
