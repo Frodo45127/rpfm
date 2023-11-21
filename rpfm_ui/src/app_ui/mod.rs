@@ -79,6 +79,7 @@ use rpfm_lib::utils::*;
 use rpfm_ui_common::ASSETS_PATH;
 use rpfm_ui_common::clone;
 use rpfm_ui_common::FULL_DATE_FORMAT;
+use rpfm_ui_common::icons::IconType;
 use rpfm_ui_common::locale::{qtr, tre};
 
 use crate::backend::*;
@@ -91,7 +92,7 @@ use crate::FIRST_GAME_CHANGE_DONE;
 use crate::GAME_SELECTED;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::NEW_FILE_VIEW_CREATED;
-use crate::pack_tree::{BuildData, icons::IconType, new_pack_file_tooltip, PackTree, TreeViewOperation};
+use crate::pack_tree::{BuildData, new_pack_file_tooltip, PackTree, TreeViewOperation};
 use crate::packedfile_views::{anim_fragment_battle::*, animpack::*, anims_table::*, audio::FileAudioView, bmd::FileBMDView, DataSource, decoder::*, dependencies_manager::*, esf::*, external::*, group_formations::*, image::*, matched_combat::*, FileView, packfile::PackFileExtraView, packfile_settings::*, portrait_settings::PortraitSettingsView, SpecialView, table::*, text::*, unit_variant::*, video::*};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::references_ui::ReferencesUI;

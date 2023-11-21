@@ -8,8 +8,9 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-use lazy_static::lazy_static;
 use qt_core::QCoreApplication;
+
+use lazy_static::lazy_static;
 use time::format_description::{parse, FormatItem};
 
 use std::path::PathBuf;
@@ -17,6 +18,7 @@ use std::path::PathBuf;
 use crate::locale::Locale;
 use crate::settings::*;
 
+pub mod icons;
 pub mod locale;
 pub mod settings;
 pub mod utils;
@@ -105,4 +107,8 @@ lazy_static!{
     pub static ref FULL_DATE_FORMAT: Vec<FormatItem<'static>> = parse("[year]-[month]-[day] [hour]:[minute]:[second]").unwrap();
     pub static ref SLASH_DMY_DATE_FORMAT: Vec<FormatItem<'static>> = parse("[day]/[month]/[year]").unwrap();
     pub static ref SLASH_MDY_DATE_FORMAT: Vec<FormatItem<'static>> = parse("[month]/[day]/[year]").unwrap();
+
 }
+
+pub const ROOT_NODE_TYPE: i32 = 23;
+pub const ROOT_NODE_TYPE_EDITABLE_PACKFILE: i32 = 0;

@@ -8,10 +8,6 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*!
-This module contains the code to load the icons used in the `TreeView`.
-!*/
-
 use qt_gui::QIcon;
 use qt_gui::QStandardItem;
 
@@ -24,9 +20,8 @@ use std::sync::atomic::AtomicPtr;
 
 use rpfm_lib::files::{animpack, anim_fragment_battle, anims_table, atlas, audio, esf, bmd, bmd_vegetation, dat, FileType, group_formations, hlsl_compiled, image, loc, matched_combat, pack, portrait_settings, rigidmodel, soundbank, text, text::*, unit_variant, video, uic};
 use rpfm_lib::{REGEX_DB, REGEX_PORTRAIT_SETTINGS};
-use rpfm_ui_common::ASSETS_PATH;
 
-use crate::pack_tree::{ROOT_NODE_TYPE_EDITABLE_PACKFILE, ROOT_NODE_TYPE};
+use crate::{ASSETS_PATH, ROOT_NODE_TYPE_EDITABLE_PACKFILE, ROOT_NODE_TYPE};
 use crate::utils::{atomic_from_cpp_box, ref_from_atomic_ref};
 
 //-------------------------------------------------------------------------------//

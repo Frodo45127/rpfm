@@ -51,10 +51,10 @@ use rpfm_lib::games::{GameInfo, supported_games::{SupportedGames, KEY_WARHAMMER_
 use rpfm_lib::integrations::log::*;
 use rpfm_lib::schema::Schema;
 
+use rpfm_ui_common::icons::Icons;
 use rpfm_ui_common::locale::*;
 
 use crate::communications::{CentralCommand, Command, Response};
-use crate::pack_tree::icons::Icons;
 use crate::settings_ui::backend::*;
 use crate::ui::*;
 use crate::ui_state::UIState;

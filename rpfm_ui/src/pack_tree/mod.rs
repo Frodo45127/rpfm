@@ -52,9 +52,6 @@ use crate::settings_ui::backend::*;
 use crate::TREEVIEW_ICONS;
 use crate::utils::*;
 
-// This one is needed for initialization on boot, so it has to be public.
-pub mod icons;
-
 /// This const is the key of the QVariant that holds the type of each StandardItem in a `TreeView`.
 const ITEM_TYPE: i32 = 20;
 
@@ -65,10 +62,10 @@ const ITEM_STATUS: i32 = 21;
 const ITEM_IS_FOREVER_MODIFIED: i32 = 22;
 
 /// This const is the key of the QVariant that holds what kind of Root Node we have. Only in root nodes.
-const ROOT_NODE_TYPE: i32 = 23;
+const ROOT_NODE_TYPE: i32 = rpfm_ui_common::ROOT_NODE_TYPE;
 
 /// This const is used to identify an editable PackFile.
-const ROOT_NODE_TYPE_EDITABLE_PACKFILE: i32 = 0;
+const ROOT_NODE_TYPE_EDITABLE_PACKFILE: i32 = rpfm_ui_common::ROOT_NODE_TYPE_EDITABLE_PACKFILE;
 
 /// This const is used to identify a non-editable PackFile.
 const ROOT_NODE_TYPE_NON_EDITABLE_PACKFILE: i32 = 1;
