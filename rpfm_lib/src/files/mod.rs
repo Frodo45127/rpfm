@@ -443,6 +443,12 @@ pub trait Container {
 
                 let rfile = self.files_mut().get_mut(&container_path).ok_or_else(|| RLibError::FileNotFound(container_path.to_string()))?;
 
+                // If the file is on disk, load it to memory before saving. Why? Because if we import a file, then export it on the same position,
+                // we clear the disk file before loading its data to memory, which breaks stuff like MyMod Import/Export.
+                if let RFileInnerData::OnDisk(_) = &rfile.data {
+                    let _ = rfile.load()?;
+                }
+
                 // If we want to extract as tsv and we got a db/loc, export to tsv.
                 if let Some(schema) = schema {
                     if rfile.file_type() == FileType::DB || rfile.file_type() == FileType::Loc {
@@ -507,6 +513,12 @@ pub trait Container {
                     let mut destination_folder = destination_path.to_owned();
                     destination_folder.pop();
                     DirBuilder::new().recursive(true).create(&destination_folder)?;
+
+                    // If the file is on disk, load it to memory before saving. Why? Because if we import a file, then export it on the same position,
+                    // we clear the disk file before loading its data to memory, which breaks stuff like MyMod Import/Export.
+                    if let RFileInnerData::OnDisk(_) = &rfile.data {
+                        let _ = rfile.load()?;
+                    }
 
                     // If we want to extract as tsv and we got a db/loc, export to tsv.
                     if let Some(schema) = schema {
@@ -2114,7 +2126,7 @@ impl OnDisk {
         let mut file = BufReader::new(File::open(&self.path)?);
         let timestamp = last_modified_time_from_file(file.get_ref())?;
         if timestamp != self.timestamp {
-            return Err(RLibError::FileSourceChanged);
+            return Err(RLibError::FileSourceChanged(self.path.clone()));
         }
 
         // Read the data from disk.
@@ -2144,7 +2156,7 @@ impl OnDisk {
         let mut file = BufReader::new(File::open(&self.path)?);
         let timestamp = last_modified_time_from_file(file.get_ref())?;
         if timestamp != self.timestamp {
-            return Err(RLibError::FileSourceChanged);
+            return Err(RLibError::FileSourceChanged(self.path.clone()));
         }
 
         file.seek(SeekFrom::Start(self.start))?;

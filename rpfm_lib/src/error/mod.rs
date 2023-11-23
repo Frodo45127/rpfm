@@ -244,8 +244,8 @@ pub enum RLibError {
     #[error("No updates available for the following git repository: {0}.")]
     GitErrorNoUpdatesAvailable(String),
 
-    #[error("The file's data has been altered on disk by another program since the last time it was accessed by us.")]
-    FileSourceChanged,
+    #[error("The file's data for file ({0}) has been altered on disk by another program since the last time it was accessed by us.")]
+    FileSourceChanged(String),
 
     #[error("At least one of the files (`{3}`) on this {0} is too big for it. The maximum supported size for files is {1}, but your file has {2} bytes.")]
     DataTooBigForContainer(String, u64, usize, String),
