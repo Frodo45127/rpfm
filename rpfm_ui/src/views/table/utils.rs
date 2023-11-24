@@ -391,14 +391,14 @@ pub unsafe fn get_default_item_from_field(field: &Field, patches: Option<&Defini
             item
         },
 
-        FieldType::SequenceU16(ref definition) | FieldType::SequenceU32(ref definition)  => {
-            let table = serde_json::to_string(&Table::new(definition, None, field.name())).unwrap();
+        FieldType::SequenceU16(_) | FieldType::SequenceU32(_)  => {
             let item = QStandardItem::new();
 
+            item.set_editable(false);
             item.set_text(&qtr("packedfile_editable_sequence"));
             item.set_data_2a(&QVariant::from_bool(false), ITEM_HAS_SOURCE_VALUE);
             item.set_data_2a(&QVariant::from_bool(true), ITEM_IS_SEQUENCE);
-            item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(table)), ITEM_SEQUENCE_DATA);
+            item.set_data_2a(&QVariant::from_q_byte_array(&QByteArray::from_slice(&[0, 0, 0, 0])), ITEM_SEQUENCE_DATA);
             item
         }
     };
