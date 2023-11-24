@@ -13,7 +13,7 @@ use std::fs::File;
 
 use crate::binary::ReadBytes;
 use crate::files::*;
-use crate::games::supported_games::{KEY_SHOGUN_2, KEY_NAPOLEON, KEY_EMPIRE};
+use crate::games::supported_games::KEY_EMPIRE;
 
 use super::SoundEvents;
 

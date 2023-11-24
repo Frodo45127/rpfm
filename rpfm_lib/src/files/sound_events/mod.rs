@@ -18,7 +18,7 @@ use serde_derive::{Serialize, Deserialize};
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{Result, RLibError};
 use crate::files::{DecodeableExtraData, Decodeable, EncodeableExtraData, Encodeable};
-use crate::games::supported_games::{KEY_SHOGUN_2, KEY_NAPOLEON, KEY_EMPIRE};
+use crate::games::supported_games::{KEY_SHOGUN_2, KEY_EMPIRE};
 use crate::utils::check_size_mismatch;
 
 pub const PATH: &str = "sounds_packed/sound_events";
