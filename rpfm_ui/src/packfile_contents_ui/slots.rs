@@ -1217,7 +1217,8 @@ impl PackFileContentsSlots {
                             // If we want to delete the sources, do it now. Oh, and close them manually first, or the autocleanup will try to save them and fail miserably.
                             if delete_source_files {
                                 selected_paths.iter().for_each(|x| { let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, x, DataSource::PackFile, false); });
-                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(selected_paths_cont, true), DataSource::PackFile);
+                                let paths_to_delete = selected_paths_cont.iter().filter(|path| path.path_raw() != path_to_add).cloned().collect::<Vec<_>>();
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(paths_to_delete, true), DataSource::PackFile);
                             }
 
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![ContainerPath::File(path_to_add); 1]), DataSource::PackFile);

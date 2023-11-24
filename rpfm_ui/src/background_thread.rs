@@ -938,8 +938,11 @@ pub fn background_loop() {
                     Ok(file) => {
                         let _ = pack_file_decoded.insert(file);
 
+                        // Make sure to only delete the files if they're not the destination file.
                         if delete_source_files {
-                            paths.iter().for_each(|path| { pack_file_decoded.remove(path); });
+                            paths.iter()
+                                .filter(|path| merged_path != path.path_raw())
+                                .for_each(|path| { pack_file_decoded.remove(path); });
                         }
 
                         CentralCommand::send_back(&sender, Response::String(merged_path.to_string()));
