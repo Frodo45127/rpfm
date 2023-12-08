@@ -35,6 +35,13 @@ cargo build --release
 ```
 
 You can also make any editor inherit Craft's environment (and thus, being able to compile RPFM) by opening it from Craft's Terminal.
+Note that some features, like the entire Tools menu, may require a feature flag to be enabled to work. You can check all the feature flags available in rpfm_ui/Cargo.toml, under [Features]. You can pass them like this:
+
+```bash
+# To run the ui executable without optimisations (debug mode).
+cargo run --bin rpfm_ui --features "example_feature,example_feature_2"
+
+```
 
 ## Linux
 
@@ -56,6 +63,14 @@ cargo run --bin rpfm_ui
 
 # To build the executable with optimisations (release mode).
 cargo build --release
+```
+
+Note that some features, like the entire Tools menu, may require a feature flag to be enabled to work. You can check all the feature flags available in rpfm_ui/Cargo.toml, under [Features]. You can pass them like this:
+
+```bash
+# To run the ui executable without optimisations (debug mode).
+cargo run --bin rpfm_ui --features "example_feature,example_feature_2"
+
 ```
 
 ## MacOS
