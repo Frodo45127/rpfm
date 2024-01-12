@@ -24,3 +24,5 @@ lazy_static! {
     /// Regex to find if a path belongs to a db table.
     pub static ref REGEX_INVALID_ESCAPES: Regex = Regex::new(r"(?<!\\)\\n|(?<!\\)\\t").unwrap();
 }
+
+const VERSION: &str = env!("CARGO_PKG_VERSION");

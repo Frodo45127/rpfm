@@ -29,6 +29,8 @@ use rpfm_lib::integrations::{assembly_kit::table_data::RawTable, log::info};
 use rpfm_lib::schema::{Definition, Field, FieldType, Schema};
 use rpfm_lib::utils::{current_time, last_modified_time_from_files, starts_with_case_insensitive};
 
+use crate::VERSION;
+
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
@@ -55,6 +57,9 @@ pub struct Dependencies {
 
     /// Date of the generation of this dependencies cache. For checking if it needs an update.
     build_date: u64,
+
+    /// Version of the program used to generate the dependencies, so they're properly invalidated on update.
+    version: String,
 
     /// Data to quickly load CA dependencies from disk.
     vanilla_files: HashMap<String, RFile>,
@@ -254,6 +259,7 @@ impl Dependencies {
     pub fn generate_dependencies_cache(game_info: &GameInfo, game_path: &Path, asskit_path: &Option<PathBuf>) -> Result<Self> {
         let mut cache = Self::default();
         cache.build_date = current_time()?;
+        cache.version = VERSION.to_owned();
         cache.vanilla_files = Pack::read_and_merge_ca_packs(game_info, game_path)?.files().clone();
 
         let cacheable = cache.vanilla_files.par_iter_mut()
@@ -455,7 +461,7 @@ impl Dependencies {
         // Because bincode is not multithreaded and, while reading 3 medium files is slower than a big one,
         // deserializing 3 medium files in 3 separate threads is way faster than 1 big file in 1 thread.
         let mut file_path_1 = file_path.to_path_buf();
-        let handle_1: JoinHandle<Result<(u64, Vec<RFile>)>> = spawn(move || {
+        let handle_1: JoinHandle<Result<(u64, String, Vec<RFile>)>> = spawn(move || {
             file_path_1.set_extension("pak1");
             let mut file = BufReader::new(File::open(&file_path_1)?);
             let mut data = Vec::with_capacity(file.get_ref().metadata()?.len() as usize);
@@ -495,10 +501,11 @@ impl Dependencies {
 
         // The vanilla file list is stored in a Vec format instead of a hashmap, because a vec can be splited,
         // and that list is more than 100mb long in some games. Here we turn it back to HashMap and merge it.
-        let mut vanilla_files: HashMap<_,_> = data_1.1.into_par_iter().map(|file| (file.path_in_container_raw().to_owned(), file)).collect();
+        let mut vanilla_files: HashMap<_,_> = data_1.2.into_par_iter().map(|file| (file.path_in_container_raw().to_owned(), file)).collect();
         vanilla_files.par_extend(data_2.into_par_iter().map(|file| (file.path_in_container_raw().to_owned(), file)));
 
         dependencies.build_date = data_1.0;
+        dependencies.version = data_1.1;
         dependencies.vanilla_files = vanilla_files;
         dependencies.vanilla_tables = data_3.0;
         dependencies.vanilla_locs = data_3.1;
@@ -551,7 +558,7 @@ impl Dependencies {
         let vanilla_files_2 = vanilla_files_1.split_off(self.vanilla_files.len() / 2);
 
         // Never serialize directly into the file. It's bloody slow!!!
-        let serialized_1: Vec<u8> = bincode::serialize(&(&self.build_date, &vanilla_files_1))?;
+        let serialized_1: Vec<u8> = bincode::serialize(&(&self.build_date, &self.version, &vanilla_files_1))?;
         let serialized_2: Vec<u8> = bincode::serialize(&vanilla_files_2)?;
         let serialized_3: Vec<u8> = bincode::serialize(&(&self.vanilla_tables, &self.vanilla_locs, &self.vanilla_folders, &self.vanilla_paths, &self.asskit_only_db_tables))?;
 
@@ -564,7 +571,7 @@ impl Dependencies {
     pub fn needs_updating(&self, game_info: &GameInfo, game_path: &Path) -> Result<bool> {
         let ca_paths = game_info.ca_packs_paths(game_path)?;
         let last_date = last_modified_time_from_files(&ca_paths)?;
-        Ok(last_date > self.build_date)
+        Ok(last_date > self.build_date || self.version != VERSION)
     }
 
 
