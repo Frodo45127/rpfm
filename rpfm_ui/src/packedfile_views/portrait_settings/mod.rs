@@ -709,6 +709,7 @@ impl PortraitSettingsView {
     pub unsafe fn save_entry_from_detailed_view(&self, index: Ref<QModelIndex>) {
         let mut data: Entry = serde_json::from_str(&index.data_1a(DATA).to_string().to_std_string()).unwrap();
 
+        data.set_id(index.data_1a(2).to_string().to_std_string());
         data.camera_settings_head_mut().set_z(self.head_z_spinbox.value() as f32);
         data.camera_settings_head_mut().set_y(self.head_y_spinbox.value() as f32);
         data.camera_settings_head_mut().set_yaw(self.head_yaw_spinbox.value() as f32);
