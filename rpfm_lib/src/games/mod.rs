@@ -162,7 +162,7 @@ pub enum InstallType {
 /// NOTE: All PackFile paths contained in this struct are RELATIVE, either to the data folder, or to the game's folder.
 #[derive(Getters, Clone, Debug)]
 #[getset(get = "pub")]
-struct InstallData {
+pub struct InstallData {
 
     /// List of vanilla packs, to be use as reference for knowing what PackFiles are vanilla in games without a manifest file.
     /// Currently only used for Empire and Napoleon. Relative to data_path.
@@ -300,6 +300,13 @@ impl GameInfo {
                 Ok(InstallType::LnxSteam)
             }
         }
+    }
+
+    /// This function gets the install data for the game, if it's a supported installation.
+    pub fn install_data(&self, game_path: &Path) -> Result<&InstallData> {
+        let install_type = self.install_type(game_path)?;
+        let install_data = self.install_data.get(&install_type).ok_or_else(|| RLibError::GameInstallTypeNotSupported(self.display_name.to_string(), install_type.to_string()))?;
+        Ok(install_data)
     }
 
     /// This function gets the `/data` path or equivalent of the game selected, if said game it's configured in the settings.
