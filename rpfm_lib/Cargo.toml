@@ -41,14 +41,14 @@ serde_json = "^1.0"
 serde-xml-rs = { version = "^0.6", optional = true }
 csv = "^1.1"
 ron = "^0.8"
-toml = "^0.7"
+toml = "^0.8"
 bincode = { version = "^1.3", optional = true }
 
 # Error handling.
 thiserror = "1.0"
 
 # Decoding/Encoding support.
-itertools = "^0.11"
+itertools = "^0.12"
 byteorder = "^1.3"
 encoding_rs = "^0.8"
 bitflags = { version = "^2.3", features = ["std", "serde"]}
@@ -60,7 +60,7 @@ regex = "^1"
 rand = "^0.8"
 
 # Git support.
-git2 = { version = "^0.17", optional = true }
+git2 = { version = "^0.18", optional = true }
 
 # Pelite, because we need it to get the current version of a game's exe, and I have not a fucking clue how to pass a path to WinApi.
 pelite = "^0.10"
@@ -72,7 +72,7 @@ rayon = "^1.3"
 xz2 = "^0.1"
 
 # Fractions support
-fraction = "^0.13"
+fraction = "^0.15"
 
 # Case-insensitive checks.
 caseless = "^0.2"
@@ -100,7 +100,7 @@ simplelog = { version = "^0.12", optional = true }
 content_inspector = { version = "^0.2" }
 
 # Steam Location support.
-steamlocate = "2.0.0-alpha.0"
+steamlocate = "2.0.0-beta.0"
 
 # Linear algebra
 nalgebra = "0.32.2"
