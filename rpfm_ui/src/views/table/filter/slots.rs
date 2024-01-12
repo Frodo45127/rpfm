@@ -56,8 +56,14 @@ impl FilterViewSlots {
         // When we want to filter the table...
         let filter_line_edit = SlotOfQString::new(&view.main_widget, clone!(
             view => move |_| {
-            FilterView::start_delayed_updates_timer(&view);
-        }));
+
+                // Replace jumplines with ors, and then filter.
+                view.filter_line_edit().block_signals(true);
+                view.filter_line_edit().set_text(&QString::from_std_str(view.filter_line_edit().text().to_std_string().replace("\r\n", "|").replace("\n", "|")));
+                view.filter_line_edit().block_signals(false);
+                FilterView::start_delayed_updates_timer(&view);
+            }
+        ));
 
         let filter_match_group_selector = SlotNoArgs::new(&view.main_widget, clone!(
             parent_view => move || {
