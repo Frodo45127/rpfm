@@ -2,11 +2,18 @@
 #include <QAbstractItemView>
 #include <QLineEdit>
 #include <QSettings>
+#include "tableview_frozen.h"
 
 // Function to be called from any other language. This assing to the provided column of the provided TableView a QStringItemDelegate.
 extern "C" void new_qstring_item_delegate(QObject *parent, const int column, QTimer* timer, bool is_dark_theme_enabled, bool has_filter, bool right_side_mark) {
     QStringItemDelegate* delegate = new QStringItemDelegate(parent, timer, is_dark_theme_enabled, has_filter, right_side_mark);
-    dynamic_cast<QAbstractItemView*>(parent)->setItemDelegateForColumn(column, delegate);
+
+    QTableViewFrozen* itemView = dynamic_cast<QTableViewFrozen*>(parent);
+    if (itemView) {
+        itemView->setItemDelegateForColumn(column, delegate);
+    } else {
+        dynamic_cast<QAbstractItemView*>(parent)->setItemDelegateForColumn(column, delegate);
+    }
 }
 
 // Constructor of the QStringItemDelegate. We use it to store the max length allowed for the delegate.

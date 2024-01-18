@@ -1,14 +1,20 @@
 #include "doublespinbox_item_delegate.h"
-#include "float.h"
 #include <QDebug>
 #include <QAbstractItemView>
 #include <QDoubleSpinBox>
 #include <QSettings>
+#include "tableview_frozen.h"
 
 // Function to be called from any other language. This assing to the provided column of the provided TableView a QDoubleSpinBoxItemDelegate.
 extern "C" void new_doublespinbox_item_delegate(QObject *parent, const int column, QTimer* timer, bool is_dark_theme_enabled, bool has_filter, bool right_side_mark) {
     QDoubleSpinBoxItemDelegate* delegate = new QDoubleSpinBoxItemDelegate(parent, timer, is_dark_theme_enabled, has_filter, right_side_mark);
-    dynamic_cast<QAbstractItemView*>(parent)->setItemDelegateForColumn(column, delegate);
+    QTableViewFrozen* itemView = dynamic_cast<QTableViewFrozen*>(parent);
+
+    if (itemView) {
+        itemView->setItemDelegateForColumn(column, delegate);
+    } else {
+        dynamic_cast<QAbstractItemView*>(parent)->setItemDelegateForColumn(column, delegate);
+    }
 }
 
 // Constructor of the QDoubleSpinBoxItemDelegate. Empty, as we don't need to do anything special with it.

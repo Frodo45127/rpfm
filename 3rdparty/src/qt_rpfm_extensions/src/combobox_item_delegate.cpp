@@ -4,12 +4,19 @@
 #include <QSettings>
 #include <QStandardItem>
 #include <QStandardItemModel>
+#include "tableview_frozen.h"
 
 // Function to be called from any other language. This assing to the provided column of the provided TableView a QComboBoxItemDelegate,
 // with the specified values. We have to tell it too if the combo will be editable or not.
 extern "C" void new_combobox_item_delegate(QObject *parent, const int column, const QStringList* values, const QStringList* lookups, const bool is_editable, QTimer* timer, bool is_dark_theme_enabled, bool has_filter, bool right_side_mark) {
     QComboBoxItemDelegate* delegate = new QComboBoxItemDelegate(parent, *values, *lookups, is_editable, timer, is_dark_theme_enabled, has_filter, right_side_mark);
-    dynamic_cast<QAbstractItemView*>(parent)->setItemDelegateForColumn(column, delegate);
+    QTableViewFrozen* itemView = dynamic_cast<QTableViewFrozen*>(parent);
+
+    if (itemView) {
+        itemView->setItemDelegateForColumn(column, delegate);
+    } else {
+        dynamic_cast<QAbstractItemView*>(parent)->setItemDelegateForColumn(column, delegate);
+    }
 }
 
 // Constructor of the QComboBoxItemDelegate. We use it to store the values and if the user should be able to write his own value.
