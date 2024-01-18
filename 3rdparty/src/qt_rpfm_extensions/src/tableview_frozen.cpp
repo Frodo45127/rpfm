@@ -42,7 +42,7 @@ QTableViewFrozen::QTableViewFrozen(QWidget* parent, void (*generate_tooltip_mess
 
     this->setParent(parent);
     frozenColumns = QList<int>();
-    tableViewFrozen = new QTableView(this);
+    tableViewFrozen = new QTableViewSubFrozen(this, generateTooltipMessage);
     generateTooltipMessage = generate_tooltip_message;
 
     if (generateTooltipMessage != nullptr) {
@@ -128,7 +128,6 @@ QTableViewFrozen::QTableViewFrozen(QWidget* parent, void (*generate_tooltip_mess
     tableViewFrozen->setVerticalScrollMode(ScrollPerPixel);
     tableViewFrozen->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     tableViewFrozen->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    //tableViewFrozen->setSelectionModel(selectionModel());
     tableViewFrozen->show();
 
     // Place the Frozen QTableView above the normal one.
@@ -153,6 +152,22 @@ QTableViewFrozen::~QTableViewFrozen() {
 void QTableViewFrozen::setModel(QAbstractItemModel* model) {
     tableViewFrozen->setModel(model);
     QTableView::setModel(model);
+
+    // Connect the selection of both views, so they're kept in sync.
+    // These are here because they need to trigger after setModel.
+    connect(
+        selectionModel(),
+        &QItemSelectionModel::selectionChanged,
+        this,
+        &QTableViewFrozen::updateSelectionNormalToFrozen
+    );
+
+    connect(
+        tableViewFrozen->selectionModel(),
+        &QItemSelectionModel::selectionChanged,
+        this,
+        &QTableViewFrozen::updateSelectionFrozenToNormal
+    );
 
     // Update the geometry, just in case we already have data in the model.
     updateFrozenTableGeometry();
@@ -199,29 +214,107 @@ void QTableViewFrozen::sectionMoved(int, int oldVisualIndex, int newVisualIndex)
 // Complex override calls/extension functions.
 //-----------------------------------------------------------
 
-// Function to keep the cursor always visible, so it never gets hidden under the Frozen Columns.
+// Function to update the selection in the frozen table sync.
+void QTableViewFrozen::updateSelectionNormalToFrozen(const QItemSelection &selected, const QItemSelection &deselected) {
+    QModelIndexList items_sel = selected.indexes();
+    QModelIndexList items_desel = deselected.indexes();
+
+    QItemSelectionModel* oppositeSelectionModel = tableViewFrozen->selectionModel();
+    for (const QModelIndex& index : qAsConst(items_sel)) {
+        oppositeSelectionModel->select(index, QItemSelectionModel::SelectionFlag::Select);
+    }
+
+    for (const QModelIndex& index : qAsConst(items_desel)) {
+        oppositeSelectionModel->select(index, QItemSelectionModel::SelectionFlag::Deselect);
+    }
+}
+
+// Function to update the selection in the normal table sync.
+void QTableViewFrozen::updateSelectionFrozenToNormal(const QItemSelection &selected, const QItemSelection &deselected) {
+    QModelIndexList items_sel = selected.indexes();
+    QModelIndexList items_desel = deselected.indexes();
+
+    QItemSelectionModel* oppositeSelectionModel = selectionModel();
+    for (const QModelIndex& index : qAsConst(items_sel)) {
+        oppositeSelectionModel->select(index, QItemSelectionModel::SelectionFlag::Select);
+    }
+
+    for (const QModelIndex& index : qAsConst(items_desel)) {
+        oppositeSelectionModel->select(index, QItemSelectionModel::SelectionFlag::Deselect);
+    }
+}
+
+// Function so moving from a frozen column to a normal one and viceversa is seamless.
 QModelIndex QTableViewFrozen::moveCursor(CursorAction cursorAction, Qt::KeyboardModifiers modifiers) {
-    QModelIndex current = QTableView::moveCursor(cursorAction, modifiers);
 
-    // We need to get this done dinamically, depending on the amount and size of frozen columns.
-    int frozen_columns = 0;
-    int frozen_width = 0;
-    QSortFilterProxyModel* model = dynamic_cast<QSortFilterProxyModel*>(this->model());
-    for (int i = 0; i < model->sourceModel()->columnCount(); ++i) {
-        if (!tableViewFrozen->isColumnHidden(i)) {
-            frozen_columns += 1;
-            frozen_width += columnWidth(i);
+    // Check what widget has the focus to know from what to what move.
+    bool frozenFocus = tableViewFrozen->hasFocus();
+    if (frozenFocus) {
+
+        // Get the latest frozen column.
+        int column = -1;
+
+        for (int i = 0; i < frozenColumns.count(); ++i) {
+            int vis = tableViewFrozen->horizontalHeader()->visualIndex(frozenColumns[i]);
+            if (vis > column) {
+                column = vis;
+            }
         }
-    }
 
-    if (cursorAction == MoveLeft &&
-        current.column() >= frozen_columns  &&
-        visualRect(current).topLeft().x() < frozen_width
-    ){
-        const int newValue = horizontalScrollBar()->value() + visualRect(current).topLeft().x() - frozen_width;
-        horizontalScrollBar()->setValue(newValue);
+        if (cursorAction == MoveRight && tableViewFrozen->horizontalHeader()->visualIndex(tableViewFrozen->currentIndex().column()) == column) {
+            QModelIndex precurrent = tableViewFrozen->currentIndex();
+            QModelIndex current = tableViewFrozen->moveCursor2(cursorAction, modifiers);
+
+            int row = precurrent.row();
+            int column = 9999;
+            int columnLogic = 9999;
+
+            // We need to get this done dinamically, depending on the amount and size of frozen columns.
+            for (int i = 0; i < horizontalHeader()->count(); ++i) {
+                int vis = horizontalHeader()->visualIndex(i);
+                if (vis < column) {
+                    column = vis;
+                    columnLogic = i;
+                }
+            }
+
+            current = tableViewFrozen->model()->index(row, columnLogic);
+            //tableViewFrozen->setCurrentIndex(current);
+            setFocus();
+            setCurrentIndex(current);
+
+            return current;
+        } else {
+            QModelIndex current = tableViewFrozen->moveCursor2(cursorAction, modifiers);
+            return current;
+        }
+    } else if (cursorAction == MoveLeft && !frozenColumns.isEmpty() && horizontalHeader()->visualIndex(currentIndex().column()) == 0) {
+        QModelIndex precurrent = currentIndex();
+        QModelIndex current = QTableView::moveCursor(cursorAction, modifiers);
+
+        int row = precurrent.row();
+        int column = -1;
+        int columnLogic = -1;
+
+        // We need to get this done dinamically, depending on the amount and size of frozen columns.
+        for (int i = 0; i < frozenColumns.count(); ++i) {
+            int vis = tableViewFrozen->horizontalHeader()->visualIndex(frozenColumns[i]);
+            if (vis > column) {
+                column = vis;
+                columnLogic = frozenColumns[i];
+            }
+        }
+
+        current = model()->index(row, columnLogic);
+        //setCurrentIndex(current);
+        tableViewFrozen->setFocus();
+        tableViewFrozen->setCurrentIndex(current);
+
+        return current;
+    } else {
+        QModelIndex current = QTableView::moveCursor(cursorAction, modifiers);
+        return current;
     }
-    return current;
 }
 
 // Function to make the FrozenTableView work in consonance with the QtableView when the selection is out of view.
@@ -310,4 +403,38 @@ bool QTableViewFrozen::viewportEvent(QEvent *event) {
         }
     }
     return QTableView::viewportEvent(event);
+}
+
+
+
+
+QTableViewSubFrozen::QTableViewSubFrozen(QWidget* parent, void (*generate_tooltip_message)(QTableView* view, int globalPosX, int globalPosY)) {
+    this->setParent(parent);
+    generateTooltipMessage = generate_tooltip_message;
+
+    if (generateTooltipMessage != nullptr) {
+        qDebug("non-nul");
+    }
+}
+
+// Destructor. Nothing to see here, keep scrolling.
+QTableViewSubFrozen::~QTableViewSubFrozen() {
+    delete this;
+}
+
+bool QTableViewSubFrozen::viewportEvent(QEvent *event) {
+    if (event->type() == QEvent::ToolTip) {
+        _lastPosition = static_cast<QHelpEvent*>(event)->globalPos();
+        QTableView* view = static_cast<QTableView*>(this);
+
+        if (generateTooltipMessage != nullptr) {
+            generateTooltipMessage(view, _lastPosition.x(), _lastPosition.y());
+        }
+    }
+    return QTableView::viewportEvent(event);
+}
+
+QModelIndex QTableViewSubFrozen::moveCursor2(CursorAction cursorAction, Qt::KeyboardModifiers modifiers) {
+    QModelIndex current = QTableView::moveCursor(cursorAction, modifiers);
+    return current;
 }
