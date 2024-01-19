@@ -1634,13 +1634,26 @@ pub fn background_loop() {
                             let schema = SCHEMA.read().unwrap();
                             match &*schema {
                                 Some(ref schema) => {
+                                    let mut files = vec![];
                                     for path in paths {
                                         let table_name = path.path_raw().split('/').collect::<Vec<_>>()[1];
-                                        if let Ok(table) = dependencies.import_from_ak(table_name, schema) {
-                                            let file = RFile::new_from_decoded(&RFileDecoded::DB(table), 0, path.path_raw());
-                                            if let Ok(Some(path)) = pack_file_decoded.insert(file) {
-                                                added_paths.push(path);
+                                        match dependencies.import_from_ak(table_name, schema) {
+                                            Ok(table) => {
+                                                let file = RFile::new_from_decoded(&RFileDecoded::DB(table), 0, path.path_raw());
+                                                files.push(file);
+                                            },
+                                            Err(_) => {
+                                                CentralCommand::send_back(&sender, Response::Error(anyhow!("One or more files failed to import due to missing definition.")));
+                                                CentralCommand::send_back(&sender, Response::Success);
+                                                continue 'background_loop;
                                             }
+                                        }
+                                    }
+
+                                    // Only add the files if none failed to import.
+                                    for file in files {
+                                        if let Ok(Some(path)) = pack_file_decoded.insert(file) {
+                                            added_paths.push(path);
                                         }
                                     }
                                 },
