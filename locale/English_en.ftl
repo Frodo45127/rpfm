@@ -1547,3 +1547,6 @@ build_starpos_instructions = <p>Instructions:</p>
 
 campaign_id = Campaign ID:
 process_hlp_spd_data = Process HLP and SPD data
+
+ignore_game_files_in_ak = Ignore Game Files in Assembly Kit
+settings_ignore_game_files_in_ak = When generating the dependencies cache, ignore files from the Assembly Kit that are present in the game files. Reduces RAM usage and makes RPFM load faster, but you loose read/import access to about 900 files.

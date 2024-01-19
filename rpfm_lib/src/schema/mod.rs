@@ -857,7 +857,18 @@ impl Definition {
             }
 
             if !found {
-                unfound_fields.push(format!("{}/{}", raw_table_name, raw_field.name));
+
+                // We need to check if it's a loc field before reporting it as unfound.
+                for loc_field in self.localised_fields() {
+                    if loc_field.name == raw_field.name {
+                        found = true;
+                        break;
+                    }
+                }
+
+                if !found {
+                    unfound_fields.push(format!("{}/{}", raw_table_name, raw_field.name));
+                }
             }
         }
     }

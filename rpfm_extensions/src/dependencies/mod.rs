@@ -256,7 +256,7 @@ impl Dependencies {
     }
 
     /// This function generates the dependencies cache for the game provided and returns it.
-    pub fn generate_dependencies_cache(game_info: &GameInfo, game_path: &Path, asskit_path: &Option<PathBuf>) -> Result<Self> {
+    pub fn generate_dependencies_cache(game_info: &GameInfo, game_path: &Path, asskit_path: &Option<PathBuf>, ignore_game_files_in_ak: bool) -> Result<Self> {
         let mut cache = Self::default();
         cache.build_date = current_time()?;
         cache.version = VERSION.to_owned();
@@ -322,7 +322,7 @@ impl Dependencies {
 
         // This one can fail, leaving the dependencies with only game data.
         if let Some(path) = asskit_path {
-            let _ = cache.generate_asskit_only_db_tables(path, *game_info.raw_db_version());
+            let _ = cache.generate_asskit_only_db_tables(path, *game_info.raw_db_version(), ignore_game_files_in_ak);
         }
 
         Ok(cache)
@@ -334,8 +334,12 @@ impl Dependencies {
     /// with version -1. That will allow us to use them for dependency checking and for populating combos.
     ///
     /// To keep things fast, only undecoded or missing (from the game files) tables will be included into the PAK2 file.
-    fn generate_asskit_only_db_tables(&mut self, raw_db_path: &Path, version: i16) -> Result<()> {
-        let files_to_ignore = self.vanilla_tables.keys().map(|table_name| &table_name[..table_name.len() - 7]).collect::<Vec<_>>();
+    fn generate_asskit_only_db_tables(&mut self, raw_db_path: &Path, version: i16, ignore_game_files: bool) -> Result<()> {
+        let files_to_ignore = if ignore_game_files {
+            self.vanilla_tables.keys().map(|table_name| &table_name[..table_name.len() - 7]).collect::<Vec<_>>()
+        } else {
+            vec![]
+        };
         let raw_tables = RawTable::read_all(raw_db_path, version, &files_to_ignore)?;
         let asskit_only_db_tables = raw_tables.par_iter().map(TryFrom::try_from).collect::<Result<Vec<DB>>>()?;
 

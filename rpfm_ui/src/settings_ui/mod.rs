@@ -106,6 +106,7 @@ pub struct SettingsUI {
     general_packfile_treeview_expand_treeview_when_adding_items_label: QBox<QLabel>,
     include_base_folder_on_add_from_folder_label: QBox<QLabel>,
     delete_empty_folders_on_delete_label: QBox<QLabel>,
+    ignore_game_files_in_ak_label: QBox<QLabel>,
 
     general_language_combobox: QBox<QComboBox>,
     extra_global_default_game_combobox: QBox<QComboBox>,
@@ -128,6 +129,7 @@ pub struct SettingsUI {
     general_packfile_treeview_expand_treeview_when_adding_items_checkbox: QBox<QCheckBox>,
     include_base_folder_on_add_from_folder_checkbox: QBox<QCheckBox>,
     delete_empty_folders_on_delete_checkbox: QBox<QCheckBox>,
+    ignore_game_files_in_ak_checkbox: QBox<QCheckBox>,
 
     font_data: Rc<RefCell<(String, i32)>>,
 
@@ -421,6 +423,9 @@ impl SettingsUI {
         let delete_empty_folders_on_delete_label = QLabel::from_q_string_q_widget(&qtr("delete_empty_folders_on_delete"), &general_frame);
         let delete_empty_folders_on_delete_checkbox = QCheckBox::from_q_widget(&general_frame);
 
+        let ignore_game_files_in_ak_label = QLabel::from_q_string_q_widget(&qtr("ignore_game_files_in_ak"), &general_frame);
+        let ignore_game_files_in_ak_checkbox = QCheckBox::from_q_widget(&general_frame);
+
         // Adding to the grid.
         general_grid.add_widget_5a(&general_language_label, 0, 0, 1, 1);
         general_grid.add_widget_5a(&general_language_combobox, 0, 1, 1, 1);
@@ -478,6 +483,9 @@ impl SettingsUI {
 
         general_grid.add_widget_5a(&delete_empty_folders_on_delete_label, 19, 0, 1, 1);
         general_grid.add_widget_5a(&delete_empty_folders_on_delete_checkbox, 19, 1, 1, 1);
+
+        general_grid.add_widget_5a(&ignore_game_files_in_ak_label, 20, 0, 1, 1);
+        general_grid.add_widget_5a(&ignore_game_files_in_ak_checkbox, 20, 1, 1, 1);
 
         settings_grid.add_widget_5a(&general_frame, 2, 0, 2, 1);
 
@@ -750,6 +758,7 @@ impl SettingsUI {
             general_packfile_treeview_expand_treeview_when_adding_items_label,
             include_base_folder_on_add_from_folder_label,
             delete_empty_folders_on_delete_label,
+            ignore_game_files_in_ak_label,
 
             general_language_combobox,
             extra_global_default_game_combobox,
@@ -772,6 +781,7 @@ impl SettingsUI {
             general_packfile_treeview_expand_treeview_when_adding_items_checkbox,
             include_base_folder_on_add_from_folder_checkbox,
             delete_empty_folders_on_delete_checkbox,
+            ignore_game_files_in_ak_checkbox,
 
             font_data: Rc::new(RefCell::new((String::new(), -1))),
 
@@ -912,6 +922,7 @@ impl SettingsUI {
         self.general_packfile_treeview_expand_treeview_when_adding_items_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "expand_treeview_when_adding_items"));
         self.include_base_folder_on_add_from_folder_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "include_base_folder_on_add_from_folder"));
         self.delete_empty_folders_on_delete_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "delete_empty_folders_on_delete"));
+        self.ignore_game_files_in_ak_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "ignore_game_files_in_ak"));
 
         // Load the Table Stuff.
         self.ui_table_adjust_columns_to_content_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "adjust_columns_to_content"));
@@ -1025,6 +1036,7 @@ impl SettingsUI {
         set_setting_bool_to_q_setting(&q_settings, "expand_treeview_when_adding_items", self.general_packfile_treeview_expand_treeview_when_adding_items_checkbox.is_checked());
         set_setting_bool_to_q_setting(&q_settings, "include_base_folder_on_add_from_folder", self.include_base_folder_on_add_from_folder_checkbox.is_checked());
         set_setting_bool_to_q_setting(&q_settings, "delete_empty_folders_on_delete", self.delete_empty_folders_on_delete_checkbox.is_checked());
+        set_setting_bool_to_q_setting(&q_settings, "ignore_game_files_in_ak", self.ignore_game_files_in_ak_checkbox.is_checked());
 
         // Get the Table Settings.
         set_setting_bool_to_q_setting(&q_settings, "adjust_columns_to_content", self.ui_table_adjust_columns_to_content_checkbox.is_checked());

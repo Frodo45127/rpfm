@@ -337,10 +337,11 @@ pub fn background_loop() {
             Command::GenerateDependenciesCache => {
                 let game_selected = GAME_SELECTED.read().unwrap();
                 let game_path = setting_path(game_selected.key());
+                let ignore_game_files_in_ak = setting_bool("ignore_game_files_in_ak");
                 let asskit_path = assembly_kit_path().ok();
 
                 if game_path.is_dir() {
-                    match Dependencies::generate_dependencies_cache(&game_selected, &game_path, &asskit_path) {
+                    match Dependencies::generate_dependencies_cache(&game_selected, &game_path, &asskit_path, ignore_game_files_in_ak) {
                         Ok(mut cache) => {
                             let dependencies_path = dependencies_cache_path().unwrap().join(game_selected.dependencies_cache_file_name());
                             match cache.save(&dependencies_path) {
@@ -361,6 +362,8 @@ pub fn background_loop() {
 
             // In case we want to update the Schema for our Game Selected...
             Command::UpdateCurrentSchemaFromAssKit => {
+                let ignore_game_files_in_ak = setting_bool("ignore_game_files_in_ak");
+
                 if let Some(ref mut schema) = *SCHEMA.write().unwrap() {
                     match assembly_kit_path() {
                         Ok(asskit_path) => {
@@ -368,7 +371,12 @@ pub fn background_loop() {
                             let schema_path = schemas_path().unwrap().join(game_selected.schema_file_name());
 
                             let dependencies = dependencies.read().unwrap();
-                            if let Ok(tables_to_check) = dependencies.db_and_loc_data(true, false, true, false) {
+                            if let Ok(mut tables_to_check) = dependencies.db_and_loc_data(true, false, true, false) {
+
+                                // If there's a pack open, also add the pack's tables to it. That way we can treat some special tables, like starpos tables.
+                                if !pack_file_decoded.disk_file_path().is_empty() {
+                                    tables_to_check.append(&mut pack_file_decoded.files_by_type(&[FileType::DB]));
+                                }
 
                                 // Split the tables to check by table name.
                                 let mut tables_to_check_split: HashMap<String, Vec<DB>> = HashMap::new();
@@ -390,13 +398,20 @@ pub fn background_loop() {
                                     }
                                 }
 
-                                let tables_to_skip = dependencies.vanilla_tables().keys().map(|x| &**x).collect::<Vec<_>>();
+                                let tables_to_skip = if ignore_game_files_in_ak {
+                                    dependencies.vanilla_tables().keys().map(|x| &**x).collect::<Vec<_>>()
+                                } else {
+                                    vec![]
+                                };
+
                                 match update_schema_from_raw_files(schema, &game_selected, &asskit_path, &schema_path, &tables_to_skip, &tables_to_check_split) {
                                     Ok(possible_loc_fields) => {
 
                                         // NOTE: This deletes all loc fields first, so we need to get the loc fields AGAIN after this from the TExc_LocalisableFields.xml, if said file exists and it's readable.
                                         // That's why it does the update again, to re-populate the loc fields list with the ones not bruteforced. It's ineficient, but gets the job done.
                                         if dependencies.bruteforce_loc_key_order(schema, possible_loc_fields, None).is_ok() {
+
+                                            // Note: this shows the list of "missing" fields.
                                             let _ = update_schema_from_raw_files(schema, &game_selected, &asskit_path, &schema_path, &tables_to_skip, &tables_to_check_split);
 
                                             match schema.save(&schemas_path().unwrap().join(GAME_SELECTED.read().unwrap().schema_file_name())) {

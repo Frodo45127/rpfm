@@ -36,6 +36,7 @@ pub unsafe fn set_tips(settings_ui: &Rc<SettingsUI>) {
     let settings_expand_treeview_when_adding_items_tip = qtr("settings_expand_treeview_when_adding_items_tip");
     let include_base_folder_on_add_from_folder = qtr("settings_include_base_folder_on_add_from_folder");
     let delete_empty_folders_on_delete = qtr("settings_delete_empty_folders_on_delete");
+    let ignore_game_files_in_ak = qtr("settings_ignore_game_files_in_ak");
 
     settings_ui.ui_global_use_dark_theme_label.set_tool_tip(&ui_global_use_dark_theme_tip);
     settings_ui.ui_global_use_dark_theme_checkbox.set_tool_tip(&ui_global_use_dark_theme_tip);
@@ -57,6 +58,8 @@ pub unsafe fn set_tips(settings_ui: &Rc<SettingsUI>) {
     settings_ui.include_base_folder_on_add_from_folder_checkbox.set_tool_tip(&include_base_folder_on_add_from_folder);
     settings_ui.delete_empty_folders_on_delete_label.set_tool_tip(&delete_empty_folders_on_delete);
     settings_ui.delete_empty_folders_on_delete_checkbox.set_tool_tip(&delete_empty_folders_on_delete);
+    settings_ui.ignore_game_files_in_ak_label.set_tool_tip(&ignore_game_files_in_ak);
+    settings_ui.ignore_game_files_in_ak_checkbox.set_tool_tip(&ignore_game_files_in_ak);
 
     //-----------------------------------------------//
     // `Extra` tips.

@@ -32,7 +32,7 @@ pub fn generate(config: &Config, pak_path: &Path, game_path: &Path, assembly_kit
     match &config.game {
         Some(game_info) => {
 
-            let mut dependencies = Dependencies::generate_dependencies_cache(game_info, game_path, assembly_kit_path)?;
+            let mut dependencies = Dependencies::generate_dependencies_cache(game_info, game_path, assembly_kit_path, false)?;
             dependencies.save(pak_path)?;
 
             if config.verbose {
