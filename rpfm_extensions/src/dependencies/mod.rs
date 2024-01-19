@@ -1722,10 +1722,10 @@ impl Dependencies {
             if !definitions.is_empty() {
                 definitions[0].clone()
             } else {
-                return Err(RLibError::DependenciesCacheNotGeneratedorOutOfDate)
+                return Err(RLibError::DecodingDBNoDefinitionsFound)
             }
         } else {
-            return Err(RLibError::DependenciesCacheNotGeneratedorOutOfDate)
+            return Err(RLibError::DecodingDBNoDefinitionsFound)
         };
 
         // Create the new table according to the schema, and import its data from the AK.
@@ -1734,7 +1734,7 @@ impl Dependencies {
             real_table.set_definition(&definition);
             Ok(real_table)
         } else {
-            return Err(RLibError::DependenciesCacheNotGeneratedorOutOfDate)
+            return Err(RLibError::AssemblyKitTableNotFound(table_name.to_owned()))
         }
     }
 

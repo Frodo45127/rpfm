@@ -292,6 +292,9 @@ pub enum RLibError {
     #[error("The Assembly Kit Folder could not be read. You may need to install the Assembly Kit.")]
     AssemblyKitNotFound,
 
+    #[error("The table {0} was not found in the Assembly Kit.")]
+    AssemblyKitTableNotFound(String),
+
     #[error("One of the Assembly Kit Tables you tried to decode has been blacklisted due to issues.")]
     AssemblyKitTableTableIgnored,
 
