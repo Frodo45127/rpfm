@@ -347,6 +347,9 @@ pub enum Command {
     CheckEmpireAndNapoleonAKUpdates,
     UpdateEmpireAndNapoleonAK,
     #[cfg(feature = "enable_tools")] GetPackTranslation(String),
+    BuildStarpos(String),
+    BuildStarposPost(String),
+    BuildStarposGetCampaingIds,
 }
 
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.

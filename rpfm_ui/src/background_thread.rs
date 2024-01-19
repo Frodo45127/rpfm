@@ -36,6 +36,7 @@ use rpfm_extensions::diagnostics::Diagnostics;
 use rpfm_extensions::optimizer::OptimizableContainer;
 #[cfg(feature = "enable_tools")] use rpfm_extensions::translator::PackTranslation;
 
+use rpfm_lib::binary::WriteBytes;
 use rpfm_lib::files::{animpack::AnimPack, Container, ContainerPath, db::DB, DecodeableExtraData, FileType, loc::Loc, pack::*, portrait_settings::PortraitSettings, RFile, RFileDecoded, text::*};
 use rpfm_lib::games::{GameInfo, LUA_REPO, LUA_BRANCH, LUA_REMOTE, OLD_AK_REPO, OLD_AK_BRANCH, OLD_AK_REMOTE, pfh_file_type::PFHFileType};
 use rpfm_lib::integrations::{assembly_kit::*, git::*, log::*};
@@ -57,6 +58,8 @@ use crate::SCHEMA;
 use crate::settings_ui::backend::*;
 use crate::SUPPORTED_GAMES;
 use crate::utils::initialize_encodeable_extra_data;
+
+#[allow(dead_code)] const USER_SCRIPT_FILE_NAME: &str = "user.script.txt";
 
 /// This is the background loop that's going to be executed in a parallel thread to the UI. No UI or "Unsafe" stuff here.
 ///
@@ -1591,7 +1594,7 @@ pub fn background_loop() {
                     let files = match data_source {
                         DataSource::GameFiles => dependencies.files_by_path(paths, true, false, false),
                         DataSource::ParentFiles => dependencies.files_by_path(paths, false, true, false),
-
+                        DataSource::AssKitFiles => HashMap::new(),
                         _ => {
                             CentralCommand::send_back(&sender, Response::Error(anyhow!("You can't import files from this source.")));
                             CentralCommand::send_back(&sender, Response::Success);
@@ -1605,6 +1608,39 @@ pub fn background_loop() {
                         if let Ok(Some(path)) = pack_file_decoded.insert(file) {
                             added_paths.push(path);
                         }
+                    }
+                }
+
+                // Once we're done with normal files, we process the ak ones.
+                for (data_source, paths) in &paths_by_data_source {
+                    match data_source {
+                        DataSource::GameFiles | DataSource::ParentFiles => {},
+                        DataSource::AssKitFiles => {
+                            let schema = SCHEMA.read().unwrap();
+                            match &*schema {
+                                Some(ref schema) => {
+                                    for path in paths {
+                                        let table_name = path.path_raw().split('/').collect::<Vec<_>>()[1];
+                                        if let Ok(table) = dependencies.import_from_ak(table_name, schema) {
+                                            let file = RFile::new_from_decoded(&RFileDecoded::DB(table), 0, path.path_raw());
+                                            if let Ok(Some(path)) = pack_file_decoded.insert(file) {
+                                                added_paths.push(path);
+                                            }
+                                        }
+                                    }
+                                },
+                                None => {
+                                    CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected.")));
+                                    CentralCommand::send_back(&sender, Response::Success);
+                                    continue 'background_loop;
+                                }
+                            }
+                        },
+                        _ => {
+                            CentralCommand::send_back(&sender, Response::Error(anyhow!("You can't import files from this source.")));
+                            CentralCommand::send_back(&sender, Response::Success);
+                            continue 'background_loop;
+                        },
                     }
                 }
 
@@ -1916,10 +1952,106 @@ pub fn background_loop() {
                 }
             }
 
+            Command::BuildStarposGetCampaingIds => {
+                let mut ids = dependencies.read().unwrap().db_values_from_table_name_and_column_name(Some(&pack_file_decoded), "campaigns_tables", "campaign_name", true, true);
+                CentralCommand::send_back(&sender, Response::HashSetString(ids));
+            }
+
+            Command::BuildStarpos(campaign_id) => {
+                match build_starpos(&pack_file_decoded, &campaign_id) {
+                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                }
+            }
+
+            Command::BuildStarposPost(campaign_id) => {
+                match build_starpos_post(&mut pack_file_decoded, &campaign_id) {
+                    Ok(path) => CentralCommand::send_back(&sender, Response::OptionContainerPath(path)),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                }
+            },
+
             // These two belong to the network thread, not to this one!!!!
             Command::CheckUpdates | Command::CheckSchemaUpdates | Command::CheckLuaAutogenUpdates | Command::CheckEmpireAndNapoleonAKUpdates => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
         }
     }
+}
+
+fn build_starpos(pack_file: &Pack, campaign_id: &str) -> Result<()> {
+    let pack_name = pack_file.disk_file_name();
+    if pack_name.is_empty() {
+        return Err(anyhow!("The Pack needs to be saved to disk in order to build a starpos. Save it and try again."));
+    }
+
+    if campaign_id.is_empty() {
+        return Err(anyhow!("campaign_id not provided."));
+    }
+
+    let user_script_contents = format!("
+        mod {}.pack;
+        process_campaign_startpos {};
+        process_campaign_ai_map_data;
+        quit_after_campaign_processing;", pack_name, campaign_id
+    );
+
+    // Games may fail to launch if we don't have this path created, which is done the first time we start the game.
+    let game = GAME_SELECTED.read().unwrap();
+    let game_path = setting_path(game.key());
+
+    if !game_path.is_dir() {
+        return Err(anyhow!("Game path incorrect. Fix it in the settings and try again."));
+    }
+
+    let config_path = game.config_path(&game_path).ok_or(anyhow!("Error getting the game's config path."))?;
+    let scripts_path = config_path.join("scripts");
+    DirBuilder::new().recursive(true).create(&scripts_path)?;
+
+    // Make a backup before editing the script, so we can restore it later.
+    let uspa = scripts_path.join(USER_SCRIPT_FILE_NAME);
+    let uspb = scripts_path.join(USER_SCRIPT_FILE_NAME.to_owned() + ".bak");
+    std::fs::copy(&uspa, &uspb)?;
+
+    let mut file = BufWriter::new(File::create(uspa)?);
+
+    // Napoleon, Empire and Shogun 2 require the user.script.txt or mod list file (for Shogun's latest update) to be in UTF-16 LE. What the actual fuck.
+    if *game.raw_db_version() < 2 {
+        file.write_string_u16(&user_script_contents)?;
+    } else {
+        file.write_all(user_script_contents.as_bytes())?;
+    }
+
+    file.flush()?;
+
+    // Then launch the game.
+    match GAME_SELECTED.read().unwrap().game_launch_command(&setting_path(GAME_SELECTED.read().unwrap().key())) {
+        Ok(command) => { let _ = open::that(command); },
+        _ => return Err(anyhow!("The currently selected game cannot be launched from Steam.")),
+    }
+
+    Ok(())
+}
+
+fn build_starpos_post(pack_file: &mut Pack, campaign_id: &str) -> Result<Option<ContainerPath>> {
+    let game = GAME_SELECTED.read().unwrap();
+    let game_path = setting_path(game.key());
+
+    if !game_path.is_dir() {
+        return Err(anyhow!("Game path incorrect. Fix it in the settings and try again."));
+    }
+
+    let config_path = game.config_path(&game_path).ok_or(anyhow!("Error getting the game's config path."))?;
+    let scripts_path = config_path.join("scripts");
+    DirBuilder::new().recursive(true).create(&scripts_path)?;
+
+    // Restore the userscript backup.
+    let uspa = scripts_path.join(USER_SCRIPT_FILE_NAME);
+    let uspb = scripts_path.join(USER_SCRIPT_FILE_NAME.to_owned() + ".bak");
+    std::fs::copy(uspb, uspa)?;
+
+    // Add the starpos.
+    let starpos_path = game.data_path(&game_path)?.join(format!("campaigns/{}", campaign_id));
+    let starpos_path_pack = format!("campaigns/{}/startpos.esf", campaign_id);
+    pack_file.insert_file(&starpos_path, &starpos_path_pack, &None).map_err(From::from)
 }
 
 /// Function to perform a live extraction.

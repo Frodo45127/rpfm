@@ -21,7 +21,7 @@ use qt_widgets::QCheckBox;
 use qt_widgets::QComboBox;
 use qt_widgets::QDialog;
 use qt_widgets::QDialogButtonBox;
-use qt_widgets::q_dialog_button_box::StandardButton;
+use qt_widgets::q_dialog_button_box::{ButtonRole, StandardButton};
 use qt_widgets::QFileDialog;
 use qt_widgets::QGroupBox;
 use qt_widgets::QGridLayout;
@@ -67,6 +67,7 @@ use time::OffsetDateTime;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::OsStr;
+use std::io::BufWriter;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::{atomic::Ordering, RwLock};
@@ -117,6 +118,9 @@ const NEW_FILE_VIEW_RELEASE: &str = "ui/new_file_dialog.ui";
 
 const PACK_MAP_VIEW_DEBUG: &str = "rpfm_ui/ui_templates/pack_map_dialog.ui";
 const PACK_MAP_VIEW_RELEASE: &str = "ui/pack_map_dialog.ui";
+
+const BUILD_STARPOS_VIEW_DEBUG: &str = "rpfm_ui/ui_templates/build_starpos_view.ui";
+const BUILD_STARPOS_VIEW_RELEASE: &str = "ui/build_starpos_view.ui";
 
 pub mod connections;
 pub mod slots;
@@ -260,6 +264,7 @@ pub struct AppUI {
     special_stuff_wh3_optimize_packfile: QPtr<QAction>,
     special_stuff_wh3_live_export: QPtr<QAction>,
     special_stuff_wh3_pack_map: QPtr<QAction>,
+    special_stuff_wh3_build_starpos: QPtr<QAction>,
 
     // Troy actions.
     special_stuff_troy_generate_dependencies_cache: QPtr<QAction>,
@@ -698,6 +703,7 @@ impl AppUI {
         let special_stuff_wh3_optimize_packfile = add_action_to_menu(&menu_warhammer_3, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_wh3_live_export = add_action_to_menu(&menu_warhammer_3, shortcuts.as_ref(), "special_stuff_menu", "live_export", "special_stuff_live_export", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_wh3_pack_map = add_action_to_menu(&menu_warhammer_3, shortcuts.as_ref(), "special_stuff_menu", "pack_map", "special_stuff_pack_map", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
+        let special_stuff_wh3_build_starpos = add_action_to_menu(&menu_warhammer_3, shortcuts.as_ref(), "special_stuff_menu", "build_starpos", "special_stuff_build_starpos", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_troy_generate_dependencies_cache = add_action_to_menu(&menu_troy, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_troy_optimize_packfile = add_action_to_menu(&menu_troy, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_three_k_generate_dependencies_cache = add_action_to_menu(&menu_three_kingdoms, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
@@ -889,6 +895,7 @@ impl AppUI {
             special_stuff_wh3_optimize_packfile,
             special_stuff_wh3_live_export,
             special_stuff_wh3_pack_map,
+            special_stuff_wh3_build_starpos,
 
             // Troy actions.
             special_stuff_troy_generate_dependencies_cache,
@@ -1603,6 +1610,7 @@ impl AppUI {
                     app_ui.special_stuff_wh3_optimize_packfile.set_enabled(true);
                     app_ui.special_stuff_wh3_live_export.set_enabled(true);
                     app_ui.special_stuff_wh3_pack_map.set_enabled(true);
+                    app_ui.special_stuff_wh3_build_starpos.set_enabled(true);
                 },
                 KEY_TROY => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(true);
@@ -1665,6 +1673,7 @@ impl AppUI {
             app_ui.special_stuff_wh3_generate_dependencies_cache.set_enabled(false);
             app_ui.special_stuff_wh3_live_export.set_enabled(false);
             app_ui.special_stuff_wh3_pack_map.set_enabled(false);
+            app_ui.special_stuff_wh3_build_starpos.set_enabled(false);
 
             // Disable Troy actions...
             app_ui.special_stuff_troy_optimize_packfile.set_enabled(false);
@@ -3954,5 +3963,86 @@ impl AppUI {
         paths_to_extract: Option<Vec<ContainerPath>>
     ) {
         PackFileContentsUI::extract_packed_files(app_ui, pack_file_contents_ui, paths_to_extract, true)
+    }
+
+    /// This function is used to build a snowman.
+    pub unsafe fn build_starpos(app_ui: &Rc<Self>, pack_file_contents_ui: &Rc<PackFileContentsUI>) -> Result<()> {
+        let template_path = if cfg!(debug_assertions) { BUILD_STARPOS_VIEW_DEBUG } else { BUILD_STARPOS_VIEW_RELEASE };
+        let main_widget = load_template(app_ui.main_window(), template_path)?;
+        let dialog = main_widget.static_downcast::<QDialog>();
+
+        // Create and configure the dialog.
+        let instructions_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "instructions_label")?;
+        let campaign_id_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "campaign_id_label")?;
+        let campaign_id_combobox: QPtr<QComboBox> = find_widget(&main_widget.static_upcast(), "campaign_id_combobox")?;
+        let button_box: QPtr<QDialogButtonBox> = find_widget(&main_widget.static_upcast(), "button_box")?;
+        let build_starpos_button = button_box.add_button_q_string_button_role(&qtr("build_starpos"), ButtonRole::ActionRole);
+        let games_closed_button = button_box.add_button_q_string_button_role(&qtr("games_closed"), ButtonRole::YesRole);
+        let campaign_id_model: QBox<QStandardItemModel> = QStandardItemModel::new_1a(&campaign_id_combobox);
+        campaign_id_combobox.set_model(&campaign_id_model);
+        games_closed_button.set_enabled(false);
+
+        dialog.set_window_title(&qtr("build_starpos"));
+        instructions_label.set_text(&qtr("build_starpos_instructions"));
+        campaign_id_label.set_text(&qtr("campaign_id"));
+
+        let receiver = CENTRAL_COMMAND.send_background(Command::BuildStarposGetCampaingIds);
+        let response = CENTRAL_COMMAND.recv_try(&receiver);
+        match response {
+            Response::HashSetString(ids) => {
+                for id in ids.into_iter() {
+                    campaign_id_combobox.add_item_q_string(&QString::from_std_str(id));
+                }
+            },
+
+            // In ANY other situation, it's a message problem.
+            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+        }
+
+        // Actions
+        let dialog_ptr = dialog.as_ptr();
+        let build_starpos_button_ptr = build_starpos_button.as_ptr();
+        let games_closed_button_ptr = games_closed_button.as_ptr();
+        let campaign_id_combobox_ptr = campaign_id_combobox.as_ptr();
+        let start_build_process = SlotNoArgs::new(&dialog, move || {
+            build_starpos_button_ptr.set_enabled(false);
+
+            let campaign_id = campaign_id_combobox_ptr.current_text().to_std_string();
+            let receiver = CENTRAL_COMMAND.send_background(Command::BuildStarpos(campaign_id));
+            let response = CENTRAL_COMMAND.recv_try(&receiver);
+            match response {
+                Response::Success => games_closed_button_ptr.set_enabled(true),
+                Response::Error(error) => show_dialog(dialog_ptr, error, false),
+
+                // In ANY other situation, it's a message problem.
+                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+            }
+        });
+
+        build_starpos_button.released().connect(&start_build_process);
+        games_closed_button.released().connect(dialog_ptr.slot_accept());
+
+        // Once the game has been closed, we need to cleanup the userscript file, then add the starpos to the open pack.
+        if dialog.exec() == 1 {
+            let campaign_id = campaign_id_combobox.current_text().to_std_string();
+            let receiver = CENTRAL_COMMAND.send_background(Command::BuildStarposPost(campaign_id));
+            let response = CENTRAL_COMMAND.recv_try(&receiver);
+            match response {
+                Response::OptionContainerPath(path) => {
+                    if let Some(path) = path {
+                        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(vec![path; 1]), DataSource::PackFile);
+                        UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
+                    }
+
+                    Ok(())
+                },
+                Response::Error(error) => Err(error),
+
+                // In ANY other situation, it's a message problem.
+                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+            }
+        } else {
+            Ok(())
+        }
     }
 }

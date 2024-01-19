@@ -171,7 +171,7 @@ impl DependenciesUISlots {
                         },
                         DataSource::AssKitFiles => {
                             dependencies_ui.context_menu_extract.set_enabled(false);
-                            dependencies_ui.context_menu_import.set_enabled(false);
+                            dependencies_ui.context_menu_import.set_enabled(true);
                         },
                         DataSource::ExternalFile => {
                             dependencies_ui.context_menu_extract.set_enabled(false);
@@ -199,10 +199,15 @@ impl DependenciesUISlots {
                 info!("Triggering `Import Dependencies` from context menu By Slot");
 
                 let paths = dependencies_ui.dependencies_tree_view.get_item_types_and_data_source_from_selection(true);
+                let ak_paths = paths.iter().filter_map(|(path, source)| if let DataSource::AssKitFiles = source { Some(path.to_owned()) } else { None }).collect::<Vec<ContainerPath>>();
                 let parent_paths = paths.iter().filter_map(|(path, source)| if let DataSource::ParentFiles = source { Some(path.to_owned()) } else { None }).collect::<Vec<ContainerPath>>();
                 let game_paths = paths.iter().filter_map(|(path, source)| if let DataSource::GameFiles = source { Some(path.to_owned()) } else { None }).collect::<Vec<ContainerPath>>();
 
                 let mut paths_by_source = BTreeMap::new();
+                if !ak_paths.is_empty() {
+                    paths_by_source.insert(DataSource::AssKitFiles, ak_paths);
+                }
+
                 if !parent_paths.is_empty() {
                     paths_by_source.insert(DataSource::ParentFiles, parent_paths);
                 }

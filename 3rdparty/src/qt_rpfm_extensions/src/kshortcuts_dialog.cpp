@@ -63,6 +63,7 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     new_action(special_stuff_menu_actions, "patch_siege_ai", "Patch SiegeAI", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""), "selection-move-to-layer-below");
     new_action(special_stuff_menu_actions, "live_export", "Live Export", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""), "format-align-vertical-top");
     new_action(special_stuff_menu_actions, "pack_map", "Pack Map", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""), "folder-add");
+    new_action(special_stuff_menu_actions, "build_starpos", "Build Starpos", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""), "run-build");
     special_stuff_menu_actions->readSettings();
 
     // About Menu actions.
