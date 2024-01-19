@@ -17,25 +17,22 @@ public:
 
     void setModel(QAbstractItemModel * model) override;
     void setUpdatesEnabled(bool enable);
-    void setItemDelegateForColumn(int column, QAbstractItemDelegate* delegate);
     QTableView *tableViewFrozen;
 
 protected:
     void resizeEvent(QResizeEvent *event) override;
     QModelIndex moveCursor(CursorAction cursorAction, Qt::KeyboardModifiers modifiers) override;
     void scrollTo (const QModelIndex & index, ScrollHint hint = EnsureVisible) override;
-    int baseLeftMargin = -1;
 
 private:
     QList<int> frozenColumns;
     QPoint _lastPosition;
     void (*generateTooltipMessage)(QTableView* view, int globalPosX, int globalPosY);
     void init();
-    void sectionMoved(int logicalIndex, int oldVisualIndex, int newVisualIndex);
     void updateFrozenTableGeometry();
 
 public slots:
-    void toggleFreezer(int column = -1);
+    void toggleFreezer(int column = 0);
 
 private slots:
     void updateSectionWidth(int logicalIndex, int oldSize, int newSize);
