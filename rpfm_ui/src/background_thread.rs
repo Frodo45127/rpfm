@@ -2105,7 +2105,13 @@ fn build_starpos_post(dependencies: &Dependencies, pack_file: &mut Pack, campaig
     // Add the starpos.
     let starpos_path = game_data_path.join(format!("campaigns/{}/startpos.esf", campaign_id));
     let starpos_path_pack = format!("campaigns/{}/startpos.esf", campaign_id);
-    added_paths.push(pack_file.insert_file(&starpos_path, &starpos_path_pack, &None).map(|x| x.unwrap())?);
+
+    let mut rfile = RFile::new_from_file_path(&starpos_path)?;
+    rfile.set_path_in_container_raw(&starpos_path_pack);
+    rfile.load()?;
+    rfile.guess_file_type()?;
+
+    added_paths.push(pack_file.insert(rfile).map(|x| x.unwrap())?);
 
     // Restore the old starpos if there was one, and delete the new one if it has already been added.
     let starpos_path_bak = game_data_path.join(format!("campaigns/{}/startpos.esf.bak", campaign_id));
@@ -2124,8 +2130,17 @@ fn build_starpos_post(dependencies: &Dependencies, pack_file: &mut Pack, campaig
             let hlp_path_pack = format!("campaign_maps/{}/hlp_data.esf", map_name);
             let spd_path_pack = format!("campaign_maps/{}/spd_data.esf", map_name);
 
-            added_paths.push(pack_file.insert_file(&hlp_path, &hlp_path_pack, &None).map(|x| x.unwrap())?);
-            added_paths.push(pack_file.insert_file(&spd_path, &spd_path_pack, &None).map(|x| x.unwrap())?);
+            let mut rfile_hlp = RFile::new_from_file_path(&hlp_path)?;
+            let mut rfile_spd = RFile::new_from_file_path(&spd_path)?;
+            rfile_hlp.set_path_in_container_raw(&hlp_path_pack);
+            rfile_spd.set_path_in_container_raw(&spd_path_pack);
+            rfile_hlp.load()?;
+            rfile_spd.load()?;
+            rfile_hlp.guess_file_type()?;
+            rfile_spd.guess_file_type()?;
+
+            added_paths.push(pack_file.insert(rfile_hlp).map(|x| x.unwrap())?);
+            added_paths.push(pack_file.insert(rfile_spd).map(|x| x.unwrap())?);
 
             let hlp_path_bak = game_data_path.join(format!("campaign_maps/{}/hlp_data.esf.bak", map_name));
             let spd_path_bak = game_data_path.join(format!("campaign_maps/{}/spd_data.esf.bak", map_name));
