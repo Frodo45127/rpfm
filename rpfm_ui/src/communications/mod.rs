@@ -347,8 +347,8 @@ pub enum Command {
     CheckEmpireAndNapoleonAKUpdates,
     UpdateEmpireAndNapoleonAK,
     #[cfg(feature = "enable_tools")] GetPackTranslation(String),
-    BuildStarpos(String),
-    BuildStarposPost(String),
+    BuildStarpos(String, bool),
+    BuildStarposPost(String, bool),
     BuildStarposGetCampaingIds,
 }
 

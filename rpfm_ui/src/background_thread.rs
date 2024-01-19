@@ -1953,20 +1953,20 @@ pub fn background_loop() {
             }
 
             Command::BuildStarposGetCampaingIds => {
-                let mut ids = dependencies.read().unwrap().db_values_from_table_name_and_column_name(Some(&pack_file_decoded), "campaigns_tables", "campaign_name", true, true);
+                let ids = dependencies.read().unwrap().db_values_from_table_name_and_column_name(Some(&pack_file_decoded), "campaigns_tables", "campaign_name", true, true);
                 CentralCommand::send_back(&sender, Response::HashSetString(ids));
             }
 
-            Command::BuildStarpos(campaign_id) => {
-                match build_starpos(&pack_file_decoded, &campaign_id) {
+            Command::BuildStarpos(campaign_id, process_hlp_spd_data) => {
+                match build_starpos(&dependencies.read().unwrap(), &pack_file_decoded, &campaign_id, process_hlp_spd_data) {
                     Ok(_) => CentralCommand::send_back(&sender, Response::Success),
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                 }
             }
 
-            Command::BuildStarposPost(campaign_id) => {
-                match build_starpos_post(&mut pack_file_decoded, &campaign_id) {
-                    Ok(path) => CentralCommand::send_back(&sender, Response::OptionContainerPath(path)),
+            Command::BuildStarposPost(campaign_id, process_hlp_spd_data) => {
+                match build_starpos_post(&dependencies.read().unwrap(), &mut pack_file_decoded, &campaign_id, process_hlp_spd_data) {
+                    Ok(paths) => CentralCommand::send_back(&sender, Response::VecContainerPath(paths)),
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                 }
             },
@@ -1977,7 +1977,7 @@ pub fn background_loop() {
     }
 }
 
-fn build_starpos(pack_file: &Pack, campaign_id: &str) -> Result<()> {
+fn build_starpos(dependencies: &Dependencies, pack_file: &Pack, campaign_id: &str, process_hlp_spd_data: bool) -> Result<()> {
     let pack_name = pack_file.disk_file_name();
     if pack_name.is_empty() {
         return Err(anyhow!("The Pack needs to be saved to disk in order to build a starpos. Save it and try again."));
@@ -1987,19 +1987,31 @@ fn build_starpos(pack_file: &Pack, campaign_id: &str) -> Result<()> {
         return Err(anyhow!("campaign_id not provided."));
     }
 
+    let process_hlp_spd_data_string = if process_hlp_spd_data {
+        String::from("process_campaign_ai_map_data;")
+    } else {
+        String::new()
+    };
+
     let user_script_contents = format!("
-        mod {}.pack;
-        process_campaign_startpos {};
-        process_campaign_ai_map_data;
-        quit_after_campaign_processing;", pack_name, campaign_id
+mod {};
+process_campaign_startpos {};
+{}
+quit_after_campaign_processing;",
+        pack_name, campaign_id, process_hlp_spd_data_string
     );
 
     // Games may fail to launch if we don't have this path created, which is done the first time we start the game.
     let game = GAME_SELECTED.read().unwrap();
     let game_path = setting_path(game.key());
+    let game_data_path = game.data_path(&game_path)?;
 
     if !game_path.is_dir() {
         return Err(anyhow!("Game path incorrect. Fix it in the settings and try again."));
+    }
+
+    if !PathBuf::from(pack_file.disk_file_path()).starts_with(&game_data_path) {
+        return Err(anyhow!("The Pack needs to be in /data. Install it there and try again."));
     }
 
     let config_path = game.config_path(&game_path).ok_or(anyhow!("Error getting the game's config path."))?;
@@ -2009,7 +2021,10 @@ fn build_starpos(pack_file: &Pack, campaign_id: &str) -> Result<()> {
     // Make a backup before editing the script, so we can restore it later.
     let uspa = scripts_path.join(USER_SCRIPT_FILE_NAME);
     let uspb = scripts_path.join(USER_SCRIPT_FILE_NAME.to_owned() + ".bak");
-    std::fs::copy(&uspa, &uspb)?;
+
+    if uspa.is_file() {
+        std::fs::copy(&uspa, &uspb)?;
+    }
 
     let mut file = BufWriter::new(File::create(uspa)?);
 
@@ -2022,6 +2037,35 @@ fn build_starpos(pack_file: &Pack, campaign_id: &str) -> Result<()> {
 
     file.flush()?;
 
+    // Due to how the starpos is generated, if we generate it on vanilla campaigns it'll overwrite existing files.
+    // So we must backup the vanilla files, then restore them after.
+    let starpos_path = game_data_path.join(format!("campaigns/{}/startpos.esf", campaign_id));
+    if starpos_path.is_file() {
+        let starpos_path_bak = game_data_path.join(format!("campaigns/{}/startpos.esf.bak", campaign_id));
+        std::fs::copy(starpos_path, starpos_path_bak)?;
+    }
+
+    // Same for the other two files, if we're generating them. We need to get the campaign name from the campaigns table first, then get the files generated.
+    if process_hlp_spd_data {
+        let map_names = dependencies.db_values_from_table_name_and_column_name_for_value(Some(&pack_file), "campaigns_tables", "campaign_name", "map_name", true, true);
+        if let Some(map_name) = map_names.get(campaign_id) {
+            DirBuilder::new().recursive(true).create(&game_data_path.join(format!("campaign_maps/{}", map_name)))?;
+
+            let hlp_path = game_data_path.join(format!("campaign_maps/{}/hlp_data.esf", map_name));
+            let spd_path = game_data_path.join(format!("campaign_maps/{}/spd_data.esf", map_name));
+
+            if hlp_path.is_file() {
+                let hlp_path_bak = game_data_path.join(format!("campaign_maps/{}/hlp_data.esf.bak", map_name));
+                std::fs::copy(hlp_path, hlp_path_bak)?;
+            }
+
+            if spd_path.is_file() {
+                let spd_path_bak = game_data_path.join(format!("campaign_maps/{}/spd_data.esf.bak", map_name));
+                std::fs::copy(spd_path, spd_path_bak)?;
+            }
+        }
+    }
+
     // Then launch the game.
     match GAME_SELECTED.read().unwrap().game_launch_command(&setting_path(GAME_SELECTED.read().unwrap().key())) {
         Ok(command) => { let _ = open::that(command); },
@@ -2031,9 +2075,10 @@ fn build_starpos(pack_file: &Pack, campaign_id: &str) -> Result<()> {
     Ok(())
 }
 
-fn build_starpos_post(pack_file: &mut Pack, campaign_id: &str) -> Result<Option<ContainerPath>> {
+fn build_starpos_post(dependencies: &Dependencies, pack_file: &mut Pack, campaign_id: &str, process_hlp_spd_data: bool) -> Result<Vec<ContainerPath>> {
     let game = GAME_SELECTED.read().unwrap();
     let game_path = setting_path(game.key());
+    let game_data_path = game.data_path(&game_path)?;
 
     if !game_path.is_dir() {
         return Err(anyhow!("Game path incorrect. Fix it in the settings and try again."));
@@ -2046,12 +2091,58 @@ fn build_starpos_post(pack_file: &mut Pack, campaign_id: &str) -> Result<Option<
     // Restore the userscript backup.
     let uspa = scripts_path.join(USER_SCRIPT_FILE_NAME);
     let uspb = scripts_path.join(USER_SCRIPT_FILE_NAME.to_owned() + ".bak");
-    std::fs::copy(uspb, uspa)?;
+    if uspb.is_file() {
+        std::fs::copy(uspb, uspa)?;
+    }
+
+    // If there's no backup, means there was no file to begin with, so we delete the custom file.
+    else {
+        std::fs::remove_file(uspa)?;
+    }
+
+    let mut added_paths = vec![];
 
     // Add the starpos.
-    let starpos_path = game.data_path(&game_path)?.join(format!("campaigns/{}", campaign_id));
+    let starpos_path = game_data_path.join(format!("campaigns/{}/startpos.esf", campaign_id));
     let starpos_path_pack = format!("campaigns/{}/startpos.esf", campaign_id);
-    pack_file.insert_file(&starpos_path, &starpos_path_pack, &None).map_err(From::from)
+    added_paths.push(pack_file.insert_file(&starpos_path, &starpos_path_pack, &None).map(|x| x.unwrap())?);
+
+    // Restore the old starpos if there was one, and delete the new one if it has already been added.
+    let starpos_path_bak = game_data_path.join(format!("campaigns/{}/startpos.esf.bak", campaign_id));
+    if starpos_path_bak.is_file() {
+        std::fs::copy(&starpos_path_bak, &starpos_path)?;
+        std::fs::remove_file(starpos_path_bak)?;
+    }
+
+    // Same with the other two files.
+    if process_hlp_spd_data {
+        let map_names = dependencies.db_values_from_table_name_and_column_name_for_value(Some(&pack_file), "campaigns_tables", "campaign_name", "map_name", true, true);
+        if let Some(map_name) = map_names.get(campaign_id) {
+            let hlp_path = game_data_path.join(format!("campaign_maps/{}/hlp_data.esf", map_name));
+            let spd_path = game_data_path.join(format!("campaign_maps/{}/spd_data.esf", map_name));
+
+            let hlp_path_pack = format!("campaign_maps/{}/hlp_data.esf", map_name);
+            let spd_path_pack = format!("campaign_maps/{}/spd_data.esf", map_name);
+
+            added_paths.push(pack_file.insert_file(&hlp_path, &hlp_path_pack, &None).map(|x| x.unwrap())?);
+            added_paths.push(pack_file.insert_file(&spd_path, &spd_path_pack, &None).map(|x| x.unwrap())?);
+
+            let hlp_path_bak = game_data_path.join(format!("campaign_maps/{}/hlp_data.esf.bak", map_name));
+            let spd_path_bak = game_data_path.join(format!("campaign_maps/{}/spd_data.esf.bak", map_name));
+
+            if hlp_path_bak.is_file() {
+                std::fs::copy(&hlp_path_bak, hlp_path)?;
+                std::fs::remove_file(hlp_path_bak)?;
+            }
+
+            if spd_path_bak.is_file() {
+                std::fs::copy(&spd_path_bak, spd_path)?;
+                std::fs::remove_file(spd_path_bak)?;
+            }
+        }
+    }
+
+    Ok(added_paths)
 }
 
 /// Function to perform a live extraction.

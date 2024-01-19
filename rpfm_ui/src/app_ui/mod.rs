@@ -67,7 +67,6 @@ use time::OffsetDateTime;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::OsStr;
-use std::io::BufWriter;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::{atomic::Ordering, RwLock};
@@ -3975,6 +3974,8 @@ impl AppUI {
         let instructions_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "instructions_label")?;
         let campaign_id_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "campaign_id_label")?;
         let campaign_id_combobox: QPtr<QComboBox> = find_widget(&main_widget.static_upcast(), "campaign_id_combobox")?;
+        let process_hlp_spd_data_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "process_hlp_spd_data_label")?;
+        let process_hlp_spd_data_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "process_hlp_spd_data_checkbox")?;
         let button_box: QPtr<QDialogButtonBox> = find_widget(&main_widget.static_upcast(), "button_box")?;
         let build_starpos_button = button_box.add_button_q_string_button_role(&qtr("build_starpos"), ButtonRole::ActionRole);
         let games_closed_button = button_box.add_button_q_string_button_role(&qtr("games_closed"), ButtonRole::YesRole);
@@ -3985,6 +3986,7 @@ impl AppUI {
         dialog.set_window_title(&qtr("build_starpos"));
         instructions_label.set_text(&qtr("build_starpos_instructions"));
         campaign_id_label.set_text(&qtr("campaign_id"));
+        process_hlp_spd_data_label.set_text(&qtr("process_hlp_spd_data"));
 
         let receiver = CENTRAL_COMMAND.send_background(Command::BuildStarposGetCampaingIds);
         let response = CENTRAL_COMMAND.recv_try(&receiver);
@@ -4004,11 +4006,13 @@ impl AppUI {
         let build_starpos_button_ptr = build_starpos_button.as_ptr();
         let games_closed_button_ptr = games_closed_button.as_ptr();
         let campaign_id_combobox_ptr = campaign_id_combobox.as_ptr();
+        let process_hlp_spd_data_checkbox_ptr = process_hlp_spd_data_checkbox.as_ptr();
         let start_build_process = SlotNoArgs::new(&dialog, move || {
             build_starpos_button_ptr.set_enabled(false);
 
             let campaign_id = campaign_id_combobox_ptr.current_text().to_std_string();
-            let receiver = CENTRAL_COMMAND.send_background(Command::BuildStarpos(campaign_id));
+            let process_hlp_spd_data = process_hlp_spd_data_checkbox_ptr.is_checked();
+            let receiver = CENTRAL_COMMAND.send_background(Command::BuildStarpos(campaign_id, process_hlp_spd_data));
             let response = CENTRAL_COMMAND.recv_try(&receiver);
             match response {
                 Response::Success => games_closed_button_ptr.set_enabled(true),
@@ -4025,12 +4029,13 @@ impl AppUI {
         // Once the game has been closed, we need to cleanup the userscript file, then add the starpos to the open pack.
         if dialog.exec() == 1 {
             let campaign_id = campaign_id_combobox.current_text().to_std_string();
-            let receiver = CENTRAL_COMMAND.send_background(Command::BuildStarposPost(campaign_id));
+            let process_hlp_spd_data = process_hlp_spd_data_checkbox.is_checked();
+            let receiver = CENTRAL_COMMAND.send_background(Command::BuildStarposPost(campaign_id, process_hlp_spd_data));
             let response = CENTRAL_COMMAND.recv_try(&receiver);
             match response {
-                Response::OptionContainerPath(path) => {
-                    if let Some(path) = path {
-                        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(vec![path; 1]), DataSource::PackFile);
+                Response::VecContainerPath(paths) => {
+                    if !paths.is_empty() {
+                        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(paths), DataSource::PackFile);
                         UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                     }
 

@@ -1421,6 +1421,38 @@ impl Dependencies {
         values
     }
 
+    /// This function returns the value a table has in the row it has a specific value in a specific column.
+    pub fn db_values_from_table_name_and_column_name_for_value(&self, pack: Option<&Pack>, table_name: &str, key_column_name: &str, desired_column_name: &str, include_vanilla: bool, include_parent: bool) -> HashMap<String, String> {
+        let mut values = HashMap::new();
+
+        if let Ok(files) = self.db_data(table_name, include_vanilla, include_parent) {
+            values.extend(files.par_iter().filter_map(|file| {
+                if let Ok(RFileDecoded::DB(table)) = file.decoded() {
+                    if let Some(column) = table.definition().column_position_by_name(key_column_name) {
+                        if let Some(desired_column) = table.definition().column_position_by_name(desired_column_name) {
+                            Some(table.data().par_iter().map(|row| (row[column].data_to_string().to_string(), row[desired_column].data_to_string().to_string())).collect::<Vec<_>>())
+                        } else { None }
+                    } else { None }
+                } else { None }
+            }).flatten().collect::<Vec<_>>());
+        }
+
+        if let Some(pack) = pack {
+            let files = pack.files_by_path(&ContainerPath::Folder(format!("db/{table_name}")), true);
+            values.extend(files.par_iter().filter_map(|file| {
+                if let Ok(RFileDecoded::DB(table)) = file.decoded() {
+                    if let Some(column) = table.definition().column_position_by_name(key_column_name) {
+                        if let Some(desired_column) = table.definition().column_position_by_name(desired_column_name) {
+                            Some(table.data().par_iter().map(|row| (row[column].data_to_string().to_string(), row[desired_column].data_to_string().to_string())).collect::<Vec<_>>())
+                        } else { None }
+                    } else { None }
+                } else { None }
+            }).flatten().collect::<Vec<_>>());
+        }
+
+        values
+    }
+
     /// This function updates a DB Table to its latest valid version, being the latest valid version the one in the vanilla files.
     ///
     /// It returns both, old and new versions, or an error.
