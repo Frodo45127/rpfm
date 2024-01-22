@@ -200,6 +200,7 @@ pub enum Command {
 
     /// This command is used when we want to get the table names (the folder of the tables) of all DB files in our dependency PackFiles.
     GetTableListFromDependencyPackFile,
+    GetCustomTableList,
     LocalArtSetIds,
     DependenciesArtSetIds,
 

@@ -3144,7 +3144,17 @@ impl AppUI {
                 let receiver = CENTRAL_COMMAND.send_background(Command::GetTableListFromDependencyPackFile);
                 let response = CentralCommand::recv(&receiver);
                 let mut tables = if let Response::VecString(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
+
+                // Also get the custom tables (start_pos) if there's any supported for the game selected.
+                //
+                // These may come duplicated, so we need to dedup them later.
+                let receiver = CENTRAL_COMMAND.send_background(Command::GetCustomTableList);
+                let response = CentralCommand::recv(&receiver);
+                let mut custom_tables = if let Response::VecString(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
+
+                tables.append(&mut custom_tables);
                 tables.sort();
+                tables.dedup();
                 tables.iter().for_each(|x| table_model.append_row_q_standard_item(QStandardItem::from_q_string(&QString::from_std_str(x)).into_ptr()));
 
                 name_line_edit.set_text(&QString::from_std_str(&pack_name));

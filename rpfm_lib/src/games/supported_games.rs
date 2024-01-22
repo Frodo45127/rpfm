@@ -363,6 +363,7 @@ impl Default for SupportedGames {
                 "start_pos_factions/honour".to_owned(),
                 "start_pos_factions/unique".to_owned(),
                 "start_pos_land_units/unique".to_owned(),
+                "start_pos_naval_units/unique".to_owned(),
                 "start_pos_past_events/unique".to_owned(),
                 "start_pos_regions/unique".to_owned(),
                 "start_pos_region_slot_templates/unique".to_owned(),

@@ -921,6 +921,13 @@ pub fn background_loop() {
 
             // In case we want to get the list of tables in the dependency database...
             Command::GetTableListFromDependencyPackFile => CentralCommand::send_back(&sender, Response::VecString(dependencies.read().unwrap().vanilla_tables().keys().map(|x| x.to_owned()).collect())),
+            Command::GetCustomTableList => match &*SCHEMA.read().unwrap() {
+                Some(schema) => {
+                    let tables = schema.definitions().par_iter().filter(|(key, defintions)| !defintions.is_empty() && key.starts_with("start_pos_")).map(|(key, _)| key.to_owned()).collect::<Vec<_>>();
+                    CentralCommand::send_back(&sender, Response::VecString(tables));
+                }
+                None => CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected.")))
+            },
 
             Command::LocalArtSetIds => CentralCommand::send_back(&sender, Response::HashSetString(dependencies.read().unwrap().db_values_from_table_name_and_column_name(Some(&pack_file_decoded), "campaign_character_arts_tables", "art_set_id", false, false))),
 
@@ -932,7 +939,29 @@ pub fn background_loop() {
                 if dependencies.read().unwrap().is_vanilla_data_loaded(false) {
                     match dependencies.read().unwrap().db_version(&table_name) {
                         Some(version) => CentralCommand::send_back(&sender, Response::I32(version)),
-                        None => CentralCommand::send_back(&sender, Response::Error(anyhow!("Table not found in the game files."))),
+                        None => {
+
+                            // If the table is one of the starpos tables, we need to return the latest version of the table, even if it's not in the game files.
+                            if table_name.starts_with("start_pos_") {
+                                match &*SCHEMA.read().unwrap() {
+                                    Some(schema) => {
+                                        match schema.definitions_by_table_name(&table_name) {
+                                            Some(definitions) => {
+                                                if definitions.is_empty() {
+                                                    CentralCommand::send_back(&sender, Response::Error(anyhow!("There are no definitions for this specific table.")));
+                                                } else {
+                                                    CentralCommand::send_back(&sender, Response::I32(*definitions.first().unwrap().version()));
+                                                }
+                                            }
+                                            None => CentralCommand::send_back(&sender, Response::Error(anyhow!("There are no definitions for this specific table."))),
+                                        }
+                                    }
+                                    None => CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected.")))
+                                }
+                            } else {
+                                CentralCommand::send_back(&sender, Response::Error(anyhow!("Table not found in the game files.")))
+                            }
+                        },
                     }
                 } else { CentralCommand::send_back(&sender, Response::Error(anyhow!("Dependencies cache needs to be regenerated before this."))); }
             }

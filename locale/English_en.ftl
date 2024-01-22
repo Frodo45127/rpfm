@@ -1530,17 +1530,17 @@ updater_update_program_updating = Updating, pls wait...
 updater_update_schemas_updating = Updating, pls wait...
 updater_update_twautogen_updating = Updating, pls wait...
 updater_update_old_ak_updating = Updating, pls wait...
-special_stuff_build_starpos = Build Starpos
+special_stuff_build_starpos = Build Startpos
 games_closed = Hit this when the game is closed
-build_starpos = Build Starpos
+build_starpos = Build Startpos
 build_starpos_instructions = <p>Instructions:</p>
     <ul>
         <li>You need to have all the relevant star_pos_*** tables in your Pack. If you don't have them, either create them or add them from the Assembly Kit, then try this again.</li>
         <li>You need to have your Pack saved in the /data folder of the game. If it's a new Pack or it's not in /data, save it and then try this again.</li>
         <li>You need to have the game folder configured correctly. If you don't have it... you know the deal.</li>
-        <li>Select the campaign you want to build the starpos for.</li>
-        <li>Hit the <b>Build Starpos</b> button. If nothing fails, the game will launch (you may need to hit play in the launcher), then autoclose shortly after.</li>
-        <li>Once the game has closed, hit the <b>Hit this when the game is closed</b> button. That's all. After that, the new starpos should be in your Pack.</li>
+        <li>Select the campaign you want to build the startpos for.</li>
+        <li>Hit the <b>Build Startpos</b> button. If nothing fails, the game will launch (you may need to hit play in the launcher), then autoclose shortly after.</li>
+        <li>Once the game has closed, hit the <b>Hit this when the game is closed</b> button. That's all. After that, the new startpos should be in your Pack.</li>
         <li>Only enable <b>Process HLP and SPD data</b> if you're creating a new campaign map. That option directs the game's exe to generate the hlp_data.esf and spd_data.esf files,</br>
             which are part of a campaign map's pathfinding. <b>Takes like between 10 and 30 minutes</b>. You'll only need to make these if you are making a new campaign map.</li>
     </ul>
