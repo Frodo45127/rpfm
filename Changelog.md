@@ -6,6 +6,22 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [4.2.4]
+### Added
+- Implemented "Build Startpos" feature under Special Stuff. Only for Warhammer 3.
+- Multiline text is now merged in one line with OR if you paste it in a table's filter.
+- Certain Assembly Kit tables can now be imported into a working table from the dependencies view.
+- New setting: "Ignore Game Files in Assembly Kit". Disabling it (default behavior) loads all tables from the Assembly Kit in the dependencies panel. Enabling it only loads those that are not in the game files (old behavior).
+
+### Changed
+- Reduced default size of the diagnostics panel.
+- start_pos_xxx tables can now be created in RPFM if the schema has a definition for them.
+
+### Fixed
+- Fixed build errors of the cli due to steamlocate update.
+- Fixed art set id not saving when edited in a portrait settings file.
+- Fixed RPFM not correctly invalidating the dependencies cache after an update.
+
 ## [4.2.3]
 ### Fixed
 - Fixed dark-theme error on linux builds.
@@ -1253,7 +1269,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.2.3...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.2.4...HEAD
+[4.2.4]: https://github.com/Frodo45127/rpfm/compare/v4.2.3...v4.2.4
 [4.2.3]: https://github.com/Frodo45127/rpfm/compare/v4.2.2...v4.2.3
 [4.2.2]: https://github.com/Frodo45127/rpfm/compare/v4.2.1...v4.2.2
 [4.2.1]: https://github.com/Frodo45127/rpfm/compare/v4.2.0...v4.2.1
