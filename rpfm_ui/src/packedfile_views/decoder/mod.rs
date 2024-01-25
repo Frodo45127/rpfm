@@ -1372,6 +1372,7 @@ impl PackedFileDecoderView {
 
         let imported_first_row = &table_data[0];
         let mut data = self.data.write().unwrap();
+        let current_pos = data.position();
         data.seek(SeekFrom::Start(self.header_size))?;
 
         // First check is done here, to initialize the possible schemas.
@@ -1574,7 +1575,7 @@ impl PackedFileDecoderView {
             }
         }
 
-        let _ = data.rewind()?;
+        data.seek(SeekFrom::Start(current_pos))?;
 
         // Now, match all possible definitions against the table, and for the ones that work, match them against the asskit data.
         Ok(definitions_possible.iter().filter_map(|x| {
