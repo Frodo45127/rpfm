@@ -1299,10 +1299,10 @@ impl Table {
     }
 
     /// This function exports the provided data to a TSV file.
-    pub(crate) fn tsv_export(&self, writer: &mut Writer<File>, table_path: &str) -> Result<()> {
+    pub(crate) fn tsv_export(&self, writer: &mut Writer<File>, table_path: &str, keys_first: bool) -> Result<()> {
 
         let fields_processed = self.definition().fields_processed();
-        let fields_sorted = self.definition().fields_processed_sorted(true);
+        let fields_sorted = self.definition().fields_processed_sorted(keys_first);
         let fields_sorted_properly = fields_sorted.iter()
             .map(|field_sorted| (fields_processed.iter().position(|field| field == field_sorted).unwrap(), field_sorted))
             .collect::<Vec<(_,_)>>();

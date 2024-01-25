@@ -211,7 +211,7 @@ impl Loc {
 
     /// This function exports a decoded Loc file into a TSV file.
     pub fn tsv_export(&self, writer: &mut Writer<File>, table_path: &str) -> Result<()> {
-        self.table.tsv_export(writer, table_path)
+        self.table.tsv_export(writer, table_path, true)
     }
 }
 

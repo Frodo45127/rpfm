@@ -423,7 +423,7 @@ pub trait Container {
     /// The case-insensitive option only works when extracting folders. Individual file extractions are always case sensitive.
     ///
     /// If a schema is provided, this function will try to extract any DB/Loc file as a TSV. If it fails to decode them, it'll extract them as binary files.
-    fn extract(&mut self, container_path: ContainerPath, destination_path: &Path, keep_container_path_structure: bool, schema: &Option<Schema>, case_insensitive: bool, extra_data: &Option<EncodeableExtraData>) -> Result<Vec<PathBuf>> {
+    fn extract(&mut self, container_path: ContainerPath, destination_path: &Path, keep_container_path_structure: bool, schema: &Option<Schema>, case_insensitive: bool, keys_first: bool, extra_data: &Option<EncodeableExtraData>) -> Result<Vec<PathBuf>> {
         let mut extracted_paths = vec![];
         match container_path {
             ContainerPath::File(mut container_path) => {
@@ -463,7 +463,7 @@ pub trait Container {
                             None => destination_path_tsv.set_extension("tsv"),
                         };
 
-                        let result = rfile.tsv_export_to_path(&destination_path_tsv, schema);
+                        let result = rfile.tsv_export_to_path(&destination_path_tsv, schema, keys_first);
 
                         // If it fails to extract as tsv, extract as binary.
                         if result.is_err() {
@@ -534,7 +534,7 @@ pub trait Container {
                                 None => destination_path_tsv.set_extension("tsv"),
                             };
 
-                            let result = rfile.tsv_export_to_path(&destination_path_tsv, schema);
+                            let result = rfile.tsv_export_to_path(&destination_path_tsv, schema, keys_first);
 
                             // If it fails to extract as tsv, extract as binary.
                             if result.is_err() {
@@ -2026,7 +2026,7 @@ impl RFile {
     /// This function allows to export a RFile into a TSV file on disk.
     ///
     /// Only supported for DB and Loc files.
-    pub fn tsv_export_to_path(&mut self, path: &Path, schema: &Schema) -> Result<()> {
+    pub fn tsv_export_to_path(&mut self, path: &Path, schema: &Schema, keys_first: bool) -> Result<()> {
 
         // Make sure the folder actually exists.
         let mut folder_path = path.to_path_buf();
@@ -2055,7 +2055,7 @@ impl RFile {
         }
 
         let file = match file?.unwrap() {
-            RFileDecoded::DB(table) => table.tsv_export(&mut writer, self.path_in_container_raw()),
+            RFileDecoded::DB(table) => table.tsv_export(&mut writer, self.path_in_container_raw(), keys_first),
             RFileDecoded::Loc(table) => table.tsv_export(&mut writer, self.path_in_container_raw()),
             _ => unimplemented!()
         };

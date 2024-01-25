@@ -846,7 +846,7 @@ pub fn background_loop() {
                 // Pack extraction.
                 if let Some(container_paths) = container_paths.get(&DataSource::PackFile) {
                     for container_path in container_paths {
-                        match pack_file_decoded.extract(container_path.clone(), &path, true, schema, false, &extra_data) {
+                        match pack_file_decoded.extract(container_path.clone(), &path, true, schema, false, setting_bool("tables_use_old_column_order_for_tsv"), &extra_data) {
                             Ok(mut extracted_path) => extracted_paths.append(&mut extracted_path),
                             Err(error) => {
                                 error!("Error extracting {}: {}", container_path.path_raw(), error);
@@ -887,7 +887,7 @@ pub fn background_loop() {
                         }
 
                         let container_path = ContainerPath::File(path_raw);
-                        match pack.extract(container_path, &path, true, schema, false, &extra_data) {
+                        match pack.extract(container_path, &path, true, schema, false, setting_bool("tables_use_old_column_order_for_tsv"), &extra_data) {
                             Ok(mut extracted_path) => extracted_paths.append(&mut extracted_path),
                             Err(_) => errors += 1,
                         }
@@ -1100,7 +1100,7 @@ pub fn background_loop() {
                 match &*schema {
                     Some(ref schema) => {
                         match pack_file_decoded.file_mut(&internal_path, false) {
-                            Some(file) => match file.tsv_export_to_path(&external_path, schema) {
+                            Some(file) => match file.tsv_export_to_path(&external_path, schema, setting_bool("tables_use_old_column_order_for_tsv")) {
                                 Ok(_) => CentralCommand::send_back(&sender, Response::Success),
                                 Err(error) =>  CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                             }
@@ -1157,7 +1157,7 @@ pub fn background_loop() {
                         let folder = temp_dir().join(format!("rpfm_{}", pack_file_decoded.disk_file_name()));
                         let extra_data = Some(initialize_encodeable_extra_data(&GAME_SELECTED.read().unwrap()));
 
-                        match pack_file_decoded.extract(path.clone(), &folder, true, &SCHEMA.read().unwrap(), false, &extra_data) {
+                        match pack_file_decoded.extract(path.clone(), &folder, true, &SCHEMA.read().unwrap(), false, setting_bool("tables_use_old_column_order_for_tsv"), &extra_data) {
                             Ok(extracted_path) => {
                                 let _ = that(&extracted_path[0]);
                                 CentralCommand::send_back(&sender, Response::PathBuf(extracted_path[0].to_owned()));
@@ -2254,7 +2254,7 @@ fn live_export(pack: &mut Pack) -> Result<()> {
         // To avoid duplicating logic, we insert these files into the pack, extract them, then delete them from the Pack.
         let container_path = file.path_in_container();
         pack.insert(file)?;
-        pack.extract(container_path.clone(), &data_path, true, &None, false, &extra_data)?;
+        pack.extract(container_path.clone(), &data_path, true, &None, false, setting_bool("tables_use_old_column_order_for_tsv"), &extra_data)?;
 
         pack.remove(&container_path);
     }

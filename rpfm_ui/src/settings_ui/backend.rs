@@ -141,6 +141,7 @@ pub unsafe fn init_settings(main_window: &QPtr<QMainWindow>) {
     set_setting_if_new_bool(&q_settings, "tight_table_mode", false);
     set_setting_if_new_bool(&q_settings, "table_resize_on_edit", false);
     set_setting_if_new_bool(&q_settings, "tables_use_old_column_order", true);
+    set_setting_if_new_bool(&q_settings, "tables_use_old_column_order_for_tsv", true);
     set_setting_if_new_bool(&q_settings, "enable_lookups", true);
     set_setting_if_new_bool(&q_settings, "enable_icons", true);
 

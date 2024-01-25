@@ -1550,3 +1550,5 @@ process_hlp_spd_data = Process HLP and SPD data
 
 ignore_game_files_in_ak = Ignore Game Files in Assembly Kit
 settings_ignore_game_files_in_ak = When generating the dependencies cache, ignore files from the Assembly Kit that are present in the game files. Reduces RAM usage and makes RPFM load faster, but you loose read/import access to about 900 files.
+
+settings_ui_table_use_old_column_order_for_tsv_label = Use Old Column Order For TSV Exports (Keys first):

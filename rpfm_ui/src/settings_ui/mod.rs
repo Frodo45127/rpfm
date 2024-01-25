@@ -148,6 +148,7 @@ pub struct SettingsUI {
     ui_table_tight_table_mode_checkbox: QBox<QCheckBox>,
     ui_table_resize_on_edit_checkbox: QBox<QCheckBox>,
     ui_table_use_old_column_order_checkbox: QBox<QCheckBox>,
+    ui_table_use_old_column_order_for_tsv_checkbox: QBox<QCheckBox>,
     ui_table_use_right_size_markers_checkbox: QBox<QCheckBox>,
     ui_table_enable_lookups_checkbox: QBox<QCheckBox>,
     ui_table_enable_icons_checkbox: QBox<QCheckBox>,
@@ -517,6 +518,9 @@ impl SettingsUI {
         let ui_table_use_old_column_order_label = QLabel::from_q_string_q_widget(&qtr("settings_ui_table_use_old_column_order_label"), &ui_table_view_frame);
         let ui_table_use_old_column_order_checkbox = QCheckBox::from_q_widget(&ui_table_view_frame);
 
+        let ui_table_use_old_column_order_for_tsv_label = QLabel::from_q_string_q_widget(&qtr("settings_ui_table_use_old_column_order_for_tsv_label"), &ui_table_view_frame);
+        let ui_table_use_old_column_order_for_tsv_checkbox = QCheckBox::from_q_widget(&ui_table_view_frame);
+
         let extra_packfile_disable_uuid_regeneration_on_db_tables_label = QLabel::from_q_string_q_widget(&qtr("settings_disable_uuid_regeneration_tables"), &ui_table_view_frame);
         let extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox = QCheckBox::from_q_widget(&ui_table_view_frame);
 
@@ -547,17 +551,20 @@ impl SettingsUI {
         ui_table_view_grid.add_widget_5a(&ui_table_use_old_column_order_label, 5, 0, 1, 2);
         ui_table_view_grid.add_widget_5a(&ui_table_use_old_column_order_checkbox, 5, 2, 1, 1);
 
-        ui_table_view_grid.add_widget_5a(&extra_packfile_disable_uuid_regeneration_on_db_tables_label, 6, 0, 1, 2);
-        ui_table_view_grid.add_widget_5a(&extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox, 6, 2, 1, 1);
+        ui_table_view_grid.add_widget_5a(&ui_table_use_old_column_order_for_tsv_label, 6, 0, 1, 2);
+        ui_table_view_grid.add_widget_5a(&ui_table_use_old_column_order_for_tsv_checkbox, 6, 2, 1, 1);
 
-        ui_table_view_grid.add_widget_5a(&ui_table_use_right_size_markers_label, 7, 0, 1, 2);
-        ui_table_view_grid.add_widget_5a(&ui_table_use_right_size_markers_checkbox, 7, 2, 1, 1);
+        ui_table_view_grid.add_widget_5a(&extra_packfile_disable_uuid_regeneration_on_db_tables_label, 7, 0, 1, 2);
+        ui_table_view_grid.add_widget_5a(&extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox, 7, 2, 1, 1);
 
-        ui_table_view_grid.add_widget_5a(&ui_table_enable_lookups_label, 8, 0, 1, 2);
-        ui_table_view_grid.add_widget_5a(&ui_table_enable_lookups_checkbox, 8, 2, 1, 1);
+        ui_table_view_grid.add_widget_5a(&ui_table_use_right_size_markers_label, 8, 0, 1, 2);
+        ui_table_view_grid.add_widget_5a(&ui_table_use_right_size_markers_checkbox, 8, 2, 1, 1);
 
-        ui_table_view_grid.add_widget_5a(&ui_table_enable_icons_label, 9, 0, 1, 2);
-        ui_table_view_grid.add_widget_5a(&ui_table_enable_icons_checkbox, 9, 2, 1, 1);
+        ui_table_view_grid.add_widget_5a(&ui_table_enable_lookups_label, 9, 0, 1, 2);
+        ui_table_view_grid.add_widget_5a(&ui_table_enable_lookups_checkbox, 9, 2, 1, 1);
+
+        ui_table_view_grid.add_widget_5a(&ui_table_enable_icons_label, 10, 0, 1, 2);
+        ui_table_view_grid.add_widget_5a(&ui_table_enable_icons_checkbox, 10, 2, 1, 1);
 
         let settings_ui_table_colour_light_label = QLabel::from_q_string_q_widget(&qtr("settings_ui_table_colour_light_label"), &ui_table_view_frame);
         let settings_ui_table_colour_dark_label = QLabel::from_q_string_q_widget(&qtr("settings_ui_table_colour_dark_label"), &ui_table_view_frame);
@@ -800,6 +807,7 @@ impl SettingsUI {
             ui_table_tight_table_mode_checkbox,
             ui_table_resize_on_edit_checkbox,
             ui_table_use_old_column_order_checkbox,
+            ui_table_use_old_column_order_for_tsv_checkbox,
             ui_table_use_right_size_markers_checkbox,
             ui_table_enable_lookups_checkbox,
             ui_table_enable_icons_checkbox,
@@ -931,6 +939,7 @@ impl SettingsUI {
         self.ui_table_tight_table_mode_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "tight_table_mode"));
         self.ui_table_resize_on_edit_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "table_resize_on_edit"));
         self.ui_table_use_old_column_order_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "tables_use_old_column_order"));
+        self.ui_table_use_old_column_order_for_tsv_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "tables_use_old_column_order_for_tsv"));
         self.ui_table_use_right_size_markers_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "use_right_size_markers"));
         self.ui_table_enable_lookups_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "enable_lookups"));
         self.ui_table_enable_icons_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "enable_icons"));
@@ -1045,6 +1054,7 @@ impl SettingsUI {
         set_setting_bool_to_q_setting(&q_settings, "tight_table_mode", self.ui_table_tight_table_mode_checkbox.is_checked());
         set_setting_bool_to_q_setting(&q_settings, "table_resize_on_edit", self.ui_table_resize_on_edit_checkbox.is_checked());
         set_setting_bool_to_q_setting(&q_settings, "tables_use_old_column_order", self.ui_table_use_old_column_order_checkbox.is_checked());
+        set_setting_bool_to_q_setting(&q_settings, "tables_use_old_column_order_for_tsv", self.ui_table_use_old_column_order_for_tsv_checkbox.is_checked());
         set_setting_bool_to_q_setting(&q_settings, "use_right_size_markers", self.ui_table_use_right_size_markers_checkbox.is_checked());
         set_setting_bool_to_q_setting(&q_settings, "enable_lookups", self.ui_table_enable_lookups_checkbox.is_checked());
         set_setting_bool_to_q_setting(&q_settings, "enable_icons", self.ui_table_enable_icons_checkbox.is_checked());

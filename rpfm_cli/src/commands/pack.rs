@@ -237,7 +237,7 @@ pub fn extract(config: &Config, schema_path: &Option<PathBuf>, pack_path: &Path,
         }
 
         let container_path = ContainerPath::Folder(container_path.to_owned());
-        pack.extract(container_path, folder_path, true, &schema, false, &extra_data)?;
+        pack.extract(container_path, folder_path, true, &schema, false, true, &extra_data)?;
     }
 
     for (container_path, file_path) in file_path {
@@ -246,7 +246,7 @@ pub fn extract(config: &Config, schema_path: &Option<PathBuf>, pack_path: &Path,
         }
 
         let container_path = ContainerPath::File(container_path.to_owned());
-        pack.extract(container_path, file_path, true, &schema, false, &extra_data)?;
+        pack.extract(container_path, file_path, true, &schema, false, true, &extra_data)?;
     }
 
     if config.verbose {

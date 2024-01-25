@@ -564,8 +564,8 @@ impl DB {
     }
 
     /// This function imports a TSV file into a decoded table.
-    pub fn tsv_export(&self, writer: &mut Writer<File>, table_path: &str) -> Result<()> {
-        self.table.tsv_export(writer, table_path)
+    pub fn tsv_export(&self, writer: &mut Writer<File>, table_path: &str, keys_first: bool) -> Result<()> {
+        self.table.tsv_export(writer, table_path, keys_first)
     }
 }
 
