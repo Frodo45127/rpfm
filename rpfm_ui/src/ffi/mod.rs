@@ -557,7 +557,12 @@ pub extern fn assets_request_callback(missing_files: *mut QListOfQString, out: *
 
         let mut paths = vec![];
         for i in 0..missing_files.count_0a() {
-            let path = missing_files.at(i).to_std_string();
+            let mut path = missing_files.at(i).to_std_string().replace("\\", "/");
+
+            if path.starts_with("/") {
+                path.remove(0);
+            }
+
             paths.push(ContainerPath::File(path));
         }
 
