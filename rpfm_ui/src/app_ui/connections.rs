@@ -127,7 +127,17 @@ pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
 
     app_ui.special_stuff_wh3_live_export.triggered().connect(&slots.special_stuff_live_export);
     app_ui.special_stuff_wh3_pack_map.triggered().connect(&slots.special_stuff_pack_map);
+
+    app_ui.special_stuff_ph_build_starpos.triggered().connect(&slots.special_stuff_build_starpos);
     app_ui.special_stuff_wh3_build_starpos.triggered().connect(&slots.special_stuff_build_starpos);
+    app_ui.special_stuff_troy_build_starpos.triggered().connect(&slots.special_stuff_build_starpos);
+    app_ui.special_stuff_three_k_build_starpos.triggered().connect(&slots.special_stuff_build_starpos);
+    app_ui.special_stuff_wh2_build_starpos.triggered().connect(&slots.special_stuff_build_starpos);
+    app_ui.special_stuff_wh_build_starpos.triggered().connect(&slots.special_stuff_build_starpos);
+    app_ui.special_stuff_tob_build_starpos.triggered().connect(&slots.special_stuff_build_starpos);
+    app_ui.special_stuff_att_build_starpos.triggered().connect(&slots.special_stuff_build_starpos);
+    app_ui.special_stuff_rom2_build_starpos.triggered().connect(&slots.special_stuff_build_starpos);
+    app_ui.special_stuff_sho2_build_starpos.triggered().connect(&slots.special_stuff_build_starpos);
 
     app_ui.special_stuff_rescue_packfile.triggered().connect(&slots.special_stuff_rescue_packfile);
 

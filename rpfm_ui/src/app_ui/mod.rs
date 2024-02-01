@@ -257,6 +257,7 @@ pub struct AppUI {
     // Pharaoh actions.
     special_stuff_ph_generate_dependencies_cache: QPtr<QAction>,
     special_stuff_ph_optimize_packfile: QPtr<QAction>,
+    special_stuff_ph_build_starpos: QPtr<QAction>,
 
     // Warhammer 3 actions.
     special_stuff_wh3_generate_dependencies_cache: QPtr<QAction>,
@@ -268,36 +269,44 @@ pub struct AppUI {
     // Troy actions.
     special_stuff_troy_generate_dependencies_cache: QPtr<QAction>,
     special_stuff_troy_optimize_packfile: QPtr<QAction>,
+    special_stuff_troy_build_starpos: QPtr<QAction>,
 
     // Three Kingdoms actions.
     special_stuff_three_k_generate_dependencies_cache: QPtr<QAction>,
     special_stuff_three_k_optimize_packfile: QPtr<QAction>,
+    special_stuff_three_k_build_starpos: QPtr<QAction>,
 
     // Warhammer 2's actions.
     special_stuff_wh2_generate_dependencies_cache: QPtr<QAction>,
     special_stuff_wh2_optimize_packfile: QPtr<QAction>,
     special_stuff_wh2_patch_siege_ai: QPtr<QAction>,
+    special_stuff_wh2_build_starpos: QPtr<QAction>,
 
     // Warhammer's actions.
     special_stuff_wh_generate_dependencies_cache: QPtr<QAction>,
     special_stuff_wh_optimize_packfile: QPtr<QAction>,
     special_stuff_wh_patch_siege_ai: QPtr<QAction>,
+    special_stuff_wh_build_starpos: QPtr<QAction>,
 
     // Thrones of Britannia's actions.
     special_stuff_tob_generate_dependencies_cache: QPtr<QAction>,
     special_stuff_tob_optimize_packfile: QPtr<QAction>,
+    special_stuff_tob_build_starpos: QPtr<QAction>,
 
     // Attila's actions.
     special_stuff_att_generate_dependencies_cache: QPtr<QAction>,
     special_stuff_att_optimize_packfile: QPtr<QAction>,
+    special_stuff_att_build_starpos: QPtr<QAction>,
 
     // Rome 2's actions.
     special_stuff_rom2_generate_dependencies_cache: QPtr<QAction>,
     special_stuff_rom2_optimize_packfile: QPtr<QAction>,
+    special_stuff_rom2_build_starpos: QPtr<QAction>,
 
     // Shogun 2's actions.
     special_stuff_sho2_generate_dependencies_cache: QPtr<QAction>,
     special_stuff_sho2_optimize_packfile: QPtr<QAction>,
+    special_stuff_sho2_build_starpos: QPtr<QAction>,
 
     // Napoleon's actions.
     special_stuff_nap_generate_dependencies_cache: QPtr<QAction>,
@@ -698,6 +707,7 @@ impl AppUI {
         // Populate the `Special Stuff` submenus.
         let special_stuff_ph_generate_dependencies_cache = add_action_to_menu(&menu_pharaoh, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_ph_optimize_packfile = add_action_to_menu(&menu_pharaoh, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
+        let special_stuff_ph_build_starpos = add_action_to_menu(&menu_pharaoh, shortcuts.as_ref(), "special_stuff_menu", "build_starpos", "special_stuff_build_starpos", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_wh3_generate_dependencies_cache = add_action_to_menu(&menu_warhammer_3, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_wh3_optimize_packfile = add_action_to_menu(&menu_warhammer_3, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_wh3_live_export = add_action_to_menu(&menu_warhammer_3, shortcuts.as_ref(), "special_stuff_menu", "live_export", "special_stuff_live_export", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
@@ -705,22 +715,30 @@ impl AppUI {
         let special_stuff_wh3_build_starpos = add_action_to_menu(&menu_warhammer_3, shortcuts.as_ref(), "special_stuff_menu", "build_starpos", "special_stuff_build_starpos", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_troy_generate_dependencies_cache = add_action_to_menu(&menu_troy, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_troy_optimize_packfile = add_action_to_menu(&menu_troy, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
+        let special_stuff_troy_build_starpos = add_action_to_menu(&menu_troy, shortcuts.as_ref(), "special_stuff_menu", "build_starpos", "special_stuff_build_starpos", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_three_k_generate_dependencies_cache = add_action_to_menu(&menu_three_kingdoms, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_three_k_optimize_packfile = add_action_to_menu(&menu_three_kingdoms, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
+        let special_stuff_three_k_build_starpos = add_action_to_menu(&menu_three_kingdoms, shortcuts.as_ref(), "special_stuff_menu", "build_starpos", "special_stuff_build_starpos", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_wh2_generate_dependencies_cache = add_action_to_menu(&menu_warhammer_2, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_wh2_optimize_packfile = add_action_to_menu(&menu_warhammer_2, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_wh2_patch_siege_ai = add_action_to_menu(&menu_warhammer_2, shortcuts.as_ref(), "special_stuff_menu", "patch_siege_ai", "special_stuff_patch_siege_ai", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
+        let special_stuff_wh2_build_starpos = add_action_to_menu(&menu_warhammer_2, shortcuts.as_ref(), "special_stuff_menu", "build_starpos", "special_stuff_build_starpos", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_wh_generate_dependencies_cache = add_action_to_menu(&menu_warhammer, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_wh_optimize_packfile = add_action_to_menu(&menu_warhammer, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_wh_patch_siege_ai = add_action_to_menu(&menu_warhammer, shortcuts.as_ref(), "special_stuff_menu", "patch_siege_ai", "special_stuff_patch_siege_ai", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
+        let special_stuff_wh_build_starpos = add_action_to_menu(&menu_warhammer, shortcuts.as_ref(), "special_stuff_menu", "build_starpos", "special_stuff_build_starpos", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_tob_generate_dependencies_cache = add_action_to_menu(&menu_thrones_of_britannia, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_tob_optimize_packfile = add_action_to_menu(&menu_thrones_of_britannia, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
+        let special_stuff_tob_build_starpos = add_action_to_menu(&menu_thrones_of_britannia, shortcuts.as_ref(), "special_stuff_menu", "build_starpos", "special_stuff_build_starpos", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_att_generate_dependencies_cache = add_action_to_menu(&menu_attila, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_att_optimize_packfile = add_action_to_menu(&menu_attila, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
+        let special_stuff_att_build_starpos = add_action_to_menu(&menu_attila, shortcuts.as_ref(), "special_stuff_menu", "build_starpos", "special_stuff_build_starpos", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_rom2_generate_dependencies_cache = add_action_to_menu(&menu_rome_2, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_rom2_optimize_packfile = add_action_to_menu(&menu_rome_2, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
+        let special_stuff_rom2_build_starpos = add_action_to_menu(&menu_rome_2, shortcuts.as_ref(), "special_stuff_menu", "build_starpos", "special_stuff_build_starpos", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_sho2_generate_dependencies_cache = add_action_to_menu(&menu_shogun_2, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_sho2_optimize_packfile = add_action_to_menu(&menu_shogun_2, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
+        let special_stuff_sho2_build_starpos = add_action_to_menu(&menu_shogun_2, shortcuts.as_ref(), "special_stuff_menu", "build_starpos", "special_stuff_build_starpos", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_nap_generate_dependencies_cache = add_action_to_menu(&menu_napoleon, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_nap_optimize_packfile = add_action_to_menu(&menu_napoleon, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_emp_generate_dependencies_cache = add_action_to_menu(&menu_empire, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
@@ -888,6 +906,7 @@ impl AppUI {
             // Pharaoh actions.
             special_stuff_ph_generate_dependencies_cache,
             special_stuff_ph_optimize_packfile,
+            special_stuff_ph_build_starpos,
 
             // Warhammer 3 actions.
             special_stuff_wh3_generate_dependencies_cache,
@@ -899,36 +918,44 @@ impl AppUI {
             // Troy actions.
             special_stuff_troy_generate_dependencies_cache,
             special_stuff_troy_optimize_packfile,
+            special_stuff_troy_build_starpos,
 
             // Three Kingdoms actions.
             special_stuff_three_k_generate_dependencies_cache,
             special_stuff_three_k_optimize_packfile,
+            special_stuff_three_k_build_starpos,
 
             // Warhammer 2's actions.
             special_stuff_wh2_generate_dependencies_cache,
             special_stuff_wh2_optimize_packfile,
             special_stuff_wh2_patch_siege_ai,
+            special_stuff_wh2_build_starpos,
 
             // Warhammer's actions.
             special_stuff_wh_generate_dependencies_cache,
             special_stuff_wh_optimize_packfile,
             special_stuff_wh_patch_siege_ai,
+            special_stuff_wh_build_starpos,
 
             // Thrones of Britannia's actions.
             special_stuff_tob_generate_dependencies_cache,
             special_stuff_tob_optimize_packfile,
+            special_stuff_tob_build_starpos,
 
             // Attila's actions.
             special_stuff_att_generate_dependencies_cache,
             special_stuff_att_optimize_packfile,
+            special_stuff_att_build_starpos,
 
             // Rome 2's actions.
             special_stuff_rom2_generate_dependencies_cache,
             special_stuff_rom2_optimize_packfile,
+            special_stuff_rom2_build_starpos,
 
             // Shogun 2's actions.
             special_stuff_sho2_generate_dependencies_cache,
             special_stuff_sho2_optimize_packfile,
+            special_stuff_sho2_build_starpos,
 
             // Napoleon's actions.
             special_stuff_nap_generate_dependencies_cache,
@@ -1603,6 +1630,7 @@ impl AppUI {
                 KEY_PHARAOH => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(true);
                     app_ui.special_stuff_ph_optimize_packfile.set_enabled(true);
+                    app_ui.special_stuff_ph_build_starpos.set_enabled(true);
                 },
                 KEY_WARHAMMER_3 => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(true);
@@ -1614,36 +1642,44 @@ impl AppUI {
                 KEY_TROY => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(true);
                     app_ui.special_stuff_troy_optimize_packfile.set_enabled(true);
+                    app_ui.special_stuff_troy_build_starpos.set_enabled(true);
                 },
                 KEY_THREE_KINGDOMS => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(true);
                     app_ui.special_stuff_three_k_optimize_packfile.set_enabled(true);
+                    app_ui.special_stuff_three_k_build_starpos.set_enabled(true);
                 },
                 KEY_WARHAMMER_2 => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(true);
                     app_ui.special_stuff_wh2_patch_siege_ai.set_enabled(true);
                     app_ui.special_stuff_wh2_optimize_packfile.set_enabled(true);
+                    app_ui.special_stuff_wh2_build_starpos.set_enabled(true);
                 },
                 KEY_WARHAMMER => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(false);
                     app_ui.special_stuff_wh_patch_siege_ai.set_enabled(true);
                     app_ui.special_stuff_wh_optimize_packfile.set_enabled(true);
+                    app_ui.special_stuff_wh_build_starpos.set_enabled(true);
                 },
                 KEY_THRONES_OF_BRITANNIA => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(false);
                     app_ui.special_stuff_tob_optimize_packfile.set_enabled(true);
+                    app_ui.special_stuff_tob_build_starpos.set_enabled(true);
                 },
                 KEY_ATTILA => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(false);
                     app_ui.special_stuff_att_optimize_packfile.set_enabled(true);
+                    app_ui.special_stuff_att_build_starpos.set_enabled(true);
                 },
                 KEY_ROME_2 => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(false);
                     app_ui.special_stuff_rom2_optimize_packfile.set_enabled(true);
+                    app_ui.special_stuff_rom2_build_starpos.set_enabled(true);
                 },
                 KEY_SHOGUN_2 => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(false);
                     app_ui.special_stuff_sho2_optimize_packfile.set_enabled(true);
+                    app_ui.special_stuff_sho2_build_starpos.set_enabled(true);
                 },
                 KEY_NAPOLEON => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(false);
@@ -1666,6 +1702,7 @@ impl AppUI {
             // Disable Pharaoh actions.
             app_ui.special_stuff_ph_optimize_packfile.set_enabled(false);
             app_ui.special_stuff_ph_generate_dependencies_cache.set_enabled(false);
+            app_ui.special_stuff_ph_build_starpos.set_enabled(false);
 
             // Disable Warhammer 3 actions...
             app_ui.special_stuff_wh3_optimize_packfile.set_enabled(false);
@@ -1677,36 +1714,44 @@ impl AppUI {
             // Disable Troy actions...
             app_ui.special_stuff_troy_optimize_packfile.set_enabled(false);
             app_ui.special_stuff_troy_generate_dependencies_cache.set_enabled(false);
+            app_ui.special_stuff_troy_build_starpos.set_enabled(false);
 
             // Disable Three Kingdoms actions...
             app_ui.special_stuff_three_k_optimize_packfile.set_enabled(false);
             app_ui.special_stuff_three_k_generate_dependencies_cache.set_enabled(false);
+            app_ui.special_stuff_three_k_build_starpos.set_enabled(false);
 
             // Disable Warhammer 2 actions...
             app_ui.special_stuff_wh2_patch_siege_ai.set_enabled(false);
             app_ui.special_stuff_wh2_optimize_packfile.set_enabled(false);
             app_ui.special_stuff_wh2_generate_dependencies_cache.set_enabled(false);
+            app_ui.special_stuff_wh2_build_starpos.set_enabled(false);
 
             // Disable Warhammer actions...
             app_ui.special_stuff_wh_patch_siege_ai.set_enabled(false);
             app_ui.special_stuff_wh_optimize_packfile.set_enabled(false);
             app_ui.special_stuff_wh_generate_dependencies_cache.set_enabled(false);
+            app_ui.special_stuff_wh_build_starpos.set_enabled(false);
 
             // Disable Thrones of Britannia actions...
             app_ui.special_stuff_tob_optimize_packfile.set_enabled(false);
             app_ui.special_stuff_tob_generate_dependencies_cache.set_enabled(false);
+            app_ui.special_stuff_tob_build_starpos.set_enabled(false);
 
             // Disable Attila actions...
             app_ui.special_stuff_att_optimize_packfile.set_enabled(false);
             app_ui.special_stuff_att_generate_dependencies_cache.set_enabled(false);
+            app_ui.special_stuff_att_build_starpos.set_enabled(false);
 
             // Disable Rome 2 actions...
             app_ui.special_stuff_rom2_optimize_packfile.set_enabled(false);
             app_ui.special_stuff_rom2_generate_dependencies_cache.set_enabled(false);
+            app_ui.special_stuff_rom2_build_starpos.set_enabled(false);
 
             // Disable Shogun 2 actions...
             app_ui.special_stuff_sho2_optimize_packfile.set_enabled(false);
             app_ui.special_stuff_sho2_generate_dependencies_cache.set_enabled(false);
+            app_ui.special_stuff_sho2_build_starpos.set_enabled(false);
 
             // Disable Napoleon actions...
             app_ui.special_stuff_nap_optimize_packfile.set_enabled(false);

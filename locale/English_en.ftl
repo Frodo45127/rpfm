@@ -1545,6 +1545,11 @@ build_starpos_instructions = <p>Instructions:</p>
             which are part of a campaign map's pathfinding. <b>Takes like between 10 and 30 minutes</b>. You'll only need to make these if you are making a new campaign map.</li>
     </ul>
 
+    <p>Games where this is confirmed to work (if it's not on this list, it has not been tested and may work... or not, so report any issue you see if you use it):</p>
+    <ul>
+        <li>Warhammer 3.</li>
+    </ul>
+
 campaign_id = Campaign ID:
 process_hlp_spd_data = Process HLP and SPD data
 
