@@ -566,7 +566,7 @@ pub extern fn assets_request_callback(missing_files: *mut QListOfQString, out: *
             paths.push(ContainerPath::File(path));
         }
 
-        log::info!("Paths requested by model renderer: {:#?}", &paths);
+        log::info!("Paths requested by model renderer: {:#?}", &paths.iter().map(|x| format!(" - {}", x.path_raw())).collect::<Vec<_>>());
 
         let receiver = CENTRAL_COMMAND.send_background(Command::GetRFilesFromAllSources(paths.clone(), true));
         let response = CentralCommand::recv(&receiver);

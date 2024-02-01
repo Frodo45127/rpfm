@@ -16,6 +16,7 @@ This module simply calls QtRME lib with some data and the lib is the one taking 
 
 
 use qt_widgets::QGridLayout;
+use qt_widgets::QSplitter;
 use qt_widgets::QWidget;
 
 use qt_core::QBox;
@@ -61,19 +62,22 @@ impl PackedFileRigidModelView {
     ) -> Result<()> {
 
         let layout: QPtr<QGridLayout> = file_view.main_widget().layout().static_downcast();
+        let splitter = QSplitter::from_q_widget(file_view.main_widget());
+        layout.add_widget_5a(&splitter, 0, 0, 1, 1);
+
         let view = Arc::new(PackedFileRigidModelView{
             #[cfg(feature = "support_rigidmodel")] editor: {
                 let data = QByteArray::from_slice(data.data());
                 let editor = new_rigid_model_view_safe(&mut file_view.main_widget().as_ptr());
                 set_rigid_model_view_safe(&mut editor.as_ptr(), &data.as_ptr())?;
-                layout.add_widget_5a(&editor, 0, 0, 1, 1);
+                splitter.add_widget(&editor);
                 editor
             },
 
             #[cfg(feature = "support_model_renderer")] renderer: {
                 let renderer = create_q_rendering_widget(&mut file_view.main_widget().as_ptr());
                 add_new_primary_asset(&renderer.as_ptr(), &file_view.path().read().unwrap(), data.data());
-                layout.add_widget_5a(&renderer, 0, 1, 1, 1);
+                splitter.add_widget(&renderer);
                 renderer
             },
 
