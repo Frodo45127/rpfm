@@ -765,8 +765,9 @@ pub fn background_loop() {
 
             // In case we want to decode a RigidModel PackedFile...
             Command::DecodePackedFile(path, data_source) => {
-                dbg!(&path);
-                dbg!(&data_source);
+                info!("Trying to decode a file. Path: {}", &path);
+                info!("Trying to decode a file. Data Source: {}", &data_source);
+
                 match data_source {
                     DataSource::PackFile => {
                         if path == RESERVED_NAME_NOTES {
