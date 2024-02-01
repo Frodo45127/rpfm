@@ -22,6 +22,7 @@ use std::process::{Command, exit};
 #[cfg(target_os = "windows")]
 fn main() {
     common_config();
+    let target_path = format!("./../target/{}/", if cfg!(debug_assertions) { "debug" } else { "release"});
 
     #[cfg(feature = "support_modern_dds")] {
         println!("cargo:rustc-link-lib=dylib=QImage_DDS");
@@ -34,9 +35,59 @@ fn main() {
 
     // Model renderer, only on windows.
     #[cfg(feature = "support_model_renderer")] {
+
+        // TODO: unhardcode this path once the folder is moved to a 3rdparty subrepo.
+        let renderer_path = "./../../QtRenderingWidget/";
+        println!("cargo:rerun-if-changed={}", renderer_path);
+
         println!("cargo:rustc-link-lib=dylib=ImportExport");
         println!("cargo:rustc-link-lib=dylib=Rldx");
         println!("cargo:rustc-link-lib=dylib=QtRenderingWidget");
+
+        // This compiles the model renderer and related libs.
+        match Command::new("msbuild")
+            .arg("./QtRenderingWidget_RPFM.sln")
+            .arg("-m")   // Enable multithread build.
+            .arg("-t:Build")
+            .arg("-p:Configuration=Release")
+            .arg("-p:Platform=x64")
+            .current_dir(renderer_path).output() {
+            Ok(output) => {
+                stdout().write_all(&output.stdout).unwrap();
+                stderr().write_all(&output.stderr).unwrap();
+
+                // On ANY error, fail compilation.
+                if !output.stderr.is_empty() {
+                    let error = String::from_utf8_lossy(&output.stderr);
+                    error.lines().filter(|line| !line.is_empty()).for_each(|line| {
+                        println!("cargo:warning={:?}", line);
+                    });
+                    exit(98)
+                }
+
+                // If nothing broke, copy the files to the correct folders.
+                copy(renderer_path.to_owned() + "x64/Release/ImportExport.lib", "./../3rdparty/builds/ImportExport.lib").unwrap();
+                copy(renderer_path.to_owned() + "x64/Release/QtRenderingWidget.lib", "./../3rdparty/builds/QtRenderingWidget.lib").unwrap();
+                copy(renderer_path.to_owned() + "x64/Release/Rldx.lib", "./../3rdparty/builds/Rldx.lib").unwrap();
+
+                copy(renderer_path.to_owned() + "x64/Release/PS_NoTextures.cso", target_path.clone() + "PS_NoTextures.cso").unwrap();
+                copy(renderer_path.to_owned() + "x64/Release/PS_Simple.cso", target_path.clone() + "PS_Simple.cso").unwrap();
+                copy(renderer_path.to_owned() + "x64/Release/PS_Troy.cso", target_path.clone() + "PS_Troy.cso").unwrap();
+                copy(renderer_path.to_owned() + "x64/Release/VS_Simple.cso", target_path.clone() + "VS_Simple.cso").unwrap();
+
+                copy(renderer_path.to_owned() + "Rldx/Rldx/RenderResources/Textures/CubeMaps/LandscapeCubeMapIBLDiffuse.dds", target_path.clone() + "LandscapeCubeMapIBLDiffuse.dds").unwrap();
+                copy(renderer_path.to_owned() + "Rldx/Rldx/RenderResources/Textures/CubeMaps/LandscapeCubeMapIBLSpecular.dds", target_path.clone() + "LandscapeCubeMapIBLSpecular.dds").unwrap();
+                copy(renderer_path.to_owned() + "Rldx/Rldx/RenderResources/Textures/CubeMaps/SkyCubemapIBLDiffuse.dds", target_path.clone() + "SkyCubemapIBLDiffuse.dds").unwrap();
+                copy(renderer_path.to_owned() + "Rldx/Rldx/RenderResources/Textures/CubeMaps/SkyCubemapIBLSpecular.dds", target_path.clone() + "SkyCubemapIBLSpecular.dds").unwrap();
+
+                copy(renderer_path.to_owned() + "QtRenderingWidget/myfile.spritefont", target_path.clone() + "myfile.spritefont").unwrap();
+            }
+            Err(error) => {
+                stdout().write_all(error.to_string().as_bytes()).unwrap();
+                stdout().write_all(b"ERROR: You either don't have msbuild installed, it's not in the path, or there was an error while executing it. Fix that before continuing.").unwrap();
+                exit(99);
+            }
+        }
     }
 
     // This compiles the custom widgets lib.
@@ -70,10 +121,10 @@ fn main() {
     if let Err(error) = res.compile() { println!("Error: {}", error); }
 
     // Copy the icon theme so it can be accessed by debug builds.
-    DirBuilder::new().recursive(true).create("./../target/debug/data/icons/breeze/").unwrap();
-    DirBuilder::new().recursive(true).create("./../target/debug/data/icons/breeze-dark/").unwrap();
-    copy("./../icons/breeze-icons.rcc", "./../target/debug/data/icons/breeze/breeze-icons.rcc").unwrap();
-    copy("./../icons/breeze-icons-dark.rcc", "./../target/debug/data/icons/breeze-dark/breeze-icons-dark.rcc").unwrap();
+    DirBuilder::new().recursive(true).create(target_path.clone() + "data/icons/breeze/").unwrap();
+    DirBuilder::new().recursive(true).create(target_path.clone() + "data/icons/breeze-dark/").unwrap();
+    copy("./../icons/breeze-icons.rcc", target_path.clone() + "data/icons/breeze/breeze-icons.rcc").unwrap();
+    copy("./../icons/breeze-icons-dark.rcc", target_path.clone() + "data/icons/breeze-dark/breeze-icons-dark.rcc").unwrap();
 }
 
 /// Linux Build Script.
