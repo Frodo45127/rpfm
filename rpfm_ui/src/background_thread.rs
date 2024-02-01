@@ -1616,6 +1616,8 @@ pub fn background_loop() {
                                 Ok(data) => CentralCommand::send_back(&sender, Response::VecU8(data.to_vec())),
 
                                 // If we don't have binary data, it may be decoded. Encode it and return the binary data.
+                                //
+                                // NOTE: This fucks up the table decoder if the table was badly decoded.
                                 Err(_) =>  {
                                     let extra_data = Some(initialize_encodeable_extra_data(&GAME_SELECTED.read().unwrap()));
                                     match rfile.encode(&extra_data, false, false, true) {
