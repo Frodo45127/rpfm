@@ -32,6 +32,13 @@ fn main() {
         println!("cargo:rustc-link-lib=dylib=QtRMV2Widget");
     }
 
+    // Model renderer, only on windows.
+    #[cfg(feature = "support_model_renderer")] {
+        println!("cargo:rustc-link-lib=dylib=ImportExport");
+        println!("cargo:rustc-link-lib=dylib=Rldx");
+        println!("cargo:rustc-link-lib=dylib=QtRenderingWidget");
+    }
+
     // This compiles the custom widgets lib.
     match Command::new("nmake").current_dir("./../3rdparty/src/qt_rpfm_extensions/").output() {
         Ok(output) => {

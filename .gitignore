@@ -91,6 +91,9 @@
 # Intellij Config folder and files.
 /.idea/
 
+# Model Renderer log file.
+log.txt
+
 # KDE directory config file.
 .directory
 

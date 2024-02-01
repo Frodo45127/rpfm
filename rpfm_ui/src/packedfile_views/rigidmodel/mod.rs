@@ -19,10 +19,11 @@ use qt_widgets::QGridLayout;
 use qt_widgets::QWidget;
 
 use qt_core::QBox;
-use qt_core::QByteArray;
+#[cfg(feature = "support_rigidmodel")] use qt_core::QByteArray;
 use qt_core::QPtr;
 
 use std::sync::Arc;
+#[cfg(feature = "support_model_renderer")] use std::sync::RwLock;
 
 use anyhow::Result;
 use getset::*;
@@ -40,7 +41,10 @@ use crate::packedfile_views::{FileView, View, ViewType};
 /// This struct contains the view of a RigidModel PackedFile.
 #[derive(Getters)]
 pub struct PackedFileRigidModelView {
-    editor: QBox<QWidget>,
+    #[cfg(feature = "support_rigidmodel")] editor: QBox<QWidget>,
+    #[cfg(feature = "support_model_renderer")] renderer: QBox<QWidget>,
+
+    #[cfg(feature = "support_model_renderer")] path: Option<Arc<RwLock<String>>>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -56,16 +60,24 @@ impl PackedFileRigidModelView {
         data: &RigidModel,
     ) -> Result<()> {
 
-        // Create the new view and populate it.
-        let data = QByteArray::from_slice(data.data());
-        let editor = new_rigid_model_view_safe(&mut file_view.main_widget().as_ptr());
-        set_rigid_model_view_safe(&mut editor.as_ptr(), &data.as_ptr())?;
-
         let layout: QPtr<QGridLayout> = file_view.main_widget().layout().static_downcast();
-        layout.add_widget_5a(&editor, 0, 0, 1, 1);
-
         let view = Arc::new(PackedFileRigidModelView{
-            editor,
+            #[cfg(feature = "support_rigidmodel")] editor: {
+                let data = QByteArray::from_slice(data.data());
+                let editor = new_rigid_model_view_safe(&mut file_view.main_widget().as_ptr());
+                set_rigid_model_view_safe(&mut editor.as_ptr(), &data.as_ptr())?;
+                layout.add_widget_5a(&editor, 0, 0, 1, 1);
+                editor
+            },
+
+            #[cfg(feature = "support_model_renderer")] renderer: {
+                let renderer = create_q_rendering_widget(&mut file_view.main_widget().as_ptr());
+                add_new_primary_asset(&renderer.as_ptr(), &file_view.path().read().unwrap(), data.data());
+                layout.add_widget_5a(&renderer, 0, 1, 1, 1);
+                renderer
+            },
+
+            #[cfg(feature = "support_model_renderer")] path: Some(file_view.path_raw()),
         });
 
         file_view.file_type = FileType::RigidModel;
@@ -75,18 +87,28 @@ impl PackedFileRigidModelView {
     }
 
     /// Function to save the view and encode it into a RigidModel struct.
-    pub unsafe fn save_view(&self) -> Result<RigidModel> {
+    #[cfg(feature = "support_rigidmodel")] pub unsafe fn save_view(&self) -> Result<RigidModel> {
+        let mut rigidmodel = RigidModel::default();
         let qdata = get_rigid_model_from_view_safe(&self.editor)?;
         let data = std::slice::from_raw_parts(qdata.data_mut() as *mut u8, qdata.length() as usize).to_vec();
-
-        let mut rigidmodel = RigidModel::default();
         rigidmodel.set_data(data);
         Ok(rigidmodel)
     }
 
     /// Function to reload the data of the view without having to delete the view itself.
-    pub unsafe fn reload_view(&self, data: &RigidModel) -> Result<()> {
-        let byte_array = QByteArray::from_slice(data.data());
-        set_rigid_model_view_safe(&mut self.editor.as_ptr(), &byte_array.as_ptr())
+    #[cfg(any(feature = "support_rigidmodel", feature = "support_model_renderer"))] pub unsafe fn reload_view(&self, data: &RigidModel) -> Result<()> {
+
+        #[cfg(feature = "support_rigidmodel")] {
+            let byte_array = QByteArray::from_slice(data.data());
+            set_rigid_model_view_safe(&mut self.editor.as_ptr(), &byte_array.as_ptr())?;
+        }
+
+        #[cfg(feature = "support_model_renderer")] {
+            if let Some(ref path) = self.path {
+                add_new_primary_asset(&self.renderer.as_ptr(), &path.read().unwrap(), data.data());
+            }
+        }
+
+        Ok(())
     }
 }

@@ -31,7 +31,9 @@ use qt_gui::QStandardItemModel;
 use qt_core::QBox;
 use qt_core::QBuffer;
 use qt_core::QByteArray;
+#[cfg(feature = "support_model_renderer")] use qt_core::QListOfQByteArray;
 use qt_core::QListOfQObject;
+#[cfg(feature = "support_model_renderer")] use qt_core::QListOfQString;
 use qt_core::QModelIndex;
 use qt_core::QObject;
 use qt_core::QPoint;
@@ -51,11 +53,17 @@ use cpp_core::Ptr;
 
 #[cfg(feature = "support_rigidmodel")] use anyhow::{anyhow, Result};
 
-#[cfg(feature = "support_rigidmodel")] use rpfm_lib::integrations::log;
+#[cfg(feature = "support_model_renderer")] use std::collections::HashMap;
 
+#[cfg(any(feature = "support_rigidmodel", feature = "support_model_renderer"))] use rpfm_lib::integrations::log;
+#[cfg(feature = "support_model_renderer")] use rpfm_lib::files::ContainerPath;
 use rpfm_ui_common::locale::{qtr, tr};
 
+#[cfg(feature = "support_model_renderer")] use crate::CENTRAL_COMMAND;
+#[cfg(feature = "support_model_renderer")] use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
+#[cfg(feature = "support_model_renderer")] use crate::packedfile_views::DataSource;
 use crate::settings_ui::backend::*;
+#[cfg(feature = "support_model_renderer")] use crate::GAME_SELECTED;
 use crate::UI_STATE;
 use crate::views::table::ITEM_SOURCE_VALUE;
 
@@ -521,6 +529,79 @@ pub fn get_last_rigid_model_error(parent: &Ptr<QWidget>) -> Result<String> {
         } else {
             Err(anyhow!("Error parsing a RigidModel file."))
         }
+    }
+}
+
+#[cfg(feature = "support_model_renderer")]
+extern "C" { fn CreateQRenderingWidget(parent: *mut QWidget, gameIdString: *mut QString, AssetFetchCallBack: extern fn (*mut QListOfQString, *mut QListOfQByteArray)) -> *mut QWidget; }
+#[cfg(feature = "support_model_renderer")]
+pub fn create_q_rendering_widget(parent: &Ptr<QWidget>) -> QBox<QWidget> {
+    let game = QString::from_std_str(GAME_SELECTED.read().unwrap().key());
+    unsafe { QBox::from_raw(CreateQRenderingWidget(parent.as_mut_raw_ptr(), game.as_mut_raw_ptr(), assets_request_callback)) }
+}
+
+#[cfg(feature = "support_model_renderer")]
+extern "C" { fn AddNewPimaryAsset(pQRenderWiget: *mut QWidget, assetsPath: *mut QString, assetData: *mut QByteArray); }
+#[cfg(feature = "support_model_renderer")]
+pub unsafe fn add_new_primary_asset(widget: &Ptr<QWidget>, asset_path: &str, asset_data: &[u8]) {
+    let asset_path = QString::from_std_str(asset_path);
+    let asset_data = QByteArray::from_slice(asset_data);
+    AddNewPimaryAsset(widget.as_mut_raw_ptr(), asset_path.as_mut_raw_ptr(), asset_data.as_mut_raw_ptr())
+}
+
+#[cfg(feature = "support_model_renderer")]
+pub extern fn assets_request_callback(missing_files: *mut QListOfQString, out: *mut QListOfQByteArray) {
+    unsafe {
+        let missing_files = missing_files.as_ref().unwrap();
+        let out = out.as_mut().unwrap();
+
+        let mut paths = vec![];
+        for i in 0..missing_files.count_0a() {
+            let path = missing_files.at(i).to_std_string();
+            paths.push(ContainerPath::File(path));
+        }
+
+        log::info!("Paths requested by model renderer: {:#?}", &paths);
+
+        let receiver = CENTRAL_COMMAND.send_background(Command::GetRFilesFromAllSources(paths.clone(), false));
+        let response = CentralCommand::recv(&receiver);
+        match response {
+            Response::HashMapDataSourceHashMapStringRFile(mut files) => {
+                let mut files_merge = HashMap::new();
+                if let Some(files) = files.remove(&DataSource::GameFiles) {
+                    files_merge.extend(files);
+                }
+
+                if let Some(files) = files.remove(&DataSource::ParentFiles) {
+                    files_merge.extend(files);
+                }
+
+                if let Some(files) = files.remove(&DataSource::PackFile) {
+                    files_merge.extend(files);
+                }
+
+                // Files have to go in the same order they came.
+                // Missing or empty files just have to have an empty byte array.
+                for path in &paths {
+                    match files_merge.get_mut(path.path_raw()) {
+                        Some(file) => {
+                            match file.load() {
+                                Ok(_) => match file.cached() {
+                                    Ok(data) => {
+                                        let data = QByteArray::from_slice(data);
+                                        out.append_q_byte_array(&data);
+                                    }
+                                    Err(_) => out.append_q_byte_array(&QByteArray::new()),
+                                }
+                                Err(_) => out.append_q_byte_array(&QByteArray::new()),
+                            }
+                        }
+                        None => out.append_q_byte_array(&QByteArray::new()),
+                    }
+                }
+            },
+            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+        };
     }
 }
 

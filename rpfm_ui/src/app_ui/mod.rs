@@ -106,7 +106,7 @@ use crate::ui::GameSelectedIcons;
 use crate::ui_state::OperationalMode;
 use crate::utils::*;
 
-#[cfg(feature = "support_rigidmodel")]
+#[cfg(any(feature = "support_rigidmodel", feature = "support_model_renderer"))]
 use crate::packedfile_views::rigidmodel::*;
 
 #[cfg(feature = "support_uic")]
@@ -2546,9 +2546,9 @@ impl AppUI {
                         }
 
                         // If the file is a RigidModel PackedFile...
-                        #[cfg(feature = "support_rigidmodel")]
+                        #[cfg(any(feature = "support_rigidmodel", feature = "support_model_renderer"))]
                         Response::RigidModelRFileInfo(data, file_info) => {
-                            if setting_bool("enable_rigidmodel_editor") {
+                            if setting_bool("enable_rigidmodel_editor") || cfg!(feature = "support_model_renderer") {
                                 match PackedFileRigidModelView::new_view(&mut tab, &data) {
                                     Ok(_) => {
 

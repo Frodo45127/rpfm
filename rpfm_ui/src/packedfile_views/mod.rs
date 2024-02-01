@@ -62,7 +62,7 @@ use self::text::PackedFileTextView;
 use self::unit_variant::UnitVariantView;
 use self::video::PackedFileVideoView;
 
-#[cfg(feature = "support_rigidmodel")]
+#[cfg(any(feature = "support_rigidmodel", feature = "support_model_renderer"))]
 use self::rigidmodel::PackedFileRigidModelView;
 
 #[cfg(feature = "support_uic")]
@@ -85,7 +85,7 @@ pub mod packfile;
 pub mod packfile_settings;
 pub mod portrait_settings;
 
-#[cfg(feature = "support_rigidmodel")]
+#[cfg(any(feature = "support_rigidmodel", feature = "support_model_renderer"))]
 pub mod rigidmodel;
 pub mod table;
 pub mod text;
@@ -166,7 +166,7 @@ pub enum View {
     PackSettings(Arc<PackFileSettingsView>),
     PortraitSettings(Arc<PortraitSettingsView>),
 
-    #[cfg(feature = "support_rigidmodel")]
+    #[cfg(any(feature = "support_rigidmodel", feature = "support_model_renderer"))]
     RigidModel(Arc<PackedFileRigidModelView>),
     Table(Arc<PackedFileTableView>),
     Text(Arc<PackedFileTextView>),
@@ -376,10 +376,14 @@ impl FileView {
                                 return Ok(())
                             },
 
-                            #[cfg(feature = "support_rigidmodel")]
-                            View::RigidModel(view) => {
-                                let data = view.save_view()?;
+                            // Only save rigids if there's an editor for them.
+                            #[cfg(feature = "support_rigidmodel")] View::RigidModel(view) => {
+                                let data = _view.save_view()?;
                                 RFileDecoded::RigidModel(data)
+                            }
+
+                            #[cfg(all(not(feature = "support_rigidmodel"), feature = "support_model_renderer"))] View::RigidModel(_) => {
+                                return Ok(())
                             }
 
                             View::Table(view) => {
@@ -621,7 +625,7 @@ impl FileView {
                             }
                         },
 
-                        #[cfg(feature = "support_rigidmodel")]
+                        #[cfg(any(feature = "support_rigidmodel", feature = "support_model_renderer"))]
                         Response::RigidModelRFileInfo(rigidmodel, packed_file_info) => {
                             if let View::RigidModel(old_rigidmodel) = view {
                                 old_rigidmodel.reload_view(&rigidmodel)?;
