@@ -1080,6 +1080,14 @@ impl TableView {
         let filters = self.filters.read().unwrap();
         for filter in filters.iter() {
 
+            // Replace jumplines with ors, and then filter.
+            filter.filter_line_edit().block_signals(true);
+            let text = QString::from_std_str(filter.filter_line_edit().text().to_std_string().replace("\r\n", "|").replace("\n", "|"));
+            filter.filter_line_edit().undo();
+            filter.filter_line_edit().select_all();
+            filter.filter_line_edit().insert(&text);
+            filter.filter_line_edit().block_signals(false);
+
             // Ignore empty filters.
             if !filter.filter_line_edit().text().to_std_string().is_empty() {
 
