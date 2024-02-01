@@ -378,7 +378,7 @@ impl FileView {
 
                             // Only save rigids if there's an editor for them.
                             #[cfg(feature = "support_rigidmodel")] View::RigidModel(view) => {
-                                let data = _view.save_view()?;
+                                let data = view.save_view()?;
                                 RFileDecoded::RigidModel(data)
                             }
 
