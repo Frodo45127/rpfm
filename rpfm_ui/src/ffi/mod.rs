@@ -563,7 +563,7 @@ pub extern fn assets_request_callback(missing_files: *mut QListOfQString, out: *
 
         log::info!("Paths requested by model renderer: {:#?}", &paths);
 
-        let receiver = CENTRAL_COMMAND.send_background(Command::GetRFilesFromAllSources(paths.clone(), false));
+        let receiver = CENTRAL_COMMAND.send_background(Command::GetRFilesFromAllSources(paths.clone(), true));
         let response = CentralCommand::recv(&receiver);
         match response {
             Response::HashMapDataSourceHashMapStringRFile(mut files) => {
