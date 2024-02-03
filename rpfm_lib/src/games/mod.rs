@@ -468,6 +468,18 @@ impl GameInfo {
         Ok(*install_data.use_manifest())
     }
 
+    /// This function returns the steam id for a specific game installation.
+    pub fn steam_id(&self, game_path: &Path) -> Result<u64> {
+        let install_type = self.install_type(game_path)?;
+        let install_data = match install_type {
+            InstallType::WinSteam |
+            InstallType::LnxSteam => self.install_data.get(&install_type).ok_or_else(|| RLibError::GameInstallTypeNotSupported(self.display_name.to_string(), install_type.to_string()))?,
+            _ => return Err(RLibError::ReservedFiles)
+        };
+
+        Ok(*install_data.store_id())
+    }
+
     /// This function is used to get the paths of all CA PackFiles on the data folder of the game selected.
     ///
     /// If it fails to find a manifest, it falls back to all non-mod files!
