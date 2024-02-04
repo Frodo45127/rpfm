@@ -166,6 +166,8 @@ impl PackedFileAnimPackViewSlots {
                     app_ui.toggle_main_window(true);
                     view.pack_tree_view.clear_focus();
                     view.pack_tree_view.set_focus_0a();
+
+                    PackFileContentsUI::start_delayed_updates_timer(&pack_file_contents_ui);
                 }
             }
         ));
