@@ -33,8 +33,9 @@ use crate::packedfile_views::DataSource;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::utils::show_dialog;
-use super::PackFileExtraView;
 use crate::UI_STATE;
+
+use super::PackFileExtraView;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -106,9 +107,11 @@ impl PackFileExtraViewSlots {
                         _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                     }
 
-                    // Re-enable the Main Window.
+                    // Re-enable the Main Window and trigger a re-filtering of the open Pack TreeView.
                     app_ui.toggle_main_window(true);
                     pack_file_view.tree_view.set_focus_0a();
+
+                    PackFileContentsUI::start_delayed_updates_timer(&pack_file_contents_ui);
                 }
             }
         ));
