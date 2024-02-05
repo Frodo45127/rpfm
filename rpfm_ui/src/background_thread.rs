@@ -2031,10 +2031,105 @@ pub fn background_loop() {
                 }
             },
 
+            Command::UpdateAnimIds(starting_id, offset) => {
+                match update_anim_ids(&mut pack_file_decoded, starting_id, offset) {
+                    Ok(paths) => CentralCommand::send_back(&sender, Response::VecContainerPath(paths)),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                }
+            }
+
             // These two belong to the network thread, not to this one!!!!
             Command::CheckUpdates | Command::CheckSchemaUpdates | Command::CheckLuaAutogenUpdates | Command::CheckEmpireAndNapoleonAKUpdates => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
         }
     }
+}
+
+fn update_anim_ids(pack_file: &mut Pack, starting_id: i32, offset: i32) -> Result<Vec<ContainerPath>> {
+    if offset == 0 {
+        return Err(anyhow!("Offset must be different than 0."))
+    }
+
+    if starting_id < 0 {
+        return Err(anyhow!("Starting Id must be greater than 0."))
+    }
+
+    // First, do a pass over sparse files.
+    let extra_data = Some(DecodeableExtraData::default());
+    let mut files = pack_file.files_by_type_mut(&[FileType::AnimFragmentBattle]);
+    let mut paths = files.par_iter_mut()
+        .filter_map(|file| {
+            let mut changed = false;
+            if let Ok(Some(RFileDecoded::AnimFragmentBattle(mut table))) = file.decode(&extra_data, false, true) {
+                if *table.max_id() >= starting_id as u32 {
+                    table.set_max_id(*table.max_id() + offset as u32);
+                    changed = true;
+                }
+
+                for entry in table.entries_mut() {
+                    if *entry.animation_id() >= starting_id as u32 {
+                        entry.set_animation_id(*entry.animation_id() + offset as u32);
+                        changed = true;
+                    }
+
+                    if *entry.slot_id() >= starting_id as u32 {
+                        entry.set_slot_id(*entry.slot_id() + offset as u32);
+                        changed = true;
+                    }
+                }
+
+                if changed {
+                    let _ = file.set_decoded(RFileDecoded::AnimFragmentBattle(table));
+                    Some(file.path_in_container())
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        }
+    ).collect::<Vec<_>>();
+
+    // Then, do another pass over files in AnimPacks. No need to do a par_iter because there is often less than 10 animpacks in packs.
+    let mut anim_packs = pack_file.files_by_type_mut(&[FileType::AnimPack]);
+
+    for anim_pack in anim_packs.iter_mut() {
+        let mut changed = false;
+        if let Ok(Some(RFileDecoded::AnimPack(mut pack))) = anim_pack.decode(&extra_data, false, true) {
+
+            let mut files = pack.files_by_type_mut(&[FileType::AnimFragmentBattle]);
+            for file in files.iter_mut() {
+                if let Ok(Some(RFileDecoded::AnimFragmentBattle(mut table))) = file.decode(&extra_data, false, true) {
+                    if *table.max_id() >= starting_id as u32 {
+                        table.set_max_id(*table.max_id() + offset as u32);
+                        changed = true;
+                    }
+
+                    for entry in table.entries_mut() {
+                        if *entry.animation_id() >= starting_id as u32 {
+                            entry.set_animation_id(*entry.animation_id() + offset as u32);
+                            changed = true;
+                        }
+
+                        if *entry.slot_id() >= starting_id as u32 {
+                            entry.set_slot_id(*entry.slot_id() + offset as u32);
+                            changed = true;
+                        }
+                    }
+
+                    if changed {
+                        let _ = file.set_decoded(RFileDecoded::AnimFragmentBattle(table));
+                    }
+                }
+            }
+
+            if changed {
+                let _ = anim_pack.set_decoded(RFileDecoded::AnimPack(pack));
+                paths.push(anim_pack.path_in_container());
+            }
+        }
+    }
+
+    Ok(paths)
 }
 
 fn build_starpos(dependencies: &Dependencies, pack_file: &Pack, campaign_id: &str, process_hlp_spd_data: bool) -> Result<()> {

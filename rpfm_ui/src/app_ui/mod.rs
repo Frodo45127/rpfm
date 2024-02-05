@@ -30,6 +30,7 @@ use qt_widgets::QLineEdit;
 use qt_widgets::QListView;
 use qt_widgets::QMainWindow;
 use qt_widgets::QMenu;
+use qt_widgets::QSpinBox;
 use qt_widgets::{q_message_box, QMessageBox};
 use qt_widgets::QScrollArea;
 use qt_widgets::QPushButton;
@@ -120,6 +121,9 @@ const PACK_MAP_VIEW_RELEASE: &str = "ui/pack_map_dialog.ui";
 
 const BUILD_STARPOS_VIEW_DEBUG: &str = "rpfm_ui/ui_templates/build_starpos_view.ui";
 const BUILD_STARPOS_VIEW_RELEASE: &str = "ui/build_starpos_view.ui";
+
+const UPDATE_ANIM_IDS_VIEW_DEBUG: &str = "rpfm_ui/ui_templates/update_anim_ids_dialog.ui";
+const UPDATE_ANIM_IDS_VIEW_RELEASE: &str = "ui/update_anim_ids_dialog.ui";
 
 pub mod connections;
 pub mod slots;
@@ -265,6 +269,7 @@ pub struct AppUI {
     special_stuff_wh3_live_export: QPtr<QAction>,
     special_stuff_wh3_pack_map: QPtr<QAction>,
     special_stuff_wh3_build_starpos: QPtr<QAction>,
+    special_stuff_wh3_update_anim_ids: QPtr<QAction>,
 
     // Troy actions.
     special_stuff_troy_generate_dependencies_cache: QPtr<QAction>,
@@ -713,6 +718,7 @@ impl AppUI {
         let special_stuff_wh3_live_export = add_action_to_menu(&menu_warhammer_3, shortcuts.as_ref(), "special_stuff_menu", "live_export", "special_stuff_live_export", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_wh3_pack_map = add_action_to_menu(&menu_warhammer_3, shortcuts.as_ref(), "special_stuff_menu", "pack_map", "special_stuff_pack_map", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_wh3_build_starpos = add_action_to_menu(&menu_warhammer_3, shortcuts.as_ref(), "special_stuff_menu", "build_starpos", "special_stuff_build_starpos", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
+        let special_stuff_wh3_update_anim_ids = add_action_to_menu(&menu_warhammer_3, shortcuts.as_ref(), "special_stuff_menu", "update_anim_ids", "special_stuff_update_anim_ids", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_troy_generate_dependencies_cache = add_action_to_menu(&menu_troy, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_troy_optimize_packfile = add_action_to_menu(&menu_troy, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_troy_build_starpos = add_action_to_menu(&menu_troy, shortcuts.as_ref(), "special_stuff_menu", "build_starpos", "special_stuff_build_starpos", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
@@ -914,6 +920,7 @@ impl AppUI {
             special_stuff_wh3_live_export,
             special_stuff_wh3_pack_map,
             special_stuff_wh3_build_starpos,
+            special_stuff_wh3_update_anim_ids,
 
             // Troy actions.
             special_stuff_troy_generate_dependencies_cache,
@@ -1638,6 +1645,7 @@ impl AppUI {
                     app_ui.special_stuff_wh3_live_export.set_enabled(true);
                     app_ui.special_stuff_wh3_pack_map.set_enabled(true);
                     app_ui.special_stuff_wh3_build_starpos.set_enabled(true);
+                    app_ui.special_stuff_wh3_update_anim_ids.set_enabled(true);
                 },
                 KEY_TROY => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(true);
@@ -1710,6 +1718,7 @@ impl AppUI {
             app_ui.special_stuff_wh3_live_export.set_enabled(false);
             app_ui.special_stuff_wh3_pack_map.set_enabled(false);
             app_ui.special_stuff_wh3_build_starpos.set_enabled(false);
+            app_ui.special_stuff_wh3_update_anim_ids.set_enabled(false);
 
             // Disable Troy actions...
             app_ui.special_stuff_troy_optimize_packfile.set_enabled(false);
@@ -4091,6 +4100,58 @@ impl AppUI {
                 Response::VecContainerPath(paths) => {
                     if !paths.is_empty() {
                         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(paths), DataSource::PackFile);
+                        UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
+                    }
+
+                    Ok(())
+                },
+                Response::Error(error) => Err(error),
+
+                // In ANY other situation, it's a message problem.
+                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+            }
+        } else {
+            Ok(())
+        }
+    }
+
+    /// This function is used to mass-update anim ids after an update.
+    pub unsafe fn update_anim_ids(app_ui: &Rc<Self>, pack_file_contents_ui: &Rc<PackFileContentsUI>) -> Result<()> {
+
+        // We need to close all anim files before doing this, or their view may get skew. It should really be only the AnimFragment files, but I'm too lazy right now to do it.
+        let _ = AppUI::purge_the_local_ones(app_ui, pack_file_contents_ui, false);
+
+        let template_path = if cfg!(debug_assertions) { UPDATE_ANIM_IDS_VIEW_DEBUG } else { UPDATE_ANIM_IDS_VIEW_RELEASE };
+        let main_widget = load_template(app_ui.main_window(), template_path)?;
+        let dialog = main_widget.static_downcast::<QDialog>();
+
+        // Create and configure the dialog.
+        let instructions_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "instructions_label")?;
+        let starting_id_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "starting_id_label")?;
+        let offset_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "offset_label")?;
+        let instructions_groubox: QPtr<QGroupBox> = find_widget(&main_widget.static_upcast(), "instructions_groubox")?;
+        let starting_id_spinbox: QPtr<QSpinBox> = find_widget(&main_widget.static_upcast(), "starting_id_spinbox")?;
+        let offset_spinbox: QPtr<QSpinBox> = find_widget(&main_widget.static_upcast(), "offset_spinbox")?;
+        let button_box: QPtr<QDialogButtonBox> = find_widget(&main_widget.static_upcast(), "button_box")?;
+
+        dialog.set_window_title(&qtr("update_anim_ids"));
+        instructions_groubox.set_title(&qtr("instructions"));
+        instructions_label.set_word_wrap(true);
+        instructions_label.set_text(&qtr("update_anim_ids_instructions"));
+        starting_id_label.set_text(&qtr("starting_id"));
+        offset_label.set_text(&qtr("offset"));
+
+        button_box.button(StandardButton::Ok).released().connect(dialog.slot_accept());
+
+        if dialog.exec() == 1 {
+            let starting_id = starting_id_spinbox.value();
+            let offset = offset_spinbox.value();
+            let receiver = CENTRAL_COMMAND.send_background(Command::UpdateAnimIds(starting_id, offset));
+            let response = CENTRAL_COMMAND.recv_try(&receiver);
+            match response {
+                Response::VecContainerPath(paths) => {
+                    if !paths.is_empty() {
+                        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths), DataSource::PackFile);
                         UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                     }
 

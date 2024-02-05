@@ -145,6 +145,7 @@ pub struct AppUISlots {
     pub special_stuff_pack_map: QBox<SlotNoArgs>,
     pub special_stuff_rescue_packfile: QBox<SlotOfBool>,
     pub special_stuff_build_starpos: QBox<SlotNoArgs>,
+    pub special_stuff_update_anim_ids: QBox<SlotNoArgs>,
 
     //-----------------------------------------------//
     // `Tools` menu slots.
@@ -1252,6 +1253,20 @@ impl AppUISlots {
             }
         ));
 
+        // What happens when we trigger the "Update Anim Ids" action.
+        let special_stuff_update_anim_ids = SlotNoArgs::new(&app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui => move || {
+                app_ui.toggle_main_window(false);
+
+                if let Err(error) = AppUI::update_anim_ids(&app_ui, &pack_file_contents_ui) {
+                    show_dialog(&app_ui.main_window, error, false);
+                }
+
+                app_ui.toggle_main_window(true);
+            }
+        ));
+
         //-----------------------------------------------//
         // `Tools` menu logic.
         //-----------------------------------------------//
@@ -1932,6 +1947,7 @@ impl AppUISlots {
             special_stuff_pack_map,
             special_stuff_rescue_packfile,
             special_stuff_build_starpos,
+            special_stuff_update_anim_ids,
 
             //-----------------------------------------------//
             // `Tools` menu slots.

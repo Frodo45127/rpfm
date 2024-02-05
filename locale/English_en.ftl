@@ -1557,3 +1557,14 @@ ignore_game_files_in_ak = Ignore Game Files in Assembly Kit
 settings_ignore_game_files_in_ak = When generating the dependencies cache, ignore files from the Assembly Kit that are present in the game files. Reduces RAM usage and makes RPFM load faster, but you loose read/import access to about 900 files.
 
 settings_ui_table_use_old_column_order_for_tsv_label = Use Old Column Order For TSV Exports (Keys first):
+
+special_stuff_update_anim_ids = Update Anim Ids
+update_anim_ids = Update Anim Ids
+update_anim_ids_instructions = <p>This allows you to update the Anim Ids of all AnimFragments contained within a Pack (including those inside AnimPacks), by applying an offset to all Anim Ids starting from a specific Id.</p>
+    <p>The offset can be negative, in case you fuck it up and need to reduce it. And as I said, this applies to all files, even inside AnimPacks.</p>
+    <p>If you have a pack with only a few AnimFragments that need updates and others that are already updated, <b>DO NOT USE THIS OR YOU'LL BREAK THE ALREADY UPDATED ONES</b>. Update them manually using "Rewrite Selection".</p>
+
+
+starting_id = Starting ID:
+offset = Offset:
+instructions = Instructions

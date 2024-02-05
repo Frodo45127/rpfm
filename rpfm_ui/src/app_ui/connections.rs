@@ -139,6 +139,8 @@ pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
     app_ui.special_stuff_rom2_build_starpos.triggered().connect(&slots.special_stuff_build_starpos);
     app_ui.special_stuff_sho2_build_starpos.triggered().connect(&slots.special_stuff_build_starpos);
 
+    app_ui.special_stuff_wh3_update_anim_ids.triggered().connect(&slots.special_stuff_update_anim_ids);
+
     app_ui.special_stuff_rescue_packfile.triggered().connect(&slots.special_stuff_rescue_packfile);
 
     //-----------------------------------------------//
