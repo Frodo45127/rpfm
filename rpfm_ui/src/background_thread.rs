@@ -1115,24 +1115,19 @@ pub fn background_loop() {
             // In case we want to import a TSV as a PackedFile...
             // TODO: This is... unreliable at best, can break stuff at worst. Replace the set_decoded with proper type checking.
             Command::ImportTSV(internal_path, external_path) => {
-                let schema = SCHEMA.read().unwrap();
-                match &*schema {
-                    Some(ref schema) => {
-                        match pack_file_decoded.file_mut(&internal_path, false) {
-                            Some(file) => {
-                                match RFile::tsv_import_from_path(&external_path, schema) {
-                                    Ok(imported) => {
-                                        let decoded = imported.decoded().unwrap();
-                                        file.set_decoded(decoded.clone()).unwrap();
-                                        CentralCommand::send_back(&sender, Response::RFileDecoded(decoded.clone()))
-                                    },
-                                    Err(error) =>  CentralCommand::send_back(&sender, Response::Error(From::from(error))),
-                                }
-                            }
-                            None => CentralCommand::send_back(&sender, Response::Error(anyhow!("File with the following path not found in the Pack: {}", internal_path))),
+                match pack_file_decoded.file_mut(&internal_path, false) {
+                    Some(file) => {
+                        let schema = SCHEMA.read().unwrap();
+                        match RFile::tsv_import_from_path(&external_path, &schema) {
+                            Ok(imported) => {
+                                let decoded = imported.decoded().unwrap();
+                                file.set_decoded(decoded.clone()).unwrap();
+                                CentralCommand::send_back(&sender, Response::RFileDecoded(decoded.clone()))
+                            },
+                            Err(error) =>  CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                         }
-                    },
-                    None => CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected."))),
+                    }
+                    None => CentralCommand::send_back(&sender, Response::Error(anyhow!("File with the following path not found in the Pack: {}", internal_path))),
                 }
             }
 
@@ -2461,8 +2456,8 @@ fn save_files_from_external_path(pack: &mut Pack, internal_path: &str, external_
             match external_path.extension() {
                 Some(extension) => {
                     if extension.to_string_lossy() == "tsv" {
-                        if let Some(ref schema) = *SCHEMA.read().unwrap() {
-                            let rfile = RFile::tsv_import_from_path(external_path, schema)?;
+                        let schema = SCHEMA.read().unwrap();
+                        if let Ok(rfile) = RFile::tsv_import_from_path(external_path, &schema) {
                             file.set_decoded(rfile.decoded()?.clone())?;
                         } else {
                             file.set_cached(&data);

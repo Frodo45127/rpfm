@@ -621,31 +621,24 @@ pub trait Container {
 
         // If tsv import is enabled, try to import the file to binary before adding it to the Container.
         let mut tsv_imported = false;
-        let mut rfile = match schema {
-            Some(schema) => {
-                match source_path.extension() {
-                    Some(extension) => {
-                        if extension.to_string_lossy() == "tsv" {
-                            tsv_imported = true;
-                            let rfile = RFile::tsv_import_from_path(source_path, schema);
-                            if let Err(_error) = rfile {
+        let mut rfile = match source_path.extension() {
+            Some(extension) => {
+                if extension.to_string_lossy() == "tsv" {
+                    tsv_imported = true;
+                    let rfile = RFile::tsv_import_from_path(source_path, schema);
+                    if let Err(_error) = rfile {
 
-                                #[cfg(feature = "integration_log")] {
-                                    warn!("File with path {} failed to import as TSV. Importing it as binary. Error was: {}", &source_path.to_string_lossy(), _error);
-                                }
-
-                                tsv_imported = false;
-                                RFile::new_from_file_path(source_path)
-                            } else {
-                                rfile
-                            }
-                        } else {
-                            RFile::new_from_file_path(source_path)
+                        #[cfg(feature = "integration_log")] {
+                            warn!("File with path {} failed to import as TSV. Importing it as binary. Error was: {}", &source_path.to_string_lossy(), _error);
                         }
-                    }
-                    None => {
+
+                        tsv_imported = false;
                         RFile::new_from_file_path(source_path)
+                    } else {
+                        rfile
                     }
+                } else {
+                    RFile::new_from_file_path(source_path)
                 }
             }
             None => {
@@ -706,31 +699,25 @@ pub trait Container {
 
             // If tsv import is enabled, try to import the file to binary before adding it to the Container.
             let mut tsv_imported = false;
-            let mut rfile = match schema {
-                Some(schema) => {
-                    match file_path.extension() {
-                        Some(extension) => {
-                            if extension.to_string_lossy() == "tsv" {
-                                tsv_imported = true;
-                                let rfile = RFile::tsv_import_from_path(&file_path, schema);
-                                if let Err(_error) = rfile {
+            let mut rfile =
+            match file_path.extension() {
+                Some(extension) => {
+                    if extension.to_string_lossy() == "tsv" {
+                        tsv_imported = true;
+                        let rfile = RFile::tsv_import_from_path(&file_path, schema);
+                        if let Err(_error) = rfile {
 
-                                    #[cfg(feature = "integration_log")] {
-                                        warn!("File with path {} failed to import as TSV. Importing it as binary. Error was: {}", &file_path.to_string_lossy(), _error);
-                                    }
-
-                                    tsv_imported = false;
-                                    RFile::new_from_file_path(&file_path)
-                                } else {
-                                    rfile
-                                }
-                            } else {
-                                RFile::new_from_file_path(&file_path)
+                            #[cfg(feature = "integration_log")] {
+                                warn!("File with path {} failed to import as TSV. Importing it as binary. Error was: {}", &file_path.to_string_lossy(), _error);
                             }
-                        }
-                        None => {
+
+                            tsv_imported = false;
                             RFile::new_from_file_path(&file_path)
+                        } else {
+                            rfile
                         }
+                    } else {
+                        RFile::new_from_file_path(&file_path)
                     }
                 }
                 None => {
@@ -1950,8 +1937,8 @@ impl RFile {
 
     /// This function allows to import a TSV file on the provided Path into a binary database file.
     ///
-    /// It requires the path on disk of the TSV file and the Schema to use.
-    pub fn tsv_import_from_path(path: &Path, schema: &Schema) -> Result<Self> {
+    /// It requires the path on disk of the TSV file and the Schema to use. Schema is only needed for DB tables.
+    pub fn tsv_import_from_path(path: &Path, schema: &Option<Schema>) -> Result<Self> {
 
         // We want the reader to have no quotes, tab as delimiter and custom headers, because otherwise
         // Excel, Libreoffice and all the programs that edit this kind of files break them on save.
@@ -2014,8 +2001,13 @@ impl RFile {
 
             // Any other name is assumed to be a db table.
             _ => {
-                let decoded = DB::tsv_import(records, &field_order, schema, &table_type, table_version)?;
-                RFileDecoded::DB(decoded)
+                match schema {
+                    Some(schema) => {
+                        let decoded = DB::tsv_import(records, &field_order, schema, &table_type, table_version)?;
+                        RFileDecoded::DB(decoded)
+                    },
+                    None => return Err(RLibError::SchemaNotProvided),
+                }
             }
         };
 
