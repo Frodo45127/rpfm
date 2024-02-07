@@ -248,7 +248,7 @@ pub enum Command {
     CleanCache(Vec<ContainerPath>),
 
     /// This command is used to export a table as TSV. Requires the internal and destination paths for the PackedFile.
-    ExportTSV(String, PathBuf),
+    ExportTSV(String, PathBuf, DataSource),
 
     /// This command is used to import a TSV as a table. Requires the internal and destination paths for the PackedFile.
     ImportTSV(String, PathBuf),

@@ -569,38 +569,36 @@ impl TableViewSlots {
             app_ui,
             pack_file_contents_ui,
             view => move |_| {
-                if view.get_data_source() == DataSource::PackFile {
-                    if let Some(ref packed_file_path) = view.packed_file_path {
-                        info!("Triggering `Export TSV` By Slot");
+                if let Some(ref packed_file_path) = view.packed_file_path {
+                    info!("Triggering `Export TSV` By Slot");
 
-                        // Create a File Chooser to get the destination path and configure it.
-                        let file_dialog = QFileDialog::from_q_widget_q_string(
-                            &view.table_view,
-                            &qtr("tsv_export_title")
-                        );
+                    // Create a File Chooser to get the destination path and configure it.
+                    let file_dialog = QFileDialog::from_q_widget_q_string(
+                        &view.table_view,
+                        &qtr("tsv_export_title")
+                    );
 
-                        file_dialog.set_accept_mode(AcceptMode::AcceptSave);
-                        file_dialog.set_confirm_overwrite(true);
-                        file_dialog.set_name_filter(&QString::from_std_str("TSV Files (*.tsv)"));
-                        file_dialog.set_default_suffix(&QString::from_std_str("tsv"));
+                    file_dialog.set_accept_mode(AcceptMode::AcceptSave);
+                    file_dialog.set_confirm_overwrite(true);
+                    file_dialog.set_name_filter(&QString::from_std_str("TSV Files (*.tsv)"));
+                    file_dialog.set_default_suffix(&QString::from_std_str("tsv"));
 
-                        // Run it and, if we receive 1 (Accept), export the DB Table, saving it's contents first.
-                        if file_dialog.exec() == 1 {
+                    // Run it and, if we receive 1 (Accept), export the DB Table, saving it's contents first.
+                    if file_dialog.exec() == 1 {
 
-                            let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
-                            if let Some(packed_file) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.path_read() == *packed_file_path.read().unwrap() && x.data_source() == DataSource::PackFile) {
-                                if let Err(error) = packed_file.save(&app_ui, &pack_file_contents_ui) {
-                                    return show_dialog(&view.table_view, error, false);
-                                }
+                        let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
+                        if let Some(packed_file) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.path_read() == *packed_file_path.read().unwrap() && x.data_source() == DataSource::PackFile) {
+                            if let Err(error) = packed_file.save(&app_ui, &pack_file_contents_ui) {
+                                return show_dialog(&view.table_view, error, false);
                             }
+                        }
 
-                            let receiver = CENTRAL_COMMAND.send_background(Command::ExportTSV(packed_file_path.read().unwrap().to_string(), path));
-                            let response = CENTRAL_COMMAND.recv_try(&receiver);
-                            match response {
-                                Response::Success => (),
-                                Response::Error(error) => show_dialog(&view.table_view, error, false),
-                                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-                            }
+                        let receiver = CENTRAL_COMMAND.send_background(Command::ExportTSV(packed_file_path.read().unwrap().to_string(), path, view.get_data_source()));
+                        let response = CENTRAL_COMMAND.recv_try(&receiver);
+                        match response {
+                            Response::Success => (),
+                            Response::Error(error) => show_dialog(&view.table_view, error, false),
+                            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                         }
                     }
                 }

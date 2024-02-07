@@ -1096,11 +1096,25 @@ pub fn background_loop() {
             }
 
             // In case we want to export a PackedFile as a TSV file...
-            Command::ExportTSV(internal_path, external_path) => {
+            Command::ExportTSV(internal_path, external_path, data_source) => {
+                let mut dependencies = dependencies.write().unwrap();
                 let schema = SCHEMA.read().unwrap();
                 match &*schema {
                     Some(ref schema) => {
-                        match pack_file_decoded.file_mut(&internal_path, false) {
+                        let file = match data_source {
+                            DataSource::PackFile => pack_file_decoded.file_mut(&internal_path, false),
+                            DataSource::ParentFiles => dependencies.file_mut(&internal_path, false, true).ok(),
+                            DataSource::GameFiles => dependencies.file_mut(&internal_path, true, false).ok(),
+                            DataSource::AssKitFiles => {
+                                CentralCommand::send_back(&sender, Response::Error(anyhow!("Exporting a TSV from the Assembly Kit is not yet supported.")));
+                                continue;
+                            },
+                            DataSource::ExternalFile => {
+                                CentralCommand::send_back(&sender, Response::Error(anyhow!("Exporting a TSV from a external file is not yet supported.")));
+                                continue;
+                            },
+                        };
+                        match file {
                             Some(file) => match file.tsv_export_to_path(&external_path, schema, setting_bool("tables_use_old_column_order_for_tsv")) {
                                 Ok(_) => CentralCommand::send_back(&sender, Response::Success),
                                 Err(error) =>  CentralCommand::send_back(&sender, Response::Error(From::from(error))),
