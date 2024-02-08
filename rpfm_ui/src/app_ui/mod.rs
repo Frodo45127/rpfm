@@ -107,6 +107,9 @@ use crate::ui::GameSelectedIcons;
 use crate::ui_state::OperationalMode;
 use crate::utils::*;
 
+#[cfg(feature = "support_model_renderer")]
+use crate::packedfile_views::{View, ViewType};
+
 #[cfg(any(feature = "support_rigidmodel", feature = "support_model_renderer"))]
 use crate::packedfile_views::rigidmodel::*;
 
@@ -2197,6 +2200,14 @@ impl AppUI {
                     if (data_source != file_view.data_source() ||
                         (data_source == file_view.data_source() && *open_path != *path)) &&
                         file_view.is_preview() && index != -1 {
+
+                        // If they're a rigid view, we need to pause their rendering.
+                        #[cfg(feature = "support_model_renderer")] {
+                            if let ViewType::Internal(View::RigidModel(view)) = file_view.view_type() {
+                                crate::ffi::pause_rendering(&view.renderer().as_ptr());
+                            }
+                        }
+
                         app_ui.tab_bar_packed_file.remove_tab(index);
                     }
                 }
@@ -2216,6 +2227,13 @@ impl AppUI {
                             let icon_type = IconType::File(path.to_owned());
                             let icon = TREEVIEW_ICONS.icon(icon_type);
                             app_ui.tab_bar_packed_file.add_tab_3a(tab_widget.main_widget(), icon, &QString::from_std_str(""));
+                        }
+
+                        // If they're a rigid view, we need to pause their rendering.
+                        #[cfg(feature = "support_model_renderer")] {
+                            if let ViewType::Internal(View::RigidModel(view)) = tab_widget.view_type() {
+                                crate::ffi::resume_rendering(&view.renderer().as_ptr());
+                            }
                         }
 
                         app_ui.tab_bar_packed_file.set_current_widget(tab_widget.main_widget());

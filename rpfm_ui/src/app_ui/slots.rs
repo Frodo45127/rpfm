@@ -1587,7 +1587,23 @@ impl AppUISlots {
                                 );
                             }
                         }
-                        break;
+
+                        // If the view is a rigidmodel, resume rendering.
+                        #[cfg(feature = "support_model_renderer")] {
+                            if let ViewType::Internal(View::RigidModel(view)) = file_view.view_type() {
+                                crate::ffi::resume_rendering(&view.renderer().as_ptr());
+                            }
+                        }
+
+                        // In normal compilation, stop here the loop.
+                        #[cfg(not(feature = "support_model_renderer"))] break;
+                    }
+
+                    // For other views, if they're a rigid view, we need to pause their rendering.
+                    #[cfg(feature = "support_model_renderer")] if app_ui.tab_bar_packed_file.index_of(widget) != index {
+                        if let ViewType::Internal(View::RigidModel(view)) = file_view.view_type() {
+                            crate::ffi::pause_rendering(&view.renderer().as_ptr());
+                        }
                     }
                 }
 

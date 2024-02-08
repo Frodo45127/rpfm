@@ -558,6 +558,20 @@ pub unsafe fn set_asset_folder(folder: &str) {
 }
 
 #[cfg(feature = "support_model_renderer")]
+extern "C" { fn PauseRendering(pQRendeeWiget: *mut QWidget); }
+#[cfg(feature = "support_model_renderer")]
+pub unsafe fn pause_rendering(widget: &Ptr<QWidget>) {
+    PauseRendering(widget.as_mut_raw_ptr())
+}
+
+#[cfg(feature = "support_model_renderer")]
+extern "C" { fn ResumeRendering(pQRendeeWiget: *mut QWidget); }
+#[cfg(feature = "support_model_renderer")]
+pub unsafe fn resume_rendering(widget: &Ptr<QWidget>) {
+    ResumeRendering(widget.as_mut_raw_ptr())
+}
+
+#[cfg(feature = "support_model_renderer")]
 pub extern fn assets_request_callback(missing_files: *mut QListOfQString, out: *mut QListOfQByteArray) {
     unsafe {
         let missing_files = missing_files.as_ref().unwrap();

@@ -41,6 +41,7 @@ use crate::packedfile_views::{FileView, View, ViewType};
 
 /// This struct contains the view of a RigidModel PackedFile.
 #[derive(Getters)]
+#[getset(get = "pub")]
 pub struct PackedFileRigidModelView {
     #[cfg(feature = "support_rigidmodel")] editor: QBox<QWidget>,
     #[cfg(feature = "support_model_renderer")] renderer: QBox<QWidget>,
