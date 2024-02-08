@@ -6,6 +6,25 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [4.2.5]
+### Added
+- Implemented setting to allow export tsv to export with the alternative (as seen in dave) column order.
+- Implemented "Update Anim Ids" feature.
+
+### Changed
+- Table filters now replace jumplines with or when the filter triggers, not when the text is written.
+- "Build Startpos" can be now used with all games since Shogun 2, but it has only really been tested with Warhammer 3, and only Warhammer 3 and Troy have the schema parts needed for it to work.
+- Refined diagnostics panel.
+- Importing tsv locs from the CLI should no longer require an schema.
+
+### Fixed
+- Fixed CTD after using "Import from Assembly Kit" in decoder.
+- Fixed undo not working on filters.
+- Fixed dbg message when opening files.
+- Fixed filters not triggering when adding files from another Pack.
+- Fixed filters not triggering when adding files from AnimPacks.
+- Fixed "Export TSV" not working on dependencies.
+
 ## [4.2.4]
 ### Added
 - Implemented "Build Startpos" feature under Special Stuff. Only for Warhammer 3.
@@ -1269,7 +1288,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.2.4...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.2.5...HEAD
+[4.2.5]: https://github.com/Frodo45127/rpfm/compare/v4.2.4...v4.2.5
 [4.2.4]: https://github.com/Frodo45127/rpfm/compare/v4.2.3...v4.2.4
 [4.2.3]: https://github.com/Frodo45127/rpfm/compare/v4.2.2...v4.2.3
 [4.2.2]: https://github.com/Frodo45127/rpfm/compare/v4.2.1...v4.2.2
