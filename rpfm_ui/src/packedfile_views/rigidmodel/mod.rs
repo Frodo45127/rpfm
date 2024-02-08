@@ -23,6 +23,8 @@ use qt_core::QBox;
 #[cfg(feature = "support_rigidmodel")] use qt_core::QByteArray;
 use qt_core::QPtr;
 
+#[cfg(feature = "support_model_renderer")]use cpp_core::CppDeletable;
+
 use std::sync::Arc;
 #[cfg(feature = "support_model_renderer")] use std::sync::RwLock;
 
@@ -76,8 +78,14 @@ impl PackedFileRigidModelView {
             },
 
             #[cfg(feature = "support_model_renderer")] renderer: {
-                let renderer = create_q_rendering_widget(&mut file_view.main_widget().as_ptr());
-                add_new_primary_asset(&renderer.as_ptr(), &file_view.path().read().unwrap(), data.data());
+                let renderer = create_q_rendering_widget(&mut file_view.main_widget().as_ptr())?;
+
+                // We need to manually kill the renderer or it'll keep lagging the UI.
+                if let Err(error) = add_new_primary_asset(&renderer.as_ptr(), &file_view.path().read().unwrap(), data.data()) {
+                    renderer.delete();
+                    return Err(error);
+                }
+
                 splitter.add_widget(&renderer);
                 renderer
             },
@@ -110,7 +118,7 @@ impl PackedFileRigidModelView {
 
         #[cfg(feature = "support_model_renderer")] {
             if let Some(ref path) = self.path {
-                add_new_primary_asset(&self.renderer.as_ptr(), &path.read().unwrap(), data.data());
+                add_new_primary_asset(&self.renderer.as_ptr(), &path.read().unwrap(), data.data())?;
             }
         }
 

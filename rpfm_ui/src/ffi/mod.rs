@@ -51,7 +51,7 @@ use qt_core::CaseSensitivity;
 #[cfg(any(feature = "support_rigidmodel", feature = "enable_tools"))] use cpp_core::CppBox;
 use cpp_core::Ptr;
 
-#[cfg(feature = "support_rigidmodel")] use anyhow::{anyhow, Result};
+#[cfg(any(feature = "support_rigidmodel", feature = "support_model_renderer"))] use anyhow::{anyhow, Result};
 
 #[cfg(feature = "support_model_renderer")] use std::collections::HashMap;
 
@@ -535,18 +535,30 @@ pub fn get_last_rigid_model_error(parent: &Ptr<QWidget>) -> Result<String> {
 #[cfg(feature = "support_model_renderer")]
 extern "C" { fn CreateQRenderingWidget(parent: *mut QWidget, gameIdString: *mut QString, AssetFetchCallBack: extern fn (*mut QListOfQString, *mut QListOfQByteArray)) -> *mut QWidget; }
 #[cfg(feature = "support_model_renderer")]
-pub fn create_q_rendering_widget(parent: &Ptr<QWidget>) -> QBox<QWidget> {
+pub fn create_q_rendering_widget(parent: &Ptr<QWidget>) -> Result<QBox<QWidget>> {
     let game = QString::from_std_str(GAME_SELECTED.read().unwrap().key());
-    unsafe { QBox::from_raw(CreateQRenderingWidget(parent.as_mut_raw_ptr(), game.as_mut_raw_ptr(), assets_request_callback)) }
+    let widget = unsafe { CreateQRenderingWidget(parent.as_mut_raw_ptr(), game.as_mut_raw_ptr(), assets_request_callback) };
+    if widget.is_null() {
+        Err(anyhow!("Error creating rendering widget. Check log for more info/reporting it as a bug."))
+    } else {
+        unsafe { Ok(QBox::from_raw(widget)) }
+    }
 }
 
 #[cfg(feature = "support_model_renderer")]
-extern "C" { fn AddNewPrimaryAsset(pQRenderWiget: *mut QWidget, assetsPath: *mut QString, assetData: *mut QByteArray); }
+extern "C" { fn AddNewPrimaryAsset(pQRenderWiget: *mut QWidget, assetsPath: *mut QString, assetData: *mut QByteArray, outErrorString: *mut QString); }
 #[cfg(feature = "support_model_renderer")]
-pub unsafe fn add_new_primary_asset(widget: &Ptr<QWidget>, asset_path: &str, asset_data: &[u8]) {
+pub unsafe fn add_new_primary_asset(widget: &Ptr<QWidget>, asset_path: &str, asset_data: &[u8]) -> Result<()> {
     let asset_path = QString::from_std_str(asset_path);
     let asset_data = QByteArray::from_slice(asset_data);
-    AddNewPrimaryAsset(widget.as_mut_raw_ptr(), asset_path.as_mut_raw_ptr(), asset_data.as_mut_raw_ptr())
+    let error = QString::new();
+    AddNewPrimaryAsset(widget.as_mut_raw_ptr(), asset_path.as_mut_raw_ptr(), asset_data.as_mut_raw_ptr(), error.as_mut_raw_ptr());
+
+    if error.is_empty() {
+        Ok(())
+    } else {
+        Err(anyhow!(error.to_std_string()))
+    }
 }
 
 #[cfg(feature = "support_model_renderer")]
