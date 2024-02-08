@@ -541,12 +541,20 @@ pub fn create_q_rendering_widget(parent: &Ptr<QWidget>) -> QBox<QWidget> {
 }
 
 #[cfg(feature = "support_model_renderer")]
-extern "C" { fn AddNewPimaryAsset(pQRenderWiget: *mut QWidget, assetsPath: *mut QString, assetData: *mut QByteArray); }
+extern "C" { fn AddNewPrimaryAsset(pQRenderWiget: *mut QWidget, assetsPath: *mut QString, assetData: *mut QByteArray); }
 #[cfg(feature = "support_model_renderer")]
 pub unsafe fn add_new_primary_asset(widget: &Ptr<QWidget>, asset_path: &str, asset_data: &[u8]) {
     let asset_path = QString::from_std_str(asset_path);
     let asset_data = QByteArray::from_slice(asset_data);
-    AddNewPimaryAsset(widget.as_mut_raw_ptr(), asset_path.as_mut_raw_ptr(), asset_data.as_mut_raw_ptr())
+    AddNewPrimaryAsset(widget.as_mut_raw_ptr(), asset_path.as_mut_raw_ptr(), asset_data.as_mut_raw_ptr())
+}
+
+#[cfg(feature = "support_model_renderer")]
+extern "C" { fn SetAssetFolder(folder: *mut QString); }
+#[cfg(feature = "support_model_renderer")]
+pub unsafe fn set_asset_folder(folder: &str) {
+    let folder = QString::from_std_str(folder);
+    SetAssetFolder(folder.as_mut_raw_ptr())
 }
 
 #[cfg(feature = "support_model_renderer")]
@@ -558,6 +566,11 @@ pub extern fn assets_request_callback(missing_files: *mut QListOfQString, out: *
         let mut paths = vec![];
         for i in 0..missing_files.count_0a() {
             let mut path = missing_files.at(i).to_std_string().replace("\\", "/");
+
+            // Fix for receiving paths with padding.
+            if let Some(index) = path.find("\0") {
+                let _ = path.split_off(index);
+            }
 
             if path.starts_with("/") {
                 path.remove(0);

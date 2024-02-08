@@ -35,6 +35,9 @@ fn main() {
 
     // Model renderer, only on windows.
     #[cfg(feature = "support_model_renderer")] {
+        //let assets_path = "./../assets/";         // Disabled until SetAssetFolder works.
+        let assets_path = &target_path;
+        DirBuilder::new().recursive(true).create(assets_path).unwrap();
 
         // TODO: unhardcode this path once the folder is moved to a 3rdparty subrepo.
         let renderer_path = "./../../QtRenderingWidget/";
@@ -47,8 +50,9 @@ fn main() {
         // This compiles the model renderer and related libs.
         match Command::new("msbuild")
             .arg("./QtRenderingWidget_RPFM.sln")
-            .arg("-m")   // Enable multithread build.
+            .arg("-m")                      // Enable multithread build.
             .arg("-t:Build")
+            //.arg("-t:Rebuild")            // If the linker misbehaves, use this instead of Build.
             .arg("-p:Configuration=Release")
             .arg("-p:Platform=x64")
             .current_dir(renderer_path).output() {
@@ -70,17 +74,19 @@ fn main() {
                 copy(renderer_path.to_owned() + "x64/Release/QtRenderingWidget.lib", "./../3rdparty/builds/QtRenderingWidget.lib").unwrap();
                 copy(renderer_path.to_owned() + "x64/Release/Rldx.lib", "./../3rdparty/builds/Rldx.lib").unwrap();
 
-                copy(renderer_path.to_owned() + "x64/Release/PS_NoTextures.cso", target_path.clone() + "PS_NoTextures.cso").unwrap();
-                copy(renderer_path.to_owned() + "x64/Release/PS_Simple.cso", target_path.clone() + "PS_Simple.cso").unwrap();
-                copy(renderer_path.to_owned() + "x64/Release/PS_Troy.cso", target_path.clone() + "PS_Troy.cso").unwrap();
-                copy(renderer_path.to_owned() + "x64/Release/VS_Simple.cso", target_path.clone() + "VS_Simple.cso").unwrap();
+                copy(renderer_path.to_owned() + "x64/Release/PS_Attila_Weigted.cso", assets_path.to_owned() + "PS_Attila_Weigted.cso").unwrap();
+                copy(renderer_path.to_owned() + "x64/Release/PS_NoTextures.cso", assets_path.to_owned() + "PS_NoTextures.cso").unwrap();
+                copy(renderer_path.to_owned() + "x64/Release/PS_Simple.cso", assets_path.to_owned() + "PS_Simple.cso").unwrap();
+                copy(renderer_path.to_owned() + "x64/Release/PS_Three_Kingdoms.cso", assets_path.to_owned() + "PS_Three_Kingdoms.cso").unwrap();
+                copy(renderer_path.to_owned() + "x64/Release/PS_Troy.cso", assets_path.to_owned() + "PS_Troy.cso").unwrap();
+                copy(renderer_path.to_owned() + "x64/Release/VS_Simple.cso", assets_path.to_owned() + "VS_Simple.cso").unwrap();
 
-                copy(renderer_path.to_owned() + "Rldx/Rldx/RenderResources/Textures/CubeMaps/LandscapeCubeMapIBLDiffuse.dds", target_path.clone() + "LandscapeCubeMapIBLDiffuse.dds").unwrap();
-                copy(renderer_path.to_owned() + "Rldx/Rldx/RenderResources/Textures/CubeMaps/LandscapeCubeMapIBLSpecular.dds", target_path.clone() + "LandscapeCubeMapIBLSpecular.dds").unwrap();
-                copy(renderer_path.to_owned() + "Rldx/Rldx/RenderResources/Textures/CubeMaps/SkyCubemapIBLDiffuse.dds", target_path.clone() + "SkyCubemapIBLDiffuse.dds").unwrap();
-                copy(renderer_path.to_owned() + "Rldx/Rldx/RenderResources/Textures/CubeMaps/SkyCubemapIBLSpecular.dds", target_path.clone() + "SkyCubemapIBLSpecular.dds").unwrap();
+                copy(renderer_path.to_owned() + "Rldx/Rldx/RenderResources/Textures/CubeMaps/LandscapeCubeMapIBLDiffuse.dds", assets_path.to_owned() + "LandscapeCubeMapIBLDiffuse.dds").unwrap();
+                copy(renderer_path.to_owned() + "Rldx/Rldx/RenderResources/Textures/CubeMaps/LandscapeCubeMapIBLSpecular.dds", assets_path.to_owned() + "LandscapeCubeMapIBLSpecular.dds").unwrap();
+                copy(renderer_path.to_owned() + "Rldx/Rldx/RenderResources/Textures/CubeMaps/SkyCubemapIBLDiffuse.dds", assets_path.to_owned() + "SkyCubemapIBLDiffuse.dds").unwrap();
+                copy(renderer_path.to_owned() + "Rldx/Rldx/RenderResources/Textures/CubeMaps/SkyCubemapIBLSpecular.dds", assets_path.to_owned() + "SkyCubemapIBLSpecular.dds").unwrap();
 
-                copy(renderer_path.to_owned() + "QtRenderingWidget/myfile.spritefont", target_path.clone() + "myfile.spritefont").unwrap();
+                copy(renderer_path.to_owned() + "QtRenderingWidget/myfile.spritefont", target_path.to_owned() + "myfile.spritefont").unwrap();
             }
             Err(error) => {
                 stdout().write_all(error.to_string().as_bytes()).unwrap();

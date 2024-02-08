@@ -202,6 +202,15 @@ pub fn init_config_path() -> Result<()> {
         }
     }
 
+    #[cfg(feature = "support_model_renderer")] {
+        let assets_path = format!("{}/assets/", rpfm_ui_common::ASSETS_PATH.to_string_lossy());
+        if !PathBuf::from(&assets_path).is_dir() {
+            DirBuilder::new().recursive(true).create(&assets_path)?;
+        }
+
+        //unsafe {crate::ffi::set_asset_folder(&assets_path); }
+    }
+
     Ok(())
 }
 
