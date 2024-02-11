@@ -25,7 +25,7 @@ use std::sync::{Arc, RwLock};
 use crate::error::{RLibError, Result};
 use crate::utils::*;
 
-use self::supported_games::KEY_TROY;
+use self::supported_games::*;
 use self::manifest::Manifest;
 use self::pfh_file_type::PFHFileType;
 use self::pfh_version::PFHVersion;
@@ -756,5 +756,151 @@ impl GameInfo {
         }
 
         Ok(None)
+    }
+
+    /// This function returns the list of public tags available in the workshop for each game.
+    pub fn steam_workshop_tags(&self) -> Result<Vec<String>> {
+        Ok(match self.key() {
+            KEY_PHARAOH => vec![
+                String::from("mod"),
+                String::from("graphical"),
+                String::from("campaign"),
+                String::from("ui"),
+                String::from("battle"),
+                String::from("overhaul"),
+                String::from("units"),
+            ],
+            KEY_WARHAMMER_3 => vec![
+                String::from("graphical"),
+                String::from("campaign"),
+                String::from("units"),
+                String::from("battle"),
+                String::from("ui"),
+                String::from("maps"),
+                String::from("overhaul"),
+                String::from("compilation"),
+                String::from("cheat"),
+            ],
+            KEY_TROY => vec![
+                String::from("mod"),
+                String::from("ui"),
+                String::from("graphical"),
+                String::from("units"),
+                String::from("battle"),
+                String::from("campaign"),
+                String::from("overhaul"),
+                String::from("compilation"),
+            ],
+            KEY_THREE_KINGDOMS => vec![
+                String::from("mod"),
+                String::from("graphical"),
+                String::from("overhaul"),
+                String::from("ui"),
+                String::from("battle"),
+                String::from("campaign"),
+                String::from("maps"),
+                String::from("units"),
+                String::from("compilation"),
+            ],
+            KEY_WARHAMMER_2 => vec![
+                String::from("mod"),
+                String::from("Units"),
+                String::from("Battle"),
+                String::from("Graphical"),
+                String::from("UI"),
+                String::from("Campaign"),
+                String::from("Maps"),
+                String::from("Overhaul"),
+                String::from("Compilation"),
+                String::from("Mod Manager"),
+                String::from("Skills"),
+                String::from("map"),
+            ],
+            KEY_WARHAMMER => vec![
+                String::from("mod"),
+                String::from("UI"),
+                String::from("Graphical"),
+                String::from("Overhaul"),
+                String::from("Battle"),
+                String::from("Campaign"),
+                String::from("Compilation"),
+                String::from("Units"),
+                String::from("Maps"),
+                String::from("Spanish"),
+                String::from("English"),
+                String::from("undefined"),
+                String::from("map"),
+            ],
+            KEY_THRONES_OF_BRITANNIA => vec![
+                String::from("mod"),
+                String::from("ui"),
+                String::from("battle"),
+                String::from("campaign"),
+                String::from("units"),
+                String::from("compilation"),
+                String::from("graphical"),
+                String::from("overhaul"),
+                String::from("maps"),
+            ],
+            KEY_ATTILA => vec![
+                String::from("mod"),
+                String::from("UI"),
+                String::from("Graphical"),
+                String::from("Battle"),
+                String::from("Campaign"),
+                String::from("Units"),
+                String::from("Overhaul"),
+                String::from("Compilation"),
+                String::from("Maps"),
+                String::from("version_2"),
+                String::from("Czech"),
+                String::from("Danish"),
+                String::from("English"),
+                String::from("Finnish"),
+                String::from("French"),
+                String::from("German"),
+                String::from("Hungarian"),
+                String::from("Italian"),
+                String::from("Japanese"),
+                String::from("Korean"),
+                String::from("Norwegian"),
+                String::from("Romanian"),
+                String::from("Russian"),
+                String::from("Spanish"),
+                String::from("Swedish"),
+                String::from("Thai"),
+                String::from("Turkish"),
+            ],
+            KEY_ROME_2 => vec![
+                String::from("mod"),
+                String::from("Units"),
+                String::from("Battle"),
+                String::from("Overhaul"),
+                String::from("Compilation"),
+                String::from("Campaign"),
+                String::from("Graphical"),
+                String::from("UI"),
+                String::from("Maps"),
+                String::from("version_2"),
+                String::from("English"),
+                String::from("gribble"),
+                String::from("tribble"),
+            ],
+            KEY_SHOGUN_2 => vec![
+                String::from("map"),
+                String::from("historical"),
+                String::from("multiplayer"),
+                String::from("mod"),
+                String::from("version_2"),
+                String::from("English"),
+                String::from("ui"),
+                String::from("graphical"),
+                String::from("overhaul"),
+                String::from("units"),
+                String::from("campaign"),
+                String::from("battle"),
+            ],
+            _ => return Err(RLibError::GameDoesntSupportWorkshop(self.key().to_owned()))
+        })
     }
 }
