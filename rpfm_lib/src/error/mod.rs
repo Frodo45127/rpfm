@@ -340,6 +340,9 @@ pub enum RLibError {
     #[error("The game {0} doesn't support the Steam Workshop.")]
     GameDoesntSupportWorkshop(String),
 
+    #[error("The SteamID {0} doesn't belong to any knonw Total War game.")]
+    SteamIDDoesntBelongToKnownGame(u64),
+
     #[error("You're trying to perform a Global Replace on a type that doesn't support Regex replacement and requires that both, pattern and replacement have the exact same byte lenght. To avoid breaking files this program doesn't allow you to do that. Either make sure both strings have the exact same byte lenght, don't use regex, or use a hexadecimal editor.")]
     GlobalSearchReplaceRequiresSameLenghtAndNotRegex,
 

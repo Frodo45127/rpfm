@@ -903,4 +903,23 @@ impl GameInfo {
             _ => return Err(RLibError::GameDoesntSupportWorkshop(self.key().to_owned()))
         })
     }
+
+    /// This function returns the game that corresponds to the provided Steam ID, if any.
+    pub fn game_by_steam_id(steam_id: u64) -> Result<Self> {
+        let games = SupportedGames::default();
+        for game in games.games() {
+
+            // No need to check LnxSteam, as they share the same id.
+            match game.install_data.get(&InstallType::WinSteam) {
+                Some(install_data) => if install_data.store_id == steam_id {
+                    return Ok(game.clone());
+                } else {
+                    continue;
+                }
+                None => continue,
+            }
+        }
+
+        Err(RLibError::SteamIDDoesntBelongToKnownGame(steam_id))
+    }
 }
