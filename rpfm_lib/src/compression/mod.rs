@@ -114,7 +114,8 @@ impl Decompressible for &[u8] {
         // We need to fix their headers so the normal LZMA lib can read them.
         let mut fixed_data: Vec<u8> = vec![];
         fixed_data.extend_from_slice(&self[4..9]);
-        fixed_data.extend_from_slice(&[0xFF; 8]);
+        fixed_data.extend_from_slice(&self[0..4]);
+        fixed_data.extend_from_slice(&[0; 4]);
         fixed_data.extend_from_slice(&self[9..]);
 
         // Vanilla compressed files are LZMA Alone (or legacy) level 3 compressed files, reproducible by compressing them
@@ -122,7 +123,29 @@ impl Decompressible for &[u8] {
         let stream = Stream::new_lzma_decoder(u64::MAX).map_err(|_| RLibError::DataCannotBeDecompressed)?;
         let mut encoder = XzDecoder::new_stream(&*fixed_data, stream);
         let mut compress_data = vec![];
-        encoder.read_to_end(&mut compress_data)?;
-        Ok(compress_data)
+        let result = encoder.read_to_end(&mut compress_data);
+
+        // Ok, history lesson. That method breaks sometimes. If it fails, we try the other way.
+        match result {
+            Ok(_) => Ok(compress_data),
+            Err(_) => {
+
+                // CA Tweaks their headers to remove 4 bytes per file, while losing +4GB File Compression Support.
+                // We need to fix their headers so the normal LZMA lib can read them.
+                let mut fixed_data: Vec<u8> = vec![];
+                fixed_data.extend_from_slice(&self[4..9]);
+                fixed_data.extend_from_slice(&[0xFF; 8]);
+                fixed_data.extend_from_slice(&self[9..]);
+
+                // Vanilla compressed files are LZMA Alone (or legacy) level 3 compressed files, reproducible by compressing them
+                // with default settings with 7-Zip. This should do the trick to get them decoded.
+                let stream = Stream::new_lzma_decoder(u64::MAX).map_err(|_| RLibError::DataCannotBeDecompressed)?;
+                let mut encoder = XzDecoder::new_stream(&*fixed_data, stream);
+                let mut compress_data = vec![];
+                encoder.read_to_end(&mut compress_data)?;
+
+                Ok(compress_data)
+            }
+        }
     }
 }
