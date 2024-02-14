@@ -47,29 +47,54 @@ QWidget* QSpinBoxItemDelegate::createEditor(QWidget *parent, const QStyleOptionV
         diag_timer->stop();
     }
 
-    // SpinBoxes only support i16, i32, not i64.
-    QSpinBox* spinBox = new QSpinBox(parent);
-    if (type == 32) {
-        spinBox->setRange(-2147483648, 2147483647);
+    // SpinBoxes only support i16, i32, not i64, so for i64 we use a linedit with validation.
+    if (type == 64) {
+        QLineEdit* lineEdit = new QLineEdit(parent);
+        return lineEdit;
     }
-    else if (type == 16) {
-        spinBox->setRange(-32768, 32767);
+
+    // For the rest, we use a normal spinbox.
+    else {
+        QSpinBox* spinBox = new QSpinBox(parent);
+        if (type == 32) {
+            spinBox->setRange(-2147483648, 2147483647);
+        }
+        else if (type == 16) {
+            spinBox->setRange(-32768, 32767);
+        }
+        return spinBox;
     }
-    return spinBox;
 }
 
 // Function called after the spinbox/linedit it's created. It just gives it his initial value (the one currently in the model).
 void QSpinBoxItemDelegate::setEditorData(QWidget *editor, const QModelIndex &index) const {
-    QSpinBox* spinBox = static_cast<QSpinBox*>(editor);
-    signed int value = index.model()->data(index, Qt::EditRole).toInt();
-    spinBox->setValue(value);
+    if (type == 64) {
+        QLineEdit* lineEdit = static_cast<QLineEdit*>(editor);
+        QString value = index.model()->data(index, Qt::EditRole).toString();
+        lineEdit->setText(value);
+    }
+    else {
+        QSpinBox* spinBox = static_cast<QSpinBox*>(editor);
+        signed int value = index.model()->data(index, Qt::EditRole).toInt();
+        spinBox->setValue(value);
+    }
 }
 
 // Function to be called when we're done. It just takes the value in the spinbox/linedit and saves it in the Table Model.
 void QSpinBoxItemDelegate::setModelData(QWidget *editor, QAbstractItemModel *model, const QModelIndex &index) const {
-    QSpinBox* spinBox = static_cast<QSpinBox*>(editor);
-    signed int value = spinBox->value();
-    model->setData(index, value, Qt::EditRole);
+
+    // For i64, we need to check before that the data is valid. Otherwise, we don't pass it to the model.
+    if (type == 64) {
+        QLineEdit* lineEdit = static_cast<QLineEdit*>(editor);
+        bool ok;
+        signed long long value = lineEdit->text().toLongLong(&ok);
+        if (ok) { model->setData(index, value, Qt::EditRole); }
+    }
+    else {
+        QSpinBox* spinBox = static_cast<QSpinBox*>(editor);
+        signed int value = spinBox->value();
+        model->setData(index, value, Qt::EditRole);
+    }
 }
 
 // Function for the spinbox to show up properly.

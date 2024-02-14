@@ -46,7 +46,6 @@ SOURCES += \
     src/spinbox_item_delegate.cpp \
     src/doublespinbox_item_delegate.cpp \
     src/spoiler.cpp \
-    src/qt_long_long_spinbox_item_delegate.cpp \
     src/tableview_command_palette.cpp \
     src/tableview_filter.cpp \
     src/tableview_frozen.cpp \
@@ -84,8 +83,7 @@ HEADERS += \
     include/q_main_window_custom.h \
     include/spoiler.h \
     include/kcolor_combo.h \
-    include/unit_variant_item_delegate.h \
-    include/qt_long_long_spinbox_item_delegate.h
+    include/unit_variant_item_delegate.h
 
 release:DESTDIR = release
 release:OBJECTS_DIR = release/.obj

@@ -97,14 +97,6 @@ pub fn new_spinbox_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, in
     unsafe { new_spinbox_item_delegate(table_view.as_mut_raw_ptr(), column, integer_type, timer.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter, is_right_side_mark_enabled) }
 }
 
-// This function changes the default editor widget for I64 cells on tables with a numeric one.
-extern "C" { fn new_i64_spinbox_item_delegate(table_view: *mut QObject, column: i32, timer: *mut QTimer, is_dark_theme_enabled: bool, has_filter: bool, is_right_side_mark_enabled: bool); }
-pub fn new_i64_spinbox_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, timer: &Ptr<QTimer>, has_filter: bool) {
-    let is_dark_theme_enabled = setting_bool("use_dark_theme");
-    let is_right_side_mark_enabled = setting_bool("use_right_size_markers");
-    unsafe { new_i64_spinbox_item_delegate(table_view.as_mut_raw_ptr(), column, timer.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter, is_right_side_mark_enabled) }
-}
-
 // This function changes the default editor widget for F32 cells on tables with a numeric one.
 extern "C" { fn new_doublespinbox_item_delegate(table_view: *mut QObject, column: i32, timer: *mut QTimer, is_dark_theme_enabled: bool, has_filter: bool, is_right_side_mark_enabled: bool); }
 pub fn new_doublespinbox_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, timer: &Ptr<QTimer>, has_filter: bool) {
