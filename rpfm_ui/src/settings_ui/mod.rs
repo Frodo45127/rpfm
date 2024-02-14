@@ -107,6 +107,7 @@ pub struct SettingsUI {
     include_base_folder_on_add_from_folder_label: QBox<QLabel>,
     delete_empty_folders_on_delete_label: QBox<QLabel>,
     ignore_game_files_in_ak_label: QBox<QLabel>,
+    enable_multifolder_filepicker_label: QBox<QLabel>,
 
     general_language_combobox: QBox<QComboBox>,
     extra_global_default_game_combobox: QBox<QComboBox>,
@@ -130,6 +131,7 @@ pub struct SettingsUI {
     include_base_folder_on_add_from_folder_checkbox: QBox<QCheckBox>,
     delete_empty_folders_on_delete_checkbox: QBox<QCheckBox>,
     ignore_game_files_in_ak_checkbox: QBox<QCheckBox>,
+    enable_multifolder_filepicker_checkbox: QBox<QCheckBox>,
 
     font_data: Rc<RefCell<(String, i32)>>,
 
@@ -427,6 +429,9 @@ impl SettingsUI {
         let ignore_game_files_in_ak_label = QLabel::from_q_string_q_widget(&qtr("ignore_game_files_in_ak"), &general_frame);
         let ignore_game_files_in_ak_checkbox = QCheckBox::from_q_widget(&general_frame);
 
+        let enable_multifolder_filepicker_label = QLabel::from_q_string_q_widget(&qtr("enable_multifolder_filepicker"), &general_frame);
+        let enable_multifolder_filepicker_checkbox = QCheckBox::from_q_widget(&general_frame);
+
         // Adding to the grid.
         general_grid.add_widget_5a(&general_language_label, 0, 0, 1, 1);
         general_grid.add_widget_5a(&general_language_combobox, 0, 1, 1, 1);
@@ -487,6 +492,9 @@ impl SettingsUI {
 
         general_grid.add_widget_5a(&ignore_game_files_in_ak_label, 20, 0, 1, 1);
         general_grid.add_widget_5a(&ignore_game_files_in_ak_checkbox, 20, 1, 1, 1);
+
+        general_grid.add_widget_5a(&enable_multifolder_filepicker_label, 21, 0, 1, 1);
+        general_grid.add_widget_5a(&enable_multifolder_filepicker_checkbox, 21, 1, 1, 1);
 
         settings_grid.add_widget_5a(&general_frame, 2, 0, 2, 1);
 
@@ -766,6 +774,7 @@ impl SettingsUI {
             include_base_folder_on_add_from_folder_label,
             delete_empty_folders_on_delete_label,
             ignore_game_files_in_ak_label,
+            enable_multifolder_filepicker_label,
 
             general_language_combobox,
             extra_global_default_game_combobox,
@@ -789,6 +798,7 @@ impl SettingsUI {
             include_base_folder_on_add_from_folder_checkbox,
             delete_empty_folders_on_delete_checkbox,
             ignore_game_files_in_ak_checkbox,
+            enable_multifolder_filepicker_checkbox,
 
             font_data: Rc::new(RefCell::new((String::new(), -1))),
 
@@ -931,6 +941,7 @@ impl SettingsUI {
         self.include_base_folder_on_add_from_folder_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "include_base_folder_on_add_from_folder"));
         self.delete_empty_folders_on_delete_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "delete_empty_folders_on_delete"));
         self.ignore_game_files_in_ak_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "ignore_game_files_in_ak"));
+        self.enable_multifolder_filepicker_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "enable_multifolder_filepicker"));
 
         // Load the Table Stuff.
         self.ui_table_adjust_columns_to_content_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "adjust_columns_to_content"));
@@ -1046,6 +1057,7 @@ impl SettingsUI {
         set_setting_bool_to_q_setting(&q_settings, "include_base_folder_on_add_from_folder", self.include_base_folder_on_add_from_folder_checkbox.is_checked());
         set_setting_bool_to_q_setting(&q_settings, "delete_empty_folders_on_delete", self.delete_empty_folders_on_delete_checkbox.is_checked());
         set_setting_bool_to_q_setting(&q_settings, "ignore_game_files_in_ak", self.ignore_game_files_in_ak_checkbox.is_checked());
+        set_setting_bool_to_q_setting(&q_settings, "enable_multifolder_filepicker", self.enable_multifolder_filepicker_checkbox.is_checked());
 
         // Get the Table Settings.
         set_setting_bool_to_q_setting(&q_settings, "adjust_columns_to_content", self.ui_table_adjust_columns_to_content_checkbox.is_checked());

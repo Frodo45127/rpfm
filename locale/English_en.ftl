@@ -1568,3 +1568,6 @@ update_anim_ids_instructions = <p>This allows you to update the Anim Ids of all 
 starting_id = Starting ID:
 offset = Offset:
 instructions = Instructions
+
+enable_multifolder_filepicker = Enable Multi-Folder FilePicker
+settings_enable_multifolder_filepicker = This replace the System File-Picker that appears when using "Add from Folder" with a generic Qt FilePicker that allows importing multiple folders at once.

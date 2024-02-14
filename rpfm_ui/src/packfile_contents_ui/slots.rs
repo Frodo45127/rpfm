@@ -12,7 +12,8 @@
 Module with all the code related to the main `PackFileContentsSlots`.
 !*/
 
-use qt_widgets::{QFileDialog, q_file_dialog::FileMode};
+use qt_widgets::{QFileDialog, q_file_dialog::{FileMode, Option as FileDialogOption}};
+use qt_widgets::QListView;
 use qt_widgets::SlotOfQPoint;
 use qt_widgets::QTreeView;
 
@@ -20,9 +21,10 @@ use qt_gui::QCursor;
 use qt_gui::QGuiApplication;
 
 use qt_core::QBox;
-use qt_core::{SlotNoArgs, SlotOfBool, SlotOfQModelIndexInt, SlotOfQString};
+use qt_core::QFlags;
 use qt_core::QPtr;
 use qt_core::QString;
+use qt_core::{SlotNoArgs, SlotOfBool, SlotOfQModelIndexInt, SlotOfQString};
 
 use std::collections::HashSet;
 use std::fs::DirBuilder;
@@ -662,7 +664,22 @@ impl PackFileContentsSlots {
                     app_ui.main_window(),
                     &qtr("context_menu_add_folders"),
                 );
-                file_dialog.set_file_mode(FileMode::Directory);
+
+                file_dialog.set_file_mode(FileMode::DirectoryOnly);
+
+                // Wonky workaround to allow multiple folder selection.
+                if setting_bool("enable_multifolder_filepicker") {
+                    file_dialog.set_options(QFlags::from(FileDialogOption::DontUseNativeDialog.to_int() | file_dialog.options().to_int()));
+
+                    if let Ok(list_view) = file_dialog.find_child::<QListView>("listView") {
+                        list_view.set_selection_mode(qt_widgets::q_abstract_item_view::SelectionMode::MultiSelection);
+                    }
+
+                    if let Ok(tree_view) = file_dialog.find_child::<QTreeView>("treeView") {
+                        tree_view.set_selection_mode(qt_widgets::q_abstract_item_view::SelectionMode::MultiSelection);
+                    }
+                }
+
                 match UI_STATE.get_operational_mode() {
 
                     // If we have a "MyMod" selected...
@@ -691,11 +708,31 @@ impl PackFileContentsSlots {
                                 // Get the Paths of the folders we want to add.
                                 let mut folder_paths: Vec<PathBuf> = vec![];
                                 let paths_qt = file_dialog.selected_files();
-                                for index in 0..paths_qt.size() { folder_paths.push(PathBuf::from(paths_qt.at(index).to_std_string())); }
+                                for index in 0..paths_qt.size() {
+                                    folder_paths.push(PathBuf::from(paths_qt.at(index).to_std_string()));
+                                }
+
+                                // Make sure all folders are part of the same subfolder. The multifolder selector can accidentally add folders with different base paths,
+                                // and we need to avoid that.
+                                if let Some(base_path) = folder_paths.get(0) {
+                                    let mut base_path = base_path.to_path_buf();
+                                    base_path.pop();
+
+                                    for folder_path in &folder_paths {
+                                        let mut second_path = folder_path.to_path_buf();
+                                        second_path.pop();
+
+                                        if base_path != second_path {
+                                            return show_dialog(app_ui.main_window(), format!("Error: adding multiple folders from different parent folders is not supported."), false);
+                                        }
+                                    }
+                                }
 
                                 // Get the Paths of the files inside the folders we want to add.
                                 let mut paths: Vec<PathBuf> = vec![];
-                                for path in &folder_paths { paths.append(&mut files_from_subdir(path, true).unwrap()); }
+                                for path in &folder_paths {
+                                    paths.append(&mut files_from_subdir(path, true).unwrap());
+                                }
 
                                 // Check to ensure we actually have a path, as you may try to add empty folders.
                                 if let Some(path) = paths.get(0) {
@@ -712,8 +749,10 @@ impl PackFileContentsSlots {
 
                                     // Otherwise, they are added like normal files.
                                     else if let Some(selection) = pack_file_contents_ui.packfile_contents_tree_view.get_path_from_selection().get(0) {
+                                        let destination_paths = (0..folder_paths.len()).map(|_| ContainerPath::Folder(selection.to_string())).collect::<Vec<_>>();
+
                                         app_ui.toggle_main_window(false);
-                                        PackFileContentsUI::add_files(&app_ui, &pack_file_contents_ui, &folder_paths, &[ContainerPath::Folder(selection.to_string())], None);
+                                        PackFileContentsUI::add_files(&app_ui, &pack_file_contents_ui, &folder_paths, &destination_paths, None);
                                         app_ui.toggle_main_window(true);
                                     }
                                 }
@@ -739,11 +778,28 @@ impl PackFileContentsSlots {
                                 folder_paths.push(PathBuf::from(paths_qt.at(index).to_std_string()));
                             }
 
+                            // Make sure all folders are part of the same subfolder. The multifolder selector can accidentally add folders with different base paths,
+                            // and we need to avoid that.
+                            if let Some(base_path) = folder_paths.get(0) {
+                                let mut base_path = base_path.to_path_buf();
+                                base_path.pop();
+
+                                for folder_path in &folder_paths {
+                                    let mut second_path = folder_path.to_path_buf();
+                                    second_path.pop();
+
+                                    if base_path != second_path {
+                                        return show_dialog(app_ui.main_window(), format!("Error: adding multiple folders from different parent folders is not supported."), false);
+                                    }
+                                }
+                            }
+
                             // Get the Paths of the files inside the folders we want to add.
                             if let Some(selection) = pack_file_contents_ui.packfile_contents_tree_view.get_path_from_selection().get(0) {
+                                let destination_paths = (0..folder_paths.len()).map(|_| ContainerPath::Folder(selection.to_string())).collect::<Vec<_>>();
 
                                 app_ui.toggle_main_window(false);
-                                PackFileContentsUI::add_files(&app_ui, &pack_file_contents_ui, &folder_paths, &[ContainerPath::Folder(selection.to_string())], None);
+                                PackFileContentsUI::add_files(&app_ui, &pack_file_contents_ui, &folder_paths, &destination_paths, None);
                                 app_ui.toggle_main_window(true);
                             }
                         }
