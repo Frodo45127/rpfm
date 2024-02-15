@@ -562,6 +562,14 @@ pub unsafe fn set_asset_folder(folder: &str) {
 }
 
 #[cfg(feature = "support_model_renderer")]
+extern "C" { fn SetLogFolder(folder: *mut QString); }
+#[cfg(feature = "support_model_renderer")]
+pub unsafe fn set_log_folder(folder: &str) {
+    let folder = QString::from_std_str(folder);
+    SetLogFolder(folder.as_mut_raw_ptr())
+}
+
+#[cfg(feature = "support_model_renderer")]
 extern "C" { fn PauseRendering(pQRendeeWiget: *mut QWidget); }
 #[cfg(feature = "support_model_renderer")]
 pub unsafe fn pause_rendering(widget: &Ptr<QWidget>) {

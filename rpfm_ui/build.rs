@@ -35,8 +35,7 @@ fn main() {
 
     // Model renderer, only on windows.
     #[cfg(feature = "support_model_renderer")] {
-        //let assets_path = "./../assets/";         // Disabled until SetAssetFolder works.
-        let assets_path = &target_path;
+        let assets_path = "./../assets/";
         DirBuilder::new().recursive(true).create(assets_path).unwrap();
 
         // TODO: unhardcode this path once the folder is moved to a 3rdparty subrepo.
@@ -86,7 +85,7 @@ fn main() {
                 copy(renderer_path.to_owned() + "Rldx/Rldx/RenderResources/Textures/CubeMaps/SkyCubemapIBLDiffuse.dds", assets_path.to_owned() + "SkyCubemapIBLDiffuse.dds").unwrap();
                 copy(renderer_path.to_owned() + "Rldx/Rldx/RenderResources/Textures/CubeMaps/SkyCubemapIBLSpecular.dds", assets_path.to_owned() + "SkyCubemapIBLSpecular.dds").unwrap();
 
-                copy(renderer_path.to_owned() + "QtRenderingWidget/myfile.spritefont", target_path.to_owned() + "myfile.spritefont").unwrap();
+                copy(renderer_path.to_owned() + "QtRenderingWidget/myfile.spritefont", assets_path.to_owned() + "myfile.spritefont").unwrap();
             }
             Err(error) => {
                 stdout().write_all(error.to_string().as_bytes()).unwrap();

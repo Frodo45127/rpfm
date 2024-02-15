@@ -183,7 +183,8 @@ pub unsafe fn init_settings(main_window: &QPtr<QMainWindow>) {
 #[must_use = "Many things depend on this folder existing. So better check this worked."]
 pub fn init_config_path() -> Result<()> {
 
-    DirBuilder::new().recursive(true).create(config_path()?)?;
+    let config_path = config_path()?;
+    DirBuilder::new().recursive(true).create(&config_path)?;
     DirBuilder::new().recursive(true).create(backup_autosave_path()?)?;
     DirBuilder::new().recursive(true).create(error_path()?)?;
     DirBuilder::new().recursive(true).create(schemas_path()?)?;
@@ -209,7 +210,10 @@ pub fn init_config_path() -> Result<()> {
             DirBuilder::new().recursive(true).create(&assets_path)?;
         }
 
-        //unsafe {crate::ffi::set_asset_folder(&assets_path); }
+        unsafe {crate::ffi::set_asset_folder(&assets_path); }
+
+        let log_path = config_path.to_string_lossy();
+        unsafe {crate::ffi::set_log_folder(&log_path); }
     }
 
     Ok(())
