@@ -66,11 +66,14 @@ jobs:
 
           # TODO: Build this from tag.
           cp C:\QtRMV2Widget.lib C:\actions-runner\_work\rpfm\rpfm\3rdparty\builds\
+          cp C:\ImportExport.lib C:\actions-runner\_work\rpfm\rpfm\3rdparty\builds\
+          cp C:\QtRenderingWidget.lib C:\actions-runner\_work\rpfm\rpfm\3rdparty\builds\
+          cp C:\Rldx.lib C:\actions-runner\_work\rpfm\rpfm\3rdparty\builds\
           cd C:\actions-runner\_work\rpfm\rpfm
 
           # First build every executable one by one, so we can speed up compilation.
           cargo build --release --bin rpfm_cli
-          cargo build --release --features "support_rigidmodel support_modern_dds enable_tools" --bin rpfm_ui
+          cargo build --release --features "support_rigidmodel support_model_renderer support_modern_dds enable_tools" --bin rpfm_ui
 
       - name: Prepare Assets for Release (Linux)
         id: build_linux
@@ -241,6 +244,10 @@ jobs:
           cp C:\actions-runner\_work\rpfm\rpfm/icons/* ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\icons\
           cp C:\actions-runner\_work\rpfm\rpfm/locale/* ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\locale\
           cp C:\actions-runner\_work\rpfm\rpfm/rpfm_ui/ui_templates/* ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\ui\
+
+          # These assets are for the model renderer.
+          mkdir assets
+          cp C:\actions-runner\_work\rpfm\rpfm/assets/* ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\assets\
 
           # Execute windeployqt to add missing translations and the vcredist if needed.
           ${{ matrix.DDISK }}:\Craft\craft\craftenv.ps1

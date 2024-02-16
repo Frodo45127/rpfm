@@ -1396,6 +1396,7 @@ impl AppUISlots {
                             <li>RigidModel research by: <b>Mr.Jox</b>, <b>Der Spaten</b>, <b>Maruka</b>, <b>phazer</b> and <b>Frodo45127</b>.</li>
                             <li>RigidModel module until v1.6.2 by: <b>Frodo45127</b>.</li>
                             <li>RigidModel module since v2.4.99 by: <b>Phazer</b>.</li>
+                            <li>Model Renderer by: <b>Phazer</b>.</li>
 
                             <li>TW: Arena research and coding: <b>Trolldemorted</b>.</li>
                         </ul>

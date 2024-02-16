@@ -38,59 +38,63 @@ fn main() {
         let assets_path = "./../assets/";
         DirBuilder::new().recursive(true).create(assets_path).unwrap();
 
-        // TODO: unhardcode this path once the folder is moved to a 3rdparty subrepo.
-        let renderer_path = "./../../QtRenderingWidget/";
-        println!("cargo:rerun-if-changed={}", renderer_path);
-
         println!("cargo:rustc-link-lib=dylib=ImportExport");
         println!("cargo:rustc-link-lib=dylib=Rldx");
         println!("cargo:rustc-link-lib=dylib=QtRenderingWidget");
 
-        // This compiles the model renderer and related libs.
-        match Command::new("msbuild")
-            .arg("./QtRenderingWidget_RPFM.sln")
-            .arg("-m")                      // Enable multithread build.
-            .arg("-t:Build")
-            //.arg("-t:Rebuild")            // If the linker misbehaves, use this instead of Build.
-            .arg("-p:Configuration=Release")
-            .arg("-p:Platform=x64")
-            .current_dir(renderer_path).output() {
-            Ok(output) => {
-                stdout().write_all(&output.stdout).unwrap();
-                stderr().write_all(&output.stderr).unwrap();
+        // This compiles the model renderer and related libs. Only in debug mode, as on releases we may not have access to the source code,
+        // so we use precompiled binaries instead.
+        if cfg!(debug_assertions) {
 
-                // On ANY error, fail compilation.
-                if !output.stderr.is_empty() {
-                    let error = String::from_utf8_lossy(&output.stderr);
-                    error.lines().filter(|line| !line.is_empty()).for_each(|line| {
-                        println!("cargo:warning={:?}", line);
-                    });
-                    exit(98)
+            // TODO: unhardcode this path once the folder is moved to a 3rdparty subrepo.
+            let renderer_path = "./../../QtRenderingWidget/";
+            println!("cargo:rerun-if-changed={}", renderer_path);
+
+            match Command::new("msbuild")
+                .arg("./QtRenderingWidget_RPFM.sln")
+                .arg("-m")                      // Enable multithread build.
+                .arg("-t:Build")
+                //.arg("-t:Rebuild")            // If the linker misbehaves, use this instead of Build.
+                .arg("-p:Configuration=Release")
+                .arg("-p:Platform=x64")
+                .current_dir(renderer_path).output() {
+                Ok(output) => {
+                    stdout().write_all(&output.stdout).unwrap();
+                    stderr().write_all(&output.stderr).unwrap();
+
+                    // On ANY error, fail compilation.
+                    if !output.stderr.is_empty() {
+                        let error = String::from_utf8_lossy(&output.stderr);
+                        error.lines().filter(|line| !line.is_empty()).for_each(|line| {
+                            println!("cargo:warning={:?}", line);
+                        });
+                        exit(98)
+                    }
+
+                    // If nothing broke, copy the files to the correct folders.
+                    copy(renderer_path.to_owned() + "x64/Release/ImportExport.lib", "./../3rdparty/builds/ImportExport.lib").unwrap();
+                    copy(renderer_path.to_owned() + "x64/Release/QtRenderingWidget.lib", "./../3rdparty/builds/QtRenderingWidget.lib").unwrap();
+                    copy(renderer_path.to_owned() + "x64/Release/Rldx.lib", "./../3rdparty/builds/Rldx.lib").unwrap();
+
+                    copy(renderer_path.to_owned() + "x64/Release/PS_Attila_Weigted.cso", assets_path.to_owned() + "PS_Attila_Weigted.cso").unwrap();
+                    copy(renderer_path.to_owned() + "x64/Release/PS_NoTextures.cso", assets_path.to_owned() + "PS_NoTextures.cso").unwrap();
+                    copy(renderer_path.to_owned() + "x64/Release/PS_Simple.cso", assets_path.to_owned() + "PS_Simple.cso").unwrap();
+                    copy(renderer_path.to_owned() + "x64/Release/PS_Three_Kingdoms.cso", assets_path.to_owned() + "PS_Three_Kingdoms.cso").unwrap();
+                    copy(renderer_path.to_owned() + "x64/Release/PS_Troy.cso", assets_path.to_owned() + "PS_Troy.cso").unwrap();
+                    copy(renderer_path.to_owned() + "x64/Release/VS_Simple.cso", assets_path.to_owned() + "VS_Simple.cso").unwrap();
+
+                    copy(renderer_path.to_owned() + "Rldx/Rldx/RenderResources/Textures/CubeMaps/LandscapeCubeMapIBLDiffuse.dds", assets_path.to_owned() + "LandscapeCubeMapIBLDiffuse.dds").unwrap();
+                    copy(renderer_path.to_owned() + "Rldx/Rldx/RenderResources/Textures/CubeMaps/LandscapeCubeMapIBLSpecular.dds", assets_path.to_owned() + "LandscapeCubeMapIBLSpecular.dds").unwrap();
+                    copy(renderer_path.to_owned() + "Rldx/Rldx/RenderResources/Textures/CubeMaps/SkyCubemapIBLDiffuse.dds", assets_path.to_owned() + "SkyCubemapIBLDiffuse.dds").unwrap();
+                    copy(renderer_path.to_owned() + "Rldx/Rldx/RenderResources/Textures/CubeMaps/SkyCubemapIBLSpecular.dds", assets_path.to_owned() + "SkyCubemapIBLSpecular.dds").unwrap();
+
+                    copy(renderer_path.to_owned() + "QtRenderingWidget/myfile.spritefont", assets_path.to_owned() + "myfile.spritefont").unwrap();
                 }
-
-                // If nothing broke, copy the files to the correct folders.
-                copy(renderer_path.to_owned() + "x64/Release/ImportExport.lib", "./../3rdparty/builds/ImportExport.lib").unwrap();
-                copy(renderer_path.to_owned() + "x64/Release/QtRenderingWidget.lib", "./../3rdparty/builds/QtRenderingWidget.lib").unwrap();
-                copy(renderer_path.to_owned() + "x64/Release/Rldx.lib", "./../3rdparty/builds/Rldx.lib").unwrap();
-
-                copy(renderer_path.to_owned() + "x64/Release/PS_Attila_Weigted.cso", assets_path.to_owned() + "PS_Attila_Weigted.cso").unwrap();
-                copy(renderer_path.to_owned() + "x64/Release/PS_NoTextures.cso", assets_path.to_owned() + "PS_NoTextures.cso").unwrap();
-                copy(renderer_path.to_owned() + "x64/Release/PS_Simple.cso", assets_path.to_owned() + "PS_Simple.cso").unwrap();
-                copy(renderer_path.to_owned() + "x64/Release/PS_Three_Kingdoms.cso", assets_path.to_owned() + "PS_Three_Kingdoms.cso").unwrap();
-                copy(renderer_path.to_owned() + "x64/Release/PS_Troy.cso", assets_path.to_owned() + "PS_Troy.cso").unwrap();
-                copy(renderer_path.to_owned() + "x64/Release/VS_Simple.cso", assets_path.to_owned() + "VS_Simple.cso").unwrap();
-
-                copy(renderer_path.to_owned() + "Rldx/Rldx/RenderResources/Textures/CubeMaps/LandscapeCubeMapIBLDiffuse.dds", assets_path.to_owned() + "LandscapeCubeMapIBLDiffuse.dds").unwrap();
-                copy(renderer_path.to_owned() + "Rldx/Rldx/RenderResources/Textures/CubeMaps/LandscapeCubeMapIBLSpecular.dds", assets_path.to_owned() + "LandscapeCubeMapIBLSpecular.dds").unwrap();
-                copy(renderer_path.to_owned() + "Rldx/Rldx/RenderResources/Textures/CubeMaps/SkyCubemapIBLDiffuse.dds", assets_path.to_owned() + "SkyCubemapIBLDiffuse.dds").unwrap();
-                copy(renderer_path.to_owned() + "Rldx/Rldx/RenderResources/Textures/CubeMaps/SkyCubemapIBLSpecular.dds", assets_path.to_owned() + "SkyCubemapIBLSpecular.dds").unwrap();
-
-                copy(renderer_path.to_owned() + "QtRenderingWidget/myfile.spritefont", assets_path.to_owned() + "myfile.spritefont").unwrap();
-            }
-            Err(error) => {
-                stdout().write_all(error.to_string().as_bytes()).unwrap();
-                stdout().write_all(b"ERROR: You either don't have msbuild installed, it's not in the path, or there was an error while executing it. Fix that before continuing.").unwrap();
-                exit(99);
+                Err(error) => {
+                    stdout().write_all(error.to_string().as_bytes()).unwrap();
+                    stdout().write_all(b"ERROR: You either don't have msbuild installed, it's not in the path, or there was an error while executing it. Fix that before continuing.").unwrap();
+                    exit(99);
+                }
             }
         }
     }

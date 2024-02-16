@@ -6,6 +6,15 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [4.2.6]
+### Added
+- Implemented "Multi-Folder FilePicker" feature.
+- Implemented "Model Renderer" for RigidModels ranging from Rome 2 to Warhammer 3 (by [@mr-phazer](https://github.com/mr-phazer)).
+
+### Fixed
+- Fixed i64 columns not saving their value on focus out.
+- Fixed decompression failing in vanilla files.
+
 ## [4.2.5]
 ### Added
 - Implemented setting to allow export tsv to export with the alternative (as seen in dave) column order.
@@ -1288,7 +1297,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.2.5...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.2.6...HEAD
+[4.2.6]: https://github.com/Frodo45127/rpfm/compare/v4.2.5...v4.2.6
 [4.2.5]: https://github.com/Frodo45127/rpfm/compare/v4.2.4...v4.2.5
 [4.2.4]: https://github.com/Frodo45127/rpfm/compare/v4.2.3...v4.2.4
 [4.2.3]: https://github.com/Frodo45127/rpfm/compare/v4.2.2...v4.2.3
