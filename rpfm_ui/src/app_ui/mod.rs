@@ -4068,7 +4068,17 @@ impl AppUI {
         dialog.set_window_title(&qtr("build_starpos"));
         instructions_label.set_text(&qtr("build_starpos_instructions"));
         campaign_id_label.set_text(&qtr("campaign_id"));
-        process_hlp_spd_data_label.set_text(&qtr("process_hlp_spd_data"));
+
+        // SPD files are only available since Warhammer 1.
+        let game = GAME_SELECTED.read().unwrap();
+        if *game.raw_db_version() >= 2 &&
+            game.key() != KEY_THRONES_OF_BRITANNIA &&
+            game.key() != KEY_ATTILA &&
+            game.key() != KEY_ROME_2 {
+            process_hlp_spd_data_label.set_text(&qtr("process_hlp_spd_data"));
+        } else {
+            process_hlp_spd_data_label.set_text(&qtr("process_hlp_data"));
+        }
 
         let receiver = CENTRAL_COMMAND.send_background(Command::BuildStarposGetCampaingIds);
         let response = CENTRAL_COMMAND.recv_try(&receiver);
@@ -4123,6 +4133,20 @@ impl AppUI {
 
                     Ok(())
                 },
+                Response::Error(error) => Err(error),
+
+                // In ANY other situation, it's a message problem.
+                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+            }
+        } else if games_closed_button.is_enabled() {
+
+            // If the user did not properly followed the procedure, do a post-cleanup pass anyway to avoid the idiot's stupidity causing problems.
+            let campaign_id = campaign_id_combobox.current_text().to_std_string();
+            let process_hlp_spd_data = process_hlp_spd_data_checkbox.is_checked();
+            let receiver = CENTRAL_COMMAND.send_background(Command::BuildStarposCleanup(campaign_id, process_hlp_spd_data));
+            let response = CENTRAL_COMMAND.recv_try(&receiver);
+            match response {
+                Response::Success => Ok(()),
                 Response::Error(error) => Err(error),
 
                 // In ANY other situation, it's a message problem.

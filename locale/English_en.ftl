@@ -1548,10 +1548,15 @@ build_starpos_instructions = <p>Instructions:</p>
     <p>Games where this is confirmed to work (if it's not on this list, it has not been tested and may work... or not, so report any issue you see if you use it):</p>
     <ul>
         <li>Warhammer 3.</li>
+        <li>Troy (partially).</li>
+        <li>Thrones of Britannia.</li>
+        <li>Attila.</li>
+        <li>Rome 2.</li>
     </ul>
 
 campaign_id = Campaign ID:
 process_hlp_spd_data = Process HLP and SPD data
+process_hlp_data = Process HLP data
 
 ignore_game_files_in_ak = Ignore Game Files in Assembly Kit
 settings_ignore_game_files_in_ak = When generating the dependencies cache, ignore files from the Assembly Kit that are present in the game files. Reduces RAM usage and makes RPFM load faster, but you loose read/import access to about 900 files.

@@ -350,8 +350,9 @@ pub enum Command {
     #[cfg(feature = "enable_tools")] GetPackTranslation(String),
     BuildStarpos(String, bool),
     BuildStarposPost(String, bool),
+    BuildStarposCleanup(String, bool),
     BuildStarposGetCampaingIds,
-    UpdateAnimIds(i32, i32)
+    UpdateAnimIds(i32, i32),
 }
 
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.

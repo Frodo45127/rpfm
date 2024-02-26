@@ -41,11 +41,12 @@ use qt_core::QCoreApplication;
 use qt_core::QString;
 use qt_core::QVariant;
 
+use crossbeam::channel::Sender;
 use lazy_static::lazy_static;
 
 use std::path::PathBuf;
 use std::sync::{Arc, atomic::{AtomicBool, AtomicPtr}, RwLock};
-use std::thread;
+use std::{thread, thread::JoinHandle};
 
 use rpfm_lib::games::{GameInfo, supported_games::{SupportedGames, KEY_WARHAMMER_3}};
 use rpfm_lib::integrations::log::*;
@@ -182,6 +183,9 @@ lazy_static! {
 
     /// This one is for detecting when a file is open for the first time, so we can skip some costly slots.
     static ref NEW_FILE_VIEW_CREATED: AtomicBool = AtomicBool::new(false);
+
+    /// Variable to keep the background thread for the startpos generation working.
+    static ref START_POS_WORKAROUND_THREAD: Arc<RwLock<Option<Vec<(Sender<bool>, JoinHandle<()>)>>>> = Arc::new(RwLock::new(None));
 }
 
 /// This constant gets RPFM's version from the `Cargo.toml` file, so we don't have to change it
