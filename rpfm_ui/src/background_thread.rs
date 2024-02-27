@@ -2229,7 +2229,8 @@ quit_after_campaign_processing;",
         let starpos_path = game_data_path.join(format!("campaigns/{}/startpos.esf", campaign_id));
         if starpos_path.is_file() {
             let starpos_path_bak = game_data_path.join(format!("campaigns/{}/startpos.esf.bak", campaign_id));
-            std::fs::copy(starpos_path, starpos_path_bak)?;
+            std::fs::copy(&starpos_path, starpos_path_bak)?;
+            std::fs::remove_file(starpos_path)?;
         }
     }
 
@@ -2256,7 +2257,8 @@ quit_after_campaign_processing;",
                     let hlp_path = game_data_path.join(format!("campaign_maps/{}/hlp_data.esf", map_name));
                     if hlp_path.is_file() {
                         let hlp_path_bak = game_data_path.join(format!("campaign_maps/{}/hlp_data.esf.bak", map_name));
-                        std::fs::copy(hlp_path, hlp_path_bak)?;
+                        std::fs::copy(&hlp_path, hlp_path_bak)?;
+                        std::fs::remove_file(hlp_path)?;
                     }
                 },
 
@@ -2307,7 +2309,8 @@ quit_after_campaign_processing;",
                     let hlp_path = game_data_path.join(format!("campaign_maps/{}/hlp_data.esf", map_name));
                     if hlp_path.is_file() {
                         let hlp_path_bak = game_data_path.join(format!("campaign_maps/{}/hlp_data.esf.bak", map_name));
-                        std::fs::copy(hlp_path, hlp_path_bak)?;
+                        std::fs::copy(&hlp_path, hlp_path_bak)?;
+                        std::fs::remove_file(hlp_path)?;
                     }
 
                 }
@@ -2328,7 +2331,8 @@ quit_after_campaign_processing;",
                 let spd_path = game_data_path.join(format!("campaign_maps/{}/spd_data.esf", map_name));
                 if spd_path.is_file() {
                     let spd_path_bak = game_data_path.join(format!("campaign_maps/{}/spd_data.esf.bak", map_name));
-                    std::fs::copy(spd_path, spd_path_bak)?;
+                    std::fs::copy(&spd_path, spd_path_bak)?;
+                    std::fs::remove_file(spd_path)?;
                 }
             }
         }
@@ -2365,6 +2369,10 @@ quit_after_campaign_processing;",
 }
 
 fn build_starpos_post(dependencies: &Dependencies, pack_file: &mut Pack, campaign_id: &str, process_hlp_spd_data: bool, cleanup_mode: bool) -> Result<Vec<ContainerPath>> {
+
+    let mut startpos_failed = false;
+    let mut hlp_failed = false;
+    let mut spd_failed = false;
 
     // Before anything else, close the workaround thread.
     if let Some(data) = START_POS_WORKAROUND_THREAD.write().unwrap().as_mut() {
@@ -2425,12 +2433,18 @@ fn build_starpos_post(dependencies: &Dependencies, pack_file: &mut Pack, campaig
     let starpos_path_pack = format!("campaigns/{}/startpos.esf", campaign_id);
 
     if !cleanup_mode {
-        let mut rfile = RFile::new_from_file_path(&starpos_path)?;
-        rfile.set_path_in_container_raw(&starpos_path_pack);
-        rfile.load()?;
-        rfile.guess_file_type()?;
 
-        added_paths.push(pack_file.insert(rfile).map(|x| x.unwrap())?);
+        if !starpos_path.is_file() {
+            startpos_failed = true;
+        } else {
+
+            let mut rfile = RFile::new_from_file_path(&starpos_path)?;
+            rfile.set_path_in_container_raw(&starpos_path_pack);
+            rfile.load()?;
+            rfile.guess_file_type()?;
+
+            added_paths.push(pack_file.insert(rfile).map(|x| x.unwrap())?);
+        }
     }
 
     // Restore the old starpos if there was one, and delete the new one if it has already been added.
@@ -2474,12 +2488,18 @@ fn build_starpos_post(dependencies: &Dependencies, pack_file: &mut Pack, campaig
             let hlp_path_pack = format!("campaign_maps/{}/hlp_data.esf", map_name);
 
             if !cleanup_mode {
-                let mut rfile_hlp = RFile::new_from_file_path(&hlp_path)?;
-                rfile_hlp.set_path_in_container_raw(&hlp_path_pack);
-                rfile_hlp.load()?;
-                rfile_hlp.guess_file_type()?;
 
-                added_paths.push(pack_file.insert(rfile_hlp).map(|x| x.unwrap())?);
+                if !hlp_path.is_file() {
+                    hlp_failed = true;
+                } else {
+
+                    let mut rfile_hlp = RFile::new_from_file_path(&hlp_path)?;
+                    rfile_hlp.set_path_in_container_raw(&hlp_path_pack);
+                    rfile_hlp.load()?;
+                    rfile_hlp.guess_file_type()?;
+
+                    added_paths.push(pack_file.insert(rfile_hlp).map(|x| x.unwrap())?);
+                }
             }
 
             // Only needed from Warhammer 1 onwards, and in Rome 2. Other games generate the hlp file outside that folder.
@@ -2509,12 +2529,18 @@ fn build_starpos_post(dependencies: &Dependencies, pack_file: &mut Pack, campaig
                 let spd_path_pack = format!("campaign_maps/{}/spd_data.esf", map_name);
 
                 if !cleanup_mode {
-                    let mut rfile_spd = RFile::new_from_file_path(&spd_path)?;
-                    rfile_spd.set_path_in_container_raw(&spd_path_pack);
-                    rfile_spd.load()?;
-                    rfile_spd.guess_file_type()?;
 
-                    added_paths.push(pack_file.insert(rfile_spd).map(|x| x.unwrap())?);
+                    if !spd_path.is_file() {
+                        spd_failed = true;
+                    } else {
+
+                        let mut rfile_spd = RFile::new_from_file_path(&spd_path)?;
+                        rfile_spd.set_path_in_container_raw(&spd_path_pack);
+                        rfile_spd.load()?;
+                        rfile_spd.guess_file_type()?;
+
+                        added_paths.push(pack_file.insert(rfile_spd).map(|x| x.unwrap())?);
+                    }
                 }
 
                 let spd_path_bak = game_data_path.join(format!("campaign_maps/{}/spd_data.esf.bak", map_name));
@@ -2526,7 +2552,31 @@ fn build_starpos_post(dependencies: &Dependencies, pack_file: &mut Pack, campaig
         }
     }
 
-    Ok(added_paths)
+    let mut error = String::new();
+    if startpos_failed || hlp_failed || spd_failed {
+        error.push_str("<p>One or more files failed to generate:</p><ul>")
+    }
+    if startpos_failed {
+        error.push_str("<li>Startpos file failed to generate.</li>");
+    }
+
+    if hlp_failed {
+        error.push_str("<li>HLP file failed to generate.</li>");
+    }
+
+    if spd_failed {
+        error.push_str("<li>SPD file failed to generate.</li>");
+    }
+
+    if startpos_failed || hlp_failed || spd_failed {
+        error.push_str("</ul><p>No files were added and the related files were restored to their pre-build state. Check your tables are correct before trying to generate them again.</p>")
+    }
+
+    if error.is_empty() {
+        Ok(added_paths)
+    } else {
+        Err(anyhow!(error))
+    }
 }
 
 /// Function to perform a live extraction.
