@@ -2153,7 +2153,7 @@ fn update_anim_ids(pack_file: &mut Pack, starting_id: i32, offset: i32) -> Resul
 fn build_starpos(dependencies: &Dependencies, pack_file: &Pack, campaign_id: &str, process_hlp_spd_data: bool) -> Result<()> {
     let pack_name = pack_file.disk_file_name();
     if pack_name.is_empty() {
-        return Err(anyhow!("The Pack needs to be saved to disk in order to build a starpos. Save it and try again."));
+        return Err(anyhow!("The Pack needs to be saved to disk in order to build a startpos. Save it and try again."));
     }
 
     if campaign_id.is_empty() {
