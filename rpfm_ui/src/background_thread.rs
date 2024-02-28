@@ -39,7 +39,7 @@ use rpfm_extensions::optimizer::OptimizableContainer;
 
 use rpfm_lib::binary::WriteBytes;
 use rpfm_lib::files::{animpack::AnimPack, Container, ContainerPath, db::DB, DecodeableExtraData, FileType, loc::Loc, pack::*, portrait_settings::PortraitSettings, RFile, RFileDecoded, text::*};
-use rpfm_lib::games::{GameInfo, LUA_REPO, LUA_BRANCH, LUA_REMOTE, OLD_AK_REPO, OLD_AK_BRANCH, OLD_AK_REMOTE, pfh_file_type::PFHFileType, supported_games::*};
+use rpfm_lib::games::{GameInfo, LUA_REPO, LUA_BRANCH, LUA_REMOTE, OLD_AK_REPO, OLD_AK_BRANCH, OLD_AK_REMOTE, pfh_file_type::PFHFileType, supported_games::*, VanillaDBTableNameLogic};
 use rpfm_lib::integrations::{assembly_kit::*, git::*, log::*};
 use rpfm_lib::schema::*;
 use rpfm_lib::utils::*;
@@ -1679,16 +1679,93 @@ pub fn background_loop() {
                                 Some(ref schema) => {
                                     let mut files = vec![];
                                     for path in paths {
-                                        let table_name = path.path_raw().split('/').collect::<Vec<_>>()[1];
-                                        match dependencies.import_from_ak(table_name, schema) {
-                                            Ok(table) => {
-                                                let file = RFile::new_from_decoded(&RFileDecoded::DB(table), 0, path.path_raw());
-                                                files.push(file);
-                                            },
-                                            Err(_) => {
-                                                CentralCommand::send_back(&sender, Response::Error(anyhow!("One or more files failed to import due to missing definition.")));
-                                                CentralCommand::send_back(&sender, Response::Success);
-                                                continue 'background_loop;
+
+                                        // We only have tables. If it's a folder, it's either a table folder, db or the root.
+                                        match path {
+                                            ContainerPath::Folder(path) => {
+                                                let mut path = path.to_owned();
+
+                                                if path.ends_with('/') {
+                                                    path.pop();
+                                                }
+
+                                                let path_split = path.split('/').collect::<Vec<_>>();
+                                                let table_name_logic = GAME_SELECTED.read().unwrap().vanilla_db_table_name_logic();
+
+                                                // The db folder or the root folder directly.
+                                                if path_split.len() == 1 {
+                                                    let table_names = dependencies.asskit_only_db_tables().keys();
+                                                    for table_name in table_names {
+                                                        let table_file_name = match table_name_logic {
+                                                            VanillaDBTableNameLogic::DefaultName(ref name) => name,
+                                                            VanillaDBTableNameLogic::FolderName => table_name,
+                                                        };
+
+                                                        match dependencies.import_from_ak(table_name, schema) {
+                                                            Ok(table) => {
+                                                                let mut path = path_split.to_vec();
+                                                                path.push(table_file_name);
+                                                                let path = path.join("/");
+
+                                                                let file = RFile::new_from_decoded(&RFileDecoded::DB(table), 0, &path);
+                                                                files.push(file);
+                                                            },
+                                                            Err(_) => {
+                                                                CentralCommand::send_back(&sender, Response::Error(anyhow!("One or more files failed to import due to missing definition.")));
+                                                                CentralCommand::send_back(&sender, Response::Success);
+                                                                continue 'background_loop;
+                                                            }
+                                                        }
+                                                    }
+                                                }
+
+                                                // A table folder.
+                                                else if path_split.len() == 2 {
+
+                                                    let table_name = path_split[1];
+                                                    let table_file_name = match table_name_logic {
+                                                        VanillaDBTableNameLogic::DefaultName(ref name) => name,
+                                                        VanillaDBTableNameLogic::FolderName => table_name,
+                                                    };
+
+                                                    match dependencies.import_from_ak(table_name, schema) {
+                                                        Ok(table) => {
+                                                            let mut path = path_split.to_vec();
+                                                            path.push(table_file_name);
+                                                            let path = path.join("/");
+
+                                                            let file = RFile::new_from_decoded(&RFileDecoded::DB(table), 0, &path);
+                                                            files.push(file);
+                                                        },
+                                                        Err(_) => {
+                                                            CentralCommand::send_back(&sender, Response::Error(anyhow!("One or more files failed to import due to missing definition.")));
+                                                            CentralCommand::send_back(&sender, Response::Success);
+                                                            continue 'background_loop;
+                                                        }
+                                                    }
+                                                }
+
+                                                // Any other situation is an error.
+                                                else {
+                                                    CentralCommand::send_back(&sender, Response::Error(anyhow!("No idea how you were able to trigger this.")));
+                                                    CentralCommand::send_back(&sender, Response::Success);
+                                                    continue 'background_loop;
+                                                }
+
+                                            }
+                                            ContainerPath::File(path) => {
+                                                let table_name = path.split('/').collect::<Vec<_>>()[1];
+                                                match dependencies.import_from_ak(table_name, schema) {
+                                                    Ok(table) => {
+                                                        let file = RFile::new_from_decoded(&RFileDecoded::DB(table), 0, path);
+                                                        files.push(file);
+                                                    },
+                                                    Err(_) => {
+                                                        CentralCommand::send_back(&sender, Response::Error(anyhow!("One or more files failed to import due to missing definition.")));
+                                                        CentralCommand::send_back(&sender, Response::Success);
+                                                        continue 'background_loop;
+                                                    }
+                                                }
                                             }
                                         }
                                     }
