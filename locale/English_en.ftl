@@ -1550,6 +1550,7 @@ build_starpos_instructions = <p>Instructions:</p>
         <li>Pharaoh (partially).</li>
         <li>Warhammer 3.</li>
         <li>Troy (partially).</li>
+        <li>Three Kingdoms (partially).</li>
         <li>Thrones of Britannia.</li>
         <li>Attila.</li>
         <li>Rome 2.</li>

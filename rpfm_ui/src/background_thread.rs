@@ -2106,21 +2106,45 @@ pub fn background_loop() {
             }
 
             Command::BuildStarpos(campaign_id, process_hlp_spd_data) => {
-                match build_starpos(&dependencies.read().unwrap(), &pack_file_decoded, &campaign_id, process_hlp_spd_data) {
-                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+
+                // 3K needs two passes, one per startpos, and there are two per campaign.
+                if GAME_SELECTED.read().unwrap().key() == KEY_THREE_KINGDOMS {
+                    match build_starpos(&dependencies.read().unwrap(), &pack_file_decoded, &campaign_id, process_hlp_spd_data, "historical") {
+                        Ok(_) => match build_starpos(&dependencies.read().unwrap(), &pack_file_decoded, &campaign_id, false, "romance") {
+                            Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                        }
+                        Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                    }
+                } else {
+                    match build_starpos(&dependencies.read().unwrap(), &pack_file_decoded, &campaign_id, process_hlp_spd_data, "") {
+                        Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                        Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                    }
                 }
             }
 
             Command::BuildStarposPost(campaign_id, process_hlp_spd_data) => {
-                match build_starpos_post(&dependencies.read().unwrap(), &mut pack_file_decoded, &campaign_id, process_hlp_spd_data, false) {
+                let sub_start_pos = if GAME_SELECTED.read().unwrap().key() == KEY_THREE_KINGDOMS {
+                    vec!["historical".to_owned(), "romance".to_owned()]
+                } else {
+                    vec![]
+                };
+
+                match build_starpos_post(&dependencies.read().unwrap(), &mut pack_file_decoded, &campaign_id, process_hlp_spd_data, false, &sub_start_pos) {
                     Ok(paths) => CentralCommand::send_back(&sender, Response::VecContainerPath(paths)),
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                 }
             },
 
             Command::BuildStarposCleanup(campaign_id, process_hlp_spd_data) => {
-                match build_starpos_post(&dependencies.read().unwrap(), &mut pack_file_decoded, &campaign_id, process_hlp_spd_data, true) {
+                let sub_start_pos = if GAME_SELECTED.read().unwrap().key() == KEY_THREE_KINGDOMS {
+                    vec!["historical".to_owned(), "romance".to_owned()]
+                } else {
+                    vec![]
+                };
+
+                match build_starpos_post(&dependencies.read().unwrap(), &mut pack_file_decoded, &campaign_id, process_hlp_spd_data, true, &sub_start_pos) {
                     Ok(_) => CentralCommand::send_back(&sender, Response::Success),
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                 }
@@ -2227,7 +2251,8 @@ fn update_anim_ids(pack_file: &mut Pack, starting_id: i32, offset: i32) -> Resul
     Ok(paths)
 }
 
-fn build_starpos(dependencies: &Dependencies, pack_file: &Pack, campaign_id: &str, process_hlp_spd_data: bool) -> Result<()> {
+// About the sub-startpos thing: 3k uses 2 startpos per campaign, so we need to do two passes for it, one for each campaign.
+fn build_starpos(dependencies: &Dependencies, pack_file: &Pack, campaign_id: &str, process_hlp_spd_data: bool, sub_start_pos: &str) -> Result<()> {
     let pack_name = pack_file.disk_file_name();
     if pack_name.is_empty() {
         return Err(anyhow!("The Pack needs to be saved to disk in order to build a startpos. Save it and try again."));
@@ -2243,12 +2268,13 @@ fn build_starpos(dependencies: &Dependencies, pack_file: &Pack, campaign_id: &st
         String::new()
     };
 
+    // Note: 3K uses 2 passes per campaign, each one with a different startpos, but both share the hlp/spd process, so that only needs to be generated once.
     let user_script_contents = format!("
 mod {};
-process_campaign_startpos {};
+process_campaign_startpos {} {};
 {}
 quit_after_campaign_processing;",
-        pack_name, campaign_id, process_hlp_spd_data_string
+        pack_name, campaign_id, sub_start_pos, process_hlp_spd_data_string
     );
 
     // Games may fail to launch if we don't have this path created, which is done the first time we start the game.
@@ -2303,9 +2329,15 @@ quit_after_campaign_processing;",
         game.key() != KEY_NAPOLEON &&
         game.key() != KEY_EMPIRE {
 
-        let starpos_path = game_data_path.join(format!("campaigns/{}/startpos.esf", campaign_id));
+        let sub_start_pos_suffix = if sub_start_pos.is_empty() {
+            String::new()
+        } else {
+            format!("_{}", sub_start_pos)
+        };
+
+        let starpos_path = game_data_path.join(format!("campaigns/{}/startpos{}.esf", campaign_id, sub_start_pos_suffix));
         if starpos_path.is_file() {
-            let starpos_path_bak = game_data_path.join(format!("campaigns/{}/startpos.esf.bak", campaign_id));
+            let starpos_path_bak = game_data_path.join(format!("campaigns/{}/startpos{}.esf.bak", campaign_id, sub_start_pos_suffix));
             std::fs::copy(&starpos_path, starpos_path_bak)?;
             std::fs::remove_file(starpos_path)?;
         }
@@ -2415,8 +2447,41 @@ quit_after_campaign_processing;",
         }
     }
 
-    // Then launch the game. Rome 2 needs to be launched manually through the cmd with params. The rest can be launched through their regular launcher.
-    if game.key() == KEY_ROME_2 {
+    // Then launch the game. 3K needs to be launched manually and in a blocking manner to make sure it does each pass it has to do correctly.
+    if game.key() == KEY_THREE_KINGDOMS {
+        let exe_path = game.executable_path(&game_path).ok_or_else(|| anyhow!("Game exe path not found."))?;
+        let exe_name = exe_path.file_name().ok_or_else(|| anyhow!("Game exe name not found."))?.to_string_lossy();
+
+        // NOTE: This uses a non-existant load order file on purpouse, so no mod in the load order interferes with generating the startpos.
+        let mut command = SystemCommand::new("cmd");
+        command.arg("/C");
+        command.arg("start");
+        command.arg("/wait");
+        command.arg("/d");
+        command.arg(game_path.to_string_lossy().replace('\\', "/"));
+        command.arg(exe_name.to_string());
+        command.arg("temp_file.txt;");
+
+        for arg in user_script_contents.lines() {
+            command.arg(arg);
+        }
+
+        let _ = command.output()?;
+
+        // In multipass, we need to clean the user script after each pass.
+        let uspa = scripts_path.join(USER_SCRIPT_FILE_NAME);
+        let uspb = scripts_path.join(USER_SCRIPT_FILE_NAME.to_owned() + ".bak");
+        if uspb.is_file() {
+            std::fs::copy(uspb, uspa)?;
+        }
+
+        // If there's no backup, means there was no file to begin with, so we delete the custom file.
+        else if uspa.is_file() {
+            std::fs::remove_file(uspa)?;
+        }
+
+    // Rome 2 needs to be launched manually through the cmd with params. The rest can be launched through their regular launcher.
+    } else if game.key() == KEY_ROME_2 {
         let exe_path = game.executable_path(&game_path).ok_or_else(|| anyhow!("Game exe path not found."))?;
         let exe_name = exe_path.file_name().ok_or_else(|| anyhow!("Game exe name not found."))?.to_string_lossy();
 
@@ -2434,7 +2499,6 @@ quit_after_campaign_processing;",
         }
 
         command.spawn()?;
-
     } else {
         match GAME_SELECTED.read().unwrap().game_launch_command(&setting_path(GAME_SELECTED.read().unwrap().key())) {
             Ok(command) => { let _ = open::that(command); },
@@ -2445,9 +2509,10 @@ quit_after_campaign_processing;",
     Ok(())
 }
 
-fn build_starpos_post(dependencies: &Dependencies, pack_file: &mut Pack, campaign_id: &str, process_hlp_spd_data: bool, cleanup_mode: bool) -> Result<Vec<ContainerPath>> {
+fn build_starpos_post(dependencies: &Dependencies, pack_file: &mut Pack, campaign_id: &str, process_hlp_spd_data: bool, cleanup_mode: bool, sub_start_pos: &[String]) -> Result<Vec<ContainerPath>> {
 
     let mut startpos_failed = false;
+    let mut sub_startpos_failed = vec![];
     let mut hlp_failed = false;
     let mut spd_failed = false;
 
@@ -2482,61 +2547,94 @@ fn build_starpos_post(dependencies: &Dependencies, pack_file: &mut Pack, campaig
     }
 
     // If there's no backup, means there was no file to begin with, so we delete the custom file.
-    else {
+    else if uspa.is_file() {
         std::fs::remove_file(uspa)?;
     }
 
     let mut added_paths = vec![];
 
-    // Add the starpos. The path changes depending on the game.
-    let starpos_path = match game.key() {
+    // Add the starpos file. As some games have multiple startpos per campaign (3K) we return a vector with all the paths we have to generate.
+    let starpos_paths = match game.key() {
         KEY_PHARAOH |
         KEY_WARHAMMER_3 |
         KEY_TROY |
         KEY_THREE_KINGDOMS |
         KEY_WARHAMMER_2 |
-        KEY_WARHAMMER => game_data_path.join(format!("campaigns/{}/startpos.esf", campaign_id)),
+        KEY_WARHAMMER => {
+            if sub_start_pos.is_empty() {
+                vec![game_data_path.join(format!("campaigns/{}/startpos.esf", campaign_id))]
+            } else {
+                let mut paths = vec![];
+                for sub in sub_start_pos {
+                    paths.push(game_data_path.join(format!("campaigns/{}/startpos{}.esf", campaign_id, format!("_{}", sub))));
+
+                }
+                paths
+            }
+        }
         KEY_THRONES_OF_BRITANNIA |
-        KEY_ATTILA => config_path.join(format!("maps/campaigns/{}/startpos.esf", campaign_id)),
+        KEY_ATTILA => vec![config_path.join(format!("maps/campaigns/{}/startpos.esf", campaign_id))],
 
         // Rome 2 outputs the startpos in the same place Warhammer 3 does.
-        KEY_ROME_2 => game_data_path.join(format!("campaigns/{}/startpos.esf", campaign_id)),
+        KEY_ROME_2 => vec![game_data_path.join(format!("campaigns/{}/startpos.esf", campaign_id))],
         KEY_SHOGUN_2 => return Err(anyhow!("Unsupported... yet. If you want to test support for this game, let me know.")),
         KEY_NAPOLEON => return Err(anyhow!("Unsupported... yet. If you want to test support for this game, let me know.")),
         KEY_EMPIRE => return Err(anyhow!("Unsupported... yet. If you want to test support for this game, let me know.")),
         _ => return Err(anyhow!("How the fuck did you trigger this?")),
     };
 
-    let starpos_path_pack = format!("campaigns/{}/startpos.esf", campaign_id);
+    let starpos_paths_pack = if sub_start_pos.is_empty() {
+        vec![format!("campaigns/{}/startpos.esf", campaign_id)]
+    } else {
+        let mut paths = vec![];
+        for sub in sub_start_pos {
+            paths.push(format!("campaigns/{}/startpos{}.esf", campaign_id, format!("_{}", sub)));
+        }
+        paths
+    };
 
     if !cleanup_mode {
+        for (index, starpos_path) in starpos_paths.iter().enumerate() {
+            if !starpos_path.is_file() {
+                if sub_start_pos.is_empty() {
+                    startpos_failed = true;
+                } else {
+                    sub_startpos_failed.push(sub_start_pos[index].to_owned());
+                }
+            } else {
 
-        if !starpos_path.is_file() {
-            startpos_failed = true;
-        } else {
+                let mut rfile = RFile::new_from_file_path(&starpos_path)?;
+                rfile.set_path_in_container_raw(&starpos_paths_pack[index]);
+                rfile.load()?;
+                rfile.guess_file_type()?;
 
-            let mut rfile = RFile::new_from_file_path(&starpos_path)?;
-            rfile.set_path_in_container_raw(&starpos_path_pack);
-            rfile.load()?;
-            rfile.guess_file_type()?;
-
-            added_paths.push(pack_file.insert(rfile).map(|x| x.unwrap())?);
+                added_paths.push(pack_file.insert(rfile).map(|x| x.unwrap())?);
+            }
         }
     }
 
     // Restore the old starpos if there was one, and delete the new one if it has already been added.
     //
     // Only needed from Warhammer 1 onwards, and for Rome 2. Other games generate the startpos outside that folder.
+    //
+    // 3K uses 2 startpos, so we need to restore them both.
     if game.key() != KEY_THRONES_OF_BRITANNIA &&
         game.key() != KEY_ATTILA &&
         game.key() != KEY_SHOGUN_2 &&
         game.key() != KEY_NAPOLEON &&
         game.key() != KEY_EMPIRE {
 
-        let starpos_path_bak = game_data_path.join(format!("campaigns/{}/startpos.esf.bak", campaign_id));
-        if starpos_path_bak.is_file() {
-            std::fs::copy(&starpos_path_bak, &starpos_path)?;
-            std::fs::remove_file(starpos_path_bak)?;
+        for starpos_path in starpos_paths {
+            let file_name = starpos_path.file_name().unwrap().to_string_lossy().to_string();
+            let file_name_bak = file_name + ".bak";
+
+            let mut starpos_path_bak = starpos_path.to_path_buf();
+            starpos_path_bak.set_file_name(file_name_bak);
+
+            if starpos_path_bak.is_file() {
+                std::fs::copy(&starpos_path_bak, &starpos_path)?;
+                std::fs::remove_file(starpos_path_bak)?;
+            }
         }
     }
 
@@ -2630,11 +2728,15 @@ fn build_starpos_post(dependencies: &Dependencies, pack_file: &mut Pack, campaig
     }
 
     let mut error = String::new();
-    if startpos_failed || hlp_failed || spd_failed {
+    if startpos_failed || (!sub_start_pos.is_empty() && !sub_startpos_failed.is_empty()) || hlp_failed || spd_failed {
         error.push_str("<p>One or more files failed to generate:</p><ul>")
     }
     if startpos_failed {
         error.push_str("<li>Startpos file failed to generate.</li>");
+    }
+
+    for sub_failed in &sub_startpos_failed {
+        error.push_str(&format!("<li>\"{}\" Startpos file failed to generate.</li>", sub_failed));
     }
 
     if hlp_failed {
