@@ -4084,7 +4084,10 @@ impl AppUI {
         let response = CENTRAL_COMMAND.recv_try(&receiver);
         match response {
             Response::HashSetString(ids) => {
-                for id in ids.into_iter() {
+                let mut ids = ids.into_iter().collect::<Vec<_>>();
+                ids.sort();
+
+                for id in &ids {
                     campaign_id_combobox.add_item_q_string(&QString::from_std_str(id));
                 }
             },
