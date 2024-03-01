@@ -36,18 +36,18 @@ pub const DISPLAY_NAME_EMPIRE: &str = "Empire";
 pub const DISPLAY_NAME_ARENA: &str = "Arena";
 
 // Key for all the supported games.
-pub const KEY_PHARAOH: &str = "pharaoh";                            // Pending of schema review for incorrect AK fields.
-pub const KEY_WARHAMMER_3: &str = "warhammer_3";                    // Filtered and revised incorrect AK fields.
-pub const KEY_TROY: &str = "troy";                                  // Filtered and revised incorrect AK fields.
-pub const KEY_THREE_KINGDOMS: &str = "three_kingdoms";              // Filtered and revised incorrect AK fields.
-pub const KEY_WARHAMMER_2: &str = "warhammer_2";                    // Pending of schema review for incorrect AK fields.
-pub const KEY_WARHAMMER: &str = "warhammer";                        // Pending of schema review for incorrect AK fields.
-pub const KEY_THRONES_OF_BRITANNIA: &str = "thrones_of_britannia";  // Pending of schema review for incorrect AK fields.
-pub const KEY_ATTILA: &str = "attila";                              // Pending of schema review for incorrect AK fields.
-pub const KEY_ROME_2: &str = "rome_2";                              // Pending of schema review for incorrect AK fields.
-pub const KEY_SHOGUN_2: &str = "shogun_2";                          // Pending of schema review for incorrect AK fields.
-pub const KEY_NAPOLEON: &str = "napoleon";                          // Pending of schema review for incorrect AK fields.
-pub const KEY_EMPIRE: &str = "empire";                              // Pending of schema review for incorrect AK fields.
+pub const KEY_PHARAOH: &str = "pharaoh";                            // Filtered and revised incorrect AK fields. Startpos tables done.
+pub const KEY_WARHAMMER_3: &str = "warhammer_3";                    // Filtered and revised incorrect AK fields. Startpos tables done.
+pub const KEY_TROY: &str = "troy";                                  // Filtered and revised incorrect AK fields. Startpos tables done.
+pub const KEY_THREE_KINGDOMS: &str = "three_kingdoms";              // Filtered and revised incorrect AK fields. Pending decoding starpos tables.
+pub const KEY_WARHAMMER_2: &str = "warhammer_2";                    // Pending of schema review for incorrect AK fields. Pending decoding starpos tables.
+pub const KEY_WARHAMMER: &str = "warhammer";                        // Pending of schema review for incorrect AK fields. Pending decoding starpos tables.
+pub const KEY_THRONES_OF_BRITANNIA: &str = "thrones_of_britannia";  // Pending of schema review for incorrect AK fields. Pending decoding starpos tables.
+pub const KEY_ATTILA: &str = "attila";                              // Pending of schema review for incorrect AK fields. Startpos tables done.
+pub const KEY_ROME_2: &str = "rome_2";                              // Pending of schema review for incorrect AK fields. Pending decoding starpos tables.
+pub const KEY_SHOGUN_2: &str = "shogun_2";                          // Pending of schema review for incorrect AK fields. Pending decoding starpos tables.
+pub const KEY_NAPOLEON: &str = "napoleon";                          // Pending of schema review for incorrect AK fields. Pending decoding starpos tables.
+pub const KEY_EMPIRE: &str = "empire";                              // Pending of schema review for incorrect AK fields. Pending decoding starpos tables.
 pub const KEY_ARENA: &str = "arena";
 
 //-------------------------------------------------------------------------------//
@@ -140,13 +140,43 @@ impl Default for SupportedGames {
             },
             lua_autogen_folder: None,
             ak_lost_fields: vec![
+                "_kv_battle_ai_ability_usage_variables/description".to_owned(),
+                "_kv_experience_bonuses/description".to_owned(),
+                "_kv_fatigue/description".to_owned(),
+                "_kv_fire_values/description".to_owned(),
+                "_kv_key_buildings/description".to_owned(),
+                "_kv_morale/description".to_owned(),
+                "_kv_naval_morale/description".to_owned(),
+                "_kv_naval_rules/description".to_owned(),
+                "_kv_rules/description".to_owned(),
+                "_kv_ui_tweakers/description".to_owned(),
+                "_kv_unit_ability_scaling_rules/description".to_owned(),
+                "_kv_winds_of_magic_params/description".to_owned(),
+                "achievements/game_expansion_key".to_owned(),
+                "ancillary_info/author".to_owned(),
+                "ancillary_info/comment".to_owned(),
+                "ancillary_info/historical_example".to_owned(),
                 "audio_entity_types/actor_type".to_owned(),
                 "audio_entity_types/game_expansion_key".to_owned(),
                 "audio_entity_types/switch".to_owned(),
-                "audio_entity_types/use_focus_rtpc".to_owned(),
+                "audio_markers/colour_blue".to_owned(),
+                "audio_markers/colour_green".to_owned(),
+                "audio_markers/colour_red".to_owned(),
+                "audio_metadata_tags/colour_blue".to_owned(),
+                "audio_metadata_tags/colour_green".to_owned(),
+                "audio_metadata_tags/colour_red".to_owned(),
+                "audio_metadata_tags/game_expansion_key".to_owned(),
+                "audio_metadata_tags/path".to_owned(),
+                "battle_animations_table/game_expansion_key".to_owned(),
+                "battle_personalities/game_expansion_key".to_owned(),
+                "battle_set_pieces/game_expansion_key".to_owned(),
+                "battle_skeletons/game_expansion_key".to_owned(),
                 "battles/game_expansion_key".to_owned(),
                 "battles/objectives_team_1".to_owned(),
                 "battles/objectives_team_2".to_owned(),
+                "building_chains/encyclopedia_group".to_owned(),
+                "building_chains/encyclopedia_include_in_index".to_owned(),
+                "building_chains/encyclopedia_name".to_owned(),
                 "building_culture_variants/flavour".to_owned(),
                 "building_levels/commodity_vol".to_owned(),
                 "cai_algorithm_variables/description".to_owned(),
@@ -159,12 +189,78 @@ impl Default for SupportedGames {
                 "cai_domains/description".to_owned(),
                 "cai_queries/description".to_owned(),
                 "cai_query_variables/description".to_owned(),
+                "cai_task_management_system_variables/description".to_owned(),
+                "campaign_ai_managers/description".to_owned(),
+                "campaign_map_playable_areas/game_expansion_key".to_owned(),
+                "campaign_map_playable_areas/maxy".to_owned(),
+                "campaign_map_playable_areas/miny".to_owned(),
+                "campaign_map_playable_areas/preview_border".to_owned(),
+                "campaign_payload_ui_details/comment".to_owned(),
+                "campaign_tree_types/game_expansion_key".to_owned(),
+                "campaign_variables/description".to_owned(),
+                "campaigns/game_expansion_key".to_owned(),
+                "cdir_events_mission_option_junctions/game_expansion_key".to_owned(),
+                "cdir_military_generator_configs/game_expansion_key".to_owned(),
+                "cdir_military_generator_templates/game_expansion_key".to_owned(),
+                "character_skill_level_to_effects_junctions/is_factionwide".to_owned(),
+                "character_skills/pre_battle_speech_parameter".to_owned(),
+                "character_traits/author".to_owned(),
+                "character_traits/comment".to_owned(),
+                "deployables/icon_name".to_owned(),
+                "diplomatic_relations_religion/relations_modifier".to_owned(),
+                "faction_groups/ui_icon".to_owned(),
                 "factions/game_expansion_key".to_owned(),
                 "frontend_faction_leaders/game_expansion_key".to_owned(),
+                "government_types/elected_ministers".to_owned(),
+                "government_types/hereditary_ministers".to_owned(),
+                "government_types/rank".to_owned(),
+
+                // This is a loc that's unused, so the bruteforce pass fails to mark it as a loc.
+                "land_units/concealed_name".to_owned(),
+
+                "land_units/game_expansion_key".to_owned(),
+                "loading_screen_quotes/game_expansion_key".to_owned(),
                 "main_units/audio_voiceover_culture_override".to_owned(),
+
+                // Special table. Ignore them.
+                "models_building/cs2_file".to_owned(),
+                "models_building/model_file".to_owned(),
+                "models_building/tech_file".to_owned(),
+
+                "names/nobility".to_owned(),
+                "names_groups/Description".to_owned(),
+                "names_groups/game_expansion_key".to_owned(),
+                "pdlc/game_expansion_key".to_owned(),
+
+                // Pretty sure this is a loc that's not exported in Dave, so the bruteforce pass fails to mark it as a loc.
+                "pooled_resources/negative_display_name".to_owned(),
+
                 "projectiles/game_expansion_key".to_owned(),
+                "regions/in_encyclopedia".to_owned(),
+                "regions/is_sea".to_owned(),
                 "scripted_bonus_value_ids/notes".to_owned(),
                 "scripted_objectives/game_expansion_key".to_owned(),
+                "start_pos_calendars/unique".to_owned(),
+                "start_pos_character_ancillaries/unique".to_owned(),
+                "start_pos_character_to_settlements/unique".to_owned(),
+                "start_pos_character_traits/unique".to_owned(),
+                "start_pos_diplomacy/relations_modifier".to_owned(),
+                "start_pos_diplomacy/unique".to_owned(),
+                "start_pos_faction_effect_bundles/unique".to_owned(),
+                "start_pos_factions/unique".to_owned(),
+                "start_pos_land_units/unique".to_owned(),
+                "start_pos_past_events/unique".to_owned(),
+                "start_pos_region_religions/unique".to_owned(),
+                "start_pos_region_slot_templates/unique".to_owned(),
+                "start_pos_regions/unique".to_owned(),
+                "start_pos_settlements/unique".to_owned(),
+                "technologies/in_encyclopedia".to_owned(),
+                "technology_node_sets/game_expansion_key".to_owned(),
+                "trait_info/applicable_to".to_owned(),
+                "trigger_events/from_ui".to_owned(),
+                "trigger_events/game_expansion_key".to_owned(),
+                "videos/game_expansion_key".to_owned(),
+                "warscape_animated/game_expansion_key".to_owned(),
             ],
             install_type_cache: Arc::new(RwLock::new(HashMap::new())),
         });
