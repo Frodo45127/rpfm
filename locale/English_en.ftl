@@ -1547,10 +1547,11 @@ build_starpos_instructions = <p>Instructions:</p>
 
     <p>Games where this is confirmed to work:</p>
     <ul>
-        <li>Pharaoh (partially).</li>
+        <li>Pharaoh.</li>
         <li>Warhammer 3.</li>
-        <li>Troy (partially).</li>
-        <li>Three Kingdoms (partially).</li>
+        <li>Troy.</li>
+        <li>Three Kingdoms (this one will start the game, close it, then start it again, then close it again).</li>
+        <li>Warhammer 2.</li>
         <li>Thrones of Britannia.</li>
         <li>Attila.</li>
         <li>Rome 2.</li>
