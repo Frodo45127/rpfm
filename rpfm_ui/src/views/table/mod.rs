@@ -69,7 +69,7 @@ use itertools::Itertools;
 use serde_derive::{Deserialize, Serialize};
 
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::fs::File;
+use std::fs::{DirBuilder, File};
 use std::io::{BufReader, Read, BufWriter, Write};
 use std::{fmt, fmt::Debug};
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
@@ -761,9 +761,14 @@ impl TableView {
 
     pub unsafe fn load_table_view_profiles(&self) -> Result<()> {
         if let Some(ref table_name) = self.table_name {
+            let game = GAME_SELECTED.read().unwrap();
             let mut profiles = self.profiles.write().unwrap();
 
-            let profiles_path = table_profiles_path()?;
+            let profiles_path = table_profiles_path()?.join(game.key());
+            if !profiles_path.is_dir() {
+                DirBuilder::new().recursive(true).create(&profiles_path)?;
+            }
+
             let profiles_file_name = format!("table_view_profiles_{}.json", table_name);
             let path = profiles_path.join(profiles_file_name);
             if path.is_file() {
@@ -824,7 +829,12 @@ impl TableView {
                 profiles_data.insert("profile_default".to_owned(), profile_default.to_string());
             }
 
-            let profiles_path = table_profiles_path()?;
+            let game = GAME_SELECTED.read().unwrap();
+            let profiles_path = table_profiles_path()?.join(game.key());
+            if !profiles_path.is_dir() {
+                DirBuilder::new().recursive(true).create(&profiles_path)?;
+            }
+
             let profiles_file_name = format!("table_view_profiles_{}.json", table_name);
             let path = profiles_path.join(profiles_file_name);
             let mut file = BufWriter::new(File::create(path)?);
