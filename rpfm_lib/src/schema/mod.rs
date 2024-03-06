@@ -823,9 +823,9 @@ impl Definition {
                     field.ca_order = index as i16;
 
                     // Detect and group colour fiels.
-                    let is_numeric = matches!(field.field_type, FieldType::I16 | FieldType::I32 | FieldType::I64);
+                    let is_numeric = matches!(field.field_type, FieldType::I16 | FieldType::I32 | FieldType::I64 | FieldType::F32 | FieldType::F64);
 
-                    if is_numeric && raw_table_name != "factions" && (
+                    if is_numeric && (
                         field.name.ends_with("_r") ||
                         field.name.ends_with("_g") ||
                         field.name.ends_with("_b") ||
