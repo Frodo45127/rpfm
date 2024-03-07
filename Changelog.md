@@ -6,6 +6,21 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [Unreleased]
+### Added
+- Implemented "Build Startpos" support for all games since Rome 2 (except Warhammer 1).
+
+### Changed
+- Campaign list in "Build Startpos" now has a consistent order.
+- Table profiles are now game specific (if you have profiles, you need to go to "Game Selected/Open RPFM's Config Folder", open the table_profiles folder and move each json to the subfolder of the game you want. If it's not created, create a new profile and RPFM should initialize said folder).
+
+### Fixed
+- Fixed Build Startpos not properly reporting when a startpos generation failed.
+- Fixed CTD when importing a folder from the Assembly Kit.
+- Fixed tables in wrong folders when importing their folder from the Assembly Kit.
+- Fixed factions tables not getting colour fields in some of their RGB fields.
+- Fixed "Open Containing Folder" not working.
+
 ## [4.2.6]
 ### Added
 - Implemented "Multi-Folder FilePicker" feature.
