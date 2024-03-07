@@ -1151,7 +1151,14 @@ pub fn background_loop() {
             Command::OpenContainingFolder => {
 
                 // If the path exists, try to open it. If not, throw an error.
-                let mut path = PathBuf::from(pack_file_decoded.disk_file_path());
+                let mut path_str = pack_file_decoded.disk_file_path().to_owned();
+
+                // Remove canonicalization, as it breaks the open thingy.
+                if path_str.starts_with("//?/") || path_str.starts_with("\\\\?\\") {
+                    path_str = path_str[4..].to_string();
+                }
+
+                let mut path = PathBuf::from(path_str);
                 if path.exists() {
                     path.pop();
                     let _ = open::that(&path);
