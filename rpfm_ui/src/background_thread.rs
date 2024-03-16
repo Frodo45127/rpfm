@@ -2497,9 +2497,8 @@ quit_after_campaign_processing;",
         command.arg(exe_name.to_string());
         command.arg("temp_file.txt;");
 
-        for arg in user_script_contents.lines() {
-            command.arg(arg);
-        }
+        // We need to turn the user script contents into a oneliner or the command will ignore it.
+        command.raw_arg(user_script_contents.replace("\n", " "));
 
         command.spawn()?;
     } else {
