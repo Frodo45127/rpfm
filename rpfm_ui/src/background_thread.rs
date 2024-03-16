@@ -2469,10 +2469,6 @@ quit_after_campaign_processing;",
         command.arg(exe_name.to_string());
         command.arg("temp_file.txt;");
 
-        for arg in user_script_contents.lines() {
-            command.arg(arg);
-        }
-
         let _ = command.output()?;
 
         // In multipass, we need to clean the user script after each pass.
