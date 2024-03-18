@@ -3021,8 +3021,8 @@ impl AppUI {
             let item = &selected_items[0];
 
             let path = match item {
-                ContainerPath::File(_) => item.parent_path(),
-                ContainerPath::Folder(path) => path.to_owned(),
+                ContainerPath::File(_) => item.parent_path().to_lowercase(),
+                ContainerPath::Folder(path) => path.to_owned().to_lowercase(),
             };
             let path_split = path.split('/').collect::<Vec<_>>();
 
