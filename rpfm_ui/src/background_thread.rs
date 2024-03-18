@@ -2415,14 +2415,12 @@ quit_after_campaign_processing;",
                 // So we need to first, ensure the config folder is created (it may not exists, but it's not deleted mid-process like in Attile)
                 // and it's empty, and then backup the hlp file, if exists, from /data.
                 KEY_ROME_2 => {
-                    let folder_path = config_path.join(format!("maps/campaign_maps/{}", map_name));
-                    if folder_path.is_dir() {
-                        let _ = std::fs::remove_dir_all(&folder_path);
+                    let hlp_folder = game_data_path.join(format!("campaign_maps/{}/", map_name));
+                    if hlp_folder.is_dir() {
+                        let _ = DirBuilder::new().recursive(true).create(&hlp_folder);
                     }
 
-                    let _ = DirBuilder::new().recursive(true).create(&folder_path);
-
-                    let hlp_path = game_data_path.join(format!("campaign_maps/{}/hlp_data.esf", map_name));
+                    let hlp_path = hlp_folder.join("hlp_data.esf");
                     if hlp_path.is_file() {
                         let hlp_path_bak = game_data_path.join(format!("campaign_maps/{}/hlp_data.esf.bak", map_name));
                         std::fs::copy(&hlp_path, hlp_path_bak)?;
