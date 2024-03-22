@@ -8,7 +8,7 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! For more info about all this stuff, check https://github.com/bnnm/wwiser/.
+//! For more info about all this stuff, check <https://github.com/bnnm/wwiser/>.
 
 use getset::*;
 use serde_derive::{Serialize, Deserialize};

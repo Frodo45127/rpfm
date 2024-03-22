@@ -211,7 +211,7 @@ pub enum Command {
     #[cfg(feature = "enable_tools")] GetTableDefinitionFromDependencyPackFile(String),
 
     /// This command is used when we want to merge multiple compatible tables into one. The contents of this are as follows:
-    /// - Vec<Vec<String>>: List of paths to merge.
+    /// - `Vec<Vec<String>>`: List of paths to merge.
     /// - String: Path of the merged file.
     /// - Bool: Should we delete the source files after merging them?
     MergeFiles(Vec<ContainerPath>, String, bool),
@@ -396,7 +396,7 @@ pub enum Response {
     // Response to return (GlobalSearch, Vec<RFileInfo>).
     GlobalSearchVecRFileInfo(GlobalSearch, Vec<RFileInfo>),
 
-    /// Response to return (Vec<Vec<String>>).
+    /// Response to return (`Vec<Vec<String>>`).
     //VecVecString(Vec<Vec<String>>),
 
     // Response to return (Vec<ContainerPath>).
@@ -405,7 +405,7 @@ pub enum Response {
     // Response to return (Vec<(ContainerPath, Vec<String>)>).
     VecContainerPathContainerPath(Vec<(ContainerPath, ContainerPath)>),
 
-    /// Response to return (String, Vec<Vec<String>>).
+    /// Response to return (String, `Vec<Vec<String>>`).
     //StringVecVecString((String, Vec<Vec<String>>)),
 
     /// Response to return `APIResponse`.

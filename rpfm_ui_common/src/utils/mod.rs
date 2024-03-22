@@ -147,7 +147,7 @@ pub unsafe fn find_widget<T: StaticUpcast<qt_core::QObject>>(main_widget: &QPtr<
             The missing widgets are: {}", widget_name))
 }
 
-/// This function load the template file in the provided path to memory, and returns it as a QBox<QWidget>.
+/// This function load the template file in the provided path to memory, and returns it as a `QBox<QWidget>`.
 pub unsafe fn load_template(parent: impl CastInto<Ptr<QWidget>>, path: &str) -> Result<QBox<QWidget>> {
     let path = format!("{}/{}", ASSETS_PATH.to_string_lossy(), path);
     let mut data = vec!();

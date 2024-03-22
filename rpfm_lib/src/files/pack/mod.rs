@@ -183,7 +183,7 @@ pub struct Pack {
 /// | 4     | u32                                | Amount of items in the File Index of this Pack.                                                                 |
 /// | 4     | u32                                | Lenght in bytes of the File Index.                                                                              |
 /// | 8     | u64                                | Timestamp when this Pack was last edited. Only in PFH2 and PFH3.                                                |
-/// | 20    | Vec<u8>                            | Extended header data. Only if HAS_EXTENDED_HEADER flag is set.                                                  |
+/// | 20    | `Vec<u8>`                          | Extended header data. Only if HAS_EXTENDED_HEADER flag is set.                                                  |
 /// | 280   | [Subheader](#subheader-structure)  | Subheader data. Only since PFH6.                                                                                |
 ///
 /// # Subheader Structure.
@@ -197,7 +197,7 @@ pub struct Pack {
 /// | 4     | u32                | Game version this Pack was done for.                                                         |
 /// | 4     | u32                | Build number of the game version this Pack was done for.                                     |
 /// | 8     | 00-Padded StringU8 | Tool that made this Pack.                                                                    |
-/// | 256   | Vec<u8>            | Unused bytes.                                                                                |
+/// | 256   | `Vec<u8>`          | Unused bytes.                                                                                |
 ///
 #[derive(Debug, Clone, PartialEq, Eq, Getters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", set = "pub")]

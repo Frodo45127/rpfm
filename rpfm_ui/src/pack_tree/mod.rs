@@ -189,7 +189,7 @@ pub trait PackTree {
 #[derive(Clone, Debug)]
 pub enum TreeViewOperation {
 
-    /// Build the entire `TreeView` from nothing. Requires an option: Some<PathBuf> if the `PackFile` is not editable, `None` if it is.
+    /// Build the entire `TreeView` from nothing. Requires an option: `Some<PathBuf>` if the `PackFile` is not editable, `None` if it is.
     /// Also, you can pass a ContainerInfo/RFileInfo if you want to build a TreeView with custom data.
     Build(BuildData),
 

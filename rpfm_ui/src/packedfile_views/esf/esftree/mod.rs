@@ -85,7 +85,7 @@ pub enum ESFTreeViewOperation {
 //                      Implementations of `ESFTree`
 //-------------------------------------------------------------------------------//
 
-/// Implementation of `ESFTree` for `QPtr<QTreeView>.
+/// Implementation of `ESFTree` for `QPtr<QTreeView>`.
 impl ESFTree for QPtr<QTreeView> {
 
     unsafe fn get_items_from_selection(&self, has_filter: bool) -> Vec<Ptr<QStandardItem>> {

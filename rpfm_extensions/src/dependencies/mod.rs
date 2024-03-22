@@ -149,7 +149,7 @@ impl Dependencies {
     /// This function takes care of rebuilding the whole dependencies cache to be used with a new Pack.
     ///
     /// If a file path is passed, the dependencies cache at that path will be used, replacing the currently loaded dependencies cache.
-    /// If a schema is not passed, no tables/locs will be pre-decoded. Make sure to decode them later with [decode_tables].
+    /// If a schema is not passed, no tables/locs will be pre-decoded. Make sure to decode them later with [Dependencies::decode_tables].
     pub fn rebuild(&mut self, schema: &Option<Schema>, parent_pack_names: &[String], file_path: Option<&Path>, game_info: &GameInfo, game_path: &Path) -> Result<()> {
 
         // If we only want to reload the parent mods, not the full dependencies, we can skip this section.

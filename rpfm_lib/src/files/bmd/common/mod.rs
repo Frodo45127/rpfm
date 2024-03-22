@@ -499,7 +499,7 @@ pub trait Matrix {
     fn m33(&self) -> f32;
 
     /// Restores normal Rotation matrix representation as on the picture:
-    /// https://developer.unigine.com/forum/uploads/monthly_2020_05/image.png.674c8b961433f2a7a62c54bc55cb599c.png
+    /// <https://developer.unigine.com/forum/uploads/monthly_2020_05/image.png.674c8b961433f2a7a62c54bc55cb599c.png>
     /// pic note: (it seems like R should be applies to each column)
     /// from CA's column-first serialization
     fn rotation_matrix(&self) -> Matrix3<f64> {
@@ -513,7 +513,7 @@ pub trait Matrix {
     }
 
     ///Extracts scales as described here:
-    ///https://math.stackexchange.com/a/1463487
+    ///<https://math.stackexchange.com/a/1463487>
     ///DOES NOT SUPPORT NEGATIVE SCALES
     fn extract_scales(matrix: Matrix3<f64>) -> (f64, f64, f64) {
         let scale = (

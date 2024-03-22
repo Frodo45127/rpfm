@@ -12,23 +12,35 @@
 //!
 //! # Known file types
 //!
-//! | File Type            | Decoding Supported | Encoding Supported |
-//! | -------------------- | ------------------ | ------------------ |
-//! | [`AnimFragment`]     | Yes                | Yes                |
-//! | [`AnimPack`]         | Yes                | Yes                |
-//! | [`AnimsTable`]       | Yes                | Yes                |
-//! | [`DB`]               | Yes                | Yes                |
-//! | [`ESF`]              | Limited            | Limited            |
-//! | [`Image`]            | Yes                | Yes                |
-//! | [`Loc`]              | Yes                | Yes                |
-//! | [`MatchedCombat`]    | Yes                | Yes                |
-//! | [`Pack`]             | Yes                | Yes                |
-//! | [`PortraitSettings`] | No                 | No                 |
-//! | [`RigidModel`]       | No                 | No                 |
-//! | [`Text`]             | Yes                | Yes                |
-//! | [`UIC`]              | No                 | No                 |
-//! | [`UnitVariant`]      | Yes                | Yes                |
-//! | [`Video`]            | Yes                | Yes                |
+//! | File Type             | Decoding Supported | Encoding Supported |
+//! | --------------------- | ------------------ | ------------------ |
+//! | [`Anim`]              | Limited            | Limited            |
+//! | [`AnimFragmentBattle`]| Yes                | Yes                |
+//! | [`AnimPack`]          | Yes                | Yes                |
+//! | [`AnimsTable`]        | Yes                | Yes                |
+//! | [`Atlas`]             | Yes                | Yes                |
+//! | [`Audio`]             | No                 | No                 |
+//! | [`BMD`]               | Limited            | Limited            |
+//! | [`BMD_Vegetation`]    | Limited            | Limited            |
+//! | [`CS2_Parsed`]        | Limited            | Limited            |
+//! | [`Dat`]               | Limited            | Limited            |
+//! | [`DB`]                | Yes                | Yes                |
+//! | [`ESF`]               | Limited            | Limited            |
+//! | [`Font`]              | No                 | No                 |
+//! | [`GroupFormations`]   | Limited            | Limited            |
+//! | [`HLSL_Compiled`]     | Limited            | Limited            |
+//! | [`Image`]             | Limited            | Limited            |
+//! | [`Loc`]               | Yes                | Yes                |
+//! | [`MatchedCombat`]     | Yes                | Yes                |
+//! | [`Pack`]              | Yes                | Yes                |
+//! | [`PortraitSettings`]  | Yes                | Yes                |
+//! | [`RigidModel`]        | No                 | No                 |
+//! | [`SoundBank`]         | No                 | No                 |
+//! | [`SoundEvents`]       | No                 | No                 |
+//! | [`Text`]              | Yes                | Yes                |
+//! | [`UIC`]               | No                 | No                 |
+//! | [`UnitVariant`]       | Yes                | Yes                |
+//! | [`Video`]             | Yes                | Yes                |
 //!
 //! There is an additional type: [`Unknown`]. This type is used as a wildcard,
 //! so you can get the raw data of any non-supported file type and manipulate it yourself in a safe way.
@@ -36,17 +48,29 @@
 //! For more information about specific file types, including their binary format spec, please
 //! **check their respective documentation**.
 //!
-//! [`AnimFragment`]: crate::files::anim_fragment::AnimFragment
+//! [`Anim`]: crate::files::anim::Anim
+//! [`AnimFragmentBattle`]: crate::files::anim_fragment_battle::AnimFragmentBattle
 //! [`AnimPack`]: crate::files::animpack::AnimPack
 //! [`AnimsTable`]: crate::files::anims_table::AnimsTable
+//! [`Atlas`]: crate::files::atlas::Atlas
+//! [`Audio`]: crate::files::audio::Audio
+//! [`BMD`]: crate::files::bmd::Bmd
+//! [`BMD_Vegetation`]: crate::files::bmd_vegetation::BmdVegetation
+//! [`CS2_Parsed`]: crate::files::cs2_parsed::Cs2Parsed
+//! [`Dat`]: crate::files::dat::Dat
 //! [`DB`]: crate::files::db::DB
 //! [`ESF`]: crate::files::esf::ESF
+//! [`Font`]: crate::files::font::Font
+//! [`GroupFormations`]: crate::files::group_formations::GroupFormations
+//! [`HLSL_Compiled`]: crate::files::hlsl_compiled::HlslCompiled
 //! [`Image`]: crate::files::image::Image
 //! [`Loc`]: crate::files::loc::Loc
 //! [`MatchedCombat`]: crate::files::matched_combat::MatchedCombat
 //! [`Pack`]: crate::files::pack::Pack
 //! [`PortraitSettings`]: crate::files::portrait_settings::PortraitSettings
 //! [`RigidModel`]: crate::files::rigidmodel::RigidModel
+//! [`SoundBank`]: crate::files::sound_bank::SoundBank
+//! [`SoundEvents`]: crate::files::sound_events::SoundEvents
 //! [`Text`]: crate::files::text::Text
 //! [`UIC`]: crate::files::uic::UIC
 //! [`UnitVariant`]: crate::files::unit_variant::UnitVariant
@@ -96,7 +120,7 @@ use self::matched_combat::MatchedCombat;
 use self::pack::{Pack, RESERVED_NAME_SETTINGS, RESERVED_NAME_NOTES};
 use self::portrait_settings::PortraitSettings;
 use self::rigidmodel::RigidModel;
-use self::soundbank::SoundBank;
+use self::sound_bank::SoundBank;
 use self::text::Text;
 use self::uic::UIC;
 use self::unit_variant::UnitVariant;
@@ -124,9 +148,8 @@ pub mod matched_combat;
 pub mod pack;
 pub mod portrait_settings;
 pub mod rigidmodel;
-#[allow(dead_code)]pub mod soundbank;
+#[allow(dead_code)]pub mod sound_bank;
 #[allow(dead_code)]pub mod sound_events;
-#[allow(dead_code)]pub mod sound_bank_database;
 pub mod table;
 pub mod text;
 pub mod uic;
@@ -395,22 +418,22 @@ pub struct EncodeableExtraData<'a> {
 //                           Trait Definitions
 //---------------------------------------------------------------------------//
 
-/// A generic trait to implement decoding logic from anything implementing [ReadBytes](crate::binary::ReadBytes)
+/// A generic trait to implement decoding logic from anything implementing [ReadBytes]
 /// into structured types.
 pub trait Decodeable: Send + Sync {
 
-    /// This method provides a generic and expandable way to decode anything implementing [ReadBytes](crate::binary::ReadBytes)
+    /// This method provides a generic and expandable way to decode anything implementing [ReadBytes]
     /// into the implementor's structure.
     ///
     /// The parameter `extra_data` contains arguments that can be used to provide additional data needed for the decoding process.
     fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> where Self: Sized;
 }
 
-/// A generic trait to implement encoding logic from structured types into anything implementing [WriteBytes](crate::binary::WriteBytes).
+/// A generic trait to implement encoding logic from structured types into anything implementing [WriteBytes].
 pub trait Encodeable: Send + Sync {
 
     /// This method provides a generic and expandable way to encode any implementor's structure into anything
-    /// implementing [WriteBytes](crate::binary::WriteBytes)
+    /// implementing [WriteBytes]
     ///
     /// The parameter `extra_data` contains arguments that can be used to provide additional data needed for the encoding process.
     fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()>;
@@ -608,7 +631,7 @@ pub trait Container {
     /// This method allow us to insert a file from disk into an specific path within a Container,
     /// replacing any old [RFile] with the same path, in case it already existed one.
     ///
-    /// If a [Schema](crate::schema::Schema) is provided, this function will attempt to import any tsv files it finds into binary files.
+    /// If a [Schema] is provided, this function will attempt to import any tsv files it finds into binary files.
     /// If it fails to convert a file, it'll import it as a normal file instead.
     ///
     /// Returns the [ContainerPath] of the inserted [RFile].
@@ -667,7 +690,7 @@ pub trait Container {
     ///
     /// By default it doesn't insert the folder itself, but its contents. If you want to include the folder, pass include_base_folder as true.
     ///
-    /// If a [Schema](crate::schema::Schema) is provided, this function will attempt to import any tsv files it finds into binary files.
+    /// If a [Schema] is provided, this function will attempt to import any tsv files it finds into binary files.
     /// If it fails to convert a file, it'll import it as a normal file instead.
     ///
     /// If ignored paths are provided, paths that match them (as in relative path with the Container as root) will not be included in the Container.
@@ -1887,7 +1910,7 @@ impl RFile {
             self.file_type = FileType::BMDVegetation;
         }
 
-        else if cfg!(feature = "support_soundbank") && path.ends_with(soundbank::EXTENSION) {
+        else if cfg!(feature = "support_soundbank") && path.ends_with(sound_bank::EXTENSION) {
             self.file_type = FileType::SoundBank;
         }
 

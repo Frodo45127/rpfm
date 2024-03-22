@@ -12,12 +12,13 @@ use getset::*;
 use serde_derive::{Serialize, Deserialize};
 
 use crate::binary::{ReadBytes, WriteBytes};
-use crate::error::Result;
-use crate::files::soundbank::*;
+use crate::error::{Result, RLibError};
+use crate::files::sound_bank::common::*;
 
-use self::object::*;
+// Valid between 89 and 141.
+const NUM_CURVES: usize = 7;
 
-mod object;
+mod v122;
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
@@ -25,39 +26,33 @@ mod object;
 
 #[derive(PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct HIRC {
-    objects: Vec<Object>,
+pub struct Attenuation {
+    id: u32,
+
+    // f_inside_degrees, f_outside_degrees, f_outside_volume, lo_pass, hi_pass
+    is_cone_enabled: Option<(f32, f32, f32, f32, f32)>,
+    curve_index: Vec<u8>,
+    curves: Vec<RTPCCurve>,
+    initial_rtpc: InitialRTPC,
 }
 
 //---------------------------------------------------------------------------//
-//                        Implementation of SoundBank
+//                              Implementation
 //---------------------------------------------------------------------------//
 
-impl HIRC {
+impl Attenuation {
 
     pub(crate) fn read<R: ReadBytes>(data: &mut R, version: u32) -> Result<Self> {
-        let mut objects = vec![];
-
-        for _ in 0..data.read_u32()? {
-            objects.push(Object::read(data, version)?);
+        match version {
+            122 => Self::read_v122(data, version),
+            _ => Err(RLibError::SoundBankUnsupportedVersionFound(version, "Attenuation".to_string())),
         }
-
-        Ok(HIRC {
-            objects
-        })
     }
 
     pub(crate) fn write<W: WriteBytes>(&self, buffer: &mut W, version: u32) -> Result<()> {
-        let mut temp = vec![];
-        for object in &self.objects {
-            object.write(&mut temp, version)?;
+        match version {
+            122 => self.write_v122(buffer, version),
+            _ => Err(RLibError::SoundBankUnsupportedVersionFound(version, "Attenuation".to_string())),
         }
-
-        buffer.write_string_u8(SIGNATURE_HIRC)?;
-        buffer.write_u32(temp.len() as u32 + 4)?;   // +4 because we need to also count the amount of items.
-        buffer.write_u32(self.objects.len() as u32)?;
-        buffer.write_all(&temp)?;
-
-        Ok(())
     }
 }

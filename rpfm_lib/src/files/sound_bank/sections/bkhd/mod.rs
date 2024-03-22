@@ -15,7 +15,7 @@ use std::io::Write;
 
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{Result, RLibError};
-use crate::files::soundbank::*;
+use crate::files::sound_bank::*;
 
 // Valid from 77 to 141.
 const NON_PADDED_SIZE: usize = 0x14;

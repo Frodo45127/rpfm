@@ -265,7 +265,7 @@ pub struct F32Node {
     optimized: bool,
 }
 
-/// Node containing a Vec<i32>, and if the node should be optimized or not.
+/// Node containing a `Vec<i32>`, and if the node should be optimized or not.
 #[derive(Getters, MutGetters, Setters, Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct VecI32Node {
@@ -273,7 +273,7 @@ pub struct VecI32Node {
     optimized: bool,
 }
 
-/// Node containing a Vec<u32>, and if the node should be optimized or not.
+/// Node containing a `Vec<u32>`, and if the node should be optimized or not.
 #[derive(Getters, MutGetters, Setters, Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct VecU32Node {

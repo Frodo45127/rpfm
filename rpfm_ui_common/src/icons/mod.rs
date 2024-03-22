@@ -18,7 +18,7 @@ use cpp_core::Ref;
 
 use std::sync::atomic::AtomicPtr;
 
-use rpfm_lib::files::{anim, animpack, anim_fragment_battle, anims_table, atlas, audio, esf, bmd, bmd_vegetation, dat, FileType, font, group_formations, hlsl_compiled, image, loc, matched_combat, pack, portrait_settings, rigidmodel, soundbank, text, text::*, unit_variant, video, uic};
+use rpfm_lib::files::{anim, animpack, anim_fragment_battle, anims_table, atlas, audio, esf, bmd, bmd_vegetation, dat, FileType, font, group_formations, hlsl_compiled, image, loc, matched_combat, pack, portrait_settings, rigidmodel, sound_bank, text, text::*, unit_variant, video, uic};
 use rpfm_lib::{REGEX_DB, REGEX_PORTRAIT_SETTINGS};
 
 use crate::{ASSETS_PATH, ROOT_NODE_TYPE_EDITABLE_PACKFILE, ROOT_NODE_TYPE};
@@ -218,7 +218,7 @@ impl Icons {
                     &self.bmd_vegetation
                 }
 
-                else if cfg!(feature = "support_soundbank") && path.ends_with(soundbank::EXTENSION) {
+                else if cfg!(feature = "support_soundbank") && path.ends_with(sound_bank::EXTENSION) {
                     &self.sound_bank
                 }
 

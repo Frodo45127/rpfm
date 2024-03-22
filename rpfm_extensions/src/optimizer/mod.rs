@@ -34,10 +34,10 @@ pub trait Optimizable {
     fn optimize(&mut self, dependencies: &mut Dependencies) -> bool;
 }
 
-/// This trait marks a [Container](rpfm_lib::files::Container) as an `Optimizable` container, meaning it can be cleaned up to reduce size and improve compatibility.
+/// This trait marks a [Container] as an `Optimizable` container, meaning it can be cleaned up to reduce size and improve compatibility.
 pub trait OptimizableContainer: Container {
 
-    /// This function optimizes the provided [Container](rpfm_lib::files::Container) to reduce its size and improve compatibility.
+    /// This function optimizes the provided [Container] to reduce its size and improve compatibility.
     ///
     /// It returns the list of files that has been safetly deleted during the optimization process.
     fn optimize(&mut self, paths_to_optimize: Option<Vec<ContainerPath>>, dependencies: &mut Dependencies, schema: &Schema, optimize_datacored_tables: bool) -> Result<HashSet<String>>;
@@ -49,7 +49,7 @@ pub trait OptimizableContainer: Container {
 
 impl OptimizableContainer for Pack {
 
-    /// This function optimizes the provided [Pack](rpfm_lib::files::pack::Pack) file in order to make it smaller and more compatible.
+    /// This function optimizes the provided [Pack] file in order to make it smaller and more compatible.
     ///
     /// Specifically, it performs the following optimizations:
     ///
@@ -169,7 +169,7 @@ impl OptimizableContainer for Pack {
 
 impl Optimizable for DB {
 
-    /// This function optimizes the provided [DB](rpfm_lib::files::db::DB) file in order to make it smaller and more compatible.
+    /// This function optimizes the provided [DB] file in order to make it smaller and more compatible.
     ///
     /// Specifically, it performs the following optimizations:
     ///
@@ -274,7 +274,7 @@ impl Optimizable for DB {
 
 impl Optimizable for Loc {
 
-    /// This function optimizes the provided [Loc](rpfm_lib::files::loc::Loc) file in order to make it smaller and more compatible.
+    /// This function optimizes the provided [Loc] file in order to make it smaller and more compatible.
     ///
     /// Specifically, it performs the following optimizations:
     ///

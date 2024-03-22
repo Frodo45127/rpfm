@@ -10,7 +10,7 @@
 
 //! AnimPacks are a container-type file, that usually contains anim-related files,
 //! such as [Anims Tables](crate::files::anims_table::AnimsTable),
-//! [Anim Fragments](crate::files::anim_fragment::AnimFragment) and
+//! [Anim Fragments](crate::files::anim_fragment_battle::AnimFragmentBattle) and
 //! [Matched Combat Tables](crate::files::matched_combat::MatchedCombat).
 
 use serde_derive::{Serialize, Deserialize};
@@ -122,7 +122,7 @@ impl Container for AnimPack {
 
 impl Decodeable for AnimPack {
 
-    /// This function allow us to decode something implementing [ReadBytes](crate::binary::ReadBytes), like a [File]
+    /// This function allow us to decode something implementing [ReadBytes], like a [File]
     /// or a [Vec]<[u8]> into an structured AnimPack.
     ///
     /// About [extra_data](crate::files::DecodeableExtraData), this decode function requires the following fields:
@@ -225,7 +225,7 @@ impl Decodeable for AnimPack {
 impl Encodeable for AnimPack {
 
     /// This function allow us to encode an structured AnimPack into something implementing
-    /// [WriteBytes](crate::binary::WriteBytes), like a [File] or a [Vec]<[u8]>.
+    /// [WriteBytes], like a [File] or a [Vec]<[u8]>.
     ///
     /// About [extra_data](crate::files::EncodeableExtraData), its not used in this implementation, so pass a [None].
     ///

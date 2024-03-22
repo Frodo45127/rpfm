@@ -160,7 +160,7 @@ pub enum TableType {
 /// Enum to know what operation was done while editing tables, so we can revert them with undo.
 pub enum TableOperations {
 
-    /// Intended for any kind of item editing. Holds a Vec<((row, column), AtomicPtr<item>)>, so we can do this in batches.
+    /// Intended for any kind of item editing. Holds a `Vec<((row, column), AtomicPtr<item>)>`, so we can do this in batches.
     Editing(Vec<((i32, i32), AtomicPtr<QStandardItem>)>),
 
     /// Intended for when adding/inserting rows. It holds a list of positions where the rows where inserted.
@@ -172,7 +172,7 @@ pub enum TableOperations {
     /// It holds a copy of the entire table, before importing.
     ImportTSV(Vec<AtomicPtr<QListOfQStandardItem>>),
 
-    /// A Jack-of-all-Trades. It holds a Vec<TableOperations>, for those situations one is not enough.
+    /// A Jack-of-all-Trades. It holds a `Vec<TableOperations>`, for those situations one is not enough.
     Carolina(Vec<TableOperations>),
 }
 
