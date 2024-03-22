@@ -18,7 +18,7 @@ use crate::files::*;
 
 use super::Anim;
 
-/*
+
 #[test]
 fn test_encode_anim_v5() {
     let path_1 = "../test_files/test_decode_anim_v5.anim";
@@ -36,7 +36,7 @@ fn test_encode_anim_v5() {
     writer.write_all(&after).unwrap();
 
     assert_eq!(before, after);
-}*/
+}
 
 /*
 #[test]
