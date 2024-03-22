@@ -353,6 +353,7 @@ pub enum Command {
     BuildStarposCleanup(String, bool),
     BuildStarposGetCampaingIds,
     UpdateAnimIds(i32, i32),
+    #[cfg(feature = "support_model_renderer")] GetAnimPathsBySkeletonName(String),
 }
 
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.

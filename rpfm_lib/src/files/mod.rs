@@ -76,6 +76,7 @@ use crate::{REGEX_DB, REGEX_PORTRAIT_SETTINGS};
 use crate::schema::{Schema, Definition};
 use crate::utils::*;
 
+use self::anim::Anim;
 use self::anim_fragment_battle::AnimFragmentBattle;
 use self::animpack::AnimPack;
 use self::anims_table::AnimsTable;
@@ -101,6 +102,7 @@ use self::unit_variant::UnitVariant;
 use self::unknown::Unknown;
 use self::video::Video;
 
+pub mod anim;
 pub mod anim_fragment_battle;
 pub mod animpack;
 pub mod anims_table;
@@ -218,7 +220,7 @@ struct OnDisk {
 /// This enum allow us to store any kind of decoded file type on a common place.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum RFileDecoded {
-    Anim(Unknown),
+    Anim(Anim),
     AnimFragmentBattle(AnimFragmentBattle),
     AnimPack(AnimPack),
     AnimsTable(AnimsTable),
@@ -1473,7 +1475,7 @@ impl RFile {
                 // Some types require extra data specific for them to be added to the extra data before decoding.
                 let mut data = Cursor::new(data);
                 match self.file_type {
-                    FileType::Anim => RFileDecoded::Anim(Unknown::decode(&mut data, &Some(extra_data))?),
+                    FileType::Anim => RFileDecoded::Anim(Anim::decode(&mut data, &Some(extra_data))?),
                     FileType::AnimFragmentBattle => RFileDecoded::AnimFragmentBattle(AnimFragmentBattle::decode(&mut data, &Some(extra_data))?),
                     FileType::AnimPack => RFileDecoded::AnimPack(AnimPack::decode(&mut data, &Some(extra_data))?),
                     FileType::AnimsTable => RFileDecoded::AnimsTable(AnimsTable::decode(&mut data, &Some(extra_data))?),
@@ -1549,7 +1551,7 @@ impl RFile {
                         // These are the easy types: just load the data to memory, and decode.
                         let mut data = Cursor::new(raw_data);
                         match self.file_type {
-                            FileType::Anim => RFileDecoded::Anim(Unknown::decode(&mut data, &Some(extra_data))?),
+                            FileType::Anim => RFileDecoded::Anim(Anim::decode(&mut data, &Some(extra_data))?),
                             FileType::AnimFragmentBattle => RFileDecoded::AnimFragmentBattle(AnimFragmentBattle::decode(&mut data, &Some(extra_data))?),
                             FileType::AnimsTable => RFileDecoded::AnimsTable(AnimsTable::decode(&mut data, &Some(extra_data))?),
                             FileType::Atlas => RFileDecoded::Atlas(Atlas::decode(&mut data, &Some(extra_data))?),
@@ -1845,6 +1847,10 @@ impl RFile {
 
         else if path.ends_with(animpack::EXTENSION) {
             self.file_type = FileType::AnimPack
+        }
+
+        else if path.ends_with(anim::EXTENSION) {
+            self.file_type = FileType::Anim
         }
 
         else if path.ends_with(video::EXTENSION) {

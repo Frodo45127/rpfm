@@ -649,6 +649,25 @@ pub extern fn assets_request_callback(missing_files: *mut QListOfQString, out: *
     }
 }
 
+#[cfg(feature = "support_model_renderer")]
+pub extern fn anim_paths_by_skeleton_callback(skeleton_name: *mut Qstring, out: *mut QListOfQString) {
+    unsafe {
+        let skeleton_name = skeleton_name.to_std_string();
+        log::info!("Anim Paths requested for skeleton: {}", &skeleton_name);
+
+        let receiver = CENTRAL_COMMAND.send_background(Command::GetAnimPathsBySkeletonName(skeleton_name));
+        let response = CentralCommand::recv(&receiver);
+        match response {
+            Response::HashSetString(paths) => {
+                for path in &paths {
+                    out.append(QString::from_std_str(path));
+                }
+            },
+            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+        };
+    }
+}
+
 //---------------------------------------------------------------------------//
 // Special functions.
 //---------------------------------------------------------------------------//

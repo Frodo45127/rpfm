@@ -1842,6 +1842,48 @@ pub fn background_loop() {
                 CentralCommand::send_back(&sender, Response::HashMapDataSourceHashMapStringRFile(packed_files));
             },
 
+            #[cfg(feature = "support_model_renderer")] Command::GetAnimPathsBySkeletonName(skeleton_name) => {
+                let mut paths = HashSet::new();
+                let dependencies = dependencies.read().unwrap();
+
+                // Get PackedFiles requested from the Parent Files.
+                let mut packed_files_parent = HashSet::new();
+                for (path, file) in dependencies.files_by_types_mut(&[FileType::Anim], false, true) {
+                    if let Ok(RFileDecoded::Anim(file)) = file.decode(&None, false, true) {
+                        if file.skeleton_name() == skeleton_name {
+                            packed_files_parent.insert(path);
+                        }
+                    }
+                }
+
+                // Get PackedFiles requested from the Game Files.
+                let mut packed_files_game = HashSet::new();
+                for (path, file) in dependencies.files_by_types_mut(&[FileType::Anim], true, false) {
+                    if let Ok(RFileDecoded::Anim(file)) = file.decode(&None, false, true) {
+                        if file.skeleton_name() == skeleton_name {
+                            packed_files_game.insert(path);
+                        }
+                    }
+                }
+
+                // Get PackedFiles requested from the currently open PackFile, if any.
+                let mut packed_files_packfile = HashSet::new();
+                for file in pack_file_decoded.files_by_type_mut(&[FileType::Anim]) {
+                    if let Ok(RFileDecoded::Anim(anim_file)) = file.decode(&None, false, true) {
+                        if anim_file.skeleton_name() == skeleton_name {
+                            packed_files_game.insert(file.path_in_container_raw().to_owned());
+                        }
+                    }
+                }
+
+                paths.extend(packed_files_game);
+                paths.extend(packed_files_parent);
+                paths.extend(packed_files_packfile);
+
+                // Return the full list of PackedFiles requested, split by source.
+                CentralCommand::send_back(&sender, Response::HashSetString(paths));
+            },
+
             #[cfg(feature = "enable_tools")] Command::GetPackedFilesNamesStartingWitPathFromAllSources(path) => {
                 let mut files: HashMap<DataSource, HashSet<ContainerPath>> = HashMap::new();
                 let dependencies = dependencies.read().unwrap();

@@ -18,7 +18,7 @@ use cpp_core::Ref;
 
 use std::sync::atomic::AtomicPtr;
 
-use rpfm_lib::files::{animpack, anim_fragment_battle, anims_table, atlas, audio, esf, bmd, bmd_vegetation, dat, FileType, group_formations, hlsl_compiled, image, loc, matched_combat, pack, portrait_settings, rigidmodel, soundbank, text, text::*, unit_variant, video, uic};
+use rpfm_lib::files::{anim, animpack, anim_fragment_battle, anims_table, atlas, audio, esf, bmd, bmd_vegetation, dat, FileType, group_formations, hlsl_compiled, image, loc, matched_combat, pack, portrait_settings, rigidmodel, soundbank, text, text::*, unit_variant, video, uic};
 use rpfm_lib::{REGEX_DB, REGEX_PORTRAIT_SETTINGS};
 
 use crate::{ASSETS_PATH, ROOT_NODE_TYPE_EDITABLE_PACKFILE, ROOT_NODE_TYPE};
@@ -45,6 +45,7 @@ pub struct Icons {
     pub folder: AtomicPtr<QIcon>,
     pub file: AtomicPtr<QIcon>,
 
+    pub anim: AtomicPtr<QIcon>,
     pub animpack: AtomicPtr<QIcon>,
     pub anim_fragment_battle: AtomicPtr<QIcon>,
     pub anims_table: AtomicPtr<QIcon>,
@@ -101,6 +102,7 @@ impl Icons {
             packfile_locked: atomic_from_cpp_box(Self::load_icon("packfile_locked", "application-x-xz-compressed-tar")),
             folder: atomic_from_cpp_box(Self::load_icon("folder", "folder-orange")),
             file: atomic_from_cpp_box(Self::load_icon("file", "none")),
+            anim: atomic_from_cpp_box(Self::load_icon("anim", "package-x-generic")),
             animpack: atomic_from_cpp_box(Self::load_icon("animpack", "package-x-generic")),
             anim_fragment_battle: atomic_from_cpp_box(Self::load_icon("anim_fragment_battle", "animation-stage")),
             anims_table: atomic_from_cpp_box(Self::load_icon("anims_table", "gnumeric-pivottable")),
@@ -183,6 +185,10 @@ impl Icons {
 
                 else if path.ends_with(animpack::EXTENSION) {
                     &self.animpack
+                }
+
+                else if path.ends_with(anim::EXTENSION) {
+                    &self.anim
                 }
 
                 else if path.ends_with(video::EXTENSION) {
@@ -303,7 +309,7 @@ impl Icons {
                             &self.packfile_locked
                         }
                     },
-                    FileType::Anim => &self.file,
+                    FileType::Anim => &self.anim,
                     FileType::AnimFragmentBattle => &self.anim_fragment_battle,
                     FileType::AnimPack => &self.animpack,
                     FileType::AnimsTable => &self.anims_table,
