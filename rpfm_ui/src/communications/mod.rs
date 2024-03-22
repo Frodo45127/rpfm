@@ -431,7 +431,7 @@ pub enum Response {
     /// Response to return `(ESF, RFileInfo)`.
     ESFRFileInfo(ESF, RFileInfo),
 
-    BmdRFileInfo(Bmd, RFileInfo),
+    #[allow(dead_code)]BmdRFileInfo(Bmd, RFileInfo),
 
     /// Response to return `(Image, RFileInfo)`.
     ImageRFileInfo(Image, RFileInfo),
