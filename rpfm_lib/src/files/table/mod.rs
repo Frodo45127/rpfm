@@ -14,6 +14,7 @@ Module with all the code to interact with any kind of table data.
 This module contains the struct `Table`, used to manage the decoded data of a table. For internal use only.
 !*/
 
+use base64::{Engine, engine::general_purpose::STANDARD};
 use csv::{StringRecordsIter, Writer};
 use float_eq::float_eq;
 use getset::*;
@@ -387,8 +388,8 @@ impl DecodedData {
             DecodedData::StringU16(data) |
             DecodedData::OptionalStringU8(data) |
             DecodedData::OptionalStringU16(data) => Cow::from(data),
-            DecodedData::SequenceU16(_) => Cow::from("SequenceU16"),
-            DecodedData::SequenceU32(_) => Cow::from("SequenceU32"),
+            DecodedData::SequenceU16(data) |
+            DecodedData::SequenceU32(data) => Cow::from(STANDARD.encode(data)),
         }
     }
 
@@ -1280,9 +1281,8 @@ impl Table {
                                     FieldType::OptionalStringU16 => DecodedData::OptionalStringU16(field.to_owned()),
 
                                     // For now fail on Sequences. These are a bit special and I don't know if the're even possible in TSV.
-                                    // TODO: Export sequences as json strings or base64 strings.
-                                    FieldType::SequenceU16(_) => return Err(RLibError::ImportTSVIncorrectRow(row, column)),
-                                    FieldType::SequenceU32(_) => return Err(RLibError::ImportTSVIncorrectRow(row, column))
+                                    FieldType::SequenceU16(_) => DecodedData::SequenceU16(STANDARD.decode(field).map_err(|_| RLibError::ImportTSVIncorrectRow(row, column))?),
+                                    FieldType::SequenceU32(_) => DecodedData::SequenceU32(STANDARD.decode(field).map_err(|_| RLibError::ImportTSVIncorrectRow(row, column))?),
                                 }
                             }
                         }

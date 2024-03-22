@@ -44,6 +44,9 @@ ron = "^0.8"
 toml = "^0.8"
 bincode = { version = "^1.3", optional = true }
 
+# Srialization of vec -> string values and back.
+base64 = "^0.22"
+
 # Error handling.
 thiserror = "1.0"
 
