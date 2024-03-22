@@ -77,7 +77,6 @@ fn test_encode_anim_v7() {
     assert_eq!(before, after);
 }
 
-/*
 #[test]
 fn test_encode_anim_v8() {
     let path_1 = "../test_files/test_decode_anim_v8.anim";
@@ -96,4 +95,3 @@ fn test_encode_anim_v8() {
 
     assert_eq!(before, after);
 }
-*/
