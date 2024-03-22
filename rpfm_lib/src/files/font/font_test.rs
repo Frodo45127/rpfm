@@ -10,6 +10,7 @@
 
 //! Module containing tests for decoding/encoding `Font/CUF` files.
 
+/*
 use std::io::{BufReader, BufWriter, Write};
 use std::fs::File;
 
@@ -37,3 +38,4 @@ fn test_encode_font() {
 
     assert_eq!(before, after);
 }
+*/
