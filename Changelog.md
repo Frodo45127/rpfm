@@ -6,7 +6,7 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
-## [Unreleased]
+## [4.2.7]
 ### Added
 - Implemented "Build Startpos" support for all games since Rome 2 (except Warhammer 1).
 
@@ -20,6 +20,9 @@ If you're looking for the changes included in the latest beta (against the lates
 - Fixed tables in wrong folders when importing their folder from the Assembly Kit.
 - Fixed factions tables not getting colour fields in some of their RGB fields.
 - Fixed "Open Containing Folder" not working.
+- Fixed "New Quick File" sometimes failing on tables if the db folder is uppercased.
+- Fixed 99 limit on i64 cells.
+- Fixed Sequence cells not correctly converting to/from TSV files.
 
 ## [4.2.6]
 ### Added
@@ -1312,7 +1315,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.2.6...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.2.7...HEAD
+[4.2.7]: https://github.com/Frodo45127/rpfm/compare/v4.2.6...v4.2.7
 [4.2.6]: https://github.com/Frodo45127/rpfm/compare/v4.2.5...v4.2.6
 [4.2.5]: https://github.com/Frodo45127/rpfm/compare/v4.2.4...v4.2.5
 [4.2.4]: https://github.com/Frodo45127/rpfm/compare/v4.2.3...v4.2.4
