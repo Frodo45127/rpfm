@@ -87,6 +87,7 @@ use self::bmd_vegetation::BmdVegetation;
 use self::dat::Dat;
 use self::db::DB;
 use self::esf::ESF;
+use self::font::Font;
 use self::group_formations::GroupFormations;
 use self::hlsl_compiled::HlslCompiled;
 use self::image::Image;
@@ -114,6 +115,7 @@ pub mod cs2_parsed;
 pub mod dat;
 pub mod db;
 pub mod esf;
+pub mod font;
 pub mod group_formations;
 pub mod hlsl_compiled;
 pub mod image;
@@ -231,6 +233,7 @@ pub enum RFileDecoded {
     Dat(Dat),
     DB(DB),
     ESF(ESF),
+    Font(Font),
     GroupFormations(GroupFormations),
     HlslCompiled(HlslCompiled),
     Image(Image),
@@ -265,6 +268,7 @@ pub enum FileType {
     Dat,
     DB,
     ESF,
+    Font,
     GroupFormations,
     HlslCompiled,
     Image,
@@ -1415,6 +1419,7 @@ impl RFile {
             (FileType::Dat, &RFileDecoded::Dat(_)) |
             (FileType::DB, &RFileDecoded::DB(_)) |
             (FileType::ESF, &RFileDecoded::ESF(_)) |
+            (FileType::Font, &RFileDecoded::Font(_)) |
             (FileType::GroupFormations, &RFileDecoded::GroupFormations(_)) |
             (FileType::HlslCompiled, &RFileDecoded::HlslCompiled(_)) |
             (FileType::Image, &RFileDecoded::Image(_)) |
@@ -1492,6 +1497,7 @@ impl RFile {
                         RFileDecoded::DB(DB::decode(&mut data, &Some(extra_data))?)
                     },
                     FileType::ESF => RFileDecoded::ESF(ESF::decode(&mut data, &Some(extra_data))?),
+                    FileType::Font => RFileDecoded::Font(Font::decode(&mut data, &Some(extra_data))?),
                     FileType::GroupFormations => RFileDecoded::GroupFormations(GroupFormations::decode(&mut data, &Some(extra_data))?),
                     FileType::HlslCompiled => RFileDecoded::HlslCompiled(HlslCompiled::decode(&mut data, &Some(extra_data))?),
                     FileType::Image => RFileDecoded::Image(Image::decode(&mut data, &Some(extra_data))?),
@@ -1524,6 +1530,7 @@ impl RFile {
                     FileType::Dat |
                     FileType::DB |
                     FileType::ESF |
+                    FileType::Font |
                     FileType::GroupFormations |
                     FileType::HlslCompiled |
                     FileType::Image |
@@ -1567,6 +1574,7 @@ impl RFile {
                                 RFileDecoded::DB(DB::decode(&mut data, &Some(extra_data))?)
                             },
                             FileType::ESF => RFileDecoded::ESF(ESF::decode(&mut data, &Some(extra_data))?),
+                            FileType::Font => RFileDecoded::Font(Font::decode(&mut data, &Some(extra_data))?),
                             FileType::GroupFormations => RFileDecoded::GroupFormations(GroupFormations::decode(&mut data, &Some(extra_data))?),
                             FileType::HlslCompiled => RFileDecoded::HlslCompiled(HlslCompiled::decode(&mut data, &Some(extra_data))?),
                             FileType::Image => RFileDecoded::Image(Image::decode(&mut data, &Some(extra_data))?),
@@ -1672,6 +1680,7 @@ impl RFile {
                     RFileDecoded::Dat(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::DB(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::ESF(data) => data.encode(&mut buffer, extra_data)?,
+                    RFileDecoded::Font(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::GroupFormations(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::HlslCompiled(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::Image(data) => data.encode(&mut buffer, extra_data)?,
@@ -1859,6 +1868,10 @@ impl RFile {
 
         else if path.ends_with(dat::EXTENSION) {
             self.file_type = FileType::Dat;
+        }
+
+        else if path.ends_with(font::EXTENSION) {
+            self.file_type = FileType::Font;
         }
 
         else if audio::EXTENSIONS.iter().any(|x| path.ends_with(x)) {
@@ -2316,6 +2329,7 @@ impl Display for FileType {
             FileType::Dat => write!(f, "Dat Audio File"),
             FileType::DB => write!(f, "DB Table"),
             FileType::ESF => write!(f, "ESF"),
+            FileType::Font => write!(f, "Font"),
             FileType::HlslCompiled => write!(f, "Hlsl Compiled"),
             FileType::GroupFormations => write!(f, "Group Formations"),
             FileType::Image => write!(f, "Image"),
@@ -2348,6 +2362,7 @@ impl From<&str> for FileType {
             "Dat" => FileType::Dat,
             "DB" => FileType::DB,
             "ESF" => FileType::ESF,
+            "Font" => FileType::Font,
             "HlslCompiled" => FileType::HlslCompiled,
             "GroupFormations" => FileType::GroupFormations,
             "Image" => FileType::Image,
@@ -2381,6 +2396,7 @@ impl From<FileType> for String {
             FileType::Dat => "Dat",
             FileType::DB => "DB",
             FileType::ESF => "ESF",
+            FileType::Font => "Font",
             FileType::HlslCompiled => "HlslCompiled",
             FileType::GroupFormations => "GroupFormations",
             FileType::Image => "Image",
@@ -2413,6 +2429,7 @@ impl From<&RFileDecoded> for FileType {
             RFileDecoded::Dat(_) => Self::Dat,
             RFileDecoded::DB(_) => Self::DB,
             RFileDecoded::ESF(_) => Self::ESF,
+            RFileDecoded::Font(_) => Self::Font,
             RFileDecoded::HlslCompiled(_) => Self::HlslCompiled,
             RFileDecoded::GroupFormations(_) => Self::GroupFormations,
             RFileDecoded::Image(_) => Self::Image,

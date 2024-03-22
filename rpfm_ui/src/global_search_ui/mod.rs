@@ -1852,6 +1852,7 @@ impl GlobalSearchUI {
                             }
                         },
                         FileType::ESF => todo!(),
+                        FileType::Font => todo!(),
                         FileType::GroupFormations => todo!(),
                         FileType::HlslCompiled => todo!(),
                         FileType::Image => todo!(),
@@ -2138,6 +2139,7 @@ impl GlobalSearchUI {
                             }
                         }
                         FileType::ESF => todo!(),
+                        FileType::Font => todo!(),
                         FileType::GroupFormations => todo!(),
                         FileType::HlslCompiled => todo!(),
                         FileType::Image => todo!(),
