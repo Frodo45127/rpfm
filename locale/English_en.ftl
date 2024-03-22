@@ -1535,6 +1535,7 @@ games_closed = Hit this when the game is closed
 build_starpos = Build Startpos
 build_starpos_instructions = <p>Instructions:</p>
     <ul>
+        <li>For Rome 2 and Three Kingdoms, this only works on Windows. Other games are untested on Linux builds.
         <li>You need to have all the relevant star_pos_*** tables in your Pack. If you don't have them, either create them or add them from the Assembly Kit, then try this again.</li>
         <li>You need to have your Pack saved in the /data folder of the game. If it's a new Pack or it's not in /data, save it and then try this again.</li>
         <li>You need to have the game folder configured correctly. If you don't have it... you know the deal.</li>

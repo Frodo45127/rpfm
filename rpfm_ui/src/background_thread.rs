@@ -2496,6 +2496,7 @@ quit_after_campaign_processing;",
         command.arg("temp_file.txt;");
 
         // We need to turn the user script contents into a oneliner or the command will ignore it.
+        use std::os::windows::process::CommandExt;
         command.raw_arg(user_script_contents.replace("\n", " "));
 
         command.spawn()?;
