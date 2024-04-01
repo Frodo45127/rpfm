@@ -2538,7 +2538,7 @@ quit_after_campaign_processing;",
         command.arg("temp_file.txt;");
 
         // We need to turn the user script contents into a oneliner or the command will ignore it.
-        if cfg!(target_os = "windows") {
+        #[cfg(target_os = "windows")] {
             use std::os::windows::process::CommandExt;
             command.raw_arg(user_script_contents.replace("\n", " "));
         }
