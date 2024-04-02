@@ -1844,13 +1844,13 @@ pub fn background_loop() {
 
             #[cfg(feature = "support_model_renderer")] Command::GetAnimPathsBySkeletonName(skeleton_name) => {
                 let mut paths = HashSet::new();
-                let dependencies = dependencies.read().unwrap();
+                let mut dependencies = dependencies.write().unwrap();
 
                 // Get PackedFiles requested from the Parent Files.
                 let mut packed_files_parent = HashSet::new();
                 for (path, file) in dependencies.files_by_types_mut(&[FileType::Anim], false, true) {
-                    if let Ok(RFileDecoded::Anim(file)) = file.decode(&None, false, true) {
-                        if file.skeleton_name() == skeleton_name {
+                    if let Ok(Some(RFileDecoded::Anim(file))) = file.decode(&None, false, true) {
+                        if file.skeleton_name() == &skeleton_name {
                             packed_files_parent.insert(path);
                         }
                     }
@@ -1859,8 +1859,8 @@ pub fn background_loop() {
                 // Get PackedFiles requested from the Game Files.
                 let mut packed_files_game = HashSet::new();
                 for (path, file) in dependencies.files_by_types_mut(&[FileType::Anim], true, false) {
-                    if let Ok(RFileDecoded::Anim(file)) = file.decode(&None, false, true) {
-                        if file.skeleton_name() == skeleton_name {
+                    if let Ok(Some(RFileDecoded::Anim(file))) = file.decode(&None, false, true) {
+                        if file.skeleton_name() == &skeleton_name {
                             packed_files_game.insert(path);
                         }
                     }
@@ -1869,8 +1869,8 @@ pub fn background_loop() {
                 // Get PackedFiles requested from the currently open PackFile, if any.
                 let mut packed_files_packfile = HashSet::new();
                 for file in pack_file_decoded.files_by_type_mut(&[FileType::Anim]) {
-                    if let Ok(RFileDecoded::Anim(anim_file)) = file.decode(&None, false, true) {
-                        if anim_file.skeleton_name() == skeleton_name {
+                    if let Ok(Some(RFileDecoded::Anim(anim_file))) = file.decode(&None, false, true) {
+                        if anim_file.skeleton_name() == &skeleton_name {
                             packed_files_game.insert(file.path_in_container_raw().to_owned());
                         }
                     }

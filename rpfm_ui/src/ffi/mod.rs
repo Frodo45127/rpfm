@@ -650,9 +650,11 @@ pub extern fn assets_request_callback(missing_files: *mut QListOfQString, out: *
 }
 
 #[cfg(feature = "support_model_renderer")]
-pub extern fn anim_paths_by_skeleton_callback(skeleton_name: *mut Qstring, out: *mut QListOfQString) {
+pub extern fn anim_paths_by_skeleton_callback(skeleton_name: *mut QString, out: *mut QListOfQString) {
     unsafe {
-        let skeleton_name = skeleton_name.to_std_string();
+        let skeleton_name = skeleton_name.as_ref().unwrap().to_std_string();
+        let out = out.as_mut().unwrap();
+
         log::info!("Anim Paths requested for skeleton: {}", &skeleton_name);
 
         let receiver = CENTRAL_COMMAND.send_background(Command::GetAnimPathsBySkeletonName(skeleton_name));
@@ -660,7 +662,7 @@ pub extern fn anim_paths_by_skeleton_callback(skeleton_name: *mut Qstring, out: 
         match response {
             Response::HashSetString(paths) => {
                 for path in &paths {
-                    out.append(QString::from_std_str(path));
+                    out.append_q_string(&QString::from_std_str(path));
                 }
             },
             _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
