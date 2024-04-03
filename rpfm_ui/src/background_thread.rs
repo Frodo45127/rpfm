@@ -1871,7 +1871,7 @@ pub fn background_loop() {
                 for file in pack_file_decoded.files_by_type_mut(&[FileType::Anim]) {
                     if let Ok(Some(RFileDecoded::Anim(anim_file))) = file.decode(&None, false, true) {
                         if anim_file.skeleton_name() == &skeleton_name {
-                            packed_files_game.insert(file.path_in_container_raw().to_owned());
+                            packed_files_packfile.insert(file.path_in_container_raw().to_owned());
                         }
                     }
                 }
