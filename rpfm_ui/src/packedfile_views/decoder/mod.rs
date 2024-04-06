@@ -1594,6 +1594,7 @@ impl PackedFileDecoderView {
             extra_data.set_schema(Some(&schema));
 
             let mut data = data.clone();
+            let _ = data.seek(SeekFrom::Start(0));
             let db = DB::decode(&mut data, &Some(extra_data));
             if let Ok(db) = db {
                 let table = db.data();
