@@ -364,6 +364,17 @@ fn read_string_u16_0padded() {
     assert!(ReadBytes::read_string_u16_0padded(&mut Cursor::new([87, 0, 97, 0, 104, 0, 97, 0, 104, 0, 97, 0, 0, 0, 0, 0, 0, 0, 0, 0]), 40).is_err());
 }
 
+/// Test to `ReadBytes::read_string_u16_0terminated()`.
+#[test]
+fn read_string_u16_0terminated() {
+
+    // Check the reader works for a proper encoded string.
+    assert_eq!(ReadBytes::read_string_u16_0terminated(&mut Cursor::new([87, 0, 97, 0, 104, 0, 97, 0, 104, 0, 97, 0, 104, 0, 97, 0, 0, 0])).unwrap(), "Wahahaha".to_owned());
+
+    // Check the reader works for a string that doesn't end in zero, but in end of slice.
+    assert!(ReadBytes::read_string_u16_0terminated(&mut Cursor::new([87, 0, 97, 0, 104, 0, 97, 0, 104, 0, 97, 0, 104, 0, 97, 0, 104, 0, 97, 0])).is_err());
+}
+
 /// Test to `ReadBytes::read_sized_string_u16()`.
 #[test]
 fn read_sized_string_u16() {

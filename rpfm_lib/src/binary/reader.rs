@@ -12,6 +12,7 @@
 
 use byteorder::{LittleEndian, ReadBytesExt};
 use encoding_rs::{ISO_8859_15, UTF_16LE};
+use itertools::Itertools;
 
 use std::io::{Read, Seek, SeekFrom};
 
@@ -732,6 +733,76 @@ pub trait ReadBytes: Read + Seek {
 
         let size_no_zeros = (0..size.wrapping_div(2)).position(|x| data[x * 2] == 0).map_or(size.wrapping_div(2), |x| x);
         Ok(UTF_16LE.decode(&data[..size_no_zeros * 2]).0.to_string())
+    }
+
+    /// This function tries to read a 00-Terminated (or NULL-Terminated) UTF-16 String value from `self`.
+    ///
+    /// It may fail if there are not enough bytes to read the value, the value contains invalid
+    /// characters for an UTF-16 String, the last value is not 00 or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![87, 00, 97, 00, 104, 00, 97, 00, 104, 00, 97, 00, 104, 00, 97, 00, 00, 00];
+    /// let mut cursor = Cursor::new(data);
+    /// let data = cursor.read_string_u16_0terminated().unwrap();
+    ///
+    /// assert_eq!(data, "Wahahaha");
+    /// assert_eq!(cursor.read_string_u16_0terminated().is_err(), true);
+    /// ```
+    fn read_string_u16_0terminated(&mut self) -> Result<String> {
+
+        // So, reads are expensive, so instead of reading byte by byte, we read a bunch of them
+        // and start searching with a chunk iterator. If we can't find anything, read another bunch and try again.
+        let mut buf = [0; 512];
+        let mut data = vec![];
+        let mut curr_pos = 0u64;
+        let mut end_pos = 0u64;
+        let mut found = false;
+
+        loop {
+            let read = self.read(&mut buf);
+            match read {
+                Ok(0) => break,
+                Ok(read_bytes) => {
+
+                    if let Some(pos) = buf[..read_bytes].iter().chunks(2).into_iter().position(|chunk| {
+                        let chunk = chunk.collect::<Vec<_>>();
+                        chunk.len() == 2 && *chunk[0] == 0 && *chunk[1] == 0
+                    }) {
+
+                        // If we found a 00 00, get the final "read" position, the final position of the 00 byte,
+                        // and mark the byte as found.
+                        end_pos = curr_pos + read_bytes as u64;
+                        curr_pos += pos as u64 * 2;
+                        data.extend_from_slice(&buf[..pos * 2]);
+                        found = true;
+                        break;
+                    } else {
+                        curr_pos += read_bytes as u64;
+                        data.extend_from_slice(&buf);
+                    }
+                }
+
+                // If there is any error, just return it.
+                Err(error) => return Err(error)?,
+            }
+        }
+
+        // If we exited without finding the 00 byte, return an error.
+        if !found {
+            return Err(RLibError::DecodingString0TeminatedNo0Error);
+        }
+
+        // Move the cursor to the end of the value, so we can continue reading.
+        // -2 because we need to end after the last 00 byte.
+        let new_pos = end_pos as i64 - curr_pos as i64 - 2;
+        self.seek(SeekFrom::Current(-new_pos))?;
+
+        // Get a String from it. Lossy because older games have packs with broken symbols in their paths.
+        Ok(UTF_16LE.decode(&data).0.to_string())
     }
 
     /// This function tries to read a Sized UTF-16 String value from `self`.
