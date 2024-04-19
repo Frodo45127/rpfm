@@ -12,6 +12,8 @@
 //! such as [Anims Tables](crate::files::anims_table::AnimsTable),
 //! [Anim Fragments](crate::files::anim_fragment_battle::AnimFragmentBattle) and
 //! [Matched Combat Tables](crate::files::matched_combat::MatchedCombat).
+//!
+//! Support is complete for all known versions of the file.
 
 use serde_derive::{Serialize, Deserialize};
 

@@ -19,6 +19,7 @@ use crate::utils::check_size_mismatch;
 pub const BASE_PATH: &str = "animations/";
 
 /// To differentiate them from other bin tables, this lib only recognizes files ending in _tables.bin as AnimsTable.
+///
 /// This is only for this lib, not a limitation of the game.
 pub const EXTENSION: &str = "_tables.bin";
 

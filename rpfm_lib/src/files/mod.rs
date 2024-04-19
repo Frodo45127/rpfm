@@ -15,7 +15,7 @@
 //! | File Type             | Decoding Supported | Encoding Supported |
 //! | --------------------- | ------------------ | ------------------ |
 //! | [`Anim`]              | Limited            | Limited            |
-//! | [`AnimFragmentBattle`]| Yes                | Yes                |
+//! | [`AnimFragmentBattle`]| Limited            | Limited            |
 //! | [`AnimPack`]          | Yes                | Yes                |
 //! | [`AnimsTable`]        | Yes                | Yes                |
 //! | [`Atlas`]             | Yes                | Yes                |

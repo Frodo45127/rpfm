@@ -10,7 +10,8 @@
 
 //! This is a module to read/write anim files.
 //!
-//! Note that support is incomplete. We only support reading/writing the header. The data is still unchanged.
+//! Support is limited because:
+//! - We only read the header. Data is kept on binary.
 
 use getset::*;
 use serde_derive::{Serialize, Deserialize};

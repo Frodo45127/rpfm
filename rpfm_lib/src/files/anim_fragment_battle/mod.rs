@@ -8,6 +8,12 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
+//! This is a module to read/write anim fragment battle files.
+//!
+//! These are the old anim tables in binary format.
+//!
+//! Support is complete for all games since Warhammer 2. Older games are not supported.
+
 use bitflags::bitflags;
 use getset::*;
 use serde_derive::{Serialize, Deserialize};
