@@ -26,7 +26,7 @@
 //! | [`Dat`]               | Limited            | Limited            |
 //! | [`DB`]                | Yes                | Yes                |
 //! | [`ESF`]               | Limited            | Limited            |
-//! | [`Font`]              | No                 | No                 |
+//! | [`Font`]              | Limited            | Limited            |
 //! | [`GroupFormations`]   | Limited            | Limited            |
 //! | [`HLSL_Compiled`]     | Limited            | Limited            |
 //! | [`Image`]             | Limited            | Limited            |

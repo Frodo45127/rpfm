@@ -10,7 +10,6 @@
 
 //! Module containing tests for decoding/encoding `Font/CUF` files.
 
-/*
 use std::io::{BufReader, BufWriter, Write};
 use std::fs::File;
 
@@ -19,11 +18,10 @@ use crate::files::*;
 
 use super::Font;
 
-
 #[test]
-fn test_encode_font() {
-    let path_1 = "../test_files/test_decode_font.anim";
-    let path_2 = "../test_files/test_encode_font.anim";
+fn test_encode_font_emp() {
+    let path_1 = "../test_files/test_decode_font_emp.cuf";
+    let path_2 = "../test_files/test_encode_font_emp.cuf";
     let mut reader = BufReader::new(File::open(path_1).unwrap());
 
     let data_len = reader.len().unwrap();
@@ -38,4 +36,4 @@ fn test_encode_font() {
 
     assert_eq!(before, after);
 }
-*/
+

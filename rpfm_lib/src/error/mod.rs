@@ -140,6 +140,9 @@ pub enum RLibError {
     EncodingESFUnsupportedSignature(String),
 
     #[error("Unsupported signature: {0:#X?}.")]
+    DecodingFontUnsupportedSignature(Vec<u8>),
+
+    #[error("Unsupported signature: {0:#X?}.")]
     DecodingFastBinUnsupportedSignature(Vec<u8>),
 
     #[error("Unsupported version {1} for type {0}.")]

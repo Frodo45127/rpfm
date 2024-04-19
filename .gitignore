@@ -14,6 +14,7 @@
 /test_files/test_encode_anim_*
 /test_files/test_encode_atlas_*
 /test_files/test_encode.bmd
+/test_files/test_encode_font_*
 /test_files/test_encode_iso_8859_1.html
 /test_files/test_encode_utf8.html
 /test_files/test_encode_utf8_with_bom.html
