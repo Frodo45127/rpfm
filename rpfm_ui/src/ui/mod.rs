@@ -60,6 +60,7 @@ use crate::references_ui;
 use crate::references_ui::ReferencesUI;
 use crate::references_ui::slots::ReferencesUISlots;
 use crate::SUPPORTED_GAMES;
+use crate::packedfile_views::DataSource;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packfile_contents_ui;
 use crate::packfile_contents_ui::slots::PackFileContentsSlots;
@@ -197,13 +198,46 @@ impl UI {
         // in which case, we automatically try to open it.
         let args = args().collect::<Vec<String>>();
         if args.len() > 1 {
-            let paths = args[1..].iter().map(PathBuf::from).filter(|path| path.is_file()).collect::<Vec<_>>();
+            let mut paths = args[1..].iter().map(PathBuf::from).collect::<Vec<_>>();
+            let mut rfiles = vec![];
 
-            info!("Directly opening Pack/s {:?}.", paths);
-            if let Err(error) = AppUI::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &paths, "") {
-                show_dialog(app_ui.main_window(), error, false);
-            } else if setting_bool("diagnostics_trigger_on_open") {
-                DiagnosticsUI::check(&app_ui, &diagnostics_ui);
+            // If the last path is not a pack, we consider it a file in the pack.
+            if paths.len() > 1 {
+                let mut paths_to_remove = vec![];
+                for (index, path) in paths.iter().enumerate() {
+                    if path.file_name().is_some_and(|x| !x.to_string_lossy().ends_with(".pack")) {
+                        paths_to_remove.push(index);
+                    }
+                }
+
+                paths_to_remove.reverse();
+                for index in &paths_to_remove {
+                    rfiles.push(paths.remove(*index));
+                }
+            }
+
+            // Remove non-file paths.
+            paths = paths.into_iter().filter(|path| path.is_file()).collect::<Vec<_>>();
+
+            if !paths.is_empty() {
+                info!("Directly opening Pack/s {:?}.", paths);
+                if let Err(error) = AppUI::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &paths, "") {
+                    show_dialog(app_ui.main_window(), error, false);
+
+                } else {
+
+                    // Ignore errors here.
+                    if !rfiles.is_empty() {
+                        for file in &rfiles {
+                            let path = file.to_string_lossy().to_string();
+                            let _ = AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, Some(path), false, false, DataSource::PackFile);
+                        }
+                    }
+
+                    if setting_bool("diagnostics_trigger_on_open") {
+                        DiagnosticsUI::check(&app_ui, &diagnostics_ui);
+                    }
+                }
             }
         }
 
