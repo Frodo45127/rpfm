@@ -27,7 +27,7 @@ use rpfm_lib::files::{Container, ContainerPath, db::DB, DecodeableExtraData, Fil
 use rpfm_lib::games::GameInfo;
 use rpfm_lib::integrations::{assembly_kit::table_data::RawTable, log::info};
 use rpfm_lib::schema::{Definition, Field, FieldType, Schema};
-use rpfm_lib::utils::{current_time, last_modified_time_from_files, starts_with_case_insensitive};
+use rpfm_lib::utils::{current_time, files_from_subdir, last_modified_time_from_files, starts_with_case_insensitive};
 
 use crate::VERSION;
 
@@ -44,9 +44,16 @@ use crate::VERSION;
 ///     - vanilla_tables.
 ///     - vanilla_locs.
 /// - Then, we have the ones that gets regenerated on rebuild:
+///     - vanilla_loose_files.
+///     - vanilla_loose_tables.
+///     - vanilla_loose_locs.
+///     - vanilla_loose_folders.
+///     - vanilla_loose_paths.
 ///     - parent_files.
 ///     - parent_tables.
 ///     - parent_locs.
+///     - parent_folders.
+///     - parent_paths.
 ///     - local_tables_references.
 ///
 /// - Then, on runtime, we add decoded table's reference data to this one, so we don't need to recalculate it again.
@@ -61,6 +68,12 @@ pub struct Dependencies {
     /// Version of the program used to generate the dependencies, so they're properly invalidated on update.
     version: String,
 
+    /// Data to quickly load loose files as part of the dependencies.
+    ///
+    /// Not serialized, regenerated on rebuild because these can frequently change.
+    #[serde(skip_serializing, skip_deserializing)]
+    vanilla_loose_files: HashMap<String, RFile>,
+
     /// Data to quickly load CA dependencies from disk.
     vanilla_files: HashMap<String, RFile>,
 
@@ -69,6 +82,10 @@ pub struct Dependencies {
     /// Not serialized, regenerated from parent Packs on rebuild.
     #[serde(skip_serializing, skip_deserializing)]
     parent_files: HashMap<String, RFile>,
+
+    /// List of DB tables on the CA loose files. Not really used, but just in case.
+    #[serde(skip_serializing, skip_deserializing)]
+    vanilla_loose_tables: HashMap<String, Vec<String>>,
 
     /// List of DB tables on the CA files.
     vanilla_tables: HashMap<String, Vec<String>>,
@@ -79,6 +96,10 @@ pub struct Dependencies {
     #[serde(skip_serializing, skip_deserializing)]
     parent_tables: HashMap<String, Vec<String>>,
 
+    /// List of Loc tables on the CA loose files. Not really used, but just in case.
+    #[serde(skip_serializing, skip_deserializing)]
+    vanilla_loose_locs: HashSet<String>,
+
     /// List of Loc tables on the CA files.
     vanilla_locs: HashSet<String>,
 
@@ -88,12 +109,20 @@ pub struct Dependencies {
     #[serde(skip_serializing, skip_deserializing)]
     parent_locs: HashSet<String>,
 
-    /// Data to quickly check if a path exists in the vanilla files
+    /// Data to quickly check if a path exists in the vanilla loose files.
+    #[serde(skip_serializing, skip_deserializing)]
+    vanilla_loose_folders: HashSet<String>,
+
+    /// Data to quickly check if a path exists in the vanilla files.
     vanilla_folders: HashSet<String>,
 
-    /// Data to quickly check if a path exists in the parent mod files
+    /// Data to quickly check if a path exists in the parent mod files.
     #[serde(skip_serializing, skip_deserializing)]
     parent_folders: HashSet<String>,
+
+    /// List of vanilla loose paths lowercased, with their casing counterparts. To quickly find files.
+    #[serde(skip_serializing, skip_deserializing)]
+    vanilla_loose_paths: HashMap<String, Vec<String>>,
 
     /// List of vanilla paths lowercased, with their casing counterparts. To quickly find files.
     vanilla_paths: HashMap<String, Vec<String>>,
@@ -168,76 +197,11 @@ impl Dependencies {
         // Clear the table's cached data, to ensure it gets rebuild properly when needed.
         self.local_tables_references.clear();
 
-        // Preload parent mods of the currently loaded Pack.
-        self.parent_files.clear();
-        self.load_parent_packs(parent_pack_names, game_info, game_path)?;
-        self.parent_files.par_iter_mut().map(|(_, file)| file.guess_file_type()).collect::<Result<()>>()?;
+        // Load vanilla loose files (from /data).
+        self.load_loose_files(schema, game_info, game_path)?;
 
-        // Then build the table/loc lists, for easy access.
-        self.parent_files.iter()
-            .filter(|(_, file)| matches!(file.file_type(), FileType::DB))
-            .for_each(|(path, file)| {
-                match file.file_type() {
-                    FileType::DB => {
-                        if let Some(table_name) = file.db_table_name_from_path() {
-                            match self.parent_tables.get_mut(table_name) {
-                                Some(table_paths) => table_paths.push(path.to_owned()),
-                                None => { self.parent_tables.insert(table_name.to_owned(), vec![path.to_owned()]); },
-                            }
-                        }
-                    }
-                    FileType::Loc => {
-                        self.parent_locs.insert(path.to_owned());
-                    }
-                    _ => {}
-                }
-            }
-        );
-
-        // Build the folder list.
-        self.parent_folders = self.parent_files.par_iter().filter_map(|(path, _)| {
-            let file_path_split = path.split('/').collect::<Vec<&str>>();
-            let folder_path_len = file_path_split.len() - 1;
-            if folder_path_len == 0 {
-                None
-            } else {
-
-                let mut paths = Vec::with_capacity(folder_path_len);
-
-                for (index, folder) in file_path_split.iter().enumerate() {
-                    if index < path.len() - 1 && !folder.is_empty() {
-                        paths.push(file_path_split[0..=index].join("/"))
-                    }
-                }
-
-                Some(paths)
-            }
-        }).flatten().collect::<HashSet<String>>();
-
-        self.parent_files.keys().for_each(|path| {
-            let lower = path.to_lowercase();
-            match self.parent_paths.get_mut(&lower) {
-                Some(paths) => paths.push(path.to_owned()),
-                None => { self.parent_paths.insert(lower, vec![path.to_owned()]); },
-            }
-        });
-
-        // Only decode the tables if we passed a schema. If not, it's responsability of the user to decode them later.
-        if let Some(schema) = schema {
-            let mut decode_extra_data = DecodeableExtraData::default();
-            decode_extra_data.set_schema(Some(schema));
-            let extra_data = Some(decode_extra_data);
-
-            let mut files = self.parent_locs.iter().chain(self.parent_tables.values().flatten()).filter_map(|path| {
-                self.parent_files.remove(path).map(|file| (path.to_owned(), file))
-            }).collect::<Vec<_>>();
-
-            files.par_iter_mut().for_each(|(_, file)| {
-                let _ = file.decode(&extra_data, true, false);
-            });
-
-            self.parent_files.par_extend(files);
-        }
+        // Load parent mods of the currently loaded Pack.
+        self.load_parent_files(schema, parent_pack_names, game_info, game_path)?;
 
         // Populate the localisation data.
         let loc_files = self.loc_data(true, true).unwrap_or(vec![]);
@@ -320,6 +284,11 @@ impl Dependencies {
             }
         });
 
+        // Load vanilla loose files before processing the AK files, so the AK process has these files available.
+        //
+        // It's mainly so any loose loc is used in the bruteforcing process.
+        cache.load_loose_files(&None, game_info, game_path)?;
+
         // This one can fail, leaving the dependencies with only game data.
         if let Some(path) = asskit_path {
             let _ = cache.generate_asskit_only_db_tables(path, *game_info.raw_db_version(), ignore_game_files_in_ak);
@@ -348,6 +317,17 @@ impl Dependencies {
 
         let decode_extra_data = DecodeableExtraData::default();
         let extra_data = Some(decode_extra_data);
+
+        // Vanilla loose files.
+        let mut files = self.vanilla_loose_locs.iter().filter_map(|path| {
+            self.vanilla_loose_files.remove(path).map(|file| (path.to_owned(), file))
+        }).collect::<Vec<_>>();
+
+        files.par_iter_mut().for_each(|(_, file)| {
+            let _ = file.decode(&extra_data, true, false);
+        });
+
+        self.vanilla_loose_files.par_extend(files);
 
         // Vanilla files.
         let mut files = self.vanilla_locs.iter().filter_map(|path| {
@@ -578,6 +558,195 @@ impl Dependencies {
         Ok(last_date > self.build_date || self.version != VERSION)
     }
 
+    /// This function loads all the loose files within the game's /data folder.
+    fn load_loose_files(&mut self, schema: &Option<Schema>, game_info: &GameInfo, game_path: &Path) -> Result<()> {
+        self.vanilla_loose_files.clear();
+        self.vanilla_loose_tables.clear();
+        self.vanilla_loose_locs.clear();
+        self.vanilla_loose_folders.clear();
+        self.vanilla_loose_paths.clear();
+
+        let game_data_path = game_info.data_path(game_path)?;
+        let game_data_path_str = game_data_path.to_string_lossy().replace("\\", "/");
+
+        self.vanilla_loose_files = files_from_subdir(&game_data_path, true)?
+            .into_par_iter()
+            .filter_map(|path| {
+                let mut path = path.to_string_lossy().replace("\\", "/");
+                if !path.ends_with(".pack") {
+                    if let Ok(mut rfile) = RFile::new_from_file(&path) {
+                        let subpath = path.split_off(game_data_path_str.len() + 1);
+                        rfile.set_path_in_container_raw(&subpath);
+                        let _ = rfile.guess_file_type();
+                        Some((subpath, rfile))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
+            .collect::<HashMap<String, RFile>>();
+
+        let cacheable = self.vanilla_loose_files.par_iter_mut()
+            .filter_map(|(_, file)| {
+                let _ = file.guess_file_type();
+
+                match file.file_type() {
+                    FileType::DB |
+                    FileType::Loc => Some(file),
+                    _ => None,
+                }
+            })
+            .collect::<Vec<&mut RFile>>();
+
+        cacheable.iter()
+            .for_each(|file| {
+                match file.file_type() {
+                    FileType::DB => {
+                        if let Some(table_name) = file.db_table_name_from_path() {
+                            match self.vanilla_loose_tables.get_mut(table_name) {
+                                Some(table_paths) => table_paths.push(file.path_in_container_raw().to_owned()),
+                                None => { self.vanilla_loose_tables.insert(table_name.to_owned(), vec![file.path_in_container_raw().to_owned()]); },
+                            }
+                        }
+                    }
+                    FileType::Loc => {
+                        self.vanilla_loose_locs.insert(file.path_in_container_raw().to_owned());
+                    }
+                    _ => {}
+                }
+            }
+        );
+
+        self.vanilla_loose_folders = self.vanilla_loose_files.par_iter().filter_map(|(path, _)| {
+            let file_path_split = path.split('/').collect::<Vec<&str>>();
+            let folder_path_len = file_path_split.len() - 1;
+            if folder_path_len == 0 {
+                None
+            } else {
+
+                let mut paths = Vec::with_capacity(folder_path_len);
+
+                for (index, folder) in file_path_split.iter().enumerate() {
+                    if index < path.len() - 1 && !folder.is_empty() {
+                        paths.push(file_path_split[0..=index].join("/"))
+                    }
+                }
+
+                Some(paths)
+            }
+        }).flatten().collect::<HashSet<String>>();
+
+        self.vanilla_loose_files.keys().for_each(|path| {
+            let lower = path.to_lowercase();
+            match self.vanilla_loose_paths.get_mut(&lower) {
+                Some(paths) => paths.push(path.to_owned()),
+                None => { self.vanilla_loose_paths.insert(lower, vec![path.to_owned()]); },
+            }
+        });
+
+        // Only decode the tables if we passed a schema. If not, it's responsability of the user to decode them later.
+        if let Some(schema) = schema {
+            let mut decode_extra_data = DecodeableExtraData::default();
+            decode_extra_data.set_schema(Some(schema));
+            let extra_data = Some(decode_extra_data);
+
+            let mut files = self.vanilla_loose_locs.iter().chain(self.vanilla_loose_tables.values().flatten()).filter_map(|path| {
+                self.vanilla_loose_files.remove(path).map(|file| (path.to_owned(), file))
+            }).collect::<Vec<_>>();
+
+            files.par_iter_mut().for_each(|(_, file)| {
+                let _ = file.decode(&extra_data, true, false);
+            });
+
+            self.vanilla_loose_files.par_extend(files);
+        }
+
+        Ok(())
+    }
+
+
+    /// This function loads all the loose files within the game's /data folder.
+    fn load_parent_files(&mut self, schema: &Option<Schema>, parent_pack_names: &[String], game_info: &GameInfo, game_path: &Path) -> Result<()> {
+        self.parent_files.clear();
+        self.parent_tables.clear();
+        self.parent_locs.clear();
+        self.parent_folders.clear();
+        self.parent_paths.clear();
+
+        // Preload parent mods of the currently loaded Pack.
+        self.load_parent_packs(parent_pack_names, game_info, game_path)?;
+        self.parent_files.par_iter_mut().map(|(_, file)| file.guess_file_type()).collect::<Result<()>>()?;
+
+        // Then build the table/loc lists, for easy access.
+        self.parent_files.iter()
+            .filter(|(_, file)| matches!(file.file_type(), FileType::DB))
+            .for_each(|(path, file)| {
+                match file.file_type() {
+                    FileType::DB => {
+                        if let Some(table_name) = file.db_table_name_from_path() {
+                            match self.parent_tables.get_mut(table_name) {
+                                Some(table_paths) => table_paths.push(path.to_owned()),
+                                None => { self.parent_tables.insert(table_name.to_owned(), vec![path.to_owned()]); },
+                            }
+                        }
+                    }
+                    FileType::Loc => {
+                        self.parent_locs.insert(path.to_owned());
+                    }
+                    _ => {}
+                }
+            }
+        );
+
+        // Build the folder list.
+        self.parent_folders = self.parent_files.par_iter().filter_map(|(path, _)| {
+            let file_path_split = path.split('/').collect::<Vec<&str>>();
+            let folder_path_len = file_path_split.len() - 1;
+            if folder_path_len == 0 {
+                None
+            } else {
+
+                let mut paths = Vec::with_capacity(folder_path_len);
+
+                for (index, folder) in file_path_split.iter().enumerate() {
+                    if index < path.len() - 1 && !folder.is_empty() {
+                        paths.push(file_path_split[0..=index].join("/"))
+                    }
+                }
+
+                Some(paths)
+            }
+        }).flatten().collect::<HashSet<String>>();
+
+        self.parent_files.keys().for_each(|path| {
+            let lower = path.to_lowercase();
+            match self.parent_paths.get_mut(&lower) {
+                Some(paths) => paths.push(path.to_owned()),
+                None => { self.parent_paths.insert(lower, vec![path.to_owned()]); },
+            }
+        });
+
+        // Only decode the tables if we passed a schema. If not, it's responsability of the user to decode them later.
+        if let Some(schema) = schema {
+            let mut decode_extra_data = DecodeableExtraData::default();
+            decode_extra_data.set_schema(Some(schema));
+            let extra_data = Some(decode_extra_data);
+
+            let mut files = self.parent_locs.iter().chain(self.parent_tables.values().flatten()).filter_map(|path| {
+                self.parent_files.remove(path).map(|file| (path.to_owned(), file))
+            }).collect::<Vec<_>>();
+
+            files.par_iter_mut().for_each(|(_, file)| {
+                let _ = file.decode(&extra_data, true, false);
+            });
+
+            self.parent_files.par_extend(files);
+        }
+
+        Ok(())
+    }
 
     /// This function loads all the parent [Packs](rpfm_lib::files::pack::Pack) provided as `parent_pack_names` as dependencies,
     /// taking care of also loading all dependencies of all of them, if they're not already loaded.
@@ -634,6 +803,17 @@ impl Dependencies {
             let mut decode_extra_data = DecodeableExtraData::default();
             decode_extra_data.set_schema(Some(schema));
             let extra_data = Some(decode_extra_data);
+
+            // Vanilla loose files.
+            let mut files = self.vanilla_loose_locs.iter().chain(self.vanilla_loose_tables.values().flatten()).filter_map(|path| {
+                self.vanilla_loose_files.remove(path).map(|file| (path.to_owned(), file))
+            }).collect::<Vec<_>>();
+
+            files.par_iter_mut().for_each(|(_, file)| {
+                let _ = file.decode(&extra_data, true, false);
+            });
+
+            self.vanilla_loose_files.par_extend(files);
 
             // Vanilla files.
             let mut files = self.vanilla_locs.iter().chain(self.vanilla_tables.values().flatten()).filter_map(|path| {
@@ -698,6 +878,19 @@ impl Dependencies {
                 if let Some(file) = self.vanilla_paths.get(&lower).map(|paths| self.vanilla_files.get(&paths[0])).flatten() {
                     return Ok(file);
                 }
+
+            }
+
+            // Same check for loose paths.
+            if let Some(file) = self.vanilla_loose_files.get(file_path) {
+                return Ok(file);
+            }
+
+            if case_insensitive {
+                let lower = file_path.to_lowercase();
+                if let Some(file) = self.vanilla_loose_paths.get(&lower).map(|paths| self.vanilla_loose_files.get(&paths[0])).flatten() {
+                    return Ok(file);
+                }
             }
         }
 
@@ -714,6 +907,10 @@ impl Dependencies {
 
         if include_vanilla {
             if let Some(file) = self.vanilla_files.get_mut(file_path) {
+                return Ok(file);
+            }
+
+            if let Some(file) = self.vanilla_loose_files.get_mut(file_path) {
                 return Ok(file);
             }
         }
@@ -741,11 +938,28 @@ impl Dependencies {
                 let mut folder = vec![];
                 let folder_path = folder_path.to_owned() + "/";
                 if include_vanilla {
-                    if folder_path.is_empty() {
+
+                    if folder_path == "/" {
+                        folder.extend(self.vanilla_loose_files.par_iter()
+                            .map(|(path, file)| (path.to_owned(), file))
+                            .collect::<Vec<(_,_)>>());
+
                         folder.extend(self.vanilla_files.par_iter()
                             .map(|(path, file)| (path.to_owned(), file))
                             .collect::<Vec<(_,_)>>());
+
                     } else {
+                        folder.extend(self.vanilla_loose_files.par_iter()
+                            .filter(|(path, _)| {
+                                if case_insensitive {
+                                    starts_with_case_insensitive(path, &folder_path)
+                                } else {
+                                    path.starts_with(&folder_path)
+                                }
+                            })
+                            .map(|(path, file)| (path.to_owned(), file))
+                            .collect::<Vec<(_,_)>>());
+
                         folder.extend(self.vanilla_files.par_iter()
                             .filter(|(path, _)| {
                                 if case_insensitive {
@@ -760,16 +974,23 @@ impl Dependencies {
                 }
 
                 if include_parent {
-                    folder.extend(self.parent_files.par_iter()
-                        .filter(|(path, _)| {
-                            if case_insensitive {
-                                starts_with_case_insensitive(path, &folder_path)
-                            } else {
-                                path.starts_with(&folder_path)
-                            }
-                        })
-                        .map(|(path, file)| (path.to_owned(), file))
-                        .collect::<Vec<(_,_)>>());
+                    if folder_path == "/" {
+                        folder.extend(self.parent_files.par_iter()
+                            .map(|(path, file)| (path.to_owned(), file))
+                            .collect::<Vec<(_,_)>>());
+
+                    } else {
+                        folder.extend(self.parent_files.par_iter()
+                            .filter(|(path, _)| {
+                                if case_insensitive {
+                                    starts_with_case_insensitive(path, &folder_path)
+                                } else {
+                                    path.starts_with(&folder_path)
+                                }
+                            })
+                            .map(|(path, file)| (path.to_owned(), file))
+                            .collect::<Vec<(_,_)>>());
+                    }
                 }
                 folder
             }).collect::<Vec<(_,_)>>());
@@ -784,7 +1005,7 @@ impl Dependencies {
 
         // Vanilla first, so if parent files are found, they overwrite vanilla files.
         if include_vanilla {
-            files.extend(self.vanilla_files.par_iter()
+            files.extend(self.vanilla_loose_files.par_iter().chain(self.vanilla_files.par_iter())
                 .filter(|(_, file)| file_types.contains(&file.file_type()))
                 .map(|(path, file)| (path.to_owned(), file))
                 .collect::<HashMap<_,_>>());
@@ -806,7 +1027,7 @@ impl Dependencies {
 
         // Vanilla first, so if parent files are found, they overwrite vanilla files.
         if include_vanilla {
-            files.extend(self.vanilla_files.par_iter_mut()
+            files.extend(self.vanilla_loose_files.par_iter_mut().chain(self.vanilla_files.par_iter_mut())
                 .filter(|(_, file)| file_types.contains(&file.file_type()))
                 .map(|(path, file)| (path.to_owned(), file))
                 .collect::<HashMap<_,_>>());
@@ -829,6 +1050,15 @@ impl Dependencies {
         let mut cache = vec![];
 
         if include_vanilla {
+            let mut vanilla_loose_locs = self.vanilla_loose_locs.iter().collect::<Vec<_>>();
+            vanilla_loose_locs.sort();
+
+            for path in &vanilla_loose_locs {
+                if let Some(file) = self.vanilla_loose_files.get(*path) {
+                    cache.push(file);
+                }
+            }
+
             let mut vanilla_locs = self.vanilla_locs.iter().collect::<Vec<_>>();
             vanilla_locs.sort();
 
@@ -862,6 +1092,17 @@ impl Dependencies {
         let mut cache = vec![];
 
         if include_vanilla {
+            if let Some(vanilla_loose_tables) = self.vanilla_loose_tables.get(table_name) {
+                let mut vanilla_loose_tables = vanilla_loose_tables.to_vec();
+                vanilla_loose_tables.sort();
+
+                for path in &vanilla_loose_tables {
+                    if let Some(file) = self.vanilla_loose_files.get(path) {
+                        cache.push(file);
+                    }
+                }
+            }
+
             if let Some(vanilla_tables) = self.vanilla_tables.get(table_name) {
                 let mut vanilla_tables = vanilla_tables.to_vec();
                 vanilla_tables.sort();
@@ -898,6 +1139,15 @@ impl Dependencies {
 
         if include_vanilla {
             if include_db {
+                let mut vanilla_loose_tables = self.vanilla_loose_tables.values().flatten().collect::<Vec<_>>();
+                vanilla_loose_tables.sort();
+
+                for path in &vanilla_loose_tables {
+                    if let Some(file) = self.vanilla_loose_files.get(*path) {
+                        cache.push(file);
+                    }
+                }
+
                 let mut vanilla_tables = self.vanilla_tables.values().flatten().collect::<Vec<_>>();
                 vanilla_tables.sort();
 
@@ -909,6 +1159,15 @@ impl Dependencies {
             }
 
             if include_loc {
+                let mut vanilla_loose_locs = self.vanilla_loose_locs.iter().collect::<Vec<_>>();
+                vanilla_loose_locs.sort();
+
+                for path in &vanilla_loose_locs {
+                    if let Some(file) = self.vanilla_loose_files.get(*path) {
+                        cache.push(file);
+                    }
+                }
+
                 let mut vanilla_locs = self.vanilla_locs.iter().collect::<Vec<_>>();
                 vanilla_locs.sort();
 
@@ -1314,11 +1573,12 @@ impl Dependencies {
         }
 
         if include_vanilla {
-            if self.vanilla_files.get(file_path).is_some() {
+
+            if self.vanilla_files.get(file_path).is_some() || self.vanilla_loose_files.get(file_path).is_some() {
                 return true
             } else if case_insensitive {
                 let lower = file_path.to_lowercase();
-                if self.vanilla_paths.get(&lower).is_some() {
+                if self.vanilla_paths.get(&lower).is_some() || self.vanilla_loose_paths.get(&lower).is_some() {
                     return true
                 }
             }
@@ -1338,9 +1598,9 @@ impl Dependencies {
         }
 
         if include_vanilla {
-            if self.vanilla_folders.get(folder_path).is_some() {
+            if self.vanilla_folders.get(folder_path).is_some() || self.vanilla_loose_folders.get(folder_path).is_some() {
                 return true
-            } else if case_insensitive && self.vanilla_folders.par_iter().any(|path| caseless::canonical_caseless_match_str(path, folder_path)) {
+            } else if case_insensitive && self.vanilla_folders.par_iter().chain(self.vanilla_loose_folders.par_iter()).any(|path| caseless::canonical_caseless_match_str(path, folder_path)) {
                 return true
             }
         }
@@ -1389,6 +1649,11 @@ impl Dependencies {
         for table_path in tables {
 
             let table = self.vanilla_files.get(table_path)?;
+            if let RFileDecoded::DB(table) = table.decoded().ok()? {
+                return Some(*table.definition().version());
+            }
+
+            let table = self.vanilla_loose_files.get(table_path)?;
             if let RFileDecoded::DB(table) = table.decoded().ok()? {
                 return Some(*table.definition().version());
             }

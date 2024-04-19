@@ -224,7 +224,11 @@ impl From<&Dependencies> for DependenciesInfo {
             RFileInfo::from_db(table, table_name)
         }).collect::<Vec<RFileInfo>>();
 
-        let vanilla_packed_files = dependencies.vanilla_files().par_iter().map(|(_, value)| From::from(value)).collect::<Vec<RFileInfo>>();
+        let vanilla_packed_files = dependencies.vanilla_loose_files()
+                                    .par_iter()
+                                    .chain(dependencies.vanilla_files().par_iter())
+                                    .map(|(_, value)| From::from(value)).collect::<Vec<RFileInfo>>();
+
         let parent_packed_files = dependencies.parent_files().par_iter().map(|(_, value)| From::from(value)).collect::<Vec<RFileInfo>>();
 
         Self {

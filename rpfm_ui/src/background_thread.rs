@@ -401,7 +401,7 @@ pub fn background_loop() {
                                 }
 
                                 let tables_to_skip = if ignore_game_files_in_ak {
-                                    dependencies.vanilla_tables().keys().map(|x| &**x).collect::<Vec<_>>()
+                                    dependencies.vanilla_loose_tables().keys().chain(dependencies.vanilla_tables().keys()).map(|x| &**x).collect::<Vec<_>>()
                                 } else {
                                     vec![]
                                 };
@@ -923,7 +923,10 @@ pub fn background_loop() {
             }
 
             // In case we want to get the list of tables in the dependency database...
-            Command::GetTableListFromDependencyPackFile => CentralCommand::send_back(&sender, Response::VecString(dependencies.read().unwrap().vanilla_tables().keys().map(|x| x.to_owned()).collect())),
+            Command::GetTableListFromDependencyPackFile => {
+                let dependencies = dependencies.read().unwrap();
+                CentralCommand::send_back(&sender, Response::VecString(dependencies.vanilla_loose_tables().keys().chain(dependencies.vanilla_tables().keys()).map(|x| x.to_owned()).collect()))
+            },
             Command::GetCustomTableList => match &*SCHEMA.read().unwrap() {
                 Some(schema) => {
                     let tables = schema.definitions().par_iter().filter(|(key, defintions)| !defintions.is_empty() && key.starts_with("start_pos_")).map(|(key, _)| key.to_owned()).collect::<Vec<_>>();
