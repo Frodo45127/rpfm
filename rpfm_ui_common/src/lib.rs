@@ -21,6 +21,7 @@ use crate::settings::*;
 pub mod icons;
 pub mod locale;
 pub mod settings;
+pub mod tools;
 pub mod utils;
 
 /// This macro is used to clone the variables into the closures without the compiler complaining.

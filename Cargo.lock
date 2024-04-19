@@ -2821,6 +2821,7 @@ dependencies = [
  "directories",
  "fluent",
  "fluent-bundle",
+ "getset",
  "lazy_static",
  "qt_core",
  "qt_gui",
@@ -2828,6 +2829,9 @@ dependencies = [
  "qt_widgets",
  "rpfm_extensions",
  "rpfm_lib",
+ "serde",
+ "serde_derive",
+ "serde_json",
  "time",
  "unic-langid",
 ]
