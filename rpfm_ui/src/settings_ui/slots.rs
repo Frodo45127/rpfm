@@ -57,6 +57,7 @@ pub struct SettingsUISlots {
     pub clear_autosaves: QBox<SlotNoArgs>,
     pub clear_schemas: QBox<SlotNoArgs>,
     pub clear_layout: QBox<SlotNoArgs>,
+    pub add_rpfm_to_runcher_tools: QBox<SlotNoArgs>,
 
     pub select_colour_light_table_added: QBox<SlotNoArgs>,
     pub select_colour_light_table_modified: QBox<SlotNoArgs>,
@@ -238,6 +239,14 @@ impl SettingsUISlots {
                 q_settings.sync();
         }));
 
+        let add_rpfm_to_runcher_tools = SlotNoArgs::new(&ui.dialog, clone!(
+            ui => move || {
+                match ui.add_rpfm_to_runcher_tools() {
+                    Ok(_) => show_dialog(ui.dialog(), tr("add_rpfm_to_runcher_tools_success"), true),
+                    Err(error) => show_dialog(ui.dialog(), error, false),
+                }
+        }));
+
         let select_colour_light_table_added = SlotNoArgs::new(&ui.dialog, clone!(
             ui => move || {
                 change_colour(&ui.ui_table_colour_light_table_added_button);
@@ -301,6 +310,7 @@ impl SettingsUISlots {
             clear_autosaves,
             clear_schemas,
             clear_layout,
+            add_rpfm_to_runcher_tools,
             select_colour_light_table_added,
             select_colour_light_table_modified,
             select_colour_light_diagnostic_error,

@@ -36,7 +36,8 @@ use qt_core::QVariant;
 use cpp_core::CastInto;
 use cpp_core::Ptr;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
+use directories::ProjectDirs;
 use getset::Getters;
 
 use std::cell::RefCell;
@@ -47,6 +48,7 @@ use std::rc::Rc;
 use rpfm_lib::games::supported_games::*;
 
 use rpfm_ui_common::locale::{Locale, qtr, qtre};
+use rpfm_ui_common::tools::*;
 
 use crate::app_ui::AppUI;
 use crate::ffi::*;
@@ -182,6 +184,9 @@ pub struct SettingsUI {
     debug_clear_autosave_folder_button: QBox<QPushButton>,
     debug_clear_schema_folder_button: QBox<QPushButton>,
     debug_clear_layout_settings_button: QBox<QPushButton>,
+
+    // Not really debug, but it fits.
+    debug_add_rpfm_to_runcher_tools_button: QBox<QPushButton>,
 
     //-------------------------------------------------------------------------------//
     // `Diagnostics` section of the `Settings` dialog.
@@ -660,6 +665,7 @@ impl SettingsUI {
         let debug_clear_autosave_folder_button = QPushButton::from_q_string_q_widget(&qtr("settings_debug_clear_autosave_folder"), &debug_frame);
         let debug_clear_schema_folder_button = QPushButton::from_q_string_q_widget(&qtr("settings_debug_clear_schema_folder"), &debug_frame);
         let debug_clear_layout_settings_button = QPushButton::from_q_string_q_widget(&qtr("settings_debug_clear_layout_settings"), &debug_frame);
+        let debug_add_rpfm_to_runcher_tools_button = QPushButton::from_q_string_q_widget(&qtr("settings_add_rpfm_to_runcher_tools"), &debug_frame);
 
         debug_grid.add_widget_5a(&debug_check_for_missing_table_definitions_label, 0, 0, 1, 2);
         debug_grid.add_widget_5a(&debug_check_for_missing_table_definitions_checkbox, 0, 2, 1, 1);
@@ -683,6 +689,7 @@ impl SettingsUI {
         debug_grid.add_widget_5a(&debug_clear_autosave_folder_button, 85, 0, 1, 3);
         debug_grid.add_widget_5a(&debug_clear_schema_folder_button, 86, 0, 1, 3);
         debug_grid.add_widget_5a(&debug_clear_layout_settings_button, 87, 0, 1, 3);
+        debug_grid.add_widget_5a(&debug_add_rpfm_to_runcher_tools_button, 88, 0, 1, 3);
 
         settings_grid.add_widget_5a(&debug_frame, 2, 2, 1, 1);
 
@@ -849,6 +856,7 @@ impl SettingsUI {
             debug_clear_autosave_folder_button,
             debug_clear_schema_folder_button,
             debug_clear_layout_settings_button,
+            debug_add_rpfm_to_runcher_tools_button,
 
             //-------------------------------------------------------------------------------//
             // `Diagnostics` section of the `Settings` dialog.
@@ -1164,5 +1172,37 @@ impl SettingsUI {
             // Add the Path to the LineEdit.
             line_edit.set_text(path);
         }
+    }
+
+    unsafe fn add_rpfm_to_runcher_tools(&self) -> Result<()> {
+        let runcher_config_path = match ProjectDirs::from("com", "FrodoWazEre", "runcher") {
+            Some(proj_dirs) => Ok(proj_dirs.config_dir().to_path_buf()),
+            None => Err(anyhow!("Failed to get Runcher's config path."))
+        }?;
+
+        let config_path = Some(runcher_config_path);
+        let mut tools = Tools::load(&config_path)?;
+
+        match tools.tools_mut().iter_mut().find(|tool| tool.path().ends_with("rpfm_ui.exe")) {
+            Some(tool) => {
+
+                let exe = std::env::current_exe()?;
+                if tool.path() != &exe {
+                    tool.set_path(exe);
+                }
+            },
+            None => {
+                let mut tool = Tool::default();
+                tool.set_name("RPFM".to_string());
+                tool.set_path(std::env::current_exe()?);
+                tool.set_games(SupportedGames::default().game_keys().iter().map(|x| x.to_string()).collect::<Vec<_>>());
+
+                tools.tools_mut().push(tool);
+            },
+        }
+
+        tools.save(&config_path)?;
+
+        Ok(())
     }
 }
