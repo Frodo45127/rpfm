@@ -1583,3 +1583,6 @@ enable_multifolder_filepicker = Enable Multi-Folder FilePicker
 settings_enable_multifolder_filepicker = This replace the System File-Picker that appears when using "Add from Folder" with a generic Qt FilePicker that allows importing multiple folders at once.
 settings_add_rpfm_to_runcher_tools = Add RPFM as a Tool in Runcher
 add_rpfm_to_runcher_tools_success = RPFM added correctly as a Tool in Runcher. You may need to restart Runcher for it to find the added Tool.
+settings_paths_secondary = Secondary Folder
+settings_paths_secondary_ph = Secondary folder you set in Runcher or any launcher that supports a similar feature.
+open_from_secondary = Open From Secondary

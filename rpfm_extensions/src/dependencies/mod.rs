@@ -179,7 +179,7 @@ impl Dependencies {
     ///
     /// If a file path is passed, the dependencies cache at that path will be used, replacing the currently loaded dependencies cache.
     /// If a schema is not passed, no tables/locs will be pre-decoded. Make sure to decode them later with [Dependencies::decode_tables].
-    pub fn rebuild(&mut self, schema: &Option<Schema>, parent_pack_names: &[String], file_path: Option<&Path>, game_info: &GameInfo, game_path: &Path) -> Result<()> {
+    pub fn rebuild(&mut self, schema: &Option<Schema>, parent_pack_names: &[String], file_path: Option<&Path>, game_info: &GameInfo, game_path: &Path, secondary_path: &Path) -> Result<()> {
 
         // If we only want to reload the parent mods, not the full dependencies, we can skip this section.
         if let Some(file_path) = file_path {
@@ -201,7 +201,7 @@ impl Dependencies {
         self.load_loose_files(schema, game_info, game_path)?;
 
         // Load parent mods of the currently loaded Pack.
-        self.load_parent_files(schema, parent_pack_names, game_info, game_path)?;
+        self.load_parent_files(schema, parent_pack_names, game_info, game_path, secondary_path)?;
 
         // Populate the localisation data.
         let loc_files = self.loc_data(true, true).unwrap_or(vec![]);
@@ -668,7 +668,7 @@ impl Dependencies {
 
 
     /// This function loads all the loose files within the game's /data folder.
-    fn load_parent_files(&mut self, schema: &Option<Schema>, parent_pack_names: &[String], game_info: &GameInfo, game_path: &Path) -> Result<()> {
+    fn load_parent_files(&mut self, schema: &Option<Schema>, parent_pack_names: &[String], game_info: &GameInfo, game_path: &Path, secondary_path: &Path) -> Result<()> {
         self.parent_files.clear();
         self.parent_tables.clear();
         self.parent_locs.clear();
@@ -676,7 +676,7 @@ impl Dependencies {
         self.parent_paths.clear();
 
         // Preload parent mods of the currently loaded Pack.
-        self.load_parent_packs(parent_pack_names, game_info, game_path)?;
+        self.load_parent_packs(parent_pack_names, game_info, game_path, secondary_path)?;
         self.parent_files.par_iter_mut().map(|(_, file)| file.guess_file_type()).collect::<Result<()>>()?;
 
         // Then build the table/loc lists, for easy access.
@@ -750,12 +750,13 @@ impl Dependencies {
 
     /// This function loads all the parent [Packs](rpfm_lib::files::pack::Pack) provided as `parent_pack_names` as dependencies,
     /// taking care of also loading all dependencies of all of them, if they're not already loaded.
-    fn load_parent_packs(&mut self, parent_pack_names: &[String], game_info: &GameInfo, game_path: &Path) -> Result<()> {
+    fn load_parent_packs(&mut self, parent_pack_names: &[String], game_info: &GameInfo, game_path: &Path, secondary_path: &Path) -> Result<()> {
         let data_packs_paths = game_info.data_packs_paths(game_path).unwrap_or(vec![]);
+        let secondary_packs_paths = game_info.secondary_packs_paths(secondary_path);
         let content_packs_paths = game_info.content_packs_paths(game_path);
         let mut loaded_packfiles = vec![];
 
-        parent_pack_names.iter().for_each(|pack_name| self.load_parent_pack(pack_name, &mut loaded_packfiles, &data_packs_paths, &content_packs_paths));
+        parent_pack_names.iter().for_each(|pack_name| self.load_parent_pack(pack_name, &mut loaded_packfiles, &data_packs_paths, &secondary_packs_paths, &content_packs_paths));
 
         Ok(())
     }
@@ -767,7 +768,8 @@ impl Dependencies {
         pack_name: &str,
         already_loaded: &mut Vec<String>,
         data_paths: &[PathBuf],
-        external_path: &Option<Vec<PathBuf>>,
+        secondary_paths: &Option<Vec<PathBuf>>,
+        content_paths: &Option<Vec<PathBuf>>,
     ) {
         // Do not process Packs twice.
         if !already_loaded.contains(&pack_name.to_owned()) {
@@ -776,18 +778,35 @@ impl Dependencies {
             if let Some(path) = data_paths.iter().find(|x| x.file_name().unwrap().to_string_lossy() == pack_name) {
                 if let Ok(pack) = Pack::read_and_merge(&[path.to_path_buf()], true, false) {
                     already_loaded.push(pack_name.to_owned());
-                    pack.dependencies().iter().for_each(|pack_name| self.load_parent_pack(pack_name, already_loaded, data_paths, external_path));
+                    pack.dependencies().iter().for_each(|pack_name| self.load_parent_pack(pack_name, already_loaded, data_paths, secondary_paths, content_paths));
                     self.parent_files.extend(pack.files().clone());
+
+                    return;
                 }
             }
 
-            // If the Packs are not found in data, check in content.
-            else if let Some(ref paths) = external_path {
+            // Then check in /secondary. If we have packs there, do not bother checking for content Packs.
+            if let Some(ref paths) = secondary_paths {
                 if let Some(path) = paths.iter().find(|x| x.file_name().unwrap().to_string_lossy() == pack_name) {
                     if let Ok(pack) = Pack::read_and_merge(&[path.to_path_buf()], true, false) {
                         already_loaded.push(pack_name.to_owned());
-                        pack.dependencies().iter().for_each(|pack_name| self.load_parent_pack(pack_name, already_loaded, data_paths, external_path));
+                        pack.dependencies().iter().for_each(|pack_name| self.load_parent_pack(pack_name, already_loaded, data_paths, secondary_paths, content_paths));
                         self.parent_files.extend(pack.files().clone());
+
+                        return;
+                    }
+                }
+            }
+
+            // If nothing else works, check in content.
+            if let Some(ref paths) = content_paths {
+                if let Some(path) = paths.iter().find(|x| x.file_name().unwrap().to_string_lossy() == pack_name) {
+                    if let Ok(pack) = Pack::read_and_merge(&[path.to_path_buf()], true, false) {
+                        already_loaded.push(pack_name.to_owned());
+                        pack.dependencies().iter().for_each(|pack_name| self.load_parent_pack(pack_name, already_loaded, data_paths, secondary_paths, content_paths));
+                        self.parent_files.extend(pack.files().clone());
+
+                        return;
                     }
                 }
             }

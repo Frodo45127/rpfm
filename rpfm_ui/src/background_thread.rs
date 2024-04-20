@@ -296,9 +296,10 @@ pub fn background_loop() {
                     let handle = thread::spawn(move || {
                         let game_selected = GAME_SELECTED.read().unwrap();
                         let game_path = setting_path(game_selected.key());
+                        let secondary_path = setting_path(SECONDARY_PATH);
                         let file_path = dependencies_cache_path().unwrap().join(game_selected.dependencies_cache_file_name());
                         let file_path = if game_changed { Some(&*file_path) } else { None };
-                        let _ = dependencies.write().unwrap().rebuild(&None, &pack_dependencies, file_path, &game_selected, &game_path);
+                        let _ = dependencies.write().unwrap().rebuild(&None, &pack_dependencies, file_path, &game_selected, &game_path, &secondary_path);
                         dependencies
                     });
 
@@ -348,7 +349,8 @@ pub fn background_loop() {
                             let dependencies_path = dependencies_cache_path().unwrap().join(game_selected.dependencies_cache_file_name());
                             match cache.save(&dependencies_path) {
                                 Ok(_) => {
-                                    let _ = dependencies.write().unwrap().rebuild(&SCHEMA.read().unwrap(), pack_file_decoded.dependencies(), Some(&dependencies_path), &game_selected, &game_path);
+                                    let secondary_path = setting_path(SECONDARY_PATH);
+                                    let _ = dependencies.write().unwrap().rebuild(&SCHEMA.read().unwrap(), pack_file_decoded.dependencies(), Some(&dependencies_path), &game_selected, &game_path, &secondary_path);
                                     let dependencies_info = DependenciesInfo::from(&*dependencies.read().unwrap());
                                     CentralCommand::send_back(&sender, Response::DependenciesInfo(dependencies_info));
                                 },
@@ -1230,9 +1232,10 @@ pub fn background_loop() {
                                     // Then rebuild the dependencies stuff.
                                     if dependencies.read().unwrap().is_vanilla_data_loaded(false) {
                                         let game_path = setting_path(game.key());
+                                        let secondary_path = setting_path(SECONDARY_PATH);
                                         let dependencies_file_path = dependencies_cache_path().unwrap().join(game.dependencies_cache_file_name());
 
-                                        match dependencies.write().unwrap().rebuild(&SCHEMA.read().unwrap(), pack_file_decoded.dependencies(), Some(&*dependencies_file_path), &game, &game_path) {
+                                        match dependencies.write().unwrap().rebuild(&SCHEMA.read().unwrap(), pack_file_decoded.dependencies(), Some(&*dependencies_file_path), &game, &game_path, &secondary_path) {
                                             Ok(_) => CentralCommand::send_back(&sender, Response::Success),
                                             Err(_) => CentralCommand::send_back(&sender, Response::Error(anyhow!("Schema updated, but dependencies cache rebuilding failed. You may need to regenerate it."))),
                                         }
@@ -1398,7 +1401,8 @@ pub fn background_loop() {
                     let dependencies_file_path = dependencies_cache_path().unwrap().join(game_selected.dependencies_cache_file_name());
                     let file_path = if !rebuild_only_current_mod_dependencies { Some(&*dependencies_file_path) } else { None };
 
-                    let _ = dependencies.write().unwrap().rebuild(&SCHEMA.read().unwrap(), pack_file_decoded.dependencies(), file_path, &game_selected, &game_path);
+                    let secondary_path = setting_path(SECONDARY_PATH);
+                    let _ = dependencies.write().unwrap().rebuild(&SCHEMA.read().unwrap(), pack_file_decoded.dependencies(), file_path, &game_selected, &game_path, &secondary_path);
                     let dependencies_info = DependenciesInfo::from(&*dependencies.read().unwrap());
                     CentralCommand::send_back(&sender, Response::DependenciesInfo(dependencies_info));
                 } else {

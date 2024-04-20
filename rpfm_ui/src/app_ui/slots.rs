@@ -574,6 +574,7 @@ impl AppUISlots {
 
                 let game_key = GAME_SELECTED.read().unwrap().key();
                 let mymod_path_old = setting_path(MYMOD_BASE_PATH);
+                let secondary_path_old = setting_path(SECONDARY_PATH);
                 let game_path_old = setting_path(game_key);
                 let ak_path_old = setting_path(&format!("{game_key}_assembly_kit"));
                 let dark_theme_old = setting_bool("use_dark_theme");
@@ -584,6 +585,7 @@ impl AppUISlots {
                     Ok(saved) => {
                         if saved {
                             let mymod_path_new = setting_path(MYMOD_BASE_PATH);
+                            let secondary_path_new = setting_path(SECONDARY_PATH);
                             let game_path_new = setting_path(game_key);
                             let ak_path_new = setting_path(&format!("{game_key}_assembly_kit"));
 
@@ -596,7 +598,7 @@ impl AppUISlots {
 
                             // If we have changed the path of any of the games, and that game is the current `GameSelected`,
                             // re-select the current `GameSelected` to force it to reload the game's files.
-                            if game_path_old != game_path_new || ak_path_old != ak_path_new {
+                            if game_path_old != game_path_new || ak_path_old != ak_path_new || secondary_path_old != secondary_path_new {
                                 AppUI::change_game_selected(&app_ui, &pack_file_contents_ui, &dependencies_ui, true, true);
                             }
 

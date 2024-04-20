@@ -177,6 +177,7 @@ pub struct AppUI {
     packfile_uninstall: QPtr<QAction>,
     packfile_open_recent: QBox<QMenu>,
     packfile_open_from_content: QBox<QMenu>,
+    packfile_open_from_secondary: QBox<QMenu>,
     packfile_open_from_data: QBox<QMenu>,
     packfile_open_from_autosave: QBox<QMenu>,
     packfile_load_all_ca_packfiles: QPtr<QAction>,
@@ -505,6 +506,7 @@ impl AppUI {
 
         let packfile_open_recent = QMenu::from_q_string_q_widget(&qtr("open_recent"), &menu_bar_packfile);
         let packfile_open_from_content = QMenu::from_q_string_q_widget(&qtr("open_from_content"), &menu_bar_packfile);
+        let packfile_open_from_secondary = QMenu::from_q_string_q_widget(&qtr("open_from_secondary"), &menu_bar_packfile);
         let packfile_open_from_data = QMenu::from_q_string_q_widget(&qtr("open_from_data"), &menu_bar_packfile);
         let packfile_open_from_autosave = QMenu::from_q_string_q_widget(&qtr("open_from_autosave"), &menu_bar_packfile);
         let packfile_change_packfile_type = QMenu::from_q_string_q_widget(&qtr("change_packfile_type"), &menu_bar_packfile);
@@ -516,6 +518,7 @@ impl AppUI {
         // Add the "Open..." submenus. These needs to be here because they have to be inserted in specific positions of the menu.
         menu_bar_packfile.insert_menu(&packfile_load_all_ca_packfiles, &packfile_open_recent);
         menu_bar_packfile.insert_menu(&packfile_load_all_ca_packfiles, &packfile_open_from_content);
+        menu_bar_packfile.insert_menu(&packfile_load_all_ca_packfiles, &packfile_open_from_secondary);
         menu_bar_packfile.insert_menu(&packfile_load_all_ca_packfiles, &packfile_open_from_data);
         menu_bar_packfile.insert_menu(&packfile_load_all_ca_packfiles, &packfile_open_from_autosave);
 
@@ -828,6 +831,7 @@ impl AppUI {
             packfile_uninstall,
             packfile_open_recent,
             packfile_open_from_content,
+            packfile_open_from_secondary,
             packfile_open_from_data,
             packfile_open_from_autosave,
             packfile_load_all_ca_packfiles,
@@ -1842,6 +1846,7 @@ impl AppUI {
         // First, we clear both menus, so we can rebuild them properly.
         app_ui.packfile_open_recent.clear();
         app_ui.packfile_open_from_content.clear();
+        app_ui.packfile_open_from_secondary.clear();
         app_ui.packfile_open_from_data.clear();
         app_ui.packfile_open_from_autosave.clear();
 
@@ -1902,6 +1907,45 @@ impl AppUI {
                 // That means our file is a valid PackFile and it needs to be added to the menu.
                 let mod_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
                 let open_mod_action = app_ui.packfile_open_from_content.add_action_q_string(&QString::from_std_str(mod_name));
+
+                // Create the slot for that action.
+                let slot_open_mod = SlotOfBool::new(&open_mod_action, clone!(
+                    app_ui,
+                    pack_file_contents_ui,
+                    global_search_ui,
+                    diagnostics_ui,
+                    path => move |_| {
+                    if Self::are_you_sure(&app_ui, false) {
+                        if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path.to_path_buf()], "") {
+                            return show_dialog(&app_ui.main_window, error, false);
+                        }
+
+                        if setting_bool("diagnostics_trigger_on_open") {
+
+                            // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
+                            app_ui.menu_bar_packfile.set_enabled(false);
+
+                            DiagnosticsUI::check(&app_ui, &diagnostics_ui);
+
+                            app_ui.menu_bar_packfile.set_enabled(true);
+                        }
+                    }
+                }));
+
+                // Connect the slot and store it.
+                open_mod_action.triggered().connect(&slot_open_mod);
+            }
+        }
+
+        // Get the path of every PackFile in the secondary folder (if it's configured) and make an action for each one of them.
+        let mut secondary_paths = GAME_SELECTED.read().unwrap().secondary_packs_paths(&setting_path(SECONDARY_PATH));
+        if let Some(ref mut paths) = secondary_paths {
+            paths.sort_unstable_by_key(|x| x.file_name().unwrap().to_string_lossy().as_ref().to_owned());
+            for path in paths {
+
+                // That means our file is a valid PackFile and it needs to be added to the menu.
+                let mod_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
+                let open_mod_action = app_ui.packfile_open_from_secondary.add_action_q_string(&QString::from_std_str(mod_name));
 
                 // Create the slot for that action.
                 let slot_open_mod = SlotOfBool::new(&open_mod_action, clone!(
@@ -2026,6 +2070,7 @@ impl AppUI {
         // Only if the submenu has items, we enable it.
         app_ui.packfile_open_recent.menu_action().set_visible(!app_ui.packfile_open_recent.actions().is_empty());
         app_ui.packfile_open_from_content.menu_action().set_visible(!app_ui.packfile_open_from_content.actions().is_empty());
+        app_ui.packfile_open_from_secondary.menu_action().set_visible(!app_ui.packfile_open_from_secondary.actions().is_empty());
         app_ui.packfile_open_from_data.menu_action().set_visible(!app_ui.packfile_open_from_data.actions().is_empty());
         app_ui.packfile_open_from_autosave.menu_action().set_visible(!app_ui.packfile_open_from_autosave.actions().is_empty());
     }

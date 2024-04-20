@@ -48,6 +48,7 @@ use crate::utils::show_dialog;
 pub struct SettingsUISlots {
     pub restore_default: QBox<SlotNoArgs>,
     pub select_mymod_path: QBox<SlotNoArgs>,
+    pub select_secondary_path: QBox<SlotNoArgs>,
     pub select_game_paths: BTreeMap<String, QBox<SlotNoArgs>>,
     pub select_asskit_paths: BTreeMap<String, QBox<SlotNoArgs>>,
     pub shortcuts: QBox<SlotNoArgs>,
@@ -134,6 +135,13 @@ impl SettingsUISlots {
         let select_mymod_path = SlotNoArgs::new(&ui.dialog, clone!(
             ui => move || {
                 ui.update_entry_path(MYMOD_BASE_PATH, false);
+            }
+        ));
+
+        // What happens when we hit the "..." button for Secondary Folder.
+        let select_secondary_path = SlotNoArgs::new(&ui.dialog, clone!(
+            ui => move || {
+                ui.update_entry_path(SECONDARY_PATH, false);
             }
         ));
 
@@ -301,6 +309,7 @@ impl SettingsUISlots {
 		Self {
             restore_default,
             select_mymod_path,
+            select_secondary_path,
             select_game_paths,
             select_asskit_paths,
             shortcuts,

@@ -83,6 +83,8 @@ pub struct SettingsUI {
     //-------------------------------------------------------------------------------//
     paths_mymod_line_edit: QBox<QLineEdit>,
     paths_mymod_button: QBox<QPushButton>,
+    paths_secondary_line_edit: QBox<QLineEdit>,
+    paths_secondary_button: QBox<QPushButton>,
 
     paths_spoilers: BTreeMap<String, QBox<QWidget>>,
 
@@ -324,7 +326,7 @@ impl SettingsUI {
             paths_spoilers.insert(game_key.to_owned(), spoiler);
         }
 
-        paths_grid.add_widget_5a(&paths_frame, 0, 0, 1, 3);
+        paths_grid.add_widget_5a(&paths_frame, 1, 0, 1, 3);
 
         //-----------------------------------------------//
         // `Extra Paths` Frame.
@@ -340,11 +342,20 @@ impl SettingsUI {
         let paths_mymod_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("..."), &extra_paths_frame);
         paths_mymod_line_edit.set_placeholder_text(&qtr("settings_paths_mymod_ph"));
 
+        let paths_secondary_label = QLabel::from_q_string_q_widget(&qtr("settings_paths_secondary"), &extra_paths_frame);
+        let paths_secondary_line_edit = QLineEdit::from_q_widget(&extra_paths_frame);
+        let paths_secondary_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("..."), &extra_paths_frame);
+        paths_secondary_line_edit.set_placeholder_text(&qtr("settings_paths_secondary_ph"));
+
         extra_paths_grid.add_widget_5a(&paths_mymod_label, 0, 0, 1, 1);
         extra_paths_grid.add_widget_5a(&paths_mymod_line_edit, 0, 1, 1, 1);
         extra_paths_grid.add_widget_5a(&paths_mymod_button, 0, 2, 1, 1);
 
-        paths_grid.add_widget_5a(&extra_paths_frame, 1, 0, 1, 3);
+        extra_paths_grid.add_widget_5a(&paths_secondary_label, 1, 0, 1, 1);
+        extra_paths_grid.add_widget_5a(&paths_secondary_line_edit, 1, 1, 1, 1);
+        extra_paths_grid.add_widget_5a(&paths_secondary_button, 1, 2, 1, 1);
+
+        paths_grid.add_widget_5a(&extra_paths_frame, 0, 0, 1, 3);
 
         //-----------------------------------------------//
         // `General` Frame.
@@ -758,6 +769,8 @@ impl SettingsUI {
             //-------------------------------------------------------------------------------//
             paths_mymod_line_edit,
             paths_mymod_button,
+            paths_secondary_line_edit,
+            paths_secondary_button,
             paths_spoilers,
             paths_games_line_edits,
             paths_games_buttons,
@@ -887,6 +900,7 @@ impl SettingsUI {
 
         // Load the MyMod and 7Zip paths, if exists.
         self.paths_mymod_line_edit.set_text(&QString::from_std_str(setting_string_from_q_setting(&q_settings, MYMOD_BASE_PATH)));
+        self.paths_secondary_line_edit.set_text(&QString::from_std_str(setting_string_from_q_setting(&q_settings, SECONDARY_PATH)));
 
         // Load the Game Paths, if they exists.
         for (key, path) in self.paths_games_line_edits.iter() {
@@ -1016,6 +1030,7 @@ impl SettingsUI {
         let q_settings = settings();
 
         set_setting_string_to_q_setting(&q_settings, MYMOD_BASE_PATH, &self.paths_mymod_line_edit.text().to_std_string());
+        set_setting_string_to_q_setting(&q_settings, SECONDARY_PATH, &self.paths_secondary_line_edit.text().to_std_string());
 
         // For each entry, we check if it's a valid directory and save it into Settings.
         for (key, line_edit) in self.paths_games_line_edits.iter() {
@@ -1119,6 +1134,7 @@ impl SettingsUI {
                 Some(line_edit) => (line_edit, false),
                 None => match game {
                     MYMOD_BASE_PATH => (&self.paths_mymod_line_edit, false),
+                    SECONDARY_PATH => (&self.paths_secondary_line_edit, false),
                     _ => return,
                 }
             }
@@ -1127,6 +1143,7 @@ impl SettingsUI {
                 Some(line_edit) => (line_edit, false),
                 None => match game {
                     MYMOD_BASE_PATH => (&self.paths_mymod_line_edit, false),
+                    SECONDARY_PATH => (&self.paths_secondary_line_edit, false),
                     _ => return,
                 }
             }

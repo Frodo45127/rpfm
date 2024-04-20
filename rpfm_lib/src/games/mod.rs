@@ -430,6 +430,34 @@ impl GameInfo {
         Some(paths)
     }
 
+    /// This function gets the paths of the Packs from the `/secondary` path or equivalent of the game selected, if it's configured in the settings.
+    ///
+    /// Secondary path must be absolute.
+    pub fn secondary_packs_paths(&self, secondary_path: &Path) -> Option<Vec<PathBuf>> {
+        if !secondary_path.is_dir() || !secondary_path.exists() || !secondary_path.is_absolute() {
+            return None;
+        }
+
+        let game_path = secondary_path.join(self.key());
+        if !game_path.is_dir() || !game_path.exists() {
+            return None;
+        }
+
+        let mut paths = vec![];
+
+        for path in files_from_subdir(&game_path, false).ok()?.iter() {
+            match path.extension() {
+                Some(extension) => if extension == "pack" {
+                    paths.push(path.to_path_buf());
+                }
+                None => continue,
+            }
+        }
+
+        paths.sort();
+        Some(paths)
+    }
+
     /// This function gets the `/data` path or equivalent of the game selected, if said game it's configured in the settings.
     pub fn data_packs_paths(&self, game_path: &Path) -> Option<Vec<PathBuf>> {
         let game_path = self.data_path(game_path).ok()?;

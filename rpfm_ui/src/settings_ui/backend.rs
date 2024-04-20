@@ -41,6 +41,7 @@ use crate::updater_ui::STABLE;
 
 /// Key of the MyMod path in the settings";
 pub const MYMOD_BASE_PATH: &str = "mymods_base_path";
+pub const SECONDARY_PATH: &str = "secondary_path";
 
 const DEPENDENCIES_FOLDER: &str = "dependencies";
 const TABLE_PATCHES_FOLDER: &str = "table_patches";
@@ -58,6 +59,7 @@ pub unsafe fn init_settings(main_window: &QPtr<QMainWindow>) {
     set_setting_if_new_q_byte_array(&q_settings, "originalWindowState", main_window.save_state_0a().as_ref());
 
     set_setting_if_new_string(&q_settings, MYMOD_BASE_PATH, "");
+    set_setting_if_new_string(&q_settings, SECONDARY_PATH, "");
 
     for game in &SUPPORTED_GAMES.games() {
         let game_key = game.key();
