@@ -359,14 +359,26 @@ pub unsafe fn reload_theme(app_ui: &AppUI) {
         if use_dark_theme {
             QApplication::set_style_q_string(&QString::from_std_str("fusion"));
             QApplication::set_palette_1a(dark_palette);
-            if let Ok(dark_stylesheet) = dark_stylesheet() {
-                qapp.set_style_sheet(&QString::from_std_str(dark_stylesheet));
+            if let Ok(ref mut dark_style_sheet) = dark_stylesheet() {
+
+                let scroll = "\nQMenu { menu-scrollable: 1 }";
+                if !dark_style_sheet.ends_with(scroll) {
+                    dark_style_sheet.push_str(scroll);
+                }
+
+                qapp.set_style_sheet(&QString::from_std_str(dark_style_sheet));
             }
 
             app_ui.github_button().set_icon(&QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/github.svg", ASSETS_PATH.to_string_lossy()))));
         } else {
             QApplication::set_style_q_string(&QString::from_std_str("windowsvista"));
             QApplication::set_palette_1a(light_palette);
+
+            let scroll = QString::from_std_str("\nQMenu { menu-scrollable: 1 }");
+            if !light_style_sheet.ends_with_q_string(&scroll) {
+                light_style_sheet.append_q_string(&scroll);
+            }
+
             qapp.set_style_sheet(light_style_sheet);
 
             app_ui.github_button().set_icon(&QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/github-dark.svg", ASSETS_PATH.to_string_lossy()))));
