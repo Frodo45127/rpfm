@@ -1054,6 +1054,13 @@ pub fn background_loop() {
             // In case we want to get the reference data for a definition...
             Command::GetReferenceDataFromDefinition(table_name, definition) => {
 
+                // Trick: before doing this, we modify the definition to include any lookup from any reference,
+                // so we are actually able to catch recursive-like lookups without reading multiple tables.
+                let mut definition = definition.clone();
+                if let Some(ref schema) = *SCHEMA.read().unwrap() {
+                    dependencies.read().unwrap().add_recursive_lookups_to_definition(schema, &mut definition);
+                }
+
                 // Only generate the cache references if we don't already have them generated.
                 if dependencies.read().unwrap().local_tables_references().get(&table_name).is_none() {
                     dependencies.write().unwrap().generate_local_definition_references(&table_name, &definition);
