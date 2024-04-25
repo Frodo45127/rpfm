@@ -6,6 +6,24 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [Unreleased]
+### Added
+- Implemented basic CUF support (lib only).
+- Implemented "Add RPFM as a Tool in Runcher" button in settings.
+- Implemented support for open specific files in Packs when opening Packs through command line.
+- Implemented support for secondary mod paths (like the one in Runcher).
+- Implemented support for multi-level lookups.
+
+### Changed
+- Loose files in /data are now accessible as dependencies.
+- Menus are now single-columns on Windows, like they've always been in Linux.
+- Columns with lookups are now a bit bigger than the rest to account for the lookups.
+- Changelog should now automatically open after an update.
+
+### Fixed
+- Fixed "Import from AK" not working due to a misplaced index.
+- Fixed incorrect icons in anim, font and groupformation files.
+
 ## [4.2.7]
 ### Added
 - Implemented "Build Startpos" support for all games since Rome 2 (except Warhammer 1).
