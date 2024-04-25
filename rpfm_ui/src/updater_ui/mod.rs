@@ -510,6 +510,10 @@ pub fn update_main_program() -> Result<()> {
             .to_dest(&dest_file)?;
     }
 
+    // Open the changelog because people don't read it.
+    let changelog_path = dest_base_path.join(CHANGELOG_FILE);
+    let _ = open::that(changelog_path);
+
     Ok(())
 }
 
