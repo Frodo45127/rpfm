@@ -2151,7 +2151,7 @@ impl Dependencies {
     ) {
         let mut finish_lookup = false;
         let table_name = table_name.to_string() + "_tables";
-        if let Ok(ref_tables) = self.db_data(&table_name, true, false) {
+        if let Ok(ref_tables) = self.db_data(&table_name, true, true) {
             let candidates = ref_tables.iter()
                 .filter_map(|rfile| rfile.decoded().ok())
                 .filter_map(|decoded| if let RFileDecoded::DB(db) = decoded {
