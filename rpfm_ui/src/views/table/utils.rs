@@ -800,6 +800,11 @@ pub unsafe fn build_columns(
                                 .map(|row| row[index].data_to_string().len() * 6)
                                 .unwrap_or(COLUMN_SIZE_STRING as usize);
 
+                            // Enlarge a bit lookup columns so they show part of the lookup.
+                            if field.lookup(patches).is_some() {
+                                size += 200;
+                            }
+
                             // Fix some columns getting their title eaten by description icon, and some columns being extremely long.
                             if size < 60 {
                                 size = 60;
