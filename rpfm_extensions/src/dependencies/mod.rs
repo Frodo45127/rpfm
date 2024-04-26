@@ -351,14 +351,14 @@ impl Dependencies {
     /// Table names must be provided as full names (with *_tables* at the end).
     ///
     /// NOTE: This function, like many others, assumes the tables are already decoded in the Pack. If they're not, they'll be ignored.
-    pub fn generate_local_db_references(&mut self, pack: &Pack, table_names: &[String]) {
+    pub fn generate_local_db_references(&mut self, schema: &Schema, pack: &Pack, table_names: &[String]) {
 
         let local_tables_references = pack.files_by_type(&[FileType::DB]).par_iter().filter_map(|file| {
             if let Ok(RFileDecoded::DB(db)) = file.decoded() {
 
                 // Only generate references for the tables you pass it, or for all if we pass the list of tables empty.
                 if table_names.is_empty() || table_names.iter().any(|x| x == db.table_name()) {
-                     Some((db.table_name().to_owned(), self.generate_references(db.table_name(), db.definition())))
+                    Some((db.table_name().to_owned(), self.generate_references(schema, db.table_name(), db.definition())))
                 } else { None }
             } else { None }
         }).collect::<HashMap<_, _>>();
@@ -367,12 +367,18 @@ impl Dependencies {
     }
 
     /// This function builds the local db references data for the table with the definition you pass to and stores it in the cache.
-    pub fn generate_local_definition_references(&mut self, table_name: &str, definition: &Definition) {
-        self.local_tables_references.insert(table_name.to_owned(), self.generate_references(table_name, definition));
+    pub fn generate_local_definition_references(&mut self, schema: &Schema, table_name: &str, definition: &Definition) {
+        self.local_tables_references.insert(table_name.to_owned(), self.generate_references(schema, table_name, definition));
     }
 
     /// This function builds the local db references data for the table with the definition you pass to, and returns it.
-    pub fn generate_references(&self, local_table_name: &str, definition: &Definition) -> HashMap<i32, TableReferences> {
+    pub fn generate_references(&self, schema: &Schema, local_table_name: &str, definition: &Definition) -> HashMap<i32, TableReferences> {
+
+        // Trick: before doing this, we modify the definition to include any lookup from any reference,
+        // so we are actually able to catch recursive-like lookups without reading multiple tables.
+        let mut definition = definition.clone();
+        self.add_recursive_lookups_to_definition(schema, &mut definition, local_table_name);
+
         let patches = Some(definition.patches());
         let fields_processed = definition.fields_processed();
 
@@ -383,7 +389,7 @@ impl Dependencies {
                         let ref_table = format!("{ref_table}_tables");
 
                         // Get his lookup data if it has it.
-                        let lookup_data = if let Some(ref data) = field.lookup(patches) { data.to_vec() } else { Vec::with_capacity(0) };
+                        let lookup_data = if let Some(ref data) = field.lookup_no_patch() { data.to_vec() } else { Vec::with_capacity(0) };
                         let mut references = TableReferences::default();
                         *references.field_name_mut() = field.name().to_owned();
 
@@ -406,7 +412,7 @@ impl Dependencies {
 
                 // In the fallback case (no references) we still need to check for lookup data within our table and the locs.
                 None => {
-                    if let Some(ref lookup_data) = field.lookup(patches) {
+                    if let Some(ref lookup_data) = field.lookup_no_patch() {
 
                         // Only single-keyed tables can have lookups.
                         if field.is_key(patches) && fields_processed.iter().filter(|x| x.is_key(patches)).count() == 1 {
@@ -1232,7 +1238,7 @@ impl Dependencies {
     /// This function returns the reference/lookup data of all relevant columns of a DB Table.
     ///
     /// NOTE: This assumes you've populated the runtime references before this. If not, it'll fail.
-    pub fn db_reference_data(&self, pack: &Pack, table_name: &str, definition: &Definition, loc_data: &Option<HashMap<Cow<str>, Cow<str>>>) -> HashMap<i32, TableReferences> {
+    pub fn db_reference_data(&self, schema: &Schema, pack: &Pack, table_name: &str, definition: &Definition, loc_data: &Option<HashMap<Cow<str>, Cow<str>>>) -> HashMap<i32, TableReferences> {
 
         // First check if the data is already cached, to speed up things.
         let mut vanilla_references = match self.local_tables_references.get(table_name) {
@@ -1264,6 +1270,11 @@ impl Dependencies {
             &_loc_data_dummy
         };
 
+        // Trick: before doing this, we modify the definition to include any lookup from any reference,
+        // so we are actually able to catch recursive-like lookups without reading multiple tables.
+        let mut definition = definition.clone();
+        self.add_recursive_lookups_to_definition(schema, &mut definition, table_name);
+
         let patches = Some(definition.patches());
         let fields_processed = definition.fields_processed();
         let local_references = fields_processed.par_iter().enumerate().filter_map(|(column, field)| {
@@ -1272,7 +1283,7 @@ impl Dependencies {
                     if !ref_table.is_empty() && !ref_column.is_empty() {
 
                         // Get his lookup data if it has it.
-                        let lookup_data = if let Some(ref data) = field.lookup(patches) { data.to_vec() } else { Vec::with_capacity(0) };
+                        let lookup_data = if let Some(ref data) = field.lookup_no_patch() { data.to_vec() } else { Vec::with_capacity(0) };
                         let mut references = TableReferences::default();
                         *references.field_name_mut() = field.name().to_owned();
 
@@ -1284,7 +1295,7 @@ impl Dependencies {
 
                 // In the fallback case (no references) we still need to check for lookup data within our table and the locs.
                 None => {
-                    if let Some(ref lookup_data) = field.lookup(patches) {
+                    if let Some(ref lookup_data) = field.lookup_no_patch() {
 
                         // Only single-keyed tables can have lookups.
                         if field.is_key(patches) && fields_processed.iter().filter(|x| x.is_key(patches)).count() == 1 {
@@ -1393,15 +1404,17 @@ impl Dependencies {
             .for_each(|file| {
             if let Ok(RFileDecoded::DB(db)) = file.decoded() {
                 let definition = db.definition();
+                let patches = Some(db.patches());
                 let fields_processed = definition.fields_processed();
                 let localised_fields = definition.localised_fields();
+                let localised_order = definition.localised_key_order();
 
                 // Only continue if the column we're referencing actually exists.
                 if let Some(ref_column_index) = fields_processed.iter().position(|x| x.name() == ref_column) {
 
                     // Here we analyze the lookups to build their table cache.
                     let lookups_analyzed = ref_lookup_columns.iter().map(|ref_lookup_path| {
-                        let ref_lookup_steps = ref_lookup_path.split(":").map(|x| x.split(";").collect::<Vec<_>>()).collect::<Vec<_>>();
+                        let ref_lookup_steps = ref_lookup_path.split(":").map(|x| x.split("#").collect::<Vec<_>>()).collect::<Vec<_>>();
                         let mut is_loc = false;
                         let mut col_pos = 0;
 
@@ -1476,17 +1489,30 @@ impl Dependencies {
 
                         // Then, we get the lookup data.
                         for (lookup_steps, is_loc, column) in lookups_analyzed.iter() {
+                            if !reference_data.is_empty() {
 
-                            let lookup_key = if let Some(lookup_column) = fields_processed.iter().position(|x| x.name() == lookup_steps[0][2]) {
-                                row[lookup_column].data_to_string()
-                            } else if let Some(lookup_column) = localised_fields.iter().position(|x| x.name() == lookup_steps[0][2]) {
-                                row[lookup_column].data_to_string()
-                            } else {
-                                Cow::from("")
-                            };
+                                // Special case: if we're looking for a local loc lookup, don't do recursiveness.
+                                if *is_loc && lookup_steps.len() == 1 && fields_processed[ref_column_index].is_reference(patches).is_none() {
 
-                            if !lookup_key.is_empty() {
-                                if let Some(lookup) = self.db_reference_data_generic_lookup(&cache, loc_data, &reference_data, lookup_steps, *is_loc, *column) {
+                                    // Optimisation: This is way faster than format when done in-mass.
+                                    let loc_values = localised_order.iter().map(|pos| row[*pos as usize].data_to_string()).join("");
+                                    let mut loc_key = String::with_capacity(2 + lookup_steps[0][0].len() + localised_fields[*column].name().len() + loc_values.len());
+                                    loc_key.push_str(&lookup_steps[0][0]);
+                                    loc_key.push('_');
+                                    loc_key.push_str(localised_fields[*column].name());
+                                    loc_key.push('_');
+                                    loc_key.push_str(&loc_values);
+
+                                    if let Some(data) = loc_data.get(&*loc_key) {
+                                        lookup_data.push(data.to_string());
+                                    } else if let Some(data) = self.localisation_data.get(&loc_key) {
+                                        lookup_data.push(data.to_string());
+                                    } else {
+                                        lookup_data.push(loc_key);
+                                    }
+                                }
+
+                                else if let Some(lookup) = self.db_reference_data_generic_lookup(&cache, loc_data, &reference_data, lookup_steps, *is_loc, *column) {
                                     lookup_data.push(lookup);
                                 }
                             }
@@ -2125,22 +2151,51 @@ impl Dependencies {
     /// This function manipulates a definition to recursively add reference lookups if found.
     ///
     /// THIS IS DANGEROUS IF WE FIND A CYCLIC DEPENDENCY.
-    pub fn add_recursive_lookups_to_definition(&self, schema: &Schema, definition: &mut Definition) {
+    pub fn add_recursive_lookups_to_definition(&self, schema: &Schema, definition: &mut Definition, table_name: &str) {
         let schema_patches = definition.patches().clone();
 
         for field in definition.fields_mut().iter_mut() {
-            let lookup_data_old = field.lookup(Some(&schema_patches)).unwrap_or_else(|| vec![]);
+            if let Some(lookup_data_old) = field.lookup(Some(&schema_patches)) {
 
-            // If our field is a reference, do recursive checks to find out all the lookup data of a specific field.
-            if let Some((ref_table_name, ref_column)) = field.is_reference(Some(&schema_patches)) {
-                let mut lookup_data = vec![];
+                // If our field is a reference, do recursive checks to find out all the lookup data of a specific field.
+                if let Some((ref_table_name, ref_column)) = field.is_reference(Some(&schema_patches)) {
+                    let mut lookup_data = vec![];
 
-                for lookup_data_old in &lookup_data_old {
-                    let lookup_string = format!("{};{};{}", ref_table_name, ref_column, lookup_data_old);
-                    self.add_recursive_lookups(schema, &schema_patches, lookup_data_old, &mut lookup_data, &lookup_string, &ref_table_name);
+                    for lookup_data_old in &lookup_data_old {
+                        let lookup_string = format!("{}#{}#{}", ref_table_name, ref_column, lookup_data_old);
+                        self.add_recursive_lookups(schema, &schema_patches, lookup_data_old, &mut lookup_data, &lookup_string, &ref_table_name);
+                    }
+
+                    if !lookup_data.is_empty() {
+                        field.set_lookup(Some(lookup_data));
+                    } else {
+                        field.set_lookup(None);
+                    }
                 }
 
-                field.set_lookup(Some(lookup_data));
+                // If it's not a reference but it has lookups, it's a lookup to the same table, or locs of the same table.
+                //
+                // This should really not trigger thanks to previous optimisations, but I'll leave this as a fallback.
+                else if !lookup_data_old.is_empty() {
+                    let mut lookup_data = vec![];
+
+                    let table_name = if table_name.ends_with("_tables") {
+                        table_name[..table_name.len() - 7].to_owned()
+                    } else {
+                        table_name.to_owned()
+                    };
+
+                    for lookup_data_old in &lookup_data_old {
+                        let lookup_string = format!("{}#{}#{}", table_name, field.name(), lookup_data_old);
+                        self.add_recursive_lookups(schema, &schema_patches, lookup_data_old, &mut lookup_data, &lookup_string, &table_name);
+                    }
+
+                    if !lookup_data.is_empty() {
+                        field.set_lookup(Some(lookup_data));
+                    } else {
+                        field.set_lookup(None);
+                    }
+                }
             }
         }
     }
@@ -2175,7 +2230,7 @@ impl Dependencies {
                         if let Some((ref_table_name, ref_column)) = field.is_reference(Some(&schema_patches)) {
                             if let Some(lookups) = field.lookup(Some(schema_patches)) {
                                 for lookup in &lookups {
-                                    let lookup_string = format!("{}:{};{};{}", lookup_string, ref_table_name, ref_column, lookup);
+                                    let lookup_string = format!("{}:{}#{}#{}", lookup_string, ref_table_name, ref_column, lookup);
 
                                     self.add_recursive_lookups(schema, &schema_patches, lookup, lookup_data, &lookup_string, &ref_table_name);
                                 }

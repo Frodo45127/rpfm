@@ -292,12 +292,12 @@ pub fn diagnose(config: &Config, game_path: &Path, pak_path: &Path, schema_path:
 
             // Build the dependencies cache for the game and generate the references for our specific Pack.
             let mut dependencies = Dependencies::default();
-            dependencies.rebuild(&Some(schema), pack.dependencies(), Some(pak_path), game_info, game_path, &PathBuf::new())?;
-            dependencies.generate_local_db_references(&pack, &tables);
+            dependencies.rebuild(&Some(schema.clone()), pack.dependencies(), Some(pak_path), game_info, game_path, &PathBuf::new())?;
+            dependencies.generate_local_db_references(&schema, &pack, &tables);
 
             // Trigger a diagnostics check.
             let mut diagnostics = Diagnostics::default();
-            diagnostics.check(&mut pack, &mut dependencies, game_info, game_path, &[], false);
+            diagnostics.check(&mut pack, &mut dependencies, &schema, game_info, game_path, &[], false);
 
             if config.verbose {
                 info!("Diagnosed problems in the following Packs:");

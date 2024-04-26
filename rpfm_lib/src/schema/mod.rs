@@ -1015,6 +1015,10 @@ impl Field {
         self.lookup.clone()
     }
 
+    pub fn lookup_no_patch(&self) -> Option<Vec<String>> {
+        self.lookup.clone()
+    }
+
     pub fn description(&self, schema_patches: Option<&DefinitionPatch>) -> String {
         if let Some(schema_patches) = schema_patches {
             if let Some(patch) = schema_patches.get(self.name()) {

@@ -32,7 +32,7 @@ use std::path::Path;
 use rpfm_lib::error::Result;
 use rpfm_lib::files::{ContainerPath, Container, DecodeableExtraData, FileType, pack::Pack, RFile, RFileDecoded};
 use rpfm_lib::games::{GameInfo, VanillaDBTableNameLogic};
-use rpfm_lib::schema::FieldType;
+use rpfm_lib::schema::{FieldType, Schema};
 
 use crate::dependencies::{Dependencies, TableReferences};
 use crate::REGEX_INVALID_ESCAPES;
@@ -142,7 +142,7 @@ impl DiagnosticType {
 impl Diagnostics {
 
     /// This function performs a search over the parts of a `PackFile` you specify it, storing his results.
-    pub fn check(&mut self, pack: &mut Pack, dependencies: &mut Dependencies, game_info: &GameInfo, game_path: &Path, paths_to_check: &[ContainerPath], check_ak_only_refs: bool) {
+    pub fn check(&mut self, pack: &mut Pack, dependencies: &mut Dependencies, schema: &Schema, game_info: &GameInfo, game_path: &Path, paths_to_check: &[ContainerPath], check_ak_only_refs: bool) {
 
         // Clear the diagnostics first if we're doing a full check, or only the config ones and the ones for the path to update if we're doing a partial check.
         if paths_to_check.is_empty() {
@@ -266,7 +266,7 @@ impl Diagnostics {
 
         // If table names is empty this triggers a full regeneration, which is slow as fuck. So make sure to avoid that if we're only doing a partial check.
         if !table_names.is_empty() || (table_names.is_empty() && paths_to_check.is_empty()) {
-            dependencies.generate_local_db_references(pack, &table_names);
+            dependencies.generate_local_db_references(&schema, pack, &table_names);
         }
 
         // Caches for Portrait Settings diagnostics.
@@ -299,7 +299,7 @@ impl Diagnostics {
                         let file_decoded = file.decoded().ok()?;
                         if table_references.is_empty() {
                             if let RFileDecoded::DB(table) = file_decoded {
-                                table_references = dependencies.db_reference_data(pack, table.table_name(), table.definition(), &loc_data);
+                                table_references = dependencies.db_reference_data(&schema, pack, table.table_name(), table.definition(), &loc_data);
                             }
                         }
 

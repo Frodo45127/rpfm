@@ -1053,20 +1053,17 @@ pub fn background_loop() {
 
             // In case we want to get the reference data for a definition...
             Command::GetReferenceDataFromDefinition(table_name, definition) => {
-
-                // Trick: before doing this, we modify the definition to include any lookup from any reference,
-                // so we are actually able to catch recursive-like lookups without reading multiple tables.
-                let mut definition = definition.clone();
-                if let Some(ref schema) = *SCHEMA.read().unwrap() {
-                    dependencies.read().unwrap().add_recursive_lookups_to_definition(schema, &mut definition);
-                }
+                let mut reference_data = HashMap::new();
 
                 // Only generate the cache references if we don't already have them generated.
-                if dependencies.read().unwrap().local_tables_references().get(&table_name).is_none() {
-                    dependencies.write().unwrap().generate_local_definition_references(&table_name, &definition);
+                if let Some(ref schema) = *SCHEMA.read().unwrap() {
+                    if dependencies.read().unwrap().local_tables_references().get(&table_name).is_none() {
+                        dependencies.write().unwrap().generate_local_definition_references(schema, &table_name, &definition);
+                    }
+
+                    reference_data = dependencies.read().unwrap().db_reference_data(schema, &pack_file_decoded, &table_name, &definition, &None);
                 }
 
-                let reference_data = dependencies.read().unwrap().db_reference_data(&pack_file_decoded, &table_name, &definition, &None);
                 CentralCommand::send_back(&sender, Response::HashMapI32TableReferences(reference_data));
             }
 
@@ -1328,15 +1325,18 @@ pub fn background_loop() {
 
             // In case we want to perform a diagnostics check...
             Command::DiagnosticsCheck(diagnostics_ignored, check_ak_only_refs) => {
+
                 let game_selected = GAME_SELECTED.read().unwrap();
                 let game_path = setting_path(game_selected.key());
 
                 let mut diagnostics = Diagnostics::default();
                 *diagnostics.diagnostics_ignored_mut() = diagnostics_ignored;
 
-                if pack_file_decoded.pfh_file_type() == PFHFileType::Mod ||
-                    pack_file_decoded.pfh_file_type() == PFHFileType::Movie {
-                    diagnostics.check(&mut pack_file_decoded, &mut dependencies.write().unwrap(), &game_selected, &game_path, &[], check_ak_only_refs);
+                if let Some(ref schema) = *SCHEMA.read().unwrap() {
+                    if pack_file_decoded.pfh_file_type() == PFHFileType::Mod ||
+                        pack_file_decoded.pfh_file_type() == PFHFileType::Movie {
+                        diagnostics.check(&mut pack_file_decoded, &mut dependencies.write().unwrap(), &schema, &game_selected, &game_path, &[], check_ak_only_refs);
+                    }
                 }
 
                 info!("Checking diagnostics: done.");
@@ -1348,9 +1348,11 @@ pub fn background_loop() {
                 let game_selected = GAME_SELECTED.read().unwrap();
                 let game_path = setting_path(game_selected.key());
 
-                if pack_file_decoded.pfh_file_type() == PFHFileType::Mod ||
-                    pack_file_decoded.pfh_file_type() == PFHFileType::Movie {
-                    diagnostics.check(&mut pack_file_decoded, &mut dependencies.write().unwrap(), &game_selected, &game_path, &path_types, check_ak_only_refs);
+                if let Some(ref schema) = *SCHEMA.read().unwrap() {
+                    if pack_file_decoded.pfh_file_type() == PFHFileType::Mod ||
+                        pack_file_decoded.pfh_file_type() == PFHFileType::Movie {
+                        diagnostics.check(&mut pack_file_decoded, &mut dependencies.write().unwrap(), &schema, &game_selected, &game_path, &path_types, check_ak_only_refs);
+                    }
                 }
 
                 info!("Checking diagnostics (update): done.");
