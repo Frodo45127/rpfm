@@ -297,7 +297,11 @@ impl ToolFactionPainter {
 
         // Once we got everything processed, build the items for the ListView.
         for (key, data) in processed_data.iter_mut().sorted_by_key(|x| x.0) {
-            let item = QStandardItem::from_q_string(&QString::from_std_str(format!("{} - {}", data.get("screen_name").unwrap(), key))).into_ptr();
+            let item = QStandardItem::from_q_string(&QString::from_std_str(
+                match data.get("screen_name") {
+                    Some(screen_name) => format!("{} - {}", screen_name, key),
+                    None => key.to_string(),
+                })).into_ptr();
             item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(data).unwrap())), FACTION_DATA);
 
             // Image paths, we may or may not have them, so only try to load them if we actually have a path for them.
