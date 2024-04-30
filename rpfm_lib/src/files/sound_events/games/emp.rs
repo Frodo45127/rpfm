@@ -27,52 +27,52 @@ impl SoundEvents {
         for _ in 0..data.read_u32()? {
             let mut uk_1 = Uk1::default();
 
-            uk_1.uk_1 = data.read_u32()?;
+            uk_1.uk_1 = data.read_i32()?;
 
             self.uk_1_mut().push(uk_1);
         }
 
-        // Event data records? No idea.
+        // Event data records.
         for _ in 0..data.read_u32()? {
-            let mut uk_2 = Uk2::default();
+            let mut event_data = EventData::default();
 
-            uk_2.uk_1 = data.read_f32()?;
-            uk_2.uk_2 = data.read_f32()?;
-            uk_2.uk_3 = data.read_f32()?;
-            uk_2.uk_4 = data.read_f32()?;
-            uk_2.uk_5 = data.read_f32()?;
-            uk_2.uk_6 = data.read_f32()?;
-            uk_2.uk_7 = data.read_f32()?;
-            uk_2.uk_8 = data.read_f32()?;
-            uk_2.uk_9 = data.read_f32()?;
-            uk_2.uk_10 = data.read_f32()?;
-            uk_2.uk_11 = data.read_f32()?;
-            uk_2.uk_12 = data.read_f32()?;
-            uk_2.uk_13 = data.read_f32()?;
-            uk_2.uk_14 = data.read_f32()?;
-            uk_2.uk_15 = data.read_f32()?;
-            uk_2.uk_16 = data.read_f32()?;
-            uk_2.uk_17 = data.read_f32()?;
-            uk_2.uk_18 = data.read_f32()?;
-            uk_2.uk_19 = data.read_f32()?;
-            uk_2.uk_20 = data.read_f32()?;
-            uk_2.uk_21 = data.read_f32()?;
-            uk_2.uk_22 = data.read_f32()?;
-            uk_2.uk_23 = data.read_f32()?;
-            uk_2.uk_24 = data.read_f32()?;
-            uk_2.uk_25 = data.read_f32()?;
-            uk_2.uk_26 = data.read_f32()?;
-            uk_2.uk_27 = data.read_f32()?;
-            uk_2.uk_28 = data.read_f32()?;
-            uk_2.uk_29 = data.read_f32()?;
-            uk_2.uk_30 = data.read_f32()?;
-            uk_2.uk_31 = data.read_f32()?;
-            uk_2.uk_32 = data.read_f32()?;
-            uk_2.uk_33 = data.read_f32()?;
-            uk_2.uk_34 = data.read_f32()?;
-            uk_2.uk_35 = data.read_f32()?;
+            event_data.uk_1 = data.read_f32()?;
+            event_data.uk_2 = data.read_f32()?;
+            event_data.uk_3 = data.read_f32()?;
+            event_data.uk_4 = data.read_f32()?;
+            event_data.uk_5 = data.read_f32()?;
+            event_data.uk_6 = data.read_f32()?;
+            event_data.uk_7 = data.read_f32()?;
+            event_data.uk_8 = data.read_f32()?;
+            event_data.uk_9 = data.read_f32()?;
+            event_data.uk_10 = data.read_f32()?;
+            event_data.uk_11 = data.read_f32()?;
+            event_data.uk_12 = data.read_f32()?;
+            event_data.uk_13 = data.read_f32()?;
+            event_data.uk_14 = data.read_f32()?;
+            event_data.uk_15 = data.read_f32()?;
+            event_data.uk_16 = data.read_f32()?;
+            event_data.uk_17 = data.read_f32()?;
+            event_data.uk_18 = data.read_f32()?;
+            event_data.uk_19 = data.read_f32()?;
+            event_data.uk_20 = data.read_f32()?;
+            event_data.uk_21 = data.read_f32()?;
+            event_data.uk_22 = data.read_f32()?;
+            event_data.uk_23 = data.read_f32()?;
+            event_data.uk_24 = data.read_f32()?;
+            event_data.uk_25 = data.read_f32()?;
+            event_data.uk_26 = data.read_f32()?;
+            event_data.uk_27 = data.read_f32()?;
+            event_data.uk_28 = data.read_f32()?;
+            event_data.uk_29 = data.read_f32()?;
+            event_data.uk_30 = data.read_f32()?;
+            event_data.uk_31 = data.read_f32()?;
+            event_data.uk_32 = data.read_f32()?;
+            event_data.uk_33 = data.read_f32()?;
+            event_data.uk_34 = data.read_f32()?;
+            event_data.uk_35 = data.read_f32()?;
 
-            self.uk_2_mut().push(uk_2);
+            self.event_data_mut().push(event_data);
         }
 
         // Event Records.
@@ -96,6 +96,7 @@ impl SoundEvents {
 
         // Ambience records.
         for _ in 0..data.read_u32()? {
+            let mut map = AmbienceMap::default();
             let mut ambience = AmbienceRecord::default();
 
             ambience.uk_1 = data.read_u32()?;
@@ -107,7 +108,8 @@ impl SoundEvents {
             ambience.uk_7 = data.read_f32()?;
             ambience.uk_8 = data.read_f32()?;
 
-            self.ambience_records_mut().push(ambience);
+            map.records_mut().push(ambience);
+            self.ambience_map_mut().push(map);
         }
 
         for _ in 0..data.read_u32()? {
@@ -123,7 +125,7 @@ impl SoundEvents {
             let mut movie = Movie::default();
 
             movie.file = data.read_sized_string_u16()?;
-            movie.uk_1 = data.read_f32()?;
+            movie.volume = data.read_f32()?;
 
             self.movies_mut().push(movie);
         }
@@ -140,11 +142,11 @@ impl SoundEvents {
 
         buffer.write_u32(self.uk_1.len() as u32)?;
         for data in self.uk_1() {
-            buffer.write_u32(data.uk_1)?;
+            buffer.write_i32(data.uk_1)?;
         }
 
-        buffer.write_u32(self.uk_2.len() as u32)?;
-        for data in self.uk_2() {
+        buffer.write_u32(self.event_data.len() as u32)?;
+        for data in self.event_data() {
             buffer.write_f32(data.uk_1)?;
             buffer.write_f32(data.uk_2)?;
             buffer.write_f32(data.uk_3)?;
@@ -199,16 +201,18 @@ impl SoundEvents {
             }
         }
 
-        buffer.write_u32(self.ambience_records.len() as u32)?;
-        for ambience_record in self.ambience_records() {
-            buffer.write_u32(ambience_record.uk_1)?;
-            buffer.write_u32(ambience_record.event_index)?;
-            buffer.write_f32(ambience_record.uk_3)?;
-            buffer.write_f32(ambience_record.uk_4)?;
-            buffer.write_f32(ambience_record.uk_5)?;
-            buffer.write_f32(ambience_record.uk_6)?;
-            buffer.write_f32(ambience_record.uk_7)?;
-            buffer.write_f32(ambience_record.uk_8)?;
+        buffer.write_u32(self.ambience_map.iter().map(|x| x.records().len() as u32).sum())?;
+        for map in self.ambience_map() {
+            for ambience_record in map.records() {
+                buffer.write_u32(ambience_record.uk_1)?;
+                buffer.write_u32(ambience_record.event_index)?;
+                buffer.write_f32(ambience_record.uk_3)?;
+                buffer.write_f32(ambience_record.uk_4)?;
+                buffer.write_f32(ambience_record.uk_5)?;
+                buffer.write_f32(ambience_record.uk_6)?;
+                buffer.write_f32(ambience_record.uk_7)?;
+                buffer.write_f32(ambience_record.uk_8)?;
+            }
         }
 
         buffer.write_u32(self.uk_3.len() as u32)?;
@@ -219,7 +223,7 @@ impl SoundEvents {
         buffer.write_u32(self.movies.len() as u32)?;
         for category in self.movies() {
             buffer.write_sized_string_u16(&category.file)?;
-            buffer.write_f32(category.uk_1)?;
+            buffer.write_f32(category.volume)?;
         }
 
         Ok(())

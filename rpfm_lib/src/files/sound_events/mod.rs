@@ -37,11 +37,17 @@ pub struct SoundEvents {
     master_volume: f32,
     categories: Vec<Category>,
     uk_1: Vec<Uk1>,
-    uk_2: Vec<Uk2>,
+    uk_4: Vec<Uk4>,
+    uk_5: Vec<Uk5>,
+    uk_6: u32,
+    uk_7: u32,
+    uk_8: Vec<Uk8>,
+    event_data: Vec<EventData>,
     event_records: Vec<EventRecord>,
-    ambience_records: Vec<AmbienceRecord>,
+    ambience_map: Vec<AmbienceMap>,
     uk_3: Vec<Uk3>,
     movies: Vec<Movie>,
+    uk_9: Vec<Uk9>,
 }
 
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
@@ -54,12 +60,38 @@ pub struct Category {
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Uk1 {
+    uk_1: i32,
+}
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct Uk4 {
+    uk_1: i32,
+    uk_2: i32,
+}
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct Uk5 {
+    uk_1: f32,
+    uk_2: f32,
+    uk_3: f32,
+    uk_4: f32,
+    uk_5: f32,
+    uk_6: f32,
+    uk_7: f32,
+    uk_8: f32,
+}
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct Uk8 {
     uk_1: u32,
 }
 
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct Uk2 {
+pub struct EventData {
     uk_1: f32,
     uk_2: f32,
     uk_3: f32,
@@ -95,6 +127,18 @@ pub struct Uk2 {
     uk_33: f32,
     uk_34: f32,
     uk_35: f32,
+    uk_36: f32,
+    uk_37: f32,
+    uk_38: f32,
+    uk_39: f32,
+    uk_40: f32,
+    uk_41: f32,
+    uk_42: f32,
+    uk_43: f32,
+    uk_44: f32,
+    uk_45: f32,
+    uk_46: f32,
+    uk_47: f32,
 }
 
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
@@ -103,7 +147,18 @@ pub struct EventRecord {
     category: u32,
     name: Option<String>,
     uk_1: u32,
+    uk_2: i32,
+    uk_3: i32,
+    event_data_index: u32,
+    uk_4: u8,
     sounds: Vec<String>,
+}
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct AmbienceMap {
+    name: String,
+    records: Vec<AmbienceRecord>,
 }
 
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
@@ -129,7 +184,14 @@ pub struct Uk3 {
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Movie {
     file: String,
-    uk_1: f32,
+    volume: f32,
+}
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct Uk9 {
+    file: String,
+    uk_1: i32,
 }
 
 //---------------------------------------------------------------------------//

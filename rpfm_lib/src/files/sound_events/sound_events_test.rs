@@ -13,7 +13,7 @@ use std::fs::File;
 
 use crate::binary::ReadBytes;
 use crate::files::*;
-use crate::games::supported_games::KEY_EMPIRE;
+use crate::games::supported_games::{KEY_EMPIRE, KEY_SHOGUN_2};
 
 use super::SoundEvents;
 
@@ -64,7 +64,7 @@ fn test_encode_sound_events_napoleon() {
 
     assert_eq!(before, after);
 }*/
-/*
+
 #[test]
 fn test_encode_sound_events_shogun_2() {
     let path_1 = "../test_files/test_decode_sound_events_sho2";
@@ -87,4 +87,4 @@ fn test_encode_sound_events_shogun_2() {
     writer.write_all(&after).unwrap();
 
     assert_eq!(before, after);
-}*/
+}
