@@ -462,6 +462,7 @@ impl Default for SupportedGames {
                 "start_pos_past_events/unique".to_owned(),
                 "start_pos_regions/unique".to_owned(),
                 "start_pos_region_slot_templates/unique".to_owned(),
+                "start_pos_settlement_garrisons/unique".to_owned(),
                 "start_pos_settlements/unique".to_owned(),
                 "start_pos_victory_conditions/unique".to_owned(),
                 "technologies/in_encyclopedia".to_owned(),
