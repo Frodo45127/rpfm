@@ -10,8 +10,6 @@
 
 use super::*;
 
-const PARAMETER_BLOCK_SIZES: [u8; 25] = [4, 5, 4, 3, 2, 4, 4, 5, 4, 2, 2, 1, 6, 4, 4, 6, 2, 3, 3, 2, 2, 2, 2, 2, 2];
-
 impl SoundBankDatabase {
 
     pub(crate) fn read_sho2<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
@@ -20,46 +18,536 @@ impl SoundBankDatabase {
             self.uk_1_mut().push(data.read_f32()?);
         }
 
-        // Sound Bank Records.
-        for i in 0..25 {
-            let mut record = SoundBankRecord::default();
+        // BankEventUk0
+        for _ in 0..data.read_u32()? {
+            let mut bank = BankEventUk0::default();
+            bank.event_record_index = data.read_u32()?;
 
-            // Bank event records.
             for _ in 0..data.read_u32()? {
-                let mut bank = BankEventRecord::default();
-
-                bank.event_record_index = data.read_u32()?;
-
-                if let Some(blocks) = PARAMETER_BLOCK_SIZES.get(i) {
-                    for _ in 0..*blocks {
-                        let mut block = ParameterBlockU32::default();
-                        for _ in 0..data.read_u32()? {
-                            block.params_mut().push(data.read_u32()?);
-                        }
-                        bank.parameter_blocks_u32.push(block);
-                    }
-
-                    if i == 6 {
-                        for _ in 0..2 {
-                            let mut block = ParameterBlockU8::default();
-                            for _ in 0..data.read_u32()? {
-                                block.params_mut().push(data.read_u8()?);
-                            }
-                            bank.parameter_blocks_u8.push(block);
-                        }
-
-                        let mut block = ParameterBlockU32::default();
-                        for _ in 0..data.read_u32()? {
-                            block.params_mut().push(data.read_u32()?);
-                        }
-                        bank.parameter_blocks_u32.push(block);
-                    }
-                }
-
-                record.bank_event_records_mut().push(bank);
+                bank.params_1_mut().push(data.read_u32()?);
             }
 
-            self.sound_bank_records.push(record);
+            for _ in 0..data.read_u32()? {
+                bank.params_2_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_3_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_4_mut().push(data.read_u32()?);
+            }
+
+            self.bank_event_uk_0_mut().push(bank);
+        }
+
+        // BankEventProjectileFire
+        for _ in 0..data.read_u32()? {
+            let mut bank = BankEventProjectileFire::default();
+            bank.event_record_index = data.read_u32()?;
+
+            for _ in 0..data.read_u32()? {
+                bank.gun_types_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.shot_types_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.projectile_sizes_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_4_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.unit_indexes_mut().push(data.read_u32()?);
+            }
+
+            self.bank_event_projectile_fire_mut().push(bank);
+        }
+
+        // BankEventUk2
+        for _ in 0..data.read_u32()? {
+            let mut bank = BankEventUk2::default();
+            bank.event_record_index = data.read_u32()?;
+
+            for _ in 0..data.read_u32()? {
+                bank.params_1_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_2_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_3_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_4_mut().push(data.read_u32()?);
+            }
+
+            self.bank_event_uk_2_mut().push(bank);
+        }
+
+        // BankEventUk3
+        for _ in 0..data.read_u32()? {
+            let mut bank = BankEventUk3::default();
+            bank.event_record_index = data.read_u32()?;
+
+            for _ in 0..data.read_u32()? {
+                bank.params_1_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_2_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_3_mut().push(data.read_u32()?);
+            }
+
+            self.bank_event_uk_3_mut().push(bank);
+        }
+
+        // BankEventUk4
+        for _ in 0..data.read_u32()? {
+            let mut bank = BankEventUk4::default();
+            bank.event_record_index = data.read_u32()?;
+
+            for _ in 0..data.read_u32()? {
+                bank.params_1_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_2_mut().push(data.read_u32()?);
+            }
+
+            self.bank_event_uk_4_mut().push(bank);
+        }
+
+        // BankEventUk5
+        for _ in 0..data.read_u32()? {
+            let mut bank = BankEventUk5::default();
+            bank.event_record_index = data.read_u32()?;
+
+            for _ in 0..data.read_u32()? {
+                bank.params_1_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_2_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_3_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_4_mut().push(data.read_u32()?);
+            }
+
+            self.bank_event_uk_5_mut().push(bank);
+        }
+
+        // BankEventUk6
+        for _ in 0..data.read_u32()? {
+            let mut bank = BankEventUk6::default();
+            bank.event_record_index = data.read_u32()?;
+
+            for _ in 0..data.read_u32()? {
+                bank.params_1_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_2_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_3_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_4_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_5_mut().push(data.read_u8()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_6_mut().push(data.read_u8()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_7_mut().push(data.read_u32()?);
+            }
+
+            self.bank_event_uk_6_mut().push(bank);
+        }
+
+        // BankEventUk7
+        for _ in 0..data.read_u32()? {
+            let mut bank = BankEventUk7::default();
+            bank.event_record_index = data.read_u32()?;
+
+            for _ in 0..data.read_u32()? {
+                bank.params_1_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_2_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_3_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_4_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_5_mut().push(data.read_u32()?);
+            }
+
+            self.bank_event_uk_7_mut().push(bank);
+        }
+
+        // BankEventUk8
+        for _ in 0..data.read_u32()? {
+            let mut bank = BankEventUk8::default();
+            bank.event_record_index = data.read_u32()?;
+
+            for _ in 0..data.read_u32()? {
+                bank.params_1_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_2_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_3_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_4_mut().push(data.read_u32()?);
+            }
+
+            self.bank_event_uk_8_mut().push(bank);
+        }
+
+        // BankEventUk9
+        for _ in 0..data.read_u32()? {
+            let mut bank = BankEventUk9::default();
+            bank.event_record_index = data.read_u32()?;
+
+            for _ in 0..data.read_u32()? {
+                bank.params_1_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_2_mut().push(data.read_u32()?);
+            }
+
+            self.bank_event_uk_9_mut().push(bank);
+        }
+
+        // BankEventUk10
+        for _ in 0..data.read_u32()? {
+            let mut bank = BankEventUk10::default();
+            bank.event_record_index = data.read_u32()?;
+
+            for _ in 0..data.read_u32()? {
+                bank.params_1_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_2_mut().push(data.read_u32()?);
+            }
+
+            self.bank_event_uk_10_mut().push(bank);
+        }
+
+        // BankEventUk11
+        for _ in 0..data.read_u32()? {
+            let mut bank = BankEventUk11::default();
+            bank.event_record_index = data.read_u32()?;
+
+            for _ in 0..data.read_u32()? {
+                bank.params_1_mut().push(data.read_u32()?);
+            }
+
+            self.bank_event_uk_11_mut().push(bank);
+        }
+
+        // BankEventUk12
+        for _ in 0..data.read_u32()? {
+            let mut bank = BankEventUk12::default();
+            bank.event_record_index = data.read_u32()?;
+
+            for _ in 0..data.read_u32()? {
+                bank.params_1_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_2_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_3_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_4_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_5_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_6_mut().push(data.read_u32()?);
+            }
+
+            self.bank_event_uk_12_mut().push(bank);
+        }
+
+        // BankEventUk13
+        for _ in 0..data.read_u32()? {
+            let mut bank = BankEventUk13::default();
+            bank.event_record_index = data.read_u32()?;
+
+            for _ in 0..data.read_u32()? {
+                bank.params_1_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_2_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_3_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_4_mut().push(data.read_u32()?);
+            }
+
+            self.bank_event_uk_13_mut().push(bank);
+        }
+
+        // BankEventUk14
+        for _ in 0..data.read_u32()? {
+            let mut bank = BankEventUk14::default();
+            bank.event_record_index = data.read_u32()?;
+
+            for _ in 0..data.read_u32()? {
+                bank.params_1_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_2_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_3_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_4_mut().push(data.read_u32()?);
+            }
+
+            self.bank_event_uk_14_mut().push(bank);
+        }
+
+        // BankEventUk15
+        for _ in 0..data.read_u32()? {
+            let mut bank = BankEventUk15::default();
+            bank.event_record_index = data.read_u32()?;
+
+            for _ in 0..data.read_u32()? {
+                bank.params_1_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_2_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_3_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_4_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_5_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_6_mut().push(data.read_u32()?);
+            }
+
+            self.bank_event_uk_15_mut().push(bank);
+        }
+
+        // BankEventUk16
+        for _ in 0..data.read_u32()? {
+            let mut bank = BankEventUk16::default();
+            bank.event_record_index = data.read_u32()?;
+
+            for _ in 0..data.read_u32()? {
+                bank.params_1_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_2_mut().push(data.read_u32()?);
+            }
+
+            self.bank_event_uk_16_mut().push(bank);
+        }
+
+        // BankEventUk17
+        for _ in 0..data.read_u32()? {
+            let mut bank = BankEventUk17::default();
+            bank.event_record_index = data.read_u32()?;
+
+            for _ in 0..data.read_u32()? {
+                bank.params_1_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_2_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_3_mut().push(data.read_u32()?);
+            }
+
+            self.bank_event_uk_17_mut().push(bank);
+        }
+
+        // BankEventUk18
+        for _ in 0..data.read_u32()? {
+            let mut bank = BankEventUk18::default();
+            bank.event_record_index = data.read_u32()?;
+
+            for _ in 0..data.read_u32()? {
+                bank.params_1_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_2_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_3_mut().push(data.read_u32()?);
+            }
+
+            self.bank_event_uk_18_mut().push(bank);
+        }
+
+        // BankEventUk19
+        for _ in 0..data.read_u32()? {
+            let mut bank = BankEventUk19::default();
+            bank.event_record_index = data.read_u32()?;
+
+            for _ in 0..data.read_u32()? {
+                bank.params_1_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_2_mut().push(data.read_u32()?);
+            }
+
+            self.bank_event_uk_19_mut().push(bank);
+        }
+
+        // BankEventUk20
+        for _ in 0..data.read_u32()? {
+            let mut bank = BankEventUk20::default();
+            bank.event_record_index = data.read_u32()?;
+
+            for _ in 0..data.read_u32()? {
+                bank.params_1_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_2_mut().push(data.read_u32()?);
+            }
+
+            self.bank_event_uk_20_mut().push(bank);
+        }
+
+        // BankEventUk21
+        for _ in 0..data.read_u32()? {
+            let mut bank = BankEventUk21::default();
+            bank.event_record_index = data.read_u32()?;
+
+            for _ in 0..data.read_u32()? {
+                bank.params_1_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_2_mut().push(data.read_u32()?);
+            }
+
+            self.bank_event_uk_21_mut().push(bank);
+        }
+
+        // BankEventUk22
+        for _ in 0..data.read_u32()? {
+            let mut bank = BankEventUk22::default();
+            bank.event_record_index = data.read_u32()?;
+
+            for _ in 0..data.read_u32()? {
+                bank.params_1_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_2_mut().push(data.read_u32()?);
+            }
+
+            self.bank_event_uk_22_mut().push(bank);
+        }
+
+        // BankEventUk23
+        for _ in 0..data.read_u32()? {
+            let mut bank = BankEventUk23::default();
+            bank.event_record_index = data.read_u32()?;
+
+            for _ in 0..data.read_u32()? {
+                bank.params_1_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_2_mut().push(data.read_u32()?);
+            }
+
+            self.bank_event_uk_23_mut().push(bank);
+        }
+
+        // BankEventUk24
+        for _ in 0..data.read_u32()? {
+            let mut bank = BankEventUk24::default();
+            bank.event_record_index = data.read_u32()?;
+
+            for _ in 0..data.read_u32()? {
+                bank.params_1_mut().push(data.read_u32()?);
+            }
+
+            for _ in 0..data.read_u32()? {
+                bank.params_2_mut().push(data.read_u32()?);
+            }
+
+            self.bank_event_uk_24_mut().push(bank);
         }
 
         // Unknown data.
@@ -82,39 +570,543 @@ impl SoundBankDatabase {
             buffer.write_f32(*uk_1)?;
         }
 
-        for (index, record) in self.sound_bank_records().iter().enumerate() {
-            buffer.write_u32(record.bank_event_records().len() as u32)?;
-            for bank in record.bank_event_records() {
-                buffer.write_u32(bank.event_record_index)?;
+        buffer.write_u32(self.bank_event_uk_0().len() as u32)?;
+        for bank in self.bank_event_uk_0() {
+            buffer.write_u32(bank.event_record_index)?;
 
-                let blocks_len = if index == 6 {
-                    bank.parameter_blocks_u32.len() - 1
-                } else {
-                    bank.parameter_blocks_u32.len()
-                };
+            buffer.write_u32(bank.params_1().len() as u32)?;
+            for param in bank.params_1() {
+                buffer.write_u32(*param)?;
+            }
 
-                for block in &bank.parameter_blocks_u32()[..blocks_len] {
-                    buffer.write_u32(block.params().len() as u32)?;
-                    for param in block.params() {
-                        buffer.write_u32(*param)?;
-                    }
-                }
+            buffer.write_u32(bank.params_2().len() as u32)?;
+            for param in bank.params_2() {
+                buffer.write_u32(*param)?;
+            }
 
-                if index == 6 {
-                    for block in bank.parameter_blocks_u8() {
-                        buffer.write_u32(block.params().len() as u32)?;
-                        for param in block.params() {
-                            buffer.write_u8(*param)?;
-                        }
-                    }
+            buffer.write_u32(bank.params_3().len() as u32)?;
+            for param in bank.params_3() {
+                buffer.write_u32(*param)?;
+            }
 
-                    if let Some(block) = bank.parameter_blocks_u32().last() {
-                        buffer.write_u32(block.params().len() as u32)?;
-                        for param in block.params() {
-                            buffer.write_u32(*param)?;
-                        }
-                    }
-                }
+            buffer.write_u32(bank.params_4().len() as u32)?;
+            for param in bank.params_4() {
+                buffer.write_u32(*param)?;
+            }
+        }
+
+        buffer.write_u32(self.bank_event_projectile_fire().len() as u32)?;
+        for bank in self.bank_event_projectile_fire() {
+            buffer.write_u32(bank.event_record_index)?;
+
+            buffer.write_u32(bank.gun_types().len() as u32)?;
+            for param in bank.gun_types() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.shot_types().len() as u32)?;
+            for param in bank.shot_types() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.projectile_sizes().len() as u32)?;
+            for param in bank.projectile_sizes() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_4().len() as u32)?;
+            for param in bank.params_4() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.unit_indexes().len() as u32)?;
+            for param in bank.unit_indexes() {
+                buffer.write_u32(*param)?;
+            }
+        }
+
+        buffer.write_u32(self.bank_event_uk_2().len() as u32)?;
+        for bank in self.bank_event_uk_2() {
+            buffer.write_u32(bank.event_record_index)?;
+
+            buffer.write_u32(bank.params_1().len() as u32)?;
+            for param in bank.params_1() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_2().len() as u32)?;
+            for param in bank.params_2() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_3().len() as u32)?;
+            for param in bank.params_3() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_4().len() as u32)?;
+            for param in bank.params_4() {
+                buffer.write_u32(*param)?;
+            }
+        }
+
+        buffer.write_u32(self.bank_event_uk_3().len() as u32)?;
+        for bank in self.bank_event_uk_3() {
+            buffer.write_u32(bank.event_record_index)?;
+
+            buffer.write_u32(bank.params_1().len() as u32)?;
+            for param in bank.params_1() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_2().len() as u32)?;
+            for param in bank.params_2() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_3().len() as u32)?;
+            for param in bank.params_3() {
+                buffer.write_u32(*param)?;
+            }
+        }
+
+        buffer.write_u32(self.bank_event_uk_4().len() as u32)?;
+        for bank in self.bank_event_uk_4() {
+            buffer.write_u32(bank.event_record_index)?;
+
+            buffer.write_u32(bank.params_1().len() as u32)?;
+            for param in bank.params_1() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_2().len() as u32)?;
+            for param in bank.params_2() {
+                buffer.write_u32(*param)?;
+            }
+        }
+
+        buffer.write_u32(self.bank_event_uk_5().len() as u32)?;
+        for bank in self.bank_event_uk_5() {
+            buffer.write_u32(bank.event_record_index)?;
+
+            buffer.write_u32(bank.params_1().len() as u32)?;
+            for param in bank.params_1() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_2().len() as u32)?;
+            for param in bank.params_2() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_3().len() as u32)?;
+            for param in bank.params_3() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_4().len() as u32)?;
+            for param in bank.params_4() {
+                buffer.write_u32(*param)?;
+            }
+        }
+
+        buffer.write_u32(self.bank_event_uk_6().len() as u32)?;
+        for bank in self.bank_event_uk_6() {
+            buffer.write_u32(bank.event_record_index)?;
+
+            buffer.write_u32(bank.params_1().len() as u32)?;
+            for param in bank.params_1() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_2().len() as u32)?;
+            for param in bank.params_2() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_3().len() as u32)?;
+            for param in bank.params_3() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_4().len() as u32)?;
+            for param in bank.params_4() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_5().len() as u32)?;
+            for param in bank.params_5() {
+                buffer.write_u8(*param)?;
+            }
+
+            buffer.write_u32(bank.params_6().len() as u32)?;
+            for param in bank.params_6() {
+                buffer.write_u8(*param)?;
+            }
+
+            buffer.write_u32(bank.params_7().len() as u32)?;
+            for param in bank.params_7() {
+                buffer.write_u32(*param)?;
+            }
+        }
+
+        buffer.write_u32(self.bank_event_uk_7().len() as u32)?;
+        for bank in self.bank_event_uk_7() {
+            buffer.write_u32(bank.event_record_index)?;
+
+            buffer.write_u32(bank.params_1().len() as u32)?;
+            for param in bank.params_1() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_2().len() as u32)?;
+            for param in bank.params_2() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_3().len() as u32)?;
+            for param in bank.params_3() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_4().len() as u32)?;
+            for param in bank.params_4() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_5().len() as u32)?;
+            for param in bank.params_5() {
+                buffer.write_u32(*param)?;
+            }
+        }
+
+        buffer.write_u32(self.bank_event_uk_8().len() as u32)?;
+        for bank in self.bank_event_uk_8() {
+            buffer.write_u32(bank.event_record_index)?;
+
+            buffer.write_u32(bank.params_1().len() as u32)?;
+            for param in bank.params_1() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_2().len() as u32)?;
+            for param in bank.params_2() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_3().len() as u32)?;
+            for param in bank.params_3() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_4().len() as u32)?;
+            for param in bank.params_4() {
+                buffer.write_u32(*param)?;
+            }
+        }
+
+        buffer.write_u32(self.bank_event_uk_9().len() as u32)?;
+        for bank in self.bank_event_uk_9() {
+            buffer.write_u32(bank.event_record_index)?;
+
+            buffer.write_u32(bank.params_1().len() as u32)?;
+            for param in bank.params_1() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_2().len() as u32)?;
+            for param in bank.params_2() {
+                buffer.write_u32(*param)?;
+            }
+        }
+
+        buffer.write_u32(self.bank_event_uk_10().len() as u32)?;
+        for bank in self.bank_event_uk_10() {
+            buffer.write_u32(bank.event_record_index)?;
+
+            buffer.write_u32(bank.params_1().len() as u32)?;
+            for param in bank.params_1() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_2().len() as u32)?;
+            for param in bank.params_2() {
+                buffer.write_u32(*param)?;
+            }
+        }
+
+        buffer.write_u32(self.bank_event_uk_11().len() as u32)?;
+        for bank in self.bank_event_uk_11() {
+            buffer.write_u32(bank.event_record_index)?;
+
+            buffer.write_u32(bank.params_1().len() as u32)?;
+            for param in bank.params_1() {
+                buffer.write_u32(*param)?;
+            }
+        }
+
+        buffer.write_u32(self.bank_event_uk_12().len() as u32)?;
+        for bank in self.bank_event_uk_12() {
+            buffer.write_u32(bank.event_record_index)?;
+
+            buffer.write_u32(bank.params_1().len() as u32)?;
+            for param in bank.params_1() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_2().len() as u32)?;
+            for param in bank.params_2() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_3().len() as u32)?;
+            for param in bank.params_3() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_4().len() as u32)?;
+            for param in bank.params_4() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_5().len() as u32)?;
+            for param in bank.params_5() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_6().len() as u32)?;
+            for param in bank.params_6() {
+                buffer.write_u32(*param)?;
+            }
+        }
+
+        buffer.write_u32(self.bank_event_uk_13().len() as u32)?;
+        for bank in self.bank_event_uk_13() {
+            buffer.write_u32(bank.event_record_index)?;
+
+            buffer.write_u32(bank.params_1().len() as u32)?;
+            for param in bank.params_1() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_2().len() as u32)?;
+            for param in bank.params_2() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_3().len() as u32)?;
+            for param in bank.params_3() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_4().len() as u32)?;
+            for param in bank.params_4() {
+                buffer.write_u32(*param)?;
+            }
+        }
+
+        buffer.write_u32(self.bank_event_uk_14().len() as u32)?;
+        for bank in self.bank_event_uk_14() {
+            buffer.write_u32(bank.event_record_index)?;
+
+            buffer.write_u32(bank.params_1().len() as u32)?;
+            for param in bank.params_1() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_2().len() as u32)?;
+            for param in bank.params_2() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_3().len() as u32)?;
+            for param in bank.params_3() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_4().len() as u32)?;
+            for param in bank.params_4() {
+                buffer.write_u32(*param)?;
+            }
+        }
+
+        buffer.write_u32(self.bank_event_uk_15().len() as u32)?;
+        for bank in self.bank_event_uk_15() {
+            buffer.write_u32(bank.event_record_index)?;
+
+            buffer.write_u32(bank.params_1().len() as u32)?;
+            for param in bank.params_1() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_2().len() as u32)?;
+            for param in bank.params_2() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_3().len() as u32)?;
+            for param in bank.params_3() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_4().len() as u32)?;
+            for param in bank.params_4() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_5().len() as u32)?;
+            for param in bank.params_5() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_6().len() as u32)?;
+            for param in bank.params_6() {
+                buffer.write_u32(*param)?;
+            }
+        }
+
+        buffer.write_u32(self.bank_event_uk_16().len() as u32)?;
+        for bank in self.bank_event_uk_16() {
+            buffer.write_u32(bank.event_record_index)?;
+
+            buffer.write_u32(bank.params_1().len() as u32)?;
+            for param in bank.params_1() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_2().len() as u32)?;
+            for param in bank.params_2() {
+                buffer.write_u32(*param)?;
+            }
+        }
+
+        buffer.write_u32(self.bank_event_uk_17().len() as u32)?;
+        for bank in self.bank_event_uk_17() {
+            buffer.write_u32(bank.event_record_index)?;
+
+            buffer.write_u32(bank.params_1().len() as u32)?;
+            for param in bank.params_1() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_2().len() as u32)?;
+            for param in bank.params_2() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_3().len() as u32)?;
+            for param in bank.params_3() {
+                buffer.write_u32(*param)?;
+            }
+        }
+
+        buffer.write_u32(self.bank_event_uk_18().len() as u32)?;
+        for bank in self.bank_event_uk_18() {
+            buffer.write_u32(bank.event_record_index)?;
+
+            buffer.write_u32(bank.params_1().len() as u32)?;
+            for param in bank.params_1() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_2().len() as u32)?;
+            for param in bank.params_2() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_3().len() as u32)?;
+            for param in bank.params_3() {
+                buffer.write_u32(*param)?;
+            }
+        }
+
+        buffer.write_u32(self.bank_event_uk_19().len() as u32)?;
+        for bank in self.bank_event_uk_19() {
+            buffer.write_u32(bank.event_record_index)?;
+
+            buffer.write_u32(bank.params_1().len() as u32)?;
+            for param in bank.params_1() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_2().len() as u32)?;
+            for param in bank.params_2() {
+                buffer.write_u32(*param)?;
+            }
+        }
+
+        buffer.write_u32(self.bank_event_uk_20().len() as u32)?;
+        for bank in self.bank_event_uk_20() {
+            buffer.write_u32(bank.event_record_index)?;
+
+            buffer.write_u32(bank.params_1().len() as u32)?;
+            for param in bank.params_1() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_2().len() as u32)?;
+            for param in bank.params_2() {
+                buffer.write_u32(*param)?;
+            }
+        }
+
+        buffer.write_u32(self.bank_event_uk_21().len() as u32)?;
+        for bank in self.bank_event_uk_21() {
+            buffer.write_u32(bank.event_record_index)?;
+
+            buffer.write_u32(bank.params_1().len() as u32)?;
+            for param in bank.params_1() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_2().len() as u32)?;
+            for param in bank.params_2() {
+                buffer.write_u32(*param)?;
+            }
+        }
+
+        buffer.write_u32(self.bank_event_uk_22().len() as u32)?;
+        for bank in self.bank_event_uk_22() {
+            buffer.write_u32(bank.event_record_index)?;
+
+            buffer.write_u32(bank.params_1().len() as u32)?;
+            for param in bank.params_1() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_2().len() as u32)?;
+            for param in bank.params_2() {
+                buffer.write_u32(*param)?;
+            }
+        }
+
+        buffer.write_u32(self.bank_event_uk_23().len() as u32)?;
+        for bank in self.bank_event_uk_23() {
+            buffer.write_u32(bank.event_record_index)?;
+
+            buffer.write_u32(bank.params_1().len() as u32)?;
+            for param in bank.params_1() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_2().len() as u32)?;
+            for param in bank.params_2() {
+                buffer.write_u32(*param)?;
+            }
+        }
+
+        buffer.write_u32(self.bank_event_uk_24().len() as u32)?;
+        for bank in self.bank_event_uk_24() {
+            buffer.write_u32(bank.event_record_index)?;
+
+            buffer.write_u32(bank.params_1().len() as u32)?;
+            for param in bank.params_1() {
+                buffer.write_u32(*param)?;
+            }
+
+            buffer.write_u32(bank.params_2().len() as u32)?;
+            for param in bank.params_2() {
+                buffer.write_u32(*param)?;
             }
         }
 

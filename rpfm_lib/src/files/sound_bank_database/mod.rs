@@ -35,34 +35,266 @@ mod games;
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct SoundBankDatabase {
     uk_1: Vec<f32>,
-    sound_bank_records: Vec<SoundBankRecord>,
+
+    bank_event_uk_0: Vec<BankEventUk0>,
+    bank_event_projectile_fire: Vec<BankEventProjectileFire>,
+    bank_event_uk_2: Vec<BankEventUk2>,
+    bank_event_uk_3: Vec<BankEventUk3>,
+    bank_event_uk_4: Vec<BankEventUk4>,
+    bank_event_uk_5: Vec<BankEventUk5>,
+    bank_event_uk_6: Vec<BankEventUk6>,
+    bank_event_uk_7: Vec<BankEventUk7>,
+    bank_event_uk_8: Vec<BankEventUk8>,
+    bank_event_uk_9: Vec<BankEventUk9>,
+    bank_event_uk_10: Vec<BankEventUk10>,
+    bank_event_uk_11: Vec<BankEventUk11>,
+    bank_event_uk_12: Vec<BankEventUk12>,
+    bank_event_uk_13: Vec<BankEventUk13>,
+    bank_event_uk_14: Vec<BankEventUk14>,
+    bank_event_uk_15: Vec<BankEventUk15>,
+    bank_event_uk_16: Vec<BankEventUk16>,
+    bank_event_uk_17: Vec<BankEventUk17>,
+    bank_event_uk_18: Vec<BankEventUk18>,
+    bank_event_uk_19: Vec<BankEventUk19>,
+    bank_event_uk_20: Vec<BankEventUk20>,
+    bank_event_uk_21: Vec<BankEventUk21>,
+    bank_event_uk_22: Vec<BankEventUk22>,
+    bank_event_uk_23: Vec<BankEventUk23>,
+    bank_event_uk_24: Vec<BankEventUk24>,
+
     uk_2: Vec<Uk1>,
 }
 
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct SoundBankRecord {
-    bank_event_records: Vec<BankEventRecord>,
-}
-
-#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
-#[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct BankEventRecord {
+pub struct BankEventUk0 {
     event_record_index: u32,
-    parameter_blocks_u32: Vec<ParameterBlockU32>,
-    parameter_blocks_u8: Vec<ParameterBlockU8>,
+    params_1: Vec<u32>,
+    params_2: Vec<u32>,
+    params_3: Vec<u32>,
+    params_4: Vec<u32>,
 }
 
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct ParameterBlockU32 {
-    params: Vec<u32>,
+pub struct BankEventProjectileFire {
+    event_record_index: u32,
+    gun_types: Vec<u32>,
+    shot_types: Vec<u32>,
+    projectile_sizes: Vec<u32>,
+    params_4: Vec<u32>,
+    unit_indexes: Vec<u32>,
 }
 
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct ParameterBlockU8 {
-    params: Vec<u8>,
+pub struct BankEventUk2 {
+    event_record_index: u32,
+    params_1: Vec<u32>,
+    params_2: Vec<u32>,
+    params_3: Vec<u32>,
+    params_4: Vec<u32>,
+}
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct BankEventUk3 {
+    event_record_index: u32,
+    params_1: Vec<u32>,
+    params_2: Vec<u32>,
+    params_3: Vec<u32>,
+}
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct BankEventUk4 {
+    event_record_index: u32,
+    params_1: Vec<u32>,
+    params_2: Vec<u32>,
+}
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct BankEventUk5 {
+    event_record_index: u32,
+    params_1: Vec<u32>,
+    params_2: Vec<u32>,
+    params_3: Vec<u32>,
+    params_4: Vec<u32>,
+}
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct BankEventUk6 {
+    event_record_index: u32,
+    params_1: Vec<u32>,
+    params_2: Vec<u32>,
+    params_3: Vec<u32>,
+    params_4: Vec<u32>,
+    params_5: Vec<u8>,
+    params_6: Vec<u8>,
+    params_7: Vec<u32>,
+}
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct BankEventUk7 {
+    event_record_index: u32,
+    params_1: Vec<u32>,
+    params_2: Vec<u32>,
+    params_3: Vec<u32>,
+    params_4: Vec<u32>,
+    params_5: Vec<u32>,
+}
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct BankEventUk8 {
+    event_record_index: u32,
+    params_1: Vec<u32>,
+    params_2: Vec<u32>,
+    params_3: Vec<u32>,
+    params_4: Vec<u32>,
+}
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct BankEventUk9 {
+    event_record_index: u32,
+    params_1: Vec<u32>,
+    params_2: Vec<u32>,
+}
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct BankEventUk10 {
+    event_record_index: u32,
+    params_1: Vec<u32>,
+    params_2: Vec<u32>,
+}
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct BankEventUk11 {
+    event_record_index: u32,
+    params_1: Vec<u32>,
+}
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct BankEventUk12 {
+    event_record_index: u32,
+    params_1: Vec<u32>,
+    params_2: Vec<u32>,
+    params_3: Vec<u32>,
+    params_4: Vec<u32>,
+    params_5: Vec<u32>,
+    params_6: Vec<u32>,
+}
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct BankEventUk13 {
+    event_record_index: u32,
+    params_1: Vec<u32>,
+    params_2: Vec<u32>,
+    params_3: Vec<u32>,
+    params_4: Vec<u32>,
+}
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct BankEventUk14 {
+    event_record_index: u32,
+    params_1: Vec<u32>,
+    params_2: Vec<u32>,
+    params_3: Vec<u32>,
+    params_4: Vec<u32>,
+}
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct BankEventUk15 {
+    event_record_index: u32,
+    params_1: Vec<u32>,
+    params_2: Vec<u32>,
+    params_3: Vec<u32>,
+    params_4: Vec<u32>,
+    params_5: Vec<u32>,
+    params_6: Vec<u32>,
+}
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct BankEventUk16 {
+    event_record_index: u32,
+    params_1: Vec<u32>,
+    params_2: Vec<u32>,
+}
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct BankEventUk17 {
+    event_record_index: u32,
+    params_1: Vec<u32>,
+    params_2: Vec<u32>,
+    params_3: Vec<u32>,
+}
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct BankEventUk18 {
+    event_record_index: u32,
+    params_1: Vec<u32>,
+    params_2: Vec<u32>,
+    params_3: Vec<u32>,
+}
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct BankEventUk19 {
+    event_record_index: u32,
+    params_1: Vec<u32>,
+    params_2: Vec<u32>,
+}
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct BankEventUk20 {
+    event_record_index: u32,
+    params_1: Vec<u32>,
+    params_2: Vec<u32>,
+}
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct BankEventUk21 {
+    event_record_index: u32,
+    params_1: Vec<u32>,
+    params_2: Vec<u32>,
+}
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct BankEventUk22 {
+    event_record_index: u32,
+    params_1: Vec<u32>,
+    params_2: Vec<u32>,
+}
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct BankEventUk23 {
+    event_record_index: u32,
+    params_1: Vec<u32>,
+    params_2: Vec<u32>,
+}
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct BankEventUk24 {
+    event_record_index: u32,
+    params_1: Vec<u32>,
+    params_2: Vec<u32>,
 }
 
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
