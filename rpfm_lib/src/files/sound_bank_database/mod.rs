@@ -34,6 +34,41 @@ mod games;
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct SoundBankDatabase {
+    uk_1: Vec<f32>,
+    sound_bank_records: Vec<SoundBankRecord>,
+    uk_2: Vec<Uk1>,
+}
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct SoundBankRecord {
+    bank_event_records: Vec<BankEventRecord>,
+}
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct BankEventRecord {
+    event_record_index: u32,
+    parameter_blocks_u32: Vec<ParameterBlockU32>,
+    parameter_blocks_u8: Vec<ParameterBlockU8>,
+}
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct ParameterBlockU32 {
+    params: Vec<u32>,
+}
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct ParameterBlockU8 {
+    params: Vec<u8>,
+}
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct Uk1 {
+    uk_1: Vec<u32>,
 }
 
 //---------------------------------------------------------------------------//
