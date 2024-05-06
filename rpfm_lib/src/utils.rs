@@ -225,7 +225,12 @@ pub fn path_to_absolute_path(path: &Path) -> PathBuf {
 
     match canonicalize(&path) {
         Ok(cannon_path) => {
-            path = cannon_path;
+            let cannon_path_str = cannon_path.to_string_lossy();
+            if cannon_path_str.starts_with("\\\\?\\") {
+                path = PathBuf::from(&cannon_path_str[4..]);
+            } else {
+                path = cannon_path;
+            }
         },
 
         // These errors are usually for trying to cannonicalize an already cannon path, or because the file doesn't exist.
