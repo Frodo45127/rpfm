@@ -12,12 +12,13 @@
 //!
 //! If a function doesn't fit anywhere, it goes here.
 
+#[cfg(feature = "integration_log")] use log::warn;
 use pelite::pe64;
 use pelite::resources::{FindError, Resources, version_info::VersionInfo};
 use rayon::prelude::*;
 
 use std::cmp::Ordering;
-use std::fs::{File, read_dir};
+use std::fs::{canonicalize, read_dir, File};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -188,6 +189,30 @@ pub fn files_in_folder_from_newest_to_oldest(current_path: &Path) -> Result<Vec<
     });
 
     Ok(files)
+}
+
+/// This function generates an absolute path string from a path.
+pub fn path_to_absolute_string(path: &Path) -> String {
+    let mut path_str = path.to_string_lossy().to_string();
+
+    match canonicalize(path) {
+        Ok(cannon_path) => {
+            let cannon_path_str = cannon_path.to_string_lossy();
+            if cannon_path_str.starts_with("\\\\?\\") {
+                path_str = cannon_path_str[4..].to_owned();
+            } else {
+                path_str = cannon_path_str.to_string();
+            }
+        },
+
+        // These errors are usually for trying to cannonicalize an already cannon path.
+        Err(error) => {
+            #[cfg(feature = "integration_log")] warn!("Trying to recannonicalize path failed with: {}", error);
+            #[cfg(not(feature = "integration_log"))] dbg!("Trying to recannonicalize path failed with: {}", error);
+        }
+    }
+
+    path_str
 }
 
 //--------------------------------------------------------//
