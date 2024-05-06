@@ -192,6 +192,8 @@ pub fn files_in_folder_from_newest_to_oldest(current_path: &Path) -> Result<Vec<
 }
 
 /// This function generates an absolute path string from a path.
+///
+/// This does nothing if the path doesn't exists.
 pub fn path_to_absolute_string(path: &Path) -> String {
     let mut path_str = path.to_string_lossy().to_string();
 
@@ -205,7 +207,7 @@ pub fn path_to_absolute_string(path: &Path) -> String {
             }
         },
 
-        // These errors are usually for trying to cannonicalize an already cannon path.
+        // These errors are usually for trying to cannonicalize an already cannon path, or because the file doesn't exist.
         Err(error) => {
             #[cfg(feature = "integration_log")] warn!("Trying to recannonicalize path failed with: {}", error);
             #[cfg(not(feature = "integration_log"))] dbg!("Trying to recannonicalize path failed with: {}", error);
@@ -213,6 +215,27 @@ pub fn path_to_absolute_string(path: &Path) -> String {
     }
 
     path_str
+}
+
+/// This function generates an absolute path from a path.
+///
+/// This does nothing if the path doesn't exists.
+pub fn path_to_absolute_path(path: &Path) -> PathBuf {
+    let mut path = path.to_owned();
+
+    match canonicalize(&path) {
+        Ok(cannon_path) => {
+            path = cannon_path;
+        },
+
+        // These errors are usually for trying to cannonicalize an already cannon path, or because the file doesn't exist.
+        Err(error) => {
+            #[cfg(feature = "integration_log")] warn!("Trying to recannonicalize path failed with: {}", error);
+            #[cfg(not(feature = "integration_log"))] dbg!("Trying to recannonicalize path failed with: {}", error);
+        }
+    }
+
+    path
 }
 
 //--------------------------------------------------------//
