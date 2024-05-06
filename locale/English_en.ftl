@@ -1586,3 +1586,5 @@ add_rpfm_to_runcher_tools_success = RPFM added correctly as a Tool in Runcher. Y
 settings_paths_secondary = Secondary Folder
 settings_paths_secondary_ph = Secondary folder you set in Runcher or any launcher that supports a similar feature.
 open_from_secondary = Open From Secondary
+
+diagnostics_hint = Hover the diagnostics for more info.

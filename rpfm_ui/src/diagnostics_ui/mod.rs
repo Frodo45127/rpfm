@@ -178,6 +178,7 @@ impl DiagnosticsUI {
         let diagnostics_dock_inner_widget: QPtr<QWidget> = find_widget(&main_widget.static_upcast(), "inner_widget")?;
         let diagnostics_table_view: QPtr<QTableView> = find_widget(&main_widget.static_upcast(), "results_table_view")?;
 
+        let diagnostics_label_hint: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "hint_label")?;
         let diagnostics_button_check_packfile: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "check_full_button")?;
         let diagnostics_button_check_current_packed_file: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "check_open_button")?;
         let diagnostics_button_error: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "error_button")?;
@@ -187,6 +188,7 @@ impl DiagnosticsUI {
         let diagnostics_button_show_more_filters: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "more_filters_button")?;
         let diagnostics_button_check_ak_only_refs: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "check_ak_only_refs")?;
 
+        diagnostics_label_hint.set_text(&qtr("diagnostics_hint"));
         diagnostics_button_check_packfile.set_tool_tip(&qtr("diagnostics_button_check_packfile"));
         diagnostics_button_check_current_packed_file.set_tool_tip(&qtr("diagnostics_button_check_current_packed_file"));
         diagnostics_button_error.set_tool_tip(&qtr("diagnostics_button_error"));
