@@ -208,9 +208,10 @@ pub fn path_to_absolute_string(path: &Path) -> String {
         },
 
         // These errors are usually for trying to cannonicalize an already cannon path, or because the file doesn't exist.
-        Err(error) => {
-            #[cfg(feature = "integration_log")] warn!("Trying to recannonicalize path failed with: {}", error);
-            #[cfg(not(feature = "integration_log"))] dbg!("Trying to recannonicalize path failed with: {}", error);
+        Err(_) => {
+            if path_str.starts_with("\\\\?\\") {
+                path_str = path_str[4..].to_owned();
+            }
         }
     }
 
@@ -234,9 +235,11 @@ pub fn path_to_absolute_path(path: &Path) -> PathBuf {
         },
 
         // These errors are usually for trying to cannonicalize an already cannon path, or because the file doesn't exist.
-        Err(error) => {
-            #[cfg(feature = "integration_log")] warn!("Trying to recannonicalize path failed with: {}", error);
-            #[cfg(not(feature = "integration_log"))] dbg!("Trying to recannonicalize path failed with: {}", error);
+        Err(_) => {
+            let path_str = path.to_string_lossy();
+            if path_str.starts_with("\\\\?\\") {
+                path = PathBuf::from(&path_str[4..]);
+            }
         }
     }
 
