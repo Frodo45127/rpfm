@@ -1552,9 +1552,10 @@ impl DiagnosticsUI {
         let use_regex = vec![true; sensitivity.len()];
         let show_blank_lines = vec![false; sensitivity.len()];
         let match_groups = vec![0; sensitivity.len()];
+        let variant_to_search = vec![0; sensitivity.len()];
 
         // Filter whatever it's in that column by the text we got.
-        trigger_tableview_filter_safe(&diagnostics_ui.diagnostics_table_filter, &columns, patterns, &use_nott, &use_regex, &sensitivity, &show_blank_lines, &match_groups);
+        trigger_tableview_filter_safe(&diagnostics_ui.diagnostics_table_filter, &columns, patterns, &use_nott, &use_regex, &sensitivity, &show_blank_lines, &match_groups, &variant_to_search);
     }
 
     pub unsafe fn update_level_counts(diagnostics_ui: &Rc<Self>, diagnostics: &[DiagnosticType]) {

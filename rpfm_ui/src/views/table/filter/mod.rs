@@ -60,6 +60,7 @@ pub struct FilterView {
     show_blank_cells_button: QPtr<QToolButton>,
     group_combobox: QPtr<QComboBox>,
     column_combobox: QPtr<QComboBox>,
+    variant_combobox: QPtr<QComboBox>,
     timer_delayed_updates: QBox<QTimer>,
     add_button: QPtr<QToolButton>,
     remove_button: QPtr<QToolButton>,
@@ -86,6 +87,7 @@ impl FilterView {
         let show_blank_cells_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "show_blank_cells_button")?;
         let group_combobox: QPtr<QComboBox> = find_widget(&main_widget.static_upcast(), "group_combobox")?;
         let column_combobox: QPtr<QComboBox> = find_widget(&main_widget.static_upcast(), "column_combobox")?;
+        let variant_combobox: QPtr<QComboBox> = find_widget(&main_widget.static_upcast(), "variant_combobox")?;
         let timer_delayed_updates = QTimer::new_1a(&main_widget);
         let add_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "add_button")?;
         let remove_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "remove_button")?;
@@ -105,6 +107,7 @@ impl FilterView {
 
         // Reuse the models from the first filterview, as that one will never get destroyed.
         if let Some(first_filter) = view.filters().get(0) {
+            variant_combobox.set_model(&first_filter.variant_combobox.model());
             column_combobox.set_model(&first_filter.column_combobox.model());
             group_combobox.set_model(&first_filter.group_combobox.model());
         }
@@ -112,7 +115,9 @@ impl FilterView {
         else {
             let filter_match_group_list = QStandardItemModel::new_1a(&group_combobox);
             let filter_column_list = QStandardItemModel::new_1a(&column_combobox);
+            let filter_variant_list = QStandardItemModel::new_1a(&variant_combobox);
 
+            variant_combobox.set_model(&filter_variant_list);
             column_combobox.set_model(&filter_column_list);
             group_combobox.set_model(&filter_match_group_list);
 
@@ -123,6 +128,10 @@ impl FilterView {
             }
 
             group_combobox.add_item_q_string(&QString::from_std_str(format!("{} {}", tr("filter_group"), 1)));
+
+            variant_combobox.add_item_q_string(&qtr("filter_variant_source"));
+            variant_combobox.add_item_q_string(&qtr("filter_variant_lookup"));
+            variant_combobox.add_item_q_string(&qtr("filter_variant_both"));
         }
 
         // Add the new filter at the bottom of the window.
@@ -137,6 +146,7 @@ impl FilterView {
             show_blank_cells_button,
             group_combobox,
             column_combobox,
+            variant_combobox,
             timer_delayed_updates,
             add_button,
             remove_button,

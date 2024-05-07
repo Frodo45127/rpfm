@@ -33,6 +33,7 @@ pub struct FilterViewSlots {
     pub filter_not_checkbox: QBox<SlotNoArgs>,
     pub filter_match_group_selector: QBox<SlotNoArgs>,
     pub filter_column_selector: QBox<SlotOfInt>,
+    pub filter_variant_selector: QBox<SlotOfInt>,
     pub filter_case_sensitive_button: QBox<SlotNoArgs>,
     pub filter_use_regex_button: QBox<SlotNoArgs>,
     pub filter_show_blank_cells_button: QBox<SlotNoArgs>,
@@ -66,6 +67,11 @@ impl FilterViewSlots {
         }));
 
         let filter_column_selector = SlotOfInt::new(&view.main_widget, clone!(
+            parent_view => move |_| {
+            parent_view.filter_table();
+        }));
+
+        let filter_variant_selector = SlotOfInt::new(&view.main_widget, clone!(
             parent_view => move |_| {
             parent_view.filter_table();
         }));
@@ -135,6 +141,7 @@ impl FilterViewSlots {
             filter_line_edit,
             filter_match_group_selector,
             filter_column_selector,
+            filter_variant_selector,
             filter_not_checkbox,
             filter_case_sensitive_button,
             filter_use_regex_button,

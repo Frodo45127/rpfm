@@ -1588,3 +1588,6 @@ settings_paths_secondary_ph = Secondary folder you set in Runcher or any launche
 open_from_secondary = Open From Secondary
 
 diagnostics_hint = Hover the diagnostics for more info.
+filter_variant_source = Source
+filter_variant_lookup = Lookup
+filter_variant_both = Both

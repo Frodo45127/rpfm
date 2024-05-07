@@ -20,7 +20,8 @@ extern "C" void trigger_tableview_filter(
     QList<int> regex,
     QList<int> case_sensitive,
     QList<int> show_blank_cells,
-    QList<int> match_groups_per_column
+    QList<int> match_groups_per_column,
+    QList<int> variant_to_search
 ) {
     QTableViewSortFilterProxyModel* filter2 = static_cast<QTableViewSortFilterProxyModel*>(filter);
     filter2->columns = columns;
@@ -30,6 +31,7 @@ extern "C" void trigger_tableview_filter(
     filter2->case_sensitive = case_sensitive;
     filter2->show_blank_cells = show_blank_cells;
     filter2->match_groups_per_column = match_groups_per_column;
+    filter2->variant_to_search = variant_to_search;
     filter2->setFilterKeyColumn(0);
 }
 
@@ -72,6 +74,16 @@ bool QTableViewSortFilterProxyModel::filterAcceptsRow(int source_row, const QMod
             QString pattern = patterns.at(match);
             Qt::CaseSensitivity case_sensitivity = static_cast<Qt::CaseSensitivity>(case_sensitive.at(match));
             bool show_blank_cells_in_column = show_blank_cells.at(match) == 1 ? true: false;
+
+            QVector<int>* variants = new QVector<int>();
+            if (variant_to_search.at(match) == 0) {
+                variants->append(2);
+            } else if (variant_to_search.at(match) == 1) {
+                variants->append(40);
+            } else {
+                variants->append(2);
+                variants->append(40);
+            }
 
             QModelIndex currntIndex = sourceModel()->index(source_row, column, source_parent);
             QStandardItem *currntData = static_cast<QStandardItemModel*>(sourceModel())->itemFromIndex(currntIndex);
@@ -121,22 +133,40 @@ bool QTableViewSortFilterProxyModel::filterAcceptsRow(int source_row, const QMod
 
                     QRegularExpression regex(pattern, options);
                     if (regex.isValid()) {
-                        QRegularExpressionMatch match = regex.match(currntData->data(2).toString());
-                        if (!match.hasMatch()) {
-                            is_group_valid = false;
+                        for (int f = 0; f < variants->count(); ++f) {
+                            QRegularExpressionMatch match = regex.match(currntData->data(variants->at(f)).toString());
+                            if (!match.hasMatch()) {
+                                is_group_valid = false;
+                                break;
+                            }
+                        }
+
+                        if (!is_group_valid) {
                             break;
                         }
                     }
                 }
                 else {
                     if (use_nott) {
-                        if (currntData->data(2).toString().contains(pattern, case_sensitivity)) {
-                            is_group_valid = false;
+                        for (int f = 0; f < variants->count(); ++f) {
+                            if (currntData->data(variants->at(f)).toString().contains(pattern, case_sensitivity)) {
+                                is_group_valid = false;
+                                break;
+                            }
+                        }
+
+                        if (!is_group_valid) {
                             break;
                         }
                     } else {
-                        if (!currntData->data(2).toString().contains(pattern, case_sensitivity)) {
-                            is_group_valid = false;
+                        for (int f = 0; f < variants->count(); ++f) {
+                            if (!currntData->data(variants->at(f)).toString().contains(pattern, case_sensitivity)) {
+                                is_group_valid = false;
+                                break;
+                            }
+                        }
+
+                        if (!is_group_valid) {
                             break;
                         }
                     }

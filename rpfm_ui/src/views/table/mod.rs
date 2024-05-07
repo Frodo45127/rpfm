@@ -1086,6 +1086,7 @@ impl TableView {
         let mut use_regex = vec![];
         let mut show_blank_cells = vec![];
         let mut match_groups = vec![];
+        let mut variant_to_search = vec![];
 
         let filters = self.filters.read().unwrap();
         for filter in filters.iter() {
@@ -1125,11 +1126,13 @@ impl TableView {
 
                 patterns.push(QString::from_std_str(pattern).into_ptr());
                 match_groups.push(filter.group_combobox().current_index());
+
+                variant_to_search.push(filter.variant_combobox().current_index());
             }
         }
 
         // Filter whatever it's in that column by the text we got.
-        trigger_tableview_filter_safe(&self.table_filter, &columns, patterns, &use_nott, &use_regex, &sensitivity, &show_blank_cells, &match_groups);
+        trigger_tableview_filter_safe(&self.table_filter, &columns, patterns, &use_nott, &use_regex, &sensitivity, &show_blank_cells, &match_groups, &variant_to_search);
 
         // Update the line count.
         self.update_line_counter();
