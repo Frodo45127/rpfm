@@ -13,6 +13,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - Implemented support for open specific files in Packs when opening Packs through command line.
 - Implemented support for secondary mod paths (like the one in Runcher).
 - Implemented support for multi-level lookups.
+- Implemented lookup support for filters.
 
 ### Changed
 - Loose files in /data are now accessible as dependencies.
@@ -23,6 +24,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ### Fixed
 - Fixed "Import from AK" not working due to a misplaced index.
 - Fixed incorrect icons in anim, font and groupformation files.
+- Fixed CTD when using the faction painter with a faction with no screen name.
+- Fixed lookups not getting loc data from parent packs.
 
 ## [4.2.7]
 ### Added
