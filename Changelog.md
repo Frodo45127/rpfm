@@ -26,6 +26,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - Fixed incorrect icons in anim, font and groupformation files.
 - Fixed CTD when using the faction painter with a faction with no screen name.
 - Fixed lookups not getting loc data from parent packs.
+- Fixed parent packs not properly initializing their loc data under specific circustances.
 
 ## [4.2.7]
 ### Added
