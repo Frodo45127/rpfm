@@ -1334,33 +1334,7 @@ impl Dependencies {
     ///
     /// If reference data was found, the most recent definition of said data is returned.
     fn db_reference_data_from_vanilla_and_modded_tables(&self, references: &mut TableReferences, reference_info: (&str, &str, &[String])) -> Option<Definition> {
-
-        // We need to pass the parent's locs as loc data, because they're not included in the localisation cache.
-        let mut locs = self.loc_data(false, true).unwrap_or_else(|_| vec![]);
-        locs.sort_by(|a, b| a.path_in_container_raw().cmp(b.path_in_container_raw()));
-
-        let locs_decoded = locs.iter()
-            .filter_map(|loc| loc.decoded().ok())
-            .filter_map(|loc| match loc {
-                RFileDecoded::Loc(loc) => Some(loc),
-                _ => None,
-            })
-            .collect::<Vec<_>>();
-
-        let loc_datas = locs_decoded.iter()
-            .map(|loc| loc.data())
-            .collect::<Vec<_>>();
-
-        let loc_data = loc_datas.iter()
-            .map(|loc| loc
-                .iter()
-                .map(|row| (row[0].data_to_string(), row[1].data_to_string()))
-                .collect::<Vec<_>>()
-            )
-            .flatten()
-            .collect::<HashMap<_,_>>();
-
-        self.db_reference_data_generic(references, reference_info, None, &loc_data)
+        self.db_reference_data_generic(references, reference_info, None, &HashMap::new())
     }
 
     /// This function returns the reference/lookup data of all relevant columns of a DB Table from the assembly kit data.
