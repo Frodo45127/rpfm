@@ -687,7 +687,6 @@ impl Dependencies {
 
         // Then build the table/loc lists, for easy access.
         self.parent_files.iter()
-            .filter(|(_, file)| matches!(file.file_type(), FileType::DB))
             .for_each(|(path, file)| {
                 match file.file_type() {
                     FileType::DB => {
