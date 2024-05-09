@@ -1403,14 +1403,12 @@ impl Dependencies {
             None => self.db_data(&ref_table_full, true, true).unwrap_or_else(|_| vec![]),
         };
 
-        files.iter()
-            .for_each(|file| {
+        let mut table_data_cache: HashMap<String, HashMap<String, String>> = HashMap::new();
+
+        files.iter().for_each(|file| {
             if let Ok(RFileDecoded::DB(db)) = file.decoded() {
                 let definition = db.definition();
-                let patches = Some(db.patches());
                 let fields_processed = definition.fields_processed();
-                let localised_fields = definition.localised_fields();
-                let localised_order = definition.localised_key_order();
 
                 // Only continue if the column we're referencing actually exists.
                 if let Some(ref_column_index) = fields_processed.iter().position(|x| x.name() == ref_column) {
@@ -1424,6 +1422,7 @@ impl Dependencies {
                         for (index, ref_lookup_step) in ref_lookup_steps.iter().enumerate() {
                             if ref_lookup_step.len() == 3 {
                                 let lookup_ref_table = ref_lookup_step[0];
+                                let lookup_ref_key = ref_lookup_step[1];
                                 let lookup_ref_lookup = ref_lookup_step[2];
                                 let lookup_ref_table_long = lookup_ref_table.to_owned() + "_tables";
 
@@ -1455,13 +1454,15 @@ impl Dependencies {
                                     if let Some(file) = cache.get(lookup_ref_table) {
                                         if let Ok(RFileDecoded::DB(db)) = file[0].decoded() {
                                             let definition = db.definition();
+                                            let fields_processed = definition.fields_processed();
+                                            let localised_fields = definition.localised_fields();
 
-                                            match definition.localised_fields().iter().position(|x| x.name() == lookup_ref_lookup) {
+                                            match localised_fields.iter().position(|x| x.name() == lookup_ref_lookup) {
                                                 Some(loc_pos) => {
                                                     is_loc = true;
                                                     col_pos = loc_pos;
                                                 },
-                                                None => match definition.fields_processed().iter().position(|x| x.name() == lookup_ref_lookup) {
+                                                None => match fields_processed.iter().position(|x| x.name() == lookup_ref_lookup) {
                                                     Some(pos) => {
                                                         is_loc = false;
                                                         col_pos = pos;
@@ -1469,6 +1470,66 @@ impl Dependencies {
                                                     None => {
                                                         error!("Missing column for lookup. This is a bug.");
                                                     },
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Build the hashed cache for lookups, so we don't need to iterate again and again for each row.
+                                if let Some(files) = cache.get(lookup_ref_table) {
+                                    for file in files {
+                                        let table_data_column_cache_key = file.path_in_container_raw().to_owned() + &ref_lookup_step.join("++");
+                                        if table_data_cache.get(&table_data_column_cache_key).is_none() {
+                                            if let Ok(RFileDecoded::DB(db)) = file.decoded() {
+                                                let definition = db.definition();
+                                                let fields_processed = definition.fields_processed();
+                                                let localised_fields = definition.localised_fields();
+                                                let localised_order = definition.localised_key_order();
+
+                                                let loc_key = if is_loc {
+                                                    let mut loc_key = String::with_capacity(2 + lookup_ref_table.len() + localised_fields[col_pos].name().len());
+                                                    loc_key.push_str(&lookup_ref_table);
+                                                    loc_key.push('_');
+                                                    loc_key.push_str(localised_fields[col_pos].name());
+                                                    loc_key.push('_');
+                                                    loc_key
+                                                } else {
+                                                    String::new()
+                                                };
+
+                                                if let Some(source_key_column) = fields_processed.iter().position(|x| x.name() == lookup_ref_key) {
+
+                                                    // Intermediate step cache.
+                                                    if index < ref_lookup_steps.len() - 1 {
+                                                        if let Some(source_lookup_column) = fields_processed.iter().position(|x| x.name() == lookup_ref_lookup) {
+                                                            let cache = db.data().iter()
+                                                                .map(|row| (row[source_key_column].data_to_string().to_string(), row[source_lookup_column].data_to_string().to_string()))
+                                                                .collect::<HashMap<_,_>>();
+
+                                                            table_data_cache.insert(table_data_column_cache_key.clone(), cache);
+                                                        }
+                                                    }
+
+                                                    // Locs are already pre-cached. We only need the final part of their key.
+                                                    else if is_loc {
+                                                        let cache = db.data().iter()
+                                                            .map(|row| {
+                                                                let mut loc_key = loc_key.to_owned();
+                                                                loc_key.push_str(&localised_order.iter().map(|pos| row[*pos as usize].data_to_string()).join(""));
+                                                                (row[source_key_column].data_to_string().to_string(), loc_key)
+                                                            })
+                                                            .collect::<HashMap<_,_>>();
+                                                        table_data_cache.insert(table_data_column_cache_key.clone(), cache);
+                                                    }
+
+                                                    else {
+                                                        let cache = db.data().iter()
+                                                            .map(|row| (row[source_key_column].data_to_string().to_string(), row[col_pos].data_to_string().to_string()))
+                                                            .collect::<HashMap<_,_>>();
+
+                                                        table_data_cache.insert(table_data_column_cache_key.clone(), cache);
+                                                    }
                                                 }
                                             }
                                         }
@@ -1490,32 +1551,11 @@ impl Dependencies {
                         // First, we get the reference data.
                         let reference_data = row[ref_column_index].data_to_string();
 
-                        // Then, we get the lookup data.
+                        // Then, we get the lookup data. Only calculate it for non-empty keys.
                         for (lookup_steps, is_loc, column) in lookups_analyzed.iter() {
                             if !reference_data.is_empty() {
 
-                                // Special case: if we're looking for a local loc lookup, don't do recursiveness.
-                                if *is_loc && lookup_steps.len() == 1 && fields_processed[ref_column_index].is_reference(patches).is_none() {
-
-                                    // Optimisation: This is way faster than format when done in-mass.
-                                    let loc_values = localised_order.iter().map(|pos| row[*pos as usize].data_to_string()).join("");
-                                    let mut loc_key = String::with_capacity(2 + lookup_steps[0][0].len() + localised_fields[*column].name().len() + loc_values.len());
-                                    loc_key.push_str(&lookup_steps[0][0]);
-                                    loc_key.push('_');
-                                    loc_key.push_str(localised_fields[*column].name());
-                                    loc_key.push('_');
-                                    loc_key.push_str(&loc_values);
-
-                                    if let Some(data) = loc_data.get(&*loc_key) {
-                                        lookup_data.push(data.to_string());
-                                    } else if let Some(data) = self.localisation_data.get(&loc_key) {
-                                        lookup_data.push(data.to_string());
-                                    } else {
-                                        lookup_data.push(loc_key);
-                                    }
-                                }
-
-                                else if let Some(lookup) = self.db_reference_data_generic_lookup(&cache, loc_data, &reference_data, lookup_steps, *is_loc, *column) {
+                                if let Some(lookup) = self.db_reference_data_generic_lookup(&cache, loc_data, &reference_data, lookup_steps, *is_loc, *column, &table_data_cache) {
                                     lookup_data.push(lookup);
                                 }
                             }
@@ -1549,6 +1589,7 @@ impl Dependencies {
         lookup_steps: &[Vec<&str>],
         is_loc: bool,
         column: usize,
+        table_data_cache: &HashMap<String, HashMap<String, String>>
     ) -> Option<String> {
         let mut data_found: Option<String> = None;
 
@@ -1558,59 +1599,40 @@ impl Dependencies {
 
         let current_step = &lookup_steps[0];
         let source_table = current_step[0];
-        let source_column = current_step[1];
-        let source_lookup_column = current_step[2];
 
         if let Some(files) = cache.get(source_table) {
             for file in files {
-                if let Ok(RFileDecoded::DB(db)) = file.decoded() {
-                    let definition = db.definition();
-                    let fields_processed = definition.fields_processed();
-                    let localised_fields = definition.localised_fields();
-                    let localised_order = definition.localised_key_order();
+                let table_data_column_cache_key = file.path_in_container_raw().to_owned() + &current_step.join("++");
+                if let Some(table_data_column_cache) = table_data_cache.get(&table_data_column_cache_key) {
 
-                    if let Some(source_column) = fields_processed.iter().position(|x| x.name() == source_column) {
-                        if let Some(row) = db.data().iter().find(|row| &row[source_column].data_to_string() == lookup_key) {
+                    if let Some(lookup_value) = table_data_column_cache.get(&**lookup_key) {
 
-                            // If we're not yet in the last step, reduce the steps and repeat.
-                            if lookup_steps.len() > 1 {
-                                if let Some(source_lookup_column) = fields_processed.iter().position(|x| x.name() == source_lookup_column) {
-                                    let lookup_key = row[source_lookup_column].data_to_string();
-                                    if !lookup_key.is_empty() {
-                                        data_found = self.db_reference_data_generic_lookup(&cache, loc_data, &lookup_key, &lookup_steps[1..], is_loc, column);
-                                    }
-                                }
+                        // If we're not yet in the last step, reduce the steps and repeat.
+                        if lookup_steps.len() > 1 {
+                            if !lookup_value.is_empty() {
+                                data_found = self.db_reference_data_generic_lookup(&cache, loc_data, &Cow::from(lookup_value), &lookup_steps[1..], is_loc, column, table_data_cache);
                             }
-
-                            // If we're on the last step, properly get the lookup data. Locs first.
-                            else if is_loc {
-
-                                // Optimisation: This is way faster than format when done in-mass.
-                                let loc_values = localised_order.iter().map(|pos| row[*pos as usize].data_to_string()).join("");
-                                let mut loc_key = String::with_capacity(2 + source_table.len() + localised_fields[column].name().len() + loc_values.len());
-                                loc_key.push_str(&source_table);
-                                loc_key.push('_');
-                                loc_key.push_str(localised_fields[column].name());
-                                loc_key.push('_');
-                                loc_key.push_str(&loc_values);
-
-                                if let Some(data) = loc_data.get(&*loc_key) {
-                                    data_found = Some(data.to_string());
-                                } else if let Some(data) = self.localisation_data.get(&loc_key) {
-                                    data_found = Some(data.to_string());
-                                } else {
-                                    data_found = Some(loc_key)
-                                }
-                            }
-
-                            // Then table columns.
-                            else {
-                                data_found = Some(row[column].data_to_string().to_string());
-                            }
-
-                            // If we find a match, don't bother with the rest of the files.
-                            break;
                         }
+
+                        // If we're on the last step, properly get the lookup data. Locs first.
+                        else if is_loc {
+
+                            if let Some(data) = loc_data.get(&**lookup_value) {
+                                data_found = Some(data.to_string());
+                            } else if let Some(data) = self.localisation_data.get(&**lookup_value) {
+                                data_found = Some(data.to_string());
+                            } else {
+                                data_found = Some(lookup_value.to_string())
+                            }
+                        }
+
+                        // Then table columns.
+                        else {
+                            data_found = Some(lookup_value.to_owned());
+                        }
+
+                        // If we find a match, don't bother with the rest of the files.
+                        break;
                     }
                 }
             }
