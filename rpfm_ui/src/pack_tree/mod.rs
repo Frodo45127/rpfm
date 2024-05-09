@@ -578,75 +578,76 @@ impl PackTree for QPtr<QTreeView> {
         let mut item = model.item_1a(0);
         let is_file = path.is_file();
         let path = path.path_raw();
-        let count = path.split('/').count() - 1;
 
-        for (index, path_element) in path.split('/').enumerate() {
-            let children_count = item.row_count();
+        // Turns out some code was passing empty paths, which caused this to partially break.
+        if !path.is_empty() {
+            let count = path.split('/').count() - 1;
 
-            // If we reached the folder of the item...
-            if index == count {
-                let path_element_q_string = QString::from_std_str(path_element);
-                for row in 0..children_count {
-                    let child = item.child_1a(row);
+            for (index, path_element) in path.split('/').enumerate() {
+                let children_count = item.row_count();
 
-                    // We ignore files or folders, depending on what we want to create.
-                    if is_file && child.data_1a(ITEM_TYPE).to_int_0a() == ITEM_TYPE_FOLDER { continue }
-                    if !is_file && child.data_1a(ITEM_TYPE).to_int_0a() == ITEM_TYPE_FILE { continue }
+                // If we reached the folder of the item...
+                if index == count {
+                    let path_element_q_string = QString::from_std_str(path_element);
+                    for row in 0..children_count {
+                        let child = item.child_1a(row);
 
-                    let compare = child.text().compare_q_string(&path_element_q_string);
-                    match compare.cmp(&0) {
-                        Ordering::Equal => {
-                            item = child;
-                            break;
-                        },
+                        // We ignore files or folders, depending on what we want to create.
+                        if is_file && child.data_1a(ITEM_TYPE).to_int_0a() == ITEM_TYPE_FOLDER { continue }
+                        if !is_file && child.data_1a(ITEM_TYPE).to_int_0a() == ITEM_TYPE_FILE { continue }
 
-                        // If it's less, we still can find the item.
-                        Ordering::Less => {}
+                        let compare = child.text().compare_q_string(&path_element_q_string);
+                        match compare.cmp(&0) {
+                            Ordering::Equal => {
+                                item = child;
+                                break;
+                            },
 
-                        // If it's greater, we passed the item. In theory, this can't happen.
-                        Ordering::Greater => {
-                            dbg!(child.text().to_std_string());
-                            dbg!(path_element_q_string.to_std_string());
-                            dbg!("bug?");
-                            break;
-                        },
+                            // If it's less, we still can find the item.
+                            Ordering::Less => {}
+
+                            // If it's greater, we passed the item. In theory, this can't happen.
+                            Ordering::Greater => {
+                                break;
+                            },
+                        }
                     }
-                }
-                break;
-            }
-
-            // If we are not still in the folder of the file...
-            else {
-
-                // Get the amount of children of the current item and go through them until we find our folder.
-                let mut not_found = true;
-                let text_to_search = QString::from_std_str(path_element);
-                for row in 0..children_count {
-                    let child = item.child_1a(row);
-
-                    // Items are sorted with folders first. If we start finding files, we already skipped our item.
-                    if child.data_1a(ITEM_TYPE).to_int_0a() == ITEM_TYPE_FILE { break; }
-
-                    let compare = QString::compare_2_q_string(child.text().as_ref(), text_to_search.as_ref());
-                    match compare.cmp(&0) {
-                        Ordering::Equal => {
-                            item = child;
-                            not_found = false;
-                            break;
-                        },
-
-                        // If it's less, we still can find the item.
-                        Ordering::Less => {}
-
-                        // If it's greater, we passed all the possible items and we can no longer find the folder.
-                        Ordering::Greater => {
-                            break;
-                        },
-                    }
+                    break;
                 }
 
-                // If the child was not found, stop and return the parent.
-                if not_found { break; }
+                // If we are not still in the folder of the file...
+                else {
+
+                    // Get the amount of children of the current item and go through them until we find our folder.
+                    let mut not_found = true;
+                    let text_to_search = QString::from_std_str(path_element);
+                    for row in 0..children_count {
+                        let child = item.child_1a(row);
+
+                        // Items are sorted with folders first. If we start finding files, we already skipped our item.
+                        if child.data_1a(ITEM_TYPE).to_int_0a() == ITEM_TYPE_FILE { break; }
+
+                        let compare = QString::compare_2_q_string(child.text().as_ref(), text_to_search.as_ref());
+                        match compare.cmp(&0) {
+                            Ordering::Equal => {
+                                item = child;
+                                not_found = false;
+                                break;
+                            },
+
+                            // If it's less, we still can find the item.
+                            Ordering::Less => {}
+
+                            // If it's greater, we passed all the possible items and we can no longer find the folder.
+                            Ordering::Greater => {
+                                break;
+                            },
+                        }
+                    }
+
+                    // If the child was not found, stop and return the parent.
+                    if not_found { break; }
+                }
             }
         }
 
