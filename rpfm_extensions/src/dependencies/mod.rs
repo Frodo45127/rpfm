@@ -739,7 +739,7 @@ impl Dependencies {
             decode_extra_data.set_schema(Some(schema));
             let extra_data = Some(decode_extra_data);
 
-            let mut files = self.parent_locs.iter().chain(self.parent_tables.values().flatten()).filter_map(|path| {
+            let mut files = self.parent_tables.values().flatten().filter_map(|path| {
                 self.parent_files.remove(path).map(|file| (path.to_owned(), file))
             }).collect::<Vec<_>>();
 
@@ -749,6 +749,17 @@ impl Dependencies {
 
             self.parent_files.par_extend(files);
         }
+
+        // Also decode the locs. They don't need an schema.
+        let mut files = self.parent_locs.iter().filter_map(|path| {
+            self.parent_files.remove(path).map(|file| (path.to_owned(), file))
+        }).collect::<Vec<_>>();
+
+        files.par_iter_mut().for_each(|(_, file)| {
+            let _ = file.decode(&None, true, false);
+        });
+
+        self.parent_files.par_extend(files);
 
         Ok(())
     }
