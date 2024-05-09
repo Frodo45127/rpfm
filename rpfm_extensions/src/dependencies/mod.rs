@@ -1245,7 +1245,7 @@ impl Dependencies {
             None => panic!("To be fixed: If you see this, you forgot to call generate_local_db_references before this."),
         };
 
-        // If we receive prenade loc data (because this may trigger on many files at the same time), don't calculate it here.
+        // If we receive premade loc data (because this may trigger on many files at the same time), don't calculate it here.
         let (_loc_files, loc_decoded) = if loc_data.is_some() {
             (vec![], vec![])
         } else {
