@@ -1395,7 +1395,11 @@ impl Dependencies {
         };
 
         let files = match pack {
-            Some(ref pack) => pack.files_by_path(&ContainerPath::Folder(format!("db/{ref_table_full}")), true),
+            Some(ref pack) => {
+                let mut files = pack.files_by_path(&ContainerPath::Folder(format!("db/{ref_table_full}")), true);
+                files.append(&mut self.db_data(&ref_table_full, true, true).unwrap_or_else(|_| vec![]));
+                files
+            },
             None => self.db_data(&ref_table_full, true, true).unwrap_or_else(|_| vec![]),
         };
 
