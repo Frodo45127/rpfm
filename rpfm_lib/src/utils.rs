@@ -12,7 +12,6 @@
 //!
 //! If a function doesn't fit anywhere, it goes here.
 
-#[cfg(feature = "integration_log")] use log::warn;
 use pelite::pe64;
 use pelite::resources::{FindError, Resources, version_info::VersionInfo};
 use rayon::prelude::*;
