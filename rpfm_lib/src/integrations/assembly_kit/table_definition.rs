@@ -235,12 +235,22 @@ impl RawDefinition {
                         !tables_to_skip.par_iter().any(|vanilla_name| vanilla_name == &table_name)
                     })
                     .filter_map(|x| RawDefinitionV0::read(x).transpose())
-                    .collect::<Result<Vec<RawDefinitionV0>>>()?;
+                    .map(|def_v0| {
+
+                        // NOTE: This from processes the primary keys already.
+                        let raw = match def_v0 {
+                            Ok(ref def_v0) => Self::from(def_v0),
+                            Err(_) => Self::default(),
+                        };
+                        def_v0.map(|def_v0| (def_v0, raw))
+                    })
+                    .collect::<Result<Vec<(RawDefinitionV0, RawDefinition)>>>()?;
 
                 // We need to do a second pass because without the entire set available we cannot figure out the references.
                 Ok(v0s.iter()
-                    .map(|def_v0| {
-                        let mut new_def = Self::from(def_v0);
+                    .map(|(def_v0, new_def)| {
+                        let mut new_def = new_def.clone();
+
                         if let Some(elements) = def_v0.xsd_element.get(1) {
                             if let Some(ref table_name) = elements.name {
                                 if let Some(ref ann) = elements.xsd_annotation {
@@ -289,58 +299,23 @@ impl RawDefinition {
 
                                                 // Now we need to find the primary key of the remote table, if any.
                                                 if !remote_table_name.is_empty() {
-                                                    if let Some(remote_def) = v0s.par_iter().find_map_first(|def_v0| {
+                                                    if let Some(remote_def) = v0s.par_iter().find_map_first(|(def_v0, new_def)| {
                                                         if let Some(elements) = def_v0.xsd_element.get(1) {
                                                             if let Some(ref table_name) = elements.name {
                                                                 if table_name == &remote_table_name {
-                                                                    Some(def_v0)
+                                                                    Some(new_def)
                                                                 } else { None }
                                                             } else { None }
                                                         } else { None }
                                                     }) {
 
-                                                        if let Some(elements) = remote_def.xsd_element.get(1) {
-                                                            let primary_keys = if let Some(ref ann) = elements.xsd_annotation {
-                                                                if let Some(ref app) = ann.xsd_appinfo {
-                                                                    if let Some(ref od_index) = app.od_index {
-                                                                        od_index.iter().find_map(|index| {
-                                                                            if index.name == "PrimaryKey" {
-
-                                                                                // Always trim to remove the final space, then split by space to find all the keys of the table.
-                                                                                let keys = index.key.trim().split(' ').collect::<Vec<_>>();
-                                                                                if keys.len() == 1 && IGNORABLE_FIELDS.contains(&keys[0]) {
-                                                                                    None
-                                                                                } else {
-                                                                                    Some(keys)
-                                                                                }
-                                                                            } else {
-                                                                                None
-                                                                            }
-                                                                        }).unwrap_or(vec![])
-                                                                    } else { vec![] }
-                                                                } else { vec![] }
-                                                            } else { vec![] };
-
-                                                            if !primary_keys.is_empty() {
-
-                                                                // No fucking clue if ANY reference is to a multikey table, but if is, we'll use the first key as ref key, and the rest as lookups.
-                                                                for field in &mut new_def.fields {
-                                                                    if field.name == index.key.trim() {
-                                                                        field.column_source_table = Some(remote_table_name.to_string());
-                                                                        field.column_source_column = Some(primary_keys.iter().map(|x| x.to_string()).collect());
-                                                                    }
-                                                                }
-                                                            }
-
-                                                            // Check if our remote table has a "key" column.
-                                                            else {
-
-                                                                // No fucking clue if ANY reference is to a multikey table, but if is, we'll use the first key as ref key, and the rest as lookups.
-                                                                for field in &mut new_def.fields {
-                                                                    if field.name == "key" {
-                                                                        field.column_source_table = Some(remote_table_name.to_string());
-                                                                        field.column_source_column = Some(vec!["key".to_owned()]);
-                                                                    }
+                                                        // No fucking clue if ANY reference is to a multikey table, but if is, we'll use the first key as ref key, and the rest as lookups.
+                                                        let primary_keys = remote_def.fields.iter().filter(|x| x.primary_key == "1" || x.name == "key").collect::<Vec<_>>();
+                                                        if !primary_keys.is_empty() {
+                                                            for field in &mut new_def.fields {
+                                                                if field.name == index.key.trim() {
+                                                                    field.column_source_table = Some(remote_table_name.to_string());
+                                                                    field.column_source_column = Some(primary_keys.iter().map(|x| x.name.to_string()).collect());
                                                                 }
                                                             }
                                                         }
@@ -352,7 +327,6 @@ impl RawDefinition {
                                 }
                             }
                         }
-
                         new_def
                     })
                     .collect())
@@ -526,8 +500,8 @@ impl From<&RawDefinitionV0> for RawDefinition {
                             if index.name == "PrimaryKey" {
 
                                 // Always trim to remove the final space, then split by space to find all the keys of the table.
-                                let keys = index.key.trim().split(' ').collect::<Vec<_>>();
-                                if keys.len() == 1 && IGNORABLE_FIELDS.contains(&keys[0]) {
+                                let keys = index.key.trim().split(' ').filter(|x| !IGNORABLE_FIELDS.contains(x)).collect::<Vec<_>>();
+                                if keys.is_empty() {
                                     None
                                 } else {
                                     Some(keys)
@@ -577,6 +551,8 @@ impl From<&RawDefinitionV0> for RawDefinition {
 
                                 if primary_keys.contains(&&*field.name) {
                                     field.primary_key = "1".to_owned();
+                                } else {
+                                    field.primary_key = "0".to_owned();
                                 }
 
                                 field.is_old_game = Some(true);
