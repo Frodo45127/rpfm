@@ -808,6 +808,9 @@ impl Definition {
                         field.description = String::new();
                     }
 
+                    // We reset these so we don't inherit wrong references from older tables.
+                    field.is_reference = Default::default();
+                    field.lookup = Default::default();
                     if let Some(ref table) = raw_field.column_source_table {
                         if let Some(ref columns) = raw_field.column_source_column {
                             if !table.is_empty() && !columns.is_empty() && !columns[0].is_empty() {
