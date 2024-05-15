@@ -505,7 +505,15 @@ impl Table {
 
                 // Otherwise, we got a moved column. Check here if it needs type conversion.
                 else if new_fields_processed[*new_pos as usize].field_type() != old_fields_processed[*old_pos as usize].field_type() {
-                    entry.push(row[*old_pos as usize].convert_between_types(new_fields_processed[*new_pos as usize].field_type()).unwrap());
+                    let converted_data = match row[*old_pos as usize].convert_between_types(new_fields_processed[*new_pos as usize].field_type()) {
+                        Ok(data) => data,
+                        Err(_) => {
+                            let field_type = new_fields_processed[*new_pos as usize].field_type();
+                            let default_value = new_fields_processed[*new_pos as usize].default_value(Some(&self.definition_patch));
+                            DecodedData::new_from_type_and_value(field_type, &default_value)
+                        }
+                    };
+                    entry.push(converted_data);
                 }
 
                 // If we reach this, we just got a moved column without any extra change.
