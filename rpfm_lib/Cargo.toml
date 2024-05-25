@@ -51,7 +51,7 @@ base64 = "^0.22"
 thiserror = "1.0"
 
 # Decoding/Encoding support.
-itertools = "^0.12"
+itertools = "^0.13"
 byteorder = "^1.3"
 encoding_rs = "^0.8"
 bitflags = { version = "^2.3", features = ["std", "serde"]}
