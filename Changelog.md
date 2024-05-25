@@ -20,6 +20,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - Menus are now single-columns on Windows, like they've always been in Linux.
 - Columns with lookups are now a bit bigger than the rest to account for the lookups.
 - Changelog should now automatically open after an update.
+- Autosaves are only triggered if the pack has been marked as "edited".
 
 ### Fixed
 - Fixed "Import from AK" not working due to a misplaced index.
@@ -27,6 +28,11 @@ If you're looking for the changes included in the latest beta (against the lates
 - Fixed CTD when using the faction painter with a faction with no screen name.
 - Fixed lookups not getting loc data from parent packs.
 - Fixed parent packs not properly initializing their loc data under specific circustances.
+- Fixed debug update schema function not properly cleaning invalid schema reference data.
+- Fixed issues when processing Empire and Napoleon AK xml files.
+- Fixed rare CTD when updating a table.
+- Fixed incorrect path being set for automatically detected games.
+- Fixed missing error message about the 'Rescue PackFile' feature.
 
 ## [4.2.7]
 ### Added
