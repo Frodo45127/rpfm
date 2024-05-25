@@ -1713,8 +1713,11 @@ impl AppUISlots {
                     }
                 }
 
-                let _ = CENTRAL_COMMAND.send_background(Command::TriggerBackupAutosave);
-                log_to_status_bar(&tr("autosaving"));
+                // If the pack has been edited, autosave.
+                if UI_STATE.get_is_modified() {
+                    let _ = CENTRAL_COMMAND.send_background(Command::TriggerBackupAutosave);
+                    log_to_status_bar(&tr("autosaving"));
+                }
 
                 // Reset the timer.
                 let timer = setting_int("autosave_interval");
