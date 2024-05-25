@@ -751,7 +751,14 @@ impl GameInfo {
         if install_data.store_id() > &0 {
             if let Ok(steamdir) = SteamDir::locate() {
                 return match steamdir.find_app(*install_data.store_id() as u32) {
-                    Ok(Some((app, _))) => Ok(app.launcher_path.to_owned()),
+                    Ok(Some((app, lib))) => {
+                        let app_path = lib.resolve_app_dir(&app);
+                        if app_path.is_dir() {
+                            Ok(Some(app_path.to_path_buf()))
+                        } else {
+                            Ok(None)
+                        }
+                    }
                     _ => Ok(None)
                 }
             }
@@ -777,7 +784,14 @@ impl GameInfo {
         if install_data.store_id_ak() > &0 {
             if let Ok(steamdir) = SteamDir::locate() {
                 return match steamdir.find_app(*install_data.store_id_ak() as u32) {
-                    Ok(Some((app, _))) => Ok(app.launcher_path.to_owned()),
+                    Ok(Some((app, lib))) => {
+                        let app_path = lib.resolve_app_dir(&app);
+                        if app_path.is_dir() {
+                            Ok(Some(app_path.to_path_buf()))
+                        } else {
+                            Ok(None)
+                        }
+                    }
                     _ => Ok(None)
                 }
             }
