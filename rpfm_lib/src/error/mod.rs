@@ -247,7 +247,19 @@ pub enum RLibError {
     #[error("No updates available for the following git repository: {0}.")]
     GitErrorNoUpdatesAvailable(String),
 
-    #[error("The file's data for file ({0}) has been altered on disk by another program since the last time it was accessed by us.")]
+    #[error("The file's data for file ({0}) has been altered on disk by another program since the last time it was accessed by us. If you see this, it means you're using lazy-loading and another program has altered the data on disk before this program loaded it to memory.
+
+        Basically, this means your Pack got partially corrupted.
+
+        If you see this message in a program that's not RPFM,... ask its author what to do.
+
+        If you see this message in RPFM, your original Pack on disk should still be safe, and RPFM can recover part of the files inside the open PackFile: DB tables, Locs and any PackedFile open before this message appeared. To do that, go to 'Special Stuff' and hit 'Rescue PackFile', then choose a folder to save the clean Pack.
+
+        That will create a Pack with only the files that were confirmed as non-corrupted, so at least you can recover their data.
+
+        And some final words: if you intentionally opened the same Pack in two instances of RPFM and tried to save on both, that was the cause of this. No, it's not a bug in RPFM. No, I can't magically fix it. It's how lazy-loading data from disk works. If you don't like it, you can disable lazy-loading in the settings. You'll be resistant to Pack corruption, but RPFM will use a ton more RAM. So... choose your poison.
+
+        Note: if this message appeared while adding files from a Pack, you're save. Just close the 'Add From PackFile' tab and open it again.")]
     FileSourceChanged(String),
 
     #[error("At least one of the files (`{3}`) on this {0} is too big for it. The maximum supported size for files is {1}, but your file has {2} bytes.")]
