@@ -140,7 +140,11 @@ impl OptimizableContainer for Pack {
                             path.starts_with("prefabs/") ||
                             path.starts_with("terrain/battles/") ||
                             path.starts_with("terrain/tiles/battle/")
-                        ) && !path.ends_with("/river_mesh.wsmodel")
+                        )
+                            && !path.ends_with(".wsmodel")
+                            && !path.ends_with(".environment")
+                            && !path.ends_with(".environment_group")
+                            && !path.ends_with(".environment_group.override")
                          {
                             if let Ok(Some(RFileDecoded::Text(text))) = rfile.decode(&None, false, true) {
                                 if *text.format() == TextFormat::Xml {
