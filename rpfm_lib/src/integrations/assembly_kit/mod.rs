@@ -284,7 +284,6 @@ pub fn get_raw_extra_relationships_path(current_path: &Path, version: i16) -> Re
                         let file_path = file.path();
                         let file_name = file_path.file_stem().unwrap().to_str().unwrap();
                         if (version == 1 || version == 2) && file_path.is_file() && file_name == EXTRA_RELATIONSHIPS_TABLE_NAME {
-                            dbg!(&file_path);
                             return Ok(file_path)
                         }
                     }
