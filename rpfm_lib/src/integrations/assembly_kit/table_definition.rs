@@ -204,6 +204,23 @@ pub struct Index {
     pub clustered: String,
 }
 
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename = "root")]
+pub struct RawRelationshipsTable {
+    pub name: Option<String>,
+
+    #[serde(rename = "relationship")]
+    pub relationships: Vec<RawRelationship>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+pub struct RawRelationship {
+    pub table_name: String,
+    pub column_name: String,
+    pub foreign_table_name: String,
+    pub foreign_column_name: String
+}
+
 //---------------------------------------------------------------------------//
 // Implementations
 //---------------------------------------------------------------------------//

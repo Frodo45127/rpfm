@@ -316,6 +316,9 @@ pub enum RLibError {
     #[error("The `Localisable Fields` file hasn't been found.")]
     AssemblyKitLocalisableFieldsNotFound,
 
+    #[error("The relationships file hasn't been found.")]
+    AssemblyKitExtraRelationshipsNotFound,
+
     #[error("The raw table you tried to import is missing a definition.")]
     RawTableMissingDefinition,
 

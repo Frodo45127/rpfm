@@ -33,7 +33,7 @@ use crate::schema::*;
 #[cfg(feature = "integration_log")] use crate::integrations::log::info;
 
 use self::localisable_fields::RawLocalisableFields;
-use self::table_definition::RawDefinition;
+use self::table_definition::{RawDefinition, RawRelationshipsTable};
 
 pub mod localisable_fields;
 pub mod table_data;
@@ -62,6 +62,9 @@ const RAW_DEFINITION_EXTENSION_V0: &str = "xsd";
 /// - "TWaD_form_descriptions.xml": it's not a table.
 const BLACKLISTED_TABLES: [&str; 4] = ["translated_texts.xml", "TWaD_form_descriptions.xml", "GroupFormation.xsd", "TExc_Effects.xsd"];
 
+/// Special table containing what I will never have: relationships.
+const EXTRA_RELATIONSHIPS_TABLE_NAME: &str = "TWaD_relationships";
+
 //---------------------------------------------------------------------------//
 // Functions to process the Raw DB Tables from the Assembly Kit.
 //---------------------------------------------------------------------------//
@@ -83,7 +86,7 @@ pub fn update_schema_from_raw_files(
 
     // This has to do a different process depending on the `raw_db_version`.
     let raw_db_version = game_info.raw_db_version();
-    let (raw_definitions, raw_localisable_fields) = match raw_db_version {
+    let (raw_definitions, raw_localisable_fields, raw_extra_relationships) = match raw_db_version {
         2 | 1 => {
 
             // This one is notably missing in Warhammer 2, so it's optional.
@@ -93,11 +96,18 @@ pub fn update_schema_from_raw_files(
                     from_reader(file).ok()
                 } else { None };
 
-            (RawDefinition::read_all(ass_kit_path, *raw_db_version, tables_to_skip)?, raw_localisable_fields)
+            // Same, this is optional.
+            let raw_extra_relationships: Option<RawRelationshipsTable> =
+                if let Ok(file_path) = get_raw_extra_relationships_path(ass_kit_path, *raw_db_version) {
+                    let file = BufReader::new(File::open(file_path)?);
+                    from_reader(file).ok()
+                } else { None };
+
+            (RawDefinition::read_all(ass_kit_path, *raw_db_version, tables_to_skip)?, raw_localisable_fields, raw_extra_relationships)
         }
 
         // For these ones, we expect the path to point to the folder with each game's table folder.
-        0 => (RawDefinition::read_all(ass_kit_path, *raw_db_version, tables_to_skip)?, None),
+        0 => (RawDefinition::read_all(ass_kit_path, *raw_db_version, tables_to_skip)?, None, None),
         _ => return Err(RLibError::AssemblyKitUnsupportedVersion(*raw_db_version)),
     };
 
@@ -111,6 +121,19 @@ pub fn update_schema_from_raw_files(
                 for vanilla_table in vanilla_tables {
                     if let Some(definition) = definitions.iter_mut().find(|x| x.version() == vanilla_table.definition().version()) {
                         definition.update_from_raw_definition(raw_definition, &mut unfound_fields);
+
+                        // Check in the extra relationships for missing relations.
+                        if let Some(ref raw_extra_relationships) = raw_extra_relationships {
+                            raw_extra_relationships.relationships.iter()
+                                .filter(|relation| relation.table_name == name)
+                                .for_each(|relation| {
+                                    if let Some(field) = definition.fields_mut().iter_mut().find(|x| x.name() == &relation.column_name) {
+                                        field.set_is_reference(Some((relation.foreign_table_name.to_owned(), relation.foreign_column_name.to_owned())));
+                                    }
+                                }
+                            );
+                        }
+
                         if let Some(ref raw_localisable_fields) = raw_localisable_fields {
                             definition.update_from_raw_localisable_fields(raw_definition, &raw_localisable_fields.fields)
                         }
@@ -250,4 +273,28 @@ pub fn get_raw_localisable_fields_path(current_path: &Path, version: i16) -> Res
 
     // If we didn't find the file, return an error.
     Err(RLibError::AssemblyKitLocalisableFieldsNotFound)
+}
+
+pub fn get_raw_extra_relationships_path(current_path: &Path, version: i16) -> Result<PathBuf> {
+    match read_dir(current_path) {
+        Ok(files_in_current_path) => {
+            for file in files_in_current_path {
+                match file {
+                    Ok(file) => {
+                        let file_path = file.path();
+                        let file_name = file_path.file_stem().unwrap().to_str().unwrap();
+                        if (version == 1 || version == 2) && file_path.is_file() && file_name == EXTRA_RELATIONSHIPS_TABLE_NAME {
+                            dbg!(&file_path);
+                            return Ok(file_path)
+                        }
+                    }
+                    Err(_) => return Err(RLibError::ReadFileFolderError(current_path.to_string_lossy().to_string())),
+                }
+            }
+        }
+        Err(_) => return Err(RLibError::ReadFileFolderError(current_path.to_string_lossy().to_string())),
+    }
+
+    // If we didn't find the file, return an error.
+    Err(RLibError::AssemblyKitExtraRelationshipsNotFound)
 }
