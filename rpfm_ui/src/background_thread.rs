@@ -21,7 +21,7 @@ use open::that;
 use rayon::prelude::*;
 
 use std::collections::{BTreeMap, HashMap, hash_map::DefaultHasher};
-#[cfg(feature = "enable_tools")] use std::collections::HashSet;
+#[cfg(any(feature = "enable_tools", feature = "support_model_renderer"))] use std::collections::HashSet;
 use std::env::temp_dir;
 use std::fs::{DirBuilder, File};
 use std::hash::{Hash, Hasher};
