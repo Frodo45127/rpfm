@@ -42,7 +42,7 @@ pub const KEY_TROY: &str = "troy";                                  // Filtered 
 pub const KEY_THREE_KINGDOMS: &str = "three_kingdoms";              // Filtered and revised incorrect AK fields. Startpos tables done.
 pub const KEY_WARHAMMER_2: &str = "warhammer_2";                    // Filtered and revised incorrect AK fields. Startpos tables done.
 pub const KEY_WARHAMMER: &str = "warhammer";                        // Pending of schema review for incorrect AK fields. Pending decoding starpos tables.
-pub const KEY_THRONES_OF_BRITANNIA: &str = "thrones_of_britannia";  // Pending of schema review for incorrect AK fields. Pending decoding starpos tables.
+pub const KEY_THRONES_OF_BRITANNIA: &str = "thrones_of_britannia";  // Pending of schema review for incorrect AK fields. Startpos tables done.
 pub const KEY_ATTILA: &str = "attila";                              // Filtered and revised incorrect AK fields. Startpos tables done.
 pub const KEY_ROME_2: &str = "rome_2";                              // Filtered and revised incorrect AK fields. Startpos tables done.
 pub const KEY_SHOGUN_2: &str = "shogun_2";                          // Pending of schema review for incorrect AK fields. Pending decoding starpos tables.
@@ -2002,6 +2002,7 @@ impl Default for SupportedGames {
                 "sound_events/name".to_owned(),
                 "special_ability_to_auto_deactivate_flags/invalid_usage_flag".to_owned(),
                 "special_ability_to_auto_deactivate_flags/special_ability_key".to_owned(),
+                "start_pos_diplomacy/relations_modifier".to_owned(),
                 "technologies/in_encyclopedia".to_owned(),
                 "technologies/long_description".to_owned(),
                 "technology_node_links/encyclopedia_child_link_position".to_owned(),
