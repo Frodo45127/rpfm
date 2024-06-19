@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1164</width>
-    <height>825</height>
+    <width>1783</width>
+    <height>1271</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -111,318 +111,641 @@
        <item row="0" column="0" colspan="3">
         <widget class="QTabWidget" name="detailed_view_tab_widget">
          <property name="currentIndex">
-          <number>0</number>
+          <number>1</number>
          </property>
          <widget class="QWidget" name="initial_tab">
           <attribute name="title">
            <string>Page</string>
           </attribute>
           <layout class="QGridLayout" name="gridLayout_16">
-           <item row="0" column="1">
-            <widget class="QWidget" name="icon_groupbox" native="true">
-             <layout class="QGridLayout" name="gridLayout_17">
-              <item row="4" column="1">
-               <widget class="QCheckBox" name="main_units_is_monstrous_checkbox">
-                <property name="text">
-                 <string/>
-                </property>
-               </widget>
-              </item>
-              <item row="0" column="3">
-               <widget class="QToolButton" name="variant_editor_tool_button">
-                <property name="text">
-                 <string>...</string>
-                </property>
-               </widget>
-              </item>
-              <item row="4" column="0">
-               <widget class="QLabel" name="main_units_is_monstrous_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="4" column="2">
-               <widget class="QLabel" name="land_units_is_male_label">
-                <property name="text">
-                 <string>Is Male?</string>
-                </property>
-               </widget>
-              </item>
-              <item row="4" column="3">
-               <widget class="QCheckBox" name="land_units_is_male_checkbox">
-                <property name="text">
-                 <string/>
-                </property>
-               </widget>
-              </item>
-              <item row="0" column="0" rowspan="2" colspan="3">
-               <widget class="QWidget" name="unit_icon_label_preview_widget" native="true"/>
-              </item>
-             </layout>
-            </widget>
-           </item>
-           <item row="3" column="2" colspan="2">
-            <widget class="QGroupBox" name="unit_audio_groupbox">
-             <property name="title">
-              <string>GroupBox</string>
+           <item row="1" column="0">
+            <widget class="QScrollArea" name="scrollArea_3">
+             <property name="widgetResizable">
+              <bool>true</bool>
              </property>
-             <layout class="QGridLayout" name="gridLayout_19">
-              <item row="2" column="0">
-               <widget class="QLabel" name="main_units_audio_voiceover_culture_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="4" column="0">
-               <widget class="QLabel" name="main_units_audio_voiceover_culture_override_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="3" column="0">
-               <widget class="QLabel" name="main_units_audio_voiceover_actor_group_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="3" column="2" colspan="5">
-               <widget class="QComboBox" name="main_units_audio_voiceover_actor_group_combobox"/>
-              </item>
-              <item row="2" column="2" colspan="5">
-               <widget class="QComboBox" name="main_units_audio_voiceover_culture_combobox"/>
-              </item>
-              <item row="4" column="2" colspan="5">
-               <widget class="QComboBox" name="main_units_audio_voiceover_culture_override_combobox"/>
-              </item>
-              <item row="6" column="0">
-               <widget class="QLabel" name="land_units_selection_vo_label">
-                <property name="text">
-                 <string>Selected VO</string>
-                </property>
-               </widget>
-              </item>
-              <item row="0" column="2">
-               <widget class="QCheckBox" name="main_units_has_spoken_vo_checkbox">
-                <property name="sizePolicy">
-                 <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-                  <horstretch>0</horstretch>
-                  <verstretch>0</verstretch>
-                 </sizepolicy>
-                </property>
-                <property name="text">
-                 <string/>
-                </property>
-               </widget>
-              </item>
-              <item row="0" column="0">
-               <widget class="QLabel" name="main_units_has_spoken_vo_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="7" column="2" colspan="5">
-               <widget class="QComboBox" name="land_units_selected_vo_secondary_combobox"/>
-              </item>
-              <item row="8" column="2" colspan="5">
-               <widget class="QComboBox" name="land_units_selected_vo_tertiary_combobox"/>
-              </item>
-              <item row="0" column="6">
-               <widget class="QCheckBox" name="main_units_vo_is_dragon_checkbox">
-                <property name="sizePolicy">
-                 <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-                  <horstretch>0</horstretch>
-                  <verstretch>0</verstretch>
-                 </sizepolicy>
-                </property>
-                <property name="text">
-                 <string/>
-                </property>
-               </widget>
-              </item>
-              <item row="6" column="2" colspan="5">
-               <widget class="QComboBox" name="land_units_selection_vo_combobox"/>
-              </item>
-              <item row="0" column="5">
-               <widget class="QLabel" name="main_units_vo_is_dragon_label">
-                <property name="sizePolicy">
-                 <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
-                  <horstretch>0</horstretch>
-                  <verstretch>0</verstretch>
-                 </sizepolicy>
-                </property>
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="0" column="4">
-               <widget class="QCheckBox" name="main_units_vo_is_dinosaur_checkbox">
-                <property name="sizePolicy">
-                 <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-                  <horstretch>0</horstretch>
-                  <verstretch>0</verstretch>
-                 </sizepolicy>
-                </property>
-                <property name="text">
-                 <string/>
-                </property>
-               </widget>
-              </item>
-              <item row="8" column="0">
-               <widget class="QLabel" name="land_units_selected_vo_tertiary_label">
-                <property name="text">
-                 <string>Selected VO Tertiary</string>
-                </property>
-               </widget>
-              </item>
-              <item row="7" column="0">
-               <widget class="QLabel" name="land_units_selected_vo_secondary_label">
-                <property name="text">
-                 <string>Selected VO Secondary</string>
-                </property>
-               </widget>
-              </item>
-              <item row="0" column="3">
-               <widget class="QLabel" name="main_units_vo_is_dinosaur_label">
-                <property name="sizePolicy">
-                 <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
-                  <horstretch>0</horstretch>
-                  <verstretch>0</verstretch>
-                 </sizepolicy>
-                </property>
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-             </layout>
+             <widget class="QWidget" name="scrollAreaWidgetContents_3">
+              <property name="geometry">
+               <rect>
+                <x>0</x>
+                <y>0</y>
+                <width>1214</width>
+                <height>1080</height>
+               </rect>
+              </property>
+              <layout class="QGridLayout" name="gridLayout_18">
+               <item row="1" column="0">
+                <widget class="QGroupBox" name="unit_campaign_groupbox">
+                 <property name="title">
+                  <string>GroupBox</string>
+                 </property>
+                 <layout class="QGridLayout" name="gridLayout_22">
+                  <item row="16" column="4">
+                   <widget class="QLabel" name="main_units_missile_cp_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="5" column="7">
+                   <widget class="QSpinBox" name="main_units_multiplayer_cost_spinbox"/>
+                  </item>
+                  <item row="18" column="1">
+                   <widget class="QLabel" name="main_units_can_siege_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="5" column="3">
+                   <widget class="QSpinBox" name="main_units_recruitment_cost_spinbox"/>
+                  </item>
+                  <item row="21" column="1">
+                   <widget class="QLabel" name="main_units_mount_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="19" column="3">
+                   <widget class="QCheckBox" name="main_units_use_hitpoints_in_campaign_checkbox">
+                    <property name="text">
+                     <string/>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="0" column="3">
+                   <widget class="QSpinBox" name="main_units_campaign_cap_spinbox"/>
+                  </item>
+                  <item row="0" column="5" colspan="3">
+                   <widget class="QSpinBox" name="main_units_create_time_spinbox"/>
+                  </item>
+                  <item row="5" column="4">
+                   <widget class="QLabel" name="main_units_food_cost_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="19" column="4">
+                   <widget class="QLabel" name="main_units_unit_scaling_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="8" column="4">
+                   <widget class="QLabel" name="land_units_campaign_action_points_label">
+                    <property name="text">
+                     <string>Campaign Action Points</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="5" column="5">
+                   <widget class="QSpinBox" name="main_units_food_cost_spinbox">
+                    <property name="minimumSize">
+                     <size>
+                      <width>50</width>
+                      <height>0</height>
+                     </size>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="5" column="6">
+                   <widget class="QLabel" name="main_units_multiplayer_cost_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="0" column="4">
+                   <widget class="QLabel" name="main_units_create_time_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="19" column="5">
+                   <widget class="QCheckBox" name="main_units_unit_scaling_checkbox">
+                    <property name="text">
+                     <string/>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="0" column="1">
+                   <widget class="QLabel" name="main_units_campaign_cap_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="8" column="5" colspan="3">
+                   <widget class="QSpinBox" name="land_units_campaign_action_points_spinbox">
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="19" column="1">
+                   <widget class="QLabel" name="main_units_use_hitpoints_in_campaign_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="5" column="1">
+                   <widget class="QLabel" name="main_units_recruitment_cost_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="23" column="1" colspan="7">
+                   <widget class="QGroupBox" name="unit_requirements_groupbox">
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                    <property name="title">
+                     <string>GroupBox</string>
+                    </property>
+                    <layout class="QGridLayout" name="gridLayout_21">
+                     <item row="3" column="2">
+                      <widget class="QComboBox" name="main_units_additional_building_requirement_combobox">
+                       <property name="sizePolicy">
+                        <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                         <horstretch>0</horstretch>
+                         <verstretch>0</verstretch>
+                        </sizepolicy>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="3" column="0">
+                      <widget class="QLabel" name="main_units_additional_building_requirement_label">
+                       <property name="text">
+                        <string>TextLabel</string>
+                       </property>
+                      </widget>
+                     </item>
+                    </layout>
+                   </widget>
+                  </item>
+                  <item row="16" column="5" colspan="3">
+                   <widget class="QDoubleSpinBox" name="main_units_missile_cp_double_spinbox"/>
+                  </item>
+                  <item row="8" column="3">
+                   <widget class="QSpinBox" name="main_units_upkeep_cost_spinbox"/>
+                  </item>
+                  <item row="18" column="3">
+                   <widget class="QCheckBox" name="main_units_can_siege_checkbox">
+                    <property name="text">
+                     <string/>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="18" column="5">
+                   <widget class="QCheckBox" name="main_units_restrict_xp_gain_in_campaign_checkbox">
+                    <property name="text">
+                     <string/>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="16" column="3">
+                   <widget class="QDoubleSpinBox" name="main_units_melee_cp_double_spinbox">
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="18" column="4">
+                   <widget class="QLabel" name="main_units_restrict_xp_gain_in_campaign_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="8" column="1">
+                   <widget class="QLabel" name="main_units_upkeep_cost_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="16" column="1">
+                   <widget class="QLabel" name="main_units_melee_cp_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="21" column="3">
+                   <widget class="QComboBox" name="main_units_mount_combobox">
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="21" column="4">
+                   <widget class="QLabel" name="main_units_weight_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="21" column="5" colspan="3">
+                   <widget class="QComboBox" name="main_units_weight_combobox"/>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+               <item row="0" column="0">
+                <widget class="QWidget" name="icon_groupbox" native="true">
+                 <layout class="QGridLayout" name="gridLayout_17">
+                  <item row="4" column="1">
+                   <widget class="QCheckBox" name="main_units_is_monstrous_checkbox">
+                    <property name="text">
+                     <string/>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="0" column="3">
+                   <widget class="QToolButton" name="variant_editor_tool_button">
+                    <property name="text">
+                     <string>...</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="4" column="0">
+                   <widget class="QLabel" name="main_units_is_monstrous_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="4" column="2">
+                   <widget class="QLabel" name="land_units_is_male_label">
+                    <property name="text">
+                     <string>Is Male?</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="4" column="3">
+                   <widget class="QCheckBox" name="land_units_is_male_checkbox">
+                    <property name="text">
+                     <string/>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="0" column="0" rowspan="2" colspan="3">
+                   <widget class="QWidget" name="unit_icon_label_preview_widget" native="true"/>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+               <item row="1" column="1">
+                <widget class="QGroupBox" name="unit_ui_groupbox">
+                 <property name="title">
+                  <string>GroupBox</string>
+                 </property>
+                 <layout class="QGridLayout" name="gridLayout_23">
+                  <item row="2" column="2">
+                   <widget class="QLineEdit" name="main_units_optional_ui_element_line_edit"/>
+                  </item>
+                  <item row="1" column="0">
+                   <widget class="QLabel" name="main_units_porthole_camera_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="7" column="0">
+                   <widget class="QLabel" name="main_units_ui_unit_group_naval_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="6" column="2">
+                   <widget class="QSpinBox" name="main_units_special_edition_mask_spinbox"/>
+                  </item>
+                  <item row="6" column="0">
+                   <widget class="QLabel" name="main_units_special_edition_mask_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="5" column="2">
+                   <widget class="QLineEdit" name="main_units_porthole_composite_scene_line_edit"/>
+                  </item>
+                  <item row="2" column="0">
+                   <widget class="QLabel" name="main_units_optional_ui_element_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="8" column="0">
+                   <widget class="QLabel" name="main_units_ui_unit_group_land_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="5" column="0">
+                   <widget class="QLabel" name="main_units_porthole_composite_scene_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="7" column="2">
+                   <widget class="QComboBox" name="main_units_ui_unit_group_naval_combobox"/>
+                  </item>
+                  <item row="8" column="2">
+                   <widget class="QComboBox" name="main_units_ui_unit_group_land_combobox"/>
+                  </item>
+                  <item row="1" column="2">
+                   <widget class="QComboBox" name="main_units_porthole_camera_combobox"/>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+               <item row="0" column="1">
+                <widget class="QGroupBox" name="unit_key_loc_data_groupbox">
+                 <property name="title">
+                  <string>GroupBox</string>
+                 </property>
+                 <layout class="QGridLayout" name="gridLayout_12">
+                  <item row="4" column="4">
+                   <widget class="QLabel" name="land_units_class_label">
+                    <property name="text">
+                     <string>Unit Class</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="1" column="0">
+                   <widget class="QLabel" name="main_units_unit_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="4" column="5">
+                   <widget class="QComboBox" name="land_units_class_combobox">
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="7" column="0">
+                   <widget class="QLabel" name="loc_land_units_onscreen_name_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="9" column="1" rowspan="2" colspan="5">
+                   <widget class="KTextEdit" name="loc_unit_description_short_texts_text_ktexteditor">
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                    <property name="minimumSize">
+                     <size>
+                      <width>0</width>
+                      <height>30</height>
+                     </size>
+                    </property>
+                    <property name="maximumSize">
+                     <size>
+                      <width>16777215</width>
+                      <height>16777215</height>
+                     </size>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="4" column="3">
+                   <widget class="QComboBox" name="land_units_category_combobox">
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="4" column="0">
+                   <widget class="QLabel" name="main_units_caste_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="2" column="1" colspan="5">
+                   <widget class="QLineEdit" name="land_units_key_line_edit"/>
+                  </item>
+                  <item row="9" column="0" rowspan="2">
+                   <widget class="QLabel" name="loc_unit_description_short_texts_text_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="4" column="1">
+                   <widget class="QComboBox" name="main_units_caste_combobox">
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="1" column="1" colspan="5">
+                   <widget class="QLineEdit" name="main_units_unit_line_edit"/>
+                  </item>
+                  <item row="7" column="1" colspan="5">
+                   <widget class="QLineEdit" name="loc_land_units_onscreen_name_line_edit"/>
+                  </item>
+                  <item row="2" column="0">
+                   <widget class="QLabel" name="land_units_key_label">
+                    <property name="text">
+                     <string>Unit Key</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="4" column="2">
+                   <widget class="QLabel" name="land_units_category_label">
+                    <property name="text">
+                     <string>Category</string>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+               <item row="2" column="0" colspan="2">
+                <widget class="QGroupBox" name="unit_audio_groupbox">
+                 <property name="title">
+                  <string>GroupBox</string>
+                 </property>
+                 <layout class="QGridLayout" name="gridLayout_19">
+                  <item row="2" column="0">
+                   <widget class="QLabel" name="main_units_audio_voiceover_culture_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="4" column="0">
+                   <widget class="QLabel" name="main_units_audio_voiceover_culture_override_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="3" column="0">
+                   <widget class="QLabel" name="main_units_audio_voiceover_actor_group_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="3" column="2" colspan="5">
+                   <widget class="QComboBox" name="main_units_audio_voiceover_actor_group_combobox"/>
+                  </item>
+                  <item row="2" column="2" colspan="5">
+                   <widget class="QComboBox" name="main_units_audio_voiceover_culture_combobox"/>
+                  </item>
+                  <item row="4" column="2" colspan="5">
+                   <widget class="QComboBox" name="main_units_audio_voiceover_culture_override_combobox"/>
+                  </item>
+                  <item row="6" column="0">
+                   <widget class="QLabel" name="land_units_selection_vo_label">
+                    <property name="text">
+                     <string>Selected VO</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="0" column="2">
+                   <widget class="QCheckBox" name="main_units_has_spoken_vo_checkbox">
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                    <property name="text">
+                     <string/>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="0" column="0">
+                   <widget class="QLabel" name="main_units_has_spoken_vo_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="7" column="2" colspan="5">
+                   <widget class="QComboBox" name="land_units_selected_vo_secondary_combobox"/>
+                  </item>
+                  <item row="8" column="2" colspan="5">
+                   <widget class="QComboBox" name="land_units_selected_vo_tertiary_combobox"/>
+                  </item>
+                  <item row="0" column="6">
+                   <widget class="QCheckBox" name="main_units_vo_is_dragon_checkbox">
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                    <property name="text">
+                     <string/>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="6" column="2" colspan="5">
+                   <widget class="QComboBox" name="land_units_selection_vo_combobox"/>
+                  </item>
+                  <item row="0" column="5">
+                   <widget class="QLabel" name="main_units_vo_is_dragon_label">
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="0" column="4">
+                   <widget class="QCheckBox" name="main_units_vo_is_dinosaur_checkbox">
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                    <property name="text">
+                     <string/>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="8" column="0">
+                   <widget class="QLabel" name="land_units_selected_vo_tertiary_label">
+                    <property name="text">
+                     <string>Selected VO Tertiary</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="7" column="0">
+                   <widget class="QLabel" name="land_units_selected_vo_secondary_label">
+                    <property name="text">
+                     <string>Selected VO Secondary</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="0" column="3">
+                   <widget class="QLabel" name="main_units_vo_is_dinosaur_label">
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+              </layout>
+             </widget>
             </widget>
            </item>
-           <item row="0" column="2" colspan="2">
-            <widget class="QGroupBox" name="unit_key_loc_data_groupbox">
-             <property name="title">
-              <string>GroupBox</string>
-             </property>
-             <layout class="QGridLayout" name="gridLayout_12">
-              <item row="4" column="4">
-               <widget class="QLabel" name="land_units_class_label">
-                <property name="text">
-                 <string>Unit Class</string>
-                </property>
-               </widget>
-              </item>
-              <item row="1" column="0">
-               <widget class="QLabel" name="main_units_unit_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="4" column="5">
-               <widget class="QComboBox" name="land_units_class_combobox">
-                <property name="sizePolicy">
-                 <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-                  <horstretch>0</horstretch>
-                  <verstretch>0</verstretch>
-                 </sizepolicy>
-                </property>
-               </widget>
-              </item>
-              <item row="7" column="0">
-               <widget class="QLabel" name="loc_land_units_onscreen_name_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="9" column="1" rowspan="2" colspan="5">
-               <widget class="KTextEdit" name="loc_unit_description_short_texts_text_ktexteditor">
-                <property name="sizePolicy">
-                 <sizepolicy hsizetype="Expanding" vsizetype="Minimum">
-                  <horstretch>0</horstretch>
-                  <verstretch>0</verstretch>
-                 </sizepolicy>
-                </property>
-                <property name="minimumSize">
-                 <size>
-                  <width>0</width>
-                  <height>30</height>
-                 </size>
-                </property>
-                <property name="maximumSize">
-                 <size>
-                  <width>16777215</width>
-                  <height>40</height>
-                 </size>
-                </property>
-               </widget>
-              </item>
-              <item row="4" column="3">
-               <widget class="QComboBox" name="land_units_category_combobox">
-                <property name="sizePolicy">
-                 <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-                  <horstretch>0</horstretch>
-                  <verstretch>0</verstretch>
-                 </sizepolicy>
-                </property>
-               </widget>
-              </item>
-              <item row="4" column="0">
-               <widget class="QLabel" name="main_units_caste_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="2" column="1" colspan="5">
-               <widget class="QLineEdit" name="land_units_key_line_edit"/>
-              </item>
-              <item row="9" column="0" rowspan="2">
-               <widget class="QLabel" name="loc_unit_description_short_texts_text_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="4" column="1">
-               <widget class="QComboBox" name="main_units_caste_combobox">
-                <property name="sizePolicy">
-                 <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-                  <horstretch>0</horstretch>
-                  <verstretch>0</verstretch>
-                 </sizepolicy>
-                </property>
-               </widget>
-              </item>
-              <item row="1" column="1" colspan="5">
-               <widget class="QLineEdit" name="main_units_unit_line_edit"/>
-              </item>
-              <item row="7" column="1" colspan="5">
-               <widget class="QLineEdit" name="loc_land_units_onscreen_name_line_edit"/>
-              </item>
-              <item row="2" column="0">
-               <widget class="QLabel" name="land_units_key_label">
-                <property name="text">
-                 <string>Unit Key</string>
-                </property>
-               </widget>
-              </item>
-              <item row="4" column="2">
-               <widget class="QLabel" name="land_units_category_label">
-                <property name="text">
-                 <string>Category</string>
-                </property>
-               </widget>
-              </item>
-             </layout>
-            </widget>
-           </item>
-           <item row="5" column="1" colspan="3">
+           <item row="2" column="0">
             <widget class="KCollapsibleGroupBox" name="unit_extra_data_tab1_groupbox">
              <property name="accessibleName">
               <string>Extra Data</string>
@@ -461,55 +784,14 @@
                  <property name="geometry">
                   <rect>
                    <x>0</x>
-                   <y>0</y>
-                   <width>710</width>
-                   <height>292</height>
+                   <y>-280</y>
+                   <width>1168</width>
+                   <height>484</height>
                   </rect>
                  </property>
                  <layout class="QGridLayout" name="gridLayout_24">
-                  <item row="2" column="5">
-                   <widget class="QCheckBox" name="main_units_in_encyclopedia_checkbox">
-                    <property name="text">
-                     <string/>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="9" column="3">
-                   <widget class="QLabel" name="main_units_num_ships_label">
-                    <property name="text">
-                     <string>TextLabel</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="13" column="2">
-                   <widget class="QComboBox" name="main_units_religion_requirement_combobox">
-                    <property name="sizePolicy">
-                     <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-                      <horstretch>0</horstretch>
-                      <verstretch>0</verstretch>
-                     </sizepolicy>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="13" column="0">
-                   <widget class="QLabel" name="main_units_religion_requirement_label">
-                    <property name="text">
-                     <string>TextLabel</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="0" column="2">
-                   <widget class="QLineEdit" name="main_units_recruitment_movie_line_edit">
-                    <property name="sizePolicy">
-                     <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                      <horstretch>0</horstretch>
-                      <verstretch>0</verstretch>
-                     </sizepolicy>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="12" column="3">
-                   <widget class="QLabel" name="main_units_unique_index_label">
+                  <item row="17" column="0">
+                   <widget class="QLabel" name="main_units_point_allowance_weight_label">
                     <property name="text">
                      <string>TextLabel</string>
                     </property>
@@ -525,8 +807,28 @@
                     </property>
                    </widget>
                   </item>
-                  <item row="9" column="0">
-                   <widget class="QLabel" name="main_units_naval_unit_label">
+                  <item row="2" column="0">
+                   <widget class="QLabel" name="main_units_is_naval_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="15" column="5">
+                   <widget class="KComboBox" name="land_units_first_person_combobox"/>
+                  </item>
+                  <item row="11" column="0">
+                   <widget class="QLabel" name="loc_unit_description_historical_text_key_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="9" column="2">
+                   <widget class="QComboBox" name="main_units_naval_unit_combobox"/>
+                  </item>
+                  <item row="7" column="0">
+                   <widget class="QLabel" name="main_units_resource_requirement_label">
                     <property name="text">
                      <string>TextLabel</string>
                     </property>
@@ -539,67 +841,26 @@
                     </property>
                    </widget>
                   </item>
-                  <item row="2" column="3">
-                   <widget class="QLabel" name="main_units_in_encyclopedia_label">
-                    <property name="text">
-                     <string>TextLabel</string>
-                    </property>
-                   </widget>
-                  </item>
                   <item row="9" column="5">
                    <widget class="QSpinBox" name="main_units_num_ships_spinbox"/>
                   </item>
-                  <item row="7" column="5">
-                   <widget class="QComboBox" name="main_units_region_unit_resource_requirement_combobox">
-                    <property name="sizePolicy">
-                     <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-                      <horstretch>0</horstretch>
-                      <verstretch>0</verstretch>
-                     </sizepolicy>
-                    </property>
-                   </widget>
+                  <item row="8" column="5">
+                   <widget class="KComboBox" name="land_units_capture_tier_combobox"/>
                   </item>
-                  <item row="12" column="5">
-                   <widget class="QSpinBox" name="main_units_unique_index_spinbox"/>
+                  <item row="16" column="5">
+                   <widget class="KComboBox" name="land_units_ar_unit_category_combobox"/>
                   </item>
-                  <item row="9" column="2">
-                   <widget class="QComboBox" name="main_units_naval_unit_combobox"/>
-                  </item>
-                  <item row="7" column="0">
-                   <widget class="QLabel" name="main_units_resource_requirement_label">
+                  <item row="9" column="3">
+                   <widget class="QLabel" name="main_units_num_ships_label">
                     <property name="text">
                      <string>TextLabel</string>
                     </property>
                    </widget>
                   </item>
-                  <item row="7" column="3">
-                   <widget class="QLabel" name="main_units_region_unit_resource_requirement_label">
+                  <item row="2" column="5">
+                   <widget class="QCheckBox" name="main_units_in_encyclopedia_checkbox">
                     <property name="text">
-                     <string>TextLabel</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="0" column="0">
-                   <widget class="QLabel" name="main_units_recruitment_movie_label">
-                    <property name="text">
-                     <string>TextLabel</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="12" column="0">
-                   <widget class="QLabel" name="main_units_min_men_per_ship_label">
-                    <property name="text">
-                     <string>TextLabel</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="12" column="2">
-                   <widget class="QSpinBox" name="main_units_min_men_per_ship_spinbox"/>
-                  </item>
-                  <item row="2" column="0">
-                   <widget class="QLabel" name="main_units_is_naval_label">
-                    <property name="text">
-                     <string>TextLabel</string>
+                     <string/>
                     </property>
                    </widget>
                   </item>
@@ -610,15 +871,35 @@
                     </property>
                    </widget>
                   </item>
-                  <item row="8" column="0">
-                   <widget class="QLabel" name="main_units_can_trade_label">
+                  <item row="14" column="2">
+                   <widget class="KComboBox" name="land_units_key_building_capture_tier_combobox"/>
+                  </item>
+                  <item row="12" column="2">
+                   <widget class="QSpinBox" name="main_units_min_men_per_ship_spinbox"/>
+                  </item>
+                  <item row="0" column="3">
+                   <widget class="QLabel" name="main_units_max_men_per_ship_label">
                     <property name="text">
                      <string>TextLabel</string>
                     </property>
                    </widget>
                   </item>
-                  <item row="11" column="0">
-                   <widget class="QLabel" name="loc_unit_description_historical_text_key_label">
+                  <item row="9" column="0">
+                   <widget class="QLabel" name="main_units_naval_unit_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="13" column="5">
+                   <widget class="QCheckBox" name="main_units_world_leader_only_checkbox">
+                    <property name="text">
+                     <string/>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="15" column="0">
+                   <widget class="QLabel" name="land_units_harmony_amplification_type_label">
                     <property name="text">
                      <string>TextLabel</string>
                     </property>
@@ -640,18 +921,63 @@
                     </property>
                    </widget>
                   </item>
-                  <item row="0" column="3">
-                   <widget class="QLabel" name="main_units_max_men_per_ship_label">
+                  <item row="13" column="2">
+                   <widget class="QComboBox" name="main_units_religion_requirement_combobox">
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="10" column="3">
+                   <widget class="QLabel" name="main_units_multiplayer_qb_cap_label">
                     <property name="text">
                      <string>TextLabel</string>
                     </property>
                    </widget>
                   </item>
-                  <item row="0" column="5">
-                   <widget class="QSpinBox" name="main_units_max_men_per_ship_spinbox"/>
+                  <item row="12" column="0">
+                   <widget class="QLabel" name="main_units_min_men_per_ship_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
                   </item>
-                  <item row="11" column="3">
-                   <widget class="QLabel" name="loc_unit_description_strengths_weaknesses_texts_text_label">
+                  <item row="13" column="0">
+                   <widget class="QLabel" name="main_units_religion_requirement_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="14" column="5">
+                   <widget class="KComboBox" name="land_units_score_capture_tier_combobox"/>
+                  </item>
+                  <item row="0" column="0">
+                   <widget class="QLabel" name="main_units_recruitment_movie_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="16" column="3">
+                   <widget class="QLabel" name="land_units_ar_unit_category_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="14" column="0">
+                   <widget class="QLabel" name="land_units_key_building_capture_tier_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="13" column="3">
+                   <widget class="QLabel" name="main_units_world_leader_only_label">
                     <property name="text">
                      <string>TextLabel</string>
                     </property>
@@ -673,17 +999,13 @@
                     </property>
                    </widget>
                   </item>
-                  <item row="13" column="3">
-                   <widget class="QLabel" name="main_units_world_leader_only_label">
+                  <item row="10" column="2">
+                   <widget class="QSpinBox" name="main_units_multiplayer_cap_spinbox"/>
+                  </item>
+                  <item row="11" column="3">
+                   <widget class="QLabel" name="loc_unit_description_strengths_weaknesses_texts_text_label">
                     <property name="text">
                      <string>TextLabel</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="13" column="5">
-                   <widget class="QCheckBox" name="main_units_world_leader_only_checkbox">
-                    <property name="text">
-                     <string/>
                     </property>
                    </widget>
                   </item>
@@ -694,326 +1016,131 @@
                     </property>
                    </widget>
                   </item>
-                  <item row="10" column="2">
-                   <widget class="QSpinBox" name="main_units_multiplayer_cap_spinbox"/>
+                  <item row="0" column="2">
+                   <widget class="QLineEdit" name="main_units_recruitment_movie_line_edit">
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                   </widget>
                   </item>
-                  <item row="10" column="3">
-                   <widget class="QLabel" name="main_units_multiplayer_qb_cap_label">
+                  <item row="17" column="3">
+                   <widget class="QLabel" name="main_units_can_be_bribed_label">
                     <property name="text">
                      <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="12" column="3">
+                   <widget class="QLabel" name="main_units_unique_index_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="8" column="0">
+                   <widget class="QLabel" name="main_units_can_trade_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="16" column="0">
+                   <widget class="QLabel" name="main_units_barrier_health_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="2" column="3">
+                   <widget class="QLabel" name="main_units_in_encyclopedia_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="7" column="5">
+                   <widget class="QComboBox" name="main_units_region_unit_resource_requirement_combobox">
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
                     </property>
                    </widget>
                   </item>
                   <item row="10" column="5">
                    <widget class="QSpinBox" name="main_units_multiplayer_qb_cap_spinbox"/>
                   </item>
+                  <item row="15" column="2">
+                   <widget class="KComboBox" name="land_units_harmony_amplification_type_combobox"/>
+                  </item>
+                  <item row="0" column="5">
+                   <widget class="QSpinBox" name="main_units_max_men_per_ship_spinbox"/>
+                  </item>
+                  <item row="14" column="3">
+                   <widget class="QLabel" name="land_units_score_capture_tier_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="7" column="3">
+                   <widget class="QLabel" name="main_units_region_unit_resource_requirement_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="12" column="5">
+                   <widget class="QSpinBox" name="main_units_unique_index_spinbox"/>
+                  </item>
+                  <item row="8" column="3">
+                   <widget class="QLabel" name="land_units_capture_tier_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="15" column="3">
+                   <widget class="QLabel" name="land_units_first_person_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="18" column="0">
+                   <widget class="QLabel" name="main_units_is_renown_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="16" column="2">
+                   <widget class="QDoubleSpinBox" name="main_units_barrier_health_double_spinbox"/>
+                  </item>
+                  <item row="17" column="2">
+                   <widget class="QSpinBox" name="main_units_point_allowance_weight_spinbox"/>
+                  </item>
+                  <item row="17" column="5">
+                   <widget class="QCheckBox" name="main_units_can_be_bribed_checkbox">
+                    <property name="text">
+                     <string>CheckBox</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="18" column="2">
+                   <widget class="QCheckBox" name="main_units_is_renown_checkbox">
+                    <property name="text">
+                     <string>CheckBox</string>
+                    </property>
+                   </widget>
+                  </item>
                  </layout>
                 </widget>
                </widget>
-              </item>
-             </layout>
-            </widget>
-           </item>
-           <item row="3" column="1">
-            <widget class="QGroupBox" name="unit_ui_groupbox">
-             <property name="title">
-              <string>GroupBox</string>
-             </property>
-             <layout class="QGridLayout" name="gridLayout_23">
-              <item row="2" column="2">
-               <widget class="QLineEdit" name="main_units_optional_ui_element_line_edit"/>
-              </item>
-              <item row="1" column="0">
-               <widget class="QLabel" name="main_units_porthole_camera_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="7" column="0">
-               <widget class="QLabel" name="main_units_ui_unit_group_naval_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="6" column="2">
-               <widget class="QSpinBox" name="main_units_special_edition_mask_spinbox"/>
-              </item>
-              <item row="6" column="0">
-               <widget class="QLabel" name="main_units_special_edition_mask_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="5" column="2">
-               <widget class="QLineEdit" name="main_units_porthole_composite_scene_line_edit"/>
-              </item>
-              <item row="2" column="0">
-               <widget class="QLabel" name="main_units_optional_ui_element_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="8" column="0">
-               <widget class="QLabel" name="main_units_ui_unit_group_land_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="5" column="0">
-               <widget class="QLabel" name="main_units_porthole_composite_scene_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="7" column="2">
-               <widget class="QComboBox" name="main_units_ui_unit_group_naval_combobox"/>
-              </item>
-              <item row="8" column="2">
-               <widget class="QComboBox" name="main_units_ui_unit_group_land_combobox"/>
-              </item>
-              <item row="1" column="2">
-               <widget class="QComboBox" name="main_units_porthole_camera_combobox"/>
-              </item>
-             </layout>
-            </widget>
-           </item>
-           <item row="2" column="1" colspan="3">
-            <widget class="QGroupBox" name="unit_campaign_groupbox">
-             <property name="title">
-              <string>GroupBox</string>
-             </property>
-             <layout class="QGridLayout" name="gridLayout_22">
-              <item row="16" column="4">
-               <widget class="QLabel" name="main_units_missile_cp_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="5" column="7">
-               <widget class="QSpinBox" name="main_units_multiplayer_cost_spinbox"/>
-              </item>
-              <item row="18" column="1">
-               <widget class="QLabel" name="main_units_can_siege_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="5" column="3">
-               <widget class="QSpinBox" name="main_units_recruitment_cost_spinbox"/>
-              </item>
-              <item row="21" column="1">
-               <widget class="QLabel" name="main_units_mount_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="19" column="3">
-               <widget class="QCheckBox" name="main_units_use_hitpoints_in_campaign_checkbox">
-                <property name="text">
-                 <string/>
-                </property>
-               </widget>
-              </item>
-              <item row="0" column="3">
-               <widget class="QSpinBox" name="main_units_campaign_cap_spinbox"/>
-              </item>
-              <item row="0" column="5" colspan="3">
-               <widget class="QSpinBox" name="main_units_create_time_spinbox"/>
-              </item>
-              <item row="5" column="4">
-               <widget class="QLabel" name="main_units_food_cost_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="19" column="4">
-               <widget class="QLabel" name="main_units_unit_scaling_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="8" column="4">
-               <widget class="QLabel" name="land_units_campaign_action_points_label">
-                <property name="text">
-                 <string>Campaign Action Points</string>
-                </property>
-               </widget>
-              </item>
-              <item row="5" column="5">
-               <widget class="QSpinBox" name="main_units_food_cost_spinbox">
-                <property name="minimumSize">
-                 <size>
-                  <width>50</width>
-                  <height>0</height>
-                 </size>
-                </property>
-               </widget>
-              </item>
-              <item row="5" column="6">
-               <widget class="QLabel" name="main_units_multiplayer_cost_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="0" column="4">
-               <widget class="QLabel" name="main_units_create_time_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="19" column="5">
-               <widget class="QCheckBox" name="main_units_unit_scaling_checkbox">
-                <property name="text">
-                 <string/>
-                </property>
-               </widget>
-              </item>
-              <item row="0" column="1">
-               <widget class="QLabel" name="main_units_campaign_cap_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="8" column="5" colspan="3">
-               <widget class="QSpinBox" name="land_units_campaign_action_points_spinbox">
-                <property name="sizePolicy">
-                 <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-                  <horstretch>0</horstretch>
-                  <verstretch>0</verstretch>
-                 </sizepolicy>
-                </property>
-               </widget>
-              </item>
-              <item row="19" column="1">
-               <widget class="QLabel" name="main_units_use_hitpoints_in_campaign_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="5" column="1">
-               <widget class="QLabel" name="main_units_recruitment_cost_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="23" column="1" colspan="7">
-               <widget class="QGroupBox" name="unit_requirements_groupbox">
-                <property name="sizePolicy">
-                 <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-                  <horstretch>0</horstretch>
-                  <verstretch>0</verstretch>
-                 </sizepolicy>
-                </property>
-                <property name="title">
-                 <string>GroupBox</string>
-                </property>
-                <layout class="QGridLayout" name="gridLayout_21">
-                 <item row="3" column="2">
-                  <widget class="QComboBox" name="main_units_additional_building_requirement_combobox">
-                   <property name="sizePolicy">
-                    <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-                     <horstretch>0</horstretch>
-                     <verstretch>0</verstretch>
-                    </sizepolicy>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="3" column="0">
-                  <widget class="QLabel" name="main_units_additional_building_requirement_label">
-                   <property name="text">
-                    <string>TextLabel</string>
-                   </property>
-                  </widget>
-                 </item>
-                </layout>
-               </widget>
-              </item>
-              <item row="16" column="5" colspan="3">
-               <widget class="QDoubleSpinBox" name="main_units_missile_cp_double_spinbox"/>
-              </item>
-              <item row="8" column="3">
-               <widget class="QSpinBox" name="main_units_upkeep_cost_spinbox"/>
-              </item>
-              <item row="18" column="3">
-               <widget class="QCheckBox" name="main_units_can_siege_checkbox">
-                <property name="text">
-                 <string/>
-                </property>
-               </widget>
-              </item>
-              <item row="18" column="5">
-               <widget class="QCheckBox" name="main_units_restrict_xp_gain_in_campaign_checkbox">
-                <property name="text">
-                 <string/>
-                </property>
-               </widget>
-              </item>
-              <item row="16" column="3">
-               <widget class="QDoubleSpinBox" name="main_units_melee_cp_double_spinbox">
-                <property name="sizePolicy">
-                 <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-                  <horstretch>0</horstretch>
-                  <verstretch>0</verstretch>
-                 </sizepolicy>
-                </property>
-               </widget>
-              </item>
-              <item row="18" column="4">
-               <widget class="QLabel" name="main_units_restrict_xp_gain_in_campaign_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="8" column="1">
-               <widget class="QLabel" name="main_units_upkeep_cost_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="16" column="1">
-               <widget class="QLabel" name="main_units_melee_cp_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="21" column="3">
-               <widget class="QComboBox" name="main_units_mount_combobox">
-                <property name="sizePolicy">
-                 <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-                  <horstretch>0</horstretch>
-                  <verstretch>0</verstretch>
-                 </sizepolicy>
-                </property>
-               </widget>
-              </item>
-              <item row="21" column="4">
-               <widget class="QLabel" name="main_units_weight_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="21" column="5" colspan="3">
-               <widget class="QComboBox" name="main_units_weight_combobox"/>
               </item>
              </layout>
             </widget>
@@ -1025,53 +1152,7 @@
            <string>Tab 1</string>
           </attribute>
           <layout class="QGridLayout" name="gridLayout_15">
-           <item row="3" column="0">
-            <widget class="QGroupBox" name="land_units_animation_groupbox">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
-             <property name="title">
-              <string>Animation</string>
-             </property>
-             <layout class="QGridLayout" name="gridLayout_10">
-              <item row="2" column="0">
-               <widget class="QLabel" name="land_units_sync_locomotion_label">
-                <property name="text">
-                 <string>Sync Locomotion</string>
-                </property>
-               </widget>
-              </item>
-              <item row="1" column="0">
-               <widget class="QLabel" name="land_units_man_animation_label">
-                <property name="text">
-                 <string>Man Animation</string>
-                </property>
-               </widget>
-              </item>
-              <item row="2" column="1">
-               <widget class="QCheckBox" name="land_units_sync_locomotion_checkbox">
-                <property name="text">
-                 <string/>
-                </property>
-               </widget>
-              </item>
-              <item row="1" column="1">
-               <widget class="QComboBox" name="land_units_man_animation_combobox">
-                <property name="sizePolicy">
-                 <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-                  <horstretch>0</horstretch>
-                  <verstretch>0</verstretch>
-                 </sizepolicy>
-                </property>
-               </widget>
-              </item>
-             </layout>
-            </widget>
-           </item>
-           <item row="6" column="0" colspan="2">
+           <item row="5" column="0" colspan="2">
             <widget class="KCollapsibleGroupBox" name="unit_extra_data_tab2_groupbox">
              <property name="title">
               <string>Extra Data</string>
@@ -1095,15 +1176,12 @@
                  <property name="geometry">
                   <rect>
                    <x>0</x>
-                   <y>0</y>
-                   <width>894</width>
-                   <height>115</height>
+                   <y>-66</y>
+                   <width>1168</width>
+                   <height>216</height>
                   </rect>
                  </property>
                  <layout class="QGridLayout" name="gridLayout_6">
-                  <item row="5" column="1">
-                   <widget class="QComboBox" name="land_units_training_level_combobox"/>
-                  </item>
                   <item row="5" column="0">
                    <widget class="QLabel" name="land_units_training_level_label">
                     <property name="text">
@@ -1111,10 +1189,23 @@
                     </property>
                    </widget>
                   </item>
+                  <item row="3" column="1">
+                   <widget class="QDoubleSpinBox" name="land_units_ability_global_recharge_double_spinbox"/>
+                  </item>
                   <item row="4" column="0">
                    <widget class="QLabel" name="land_units_loose_spacing_label">
                     <property name="text">
                      <string>Loose Spacing</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="2" column="1">
+                   <widget class="QSpinBox" name="main_units_prestige_spinbox"/>
+                  </item>
+                  <item row="6" column="0">
+                   <widget class="QLabel" name="land_units_healing_power_label">
+                    <property name="text">
+                     <string>TextLabel</string>
                     </property>
                    </widget>
                   </item>
@@ -1125,7 +1216,14 @@
                     </property>
                    </widget>
                   </item>
-                  <item row="1" column="2" rowspan="6" colspan="2">
+                  <item row="7" column="0">
+                   <widget class="QLabel" name="land_units_spell_mastery_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="1" column="2" rowspan="7" colspan="2">
                    <widget class="QGroupBox" name="land_units_animals_groupbox">
                     <property name="sizePolicy">
                      <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
@@ -1181,11 +1279,28 @@
                     </property>
                    </widget>
                   </item>
-                  <item row="3" column="1">
-                   <widget class="QDoubleSpinBox" name="land_units_ability_global_recharge_double_spinbox"/>
+                  <item row="5" column="1">
+                   <widget class="QComboBox" name="land_units_training_level_combobox"/>
                   </item>
-                  <item row="2" column="1">
-                   <widget class="QSpinBox" name="main_units_prestige_spinbox"/>
+                  <item row="8" column="0">
+                   <widget class="QLabel" name="land_units_infinite_secondary_ammo_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="6" column="1">
+                   <widget class="QDoubleSpinBox" name="land_units_healing_power_double_spinbox"/>
+                  </item>
+                  <item row="7" column="1">
+                   <widget class="QDoubleSpinBox" name="land_units_spell_mastery_double_spinbox"/>
+                  </item>
+                  <item row="8" column="1">
+                   <widget class="QCheckBox" name="land_units_infinite_secondary_ammo_checkbox">
+                    <property name="text">
+                     <string/>
+                    </property>
+                   </widget>
                   </item>
                  </layout>
                 </widget>
@@ -1194,647 +1309,712 @@
              </layout>
             </widget>
            </item>
-           <item row="3" column="1">
-            <widget class="QGroupBox" name="land_units_mount_groupbox">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
+           <item row="0" column="0">
+            <widget class="QScrollArea" name="scrollArea_4">
+             <property name="widgetResizable">
+              <bool>true</bool>
              </property>
-             <property name="title">
-              <string>Mount</string>
-             </property>
-             <layout class="QGridLayout" name="gridLayout_8">
-              <item row="0" column="0">
-               <widget class="QLabel" name="land_units_mount_label">
-                <property name="text">
-                 <string>Mount</string>
-                </property>
-               </widget>
-              </item>
-              <item row="1" column="4">
-               <widget class="QCheckBox" name="land_units_mounted_draughts_checkbox">
-                <property name="text">
-                 <string/>
-                </property>
-               </widget>
-              </item>
-              <item row="1" column="2">
-               <widget class="QSpinBox" name="land_units_num_mounts_spinbox"/>
-              </item>
-              <item row="0" column="2" colspan="3">
-               <widget class="QComboBox" name="land_units_mount_combobox"/>
-              </item>
-              <item row="2" column="3">
-               <widget class="QLabel" name="land_units_dismounted_charge_bonus_label">
-                <property name="text">
-                 <string>Dismounted Charge Bonus</string>
-                </property>
-               </widget>
-              </item>
-              <item row="2" column="2">
-               <widget class="QSpinBox" name="land_units_dismounted_melee_attack_spinbox"/>
-              </item>
-              <item row="1" column="3">
-               <widget class="QLabel" name="land_units_mounted_draughts_label">
-                <property name="text">
-                 <string>Mounted Draughts</string>
-                </property>
-               </widget>
-              </item>
-              <item row="1" column="0">
-               <widget class="QLabel" name="land_units_num_mounts_label">
-                <property name="text">
-                 <string>Num Mounts</string>
-                </property>
-               </widget>
-              </item>
-              <item row="2" column="4">
-               <widget class="QSpinBox" name="land_units_dismounted_charge_bonus_spinbox"/>
-              </item>
-              <item row="2" column="0">
-               <widget class="QLabel" name="land_units_dismounted_melee_attack_label">
-                <property name="text">
-                 <string>Dismounted Melee Attack</string>
-                </property>
-               </widget>
-              </item>
-             </layout>
-            </widget>
-           </item>
-           <item row="2" column="0">
-            <widget class="QGroupBox" name="land_units_melee_groupbox">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
-             <property name="title">
-              <string>Melee</string>
-             </property>
-             <layout class="QGridLayout" name="gridLayout_7">
-              <item row="0" column="0">
-               <widget class="QLabel" name="land_units_primary_melee_weapon_label">
-                <property name="text">
-                 <string>Primary Melee Weapon</string>
-                </property>
-               </widget>
-              </item>
-              <item row="0" column="1">
-               <widget class="QComboBox" name="land_units_primary_melee_weapon_combobox">
-                <property name="sizePolicy">
-                 <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-                  <horstretch>0</horstretch>
-                  <verstretch>0</verstretch>
-                 </sizepolicy>
-                </property>
-               </widget>
-              </item>
-              <item row="1" column="0">
-               <widget class="QLabel" name="land_units_shield_label">
-                <property name="text">
-                 <string>Shield</string>
-                </property>
-               </widget>
-              </item>
-              <item row="1" column="1">
-               <widget class="QComboBox" name="land_units_shield_combobox">
-                <property name="sizePolicy">
-                 <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-                  <horstretch>0</horstretch>
-                  <verstretch>0</verstretch>
-                 </sizepolicy>
-                </property>
-               </widget>
-              </item>
-             </layout>
-            </widget>
-           </item>
-           <item row="2" column="1">
-            <widget class="QGroupBox" name="land_units_missile_groupbox">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
-             <property name="title">
-              <string>Missile</string>
-             </property>
-             <layout class="QGridLayout" name="gridLayout_5">
-              <item row="0" column="0">
-               <widget class="QLabel" name="land_units_primary_missile_weapon_label">
-                <property name="text">
-                 <string>Primary Missile Weapon</string>
-                </property>
-               </widget>
-              </item>
-              <item row="1" column="0">
-               <widget class="QLabel" name="land_units_accuracy_label">
-                <property name="text">
-                 <string>Accuracy</string>
-                </property>
-                <property name="buddy">
-                 <cstring>land_units_accuracy_spinbox</cstring>
-                </property>
-               </widget>
-              </item>
-              <item row="2" column="0">
-               <widget class="QLabel" name="land_units_reload_label">
-                <property name="text">
-                 <string>Reload</string>
-                </property>
-                <property name="buddy">
-                 <cstring>land_units_reload_spinbox</cstring>
-                </property>
-               </widget>
-              </item>
-              <item row="1" column="1">
-               <widget class="QSpinBox" name="land_units_accuracy_spinbox"/>
-              </item>
-              <item row="2" column="1">
-               <widget class="QSpinBox" name="land_units_reload_spinbox"/>
-              </item>
-              <item row="2" column="2">
-               <widget class="QLabel" name="land_units_secondary_ammo_label">
-                <property name="text">
-                 <string>Secondary Ammo</string>
-                </property>
-               </widget>
-              </item>
-              <item row="2" column="3">
-               <widget class="QSpinBox" name="land_units_secondary_ammo_spinbox"/>
-              </item>
-              <item row="1" column="2">
-               <widget class="QLabel" name="land_units_primary_ammo_label">
-                <property name="text">
-                 <string>Primary Ammo</string>
-                </property>
-               </widget>
-              </item>
-              <item row="1" column="3">
-               <widget class="QSpinBox" name="land_units_primary_ammo_spinbox"/>
-              </item>
-              <item row="0" column="1" colspan="3">
-               <widget class="QComboBox" name="land_units_primary_missile_weapon_combobox"/>
-              </item>
-             </layout>
-            </widget>
-           </item>
-           <item row="0" column="0" rowspan="2" colspan="2">
-            <widget class="QGroupBox" name="stats_section">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Preferred" vsizetype="MinimumExpanding">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
-             <property name="title">
-              <string>Stats</string>
-             </property>
-             <layout class="QGridLayout" name="gridLayout_3">
-              <item row="3" column="6">
-               <widget class="QSpinBox" name="land_units_morale_spinbox"/>
-              </item>
-              <item row="4" column="5">
-               <widget class="QLabel" name="land_units_can_brace_label">
-                <property name="text">
-                 <string>Can Brace</string>
-                </property>
-               </widget>
-              </item>
-              <item row="2" column="5">
-               <widget class="QLabel" name="land_units_bonus_hit_points_label">
-                <property name="text">
-                 <string>Bonus Hitpoints</string>
-                </property>
-                <property name="buddy">
-                 <cstring>land_units_bonus_hit_points_spinbox</cstring>
-                </property>
-               </widget>
-              </item>
-              <item row="4" column="6">
-               <widget class="QCheckBox" name="land_units_can_brace_checkbox">
-                <property name="text">
-                 <string/>
-                </property>
-               </widget>
-              </item>
-              <item row="10" column="1">
-               <widget class="QLabel" name="main_units_tier_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="6" column="6">
-               <widget class="QSpinBox" name="land_units_rank_depth_spinbox"/>
-              </item>
-              <item row="6" column="1">
-               <widget class="QLabel" name="land_units_spacing_label">
-                <property name="text">
-                 <string>Spacing</string>
-                </property>
-               </widget>
-              </item>
-              <item row="2" column="1">
-               <widget class="QLabel" name="land_units_melee_attack_label">
-                <property name="text">
-                 <string>Melee Attack</string>
-                </property>
-                <property name="buddy">
-                 <cstring>land_units_melee_attack_spinbox</cstring>
-                </property>
-               </widget>
-              </item>
-              <item row="7" column="1">
-               <widget class="QLabel" name="land_units_man_entity_label">
-                <property name="text">
-                 <string>Man Entity</string>
-                </property>
-               </widget>
-              </item>
-              <item row="6" column="5">
-               <widget class="QLabel" name="land_units_rank_depth_label">
-                <property name="text">
-                 <string>Rank Depth</string>
-                </property>
-               </widget>
-              </item>
-              <item row="5" column="5">
-               <widget class="QLabel" name="land_units_capture_power_label">
-                <property name="text">
-                 <string>Capture Power</string>
-                </property>
-               </widget>
-              </item>
-              <item row="8" column="1">
-               <widget class="QLabel" name="land_units_officers_label">
-                <property name="text">
-                 <string>officers</string>
-                </property>
-               </widget>
-              </item>
-              <item row="11" column="3">
-               <widget class="QLabel" name="main_units_is_high_threat_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="11" column="2">
-               <widget class="QCheckBox" name="land_units_supports_first_person_checkbox">
-                <property name="text">
-                 <string/>
-                </property>
-               </widget>
-              </item>
-              <item row="2" column="6">
-               <widget class="QSpinBox" name="land_units_bonus_hit_points_spinbox"/>
-              </item>
-              <item row="9" column="1">
-               <widget class="QLabel" name="main_units_num_men_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="7" column="5" rowspan="6" colspan="3">
-               <widget class="QGroupBox" name="unit_battle_visibility_groupbox">
-                <property name="title">
-                 <string>GroupBox</string>
-                </property>
-                <layout class="QGridLayout" name="gridLayout_25">
-                 <item row="1" column="1">
-                  <widget class="QLabel" name="land_units_visibility_spotting_range_min_label">
-                   <property name="text">
-                    <string>Visibility Spoting Range Min</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="1" column="4">
-                  <widget class="QLabel" name="land_units_spot_dist_scrub_label">
-                   <property name="text">
-                    <string>Spot Distance Shrub</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="2" column="5">
-                  <widget class="QSpinBox" name="land_units_spot_dist_tree_spinbox"/>
-                 </item>
-                 <item row="2" column="3">
-                  <widget class="QDoubleSpinBox" name="land_units_visibility_spotting_range_max_double_spinbox"/>
-                 </item>
-                 <item row="2" column="4">
-                  <widget class="QLabel" name="land_units_spot_dist_tree_label">
-                   <property name="text">
-                    <string>Spot Distance Tree</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="2" column="1">
-                  <widget class="QLabel" name="land_units_visibility_spotting_range_max_label">
-                   <property name="text">
-                    <string>Visibility Spoting Range Max</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="1" column="5">
-                  <widget class="QSpinBox" name="land_units_spot_dist_scrub_spinbox"/>
-                 </item>
-                 <item row="1" column="3">
-                  <widget class="QDoubleSpinBox" name="land_units_visibility_spotting_range_min_double_spinbox"/>
-                 </item>
-                 <item row="0" column="5">
-                  <widget class="QDoubleSpinBox" name="land_units_hiding_scalar_double_spinbox"/>
-                 </item>
-                 <item row="0" column="4">
-                  <widget class="QLabel" name="land_units_hiding_scalar_label">
-                   <property name="text">
-                    <string>Hiding Scalar</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="0" column="1">
-                  <widget class="QLabel" name="land_units_can_skirmish_label">
-                   <property name="text">
-                    <string>Can Skirmish</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="0" column="3">
-                  <widget class="QCheckBox" name="land_units_can_skirmish_checkbox">
-                   <property name="text">
-                    <string/>
-                   </property>
-                  </widget>
-                 </item>
-                </layout>
-               </widget>
-              </item>
-              <item row="2" column="7" rowspan="5">
-               <widget class="QGroupBox" name="groupBox">
-                <property name="title">
-                 <string>Damage Modifiers</string>
-                </property>
-                <layout class="QGridLayout" name="gridLayout_4">
-                 <item row="3" column="1">
-                  <widget class="QSpinBox" name="land_units_damage_mod_flame_spinbox"/>
-                 </item>
-                 <item row="5" column="0">
-                  <widget class="QLabel" name="land_units_damage_mod_magic_label">
-                   <property name="text">
-                    <string>Magic</string>
-                   </property>
-                   <property name="buddy">
-                    <cstring>land_units_damage_mod_magic_spinbox</cstring>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="1" column="1">
-                  <widget class="QSpinBox" name="land_units_damage_mod_physical_spinbox"/>
-                 </item>
-                 <item row="3" column="0">
-                  <widget class="QLabel" name="land_units_damage_mod_flame_label">
-                   <property name="text">
-                    <string>Flame</string>
-                   </property>
-                   <property name="buddy">
-                    <cstring>land_units_damage_mod_flame_spinbox</cstring>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="0" column="1">
-                  <widget class="QSpinBox" name="land_units_damage_mod_all_spinbox"/>
-                 </item>
-                 <item row="1" column="0">
-                  <widget class="QLabel" name="land_units_damage_mod_physical_label">
-                   <property name="text">
-                    <string>Physical</string>
-                   </property>
-                   <property name="buddy">
-                    <cstring>land_units_damage_mod_physical_spinbox</cstring>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="0" column="0">
-                  <widget class="QLabel" name="land_units_damage_mod_all_label">
-                   <property name="text">
-                    <string>All</string>
-                   </property>
-                   <property name="buddy">
-                    <cstring>land_units_damage_mod_all_spinbox</cstring>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="5" column="1">
-                  <widget class="QSpinBox" name="land_units_damage_mod_magic_spinbox"/>
-                 </item>
-                 <item row="2" column="1">
-                  <widget class="QSpinBox" name="land_units_damage_mod_missile_spinbox"/>
-                 </item>
-                 <item row="2" column="0">
-                  <widget class="QLabel" name="land_units_damage_mod_missile_label">
-                   <property name="text">
-                    <string>Missile</string>
-                   </property>
-                   <property name="buddy">
-                    <cstring>land_units_damage_mod_missile_spinbox</cstring>
-                   </property>
-                  </widget>
-                 </item>
-                </layout>
-               </widget>
-              </item>
-              <item row="11" column="1">
-               <widget class="QLabel" name="land_units_supports_first_person_label">
-                <property name="text">
-                 <string>Supports First Person?</string>
-                </property>
-               </widget>
-              </item>
-              <item row="3" column="5">
-               <widget class="QLabel" name="land_units_morale_label">
-                <property name="text">
-                 <string>Morale</string>
-                </property>
-                <property name="buddy">
-                 <cstring>land_units_morale_spinbox</cstring>
-                </property>
-               </widget>
-              </item>
-              <item row="5" column="6">
-               <widget class="QDoubleSpinBox" name="land_units_capture_power_double_spinbox"/>
-              </item>
-              <item row="4" column="1">
-               <widget class="QLabel" name="land_units_charge_bonus_label">
-                <property name="text">
-                 <string>Charge Bonus</string>
-                </property>
-                <property name="buddy">
-                 <cstring>land_units_charge_bonus_spinbox</cstring>
-                </property>
-               </widget>
-              </item>
-              <item row="5" column="1">
-               <widget class="QLabel" name="land_units_armour_label">
-                <property name="text">
-                 <string>Armour</string>
-                </property>
-               </widget>
-              </item>
-              <item row="3" column="1">
-               <widget class="QLabel" name="land_units_melee_defence_label">
-                <property name="text">
-                 <string>Melee Defense</string>
-                </property>
-                <property name="buddy">
-                 <cstring>land_units_melee_defence_spinbox</cstring>
-                </property>
-               </widget>
-              </item>
-              <item row="11" column="4">
-               <widget class="QCheckBox" name="main_units_is_high_threat_checkbox">
-                <property name="text">
-                 <string/>
-                </property>
-               </widget>
-              </item>
-              <item row="10" column="2" colspan="3">
-               <widget class="QSpinBox" name="main_units_tier_spinbox"/>
-              </item>
-              <item row="9" column="2" colspan="3">
-               <widget class="QSpinBox" name="main_units_num_men_spinbox"/>
-              </item>
-              <item row="8" column="2" colspan="3">
-               <widget class="QComboBox" name="land_units_officers_combobox"/>
-              </item>
-              <item row="7" column="2" colspan="3">
-               <widget class="QComboBox" name="land_units_man_entity_combobox">
-                <property name="sizePolicy">
-                 <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-                  <horstretch>0</horstretch>
-                  <verstretch>0</verstretch>
-                 </sizepolicy>
-                </property>
-               </widget>
-              </item>
-              <item row="6" column="2" colspan="3">
-               <widget class="QComboBox" name="land_units_spacing_combobox"/>
-              </item>
-              <item row="5" column="2" colspan="3">
-               <widget class="QComboBox" name="land_units_armour_combobox"/>
-              </item>
-              <item row="4" column="2" colspan="3">
-               <widget class="QSpinBox" name="land_units_charge_bonus_spinbox"/>
-              </item>
-              <item row="3" column="2" colspan="3">
-               <widget class="QSpinBox" name="land_units_melee_defence_spinbox"/>
-              </item>
-              <item row="2" column="2" colspan="3">
-               <widget class="QSpinBox" name="land_units_melee_attack_spinbox"/>
-              </item>
-             </layout>
-            </widget>
-           </item>
-           <item row="5" column="0">
-            <widget class="QGroupBox" name="land_units_engine_groupbox">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
-             <property name="title">
-              <string>Engine</string>
-             </property>
-             <layout class="QGridLayout" name="gridLayout_9">
-              <item row="1" column="0">
-               <widget class="QLabel" name="land_units_num_engines_label">
-                <property name="text">
-                 <string>Num Engines</string>
-                </property>
-               </widget>
-              </item>
-              <item row="0" column="0">
-               <widget class="QLabel" name="land_units_engine_label">
-                <property name="text">
-                 <string>Engine</string>
-                </property>
-               </widget>
-              </item>
-              <item row="1" column="1">
-               <widget class="QSpinBox" name="land_units_num_engines_spinbox">
-                <property name="sizePolicy">
-                 <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                  <horstretch>0</horstretch>
-                  <verstretch>0</verstretch>
-                 </sizepolicy>
-                </property>
-               </widget>
-              </item>
-              <item row="0" column="1">
-               <widget class="QComboBox" name="land_units_engine_combobox">
-                <property name="sizePolicy">
-                 <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-                  <horstretch>0</horstretch>
-                  <verstretch>0</verstretch>
-                 </sizepolicy>
-                </property>
-               </widget>
-              </item>
-              <item row="2" column="0">
-               <widget class="QLabel" name="land_units_articulated_record_label">
-                <property name="text">
-                 <string>articulated_record</string>
-                </property>
-               </widget>
-              </item>
-              <item row="2" column="1">
-               <widget class="QComboBox" name="land_units_articulated_record_combobox"/>
-              </item>
-             </layout>
-            </widget>
-           </item>
-           <item row="5" column="1">
-            <widget class="QGroupBox" name="land_units_groups_groupbox">
-             <property name="title">
-              <string>Groups</string>
-             </property>
-             <layout class="QGridLayout" name="gridLayout_13">
-              <item row="0" column="1">
-               <widget class="QComboBox" name="land_units_ai_usage_group_combobox"/>
-              </item>
-              <item row="0" column="0">
-               <widget class="QLabel" name="land_units_ai_usage_group_label">
-                <property name="text">
-                 <string>ai_usage_group</string>
-                </property>
-               </widget>
-              </item>
-              <item row="1" column="0">
-               <widget class="QLabel" name="land_units_attribute_group_label">
-                <property name="text">
-                 <string>attribute_group</string>
-                </property>
-               </widget>
-              </item>
-              <item row="1" column="1">
-               <widget class="QComboBox" name="land_units_attribute_group_combobox"/>
-              </item>
-              <item row="2" column="0">
-               <widget class="QLabel" name="land_units_ground_stat_effect_group_label">
-                <property name="text">
-                 <string>ground_stat_effect_group</string>
-                </property>
-               </widget>
-              </item>
-              <item row="2" column="1">
-               <widget class="QComboBox" name="land_units_ground_stat_effect_group_combobox"/>
-              </item>
-             </layout>
+             <widget class="QWidget" name="scrollAreaWidgetContents_4">
+              <property name="geometry">
+               <rect>
+                <x>0</x>
+                <y>0</y>
+                <width>1208</width>
+                <height>1080</height>
+               </rect>
+              </property>
+              <layout class="QGridLayout" name="gridLayout_26">
+               <item row="2" column="0">
+                <widget class="QGroupBox" name="land_units_animation_groupbox">
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                   <horstretch>0</horstretch>
+                   <verstretch>0</verstretch>
+                  </sizepolicy>
+                 </property>
+                 <property name="title">
+                  <string>Animation</string>
+                 </property>
+                 <layout class="QGridLayout" name="gridLayout_10">
+                  <item row="2" column="0">
+                   <widget class="QLabel" name="land_units_sync_locomotion_label">
+                    <property name="text">
+                     <string>Sync Locomotion</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="1" column="0">
+                   <widget class="QLabel" name="land_units_man_animation_label">
+                    <property name="text">
+                     <string>Man Animation</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="2" column="1">
+                   <widget class="QCheckBox" name="land_units_sync_locomotion_checkbox">
+                    <property name="text">
+                     <string/>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="1" column="1">
+                   <widget class="QComboBox" name="land_units_man_animation_combobox">
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+               <item row="3" column="0">
+                <widget class="QGroupBox" name="land_units_engine_groupbox">
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                   <horstretch>0</horstretch>
+                   <verstretch>0</verstretch>
+                  </sizepolicy>
+                 </property>
+                 <property name="title">
+                  <string>Engine</string>
+                 </property>
+                 <layout class="QGridLayout" name="gridLayout_9">
+                  <item row="1" column="0">
+                   <widget class="QLabel" name="land_units_num_engines_label">
+                    <property name="text">
+                     <string>Num Engines</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="0" column="0">
+                   <widget class="QLabel" name="land_units_engine_label">
+                    <property name="text">
+                     <string>Engine</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="1" column="1">
+                   <widget class="QSpinBox" name="land_units_num_engines_spinbox">
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="0" column="1">
+                   <widget class="QComboBox" name="land_units_engine_combobox">
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="2" column="0">
+                   <widget class="QLabel" name="land_units_articulated_record_label">
+                    <property name="text">
+                     <string>articulated_record</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="2" column="1">
+                   <widget class="QComboBox" name="land_units_articulated_record_combobox"/>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+               <item row="1" column="0">
+                <widget class="QGroupBox" name="land_units_melee_groupbox">
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                   <horstretch>0</horstretch>
+                   <verstretch>0</verstretch>
+                  </sizepolicy>
+                 </property>
+                 <property name="title">
+                  <string>Melee</string>
+                 </property>
+                 <layout class="QGridLayout" name="gridLayout_7">
+                  <item row="0" column="0">
+                   <widget class="QLabel" name="land_units_primary_melee_weapon_label">
+                    <property name="text">
+                     <string>Primary Melee Weapon</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="0" column="1">
+                   <widget class="QComboBox" name="land_units_primary_melee_weapon_combobox">
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="1" column="0">
+                   <widget class="QLabel" name="land_units_shield_label">
+                    <property name="text">
+                     <string>Shield</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="1" column="1">
+                   <widget class="QComboBox" name="land_units_shield_combobox">
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+               <item row="1" column="1">
+                <widget class="QGroupBox" name="land_units_missile_groupbox">
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                   <horstretch>0</horstretch>
+                   <verstretch>0</verstretch>
+                  </sizepolicy>
+                 </property>
+                 <property name="title">
+                  <string>Missile</string>
+                 </property>
+                 <layout class="QGridLayout" name="gridLayout_5">
+                  <item row="0" column="0">
+                   <widget class="QLabel" name="land_units_primary_missile_weapon_label">
+                    <property name="text">
+                     <string>Primary Missile Weapon</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="1" column="0">
+                   <widget class="QLabel" name="land_units_accuracy_label">
+                    <property name="text">
+                     <string>Accuracy</string>
+                    </property>
+                    <property name="buddy">
+                     <cstring>land_units_accuracy_spinbox</cstring>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="2" column="0">
+                   <widget class="QLabel" name="land_units_reload_label">
+                    <property name="text">
+                     <string>Reload</string>
+                    </property>
+                    <property name="buddy">
+                     <cstring>land_units_reload_spinbox</cstring>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="1" column="1">
+                   <widget class="QSpinBox" name="land_units_accuracy_spinbox"/>
+                  </item>
+                  <item row="2" column="1">
+                   <widget class="QSpinBox" name="land_units_reload_spinbox"/>
+                  </item>
+                  <item row="2" column="2">
+                   <widget class="QLabel" name="land_units_secondary_ammo_label">
+                    <property name="text">
+                     <string>Secondary Ammo</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="2" column="3">
+                   <widget class="QSpinBox" name="land_units_secondary_ammo_spinbox"/>
+                  </item>
+                  <item row="1" column="2">
+                   <widget class="QLabel" name="land_units_primary_ammo_label">
+                    <property name="text">
+                     <string>Primary Ammo</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="1" column="3">
+                   <widget class="QSpinBox" name="land_units_primary_ammo_spinbox"/>
+                  </item>
+                  <item row="0" column="1" colspan="3">
+                   <widget class="QComboBox" name="land_units_primary_missile_weapon_combobox"/>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+               <item row="2" column="1">
+                <widget class="QGroupBox" name="land_units_mount_groupbox">
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                   <horstretch>0</horstretch>
+                   <verstretch>0</verstretch>
+                  </sizepolicy>
+                 </property>
+                 <property name="title">
+                  <string>Mount</string>
+                 </property>
+                 <layout class="QGridLayout" name="gridLayout_8">
+                  <item row="0" column="0">
+                   <widget class="QLabel" name="land_units_mount_label">
+                    <property name="text">
+                     <string>Mount</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="1" column="4">
+                   <widget class="QCheckBox" name="land_units_mounted_draughts_checkbox">
+                    <property name="text">
+                     <string/>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="1" column="2">
+                   <widget class="QSpinBox" name="land_units_num_mounts_spinbox"/>
+                  </item>
+                  <item row="0" column="2" colspan="3">
+                   <widget class="QComboBox" name="land_units_mount_combobox"/>
+                  </item>
+                  <item row="2" column="3">
+                   <widget class="QLabel" name="land_units_dismounted_charge_bonus_label">
+                    <property name="text">
+                     <string>Dismounted Charge Bonus</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="2" column="2">
+                   <widget class="QSpinBox" name="land_units_dismounted_melee_attack_spinbox"/>
+                  </item>
+                  <item row="1" column="3">
+                   <widget class="QLabel" name="land_units_mounted_draughts_label">
+                    <property name="text">
+                     <string>Mounted Draughts</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="1" column="0">
+                   <widget class="QLabel" name="land_units_num_mounts_label">
+                    <property name="text">
+                     <string>Num Mounts</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="2" column="4">
+                   <widget class="QSpinBox" name="land_units_dismounted_charge_bonus_spinbox"/>
+                  </item>
+                  <item row="2" column="0">
+                   <widget class="QLabel" name="land_units_dismounted_melee_attack_label">
+                    <property name="text">
+                     <string>Dismounted Melee Attack</string>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+               <item row="3" column="1">
+                <widget class="QGroupBox" name="land_units_groups_groupbox">
+                 <property name="title">
+                  <string>Groups</string>
+                 </property>
+                 <layout class="QGridLayout" name="gridLayout_13">
+                  <item row="0" column="1">
+                   <widget class="QComboBox" name="land_units_ai_usage_group_combobox"/>
+                  </item>
+                  <item row="0" column="0">
+                   <widget class="QLabel" name="land_units_ai_usage_group_label">
+                    <property name="text">
+                     <string>ai_usage_group</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="1" column="0">
+                   <widget class="QLabel" name="land_units_attribute_group_label">
+                    <property name="text">
+                     <string>attribute_group</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="1" column="1">
+                   <widget class="QComboBox" name="land_units_attribute_group_combobox"/>
+                  </item>
+                  <item row="2" column="0">
+                   <widget class="QLabel" name="land_units_ground_stat_effect_group_label">
+                    <property name="text">
+                     <string>ground_stat_effect_group</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="2" column="1">
+                   <widget class="QComboBox" name="land_units_ground_stat_effect_group_combobox"/>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+               <item row="0" column="0" colspan="2">
+                <widget class="QGroupBox" name="stats_section">
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Preferred" vsizetype="MinimumExpanding">
+                   <horstretch>0</horstretch>
+                   <verstretch>0</verstretch>
+                  </sizepolicy>
+                 </property>
+                 <property name="title">
+                  <string>Stats</string>
+                 </property>
+                 <layout class="QGridLayout" name="gridLayout_3">
+                  <item row="3" column="6">
+                   <widget class="QSpinBox" name="land_units_morale_spinbox"/>
+                  </item>
+                  <item row="4" column="5">
+                   <widget class="QLabel" name="land_units_can_brace_label">
+                    <property name="text">
+                     <string>Can Brace</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="2" column="5">
+                   <widget class="QLabel" name="land_units_bonus_hit_points_label">
+                    <property name="text">
+                     <string>Bonus Hitpoints</string>
+                    </property>
+                    <property name="buddy">
+                     <cstring>land_units_bonus_hit_points_spinbox</cstring>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="4" column="6">
+                   <widget class="QCheckBox" name="land_units_can_brace_checkbox">
+                    <property name="text">
+                     <string/>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="10" column="1">
+                   <widget class="QLabel" name="main_units_tier_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="6" column="6">
+                   <widget class="QSpinBox" name="land_units_rank_depth_spinbox"/>
+                  </item>
+                  <item row="6" column="1">
+                   <widget class="QLabel" name="land_units_spacing_label">
+                    <property name="text">
+                     <string>Spacing</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="2" column="1">
+                   <widget class="QLabel" name="land_units_melee_attack_label">
+                    <property name="text">
+                     <string>Melee Attack</string>
+                    </property>
+                    <property name="buddy">
+                     <cstring>land_units_melee_attack_spinbox</cstring>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="7" column="1">
+                   <widget class="QLabel" name="land_units_man_entity_label">
+                    <property name="text">
+                     <string>Man Entity</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="6" column="5">
+                   <widget class="QLabel" name="land_units_rank_depth_label">
+                    <property name="text">
+                     <string>Rank Depth</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="5" column="5">
+                   <widget class="QLabel" name="land_units_capture_power_label">
+                    <property name="text">
+                     <string>Capture Power</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="8" column="1">
+                   <widget class="QLabel" name="land_units_officers_label">
+                    <property name="text">
+                     <string>officers</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="11" column="3">
+                   <widget class="QLabel" name="main_units_is_high_threat_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="11" column="2">
+                   <widget class="QCheckBox" name="land_units_supports_first_person_checkbox">
+                    <property name="text">
+                     <string/>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="2" column="6">
+                   <widget class="QSpinBox" name="land_units_bonus_hit_points_spinbox"/>
+                  </item>
+                  <item row="9" column="1">
+                   <widget class="QLabel" name="main_units_num_men_label">
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="7" column="5" rowspan="6" colspan="3">
+                   <widget class="QGroupBox" name="unit_battle_visibility_groupbox">
+                    <property name="title">
+                     <string>GroupBox</string>
+                    </property>
+                    <layout class="QGridLayout" name="gridLayout_25">
+                     <item row="1" column="1">
+                      <widget class="QLabel" name="land_units_visibility_spotting_range_min_label">
+                       <property name="text">
+                        <string>Visibility Spoting Range Min</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="1" column="4">
+                      <widget class="QLabel" name="land_units_spot_dist_scrub_label">
+                       <property name="text">
+                        <string>Spot Distance Shrub</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="2" column="5">
+                      <widget class="QSpinBox" name="land_units_spot_dist_tree_spinbox"/>
+                     </item>
+                     <item row="2" column="3">
+                      <widget class="QDoubleSpinBox" name="land_units_visibility_spotting_range_max_double_spinbox"/>
+                     </item>
+                     <item row="2" column="4">
+                      <widget class="QLabel" name="land_units_spot_dist_tree_label">
+                       <property name="text">
+                        <string>Spot Distance Tree</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="2" column="1">
+                      <widget class="QLabel" name="land_units_visibility_spotting_range_max_label">
+                       <property name="text">
+                        <string>Visibility Spoting Range Max</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="1" column="5">
+                      <widget class="QSpinBox" name="land_units_spot_dist_scrub_spinbox"/>
+                     </item>
+                     <item row="1" column="3">
+                      <widget class="QDoubleSpinBox" name="land_units_visibility_spotting_range_min_double_spinbox"/>
+                     </item>
+                     <item row="0" column="5">
+                      <widget class="QDoubleSpinBox" name="land_units_hiding_scalar_double_spinbox"/>
+                     </item>
+                     <item row="0" column="4">
+                      <widget class="QLabel" name="land_units_hiding_scalar_label">
+                       <property name="text">
+                        <string>Hiding Scalar</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="0" column="1">
+                      <widget class="QLabel" name="land_units_can_skirmish_label">
+                       <property name="text">
+                        <string>Can Skirmish</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="0" column="3">
+                      <widget class="QCheckBox" name="land_units_can_skirmish_checkbox">
+                       <property name="text">
+                        <string/>
+                       </property>
+                      </widget>
+                     </item>
+                    </layout>
+                   </widget>
+                  </item>
+                  <item row="2" column="7" rowspan="5">
+                   <widget class="QGroupBox" name="groupBox">
+                    <property name="title">
+                     <string>Damage Modifiers</string>
+                    </property>
+                    <layout class="QGridLayout" name="gridLayout_4">
+                     <item row="3" column="1">
+                      <widget class="QSpinBox" name="land_units_damage_mod_flame_spinbox"/>
+                     </item>
+                     <item row="5" column="0">
+                      <widget class="QLabel" name="land_units_damage_mod_magic_label">
+                       <property name="text">
+                        <string>Magic</string>
+                       </property>
+                       <property name="buddy">
+                        <cstring>land_units_damage_mod_magic_spinbox</cstring>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="1" column="1">
+                      <widget class="QSpinBox" name="land_units_damage_mod_physical_spinbox"/>
+                     </item>
+                     <item row="3" column="0">
+                      <widget class="QLabel" name="land_units_damage_mod_flame_label">
+                       <property name="text">
+                        <string>Flame</string>
+                       </property>
+                       <property name="buddy">
+                        <cstring>land_units_damage_mod_flame_spinbox</cstring>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="0" column="1">
+                      <widget class="QSpinBox" name="land_units_damage_mod_all_spinbox"/>
+                     </item>
+                     <item row="1" column="0">
+                      <widget class="QLabel" name="land_units_damage_mod_physical_label">
+                       <property name="text">
+                        <string>Physical</string>
+                       </property>
+                       <property name="buddy">
+                        <cstring>land_units_damage_mod_physical_spinbox</cstring>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="0" column="0">
+                      <widget class="QLabel" name="land_units_damage_mod_all_label">
+                       <property name="text">
+                        <string>All</string>
+                       </property>
+                       <property name="buddy">
+                        <cstring>land_units_damage_mod_all_spinbox</cstring>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="5" column="1">
+                      <widget class="QSpinBox" name="land_units_damage_mod_magic_spinbox"/>
+                     </item>
+                     <item row="2" column="1">
+                      <widget class="QSpinBox" name="land_units_damage_mod_missile_spinbox"/>
+                     </item>
+                     <item row="2" column="0">
+                      <widget class="QLabel" name="land_units_damage_mod_missile_label">
+                       <property name="text">
+                        <string>Missile</string>
+                       </property>
+                       <property name="buddy">
+                        <cstring>land_units_damage_mod_missile_spinbox</cstring>
+                       </property>
+                      </widget>
+                     </item>
+                    </layout>
+                   </widget>
+                  </item>
+                  <item row="11" column="1">
+                   <widget class="QLabel" name="land_units_supports_first_person_label">
+                    <property name="text">
+                     <string>Supports First Person?</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="3" column="5">
+                   <widget class="QLabel" name="land_units_morale_label">
+                    <property name="text">
+                     <string>Morale</string>
+                    </property>
+                    <property name="buddy">
+                     <cstring>land_units_morale_spinbox</cstring>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="5" column="6">
+                   <widget class="QDoubleSpinBox" name="land_units_capture_power_double_spinbox"/>
+                  </item>
+                  <item row="4" column="1">
+                   <widget class="QLabel" name="land_units_charge_bonus_label">
+                    <property name="text">
+                     <string>Charge Bonus</string>
+                    </property>
+                    <property name="buddy">
+                     <cstring>land_units_charge_bonus_spinbox</cstring>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="5" column="1">
+                   <widget class="QLabel" name="land_units_armour_label">
+                    <property name="text">
+                     <string>Armour</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="3" column="1">
+                   <widget class="QLabel" name="land_units_melee_defence_label">
+                    <property name="text">
+                     <string>Melee Defense</string>
+                    </property>
+                    <property name="buddy">
+                     <cstring>land_units_melee_defence_spinbox</cstring>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="11" column="4">
+                   <widget class="QCheckBox" name="main_units_is_high_threat_checkbox">
+                    <property name="text">
+                     <string/>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="10" column="2" colspan="3">
+                   <widget class="QSpinBox" name="main_units_tier_spinbox"/>
+                  </item>
+                  <item row="9" column="2" colspan="3">
+                   <widget class="QSpinBox" name="main_units_num_men_spinbox"/>
+                  </item>
+                  <item row="8" column="2" colspan="3">
+                   <widget class="QComboBox" name="land_units_officers_combobox"/>
+                  </item>
+                  <item row="7" column="2" colspan="3">
+                   <widget class="QComboBox" name="land_units_man_entity_combobox">
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="6" column="2" colspan="3">
+                   <widget class="QComboBox" name="land_units_spacing_combobox"/>
+                  </item>
+                  <item row="5" column="2" colspan="3">
+                   <widget class="QComboBox" name="land_units_armour_combobox"/>
+                  </item>
+                  <item row="4" column="2" colspan="3">
+                   <widget class="QSpinBox" name="land_units_charge_bonus_spinbox"/>
+                  </item>
+                  <item row="3" column="2" colspan="3">
+                   <widget class="QSpinBox" name="land_units_melee_defence_spinbox"/>
+                  </item>
+                  <item row="2" column="2" colspan="3">
+                   <widget class="QSpinBox" name="land_units_melee_attack_spinbox"/>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+              </layout>
+             </widget>
             </widget>
            </item>
           </layout>
@@ -1849,6 +2029,16 @@
  </widget>
  <customwidgets>
   <customwidget>
+   <class>KComboBox</class>
+   <extends>QComboBox</extends>
+   <header>kcombobox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>KTextEdit</class>
+   <extends>QTextEdit</extends>
+   <header>ktextedit.h</header>
+  </customwidget>
+  <customwidget>
    <class>KCollapsibleGroupBox</class>
    <extends>QWidget</extends>
    <header>kcollapsiblegroupbox.h</header>
@@ -1858,11 +2048,6 @@
    <class>KMessageWidget</class>
    <extends>QFrame</extends>
    <header>kmessagewidget.h</header>
-  </customwidget>
-  <customwidget>
-   <class>KTextEdit</class>
-   <extends>QTextEdit</extends>
-   <header>ktextedit.h</header>
   </customwidget>
  </customwidgets>
  <resources/>
