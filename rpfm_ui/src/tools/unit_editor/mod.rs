@@ -230,8 +230,41 @@ impl ToolUnitEditor {
         tool.set_title(&tr("unit_editor_title"));
         tool.backup_used_paths(app_ui, pack_file_contents_ui)?;
 
+        //-----------------------------------------------------------------------//
+        // Tool-specific stuff
+        //-----------------------------------------------------------------------//
+
+        // ListView.
+        let unit_list_view: QPtr<QListView> = tool.find_widget("unit_list_view")?;
+        let unit_list_filter = QSortFilterProxyModel::new_1a(&unit_list_view);
+        let unit_list_model = QStandardItemModel::new_1a(&unit_list_filter);
+        let unit_list_filter_line_edit: QPtr<QLineEdit> = tool.find_widget("unit_list_filter_line_edit")?;
+        unit_list_view.set_model(&unit_list_filter);
+        unit_list_filter.set_source_model(&unit_list_model);
+
+        // Filter timer.
+        let timer_delayed_updates = QTimer::new_1a(tool.main_widget());
+        timer_delayed_updates.set_single_shot(true);
+
+        // Icon stuff.
+        let unit_icon_label_preview_widget: QPtr<QWidget> = tool.find_widget("unit_icon_label_preview_widget")?;
+        let variant_editor_tool_button: QPtr<QToolButton> = tool.find_widget("variant_editor_tool_button")?;
+        create_grid_layout(unit_icon_label_preview_widget.static_upcast());
+
+        // File name and button box.
+        let packed_file_name_label: QPtr<QLabel> = tool.find_widget("packed_file_name_label")?;
+        let packed_file_name_line_edit: QPtr<QLineEdit> = tool.find_widget("packed_file_name_line_edit")?;
+        packed_file_name_line_edit.set_text(&QString::from_std_str(DEFAULT_FILENAME));
+
+        let copy_button = tool.find_widget::<QDialogButtonBox>("button_box")?.add_button_q_string_button_role(&qtr("copy_unit"), ButtonRole::ActionRole);
+        copy_button.set_enabled(false);
+
+        // Extra stuff.
+        let detailed_view_tab_widget: QPtr<QTabWidget> = tool.find_widget("detailed_view_tab_widget")?;
+        detailed_view_tab_widget.set_enabled(false);
+
         // Hide all label-widget combos by default, because we only need to show the ones valid for our tables.
-        let widgets = tool.main_widget().find_children_q_object();
+        let widgets = detailed_view_tab_widget.find_children_q_object();
         for index in 0..widgets.count_0a() {
             let widget_obj = widgets.at(index);
             let widget: QPtr<QObject> = QPtr::from_raw(*widget_obj);
@@ -289,39 +322,6 @@ impl ToolUnitEditor {
                 }
             }
         }
-
-        //-----------------------------------------------------------------------//
-        // Tool-specific stuff
-        //-----------------------------------------------------------------------//
-
-        // ListView.
-        let unit_list_view: QPtr<QListView> = tool.find_widget("unit_list_view")?;
-        let unit_list_filter = QSortFilterProxyModel::new_1a(&unit_list_view);
-        let unit_list_model = QStandardItemModel::new_1a(&unit_list_filter);
-        let unit_list_filter_line_edit: QPtr<QLineEdit> = tool.find_widget("unit_list_filter_line_edit")?;
-        unit_list_view.set_model(&unit_list_filter);
-        unit_list_filter.set_source_model(&unit_list_model);
-
-        // Filter timer.
-        let timer_delayed_updates = QTimer::new_1a(tool.main_widget());
-        timer_delayed_updates.set_single_shot(true);
-
-        // Icon stuff.
-        let unit_icon_label_preview_widget: QPtr<QWidget> = tool.find_widget("unit_icon_label_preview_widget")?;
-        let variant_editor_tool_button: QPtr<QToolButton> = tool.find_widget("variant_editor_tool_button")?;
-        create_grid_layout(unit_icon_label_preview_widget.static_upcast());
-
-        // File name and button box.
-        let packed_file_name_label: QPtr<QLabel> = tool.find_widget("packed_file_name_label")?;
-        let packed_file_name_line_edit: QPtr<QLineEdit> = tool.find_widget("packed_file_name_line_edit")?;
-        packed_file_name_line_edit.set_text(&QString::from_std_str(DEFAULT_FILENAME));
-
-        let copy_button = tool.find_widget::<QDialogButtonBox>("button_box")?.add_button_q_string_button_role(&qtr("copy_unit"), ButtonRole::ActionRole);
-        copy_button.set_enabled(false);
-
-        // Extra stuff.
-        let detailed_view_tab_widget: QPtr<QTabWidget> = tool.find_widget("detailed_view_tab_widget")?;
-        detailed_view_tab_widget.set_enabled(false);
 
         //-----------------------------------------------------------------------//
         // Copy unit dialog.
