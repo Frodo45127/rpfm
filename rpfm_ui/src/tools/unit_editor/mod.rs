@@ -104,7 +104,7 @@ const UNIT_ICONS_PATH: &str = "ui/units/icons/";
 const LAND_UNITS_CUSTOM_FIELDS: [&str; 3] = [
     "short_description_text",
     "historical_description_text",
-    "strengths_&_weaknesses_text"
+    "strengths_and_weaknesses_text"
 ];
 
 /// List of fields tht require special treatment from main_units_tables.
@@ -471,7 +471,11 @@ impl ToolUnitEditor {
         get_data_from_all_sources!(self, get_land_units_data, data, processed_data, false, &LAND_UNITS_CUSTOM_FIELDS);
         get_data_from_all_sources!(self, get_unit_description_historical_text_data, data, processed_data);
         get_data_from_all_sources!(self, get_unit_description_short_texts_data, data, processed_data);
-        get_data_from_all_sources!(self, get_unit_description_strengths_weaknesses_texts_data, data, processed_data);
+
+        if GAME_SELECTED.read().unwrap().key() == KEY_WARHAMMER_2 {
+            get_data_from_all_sources!(self, get_unit_description_strengths_weaknesses_texts_data, data, processed_data);
+        }
+
         get_data_from_all_sources!(self, get_unit_variants_data, data, processed_data);
         get_data_from_all_sources!(self, get_unit_variants_colours_data, data, processed_data);
         get_data_from_all_sources!(self, get_variants_data, data, processed_data);
@@ -512,12 +516,11 @@ impl ToolUnitEditor {
             .to_std_string()).unwrap())
             .collect::<Vec<HashMap<String, String>>>();
 
-        // We have to save the data to the last entry of the keys in out list, so if any of the other fields is edited on it, that edition is kept.
+        // We have to save the data to the last entry of the keys in our list, so if any of the other fields is edited on it, that edition is kept.
         let land_units_packed_file = self.save_land_units_tables_data(&data_to_save)?;
         let main_units_packed_file = self.save_main_units_tables_data(&data_to_save)?;
         let unit_description_historical_texts_packed_file = self.save_unit_description_historical_texts_tables_data(&data_to_save)?;
         let unit_description_short_texts_packed_file = self.save_unit_description_short_texts_tables_data(&data_to_save)?;
-        let unit_description_strengths_weaknesses_texts_packed_file = self.save_unit_description_strengths_weaknesses_texts_tables_data(&data_to_save)?;
         let unit_variants_colours_packed_file = self.save_unit_variants_colours_tables_data(&data_to_save)?;
         let unit_variants_packed_file = self.save_unit_variants_tables_data(&data_to_save)?;
         let variants_packed_file = self.save_variants_tables_data(&data_to_save)?;
@@ -532,13 +535,17 @@ impl ToolUnitEditor {
             main_units_packed_file,
             unit_description_historical_texts_packed_file,
             unit_description_short_texts_packed_file,
-            unit_description_strengths_weaknesses_texts_packed_file,
             unit_variants_colours_packed_file,
             unit_variants_packed_file,
             variants_packed_file,
 
             loc_packed_file
         ];
+
+        if GAME_SELECTED.read().unwrap().key() == KEY_WARHAMMER_2 {
+            let unit_description_strengths_weaknesses_texts_packed_file = self.save_unit_description_strengths_weaknesses_texts_tables_data(&data_to_save)?;
+            packed_files.push(unit_description_strengths_weaknesses_texts_packed_file);
+        }
 
         // Also add the edited variant_meshes.
         packed_files.append(&mut variant_meshes_packed_files);
@@ -806,7 +813,7 @@ impl ToolUnitEditor {
 
     /// This function gets the data needed for the tool from the unit_description_strengths_weaknesses_texts table.
     unsafe fn get_unit_description_strengths_weaknesses_texts_data(&self, data: &mut HashMap<String, RFile>, processed_data: &mut HashMap<String, HashMap<String, String>>) -> Result<()> {
-        Tool::get_table_data(data, processed_data, "unit_description_strengths_weaknesses_texts", &["key"], Some(("land_units".to_owned(), "strengths_&_weaknesses_text".to_owned())))?;
+        Tool::get_table_data(data, processed_data, "unit_description_strengths_weaknesses_texts", &["key"], Some(("land_units".to_owned(), "strengths_and_weaknesses_text".to_owned())))?;
         Ok(())
     }
 
