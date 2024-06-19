@@ -604,8 +604,8 @@ impl SubToolVariantUnitEditor {
             let variant_data = if let Response::HashMapDataSourceHashMapStringRFile(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
             let file = Tool::get_most_relevant_file(&variant_data, &variant_path);
 
-            if let Some(file) = file {
-                if let Ok(RFileDecoded::Text(data)) = file.decoded() {
+            if let Some(mut file) = file {
+                if let Ok(Some(RFileDecoded::Text(data))) = file.decode(&None, false, true) {
                     set_text_safe(&self.variants_mesh_editor.static_upcast(), &QString::from_std_str(data.contents()).as_ptr(), &QString::from_std_str("XML").as_ptr());
                 } else {
                     set_text_safe(&self.variants_mesh_editor.static_upcast(), &QString::from_std_str("").as_ptr(), &QString::from_std_str("XML").as_ptr());
