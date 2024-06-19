@@ -83,8 +83,9 @@ const VARIANT_MESH_PATH: &str = "variantmeshes/variantmeshdefinitions/";
 const VARIANT_MESH_EXTENSION: &str = "variantmeshdefinition";
 
 /// List of games this tool supports.
-const TOOL_SUPPORTED_GAMES: [&str; 1] = [
+const TOOL_SUPPORTED_GAMES: [&str; 2] = [
     KEY_WARHAMMER_2,
+    KEY_WARHAMMER_3,
 ];
 
 /// Default name for files saved with this tool.
@@ -229,6 +230,66 @@ impl ToolUnitEditor {
         tool.set_title(&tr("unit_editor_title"));
         tool.backup_used_paths(app_ui, pack_file_contents_ui)?;
 
+        // Hide all label-widget combos by default, because we only need to show the ones valid for our tables.
+        let widgets = tool.main_widget().find_children_q_object();
+        for index in 0..widgets.count_0a() {
+            let widget_obj = widgets.at(index);
+            let widget: QPtr<QObject> = QPtr::from_raw(*widget_obj);
+
+            // Hide labels.
+            let cast = widget.dynamic_cast::<QLabel>();
+            if !cast.is_null() {
+                cast.set_visible(false);
+                continue;
+            }
+
+            // Hide double spinboxes.
+            let cast = widget.dynamic_cast::<QDoubleSpinBox>();
+            if !cast.is_null() {
+                cast.set_visible(false);
+                continue;
+            }
+
+            // Hide spinboxes.
+            let cast = widget.dynamic_cast::<QSpinBox>();
+            if !cast.is_null() {
+                cast.set_visible(false);
+                continue;
+            }
+
+            // Hide combos.
+            let cast = widget.dynamic_cast::<QComboBox>();
+            if !cast.is_null() {
+                cast.set_visible(false);
+                continue;
+            }
+
+            // Hide text edits.
+            let cast = widget.dynamic_cast::<QTextEdit>();
+            if !cast.is_null() {
+                cast.set_visible(false);
+                continue;
+            }
+
+            // Hide checkboxes.
+            let cast = widget.dynamic_cast::<QCheckBox>();
+            if !cast.is_null() {
+                cast.set_text(&QString::new());
+                cast.set_visible(false);
+                continue;
+            }
+
+            // Hide line edits. These are last because of wrapping shenaningans.
+            let cast = widget.dynamic_cast::<QLineEdit>();
+            if !cast.is_null() && !cast.parent().is_null() {
+                let parent = cast.parent().dynamic_cast::<QWidget>();
+                if !parent.is_null() && !parent.is_hidden() {
+                    cast.set_visible(false);
+                    continue;
+                }
+            }
+        }
+
         //-----------------------------------------------------------------------//
         // Tool-specific stuff
         //-----------------------------------------------------------------------//
@@ -291,15 +352,23 @@ impl ToolUnitEditor {
 
         let loc_land_units_onscreen_name_label: QPtr<QLabel> = tool.find_widget("loc_land_units_onscreen_name_label")?;
         let loc_land_units_onscreen_name_line_edit: QPtr<QLineEdit> = tool.find_widget("loc_land_units_onscreen_name_line_edit")?;
+        loc_land_units_onscreen_name_label.set_visible(true);
+        loc_land_units_onscreen_name_line_edit.set_visible(true);
 
         let loc_unit_description_historical_text_key_label: QPtr<QLabel> = tool.find_widget("loc_unit_description_historical_text_key_label")?;
         let loc_unit_description_historical_text_key_ktexteditor: QPtr<QTextEdit> = tool.find_widget("loc_unit_description_historical_text_key_ktexteditor")?;
+        loc_unit_description_historical_text_key_label.set_visible(true);
+        loc_unit_description_historical_text_key_ktexteditor.set_visible(true);
 
         let loc_unit_description_short_texts_text_label: QPtr<QLabel> = tool.find_widget("loc_unit_description_short_texts_text_label")?;
         let loc_unit_description_short_texts_text_ktexteditor: QPtr<QTextEdit> = tool.find_widget("loc_unit_description_short_texts_text_ktexteditor")?;
+        loc_unit_description_short_texts_text_label.set_visible(true);
+        loc_unit_description_short_texts_text_ktexteditor.set_visible(true);
 
         let loc_unit_description_strengths_weaknesses_texts_text_label: QPtr<QLabel> = tool.find_widget("loc_unit_description_strengths_weaknesses_texts_text_label")?;
         let loc_unit_description_strengths_weaknesses_texts_text_ktexteditor: QPtr<QTextEdit> = tool.find_widget("loc_unit_description_strengths_weaknesses_texts_text_ktexteditor")?;
+        loc_unit_description_strengths_weaknesses_texts_text_label.set_visible(true);
+        loc_unit_description_strengths_weaknesses_texts_text_ktexteditor.set_visible(true);
 
         //-----------------------------------------------------------------------//
         // Table-related widgets done.
@@ -398,8 +467,8 @@ impl ToolUnitEditor {
 
         // Get the table's data.
         // NOTE: Order matters here.
-        get_data_from_all_sources!(self, get_main_units_data, data, processed_data);
-        get_data_from_all_sources!(self, get_land_units_data, data, processed_data);
+        get_data_from_all_sources!(self, get_main_units_data, data, processed_data, false, &MAIN_UNITS_CUSTOM_FIELDS);
+        get_data_from_all_sources!(self, get_land_units_data, data, processed_data, false, &LAND_UNITS_CUSTOM_FIELDS);
         get_data_from_all_sources!(self, get_unit_description_historical_text_data, data, processed_data);
         get_data_from_all_sources!(self, get_unit_description_short_texts_data, data, processed_data);
         get_data_from_all_sources!(self, get_unit_description_strengths_weaknesses_texts_data, data, processed_data);
@@ -682,91 +751,42 @@ impl ToolUnitEditor {
     //}
 
     /// This function gets the data needed for the tool from the land_units table.
-    unsafe fn get_land_units_data(&self, data: &mut HashMap<String, RFile>, processed_data: &mut HashMap<String, HashMap<String, String>>) -> Result<()> {
-        if let Some(table) = Tool::get_table_data(data, processed_data, "land_units", &["key"], Some(("main_units".to_owned(), "land_unit".to_owned())))? {
-            let reference_data = get_reference_data(FileType::DB, "land_units_tables", table.definition())?;
+    unsafe fn get_land_units_data(&self, data: &mut HashMap<String, RFile>, processed_data: &mut HashMap<String, HashMap<String, String>>, _data_source: DataSource, custom_fields: &[&str]) -> Result<()> {
+        const TABLE_NAME: &str = "land_units";
 
-            let column_ai_usage_group = table.column_position_by_name("ai_usage_group").ok_or_else(|| ToolsError::MissingColumnInTable("land_units".to_string(), "ai_usage_group".to_string()))? as i32;
-            let column_animal = table.column_position_by_name("animal").ok_or_else(|| ToolsError::MissingColumnInTable("land_units".to_string(), "animal".to_string()))? as i32;
-            let column_armour = table.column_position_by_name("armour").ok_or_else(|| ToolsError::MissingColumnInTable("land_units".to_string(), "armour".to_string()))? as i32;
-            let column_articulated_record = table.column_position_by_name("articulated_record").ok_or_else(|| ToolsError::MissingColumnInTable("land_units".to_string(), "articulated_record".to_string()))? as i32;
-            let column_attribute_group = table.column_position_by_name("attribute_group").ok_or_else(|| ToolsError::MissingColumnInTable("land_units".to_string(), "attribute_group".to_string()))? as i32;
-            let column_category = table.column_position_by_name("category").ok_or_else(|| ToolsError::MissingColumnInTable("land_units".to_string(), "category".to_string()))? as i32;
-            let column_class = table.column_position_by_name("class").ok_or_else(|| ToolsError::MissingColumnInTable("land_units".to_string(), "class".to_string()))? as i32;
-            let column_engine = table.column_position_by_name("engine").ok_or_else(|| ToolsError::MissingColumnInTable("land_units".to_string(), "engine".to_string()))? as i32;
-            let column_ground_stat_effect_group = table.column_position_by_name("ground_stat_effect_group").ok_or_else(|| ToolsError::MissingColumnInTable("land_units".to_string(), "ground_stat_effect_group".to_string()))? as i32;
-            let column_man_animation = table.column_position_by_name("man_animation").ok_or_else(|| ToolsError::MissingColumnInTable("land_units".to_string(), "man_animation".to_string()))? as i32;
-            let column_man_entity = table.column_position_by_name("man_entity").ok_or_else(|| ToolsError::MissingColumnInTable("land_units".to_string(), "man_entity".to_string()))? as i32;
-            let column_mount = table.column_position_by_name("mount").ok_or_else(|| ToolsError::MissingColumnInTable("land_units".to_string(), "mount".to_string()))? as i32;
-            let column_officers = table.column_position_by_name("officers").ok_or_else(|| ToolsError::MissingColumnInTable("land_units".to_string(), "officers".to_string()))? as i32;
-            let column_primary_melee_weapon = table.column_position_by_name("primary_melee_weapon").ok_or_else(|| ToolsError::MissingColumnInTable("land_units".to_string(), "primary_melee_weapon".to_string()))? as i32;
-            let column_primary_missile_weapon = table.column_position_by_name("primary_missile_weapon").ok_or_else(|| ToolsError::MissingColumnInTable("land_units".to_string(), "primary_missile_weapon".to_string()))? as i32;
-            let column_selection_vo = table.column_position_by_name("selection_vo").ok_or_else(|| ToolsError::MissingColumnInTable("land_units".to_string(), "selection_vo".to_string()))? as i32;
-            let column_selected_vo_secondary = table.column_position_by_name("selected_vo_secondary").ok_or_else(|| ToolsError::MissingColumnInTable("land_units".to_string(), "selected_vo_secondary".to_string()))? as i32;
-            let column_selected_vo_tertiary = table.column_position_by_name("selected_vo_tertiary").ok_or_else(|| ToolsError::MissingColumnInTable("land_units".to_string(), "selected_vo_tertiary".to_string()))? as i32;
-            let column_shield = table.column_position_by_name("shield").ok_or_else(|| ToolsError::MissingColumnInTable("land_units".to_string(), "shield".to_string()))? as i32;
-            let column_spacing = table.column_position_by_name("spacing").ok_or_else(|| ToolsError::MissingColumnInTable("land_units".to_string(), "spacing".to_string()))? as i32;
-            let column_training_level = table.column_position_by_name("training_level").ok_or_else(|| ToolsError::MissingColumnInTable("land_units".to_string(), "training_level".to_string()))? as i32;
+        if let Some(table) = Tool::get_table_data(data, processed_data, TABLE_NAME, &["key"], Some(("main_units".to_owned(), "land_unit".to_owned())))? {
+            let table_name_full = TABLE_NAME.to_owned() + "_tables";
+            let reference_data = get_reference_data(FileType::DB, &table_name_full, table.definition())?;
 
-            self.tool.load_reference_data_to_detailed_view_editor_combo(column_ai_usage_group, &self.tool.find_widget("land_units_ai_usage_group_combobox")?, &reference_data);
-            self.tool.load_reference_data_to_detailed_view_editor_combo(column_animal, &self.tool.find_widget("land_units_animal_combobox")?, &reference_data);
-            self.tool.load_reference_data_to_detailed_view_editor_combo(column_armour, &self.tool.find_widget("land_units_armour_combobox")?, &reference_data);
-            self.tool.load_reference_data_to_detailed_view_editor_combo(column_articulated_record, &self.tool.find_widget("land_units_articulated_record_combobox")?, &reference_data);
-            self.tool.load_reference_data_to_detailed_view_editor_combo(column_attribute_group, &self.tool.find_widget("land_units_attribute_group_combobox")?, &reference_data);
-            self.tool.load_reference_data_to_detailed_view_editor_combo(column_category, &self.tool.find_widget("land_units_category_combobox")?, &reference_data);
-            self.tool.load_reference_data_to_detailed_view_editor_combo(column_class, &self.tool.find_widget("land_units_class_combobox")?, &reference_data);
-            self.tool.load_reference_data_to_detailed_view_editor_combo(column_engine, &self.tool.find_widget("land_units_engine_combobox")?, &reference_data);
-            self.tool.load_reference_data_to_detailed_view_editor_combo(column_ground_stat_effect_group, &self.tool.find_widget("land_units_ground_stat_effect_group_combobox")?, &reference_data);
-            self.tool.load_reference_data_to_detailed_view_editor_combo(column_man_animation, &self.tool.find_widget("land_units_man_animation_combobox")?, &reference_data);
-            self.tool.load_reference_data_to_detailed_view_editor_combo(column_man_entity, &self.tool.find_widget("land_units_man_entity_combobox")?, &reference_data);
-            self.tool.load_reference_data_to_detailed_view_editor_combo(column_mount, &self.tool.find_widget("land_units_mount_combobox")?, &reference_data);
-            self.tool.load_reference_data_to_detailed_view_editor_combo(column_officers, &self.tool.find_widget("land_units_officers_combobox")?, &reference_data);
-            self.tool.load_reference_data_to_detailed_view_editor_combo(column_primary_melee_weapon, &self.tool.find_widget("land_units_primary_melee_weapon_combobox")?, &reference_data);
-            self.tool.load_reference_data_to_detailed_view_editor_combo(column_primary_missile_weapon, &self.tool.find_widget("land_units_primary_missile_weapon_combobox")?, &reference_data);
-            self.tool.load_reference_data_to_detailed_view_editor_combo(column_selection_vo, &self.tool.find_widget("land_units_selection_vo_combobox")?, &reference_data);
-            self.tool.load_reference_data_to_detailed_view_editor_combo(column_selected_vo_secondary, &self.tool.find_widget("land_units_selected_vo_secondary_combobox")?, &reference_data);
-            self.tool.load_reference_data_to_detailed_view_editor_combo(column_selected_vo_tertiary, &self.tool.find_widget("land_units_selected_vo_tertiary_combobox")?, &reference_data);
-            self.tool.load_reference_data_to_detailed_view_editor_combo(column_shield, &self.tool.find_widget("land_units_shield_combobox")?, &reference_data);
-            self.tool.load_reference_data_to_detailed_view_editor_combo(column_spacing, &self.tool.find_widget("land_units_spacing_combobox")?, &reference_data);
-            self.tool.load_reference_data_to_detailed_view_editor_combo(column_training_level, &self.tool.find_widget("land_units_training_level_combobox")?, &reference_data);
+            let schema_patches = table.definition().patches();
+            for field in table.definition().fields_processed() {
+                let field_name = field.name();
+
+                if field.is_reference(Some(schema_patches)).is_some() && !custom_fields.contains(&field_name) {
+                    load_reference_data_to_detailed_view_combo!(self, reference_data, table, TABLE_NAME, field_name);
+                }
+            }
         }
+
         Ok(())
     }
 
     /// This function gets the data needed for the tool from the main_units table.
-    unsafe fn get_main_units_data(&self, data: &mut HashMap<String, RFile>, processed_data: &mut HashMap<String, HashMap<String, String>>) -> Result<()> {
-        if let Some(table) = Tool::get_table_data(data, processed_data, "main_units", &["unit"], None)? {
-            let reference_data = get_reference_data(FileType::DB, "main_units_tables", table.definition())?;
+    unsafe fn get_main_units_data(&self, data: &mut HashMap<String, RFile>, processed_data: &mut HashMap<String, HashMap<String, String>>, _data_source: DataSource, custom_fields: &[&str]) -> Result<()> {
+        const TABLE_NAME: &str = "main_units";
 
-            let column_additional_building_requirement = table.column_position_by_name("additional_building_requirement").ok_or_else(|| ToolsError::MissingColumnInTable("main_units".to_string(), "additional_building_requirement".to_string()))? as i32;
-            let column_audio_voiceover_actor_group = table.column_position_by_name("audio_voiceover_actor_group").ok_or_else(|| ToolsError::MissingColumnInTable("main_units".to_string(), "audio_voiceover_actor_group".to_string()))? as i32;
-            let column_audio_voiceover_culture = table.column_position_by_name("audio_voiceover_culture").ok_or_else(|| ToolsError::MissingColumnInTable("main_units".to_string(), "audio_voiceover_culture".to_string()))? as i32;
-            let column_audio_voiceover_culture_override = table.column_position_by_name("audio_voiceover_culture_override").ok_or_else(|| ToolsError::MissingColumnInTable("main_units".to_string(), "audio_voiceover_culture_override".to_string()))? as i32;
-            let column_caste = table.column_position_by_name("caste").ok_or_else(|| ToolsError::MissingColumnInTable("main_units".to_string(), "caste".to_string()))? as i32;
-            let column_mount = table.column_position_by_name("mount").ok_or_else(|| ToolsError::MissingColumnInTable("main_units".to_string(), "mount".to_string()))? as i32;
-            let column_naval_unit = table.column_position_by_name("naval_unit").ok_or_else(|| ToolsError::MissingColumnInTable("main_units".to_string(), "naval_unit".to_string()))? as i32;
-            let column_porthole_camera = table.column_position_by_name("porthole_camera").ok_or_else(|| ToolsError::MissingColumnInTable("main_units".to_string(), "porthole_camera".to_string()))? as i32;
-            let column_region_unit_resource_requirement = table.column_position_by_name("region_unit_resource_requirement").ok_or_else(|| ToolsError::MissingColumnInTable("main_units".to_string(), "region_unit_resource_requirement".to_string()))? as i32;
-            let column_religion_requirement = table.column_position_by_name("religion_requirement").ok_or_else(|| ToolsError::MissingColumnInTable("main_units".to_string(), "religion_requirement".to_string()))? as i32;
-            let column_resource_requirement = table.column_position_by_name("resource_requirement").ok_or_else(|| ToolsError::MissingColumnInTable("main_units".to_string(), "resource_requirement".to_string()))? as i32;
-            let column_ui_unit_group_land = table.column_position_by_name("ui_unit_group_land").ok_or_else(|| ToolsError::MissingColumnInTable("main_units".to_string(), "ui_unit_group_land".to_string()))? as i32;
-            let column_ui_unit_group_naval = table.column_position_by_name("ui_unit_group_naval").ok_or_else(|| ToolsError::MissingColumnInTable("main_units".to_string(), "ui_unit_group_naval".to_string()))? as i32;
-            let column_weight = table.column_position_by_name("weight").ok_or_else(|| ToolsError::MissingColumnInTable("main_units".to_string(), "weight".to_string()))? as i32;
+        if let Some(table) = Tool::get_table_data(data, processed_data, TABLE_NAME, &["unit"], None)? {
+            let table_name_full = TABLE_NAME.to_owned() + "_tables";
+            let reference_data = get_reference_data(FileType::DB, &table_name_full, table.definition())?;
 
-            self.tool.load_reference_data_to_detailed_view_editor_combo(column_additional_building_requirement, &self.tool.find_widget("main_units_additional_building_requirement_combobox")?, &reference_data);
-            self.tool.load_reference_data_to_detailed_view_editor_combo(column_audio_voiceover_actor_group, &self.tool.find_widget("main_units_audio_voiceover_actor_group_combobox")?, &reference_data);
-            self.tool.load_reference_data_to_detailed_view_editor_combo(column_audio_voiceover_culture, &self.tool.find_widget("main_units_audio_voiceover_culture_combobox")?, &reference_data);
-            self.tool.load_reference_data_to_detailed_view_editor_combo(column_audio_voiceover_culture_override, &self.tool.find_widget("main_units_audio_voiceover_culture_override_combobox")?, &reference_data);
-            self.tool.load_reference_data_to_detailed_view_editor_combo(column_caste, &self.tool.find_widget("main_units_caste_combobox")?, &reference_data);
-            self.tool.load_reference_data_to_detailed_view_editor_combo(column_mount, &self.tool.find_widget("main_units_mount_combobox")?, &reference_data);
-            self.tool.load_reference_data_to_detailed_view_editor_combo(column_naval_unit, &self.tool.find_widget("main_units_naval_unit_combobox")?, &reference_data);
-            self.tool.load_reference_data_to_detailed_view_editor_combo(column_porthole_camera, &self.tool.find_widget("main_units_porthole_camera_combobox")?, &reference_data);
-            self.tool.load_reference_data_to_detailed_view_editor_combo(column_region_unit_resource_requirement, &self.tool.find_widget("main_units_region_unit_resource_requirement_combobox")?, &reference_data);
-            self.tool.load_reference_data_to_detailed_view_editor_combo(column_religion_requirement, &self.tool.find_widget("main_units_religion_requirement_combobox")?, &reference_data);
-            self.tool.load_reference_data_to_detailed_view_editor_combo(column_resource_requirement, &self.tool.find_widget("main_units_resource_requirement_combobox")?, &reference_data);
-            self.tool.load_reference_data_to_detailed_view_editor_combo(column_ui_unit_group_land, &self.tool.find_widget("main_units_ui_unit_group_land_combobox")?, &reference_data);
-            self.tool.load_reference_data_to_detailed_view_editor_combo(column_ui_unit_group_naval, &self.tool.find_widget("main_units_ui_unit_group_naval_combobox")?, &reference_data);
-            self.tool.load_reference_data_to_detailed_view_editor_combo(column_weight, &self.tool.find_widget("main_units_weight_combobox")?, &reference_data);
+            let schema_patches = table.definition().patches();
+            for field in table.definition().fields_processed() {
+                let field_name = field.name();
+
+                if field.is_reference(Some(schema_patches)).is_some() && !custom_fields.contains(&field_name) {
+                    load_reference_data_to_detailed_view_combo!(self, reference_data, table, TABLE_NAME, field_name);
+                }
+            }
         }
 
         Ok(())

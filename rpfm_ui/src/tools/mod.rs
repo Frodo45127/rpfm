@@ -68,6 +68,8 @@ use self::error::ToolsError;
 
 /// Macro to automatically generate get code from all sources, because it gets big really fast.
 macro_rules! get_data_from_all_sources {
+
+    // Basic macro.
     ($self:ident, $funtion:ident, $data:ident, $processed_data:ident) => (
         if let Some(data) = $data.get_mut(&DataSource::GameFiles) {
             $self.$funtion(data, &mut $processed_data)?;
@@ -79,6 +81,8 @@ macro_rules! get_data_from_all_sources {
             $self.$funtion(data, &mut $processed_data)?;
         }
     );
+
+    // Basic macro with source passing (for doing stuff only on data from a specific source).
     ($self:ident, $funtion:ident, $data:ident, $processed_data:ident, $use_source:expr) => (
         if let Some(data) = $data.get_mut(&DataSource::GameFiles) {
             $self.$funtion(data, &mut $processed_data, DataSource::GameFiles)?;
@@ -90,7 +94,29 @@ macro_rules! get_data_from_all_sources {
             $self.$funtion(data, &mut $processed_data, DataSource::PackFile)?;
         }
     );
+
+    // Basic macro with source passing (for doing stuff only on data from a specific source) and ignored fields (for autoloading data using field names).
+    ($self:ident, $funtion:ident, $data:ident, $processed_data:ident, $use_source:expr, $ignored_fields:expr) => (
+        if let Some(data) = $data.get_mut(&DataSource::GameFiles) {
+            $self.$funtion(data, &mut $processed_data, DataSource::GameFiles, $ignored_fields)?;
+        }
+        if let Some(data) = $data.get_mut(&DataSource::ParentFiles) {
+            $self.$funtion(data, &mut $processed_data, DataSource::ParentFiles, $ignored_fields)?;
+        }
+        if let Some(data) = $data.get_mut(&DataSource::PackFile) {
+            $self.$funtion(data, &mut $processed_data, DataSource::PackFile, $ignored_fields)?;
+        }
+    );
 }
+
+macro_rules! load_reference_data_to_detailed_view_combo {
+    ($self:ident, $reference_data:ident, $table:ident, $table_name:ident, $field_name:ident) => (
+        let column = $table.column_position_by_name($field_name).ok_or_else(|| ToolsError::MissingColumnInTable($table_name.to_string(), $field_name.to_string()))? as i32;
+        let widget: QPtr<QComboBox> = $self.tool.find_widget(&($table_name.to_string() + "_" + $field_name + "_combobox"))?;
+        $self.tool.load_reference_data_to_detailed_view_editor_combo(column, &widget, &$reference_data);
+    );
+}
+
 
 mod error;
 pub mod faction_painter;
@@ -653,7 +679,10 @@ impl Tool {
                         let label_name = format!("{}_{}_label", table_name, field.name());
                         let label_widget: Result<QPtr<QLabel>> = self.find_widget(&label_name);
                         match label_widget {
-                            Ok(label) => label.set_text(&QString::from_std_str(clean_column_names(field.name()))),
+                            Ok(label) => {
+                                label.set_text(&QString::from_std_str(clean_column_names(field.name())));
+                                label.set_visible(true);
+                            },
                             Err(_) => load_field_errors.push(label_name),
                         };
 
@@ -664,13 +693,14 @@ impl Tool {
                                 let widget: Result<QPtr<QComboBox>> = self.find_widget(&widget_name);
                                 match widget {
                                     Ok(widget) => {
+                                        widget.set_visible(true);
 
                                         // Check if we have data for the widget. If not, fill it with default data
                                         let field_key_name = format!("{}_{}", table_name, field.name());
                                         match data.get(&field_key_name) {
                                             Some(data) => widget.set_current_text(&QString::from_std_str(data)),
                                             None => {
-                                                if let Some(default_value) = field.default_value(None) {
+                                                if let Some(default_value) = field.default_value(patches) {
                                                     widget.set_current_text(&QString::from_std_str(default_value));
                                                 }
                                             }
@@ -688,6 +718,7 @@ impl Tool {
                                         let widget: Result<QPtr<QCheckBox>> = self.find_widget(&widget_name);
                                         match widget {
                                             Ok(widget) => {
+                                                widget.set_visible(true);
 
                                                 // Check if we have data for the widget. If not, fill it with default data
                                                 let field_key_name = format!("{}_{}", table_name, field.name());
@@ -698,7 +729,7 @@ impl Tool {
                                                         }
                                                     },
                                                     None => {
-                                                        if let Some(default_value) = field.default_value(None) {
+                                                        if let Some(default_value) = field.default_value(patches) {
                                                             if let Ok(value) = default_value.parse::<bool>() {
                                                                 widget.set_checked(value);
                                                             }
@@ -716,6 +747,7 @@ impl Tool {
                                         let widget: Result<QPtr<QSpinBox>> = self.find_widget(&widget_name);
                                         match widget {
                                             Ok(widget) => {
+                                                widget.set_visible(true);
 
                                                 // Set max and mins here, to make sure we can fit whatever data we have.
                                                 widget.set_minimum(std::i32::MIN);
@@ -730,7 +762,7 @@ impl Tool {
                                                         }
                                                     },
                                                     None => {
-                                                        if let Some(default_value) = field.default_value(None) {
+                                                        if let Some(default_value) = field.default_value(patches) {
                                                             if let Ok(value) = default_value.parse::<i32>() {
                                                                 widget.set_value(value);
                                                             }
@@ -746,6 +778,7 @@ impl Tool {
                                         let widget: Result<QPtr<QDoubleSpinBox>> = self.find_widget(&widget_name);
                                         match widget {
                                             Ok(widget) => {
+                                                widget.set_visible(true);
 
                                                 // Set max and mins here, to make sure we can fit whatever data we have.
                                                 widget.set_minimum(std::f32::MIN as f64);
@@ -760,7 +793,7 @@ impl Tool {
                                                         }
                                                     },
                                                     None => {
-                                                        if let Some(default_value) = field.default_value(None) {
+                                                        if let Some(default_value) = field.default_value(patches) {
                                                             if let Ok(value) = default_value.parse::<f64>() {
                                                                 widget.set_value(value);
                                                             }
@@ -779,13 +812,14 @@ impl Tool {
                                         let widget: Result<QPtr<QLineEdit>> = self.find_widget(&widget_name);
                                         match widget {
                                             Ok(widget) => {
+                                                widget.set_visible(true);
 
                                                 // Check if we have data for the widget. If not, fill it with default data
                                                 let field_key_name = format!("{}_{}", table_name, field.name());
                                                 match data.get(&field_key_name) {
                                                     Some(data) => widget.set_text(&QString::from_std_str(data)),
                                                     None => {
-                                                        if let Some(default_value) = field.default_value(None) {
+                                                        if let Some(default_value) = field.default_value(patches) {
                                                             widget.set_text(&QString::from_std_str(default_value));
                                                         }
                                                     }
