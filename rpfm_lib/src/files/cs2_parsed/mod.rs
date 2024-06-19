@@ -220,8 +220,7 @@ impl Decodeable for Cs2Parsed {
                     f_2: data.read_f32()?,
                     f_3: data.read_f32()?,
                     f_4: data.read_f32()?,
-                    f_5: data.read_f32()?,
-                    ..Default::default()
+                    f_5: data.read_f32()?
                 });
             }
 

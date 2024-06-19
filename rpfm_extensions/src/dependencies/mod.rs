@@ -204,7 +204,7 @@ impl Dependencies {
         self.load_parent_files(schema, parent_pack_names, game_info, game_path, secondary_path)?;
 
         // Populate the localisation data.
-        let loc_files = self.loc_data(true, true).unwrap_or(vec![]);
+        let loc_files = self.loc_data(true, true).unwrap_or_default();
         let loc_decoded = loc_files.iter()
             .filter_map(|file| if let Ok(RFileDecoded::Loc(loc)) = file.decoded() { Some(loc) } else { None })
             .map(|file| file.data())
@@ -423,8 +423,8 @@ impl Dependencies {
                             let mut references = TableReferences::default();
                             *references.field_name_mut() = field.name().to_owned();
 
-                            let fake_found = self.db_reference_data_from_asskit_tables(&mut references, (&ref_table, ref_column, &lookup_data));
-                            let real_found = self.db_reference_data_from_vanilla_and_modded_tables(&mut references, (&ref_table, ref_column, &lookup_data));
+                            let fake_found = self.db_reference_data_from_asskit_tables(&mut references, (ref_table, ref_column, lookup_data));
+                            let real_found = self.db_reference_data_from_vanilla_and_modded_tables(&mut references, (ref_table, ref_column, lookup_data));
 
                             if fake_found && real_found.is_none() {
                                 references.referenced_table_is_ak_only = true;
@@ -573,12 +573,12 @@ impl Dependencies {
         self.vanilla_loose_paths.clear();
 
         let game_data_path = game_info.data_path(game_path)?;
-        let game_data_path_str = game_data_path.to_string_lossy().replace("\\", "/");
+        let game_data_path_str = game_data_path.to_string_lossy().replace('\\', "/");
 
         self.vanilla_loose_files = files_from_subdir(&game_data_path, true)?
             .into_par_iter()
             .filter_map(|path| {
-                let mut path = path.to_string_lossy().replace("\\", "/");
+                let mut path = path.to_string_lossy().replace('\\', "/");
                 if !path.ends_with(".pack") {
                     if let Ok(mut rfile) = RFile::new_from_file(&path) {
                         let subpath = path.split_off(game_data_path_str.len() + 1);
@@ -767,7 +767,7 @@ impl Dependencies {
     /// This function loads all the parent [Packs](rpfm_lib::files::pack::Pack) provided as `parent_pack_names` as dependencies,
     /// taking care of also loading all dependencies of all of them, if they're not already loaded.
     fn load_parent_packs(&mut self, parent_pack_names: &[String], game_info: &GameInfo, game_path: &Path, secondary_path: &Path) -> Result<()> {
-        let data_packs_paths = game_info.data_packs_paths(game_path).unwrap_or(vec![]);
+        let data_packs_paths = game_info.data_packs_paths(game_path).unwrap_or_default();
         let secondary_packs_paths = game_info.secondary_packs_paths(secondary_path);
         let content_packs_paths = game_info.content_packs_paths(game_path);
         let mut loaded_packfiles = vec![];
@@ -821,8 +821,6 @@ impl Dependencies {
                         already_loaded.push(pack_name.to_owned());
                         pack.dependencies().iter().for_each(|pack_name| self.load_parent_pack(pack_name, already_loaded, data_paths, secondary_paths, content_paths));
                         self.parent_files.extend(pack.files().clone());
-
-                        return;
                     }
                 }
             }
@@ -880,8 +878,8 @@ impl Dependencies {
 
     /// This function returns a reference to a specific file from the cache, if exists.
     pub fn file(&self, file_path: &str, include_vanilla: bool, include_parent: bool, case_insensitive: bool) -> Result<&RFile> {
-        let file_path = if file_path.starts_with('/') {
-            &file_path[1..]
+        let file_path = if let Some(file_path) = file_path.strip_prefix('/') {
+            file_path
         } else {
             file_path
         };
@@ -895,7 +893,7 @@ impl Dependencies {
 
             if case_insensitive {
                 let lower = file_path.to_lowercase();
-                if let Some(file) = self.parent_paths.get(&lower).map(|paths| self.parent_files.get(&paths[0])).flatten() {
+                if let Some(file) = self.parent_paths.get(&lower).and_then(|paths| self.parent_files.get(&paths[0])) {
                     return Ok(file);
                 }
             }
@@ -910,7 +908,7 @@ impl Dependencies {
 
             if case_insensitive {
                 let lower = file_path.to_lowercase();
-                if let Some(file) = self.vanilla_paths.get(&lower).map(|paths| self.vanilla_files.get(&paths[0])).flatten() {
+                if let Some(file) = self.vanilla_paths.get(&lower).and_then(|paths| self.vanilla_files.get(&paths[0])) {
                     return Ok(file);
                 }
 
@@ -923,7 +921,7 @@ impl Dependencies {
 
             if case_insensitive {
                 let lower = file_path.to_lowercase();
-                if let Some(file) = self.vanilla_loose_paths.get(&lower).map(|paths| self.vanilla_loose_files.get(&paths[0])).flatten() {
+                if let Some(file) = self.vanilla_loose_paths.get(&lower).and_then(|paths| self.vanilla_loose_files.get(&paths[0])) {
                     return Ok(file);
                 }
             }
@@ -1297,7 +1295,7 @@ impl Dependencies {
                         let mut references = TableReferences::default();
                         *references.field_name_mut() = field.name().to_owned();
 
-                        let _local_found = self.db_reference_data_from_local_pack(&mut references, (ref_table, ref_column, &lookup_data), pack, &loc_data);
+                        let _local_found = self.db_reference_data_from_local_pack(&mut references, (ref_table, ref_column, &lookup_data), pack, loc_data);
 
                         Some((column as i32, references))
                     } else { None }
@@ -1323,7 +1321,7 @@ impl Dependencies {
                             let mut references = TableReferences::default();
                             *references.field_name_mut() = field.name().to_owned();
 
-                            let _local_found = self.db_reference_data_from_local_pack(&mut references, (&ref_table, ref_column, &lookup_data), pack, &loc_data);
+                            let _local_found = self.db_reference_data_from_local_pack(&mut references, (&ref_table, ref_column, lookup_data), pack, loc_data);
 
                             Some((column as i32, references))
                         } else { None }
@@ -1406,7 +1404,7 @@ impl Dependencies {
         };
 
         let files = match pack {
-            Some(ref pack) => {
+            Some(pack) => {
                 let mut files = pack.files_by_path(&ContainerPath::Folder(format!("db/{ref_table_full}")), true);
                 files.append(&mut self.db_data(&ref_table_full, true, true).unwrap_or_else(|_| vec![]));
                 files
@@ -1426,7 +1424,7 @@ impl Dependencies {
 
                     // Here we analyze the lookups to build their table cache.
                     let lookups_analyzed = ref_lookup_columns.iter().map(|ref_lookup_path| {
-                        let ref_lookup_steps = ref_lookup_path.split(":").map(|x| x.split("#").collect::<Vec<_>>()).collect::<Vec<_>>();
+                        let ref_lookup_steps = ref_lookup_path.split(':').map(|x| x.split('#').collect::<Vec<_>>()).collect::<Vec<_>>();
                         let mut is_loc = false;
                         let mut col_pos = 0;
 
@@ -1438,10 +1436,10 @@ impl Dependencies {
                                 let lookup_ref_table_long = lookup_ref_table.to_owned() + "_tables";
 
                                 // Build the cache for the tables we need to check.
-                                if cache.get(lookup_ref_table).is_none() {
+                                if !cache.contains_key(lookup_ref_table) {
                                     let mut files = vec![];
 
-                                    if let Some(ref pack) = pack {
+                                    if let Some(pack) = pack {
                                         files.append(&mut pack.files_by_path(&ContainerPath::Folder(format!("db/{lookup_ref_table_long}")), true));
                                     }
 
@@ -1491,7 +1489,7 @@ impl Dependencies {
                                 if let Some(files) = cache.get(lookup_ref_table) {
                                     for file in files {
                                         let table_data_column_cache_key = file.path_in_container_raw().to_owned() + &ref_lookup_step.join("++");
-                                        if table_data_cache.get(&table_data_column_cache_key).is_none() {
+                                        if !table_data_cache.contains_key(&table_data_column_cache_key) {
                                             if let Ok(RFileDecoded::DB(db)) = file.decoded() {
                                                 let definition = db.definition();
                                                 let fields_processed = definition.fields_processed();
@@ -1500,7 +1498,7 @@ impl Dependencies {
 
                                                 let loc_key = if is_loc {
                                                     let mut loc_key = String::with_capacity(2 + lookup_ref_table.len() + localised_fields[col_pos].name().len());
-                                                    loc_key.push_str(&lookup_ref_table);
+                                                    loc_key.push_str(lookup_ref_table);
                                                     loc_key.push('_');
                                                     loc_key.push_str(localised_fields[col_pos].name());
                                                     loc_key.push('_');
@@ -1621,7 +1619,7 @@ impl Dependencies {
                         // If we're not yet in the last step, reduce the steps and repeat.
                         if lookup_steps.len() > 1 {
                             if !lookup_value.is_empty() {
-                                data_found = self.db_reference_data_generic_lookup(&cache, loc_data, &Cow::from(lookup_value), &lookup_steps[1..], is_loc, column, table_data_cache);
+                                data_found = self.db_reference_data_generic_lookup(cache, loc_data, &Cow::from(lookup_value), &lookup_steps[1..], is_loc, column, table_data_cache);
                             }
                         }
 
@@ -1730,11 +1728,11 @@ impl Dependencies {
     /// This function returns if a specific file exists in the dependencies cache.
     pub fn file_exists(&self, file_path: &str, include_vanilla: bool, include_parent: bool, case_insensitive: bool) -> bool {
         if include_parent {
-            if self.parent_files.get(file_path).is_some() {
+            if self.parent_files.contains_key(file_path) {
                 return true
             } else if case_insensitive {
                 let lower = file_path.to_lowercase();
-                if self.parent_paths.get(&lower).is_some() {
+                if self.parent_paths.contains_key(&lower) {
                     return true
                 }
             }
@@ -1742,11 +1740,11 @@ impl Dependencies {
 
         if include_vanilla {
 
-            if self.vanilla_files.get(file_path).is_some() || self.vanilla_loose_files.get(file_path).is_some() {
+            if self.vanilla_files.contains_key(file_path) || self.vanilla_loose_files.contains_key(file_path) {
                 return true
             } else if case_insensitive {
                 let lower = file_path.to_lowercase();
-                if self.vanilla_paths.get(&lower).is_some() || self.vanilla_loose_paths.get(&lower).is_some() {
+                if self.vanilla_paths.contains_key(&lower) || self.vanilla_loose_paths.contains_key(&lower) {
                     return true
                 }
             }
@@ -1757,20 +1755,18 @@ impl Dependencies {
 
     /// This function returns if a specific folder exists in the dependencies cache.
     pub fn folder_exists(&self, folder_path: &str, include_vanilla: bool, include_parent: bool, case_insensitive: bool) -> bool {
-        if include_parent {
-            if self.parent_folders.get(folder_path).is_some() {
-                return true
-            } else if case_insensitive && self.parent_folders.par_iter().any(|path| caseless::canonical_caseless_match_str(path, folder_path)) {
-                return true
-            }
+        if include_parent && (
+            self.parent_folders.contains(folder_path) ||
+            (case_insensitive && self.parent_folders.par_iter().any(|path| caseless::canonical_caseless_match_str(path, folder_path)))
+        ) {
+            return true
         }
 
-        if include_vanilla {
-            if self.vanilla_folders.get(folder_path).is_some() || self.vanilla_loose_folders.get(folder_path).is_some() {
-                return true
-            } else if case_insensitive && self.vanilla_folders.par_iter().chain(self.vanilla_loose_folders.par_iter()).any(|path| caseless::canonical_caseless_match_str(path, folder_path)) {
-                return true
-            }
+        if include_vanilla && (
+            (self.vanilla_folders.contains(folder_path) || self.vanilla_loose_folders.contains(folder_path)) ||
+            (case_insensitive && self.vanilla_folders.par_iter().chain(self.vanilla_loose_folders.par_iter()).any(|path| caseless::canonical_caseless_match_str(path, folder_path)))
+        ) {
+            return true
         }
 
         false
@@ -1837,9 +1833,7 @@ impl Dependencies {
         if let Ok(files) = self.db_data(table_name, include_vanilla, include_parent) {
             values.extend(files.par_iter().filter_map(|file| {
                 if let Ok(RFileDecoded::DB(table)) = file.decoded() {
-                    if let Some(column) = table.definition().column_position_by_name(column_name) {
-                        Some(table.data().par_iter().map(|row| row[column].data_to_string().to_string()).collect::<Vec<_>>())
-                    } else { None }
+                    table.definition().column_position_by_name(column_name).map(|column| table.data().par_iter().map(|row| row[column].data_to_string().to_string()).collect::<Vec<_>>())
                 } else { None }
             }).flatten().collect::<Vec<_>>());
         }
@@ -1848,9 +1842,7 @@ impl Dependencies {
             let files = pack.files_by_path(&ContainerPath::Folder(format!("db/{table_name}")), true);
             values.extend(files.par_iter().filter_map(|file| {
                 if let Ok(RFileDecoded::DB(table)) = file.decoded() {
-                    if let Some(column) = table.definition().column_position_by_name(column_name) {
-                        Some(table.data().par_iter().map(|row| row[column].data_to_string().to_string()).collect::<Vec<_>>())
-                    } else { None }
+                    table.definition().column_position_by_name(column_name).map(|column| table.data().par_iter().map(|row| row[column].data_to_string().to_string()).collect::<Vec<_>>())
                 } else { None }
             }).flatten().collect::<Vec<_>>());
         }
@@ -1866,9 +1858,7 @@ impl Dependencies {
             values.extend(files.par_iter().filter_map(|file| {
                 if let Ok(RFileDecoded::DB(table)) = file.decoded() {
                     if let Some(column) = table.definition().column_position_by_name(key_column_name) {
-                        if let Some(desired_column) = table.definition().column_position_by_name(desired_column_name) {
-                            Some(table.data().par_iter().map(|row| (row[column].data_to_string().to_string(), row[desired_column].data_to_string().to_string())).collect::<Vec<_>>())
-                        } else { None }
+                        table.definition().column_position_by_name(desired_column_name).map(|desired_column| table.data().par_iter().map(|row| (row[column].data_to_string().to_string(), row[desired_column].data_to_string().to_string())).collect::<Vec<_>>())
                     } else { None }
                 } else { None }
             }).flatten().collect::<Vec<_>>());
@@ -1879,9 +1869,7 @@ impl Dependencies {
             values.extend(files.par_iter().filter_map(|file| {
                 if let Ok(RFileDecoded::DB(table)) = file.decoded() {
                     if let Some(column) = table.definition().column_position_by_name(key_column_name) {
-                        if let Some(desired_column) = table.definition().column_position_by_name(desired_column_name) {
-                            Some(table.data().par_iter().map(|row| (row[column].data_to_string().to_string(), row[desired_column].data_to_string().to_string())).collect::<Vec<_>>())
-                        } else { None }
+                        table.definition().column_position_by_name(desired_column_name).map(|desired_column| table.data().par_iter().map(|row| (row[column].data_to_string().to_string(), row[desired_column].data_to_string().to_string())).collect::<Vec<_>>())
                     } else { None }
                 } else { None }
             }).flatten().collect::<Vec<_>>());
@@ -2151,7 +2139,7 @@ impl Dependencies {
     ///
     /// Tables generated with this are VALID.
     pub fn import_from_ak(&self, table_name: &str, schema: &Schema) -> Result<DB> {
-        let definition = if let Some(definitions) = schema.definitions_by_table_name_cloned(&table_name) {
+        let definition = if let Some(definitions) = schema.definitions_by_table_name_cloned(table_name) {
             if !definitions.is_empty() {
                 definitions[0].clone()
             } else {
@@ -2167,7 +2155,7 @@ impl Dependencies {
             real_table.set_definition(&definition);
             Ok(real_table)
         } else {
-            return Err(RLibError::AssemblyKitTableNotFound(table_name.to_owned()))
+            Err(RLibError::AssemblyKitTableNotFound(table_name.to_owned()))
         }
     }
 
@@ -2215,8 +2203,8 @@ impl Dependencies {
                 else if !lookup_data_old.is_empty() {
                     let mut lookup_data = vec![];
 
-                    let table_name = if table_name.ends_with("_tables") {
-                        table_name[..table_name.len() - 7].to_owned()
+                    let table_name = if let Some(table_name) = table_name.strip_suffix("_tables") {
+                        table_name.to_owned()
                     } else {
                         table_name.to_owned()
                     };
@@ -2263,12 +2251,12 @@ impl Dependencies {
                     if let Some(field) = definition.fields_processed().get(pos) {
 
                         // If our field is a reference, we need to go one level deeper to find the lookup.
-                        if let Some((ref_table_name, ref_column)) = field.is_reference(Some(&schema_patches)) {
+                        if let Some((ref_table_name, ref_column)) = field.is_reference(Some(schema_patches)) {
                             if let Some(lookups) = field.lookup(Some(schema_patches)) {
                                 for lookup in &lookups {
                                     let lookup_string = format!("{}:{}#{}#{}", lookup_string, ref_table_name, ref_column, lookup);
 
-                                    self.add_recursive_lookups(schema, &schema_patches, lookup, lookup_data, &lookup_string, &ref_table_name);
+                                    self.add_recursive_lookups(schema, schema_patches, lookup, lookup_data, &lookup_string, &ref_table_name);
                                 }
                             } else {
                                 finish_lookup = true;

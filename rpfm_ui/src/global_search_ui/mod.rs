@@ -465,16 +465,16 @@ impl GlobalSearchUI {
                     self.matches_tab_widget().set_current_index(1);
                 }
 
-                self.load_anim_fragment_battle_matches_to_ui(&global_search.matches().anim_fragment_battle(), FileType::AnimFragmentBattle);
-                self.load_atlas_matches_to_ui(&global_search.matches().atlas(), FileType::Atlas);
-                self.load_portrait_settings_matches_to_ui(&global_search.matches().portrait_settings(), FileType::PortraitSettings);
-                self.load_rigid_model_matches_to_ui(&global_search.matches().rigid_model(), FileType::RigidModel);
-                self.load_table_matches_to_ui(&global_search.matches().db(), FileType::DB);
-                self.load_table_matches_to_ui(&global_search.matches().loc(), FileType::Loc);
-                self.load_text_matches_to_ui(&global_search.matches().text(), FileType::Text);
-                self.load_unit_variant_matches_to_ui(&global_search.matches().unit_variant(), FileType::UnitVariant);
-                self.load_unknown_matches_to_ui(&global_search.matches().unknown(), FileType::Unknown);
-                self.load_schema_matches_to_ui(&global_search.matches().schema());
+                self.load_anim_fragment_battle_matches_to_ui(global_search.matches().anim_fragment_battle(), FileType::AnimFragmentBattle);
+                self.load_atlas_matches_to_ui(global_search.matches().atlas(), FileType::Atlas);
+                self.load_portrait_settings_matches_to_ui(global_search.matches().portrait_settings(), FileType::PortraitSettings);
+                self.load_rigid_model_matches_to_ui(global_search.matches().rigid_model(), FileType::RigidModel);
+                self.load_table_matches_to_ui(global_search.matches().db(), FileType::DB);
+                self.load_table_matches_to_ui(global_search.matches().loc(), FileType::Loc);
+                self.load_text_matches_to_ui(global_search.matches().text(), FileType::Text);
+                self.load_unit_variant_matches_to_ui(global_search.matches().unit_variant(), FileType::UnitVariant);
+                self.load_unknown_matches_to_ui(global_search.matches().unknown(), FileType::Unknown);
+                self.load_schema_matches_to_ui(global_search.matches().schema());
 
                 UI_STATE.set_global_search(&global_search);
                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile);

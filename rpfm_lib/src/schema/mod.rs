@@ -341,7 +341,7 @@ impl Schema {
         // If there was no coincidence in the dependency database... we risk ourselves getting the last definition we have for
         // that db from the schema.
         else{
-            self.definitions.get(table_name)?.get(0)
+            self.definitions.get(table_name)?.first()
         }
     }
 

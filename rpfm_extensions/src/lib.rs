@@ -10,6 +10,13 @@
 
 //! This crate contains certain functionality extensions that, for one reason or another, didn't fit in the main RPFM lib crate.
 
+// Disabled `Clippy` linters, with the reasons why they were disabled.
+#![allow(
+    clippy::too_many_arguments,             // Disabled because it gets annoying really quick.
+    clippy::field_reassign_with_default,    // Disabled because it gets annoying on tests.
+    clippy::assigning_clones
+)]
+
 use fancy_regex::Regex;
 use lazy_static::lazy_static;
 

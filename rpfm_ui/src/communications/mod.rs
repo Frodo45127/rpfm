@@ -394,7 +394,7 @@ pub enum Response {
     VecRFileInfo(Vec<RFileInfo>),
 
     // Response to return (GlobalSearch, Vec<RFileInfo>).
-    GlobalSearchVecRFileInfo(GlobalSearch, Vec<RFileInfo>),
+    GlobalSearchVecRFileInfo(Box<GlobalSearch>, Vec<RFileInfo>),
 
     /// Response to return (`Vec<Vec<String>>`).
     //VecVecString(Vec<Vec<String>>),
@@ -431,7 +431,7 @@ pub enum Response {
     /// Response to return `(ESF, RFileInfo)`.
     ESFRFileInfo(ESF, RFileInfo),
 
-    #[allow(dead_code)]BmdRFileInfo(Bmd, RFileInfo),
+    #[allow(dead_code)]BmdRFileInfo(Box<Bmd>, RFileInfo),
 
     /// Response to return `(Image, RFileInfo)`.
     ImageRFileInfo(Image, RFileInfo),

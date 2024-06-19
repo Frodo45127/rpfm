@@ -87,6 +87,12 @@ pub struct Loc {
 //                           Implementation of Loc
 //---------------------------------------------------------------------------//
 
+impl Default for Loc {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Implementation of `Loc`.
 impl Loc {
 

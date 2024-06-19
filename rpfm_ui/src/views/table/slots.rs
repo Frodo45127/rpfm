@@ -243,24 +243,22 @@ impl TableViewSlots {
                             }
 
                             // If the edited column has icons we need to fetch the new icon from the backend and apply it.
-                            if setting_bool("enable_icons") {
-                                if field.is_filename(patches) {
-                                    let mut icons = BTreeMap::new();
-                                    let data = vec![vec![get_field_from_view(&view.table_model.static_upcast(), field, item.row(), item.column())]];
+                            if setting_bool("enable_icons") && field.is_filename(patches) {
+                                let mut icons = BTreeMap::new();
+                                let data = vec![vec![get_field_from_view(&view.table_model.static_upcast(), field, item.row(), item.column())]];
 
-                                    if request_backend_files(&data, 0, &field, patches, &mut icons).is_ok() {
-                                        if let Some(column_data) = icons.get(&0) {
-                                            let paths_join = column_data.0.replace('%', &data[0][0].data_to_string().replace("\\", "/")).to_lowercase();
-                                            let paths_split = paths_join.split(';');
-                                            for path in paths_split {
-                                                if let Some(icon) = column_data.1.get(path) {
-                                                    let icon = ref_from_atomic(&icon);
-                                                    item.set_icon(icon);
-                                                    item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(path)), 52);
+                                if request_backend_files(&data, 0, field, patches, &mut icons).is_ok() {
+                                    if let Some(column_data) = icons.get(&0) {
+                                        let paths_join = column_data.0.replace('%', &data[0][0].data_to_string().replace('\\', "/")).to_lowercase();
+                                        let paths_split = paths_join.split(';');
+                                        for path in paths_split {
+                                            if let Some(icon) = column_data.1.get(path) {
+                                                let icon = ref_from_atomic(icon);
+                                                item.set_icon(icon);
+                                                item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(path)), 52);
 
-                                                    // Nuke any cached png from the tooltips.
-                                                    item.set_data_2a(&QVariant::new(), 50);
-                                                }
+                                                // Nuke any cached png from the tooltips.
+                                                item.set_data_2a(&QVariant::new(), 50);
                                             }
                                         }
                                     }

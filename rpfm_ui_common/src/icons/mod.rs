@@ -223,8 +223,7 @@ impl Icons {
                 }
 
                 else if image::EXTENSIONS.iter().any(|x| path.ends_with(x)) {
-                    if path.ends_with(".jpg") { &self.image_jpg }
-                    else if path.ends_with(".jpeg") { &self.image_jpg }
+                    if path.ends_with(".jpg") || path.ends_with(".jpeg") { &self.image_jpg }
                     else if path.ends_with(".dds") { &self.image_generic }
                     else if path.ends_with(".tga") { &self.image_tga }
                     else if path.ends_with(".png") { &self.image_png }
@@ -331,8 +330,7 @@ impl Icons {
                     FileType::HlslCompiled => &self.hlsl_compiled,
                     FileType::Image => {
                         let name = item.text().to_std_string();
-                        if name.ends_with(".jpg") { &self.image_jpg }
-                        else if name.ends_with(".jpeg") { &self.image_jpg }
+                        if name.ends_with(".jpg") || name.ends_with(".jpeg") { &self.image_jpg }
                         else if name.ends_with(".dds") { &self.image_generic }
                         else if name.ends_with(".tga") { &self.image_tga }
                         else if name.ends_with(".png") { &self.image_png }

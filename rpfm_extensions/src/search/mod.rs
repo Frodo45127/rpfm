@@ -753,7 +753,7 @@ impl Matches {
                     None
                 } else if search_on.anim_fragment_battle && file.file_type() == FileType::AnimFragmentBattle {
                     if let Ok(RFileDecoded::AnimFragmentBattle(data)) = file.decode(&extra_data, false, true).transpose().unwrap() {
-                        let result = data.search(file.path_in_container_raw(), pattern, case_sensitive, &matching_mode);
+                        let result = data.search(file.path_in_container_raw(), pattern, case_sensitive, matching_mode);
                         if !result.matches().is_empty() {
                             Some((None, Some(result), None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None))
                         } else {
@@ -1076,7 +1076,7 @@ fn replace_match_string(pattern: &str, replace_pattern: &str, case_sensitive: bo
                     pattern.to_lowercase()
                 };
 
-                if let Some((start_new, end_new, _)) = find_in_string(&current_data[start..end], &pattern, case_sensitive, regex).get(0) {
+                if let Some((start_new, end_new, _)) = find_in_string(&current_data[start..end], &pattern, case_sensitive, regex).first() {
                     if *start_new == 0 && *end_new == end - start {
                         current_data.replace_range(start..end, replace_pattern);
                     }

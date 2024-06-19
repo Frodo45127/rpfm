@@ -83,7 +83,7 @@ impl RawTable {
             // Version 2 is Rome 2+. Version 1 is Shogun 2. Almost the same format, but we have to
             // provide a different path for Shogun 2, so it has his own version.
             // Version 0 is Napoleon and Empire. These two don't have an assembly kit, but CA released years ago their table files.
-            2 | 1 | 0 => Ok(definitions.par_iter().filter_map(|definition| Self::read(definition, raw_tables_folder, version).ok()).collect()),
+            0..=2 => Ok(definitions.par_iter().filter_map(|definition| Self::read(definition, raw_tables_folder, version).ok()).collect()),
             _ => Err(RLibError::AssemblyKitUnsupportedVersion(version))
         }
     }
@@ -91,7 +91,7 @@ impl RawTable {
     /// This function tries to parse a Raw Assembly Kit Table to memory.
     pub fn read(raw_definition: &RawDefinition, raw_table_data_folder: &Path, version: i16) -> Result<Self> {
         match version {
-            2 | 1 | 0 => {
+            0..=2 => {
                 let name_no_xml = raw_definition.name.as_ref().unwrap().split_at(raw_definition.name.as_ref().unwrap().len() - 4).0;
 
                 // This file is present in Rome 2, Attila and Thrones. It's almost 400mb. And we don't need it.

@@ -116,85 +116,77 @@ impl AnimFragmentBattleDiagnostic {
         if let Ok(RFileDecoded::AnimFragmentBattle(fragment)) = file.decoded() {
             let mut diagnostic = AnimFragmentBattleDiagnostic::new(file.path_in_container_raw());
 
-            if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, None, Some("LocomotionGraphPathNotFound"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
-                if !fragment.locomotion_graph().is_empty() {
-                    let path = fragment.locomotion_graph().replace('\\', "/");
-                    let mut path_found = false;
+            if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, None, Some("LocomotionGraphPathNotFound"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && !fragment.locomotion_graph().is_empty() {
+                let path = fragment.locomotion_graph().replace('\\', "/");
+                let mut path_found = false;
 
-                    if !path_found && local_path_list.get(&path.to_lowercase()).is_some() {
-                        path_found = true;
-                    }
+                if !path_found && local_path_list.get(&path.to_lowercase()).is_some() {
+                    path_found = true;
+                }
 
-                    if !path_found && dependencies.file_exists(&path, true, true, true) {
-                        path_found = true;
-                    }
+                if !path_found && dependencies.file_exists(&path, true, true, true) {
+                    path_found = true;
+                }
 
-                    if !path_found {
-                        let result = AnimFragmentBattleDiagnosticReport::new(AnimFragmentBattleDiagnosticReportType::LocomotionGraphPathNotFound(fragment.locomotion_graph().to_owned()), true, None);
-                        diagnostic.results_mut().push(result);
-                    }
+                if !path_found {
+                    let result = AnimFragmentBattleDiagnosticReport::new(AnimFragmentBattleDiagnosticReportType::LocomotionGraphPathNotFound(fragment.locomotion_graph().to_owned()), true, None);
+                    diagnostic.results_mut().push(result);
                 }
             }
 
             for (row, entry) in fragment.entries().iter().enumerate() {
                 for (subrow, anim_ref) in entry.anim_refs().iter().enumerate() {
-                    if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, None, Some("FilePathNotFound"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
-                        if !anim_ref.file_path().is_empty() {
-                            let path = anim_ref.file_path().replace('\\', "/");
-                            let mut path_found = false;
+                    if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, None, Some("FilePathNotFound"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && !anim_ref.file_path().is_empty() {
+                        let path = anim_ref.file_path().replace('\\', "/");
+                        let mut path_found = false;
 
-                            if !path_found && local_path_list.get(&path.to_lowercase()).is_some() {
-                                path_found = true;
-                            }
+                        if !path_found && local_path_list.get(&path.to_lowercase()).is_some() {
+                            path_found = true;
+                        }
 
-                            if !path_found && dependencies.file_exists(&path, true, true, true) {
-                                path_found = true;
-                            }
+                        if !path_found && dependencies.file_exists(&path, true, true, true) {
+                            path_found = true;
+                        }
 
-                            if !path_found {
-                                let result = AnimFragmentBattleDiagnosticReport::new(AnimFragmentBattleDiagnosticReportType::FilePathNotFound(anim_ref.file_path().to_owned()), false, Some((row, Some((subrow, true, false, false)))));
-                                diagnostic.results_mut().push(result);
-                            }
+                        if !path_found {
+                            let result = AnimFragmentBattleDiagnosticReport::new(AnimFragmentBattleDiagnosticReportType::FilePathNotFound(anim_ref.file_path().to_owned()), false, Some((row, Some((subrow, true, false, false)))));
+                            diagnostic.results_mut().push(result);
                         }
                     }
 
-                    if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, None, Some("MetaFilePathNotFound"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
-                        if !anim_ref.meta_file_path().is_empty() {
-                            let path = anim_ref.meta_file_path().replace('\\', "/");
-                            let mut path_found = false;
+                    if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, None, Some("MetaFilePathNotFound"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && !anim_ref.meta_file_path().is_empty() {
+                        let path = anim_ref.meta_file_path().replace('\\', "/");
+                        let mut path_found = false;
 
-                            if !path_found && local_path_list.get(&path.to_lowercase()).is_some() {
-                                path_found = true;
-                            }
+                        if !path_found && local_path_list.get(&path.to_lowercase()).is_some() {
+                            path_found = true;
+                        }
 
-                            if !path_found && dependencies.file_exists(&path, true, true, true) {
-                                path_found = true;
-                            }
+                        if !path_found && dependencies.file_exists(&path, true, true, true) {
+                            path_found = true;
+                        }
 
-                            if !path_found {
-                                let result = AnimFragmentBattleDiagnosticReport::new(AnimFragmentBattleDiagnosticReportType::MetaFilePathNotFound(anim_ref.meta_file_path().to_owned()), false, Some((row, Some((subrow, false, true, false)))));
-                                diagnostic.results_mut().push(result);
-                            }
+                        if !path_found {
+                            let result = AnimFragmentBattleDiagnosticReport::new(AnimFragmentBattleDiagnosticReportType::MetaFilePathNotFound(anim_ref.meta_file_path().to_owned()), false, Some((row, Some((subrow, false, true, false)))));
+                            diagnostic.results_mut().push(result);
                         }
                     }
 
-                    if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, None, Some("SndFilePathNotFound"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
-                        if !anim_ref.snd_file_path().is_empty() {
-                            let path = anim_ref.snd_file_path().replace('\\', "/");
-                            let mut path_found = false;
+                    if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, None, Some("SndFilePathNotFound"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && !anim_ref.snd_file_path().is_empty() {
+                        let path = anim_ref.snd_file_path().replace('\\', "/");
+                        let mut path_found = false;
 
-                            if !path_found && local_path_list.get(&path.to_lowercase()).is_some() {
-                                path_found = true;
-                            }
+                        if !path_found && local_path_list.get(&path.to_lowercase()).is_some() {
+                            path_found = true;
+                        }
 
-                            if !path_found && dependencies.file_exists(&path, true, true, true) {
-                                path_found = true;
-                            }
+                        if !path_found && dependencies.file_exists(&path, true, true, true) {
+                            path_found = true;
+                        }
 
-                            if !path_found {
-                                let result = AnimFragmentBattleDiagnosticReport::new(AnimFragmentBattleDiagnosticReportType::SndFilePathNotFound(anim_ref.snd_file_path().to_owned()), false, Some((row, Some((subrow, false, false, true)))));
-                                diagnostic.results_mut().push(result);
-                            }
+                        if !path_found {
+                            let result = AnimFragmentBattleDiagnosticReport::new(AnimFragmentBattleDiagnosticReportType::SndFilePathNotFound(anim_ref.snd_file_path().to_owned()), false, Some((row, Some((subrow, false, false, true)))));
+                            diagnostic.results_mut().push(result);
                         }
                     }
                 }

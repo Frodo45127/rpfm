@@ -37,7 +37,7 @@ const SIGNATURE: &[u8; 4] = b"CUF0";
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
-#[derive(PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[derive(PartialEq, Clone, Debug, Default, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Font {
     properties: CUFProperties,
@@ -117,19 +117,6 @@ pub struct Glyph {
 //                          Implementation of Font
 //---------------------------------------------------------------------------//
 
-impl Default for Font {
-    fn default() -> Self {
-        Self {
-            properties: CUFProperties::default(),
-            glyphs: BTreeMap::new(),
-
-            supports_kerning: false,
-            kerning_skip: 0,
-            kerning_blocks: vec![],
-        }
-    }
-}
-
 impl Decodeable for Font {
 
     fn decode<R: ReadBytes>(data: &mut R, _extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
@@ -160,7 +147,7 @@ impl Decodeable for Font {
         // Get the glyphs/characters table. This is a list of u16 from 0 to u16 max value.
         //
         // 0xFFFF values are unused.
-        for index in 0..=u16::max_value() {
+        for index in 0..=u16::MAX {
             let code = data.read_u16()?;
             if code == 0xFFFF {
                 continue;
@@ -175,7 +162,7 @@ impl Decodeable for Font {
         }
 
         // Get the glyph dimensions data.
-        for index in 0..=u16::max_value() {
+        for index in 0..=u16::MAX {
             if let Some(glyph) = font.glyphs_mut().get_mut(&index) {
                 glyph.alloc_height = data.read_i8()?;
                 glyph.alloc_width = data.read_u8()?;
@@ -244,7 +231,7 @@ impl Encodeable for Font {
         let mut offsets = vec![];
         let mut data = vec![];
 
-        for index in 0..=u16::max_value() {
+        for index in 0..=u16::MAX {
             match self.glyphs().get(&index) {
                 Some(glyph) => {
                     glyphs.write_u16(glyph.code)?;
@@ -284,7 +271,7 @@ impl Encodeable for Font {
             buffer.write_u16(self.kerning_skip)?;
 
             for block in self.kerning_blocks() {
-                buffer.write_all(&block)?;
+                buffer.write_all(block)?;
             }
         }
 

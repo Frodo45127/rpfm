@@ -271,7 +271,7 @@ pub fn background_loop() {
                     Some(ref schema) => {
                         global_search.search(&game_selected, schema, &mut pack_file_decoded, &mut dependencies.write().unwrap(), &[]);
                         let packed_files_info = RFileInfo::info_from_global_search(&global_search, &pack_file_decoded);
-                        CentralCommand::send_back(&sender, Response::GlobalSearchVecRFileInfo(global_search, packed_files_info));
+                        CentralCommand::send_back(&sender, Response::GlobalSearchVecRFileInfo(Box::new(global_search), packed_files_info));
                     }
                     None => CentralCommand::send_back(&sender, Response::Error(anyhow!("Schema not found. Maybe you need to download it?"))),
                 }
@@ -430,7 +430,7 @@ pub fn background_loop() {
                                 }
                             }
                         }
-                        Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                     }
                 } else {
                     CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected.")));
@@ -1026,7 +1026,7 @@ pub fn background_loop() {
                     match global_search.replace(&game_info, schema, &mut pack_file_decoded, &mut dependencies.write().unwrap(), &matches) {
                         Ok(paths) => {
                             let files_info = paths.iter().flat_map(|path| pack_file_decoded.files_by_path(path, false).iter().map(|file| RFileInfo::from(*file)).collect::<Vec<RFileInfo>>()).collect();
-                            CentralCommand::send_back(&sender, Response::GlobalSearchVecRFileInfo(global_search, files_info));
+                            CentralCommand::send_back(&sender, Response::GlobalSearchVecRFileInfo(Box::new(global_search), files_info));
                         }
                         Err(error) => CentralCommand::send_back(&sender, Response::Error(error.into())),
                     }
@@ -1042,7 +1042,7 @@ pub fn background_loop() {
                     match global_search.replace_all(&game_info, schema, &mut pack_file_decoded, &mut dependencies.write().unwrap()) {
                         Ok(paths) => {
                             let files_info = paths.iter().flat_map(|path| pack_file_decoded.files_by_path(path, false).iter().map(|file| RFileInfo::from(*file)).collect::<Vec<RFileInfo>>()).collect();
-                            CentralCommand::send_back(&sender, Response::GlobalSearchVecRFileInfo(global_search, files_info));
+                            CentralCommand::send_back(&sender, Response::GlobalSearchVecRFileInfo(Box::new(global_search), files_info));
                         }
                         Err(error) => CentralCommand::send_back(&sender, Response::Error(error.into())),
                     }
@@ -1288,16 +1288,16 @@ pub fn background_loop() {
                 let game_selected = GAME_SELECTED.read().unwrap();
                 let game_path = setting_path(game_selected.key());
                 let ca_paths = game_selected.ca_packs_paths(&game_path)
-                    .unwrap_or(vec![])
+                    .unwrap_or_default()
                     .iter()
-                    .map(|path| path.to_string_lossy().replace("\\", "/"))
+                    .map(|path| path.to_string_lossy().replace('\\', "/"))
                     .collect::<Vec<_>>();
 
                 let pack_disable_autosaves = pack_file_decoded.settings().setting_bool("disable_autosaves")
                     .unwrap_or(&true);
 
                 let pack_type = pack_file_decoded.pfh_file_type();
-                let pack_path = pack_file_decoded.disk_file_path().replace("\\", "/");
+                let pack_path = pack_file_decoded.disk_file_path().replace('\\', "/");
 
                 // Do not autosave vanilla packs, packs with autosave disabled, or non-mod or movie packs.
                 if folder.is_dir() &&
@@ -1335,7 +1335,7 @@ pub fn background_loop() {
                 if let Some(ref schema) = *SCHEMA.read().unwrap() {
                     if pack_file_decoded.pfh_file_type() == PFHFileType::Mod ||
                         pack_file_decoded.pfh_file_type() == PFHFileType::Movie {
-                        diagnostics.check(&mut pack_file_decoded, &mut dependencies.write().unwrap(), &schema, &game_selected, &game_path, &[], check_ak_only_refs);
+                        diagnostics.check(&mut pack_file_decoded, &mut dependencies.write().unwrap(), schema, &game_selected, &game_path, &[], check_ak_only_refs);
                     }
                 }
 
@@ -1351,7 +1351,7 @@ pub fn background_loop() {
                 if let Some(ref schema) = *SCHEMA.read().unwrap() {
                     if pack_file_decoded.pfh_file_type() == PFHFileType::Mod ||
                         pack_file_decoded.pfh_file_type() == PFHFileType::Movie {
-                        diagnostics.check(&mut pack_file_decoded, &mut dependencies.write().unwrap(), &schema, &game_selected, &game_path, &path_types, check_ak_only_refs);
+                        diagnostics.check(&mut pack_file_decoded, &mut dependencies.write().unwrap(), schema, &game_selected, &game_path, &path_types, check_ak_only_refs);
                     }
                 }
 
@@ -1438,7 +1438,7 @@ pub fn background_loop() {
 
                         // If the column is a loc column, we need to search in the first key column instead.
                         if data.definition().localised_fields().iter().any(|x| x.name() == ref_column) {
-                            if let Some(first_key_index) = data.definition().localised_key_order().get(0) {
+                            if let Some(first_key_index) = data.definition().localised_key_order().first() {
                                 if let Some(first_key_field) = data.definition().fields_processed().get(*first_key_index as usize) {
                                     ref_column = first_key_field.name().to_owned();
                                 }
@@ -1460,7 +1460,7 @@ pub fn background_loop() {
 
                                 // If the column is a loc column, we need to search in the first key column instead.
                                 if data.definition().localised_fields().iter().any(|x| x.name() == ref_column) {
-                                    if let Some(first_key_index) = data.definition().localised_key_order().get(0) {
+                                    if let Some(first_key_index) = data.definition().localised_key_order().first() {
                                         if let Some(first_key_field) = data.definition().fields_processed().get(*first_key_index as usize) {
                                             ref_column = first_key_field.name().to_owned();
                                         }
@@ -1484,7 +1484,7 @@ pub fn background_loop() {
 
                                 // If the column is a loc column, we need to search in the first key column instead.
                                 if data.definition().localised_fields().iter().any(|x| x.name() == ref_column) {
-                                    if let Some(first_key_index) = data.definition().localised_key_order().get(0) {
+                                    if let Some(first_key_index) = data.definition().localised_key_order().first() {
                                         if let Some(first_key_field) = data.definition().fields_processed().get(*first_key_index as usize) {
                                             ref_column = first_key_field.name().to_owned();
                                         }
@@ -1506,7 +1506,7 @@ pub fn background_loop() {
 
                         // If the column is a loc column, we need to search in the first key column instead.
                         if data.definition().localised_fields().iter().any(|x| x.name() == ref_column) {
-                            if let Some(first_key_index) = data.definition().localised_key_order().get(0) {
+                            if let Some(first_key_index) = data.definition().localised_key_order().first() {
                                 if let Some(first_key_field) = data.definition().fields_processed().get(*first_key_index as usize) {
                                     ref_column = first_key_field.name().to_owned();
                                 }
@@ -2177,14 +2177,14 @@ pub fn background_loop() {
                     match build_starpos(&dependencies.read().unwrap(), &pack_file_decoded, &campaign_id, process_hlp_spd_data, "historical") {
                         Ok(_) => match build_starpos(&dependencies.read().unwrap(), &pack_file_decoded, &campaign_id, false, "romance") {
                             Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                            Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                         }
-                        Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                     }
                 } else {
                     match build_starpos(&dependencies.read().unwrap(), &pack_file_decoded, &campaign_id, process_hlp_spd_data, "") {
                         Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                        Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                     }
                 }
             }
@@ -2198,7 +2198,7 @@ pub fn background_loop() {
 
                 match build_starpos_post(&dependencies.read().unwrap(), &mut pack_file_decoded, &campaign_id, process_hlp_spd_data, false, &sub_start_pos) {
                     Ok(paths) => CentralCommand::send_back(&sender, Response::VecContainerPath(paths)),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                 }
             },
 
@@ -2211,14 +2211,14 @@ pub fn background_loop() {
 
                 match build_starpos_post(&dependencies.read().unwrap(), &mut pack_file_decoded, &campaign_id, process_hlp_spd_data, true, &sub_start_pos) {
                     Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                 }
             },
 
             Command::UpdateAnimIds(starting_id, offset) => {
                 match update_anim_ids(&mut pack_file_decoded, starting_id, offset) {
                     Ok(paths) => CentralCommand::send_back(&sender, Response::VecContainerPath(paths)),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                 }
             }
 
@@ -2369,7 +2369,7 @@ quit_after_campaign_processing;",
         let uspb = scripts_path.join(USER_SCRIPT_FILE_NAME.to_owned() + ".bak");
 
         if uspa.is_file() {
-            std::fs::copy(&uspa, &uspb)?;
+            std::fs::copy(&uspa, uspb)?;
         }
 
         let mut file = BufWriter::new(File::create(uspa)?);
@@ -2410,7 +2410,7 @@ quit_after_campaign_processing;",
 
     // Same for the other two files, if we're generating them. We need to get the campaign name from the campaigns table first, then get the files generated.
     if process_hlp_spd_data {
-        let map_names = dependencies.db_values_from_table_name_and_column_name_for_value(Some(&pack_file), "campaigns_tables", "campaign_name", "map_name", true, true);
+        let map_names = dependencies.db_values_from_table_name_and_column_name_for_value(Some(pack_file), "campaigns_tables", "campaign_name", "map_name", true, true);
         if let Some(map_name) = map_names.get(campaign_id) {
             match game.key() {
 
@@ -2627,7 +2627,7 @@ fn build_starpos_post(dependencies: &Dependencies, pack_file: &mut Pack, campaig
             } else {
                 let mut paths = vec![];
                 for sub in sub_start_pos {
-                    paths.push(game_data_path.join(format!("campaigns/{}/startpos{}.esf", campaign_id, format!("_{}", sub))));
+                    paths.push(game_data_path.join(format!("campaigns/{}/startpos_{}.esf", campaign_id, sub)));
 
                 }
                 paths
@@ -2649,7 +2649,7 @@ fn build_starpos_post(dependencies: &Dependencies, pack_file: &mut Pack, campaig
     } else {
         let mut paths = vec![];
         for sub in sub_start_pos {
-            paths.push(format!("campaigns/{}/startpos{}.esf", campaign_id, format!("_{}", sub)));
+            paths.push(format!("campaigns/{}/startpos_{}.esf", campaign_id, sub));
         }
         paths
     };
@@ -2664,7 +2664,7 @@ fn build_starpos_post(dependencies: &Dependencies, pack_file: &mut Pack, campaig
                 }
             } else {
 
-                let mut rfile = RFile::new_from_file_path(&starpos_path)?;
+                let mut rfile = RFile::new_from_file_path(starpos_path)?;
                 rfile.set_path_in_container_raw(&starpos_paths_pack[index]);
                 rfile.load()?;
                 rfile.guess_file_type()?;
@@ -2701,7 +2701,7 @@ fn build_starpos_post(dependencies: &Dependencies, pack_file: &mut Pack, campaig
 
     // Same with the other two files.
     if process_hlp_spd_data {
-        let map_names = dependencies.db_values_from_table_name_and_column_name_for_value(Some(&pack_file), "campaigns_tables", "campaign_name", "map_name", true, true);
+        let map_names = dependencies.db_values_from_table_name_and_column_name_for_value(Some(pack_file), "campaigns_tables", "campaign_name", "map_name", true, true);
         if let Some(map_name) = map_names.get(campaign_id) {
 
             // Same as with startpos. It's different depending on the game.
@@ -2918,7 +2918,7 @@ fn add_tile_maps_and_tiles(pack: &mut Pack, dependencies: &mut Dependencies, sch
         let (internal_path, needs_tile_database) = if subpath.is_empty() {
             ("terrain/tiles/battle".to_owned(), false)
         } else {
-            (format!("terrain/tiles/battle/{}", subpath.replace("\\", "/")), true)
+            (format!("terrain/tiles/battle/{}", subpath.replace('\\', "/")), true)
         };
         added_paths.append(&mut pack.insert_folder(tile, &internal_path, &None, &None, true)?);
 
@@ -2926,14 +2926,14 @@ fn add_tile_maps_and_tiles(pack: &mut Pack, dependencies: &mut Dependencies, sch
         if needs_tile_database {
 
             // We only need the database for out map, not the full database folder.
-            let subpath_len = subpath.replace("\\", "/").split("/").count();
+            let subpath_len = subpath.replace('\\', "/").split('/').count();
             let mut tile_database = tile.to_path_buf();
 
             (0..=subpath_len).for_each(|_| {
                 tile_database.pop();
             });
 
-            let file_name = format!("{}_{}.bin", subpath.replace("/", "_"), tile.file_name().unwrap().to_string_lossy());
+            let file_name = format!("{}_{}.bin", subpath.replace('/', "_"), tile.file_name().unwrap().to_string_lossy());
             tile_database.push(&format!("_tile_database/TILES/{}", file_name));
             let tile_database_path = format!("terrain/tiles/battle/_tile_database/TILES/{}", file_name);
 
@@ -3024,38 +3024,38 @@ fn decode_and_send_file(file: &mut RFile, sender: &Sender<Response>) {
     }
 
     if ignored_file_types.contains(&file.file_type()) {
-        return CentralCommand::send_back(&sender, Response::Unknown);
+        return CentralCommand::send_back(sender, Response::Unknown);
     }
     let result = file.decode(&Some(extra_data), true, true).transpose().unwrap();
 
     match result {
-        Ok(RFileDecoded::AnimFragmentBattle(data)) => CentralCommand::send_back(&sender, Response::AnimFragmentBattleRFileInfo(data, From::from(&*file))),
-        Ok(RFileDecoded::AnimPack(data)) => CentralCommand::send_back(&sender, Response::AnimPackRFileInfo(data.files().values().map(From::from).collect(), From::from(&*file))),
-        Ok(RFileDecoded::AnimsTable(data)) => CentralCommand::send_back(&sender, Response::AnimsTableRFileInfo(data, From::from(&*file))),
-        Ok(RFileDecoded::Anim(_)) => CentralCommand::send_back(&sender, Response::Unknown),
-        Ok(RFileDecoded::Atlas(data)) => CentralCommand::send_back(&sender, Response::AtlasRFileInfo(data, From::from(&*file))),
-        Ok(RFileDecoded::Audio(data)) => CentralCommand::send_back(&sender, Response::AudioRFileInfo(data, From::from(&*file))),
-        Ok(RFileDecoded::BMD(_)) => CentralCommand::send_back(&sender, Response::Unknown),
-        Ok(RFileDecoded::BMDVegetation(_)) => CentralCommand::send_back(&sender, Response::Unknown),
-        Ok(RFileDecoded::Dat(_)) => CentralCommand::send_back(&sender, Response::Unknown),
-        Ok(RFileDecoded::DB(table)) => CentralCommand::send_back(&sender, Response::DBRFileInfo(table, From::from(&*file))),
-        Ok(RFileDecoded::ESF(data)) => CentralCommand::send_back(&sender, Response::ESFRFileInfo(data, From::from(&*file))),
-        Ok(RFileDecoded::Font(_)) => CentralCommand::send_back(&sender, Response::Unknown),
-        Ok(RFileDecoded::HlslCompiled(_)) => CentralCommand::send_back(&sender, Response::Unknown),
-        Ok(RFileDecoded::GroupFormations(data)) => CentralCommand::send_back(&sender, Response::GroupFormationsRFileInfo(data, From::from(&*file))),
-        Ok(RFileDecoded::Image(image)) => CentralCommand::send_back(&sender, Response::ImageRFileInfo(image, From::from(&*file))),
-        Ok(RFileDecoded::Loc(table)) => CentralCommand::send_back(&sender, Response::LocRFileInfo(table, From::from(&*file))),
-        Ok(RFileDecoded::MatchedCombat(data)) => CentralCommand::send_back(&sender, Response::MatchedCombatRFileInfo(data, From::from(&*file))),
-        Ok(RFileDecoded::Pack(_)) => CentralCommand::send_back(&sender, Response::Unknown),
-        Ok(RFileDecoded::PortraitSettings(data)) => CentralCommand::send_back(&sender, Response::PortraitSettingsRFileInfo(data, From::from(&*file))),
-        #[cfg(all(not(feature = "support_rigidmodel"), not(feature = "support_model_renderer")))] Ok(RFileDecoded::RigidModel(_)) => CentralCommand::send_back(&sender, Response::Unknown),
-        #[cfg(any(feature = "support_rigidmodel", feature = "support_model_renderer"))]Ok(RFileDecoded::RigidModel(rigid_model)) => CentralCommand::send_back(&sender, Response::RigidModelRFileInfo(rigid_model, From::from(&*file))),
-        Ok(RFileDecoded::SoundBank(_)) => CentralCommand::send_back(&sender, Response::Unknown),
-        Ok(RFileDecoded::Text(text)) => CentralCommand::send_back(&sender, Response::TextRFileInfo(text, From::from(&*file))),
-        Ok(RFileDecoded::UIC(uic)) => CentralCommand::send_back(&sender, Response::UICRFileInfo(uic, From::from(&*file))),
-        Ok(RFileDecoded::UnitVariant(data)) => CentralCommand::send_back(&sender, Response::UnitVariantRFileInfo(data, From::from(&*file))),
-        Ok(RFileDecoded::Unknown(_)) => CentralCommand::send_back(&sender, Response::Unknown),
-        Ok(RFileDecoded::Video(data)) => CentralCommand::send_back(&sender, Response::VideoInfoRFileInfo(From::from(&data), From::from(&*file))),
-        Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+        Ok(RFileDecoded::AnimFragmentBattle(data)) => CentralCommand::send_back(sender, Response::AnimFragmentBattleRFileInfo(data, From::from(&*file))),
+        Ok(RFileDecoded::AnimPack(data)) => CentralCommand::send_back(sender, Response::AnimPackRFileInfo(data.files().values().map(From::from).collect(), From::from(&*file))),
+        Ok(RFileDecoded::AnimsTable(data)) => CentralCommand::send_back(sender, Response::AnimsTableRFileInfo(data, From::from(&*file))),
+        Ok(RFileDecoded::Anim(_)) => CentralCommand::send_back(sender, Response::Unknown),
+        Ok(RFileDecoded::Atlas(data)) => CentralCommand::send_back(sender, Response::AtlasRFileInfo(data, From::from(&*file))),
+        Ok(RFileDecoded::Audio(data)) => CentralCommand::send_back(sender, Response::AudioRFileInfo(data, From::from(&*file))),
+        Ok(RFileDecoded::BMD(_)) => CentralCommand::send_back(sender, Response::Unknown),
+        Ok(RFileDecoded::BMDVegetation(_)) => CentralCommand::send_back(sender, Response::Unknown),
+        Ok(RFileDecoded::Dat(_)) => CentralCommand::send_back(sender, Response::Unknown),
+        Ok(RFileDecoded::DB(table)) => CentralCommand::send_back(sender, Response::DBRFileInfo(table, From::from(&*file))),
+        Ok(RFileDecoded::ESF(data)) => CentralCommand::send_back(sender, Response::ESFRFileInfo(data, From::from(&*file))),
+        Ok(RFileDecoded::Font(_)) => CentralCommand::send_back(sender, Response::Unknown),
+        Ok(RFileDecoded::HlslCompiled(_)) => CentralCommand::send_back(sender, Response::Unknown),
+        Ok(RFileDecoded::GroupFormations(data)) => CentralCommand::send_back(sender, Response::GroupFormationsRFileInfo(data, From::from(&*file))),
+        Ok(RFileDecoded::Image(image)) => CentralCommand::send_back(sender, Response::ImageRFileInfo(image, From::from(&*file))),
+        Ok(RFileDecoded::Loc(table)) => CentralCommand::send_back(sender, Response::LocRFileInfo(table, From::from(&*file))),
+        Ok(RFileDecoded::MatchedCombat(data)) => CentralCommand::send_back(sender, Response::MatchedCombatRFileInfo(data, From::from(&*file))),
+        Ok(RFileDecoded::Pack(_)) => CentralCommand::send_back(sender, Response::Unknown),
+        Ok(RFileDecoded::PortraitSettings(data)) => CentralCommand::send_back(sender, Response::PortraitSettingsRFileInfo(data, From::from(&*file))),
+        #[cfg(all(not(feature = "support_rigidmodel"), not(feature = "support_model_renderer")))] Ok(RFileDecoded::RigidModel(_)) => CentralCommand::send_back(sender, Response::Unknown),
+        #[cfg(any(feature = "support_rigidmodel", feature = "support_model_renderer"))]Ok(RFileDecoded::RigidModel(rigid_model)) => CentralCommand::send_back(sender, Response::RigidModelRFileInfo(rigid_model, From::from(&*file))),
+        Ok(RFileDecoded::SoundBank(_)) => CentralCommand::send_back(sender, Response::Unknown),
+        Ok(RFileDecoded::Text(text)) => CentralCommand::send_back(sender, Response::TextRFileInfo(text, From::from(&*file))),
+        Ok(RFileDecoded::UIC(uic)) => CentralCommand::send_back(sender, Response::UICRFileInfo(uic, From::from(&*file))),
+        Ok(RFileDecoded::UnitVariant(data)) => CentralCommand::send_back(sender, Response::UnitVariantRFileInfo(data, From::from(&*file))),
+        Ok(RFileDecoded::Unknown(_)) => CentralCommand::send_back(sender, Response::Unknown),
+        Ok(RFileDecoded::Video(data)) => CentralCommand::send_back(sender, Response::VideoInfoRFileInfo(From::from(&data), From::from(&*file))),
+        Err(error) => CentralCommand::send_back(sender, Response::Error(From::from(error))),
     }
 }

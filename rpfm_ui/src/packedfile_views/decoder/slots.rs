@@ -503,7 +503,7 @@ impl PackedFileDecoderViewSlots {
                 match view.import_from_assembly_kit() {
                     Ok(field_list) => {
                         println!("Amount of possible definitions: {}.", field_list.len());
-                        if let Some(field_list) = field_list.get(0) {
+                        if let Some(field_list) = field_list.first() {
 
                             // If it worked, update the decoder view.
                             view.table_model.clear();

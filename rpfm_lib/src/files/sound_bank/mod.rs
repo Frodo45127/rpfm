@@ -104,7 +104,7 @@ impl Decodeable for SoundBank {
                 // First node is always a BKHD (BanK HeaDer?).
                 SIGNATURE_BKHD => Section::BKHD(BKHD::read(data, section_size as usize)?),
                 SIGNATURE_HIRC => {
-                    let header = match decoded.sections.get(0) {
+                    let header = match decoded.sections.first() {
                         Some(Section::BKHD(section)) => section,
                         _ => return Err(RLibError::SoundBankBKHDNotFound),
                     };
@@ -132,7 +132,7 @@ impl Decodeable for SoundBank {
 impl Encodeable for SoundBank {
 
     fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: &Option<EncodeableExtraData>) -> Result<()> {
-        let header = match self.sections.get(0) {
+        let header = match self.sections.first() {
             Some(Section::BKHD(section)) => section,
             _ => return Err(RLibError::SoundBankBKHDNotFound),
         };

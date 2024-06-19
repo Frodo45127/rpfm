@@ -147,7 +147,7 @@ impl ToolFactionPainter {
 
         // Initialize a Tool. This also performs some common checks to ensure we can actually use the tool.
         // TODO: Move this to a tool var.
-        let paths = match &*GAME_SELECTED.read().unwrap().key() {
+        let paths = match GAME_SELECTED.read().unwrap().key() {
             KEY_WARHAMMER_3 => vec![
                 ContainerPath::Folder("db/factions_tables".to_owned()),
                 ContainerPath::Folder("text".to_owned()),
@@ -384,7 +384,7 @@ impl ToolFactionPainter {
 
         // We have to save the data to the last entry of the keys in out list, so if any of the other fields is edited on it, that edition is kept.
         let mut files_to_save = vec![];
-        match &*GAME_SELECTED.read().unwrap().key() {
+        match GAME_SELECTED.read().unwrap().key() {
             KEY_WARHAMMER_3 => {
                 files_to_save.push(self.save_factions_data(&data_to_save)?);
             }
@@ -419,7 +419,7 @@ impl ToolFactionPainter {
         // From here, everything can not exits, depending on our tables.
         let mut missing_fields = vec![];
 
-        if data.get("banner_primary").is_some() {
+        if data.contains_key("banner_primary") {
             self.banner_groupbox.set_checked(true);
 
             if let Some(field) = self.tool.load_fields_to_detailed_view_editor_combo_color(&data, self.banner_colour_primary(), "banner_primary") {
@@ -435,7 +435,7 @@ impl ToolFactionPainter {
             self.banner_groupbox.set_checked(false);
         }
 
-        if data.get("uniform_primary").is_some() {
+        if data.contains_key("uniform_primary") {
             self.uniform_groupbox.set_checked(true);
 
             if let Some(field) = self.tool.load_fields_to_detailed_view_editor_combo_color(&data, self.uniform_colour_primary(), "uniform_primary") {
@@ -720,13 +720,13 @@ impl ToolFactionPainter {
                         }
 
                         // Also save the full row, so we can easely edit it and put it into a file later on.
-                        if data.get(row_key).is_none() {
+                        if !data.contains_key(row_key) {
                             data.insert(row_key.to_owned(), serde_json::to_string(row)?);
                         }
 
                         // Store the definition, so we can re-use it later to recreate the table.
                         // TODO: change this so it's not done on EVERY SINGLE ROW.
-                        if data.get("factions_definition").is_none() {
+                        if !data.contains_key("factions_definition") {
                             data.insert("factions_definition".to_owned(), definition.to_owned());
                         }
 

@@ -252,7 +252,7 @@ pub enum RFileDecoded {
     AnimsTable(AnimsTable),
     Atlas(Atlas),
     Audio(Audio),
-    BMD(Bmd),
+    BMD(Box<Bmd>),
     BMDVegetation(BmdVegetation),
     Dat(Dat),
     DB(DB),
@@ -476,7 +476,7 @@ pub trait Container {
                 // If the file is on disk, load it to memory before saving. Why? Because if we import a file, then export it on the same position,
                 // we clear the disk file before loading its data to memory, which breaks stuff like MyMod Import/Export.
                 if let RFileInnerData::OnDisk(_) = &rfile.data {
-                    let _ = rfile.load()?;
+                    rfile.load()?;
                 }
 
                 // If we want to extract as tsv and we got a db/loc, export to tsv.
@@ -547,7 +547,7 @@ pub trait Container {
                     // If the file is on disk, load it to memory before saving. Why? Because if we import a file, then export it on the same position,
                     // we clear the disk file before loading its data to memory, which breaks stuff like MyMod Import/Export.
                     if let RFileInnerData::OnDisk(_) = &rfile.data {
-                        let _ = rfile.load()?;
+                        rfile.load()?;
                     }
 
                     // If we want to extract as tsv and we got a db/loc, export to tsv.
@@ -1510,7 +1510,7 @@ impl RFile {
                     FileType::AnimsTable => RFileDecoded::AnimsTable(AnimsTable::decode(&mut data, &Some(extra_data))?),
                     FileType::Atlas => RFileDecoded::Atlas(Atlas::decode(&mut data, &Some(extra_data))?),
                     FileType::Audio => RFileDecoded::Audio(Audio::decode(&mut data, &Some(extra_data))?),
-                    FileType::BMD => RFileDecoded::BMD(Bmd::decode(&mut data, &Some(extra_data))?),
+                    FileType::BMD => RFileDecoded::BMD(Box::new(Bmd::decode(&mut data, &Some(extra_data))?)),
                     FileType::BMDVegetation => RFileDecoded::BMDVegetation(BmdVegetation::decode(&mut data, &Some(extra_data))?),
                     FileType::Dat => RFileDecoded::Dat(Dat::decode(&mut data, &Some(extra_data))?),
                     FileType::DB => {
@@ -1587,7 +1587,7 @@ impl RFile {
                             FileType::AnimsTable => RFileDecoded::AnimsTable(AnimsTable::decode(&mut data, &Some(extra_data))?),
                             FileType::Atlas => RFileDecoded::Atlas(Atlas::decode(&mut data, &Some(extra_data))?),
                             FileType::Audio => RFileDecoded::Audio(Audio::decode(&mut data, &Some(extra_data))?),
-                            FileType::BMD => RFileDecoded::BMD(Bmd::decode(&mut data, &Some(extra_data))?),
+                            FileType::BMD => RFileDecoded::BMD(Box::new(Bmd::decode(&mut data, &Some(extra_data))?)),
                             FileType::BMDVegetation => RFileDecoded::BMDVegetation(BmdVegetation::decode(&mut data, &Some(extra_data))?),
                             FileType::Dat => RFileDecoded::Dat(Dat::decode(&mut data, &Some(extra_data))?),
                             FileType::DB => {
@@ -2008,7 +2008,7 @@ impl RFile {
                     None => return Err(RLibError::ImportTSVWrongTypeTable),
                 };
 
-                let table_type = match metadata.get(0) {
+                let table_type = match metadata.first() {
                     Some(table_type) => {
                         let mut table_type = table_type.to_owned();
                         if table_type.starts_with('#') {

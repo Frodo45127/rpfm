@@ -207,9 +207,9 @@ impl ESFTree for QPtr<QTreeView> {
                     state_item.set_selectable(false);
 
                     let esf_data_no_node: ESF = esf_data.clone_without_root_node();
-                    big_parent.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string_pretty(&esf_data_no_node).unwrap())), ESF_DATA);
-                    big_parent.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string_pretty(&root_node.clone_without_children()).unwrap())), CHILDLESS_NODE);
-                    big_parent.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string_pretty(&node.children()[0].iter().map(|x| x.clone_without_children()).collect::<Vec<NodeType>>()).unwrap())), CHILD_NODES);
+                    big_parent.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string_pretty(&esf_data_no_node).unwrap())), ESF_DATA);
+                    big_parent.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string_pretty(&root_node.clone_without_children()).unwrap())), CHILDLESS_NODE);
+                    big_parent.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string_pretty(&node.children()[0].iter().map(|x| x.clone_without_children()).collect::<Vec<NodeType>>()).unwrap())), CHILD_NODES);
                     big_parent.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(node.name())), RECORD_NODE_NAME);
 
                     let flags = ItemFlag::from(state_item.flags().to_int() & ItemFlag::ItemIsSelectable.to_int());

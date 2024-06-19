@@ -127,7 +127,7 @@ pub fn update_schema_from_raw_files(
                             raw_extra_relationships.relationships.iter()
                                 .filter(|relation| relation.table_name == name)
                                 .for_each(|relation| {
-                                    if let Some(field) = definition.fields_mut().iter_mut().find(|x| x.name() == &relation.column_name) {
+                                    if let Some(field) = definition.fields_mut().iter_mut().find(|x| x.name() == relation.column_name) {
                                         field.set_is_reference(Some((relation.foreign_table_name.to_owned(), relation.foreign_column_name.to_owned())));
                                     }
                                 }
@@ -184,17 +184,17 @@ pub fn get_raw_definition_paths(current_path: &Path, version: i16) -> Result<Vec
                     Ok(file) => {
                         let file_path = file.path();
                         let file_name = file_path.file_stem().unwrap().to_str().unwrap();
-                        if (version == 1 || version == 2) &&
+                        if (
+                            (version == 1 || version == 2) &&
                             file_path.is_file() &&
                             file_name.starts_with(RAW_DEFINITION_NAME_PREFIX_V2) &&
                             !file_name.starts_with("TWaD_TExc") &&
-                            !RAW_DEFINITION_IGNORED_FILES_V2.contains(&file_name) {
-                            file_list.push(file_path);
-                        }
-
-                        else if version == 0 &&
+                            !RAW_DEFINITION_IGNORED_FILES_V2.contains(&file_name)
+                        ) || (
+                            version == 0 &&
                             file_path.is_file() &&
-                            file_path.extension().unwrap() == RAW_DEFINITION_EXTENSION_V0 {
+                            file_path.extension().unwrap() == RAW_DEFINITION_EXTENSION_V0
+                        ) {
                             file_list.push(file_path);
                         }
                     }

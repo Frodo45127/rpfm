@@ -266,7 +266,7 @@ impl Diagnostics {
 
         // If table names is empty this triggers a full regeneration, which is slow as fuck. So make sure to avoid that if we're only doing a partial check.
         if !table_names.is_empty() || (table_names.is_empty() && paths_to_check.is_empty()) {
-            dependencies.generate_local_db_references(&schema, pack, &table_names);
+            dependencies.generate_local_db_references(schema, pack, &table_names);
         }
 
         // Caches for Portrait Settings diagnostics.
@@ -290,7 +290,7 @@ impl Diagnostics {
                         &ignored_fields,
                         &ignored_diagnostics,
                         &ignored_diagnostics_for_fields,
-                        &local_file_path_list,
+                        local_file_path_list,
                     ),
                     FileType::DB => {
 
@@ -299,7 +299,7 @@ impl Diagnostics {
                         let file_decoded = file.decoded().ok()?;
                         if table_references.is_empty() {
                             if let RFileDecoded::DB(table) = file_decoded {
-                                table_references = dependencies.db_reference_data(&schema, pack, table.table_name(), table.definition(), &loc_data);
+                                table_references = dependencies.db_reference_data(schema, pack, table.table_name(), table.definition(), &loc_data);
                             }
                         }
 
@@ -317,7 +317,7 @@ impl Diagnostics {
                         )
                     },
                     FileType::Loc => TableDiagnostic::check_loc(file, &self.diagnostics_ignored, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields),
-                    FileType::PortraitSettings => PortraitSettingsDiagnostic::check(file, &art_set_ids, &variant_filenames, dependencies, &self.diagnostics_ignored, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields, &local_file_path_list),
+                    FileType::PortraitSettings => PortraitSettingsDiagnostic::check(file, &art_set_ids, &variant_filenames, dependencies, &self.diagnostics_ignored, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields, local_file_path_list),
                     _ => None,
                 };
 

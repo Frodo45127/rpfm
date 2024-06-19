@@ -191,7 +191,7 @@ impl ToolTranslator {
         table.table_view().set_selection_behavior(SelectionBehavior::SelectRows);
         table.table_view().sort_by_column_1a(0);
 
-        if let Some(filter_removed) = table.filters().get(0) {
+        if let Some(filter_removed) = table.filters().first() {
             filter_removed.filter_line_edit().set_text(&QString::from_std_str("false"));
             filter_removed.column_combobox().set_current_index(2);
             filter_removed.use_regex_button().set_checked(false);

@@ -128,7 +128,7 @@ impl PackTranslation {
     }
 
     // TODO: Move this to the normal merge functions.
-    pub fn sort_and_merge_locs_for_translation(locs: &mut Vec<&RFile>) -> Result<Loc> {
+    pub fn sort_and_merge_locs_for_translation(locs: &mut [&RFile]) -> Result<Loc> {
 
         // We need them in a specific order so the file priority removes unused loc entries from the translation.
         locs.sort_by(|a, b| a.path_in_container_raw().cmp(b.path_in_container_raw()));
@@ -148,7 +148,7 @@ impl PackTranslation {
         let mut keys_found = HashSet::new();
         let mut rows_to_delete = vec![];
         for (index, row) in merged_loc.data().iter().enumerate() {
-            if keys_found.get(&row[0].data_to_string()).is_some() {
+            if keys_found.contains(&row[0].data_to_string()) {
                 rows_to_delete.push(index);
             } else {
                 keys_found.insert(row[0].data_to_string());

@@ -3542,7 +3542,7 @@ impl AppUI {
 
 
         for (index, tile_map) in tile_maps.iter().enumerate() {
-            let tile_map_name = tile_maps_strip_name[index].to_string_lossy().replace("\\", "/");
+            let tile_map_name = tile_maps_strip_name[index].to_string_lossy().replace('\\', "/");
             let item = QStandardItem::from_q_string(&QString::from_std_str(&tile_map_name));
             item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(tile_map.to_string_lossy())), 20);
             item.set_editable(false);
@@ -3563,7 +3563,7 @@ impl AppUI {
         let tiles = final_folders_from_subdir(&tiles_path, true)?;
         let tiles_strip_name = tiles.iter().flat_map(|tile| tile.strip_prefix(&tiles_path)).collect::<Vec<_>>();
         for (index, tile) in tiles.iter().enumerate() {
-            let tile_name = tiles_strip_name[index].to_string_lossy().replace("\\", "/");
+            let tile_name = tiles_strip_name[index].to_string_lossy().replace('\\', "/");
 
             // Ignore the database folder, as it's not a tile itself.
             if tile_name != "_tile_database/TILES" {
@@ -3684,8 +3684,8 @@ impl AppUI {
             let tiles = (0..tiles_to_add.model().row_count_0a())
                 .map(|row| {
                     let tile = tiles_to_add.model().index_2a(row, 0).data_1a(20).to_string().to_std_string();
-                    let tile_subpath = tiles_to_add.model().index_2a(row, 0).data_0a().to_string().to_std_string().replace("\\", "/");
-                    let mut tile_subpath = tile_subpath.split("/").collect::<Vec<_>>();
+                    let tile_subpath = tiles_to_add.model().index_2a(row, 0).data_0a().to_string().to_std_string().replace('\\', "/");
+                    let mut tile_subpath = tile_subpath.split('/').collect::<Vec<_>>();
                     tile_subpath.pop();
 
                     (PathBuf::from(&tile), tile_subpath.join("/"))
@@ -4176,7 +4176,7 @@ impl AppUI {
                 Response::VecContainerPath(paths) => {
                     if !paths.is_empty() {
                         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(paths), DataSource::PackFile);
-                        UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
+                        UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
                     }
 
                     Ok(())
@@ -4242,7 +4242,7 @@ impl AppUI {
                 Response::VecContainerPath(paths) => {
                     if !paths.is_empty() {
                         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths), DataSource::PackFile);
-                        UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
+                        UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
                     }
 
                     Ok(())

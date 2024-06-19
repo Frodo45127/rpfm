@@ -199,8 +199,8 @@ pub fn path_to_absolute_string(path: &Path) -> String {
     match canonicalize(path) {
         Ok(cannon_path) => {
             let cannon_path_str = cannon_path.to_string_lossy();
-            if cannon_path_str.starts_with("\\\\?\\") {
-                path_str = cannon_path_str[4..].to_owned();
+            if let Some(strip) = cannon_path_str.strip_prefix("\\\\?\\") {
+                path_str = strip.to_owned();
             } else {
                 path_str = cannon_path_str.to_string();
             }
@@ -226,8 +226,8 @@ pub fn path_to_absolute_path(path: &Path) -> PathBuf {
     match canonicalize(&path) {
         Ok(cannon_path) => {
             let cannon_path_str = cannon_path.to_string_lossy();
-            if cannon_path_str.starts_with("\\\\?\\") {
-                path = PathBuf::from(&cannon_path_str[4..]);
+            if let Some(strip) = cannon_path_str.strip_prefix("\\\\?\\") {
+                path = PathBuf::from(strip);
             } else {
                 path = cannon_path;
             }
@@ -236,8 +236,8 @@ pub fn path_to_absolute_path(path: &Path) -> PathBuf {
         // These errors are usually for trying to cannonicalize an already cannon path, or because the file doesn't exist.
         Err(_) => {
             let path_str = path.to_string_lossy();
-            if path_str.starts_with("\\\\?\\") {
-                path = PathBuf::from(&path_str[4..]);
+            if let Some(strip) = path_str.strip_prefix("\\\\?\\") {
+                path = PathBuf::from(strip);
             }
         }
     }

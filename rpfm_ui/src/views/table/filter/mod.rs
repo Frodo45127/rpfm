@@ -101,12 +101,12 @@ impl FilterView {
         timer_delayed_updates.set_single_shot(true);
 
         // The first filter must never be deleted.
-        if view.filters().get(0).is_some() {
+        if view.filters().first().is_some() {
             remove_button.set_enabled(true);
         }
 
         // Reuse the models from the first filterview, as that one will never get destroyed.
-        if let Some(first_filter) = view.filters().get(0) {
+        if let Some(first_filter) = view.filters().first() {
             variant_combobox.set_model(&first_filter.variant_combobox.model());
             column_combobox.set_model(&first_filter.column_combobox.model());
             group_combobox.set_model(&first_filter.group_combobox.model());

@@ -532,7 +532,7 @@ impl From<&RawDefinitionV0> for RawDefinition {
             } else { vec![] };
 
             if let Some(complex) = &elements.xsd_complex_type {
-                if let Some(elements) = complex.get(0) {
+                if let Some(elements) = complex.first() {
                     for element in &elements.xsd_sequence.xsd_element {
 
                         // For a field to be valid we need name and type.

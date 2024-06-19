@@ -130,16 +130,13 @@ impl Video {
             } else {
                 HEADER_LENGTH_CAVP8_V0
             }
+        } else if self.extra_data.is_some() {
+            HEADER_LENGTH_CAVP8_V1 + 9
         } else {
-            if self.extra_data.is_some() {
-                HEADER_LENGTH_CAVP8_V1 + 9
-            } else {
-                HEADER_LENGTH_CAVP8_V1
-            }
+            HEADER_LENGTH_CAVP8_V1
         };
 
-
-        let header_lenght_broken = if self.version == 0 { header_lenght - 8 } else { header_lenght - 8 };
+        let header_lenght_broken = header_lenght - 8;
 
         buffer.write_string_u8(SIGNATURE_CAVP8)?;
         buffer.write_u16(self.version)?;

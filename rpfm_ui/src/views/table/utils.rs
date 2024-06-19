@@ -378,11 +378,7 @@ pub unsafe fn get_default_item_from_field(field: &Field, patches: Option<&Defini
         FieldType::StringU16 |
         FieldType::OptionalStringU8 |
         FieldType::OptionalStringU16 => {
-            let text = if let Some(default_value) = field.default_value(patches) {
-                default_value
-            } else {
-                String::new()
-            };
+            let text = field.default_value(patches).unwrap_or_default();
             let item = QStandardItem::from_q_string(&QString::from_std_str(&text));
             item.set_tool_tip(&QString::from_std_str(tre("original_data", &[&text])));
             item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
@@ -452,7 +448,7 @@ pub unsafe fn load_data(
     table_model.clear();
 
     // Build the columns. We do this without data already in to ensure Qt doesn't do unnecessary stuff.
-    let resize_after_data = build_columns(&table_view, &definition, table_name, &data);
+    let resize_after_data = build_columns(table_view, definition, table_name, data);
 
     // Set the right data, depending on the table type you get.
     let (data, is_translator) = match data {
@@ -520,12 +516,12 @@ pub unsafe fn load_data(
 
                 if enable_icons {
                     if let Some(column_data) = icons.get(&(column as i32)) {
-                        let paths_join = column_data.0.replace('%', &entry[column].data_to_string().replace("\\", "/")).to_lowercase();
+                        let paths_join = column_data.0.replace('%', &entry[column].data_to_string().replace('\\', "/")).to_lowercase();
                         let paths_split = paths_join.split(';');
 
                         for path in paths_split {
                             if let Some(icon) = column_data.1.get(path) {
-                                let icon = ref_from_atomic(&icon);
+                                let icon = ref_from_atomic(icon);
                                 item.set_icon(icon);
                                 item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(path)), 52);
                                 break;
@@ -806,11 +802,7 @@ pub unsafe fn build_columns(
                             }
 
                             // Fix some columns getting their title eaten by description icon, and some columns being extremely long.
-                            if size < 60 {
-                                size = 60;
-                            } else if size > 800 {
-                                size = 800;
-                            }
+                            size = size.clamp(60, 800);
 
                             table_view.set_column_width(index as i32, size as i32 + 30);
                         }
@@ -843,11 +835,7 @@ pub unsafe fn build_columns(
                                 .unwrap_or(COLUMN_SIZE_STRING as usize);
 
                             // Fix some columns getting their title eaten by description icon, and some columns being extremely long.
-                            if size < 60 {
-                                size = 60;
-                            } else if size > 600 {
-                                size = 600;
-                            }
+                            size = size.clamp(60, 600);
 
                             table_view.set_column_width(index as i32, size as i32 + 30);
                         }
@@ -1164,30 +1152,30 @@ pub unsafe fn get_field_from_view(model: &QPtr<QStandardItemModel>, field: &Fiel
     match field.field_type() {
 
         // This one needs a couple of changes before turning it into an item in the table.
-        FieldType::Boolean => DecodedData::Boolean(model.item_2a(row, column as i32).check_state() == CheckState::Checked),
+        FieldType::Boolean => DecodedData::Boolean(model.item_2a(row, column).check_state() == CheckState::Checked),
 
         // Numbers need parsing, and this can fail.
-        FieldType::F32 => DecodedData::F32(model.item_2a(row, column as i32).data_1a(2).to_float_0a()),
-        FieldType::F64 => DecodedData::F64(model.item_2a(row, column as i32).data_1a(2).to_double_0a()),
-        FieldType::I16 => DecodedData::I16(model.item_2a(row, column as i32).data_1a(2).to_int_0a() as i16),
-        FieldType::I32 => DecodedData::I32(model.item_2a(row, column as i32).data_1a(2).to_int_0a()),
-        FieldType::I64 => DecodedData::I64(model.item_2a(row, column as i32).data_1a(2).to_long_long_0a()),
-        FieldType::OptionalI16 => DecodedData::OptionalI16(model.item_2a(row, column as i32).data_1a(2).to_int_0a() as i16),
-        FieldType::OptionalI32 => DecodedData::OptionalI32(model.item_2a(row, column as i32).data_1a(2).to_int_0a()),
-        FieldType::OptionalI64 => DecodedData::OptionalI64(model.item_2a(row, column as i32).data_1a(2).to_long_long_0a()),
+        FieldType::F32 => DecodedData::F32(model.item_2a(row, column).data_1a(2).to_float_0a()),
+        FieldType::F64 => DecodedData::F64(model.item_2a(row, column).data_1a(2).to_double_0a()),
+        FieldType::I16 => DecodedData::I16(model.item_2a(row, column).data_1a(2).to_int_0a() as i16),
+        FieldType::I32 => DecodedData::I32(model.item_2a(row, column).data_1a(2).to_int_0a()),
+        FieldType::I64 => DecodedData::I64(model.item_2a(row, column).data_1a(2).to_long_long_0a()),
+        FieldType::OptionalI16 => DecodedData::OptionalI16(model.item_2a(row, column).data_1a(2).to_int_0a() as i16),
+        FieldType::OptionalI32 => DecodedData::OptionalI32(model.item_2a(row, column).data_1a(2).to_int_0a()),
+        FieldType::OptionalI64 => DecodedData::OptionalI64(model.item_2a(row, column).data_1a(2).to_long_long_0a()),
 
         // Colours need parsing to turn them into integers.
-        FieldType::ColourRGB => DecodedData::ColourRGB(QString::to_std_string(&model.item_2a(row, column as i32).text())),
+        FieldType::ColourRGB => DecodedData::ColourRGB(QString::to_std_string(&model.item_2a(row, column).text())),
 
         // All these are just normal Strings.
-        FieldType::StringU8 => DecodedData::StringU8(QString::to_std_string(&model.item_2a(row, column as i32).text())),
-        FieldType::StringU16 => DecodedData::StringU16(QString::to_std_string(&model.item_2a(row, column as i32).text())),
-        FieldType::OptionalStringU8 => DecodedData::OptionalStringU8(QString::to_std_string(&model.item_2a(row, column as i32).text())),
-        FieldType::OptionalStringU16 => DecodedData::OptionalStringU16(QString::to_std_string(&model.item_2a(row, column as i32).text())),
+        FieldType::StringU8 => DecodedData::StringU8(QString::to_std_string(&model.item_2a(row, column).text())),
+        FieldType::StringU16 => DecodedData::StringU16(QString::to_std_string(&model.item_2a(row, column).text())),
+        FieldType::OptionalStringU8 => DecodedData::OptionalStringU8(QString::to_std_string(&model.item_2a(row, column).text())),
+        FieldType::OptionalStringU16 => DecodedData::OptionalStringU16(QString::to_std_string(&model.item_2a(row, column).text())),
 
         // Sequences in the UI are not yet supported.
-        FieldType::SequenceU16(_) => DecodedData::SequenceU16(model.item_2a(row, column as i32).data_1a(ITEM_SEQUENCE_DATA).to_byte_array().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>()),
-        FieldType::SequenceU32(_) => DecodedData::SequenceU32(model.item_2a(row, column as i32).data_1a(ITEM_SEQUENCE_DATA).to_byte_array().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>()),
+        FieldType::SequenceU16(_) => DecodedData::SequenceU16(model.item_2a(row, column).data_1a(ITEM_SEQUENCE_DATA).to_byte_array().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>()),
+        FieldType::SequenceU32(_) => DecodedData::SequenceU32(model.item_2a(row, column).data_1a(ITEM_SEQUENCE_DATA).to_byte_array().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>()),
     }
 }
 
@@ -1210,9 +1198,9 @@ pub unsafe fn open_subtable(
         let fields_processed = definition.fields_processed();
         if let Some(field) = fields_processed.get(model_index.column() as usize) {
             if let FieldType::SequenceU32(definition) = field.field_type() {
-                if let Ok(table) = Table::decode(&mut data, &definition, &HashMap::new(), None, false, field.name()) {
+                if let Ok(table) = Table::decode(&mut data, definition, &HashMap::new(), None, false, field.name()) {
                     let table_data = match *view.packed_file_type {
-                        FileType::AnimFragmentBattle => TableType::AnimFragmentBattle(From::from(table)),
+                        FileType::AnimFragmentBattle => TableType::AnimFragmentBattle(table),
                         FileType::DB => TableType::DB(From::from(table)),
                         FileType::Loc => TableType::Loc(From::from(table)),
                         _ => unimplemented!("You forgot to implement subtables for this kind of packedfile"),
@@ -1236,7 +1224,7 @@ pub unsafe fn open_subtable(
 
                     // If we have a default selection, scroll to it and select it.
                     if let Some((x, y)) = default_selection {
-                        let item_to_select = table_view.table_model().index_2a(x as i32, y);
+                        let item_to_select = table_view.table_model().index_2a(x, y);
                         let item_to_select_filter = table_view.table_filter().map_from_source(&item_to_select);
 
                         let selection = table_view.table_view().selection_model().selection();
@@ -1279,7 +1267,7 @@ pub unsafe fn request_backend_files(data: &[Vec<DecodedData>], column: usize, fi
     let base_path = relative_path.as_deref().unwrap_or(&empty_path);
     let paths = data.par_iter()
         .flat_map(|entry| base_path.iter()
-            .map(|base_path| ContainerPath::File(base_path.replace('%', &entry[column].data_to_string().replace("\\", "/"))))
+            .map(|base_path| ContainerPath::File(base_path.replace('%', &entry[column].data_to_string().replace('\\', "/"))))
             .collect::<Vec<_>>()
         ).collect::<Vec<_>>();
 
@@ -1305,7 +1293,7 @@ pub unsafe fn request_backend_files(data: &[Vec<DecodedData>], column: usize, fi
                     .filter_map(|(path, file)| {
                         if file.file_type() == FileType::Image {
                             if let Ok(Some(RFileDecoded::Image(data))) = file.decode(&None, false, true) {
-                                let byte_array = QByteArray::from_slice(&data.data());
+                                let byte_array = QByteArray::from_slice(data.data());
                                 let image = QPixmap::new();
 
                                 if image.load_from_data_q_byte_array(&byte_array) {

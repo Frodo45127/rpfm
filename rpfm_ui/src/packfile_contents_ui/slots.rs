@@ -714,7 +714,7 @@ impl PackFileContentsSlots {
 
                                 // Make sure all folders are part of the same subfolder. The multifolder selector can accidentally add folders with different base paths,
                                 // and we need to avoid that.
-                                if let Some(base_path) = folder_paths.get(0) {
+                                if let Some(base_path) = folder_paths.first() {
                                     let mut base_path = base_path.to_path_buf();
                                     base_path.pop();
 
@@ -723,7 +723,7 @@ impl PackFileContentsSlots {
                                         second_path.pop();
 
                                         if base_path != second_path {
-                                            return show_dialog(app_ui.main_window(), format!("Error: adding multiple folders from different parent folders is not supported."), false);
+                                            return show_dialog(app_ui.main_window(), "Error: adding multiple folders from different parent folders is not supported.".to_string(), false);
                                         }
                                     }
                                 }
@@ -735,7 +735,7 @@ impl PackFileContentsSlots {
                                 }
 
                                 // Check to ensure we actually have a path, as you may try to add empty folders.
-                                if let Some(path) = paths.get(0) {
+                                if let Some(path) = paths.first() {
 
                                     // Check if the files are in the Assets Folder. All are in the same folder, so we can just check the first one.
                                     if path.starts_with(&assets_folder) {
@@ -748,7 +748,7 @@ impl PackFileContentsSlots {
                                     }
 
                                     // Otherwise, they are added like normal files.
-                                    else if let Some(selection) = pack_file_contents_ui.packfile_contents_tree_view.get_path_from_selection().get(0) {
+                                    else if let Some(selection) = pack_file_contents_ui.packfile_contents_tree_view.get_path_from_selection().first() {
                                         let destination_paths = (0..folder_paths.len()).map(|_| ContainerPath::Folder(selection.to_string())).collect::<Vec<_>>();
 
                                         app_ui.toggle_main_window(false);
@@ -780,7 +780,7 @@ impl PackFileContentsSlots {
 
                             // Make sure all folders are part of the same subfolder. The multifolder selector can accidentally add folders with different base paths,
                             // and we need to avoid that.
-                            if let Some(base_path) = folder_paths.get(0) {
+                            if let Some(base_path) = folder_paths.first() {
                                 let mut base_path = base_path.to_path_buf();
                                 base_path.pop();
 
@@ -789,13 +789,13 @@ impl PackFileContentsSlots {
                                     second_path.pop();
 
                                     if base_path != second_path {
-                                        return show_dialog(app_ui.main_window(), format!("Error: adding multiple folders from different parent folders is not supported."), false);
+                                        return show_dialog(app_ui.main_window(), "Error: adding multiple folders from different parent folders is not supported.".to_string(), false);
                                     }
                                 }
                             }
 
                             // Get the Paths of the files inside the folders we want to add.
-                            if let Some(selection) = pack_file_contents_ui.packfile_contents_tree_view.get_path_from_selection().get(0) {
+                            if let Some(selection) = pack_file_contents_ui.packfile_contents_tree_view.get_path_from_selection().first() {
                                 let destination_paths = (0..folder_paths.len()).map(|_| ContainerPath::Folder(selection.to_string())).collect::<Vec<_>>();
 
                                 app_ui.toggle_main_window(false);

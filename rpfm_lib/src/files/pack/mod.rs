@@ -937,7 +937,7 @@ impl Pack {
                             if !key.is_empty() {
                                 let loc_key = format!("{}_{}_{}", table_name, loc_field.name(), key);
 
-                                if loc_keys_from_memory.get(&*loc_key).is_none() {
+                                if !loc_keys_from_memory.contains(&*loc_key) {
                                     let mut new_row = missing_trads_file.new_row();
                                     new_row[0] = DecodedData::StringU16(loc_key);
                                     new_row[1] = DecodedData::StringU16("PLACEHOLDER".to_owned());

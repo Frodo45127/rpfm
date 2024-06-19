@@ -890,7 +890,7 @@ impl PackedFileDecoderView {
             QStandardItem::from_q_string(&QString::from_std_str(columns.join(",")))
         } else { QStandardItem::new() };
 
-        let decoded_data = QStandardItem::from_q_string(&QString::from_std_str(&decoded_data));
+        let decoded_data = QStandardItem::from_q_string(&QString::from_std_str(decoded_data));
         decoded_data.set_editable(false);
 
         let field_default_value = if let Some(ref default_value) = field.default_value(None) {
@@ -906,14 +906,14 @@ impl PackedFileDecoderView {
             QStandardItem::from_q_string(&QString::from_std_str(filename_relative_path.join(";")))
         } else { QStandardItem::new() };
 
-        let field_ca_order = QStandardItem::from_q_string(&QString::from_std_str(&format!("{}", field.ca_order())));
+        let field_ca_order = QStandardItem::from_q_string(&QString::from_std_str(format!("{}", field.ca_order())));
         let field_description = QStandardItem::from_q_string(&QString::from_std_str(field.description(None)));
         let field_enum_values = QStandardItem::from_q_string(&QString::from_std_str(field.enum_values_to_string()));
 
         let field_is_bitwise = QStandardItem::new();
         field_is_bitwise.set_data_2a(&QVariant::from_int(field.is_bitwise()), 2);
 
-        let field_number = QStandardItem::from_q_string(&QString::from_std_str(&format!("{}", 1 + 1)));
+        let field_number = QStandardItem::from_q_string(&QString::from_std_str(format!("{}", 1 + 1)));
         field_number.set_editable(false);
 
         let field_is_part_of_colour = QStandardItem::new();

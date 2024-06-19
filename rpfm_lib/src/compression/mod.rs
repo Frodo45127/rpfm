@@ -40,7 +40,6 @@ use xz2::{read::XzDecoder, stream::Stream};
 use xz2::stream::LzmaOptions;
 
 use std::io::Read;
-use std::u64;
 
 use crate::binary::WriteBytes;
 use crate::error::{RLibError, Result};

@@ -135,7 +135,7 @@ impl DiagnosticsUISlots {
                 let has_parents = selection.iter().all(|index| index.model().index_2a(index.row(), 3).data_0a().to_string().to_std_string().contains('/'));
                 let has_fields = selection.iter().all(|index| !index.model().index_2a(index.row(), 6).data_0a().to_string().is_empty());
 
-                let non_ignorable_fields = vec![
+                let non_ignorable_fields = [
                     "InvalidDependencyPackName",
                     "DependenciesCacheNotGenerated",
                     "DependenciesCacheOutdated",

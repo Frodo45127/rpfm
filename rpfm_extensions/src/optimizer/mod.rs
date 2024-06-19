@@ -107,7 +107,7 @@ impl OptimizableContainer for Pack {
 
             // Only check it if it's not already marked for deletion.
             let path = rfile.path_in_container_raw().to_owned();
-            if files_to_delete.get(&path).is_none() {
+            if !files_to_delete.contains(&path) {
 
                 match rfile.file_type() {
                     FileType::DB => {

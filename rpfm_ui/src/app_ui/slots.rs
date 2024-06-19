@@ -78,7 +78,7 @@ use crate::VERSION;
 use crate::VERSION_SUBTITLE;
 use crate::views::table::{ITEM_SUB_DATA, utils::{get_reference_data, get_table_from_view, request_backend_files, setup_item_delegates}};
 
-const TOOLS_NOT_ENABLED_ERROR: &str = "Tools not enabled at compile time.";
+#[allow(dead_code)] const TOOLS_NOT_ENABLED_ERROR: &str = "Tools not enabled at compile time.";
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -989,7 +989,7 @@ impl AppUISlots {
                     info!("Triggering `Generate Dependencies Cache` By Slot");
 
                     if (GAME_SELECTED.read().unwrap().raw_db_version() > &0 && !setting_path(&format!("{}_assembly_kit", GAME_SELECTED.read().unwrap().key())).is_dir()) ||
-                        (*GAME_SELECTED.read().unwrap().raw_db_version() == 0 && !old_ak_files_path().unwrap_or(PathBuf::new()).join(GAME_SELECTED.read().unwrap().key()).is_dir()) {
+                        (*GAME_SELECTED.read().unwrap().raw_db_version() == 0 && !old_ak_files_path().unwrap_or_default().join(GAME_SELECTED.read().unwrap().key()).is_dir()) {
                         show_dialog(&app_ui.main_window, tr("generate_dependencies_cache_warn"), false);
                     }
 
@@ -1553,16 +1553,16 @@ impl AppUISlots {
                                         let mut icons = BTreeMap::new();
                                         if let Ok(ref table_data) = table_data {
 
-                                            if request_backend_files(&table_data.data(), column, &field, patches, &mut icons).is_ok() {
+                                            if request_backend_files(&table_data.data(), column, field, patches, &mut icons).is_ok() {
                                                 if let Some(column_data) = icons.get(&(column as i32)) {
                                                     for row in 0..table.table_model().row_count_0a() {
                                                         let item = table.table_model().item_2a(row, column as i32);
-                                                        let paths_join = column_data.0.replace('%', &item.text().to_std_string().replace("\\", "/")).to_lowercase();
+                                                        let paths_join = column_data.0.replace('%', &item.text().to_std_string().replace('\\', "/")).to_lowercase();
                                                         let paths_split = paths_join.split(';');
 
                                                         for path in paths_split {
                                                             if let Some(icon) = column_data.1.get(path) {
-                                                                let icon = ref_from_atomic(&icon);
+                                                                let icon = ref_from_atomic(icon);
                                                                 item.set_icon(icon);
                                                                 item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(path)), 52);
 

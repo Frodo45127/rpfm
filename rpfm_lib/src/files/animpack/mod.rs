@@ -250,7 +250,7 @@ impl Encodeable for AnimPack {
         buffer.write_u32(self.files.len() as u32)?;
 
         // NOTE: This has to use /, not \, because for some reason the animsets made by Assed break if we use \.
-        let mut sorted_files = self.files.iter_mut().map(|(key, file)| (key, file)).collect::<Vec<(&String, &mut RFile)>>();
+        let mut sorted_files = self.files.iter_mut().collect::<Vec<(&String, &mut RFile)>>();
         sorted_files.sort_unstable_by_key(|(path, _)| path.to_lowercase());
 
         for (path, file) in sorted_files {

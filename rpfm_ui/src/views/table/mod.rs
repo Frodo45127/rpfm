@@ -1093,7 +1093,7 @@ impl TableView {
 
             // Replace jumplines with ors, and then filter.
             filter.filter_line_edit().block_signals(true);
-            let text = QString::from_std_str(filter.filter_line_edit().text().to_std_string().replace("\r\n", "|").replace("\n", "|"));
+            let text = QString::from_std_str(filter.filter_line_edit().text().to_std_string().replace("\r\n", "|").replace('\n', "|"));
             filter.filter_line_edit().undo();
             filter.filter_line_edit().select_all();
             filter.filter_line_edit().insert(&text);
@@ -1232,7 +1232,7 @@ impl TableView {
                             // If we got a current value and it's different, it's a valid cell.
                             match current_value.parse::<f64>() {
                                 Ok(value) => {
-                                    if (result - value).abs() >= std::f64::EPSILON {
+                                    if (result - value).abs() >= f64::EPSILON {
                                         result.to_string()
                                     } else {
                                         current_value.to_owned()
@@ -1527,7 +1527,7 @@ impl TableView {
             if index.column() == -1 {
                 None
             } else {
-                let data = text.get(column as usize).map(|text| (self.table_filter.map_to_source(*index), *text));
+                let data = text.get(column).map(|text| (self.table_filter.map_to_source(*index), *text));
 
                 if column == text.len() - 1 {
                     column = 0;
@@ -2567,30 +2567,28 @@ impl TableView {
             }
 
             // If the edited column has icons we need to fetch the new icon from the backend and apply it.
-            if setting_bool("enable_icons") {
-                if field.is_filename(patches) {
-                    let mut icons = BTreeMap::new();
-                    let data = vec![vec![get_field_from_view(&self.table_model.static_upcast(), field, item.row(), item.column())]];
+            if setting_bool("enable_icons") && field.is_filename(patches) {
+                let mut icons = BTreeMap::new();
+                let data = vec![vec![get_field_from_view(&self.table_model.static_upcast(), field, item.row(), item.column())]];
 
-                    if request_backend_files(&data, 0, &field, patches, &mut icons).is_ok() {
-                        if let Some(column_data) = icons.get(&0) {
-                            let paths_join = column_data.0.replace('%', &data[0][0].data_to_string().replace("\\", "/")).to_lowercase();
-                            let paths_split = paths_join.split(';');
-                            for path in paths_split {
-                                if let Some(icon) = column_data.1.get(path) {
-                                    let icon = ref_from_atomic(&icon);
+                if request_backend_files(&data, 0, field, patches, &mut icons).is_ok() {
+                    if let Some(column_data) = icons.get(&0) {
+                        let paths_join = column_data.0.replace('%', &data[0][0].data_to_string().replace('\\', "/")).to_lowercase();
+                        let paths_split = paths_join.split(';');
+                        for path in paths_split {
+                            if let Some(icon) = column_data.1.get(path) {
+                                let icon = ref_from_atomic(icon);
 
-                                    self.table_model.block_signals(true);
+                                self.table_model.block_signals(true);
 
-                                    item.set_icon(icon);
-                                    item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(path)), 52);
+                                item.set_icon(icon);
+                                item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(path)), 52);
 
-                                    // Nuke any cached png from the tooltips.
-                                    item.set_data_2a(&QVariant::new(), 50);
+                                // Nuke any cached png from the tooltips.
+                                item.set_data_2a(&QVariant::new(), 50);
 
-                                    self.table_model.block_signals(false);
-                                    break;
-                                }
+                                self.table_model.block_signals(false);
+                                break;
                             }
                         }
                     }
@@ -2824,11 +2822,11 @@ impl TableView {
         }
 
         if let Some(value) = field.is_reference(patches) {
-            is_reference_line_edit.set_text(&QString::from_std_str(&format!("{};{}", value.0, value.1)));
+            is_reference_line_edit.set_text(&QString::from_std_str(format!("{};{}", value.0, value.1)));
         }
 
         if let Some(value) = field.lookup(patches) {
-            lookup_line_edit.set_text(&QString::from_std_str(&value.join(";")));
+            lookup_line_edit.set_text(&QString::from_std_str(value.join(";")));
         }
 
         not_empty_checkbox.set_checked(field.cannot_be_empty(Some(self.table_definition().patches())));
@@ -3216,7 +3214,7 @@ impl Debug for TableOperations {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Editing(data) => write!(f, "Cell/s edited, starting in row {}, column {}.", (data[0].0).0, (data[0].0).1),
-            Self::AddRows(data) => write!(f, "Removing row/s added in position/s {}.", data.iter().map(|x| format!("{x}, ")).collect::<String>()),
+            Self::AddRows(data) => write!(f, "Removing row/s added in position/s {}.", data.iter().map(|x| x.to_string()).join(", ")),
             Self::RemoveRows(data) => write!(f, "Re-adding row/s removed in {} batches.", data.len()),
             Self::ImportTSV(_) => write!(f, "Imported TSV file."),
             Self::Carolina(_) => write!(f, "Carolina, trátame bien, no te rías de mi, no me arranques la piel."),

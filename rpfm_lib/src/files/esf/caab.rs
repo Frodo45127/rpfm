@@ -832,7 +832,7 @@ impl ESF {
             NodeType::F32(value) => {
                 if *value.optimized() {
                     let value = *value.value();
-                    if (value - 0.0).abs() < std::f32::EPSILON {
+                    if (value - 0.0).abs() < f32::EPSILON {
                         buffer.write_u8(F32_ZERO)?;
                     } else {
                         buffer.write_u8(F32)?;
@@ -1141,7 +1141,7 @@ impl ESF {
                 } else {
 
                     // For non-nested nodes, we just get the first and only children group.
-                    if let Some(children) = value.children.get(0) {
+                    if let Some(children) = value.children.first() {
                         for node in children {
                             Self::save_node(&mut children_data, node, false, record_names, strings_utf8, strings_utf16)?;
                         }

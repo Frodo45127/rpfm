@@ -436,7 +436,7 @@ impl Tool {
                                     }
 
                                     // Store the definition, so we can re-use it later to recreate the table.
-                                    if data.get(&definition_key).is_none() {
+                                    if !data.contains_key(&definition_key) {
                                         let definition = serde_json::to_string(table.definition())?;
                                         data.insert(definition_key.to_owned(), definition);
                                     }
@@ -750,8 +750,8 @@ impl Tool {
                                                 widget.set_visible(true);
 
                                                 // Set max and mins here, to make sure we can fit whatever data we have.
-                                                widget.set_minimum(std::i32::MIN);
-                                                widget.set_maximum(std::i32::MAX);
+                                                widget.set_minimum(i32::MIN);
+                                                widget.set_maximum(i32::MAX);
 
                                                 // Check if we have data for the widget. If not, fill it with default data
                                                 let field_key_name = format!("{}_{}", table_name, field.name());
@@ -781,8 +781,8 @@ impl Tool {
                                                 widget.set_visible(true);
 
                                                 // Set max and mins here, to make sure we can fit whatever data we have.
-                                                widget.set_minimum(std::f32::MIN as f64);
-                                                widget.set_maximum(std::f32::MAX as f64);
+                                                widget.set_minimum(f32::MIN as f64);
+                                                widget.set_maximum(f32::MAX as f64);
 
                                                 // Check if we have data for the widget. If not, fill it with default data
                                                 let field_key_name = format!("{}_{}", table_name, field.name());
@@ -865,7 +865,7 @@ impl Tool {
     unsafe fn load_field_to_detailed_view_editor_i32(&self, processed_data: &HashMap<String, String>, field_editor: &QPtr<QSpinBox>, field_name: &str) {
         match processed_data.get(field_name) {
             Some(data) => match data.parse::<i32>() {
-                Ok(data) => field_editor.set_value(data.into()),
+                Ok(data) => field_editor.set_value(data),
                 Err(error) => {
                     field_editor.set_value(0);
                     show_message_warning(&self.message_widget, error.to_string());
@@ -937,7 +937,7 @@ impl Tool {
             Some(colour) => format!("#{}", colour),
             None => {
                 failed = true;
-                format!("#000000")
+                "#000000".to_string()
             }
         };
 
@@ -1037,7 +1037,7 @@ impl Tool {
         let definition_name = format!("{}_definition", table_name);
         match data.get(&definition_name) {
             Some(definition) => {
-                let definition: Definition = serde_json::from_str(&definition).unwrap();
+                let definition: Definition = serde_json::from_str(definition).unwrap();
                 let patches = Some(definition.patches());
                 definition.fields_processed()
                     .iter()
@@ -1134,7 +1134,7 @@ impl Tool {
     unsafe fn save_fields_from_detailed_view_editor_combo_color(&self, data: &mut HashMap<String, String>, field_editor: &QPtr<QComboBox>, field_name: &str) {
         let colour = get_color_safe(&field_editor.as_ptr().static_upcast());
         let mut colour_name = colour.name_1a(NameFormat::HexRgb).to_std_string();
-        if colour_name.starts_with("#") {
+        if colour_name.starts_with('#') {
             colour_name.remove(0);
         }
         data.insert(field_name.to_owned(), colour_name);

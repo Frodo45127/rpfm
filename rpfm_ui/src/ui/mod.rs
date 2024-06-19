@@ -230,7 +230,7 @@ impl UI {
                     if !rfiles.is_empty() {
                         for file in &rfiles {
                             let path = file.to_string_lossy().to_string();
-                            let _ = AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, Some(path), false, false, DataSource::PackFile);
+                            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, Some(path), false, false, DataSource::PackFile);
                         }
                     }
 
