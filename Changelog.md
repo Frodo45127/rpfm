@@ -14,6 +14,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - Implemented support for secondary mod paths (like the one in Runcher).
 - Implemented support for multi-level lookups.
 - Implemented lookup support for filters.
+- Implemented Warhammer 3 support in the Unit Editor.
 
 ### Changed
 - Loose files in /data are now accessible as dependencies.
@@ -21,6 +22,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - Columns with lookups are now a bit bigger than the rest to account for the lookups.
 - Changelog should now automatically open after an update.
 - Autosaves are only triggered if the pack has been marked as "edited".
+- Updated minimal rust version to 1.70.
 
 ### Fixed
 - Fixed "Import from AK" not working due to a misplaced index.
@@ -33,6 +35,11 @@ If you're looking for the changes included in the latest beta (against the lates
 - Fixed rare CTD when updating a table.
 - Fixed incorrect path being set for automatically detected games.
 - Fixed missing error message about the 'Rescue PackFile' feature.
+- Fixed environment files being optimized away from map packs by the optimizer.
+- Fixed "Update schema from AK" failing to find relations specified in TWaD_relationships when updating schemas.
+- Fixed unit editor's window being too big and not scrollable.
+- Fixed unit editor failing to load variantmesh files.
+- Fixed error in the 3d viewer causing models to not load the rigidmodel editor.
 
 ## [4.2.7]
 ### Added
