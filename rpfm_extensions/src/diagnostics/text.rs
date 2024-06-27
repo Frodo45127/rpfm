@@ -139,6 +139,12 @@ impl TextDiagnostic {
                                     tables.append(&mut pack.files_by_path(&ContainerPath::File("db/".to_string() + &table_name + "/"), true));
                                     tables.reverse();
 
+                                    // If there are no tables that match out name, ignore it.
+                                    if tables.is_empty() {
+                                        start_pos = start_pos + pos + 6 + data_start + data_end;
+                                        continue;
+                                    }
+
                                     for key in &data_split {
                                         let key_to_check = key.trim();
 
