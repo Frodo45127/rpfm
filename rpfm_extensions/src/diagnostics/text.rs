@@ -61,7 +61,7 @@ impl TextDiagnosticReport {
 impl DiagnosticReport for TextDiagnosticReport {
     fn message(&self) -> String {
         match &self.report_type {
-            TextDiagnosticReportType::InvalidKey(_,_, table, column, key) => "Invalid Key: ".to_string() + key + " on table " + table + ", column " + column,
+            TextDiagnosticReportType::InvalidKey(_,_, table, column, key) => "Invalid Key: \"".to_string() + key + "\" is not in table \"" + table + "\", column \"" + column + "\".",
         }
     }
 
