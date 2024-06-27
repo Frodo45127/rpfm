@@ -538,7 +538,7 @@ impl DiagnosticsUI {
         diagnostics_ui.diagnostics_table_view.horizontal_header().set_stretch_last_section(true);
         diagnostics_ui.diagnostics_table_view.horizontal_header().set_section_resize_mode_2a(0, ResizeMode::Fixed);
         diagnostics_ui.diagnostics_table_view.horizontal_header().set_default_section_size(70);
-        diagnostics_ui.diagnostics_table_view.set_column_width(3, 600);
+        diagnostics_ui.diagnostics_table_view.set_column_width(3, 450);
 
         if !diagnostics.is_empty() {
 
