@@ -28,4 +28,5 @@ extern "C" QLineEdit* get_text_changed_dummy_widget(QWidget* view = nullptr);
 
 extern "C" void scroll_to_row(QWidget* view = nullptr, int row_number = 0);
 
+extern "C" void scroll_to_pos_and_select(QWidget* view, int start_row = 0, int start_column = 0, int end_row = 0, int end_column = 0);
 #endif // TEXT_EDITOR_H

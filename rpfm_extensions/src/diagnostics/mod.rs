@@ -43,6 +43,7 @@ use self::dependency::*;
 use self::pack::*;
 use self::portrait_settings::*;
 use self::table::*;
+use self::text::TextDiagnostic;
 
 pub mod anim_fragment_battle;
 pub mod config;
@@ -50,6 +51,7 @@ pub mod dependency;
 pub mod pack;
 pub mod portrait_settings;
 pub mod table;
+pub mod text;
 
 //-------------------------------------------------------------------------------//
 //                              Trait definitions
@@ -104,6 +106,7 @@ pub enum DiagnosticType {
     Loc(TableDiagnostic),
     Pack(PackDiagnostic),
     PortraitSettings(PortraitSettingsDiagnostic),
+    Text(TextDiagnostic),
 }
 
 /// This enum defines the possible level of a diagnostic.
@@ -133,6 +136,7 @@ impl DiagnosticType {
             Self::Loc(ref diag) => diag.path(),
             Self::Pack(_) => "",
             Self::PortraitSettings(diag) => diag.path(),
+            Self::Text(diag) => diag.path(),
             Self::Dependency(diag) => diag.path(),
             Self::Config(_) => "",
         }
@@ -189,15 +193,17 @@ impl Diagnostics {
             extra_data.set_game_key(Some(game_info.key()));
             let extra_data = Some(extra_data);
 
-            pack.files_by_type_mut(&[FileType::AnimFragmentBattle, FileType::PortraitSettings]).par_iter_mut().for_each(|file| { let _ = file.decode(&extra_data, true, false); });
+            pack.files_by_type_mut(&[FileType::AnimFragmentBattle, FileType::Text, FileType::PortraitSettings])
+                .par_iter_mut()
+                .for_each(|file| { let _ = file.decode(&extra_data, true, false); });
         }
 
         // Logic here: we want to process the tables on batches containing all the tables of the same type, so we can check duplicates in different tables.
         // To do that, we have to sort/split the file list, the process that.
         let files = if paths_to_check.is_empty() {
-            pack.files_by_type(&[FileType::AnimFragmentBattle, FileType::DB, FileType::Loc, FileType::PortraitSettings])
+            pack.files_by_type(&[FileType::AnimFragmentBattle, FileType::DB, FileType::Loc, FileType::Text, FileType::PortraitSettings])
         } else {
-            pack.files_by_type_and_paths(&[FileType::AnimFragmentBattle, FileType::DB, FileType::Loc, FileType::PortraitSettings], paths_to_check, false)
+            pack.files_by_type_and_paths(&[FileType::AnimFragmentBattle, FileType::DB, FileType::Loc, FileType::Text, FileType::PortraitSettings], paths_to_check, false)
         };
 
         let mut files_split: HashMap<&str, Vec<&RFile>> = HashMap::new();
@@ -228,6 +234,17 @@ impl Diagnostics {
                         table_set.push(file);
                     } else {
                         files_split.insert("locs", vec![file]);
+                    }
+                },
+                FileType::Text => {
+                    if let Some(name) = file.file_name() {
+                        if name.ends_with(".lua") {
+                            if let Some(table_set) = files_split.get_mut("lua") {
+                                table_set.push(file);
+                            } else {
+                                files_split.insert("lua", vec![file]);
+                            }
+                        }
                     }
                 },
                 FileType::PortraitSettings => {
@@ -262,7 +279,7 @@ impl Diagnostics {
         };
 
         // That way we can get it fast on the first try, and skip.
-        let table_names = files_split.iter().filter(|(key, _)| **key != "anim_fragment_battle" && **key != "locs" && **key != "portrait_settings").map(|(key, _)| key.to_string()).collect::<Vec<_>>();
+        let table_names = files_split.iter().filter(|(key, _)| **key != "anim_fragment_battle" && **key != "locs" && **key != "lua" && **key != "portrait_settings").map(|(key, _)| key.to_string()).collect::<Vec<_>>();
 
         // If table names is empty this triggers a full regeneration, which is slow as fuck. So make sure to avoid that if we're only doing a partial check.
         if !table_names.is_empty() || (table_names.is_empty() && paths_to_check.is_empty()) {
@@ -317,6 +334,7 @@ impl Diagnostics {
                         )
                     },
                     FileType::Loc => TableDiagnostic::check_loc(file, &self.diagnostics_ignored, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields),
+                    FileType::Text => TextDiagnostic::check(file, &pack, dependencies, &self.diagnostics_ignored, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields),
                     FileType::PortraitSettings => PortraitSettingsDiagnostic::check(file, &art_set_ids, &variant_filenames, dependencies, &self.diagnostics_ignored, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields, local_file_path_list),
                     _ => None,
                 };
@@ -437,6 +455,7 @@ impl Display for DiagnosticType {
             Self::Loc(_) => "Loc",
             Self::Pack(_) => "Packfile",
             Self::PortraitSettings(_) => "PortraitSettings",
+            Self::Text(_) => "Text",
             Self::Dependency(_) => "DependencyManager",
         }, f)
     }

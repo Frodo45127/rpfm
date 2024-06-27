@@ -67,6 +67,33 @@ pub fn closest_valid_char_byte(string: &str, start_byte: usize) -> usize {
     else { unimplemented!() }
 }
 
+/// This function returns the line and column of a position in a string. Only works for \r\n-terminated lines.
+pub fn line_column_from_string_pos(string: &str, pos: u64) -> (u64, u64) {
+    let mut row = 0;
+    let mut col = 0;
+    let mut pos_processed = 0;
+
+    for (index, line) in string.lines().enumerate() {
+
+        // If we're not yet in the line, continue.
+        if pos > pos_processed + line.len() as u64 {
+
+            // + 1 for \n, +2 for \n\r
+            pos_processed += line.len() as u64 + 2;
+            continue;
+        }
+
+        // If we're in the line, find the column.
+        else {
+            row = index as u64;
+            col = pos.checked_sub(pos_processed).unwrap_or_default();
+            break;
+        }
+    }
+
+    (row, col)
+}
+
 //--------------------------------------------------------//
 // Path utils.
 //--------------------------------------------------------//

@@ -89,3 +89,14 @@ extern "C" int cursor_row(QWidget* view) {
     KTextEditor::View* doc_view = dynamic_cast<KTextEditor::View*>(view);
     return doc_view->cursorPosition().line();
 }
+
+// Function to scroll to a specific position, and select a range.
+extern "C" void scroll_to_pos_and_select(QWidget* view, int start_row, int start_column, int end_row, int end_column) {
+
+    KTextEditor::View* doc_view = dynamic_cast<KTextEditor::View*>(view);
+    KTextEditor::Cursor* start_cursor = new KTextEditor::Cursor(start_row, start_column);
+    KTextEditor::Cursor* end_cursor = new KTextEditor::Cursor(end_row, end_column);
+    KTextEditor::Range* range = new KTextEditor::Range(*start_cursor, *end_cursor);
+
+    doc_view->setSelection(*range);
+}

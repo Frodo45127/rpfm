@@ -51,7 +51,7 @@ use rayon::prelude::*;
 
 use std::rc::Rc;
 
-use rpfm_extensions::diagnostics::{*, anim_fragment_battle::*, config::*, dependency::*, pack::*, portrait_settings::*, table::*};
+use rpfm_extensions::diagnostics::{*, anim_fragment_battle::*, config::*, dependency::*, pack::*, portrait_settings::*, table::*, text::*};
 
 use rpfm_lib::files::ContainerPath;
 use rpfm_lib::games::supported_games::*;
@@ -63,7 +63,7 @@ use crate::app_ui::AppUI;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::CENTRAL_COMMAND;
 use crate::dependencies_ui::DependenciesUI;
-use crate::ffi::{new_tableview_filter_safe, trigger_tableview_filter_safe};
+use crate::ffi::{new_tableview_filter_safe, scroll_to_pos_and_select_safe, trigger_tableview_filter_safe};
 use crate::GAME_SELECTED;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::pack_tree::*;
@@ -158,6 +158,7 @@ pub struct DiagnosticsUI {
     checkbox_file_path_not_found: QBox<QCheckBox>,
     checkbox_meta_file_path_not_found: QBox<QCheckBox>,
     checkbox_snd_file_path_not_found: QBox<QCheckBox>,
+    checkbox_lua_invalid_key: QBox<QCheckBox>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -306,6 +307,7 @@ impl DiagnosticsUI {
         let checkbox_file_path_not_found = QCheckBox::from_q_string_q_widget(&qtr("label_file_path_not_found"), &sidebar_scroll_area);
         let checkbox_meta_file_path_not_found = QCheckBox::from_q_string_q_widget(&qtr("label_meta_file_path_not_found"), &sidebar_scroll_area);
         let checkbox_snd_file_path_not_found = QCheckBox::from_q_string_q_widget(&qtr("label_snd_file_path_not_found"), &sidebar_scroll_area);
+        let checkbox_lua_invalid_key = QCheckBox::from_q_string_q_widget(&qtr("label_lua_invalid_key"), &sidebar_scroll_area);
 
         checkbox_all.set_checked(false);
         checkbox_outdated_table.set_checked(true);
@@ -343,6 +345,7 @@ impl DiagnosticsUI {
         checkbox_file_path_not_found.set_checked(true);
         checkbox_meta_file_path_not_found.set_checked(true);
         checkbox_snd_file_path_not_found.set_checked(true);
+        checkbox_lua_invalid_key.set_checked(true);
 
         sidebar_grid.add_widget_1a(&checkbox_all);
         sidebar_grid.add_widget_1a(&checkbox_outdated_table);
@@ -380,6 +383,7 @@ impl DiagnosticsUI {
         sidebar_grid.add_widget_1a(&checkbox_file_path_not_found);
         sidebar_grid.add_widget_1a(&checkbox_meta_file_path_not_found);
         sidebar_grid.add_widget_1a(&checkbox_snd_file_path_not_found);
+        sidebar_grid.add_widget_1a(&checkbox_lua_invalid_key);
 
         Ok(Self {
 
@@ -451,6 +455,7 @@ impl DiagnosticsUI {
             checkbox_file_path_not_found,
             checkbox_meta_file_path_not_found,
             checkbox_snd_file_path_not_found,
+            checkbox_lua_invalid_key,
         })
     }
 
@@ -748,7 +753,59 @@ impl DiagnosticsUI {
                             }
 
                             reports
-                        }
+                        },
+
+                        DiagnosticType::Text(ref diagnostic) => {
+                            let mut reports = Vec::with_capacity(diagnostic.results().len());
+
+                            for result in diagnostic.results() {
+                                let qlist = QListOfQStandardItem::new();
+
+                                // Create an empty row.
+                                let level = Self::new_item();
+                                let diag_type = Self::new_item();
+                                let data_affected = Self::new_item();
+                                let path = Self::new_item();
+                                let message = Self::new_item();
+                                let report_type = Self::new_item();
+                                let extra_data_1 = Self::new_item();
+
+                                let (result_type, color) = match result.level() {
+                                    DiagnosticLevel::Info => (ref_from_atomic(&result_type_info), ref_from_atomic(&color_info)),
+                                    DiagnosticLevel::Warning => (ref_from_atomic(&result_type_warning), ref_from_atomic(&color_warning)),
+                                    DiagnosticLevel::Error => (ref_from_atomic(&result_type_error), ref_from_atomic(&color_error)),
+                                };
+
+                                level.set_background(color);
+                                level.set_text(result_type);
+                                diag_type.set_text(&QString::from_std_str(diagnostic_type.to_string()));
+
+                                let data_affected_string = match result.report_type() {
+                                    TextDiagnosticReportType::InvalidKey(start, end,_,_,_) => format!("{},{},{},{}", start.0, start.1, end.0, end.1),
+                                };
+
+                                data_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(data_affected_string)), 2);
+                                path.set_text(&QString::from_std_str(diagnostic.path()));
+                                message.set_text(&QString::from_std_str(result.message()));
+                                report_type.set_text(&QString::from_std_str(result.report_type().to_string()));
+
+                                // Set the tooltips to the diag type and description columns.
+                                Self::set_tooltips_text(&[&level, &path, &message], result.report_type());
+
+                                qlist.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&diag_type.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&data_affected.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&path.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&message.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&report_type.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&extra_data_1.into_ptr().as_mut_raw_ptr());
+
+                                reports.push(atomic_from_cpp_box(qlist));
+                            }
+
+                            reports
+                        },
+
                         DiagnosticType::Dependency(ref diagnostic) => {
                             let mut reports = Vec::with_capacity(diagnostic.results().len());
 
@@ -1063,6 +1120,23 @@ impl DiagnosticsUI {
                                 }
                             }
                         }
+                    }
+                }
+            }
+
+            "Text" => {
+                if let Some(file_view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).find(|x| *x.path_read() == path) {
+
+                    // In case of tables, we have to get the logical row/column of the match and select it.
+                    if let ViewType::Internal(View::Text(view)) = file_view.view_type() {
+                        let pos_data = model.item_2a(model_index.row(), 2).text().to_std_string();
+                        let pos_data = pos_data.split(',').collect::<Vec<_>>();
+                        let start_row = pos_data[0].parse::<u64>().unwrap();
+                        let start_column = pos_data[1].parse::<u64>().unwrap();
+                        let end_row = pos_data[2].parse::<u64>().unwrap();
+                        let end_column = pos_data[3].parse::<u64>().unwrap();
+
+                        scroll_to_pos_and_select_safe(&view.get_mut_editor().as_ptr(), start_row, start_column, end_row, end_column);
                     }
                 }
             }
@@ -1539,6 +1613,10 @@ impl DiagnosticsUI {
             diagnostic_type_pattern.push_str(&format!("{}|", AnimFragmentBattleDiagnosticReportType::SndFilePathNotFound(String::new())));
         }
 
+        if diagnostics_ui.checkbox_lua_invalid_key.is_checked() {
+            diagnostic_type_pattern.push_str(&format!("{}|", TextDiagnosticReportType::InvalidKey((0,0), (0,0), String::new(), String::new(), String::new())));
+        }
+
         diagnostic_type_pattern.pop();
 
         if diagnostic_type_pattern.is_empty() {
@@ -1586,6 +1664,10 @@ impl DiagnosticsUI {
                     .iter()
                     .filter(|y| matches!(y.level(), DiagnosticLevel::Info))
                     .count(),
+               DiagnosticType::Text(ref diag) => diag.results()
+                    .iter()
+                    .filter(|y| matches!(y.level(), DiagnosticLevel::Info))
+                    .count(),
             }).sum::<usize>();
 
         let warning = diagnostics.iter().map(|x|
@@ -1612,6 +1694,10 @@ impl DiagnosticsUI {
                     .filter(|y| matches!(y.level(), DiagnosticLevel::Warning))
                     .count(),
                 DiagnosticType::Config(ref diag) => diag.results()
+                    .iter()
+                    .filter(|y| matches!(y.level(), DiagnosticLevel::Warning))
+                    .count(),
+               DiagnosticType::Text(ref diag) => diag.results()
                     .iter()
                     .filter(|y| matches!(y.level(), DiagnosticLevel::Warning))
                     .count(),
@@ -1642,6 +1728,10 @@ impl DiagnosticsUI {
                     .filter(|y| matches!(y.level(), DiagnosticLevel::Error))
                     .count(),
                 DiagnosticType::Config(ref diag) => diag.results()
+                    .iter()
+                    .filter(|y| matches!(y.level(), DiagnosticLevel::Error))
+                    .count(),
+               DiagnosticType::Text(ref diag) => diag.results()
                     .iter()
                     .filter(|y| matches!(y.level(), DiagnosticLevel::Error))
                     .count(),
@@ -1685,6 +1775,16 @@ impl DiagnosticsUI {
             TableDiagnosticReportType::FieldWithPathNotFound(_) => qtr("field_with_path_not_found_explanation"),
             TableDiagnosticReportType::BannedTable => qtr("banned_table_explanation"),
             TableDiagnosticReportType::ValueCannotBeEmpty(_) => qtr("value_cannot_be_empty_explanation"),
+        };
+
+        for item in items {
+            item.set_tool_tip(&tool_tip);
+        }
+    }
+
+    pub unsafe fn set_tooltips_text(items: &[&CppBox<QStandardItem>], report_type: &TextDiagnosticReportType) {
+        let tool_tip = match report_type {
+            TextDiagnosticReportType::InvalidKey(_,_,_,_,_) => qtr("text_invalid_key_explanation"),
         };
 
         for item in items {
@@ -1854,6 +1954,10 @@ impl DiagnosticsUI {
         }
         if !self.checkbox_snd_file_path_not_found.is_checked() {
             diagnostics_ignored.push(AnimFragmentBattleDiagnosticReportType::SndFilePathNotFound(String::new()).to_string());
+        }
+
+        if !self.checkbox_lua_invalid_key.is_checked() {
+            diagnostics_ignored.push(TextDiagnosticReportType::InvalidKey((0,0), (0,0), String::new(), String::new(), String::new()).to_string());
         }
 
         diagnostics_ignored

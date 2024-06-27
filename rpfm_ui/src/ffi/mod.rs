@@ -353,6 +353,12 @@ pub fn cursor_row_safe(parent: &Ptr<QWidget>) -> u64 {
     unsafe { cursor_row(parent.as_mut_raw_ptr()) }
 }
 
+// This function allows to scroll to an specific position in a KTextEditor and select a range.
+extern "C" { fn scroll_to_pos_and_select(parent: *mut QWidget, start_row: u64, start_column: u64, end_row: u64, end_column: u64); }
+pub fn scroll_to_pos_and_select_safe(parent: &Ptr<QWidget>, start_row: u64, start_column: u64, end_row: u64, end_column: u64) {
+    unsafe { scroll_to_pos_and_select(parent.as_mut_raw_ptr(), start_row, start_column, end_row, end_column) }
+}
+
 //---------------------------------------------------------------------------//
 // KColorCombo stuff.
 //---------------------------------------------------------------------------//
