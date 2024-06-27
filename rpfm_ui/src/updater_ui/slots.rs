@@ -61,6 +61,7 @@ impl UpdaterUISlots {
 
                         // Re-enable the button so it can be used to restart the program.
                         ui.update_program_button.set_enabled(true);
+                        ui.update_program_button.disconnect();
                         ui.update_program_button.released().connect(&SlotNoArgs::new(ui.main_widget(), move || {
 
                             // Make sure we close both threads and the window. In windows the main window doesn't get closed for some reason.
