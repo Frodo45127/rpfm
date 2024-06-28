@@ -15,6 +15,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - Implemented support for multi-level lookups.
 - Implemented lookup support for filters.
 - Implemented Warhammer 3 support in the Unit Editor.
+- Implemented "Invalid Key on Lua Script" diagnostic.
 
 ### Changed
 - Loose files in /data are now accessible as dependencies.
@@ -40,6 +41,9 @@ If you're looking for the changes included in the latest beta (against the lates
 - Fixed unit editor's window being too big and not scrollable.
 - Fixed unit editor failing to load variantmesh files.
 - Fixed error in the 3d viewer causing models to not load the rigidmodel editor.
+- Fixed Drazhir lazyness on updates (may not work).
+- Fixed windows not opening the changelog due to missing associations with md files.
+- Fixed a double update triggering when trying to restart RPFM after an update.
 
 ## [4.2.7]
 ### Added
