@@ -390,7 +390,7 @@ impl ToolTranslator {
         let old_value = old_value_item.text().to_std_string();
         let new_value = self.translated_value_textedit.to_plain_text().to_std_string();
 
-        self.table.table_view().set_updates_enabled(false);
+        self.table.table_model().block_signals(true);
 
         // If we have a new translation, save it and remove the "needs_retranslation" flag.
         if !new_value.is_empty() && new_value != old_value {
@@ -419,7 +419,7 @@ impl ToolTranslator {
             }
         }
 
-        self.table.table_view().set_updates_enabled(true);
+        self.table.table_model().block_signals(false);
     }
 
     pub unsafe fn import_from_another_pack(&self) -> Result<()> {

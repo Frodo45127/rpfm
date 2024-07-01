@@ -65,6 +65,8 @@ impl ToolTranslatorSlots {
                     let index = ui.table().table_filter().map_to_source(filter_index);
                     ui.load_to_detailed_view(index.as_ref());
                 }
+
+                ui.table().filters()[0].start_delayed_updates_timer();
             }
         ));
 
