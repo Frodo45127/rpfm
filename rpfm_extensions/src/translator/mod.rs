@@ -72,8 +72,8 @@ pub struct Translation {
 
 impl PackTranslation {
 
-    pub fn new(path: &Path, pack: &Pack, game_key: &str, language: &str, dependencies: &Dependencies, base_english: &HashMap<String, String>) -> Result<Self> {
-        let mut translations = Self::load(path, &pack.disk_file_name(), game_key, language).unwrap_or_else(|_| {
+    pub fn new(local_path: &Path, remote_path: &Path, pack: &Pack, game_key: &str, language: &str, dependencies: &Dependencies, base_english: &HashMap<String, String>) -> Result<Self> {
+        let mut translations = Self::load(local_path, remote_path, &pack.disk_file_name(), game_key, language).unwrap_or_else(|_| {
             let mut tr = Self::default();
             tr.language = language.to_owned();
             tr.pack_name = pack.disk_file_name();
@@ -203,10 +203,15 @@ impl PackTranslation {
         todo!()
     }
 
-    /// This function loads a [PackTranslation] to memory from a provided `.json` file.
-    ///
-    /// If there's no json file, it tries to load from pre-translated files inside the open Pack.
-    pub fn load(path: &Path, pack_name: &str, game_key: &str, language: &str) -> Result<Self> {
+    /// This function loads a [PackTranslation] to memory from either a local json file, or a remote one.
+    pub fn load(local_path: &Path, remote_path: &Path, pack_name: &str, game_key: &str, language: &str) -> Result<Self> {
+        match Self::load_json(local_path, pack_name, game_key, language) {
+            Ok(tr) => Ok(tr),
+            Err(_) => Self::load_json(remote_path, pack_name, game_key, language)
+        }
+    }
+
+    fn load_json(path: &Path, pack_name: &str, game_key: &str, language: &str) -> Result<Self> {
         let path = path.join(format!("{}/{}/{}.json", game_key, pack_name, language));
         let mut file = BufReader::new(File::open(path)?);
         let mut data = Vec::with_capacity(file.get_ref().metadata()?.len() as usize);

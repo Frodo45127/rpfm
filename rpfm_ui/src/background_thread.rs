@@ -2159,31 +2159,34 @@ pub fn background_loop() {
                     Ok(local_path) => {
                         let mut base_english = HashMap::new();
 
-                        if let Ok(remote_path) = translations_local_path() {
-                            let vanilla_loc_path = remote_path.join(format!("{}/{}", GAME_SELECTED.read().unwrap().key(), VANILLA_LOC_NAME));
-                            if let Ok(mut vanilla_loc) = RFile::tsv_import_from_path(&vanilla_loc_path, &None) {
-                                let _ = vanilla_loc.guess_file_type();
+                        match translations_remote_path() {
+                            Ok(remote_path) => {
 
-                                if let Ok(Some(RFileDecoded::Loc(vanilla_loc))) = vanilla_loc.decode(&None, true, false) {
+                                let vanilla_loc_path = remote_path.join(format!("{}/{}", GAME_SELECTED.read().unwrap().key(), VANILLA_LOC_NAME));
+                                if let Ok(mut vanilla_loc) = RFile::tsv_import_from_path(&vanilla_loc_path, &None) {
+                                    let _ = vanilla_loc.guess_file_type();
 
-                                    // If we have a fixes file for the vanilla translation, apply it before everything else.
-                                    let fixes_loc_path = remote_path.join(format!("{}/{}{}.tsv", GAME_SELECTED.read().unwrap().key(), VANILLA_FIXES_NAME, language));
-                                    if let Ok(mut fixes_loc) = RFile::tsv_import_from_path(&fixes_loc_path, &None) {
-                                        let _ = fixes_loc.guess_file_type();
+                                    if let Ok(Some(RFileDecoded::Loc(vanilla_loc))) = vanilla_loc.decode(&None, true, false) {
 
-                                        if let Ok(Some(RFileDecoded::Loc(fixes_loc))) = fixes_loc.decode(&None, false, true) {
-                                            base_english.extend(fixes_loc.data().iter().map(|x| (x[0].data_to_string().to_string(), x[1].data_to_string().to_string())).collect::<Vec<_>>());
+                                        // If we have a fixes file for the vanilla translation, apply it before everything else.
+                                        let fixes_loc_path = remote_path.join(format!("{}/{}{}.tsv", GAME_SELECTED.read().unwrap().key(), VANILLA_FIXES_NAME, language));
+                                        if let Ok(mut fixes_loc) = RFile::tsv_import_from_path(&fixes_loc_path, &None) {
+                                            let _ = fixes_loc.guess_file_type();
+
+                                            if let Ok(Some(RFileDecoded::Loc(fixes_loc))) = fixes_loc.decode(&None, false, true) {
+                                                base_english.extend(fixes_loc.data().iter().map(|x| (x[0].data_to_string().to_string(), x[1].data_to_string().to_string())).collect::<Vec<_>>());
+                                            }
                                         }
-                                    }
 
-                                    base_english.extend(vanilla_loc.data().iter().map(|x| (x[0].data_to_string().to_string(), x[1].data_to_string().to_string())).collect::<Vec<_>>());
+                                        base_english.extend(vanilla_loc.data().iter().map(|x| (x[0].data_to_string().to_string(), x[1].data_to_string().to_string())).collect::<Vec<_>>());
+                                    }
+                                }
+                                let dependencies = dependencies.read().unwrap();
+                                match PackTranslation::new(&local_path, &remote_path, &pack_file_decoded, game_key, &language, &dependencies, &base_english) {
+                                    Ok(tr) => CentralCommand::send_back(&sender, Response::PackTranslation(tr)),
+                                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                                 }
                             }
-                        }
-
-                        let dependencies = dependencies.read().unwrap();
-                        match PackTranslation::new(&local_path, &pack_file_decoded, game_key, &language, &dependencies, &base_english) {
-                            Ok(tr) => CentralCommand::send_back(&sender, Response::PackTranslation(tr)),
                             Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                         }
                     },
