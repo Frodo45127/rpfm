@@ -389,9 +389,36 @@ impl ToolTranslator {
 
         // If we have a new translation, save it and remove the "needs_retranslation" flag.
         if !new_value.is_empty() && new_value != old_value {
-            old_value_item.set_text(&QString::from_std_str(new_value));
+            old_value_item.set_text(&QString::from_std_str(&new_value));
             self.table.table_model().item_2a(index.row(), 1).set_check_state(CheckState::Unchecked);
         }
+
+        // If there's any other translation which uses the same value, automatically translate it.
+        let original_value_item = self.table.table_model().item_2a(index.row(), 3);
+
+        self.table.table_model().block_signals(true);
+
+        for row in 0..self.table.table_model().row_count_0a() {
+
+            // Do not apply it to the item we just edited.
+            if index.row() != row {
+                let needs_retranslation = self.table.table_model().item_2a(row, 1).check_state() == CheckState::Checked;
+                if needs_retranslation {
+                    let og_value_item = self.table.table_model().item_2a(row, 3);
+                    if og_value_item.data_1a(2).to_string().to_std_string() == original_value_item.data_1a(2).to_string().to_std_string() {
+                        let translated_value_item = self.table.table_model().item_2a(row, 4);
+                        translated_value_item.set_text(&QString::from_std_str(&new_value));
+
+                        // Unmark it from retranslations.
+                        self.table.table_model().item_2a(row, 1).set_check_state(CheckState::Unchecked);
+
+                    }
+                }
+            }
+        }
+
+        self.table.table_model().block_signals(false);
+        self.table.filter_table();
     }
 
     pub unsafe fn import_from_another_pack(&self) -> Result<()> {
