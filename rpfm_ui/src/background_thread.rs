@@ -2182,7 +2182,7 @@ pub fn background_loop() {
                                     }
                                 }
                                 let dependencies = dependencies.read().unwrap();
-                                let paths = vec![&*local_path, &*remote_path];
+                                let paths = vec![local_path, remote_path];
                                 match PackTranslation::new(&*paths, &pack_file_decoded, game_key, &language, &dependencies, &base_english) {
                                     Ok(tr) => CentralCommand::send_back(&sender, Response::PackTranslation(tr)),
                                     Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),

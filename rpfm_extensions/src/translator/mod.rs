@@ -15,7 +15,7 @@ use serde_derive::{Serialize, Deserialize};
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs::{DirBuilder, File};
 use std::io::{BufReader, BufWriter, Read, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use rpfm_lib::error::{Result, RLibError};
 use rpfm_lib::files::{Container, FileType, loc::Loc, pack::Pack, RFile, RFileDecoded, table::*};
@@ -72,7 +72,7 @@ pub struct Translation {
 
 impl PackTranslation {
 
-    pub fn new(paths: &[&Path], pack: &Pack, game_key: &str, language: &str, dependencies: &Dependencies, base_english: &HashMap<String, String>) -> Result<Self> {
+    pub fn new(paths: &[PathBuf], pack: &Pack, game_key: &str, language: &str, dependencies: &Dependencies, base_english: &HashMap<String, String>) -> Result<Self> {
         let mut translations = Self::load(paths, &pack.disk_file_name(), game_key, language).unwrap_or_else(|_| {
             let mut tr = Self::default();
             tr.language = language.to_owned();
@@ -204,7 +204,7 @@ impl PackTranslation {
     }
 
     /// This function loads a [PackTranslation] to memory from either a local json file, or a remote one.
-    pub fn load(paths: &[&Path], pack_name: &str, game_key: &str, language: &str) -> Result<Self> {
+    pub fn load(paths: &[PathBuf], pack_name: &str, game_key: &str, language: &str) -> Result<Self> {
         for path in paths {
             match Self::load_json(path, pack_name, game_key, language) {
                 Ok(tr) => return Ok(tr),
