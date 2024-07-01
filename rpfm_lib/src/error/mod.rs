@@ -367,6 +367,9 @@ pub enum RLibError {
     #[error("Error in path: {1}. {0}")]
     IOErrorPath(Box<Self>, PathBuf),
 
+    #[error("No translation could be found.")]
+    TranslatorCouldNotLoadTranslation,
+
     /// Represents all other cases of `std::io::Error`.
     #[error(transparent)]
     IOError(#[from] std::io::Error),
