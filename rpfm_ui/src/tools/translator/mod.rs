@@ -390,6 +390,8 @@ impl ToolTranslator {
         let old_value = old_value_item.text().to_std_string();
         let new_value = self.translated_value_textedit.to_plain_text().to_std_string();
 
+        self.table.table_view().set_updates_enabled(false);
+
         // If we have a new translation, save it and remove the "needs_retranslation" flag.
         if !new_value.is_empty() && new_value != old_value {
             old_value_item.set_text(&QString::from_std_str(&new_value));
@@ -398,9 +400,6 @@ impl ToolTranslator {
 
         // If there's any other translation which uses the same value, automatically translate it.
         let original_value_item = self.table.table_model().item_2a(index.row(), 3);
-
-        self.table.table_model().block_signals(true);
-
         for row in 0..self.table.table_model().row_count_0a() {
 
             // Do not apply it to the item we just edited.
@@ -420,8 +419,7 @@ impl ToolTranslator {
             }
         }
 
-        self.table.table_model().block_signals(false);
-        self.table.filter_table();
+        self.table.table_view().set_updates_enabled(true);
     }
 
     pub unsafe fn import_from_another_pack(&self) -> Result<()> {
