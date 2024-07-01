@@ -21,6 +21,8 @@ use rpfm_lib::error::Result;
 use rpfm_lib::files::{Container, FileType, loc::Loc, pack::Pack, RFile, RFileDecoded, table::*};
 use rpfm_lib::schema::*;
 
+use crate::dependencies::Dependencies;
+
 pub const TRANSLATED_FILE_NAME: &str = "!!!!!!translated_locs.loc";
 pub const TRANSLATED_PATH: &str = "text/!!!!!!translated_locs.loc";
 pub const TRANSLATED_PATH_OLD: &str = "text/localisation.loc";
@@ -70,7 +72,7 @@ pub struct Translation {
 
 impl PackTranslation {
 
-    pub fn new(path: &Path, pack: &Pack, game_key: &str, language: &str) -> Result<Self> {
+    pub fn new(path: &Path, pack: &Pack, game_key: &str, language: &str, dependencies: &Dependencies, base_english: &HashMap<String, String>) -> Result<Self> {
         let mut translations = Self::load(path, &pack.disk_file_name(), game_key, language).unwrap_or_else(|_| {
             let mut tr = Self::default();
             tr.language = language.to_owned();
@@ -120,6 +122,38 @@ impl PackTranslation {
                     };
 
                     translations.translations.insert(key.to_string(), tr);
+                }
+            }
+        }
+
+        // Lastly, we do an auto-translation pass.
+        let base_local = dependencies.localisation_data();
+        for (tr_key, tr) in translations.translations_mut() {
+            if !tr.removed {
+
+                // Mark empty lines as translated.
+                if tr.value_original().is_empty() && tr.value_translated().is_empty() {
+                    tr.needs_retranslation = false;
+                }
+
+                // If the value is unchanged from english, just copy the vanilla translation.
+                //
+                // NOTE: This is really a patch for packs not using optimizing pass, because the optimizer actually removes these entries.
+                else if let Some(vanilla_data) = base_english.get(tr_key) {
+                    if tr.value_original() == vanilla_data {
+                        if let Some(vanilla_data) = base_local.get(tr_key) {
+                            tr.value_translated = vanilla_data.to_owned();
+                            tr.needs_retranslation = false;
+                        }
+                    }
+                }
+
+                // If the value is equal to another value in the english translation (but with a different key), just copy the same translation that one uses.
+                else if let Some((key, _)) = base_english.iter().find(|(_, value)| *value == tr.value_original()) {
+                    if let Some(value_tr) = base_local.get(key) {
+                        tr.value_translated = value_tr.to_owned();
+                        tr.needs_retranslation = false;
+                    }
                 }
             }
         }

@@ -58,6 +58,10 @@ pub const OLD_AK_REPO: &str = "https://github.com/Frodo45127/total_war_ak_files_
 pub const OLD_AK_REMOTE: &str = "origin";
 pub const OLD_AK_BRANCH: &str = "master";
 
+pub const TRANSLATIONS_REPO: &str = "https://github.com/Frodo45127/total_war_translation_hub";
+pub const TRANSLATIONS_REMOTE: &str = "origin";
+pub const TRANSLATIONS_BRANCH: &str = "master";
+
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//

@@ -89,6 +89,7 @@
 
 # Ignore the translations folder.
 /translations_local/
+/translations_remote/
 
 # Intellij Config folder and files.
 /.idea/

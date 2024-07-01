@@ -1596,3 +1596,5 @@ label_lua_invalid_key = Invalid Table Value on Lua Script
 text_invalid_key_explanation = In a lua table that has been marked as using values from a table there are values that are not in the table.
 
     This means if you end up using those values assuming all exists in the table, the script may break.
+
+translation_download_error = Error while trying to download the latest mod translations: {"{"}{"}"}.

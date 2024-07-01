@@ -354,6 +354,8 @@ pub enum Command {
     BuildStarposGetCampaingIds,
     UpdateAnimIds(i32, i32),
     #[cfg(feature = "support_model_renderer")] GetAnimPathsBySkeletonName(String),
+    #[cfg(feature = "enable_tools")] CheckTranslationsUpdates,
+    #[cfg(feature = "enable_tools")] UpdateTranslations,
 }
 
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.

@@ -36,8 +36,9 @@ use rpfm_extensions::translator::*;
 
 use rpfm_lib::files::{Container, ContainerPath, FileType, pack::Pack, RFileDecoded, table::DecodedData};
 use rpfm_lib::games::supported_games::*;
+use rpfm_lib::integrations::git::GitResponse;
 
-use rpfm_ui_common::locale::{tr, qtr};
+use rpfm_ui_common::locale::{tr, tre, qtr};
 use rpfm_ui_common::settings::*;
 
 use crate::CENTRAL_COMMAND;
@@ -55,6 +56,9 @@ mod slots;
 /// Tool's ui template path.
 const VIEW_DEBUG: &str = "rpfm_ui/ui_templates/tool_translator_editor.ui";
 const VIEW_RELEASE: &str = "ui/tool_translator_editor.ui";
+
+pub const VANILLA_LOC_NAME: &str = "vanilla_english.tsv";
+pub const VANILLA_FIXES_NAME: &str = "vanilla_fixes_";
 
 /// List of games this tool supports.
 const TOOL_SUPPORTED_GAMES: [&str; 12] = [
@@ -173,6 +177,33 @@ impl ToolTranslator {
                 }
             }
         };
+
+        // Check if the repo needs updating, and update it if so.
+        let receiver = CENTRAL_COMMAND.send_network(Command::CheckTranslationsUpdates);
+        let response_thread = CENTRAL_COMMAND.recv_try(&receiver);
+        match response_thread {
+            Response::APIResponseGit(ref response) => {
+                match response {
+                    GitResponse::NewUpdate |
+                    GitResponse::NoLocalFiles |
+                    GitResponse::Diverged => {
+                        let receiver = CENTRAL_COMMAND.send_background(Command::UpdateTranslations);
+                        let response_thread = CENTRAL_COMMAND.recv_try(&receiver);
+
+                        // Show the error, but continue anyway.
+                        if let Response::Error(error) = response_thread {
+                            show_dialog(app_ui.main_window(), tre("translation_download_error", &[&error.to_string()]), false);
+                        }
+                    }
+                    GitResponse::NoUpdate => {}
+                }
+            }
+
+            Response::Error(error) => {
+                show_dialog(app_ui.main_window(), tre("translation_download_error", &[&error.to_string()]), false);
+            }
+            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response_thread:?}"),
+        }
 
         // Unlike other tools, data is loaded here, because we need it to generate the table widget.
         let receiver = CENTRAL_COMMAND.send_background(Command::GetPackTranslation(language));
