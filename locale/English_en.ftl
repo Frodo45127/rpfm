@@ -1465,9 +1465,11 @@ translator_original_value_title = Original Value
 translator_translated_value_title = Translated Value
 translator_info = How does it work? It's simple:<ul>
         <li>Select the row you want to translate, and write in the lower text field the translation.</li>
+        <li>To save the translation for a line, just select another line to translate.</li>
         <li>By default, the view only shows lines that need to be translated or revised (due to the original mod changing them). You can show the hidden entries by tweaking the filters.</li>
         <li>If you want to import an already translated mod, open the original mod in RPFM, open the translator, click in "Import from translated Pack", and select the translation pack.</li>
-        <li>Once you're done, if you think this translation would be useful for others, feel free to contribute the translation to the <a href="https://github.com/Frodo45127/total_war_translation_hub">Total War Translation Hub</a>.</li>
+        <li>Once done, RPFM will save the translation to both, a .loc file in the open pack, and a json file on "RPFM's config folder/translations_local". That file is used to keep track of changes when the translation gets updated (like after the original mod gets an update).</li>
+        <li>Once you're done, if you think this translation would be useful for others, feel free to contribute the translation (as in the json file from the config folder) to the <a href="https://github.com/Frodo45127/total_war_translation_hub">Total War Translation Hub</a>.</li>
     </ul>
 translator_move_selection_up = Move up
 translator_move_selection_down = Move down
