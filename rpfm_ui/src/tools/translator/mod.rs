@@ -354,7 +354,6 @@ impl ToolTranslator {
                 self.translated_value_textedit.set_text(&QString::from_std_str(tr));
             }
         }
-
     }
 
     unsafe fn map_language_to_google(&self) -> String {
@@ -379,7 +378,11 @@ impl ToolTranslator {
 
     #[tokio::main]
     async fn ask_google(string: &str, language: &str) -> Result<String> {
-        translate_from_english(string, language).await.map_err(|err| anyhow!(err.to_string()))
+        if !string.trim().is_empty() {
+            translate_from_english(string, language).await.map_err(|err| anyhow!(err.to_string()))
+        } else {
+            Ok(String::new())
+        }
     }
 
     pub unsafe fn save_from_detailed_view(&self, index: Ref<QModelIndex>) {

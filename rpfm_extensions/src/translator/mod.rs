@@ -132,7 +132,8 @@ impl PackTranslation {
             if !tr.removed {
 
                 // Mark empty lines as translated.
-                if tr.value_original().is_empty() && tr.value_translated().is_empty() {
+                if tr.value_original().trim().is_empty() && tr.value_translated().trim().is_empty() {
+                    tr.value_translated = tr.value_original.to_owned();
                     tr.needs_retranslation = false;
                 }
 
