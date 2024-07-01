@@ -28,6 +28,7 @@ use cpp_core::Ref;
 
 use anyhow::anyhow;
 use getset::*;
+use rust_translate::translate_from_english;
 
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
@@ -35,7 +36,7 @@ use std::sync::{Arc, RwLock};
 use rpfm_extensions::translator::*;
 
 use rpfm_lib::files::{Container, ContainerPath, FileType, pack::Pack, RFileDecoded, table::DecodedData};
-use rpfm_lib::games::supported_games::*;
+use rpfm_lib::games::{*, supported_games::*};
 use rpfm_lib::integrations::git::GitResponse;
 
 use rpfm_ui_common::locale::{tr, tre, qtr};
@@ -341,9 +342,44 @@ impl ToolTranslator {
     pub unsafe fn load_to_detailed_view(&self, index: Ref<QModelIndex>) {
         let original_value_item = self.table.table_model().item_2a(index.row(), 3);
         let translated_value_item = self.table.table_model().item_2a(index.row(), 4);
+        let needs_retranslation = self.table.table_model().item_2a(index.row(), 1).check_state() == CheckState::Checked;
 
         self.original_value_textedit.set_text(&original_value_item.text());
         self.translated_value_textedit.set_text(&translated_value_item.text());
+
+        // If the value needs a retrasnlation ask google for one.
+        if needs_retranslation {
+            let language = self.map_language_to_google();
+            if let Ok(tr) = Self::ask_google(&original_value_item.text().to_std_string(), &language) {
+                self.translated_value_textedit.set_text(&QString::from_std_str(tr));
+            }
+        }
+
+    }
+
+    unsafe fn map_language_to_google(&self) -> String {
+        let lang = self.language_combobox().current_text().to_std_string().to_lowercase();
+        match &*lang {
+            BRAZILIAN => "pt".to_owned(),
+            SIMPLIFIED_CHINESE => "zh".to_owned(),
+            CZECH => "cs".to_owned(),
+            ENGLISH => "en".to_owned(),
+            FRENCH => "fr".to_owned(),
+            GERMAN => "de".to_owned(),
+            ITALIAN => "it".to_owned(),
+            KOREAN => "ko".to_owned(),
+            POLISH => "pl".to_owned(),
+            RUSSIAN => "ru".to_owned(),
+            SPANISH => "es".to_owned(),
+            TURKISH => "tr".to_owned(),
+            TRADITIONAL_CHINESE => "zh-TW".to_owned(),
+            _ => "en".to_owned(),
+        }
+    }
+
+    #[tokio::main]
+    async fn ask_google(string: &str, language: &str) -> Result<String> {
+        translate_from_english(string, language).await.map_err(|err| anyhow!(err.to_string()))
     }
 
     pub unsafe fn save_from_detailed_view(&self, index: Ref<QModelIndex>) {
