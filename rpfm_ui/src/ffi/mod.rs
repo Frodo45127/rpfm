@@ -636,7 +636,7 @@ pub extern fn assets_request_callback(missing_files: *mut QListOfQString, out: *
                 // Files have to go in the same order they came.
                 // Missing or empty files just have to have an empty byte array.
                 for path in &paths {
-                    match files_merge.get_mut(path.path_raw()) {
+                    match files_merge.get_mut(&path.path_raw().to_lowercase()) {
                         Some(file) => {
                             match file.load() {
                                 Ok(_) => match file.cached() {
