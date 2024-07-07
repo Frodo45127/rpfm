@@ -9,6 +9,7 @@
 //---------------------------------------------------------------------------//
 
 use getset::{Getters, MutGetters, Setters};
+use itertools::Itertools;
 use serde::{Serialize as SerdeSerialize, Serializer};
 use serde_derive::{Serialize, Deserialize};
 
@@ -286,8 +287,11 @@ impl PackTranslation {
         let definition = Self::definition();
         let mut table = Table::new(&definition, None, "");
 
+        // Due to bugs in the table filters, we pre-sort the data by putting stuff that needs to be retranslated at the start.
         let data = self.translations()
             .iter()
+            .sorted_by(|(_, tr1), (_, tr2)| Ord::cmp(tr1.key(), tr2.key()))
+            .sorted_by(|(_, tr1), (_, tr2)| Ord::cmp(tr2.needs_retranslation(), tr1.needs_retranslation()))
             .map(|(_, tr)| {
             let mut row = Vec::with_capacity(5);
             row.push(DecodedData::StringU8(tr.key().to_owned()));

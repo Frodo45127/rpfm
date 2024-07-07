@@ -88,6 +88,9 @@ pub struct ToolTranslator {
     pack_tr: Arc<PackTranslation>,
     table: Arc<TableView>,
 
+    // Row being edited. We don't trust the selection as it may be bugged/not work.
+    current_row: Arc<RwLock<Option<i32>>>,
+
     language_combobox: QPtr<QComboBox>,
 
     action_move_up: QPtr<QAction>,
@@ -221,7 +224,13 @@ impl ToolTranslator {
         // The translation list need special configuration.
         table.table_view().set_selection_mode(SelectionMode::SingleSelection);
         table.table_view().set_selection_behavior(SelectionBehavior::SelectRows);
-        table.table_view().sort_by_column_1a(0);
+        table.table_view().set_column_width(0, 300);
+        table.table_view().set_column_width(1, 50);
+        table.table_view().set_column_width(2, 50);
+        table.table_view().set_column_width(3, 400);
+        table.table_view().set_column_width(4, 400);
+        //table.table_view().sort_by_column_1a(0);
+        //table.table_view().sort_by_column_1a(1);
 
         if let Some(filter_removed) = table.filters().first() {
             filter_removed.filter_line_edit().set_text(&QString::from_std_str("false"));
@@ -229,13 +238,12 @@ impl ToolTranslator {
             filter_removed.use_regex_button().set_checked(false);
         }
 
-        FilterView::new(&table)?;
-
-        if let Some(filter_retranslation) = table.filters().get(1) {
-            filter_retranslation.filter_line_edit().set_text(&QString::from_std_str("true"));
-            filter_retranslation.column_combobox().set_current_index(1);
-            filter_retranslation.use_regex_button().set_checked(false);
-        }
+        //FilterView::new(&table)?;
+        //if let Some(filter_retranslation) = table.filters().get(1) {
+        //    filter_retranslation.filter_line_edit().set_text(&QString::from_std_str("true"));
+        //    filter_retranslation.column_combobox().set_current_index(1);
+        //    filter_retranslation.use_regex_button().set_checked(false);
+        //}
 
         let info_groupbox: QPtr<QGroupBox> = tool.find_widget("info_groupbox")?;
         let original_value_groupbox: QPtr<QGroupBox> = tool.find_widget("original_value_groupbox")?;
@@ -270,6 +278,7 @@ impl ToolTranslator {
             tool,
             pack_tr: Arc::new(data),
             table,
+            current_row: Arc::new(RwLock::new(None)),
             language_combobox,
             action_move_up,
             action_move_down,
@@ -347,11 +356,53 @@ impl ToolTranslator {
         self.original_value_textedit.set_text(&original_value_item.text());
         self.translated_value_textedit.set_text(&translated_value_item.text());
 
+        // Update the row in edition.
+        *self.current_row.write().unwrap() = Some(index.row());
+
         // If the value needs a retrasnlation ask google for one.
         if needs_retranslation {
             let language = self.map_language_to_google();
             if let Ok(tr) = Self::ask_google(&original_value_item.text().to_std_string(), &language) {
                 self.translated_value_textedit.set_text(&QString::from_std_str(tr));
+            }
+        }
+    }
+
+    // Selection is EXTREMELY unreliable. We save to the current row instead.
+    pub unsafe fn save_from_detailed_view(&self) {
+        let current_row = self.current_row.read().unwrap().clone();
+        if let Some(current_row) = current_row {
+
+            let old_value_item = self.table.table_model().item_2a(current_row, 4);
+            let old_value = old_value_item.text().to_std_string();
+            let new_value = self.translated_value_textedit.to_plain_text().to_std_string();
+
+            // If we have a new translation, save it and remove the "needs_retranslation" flag.
+            if !new_value.is_empty() && new_value != old_value {
+
+                // If there's any other translation which uses the same value, automatically translate it.
+                let original_value_item = self.table.table_model().item_2a(current_row, 3);
+                for row in 0..self.table.table_model().row_count_0a() {
+
+                    // Do not apply it to the item we just edited.
+                    if current_row != row {
+                        let needs_retranslation_item = self.table.table_model().item_2a(row, 1);
+                        let needs_retranslation = needs_retranslation_item.check_state() == CheckState::Checked;
+                        if needs_retranslation {
+                            let og_value_item = self.table.table_model().item_2a(row, 3);
+                            if og_value_item.data_1a(2).to_string().to_std_string() == original_value_item.data_1a(2).to_string().to_std_string() {
+                                let translated_value_item = self.table.table_model().item_2a(row, 4);
+                                translated_value_item.set_text(&QString::from_std_str(&new_value));
+
+                                // Unmark it from retranslations.
+                                needs_retranslation_item.set_check_state(CheckState::Unchecked);
+                            }
+                        }
+                    }
+                }
+
+                old_value_item.set_text(&QString::from_std_str(&new_value));
+                self.table.table_model().item_2a(current_row, 1).set_check_state(CheckState::Unchecked);
             }
         }
     }
@@ -383,43 +434,6 @@ impl ToolTranslator {
         } else {
             Ok(String::new())
         }
-    }
-
-    pub unsafe fn save_from_detailed_view(&self, index: Ref<QModelIndex>) {
-        let old_value_item = self.table.table_model().item_2a(index.row(), 4);
-        let old_value = old_value_item.text().to_std_string();
-        let new_value = self.translated_value_textedit.to_plain_text().to_std_string();
-
-        self.table.table_model().block_signals(true);
-
-        // If we have a new translation, save it and remove the "needs_retranslation" flag.
-        if !new_value.is_empty() && new_value != old_value {
-            old_value_item.set_text(&QString::from_std_str(&new_value));
-            self.table.table_model().item_2a(index.row(), 1).set_check_state(CheckState::Unchecked);
-        }
-
-        // If there's any other translation which uses the same value, automatically translate it.
-        let original_value_item = self.table.table_model().item_2a(index.row(), 3);
-        for row in 0..self.table.table_model().row_count_0a() {
-
-            // Do not apply it to the item we just edited.
-            if index.row() != row {
-                let needs_retranslation = self.table.table_model().item_2a(row, 1).check_state() == CheckState::Checked;
-                if needs_retranslation {
-                    let og_value_item = self.table.table_model().item_2a(row, 3);
-                    if og_value_item.data_1a(2).to_string().to_std_string() == original_value_item.data_1a(2).to_string().to_std_string() {
-                        let translated_value_item = self.table.table_model().item_2a(row, 4);
-                        translated_value_item.set_text(&QString::from_std_str(&new_value));
-
-                        // Unmark it from retranslations.
-                        self.table.table_model().item_2a(row, 1).set_check_state(CheckState::Unchecked);
-
-                    }
-                }
-            }
-        }
-
-        self.table.table_model().block_signals(false);
     }
 
     pub unsafe fn import_from_another_pack(&self) -> Result<()> {

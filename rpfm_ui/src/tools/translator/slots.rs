@@ -9,7 +9,7 @@
 //---------------------------------------------------------------------------//
 
 use qt_core::QBox;
-use qt_core::QFlags;
+use qt_core::QItemSelection;
 use qt_core::SlotNoArgs;
 use qt_core::SlotOfQItemSelectionQItemSelection;
 
@@ -50,11 +50,7 @@ impl ToolTranslatorSlots {
 
                 // Save the previous data if needed.
                 if before.count_0a() == 1 {
-                    let base_index = before.at(0);
-                    let indexes = base_index.indexes();
-                    let filter_index = indexes.at(0);
-                    let index = ui.table().table_filter().map_to_source(filter_index);
-                    ui.save_from_detailed_view(index.as_ref());
+                    ui.save_from_detailed_view();
                 }
 
                 // Load the new data.
@@ -80,17 +76,21 @@ impl ToolTranslatorSlots {
                 if indexes.count_0a() > 0 {
                     let index = indexes.at(0);
                     let row = index.row();
-                    if row > 0 {
-                        let new_row = row - 1;
-                        selection_model.clear();
 
-                        for column in 0..ui.table().table_model().column_count_0a() {
-                            let new_index = ui.table().table_filter().index_2a(new_row, column);
-                            selection_model.select_q_model_index_q_flags_selection_flag(
-                                &new_index,
-                                QFlags::from(SelectionFlag::Select)
-                            );
-                        }
+                    // Only do something if we're not in the top row.
+                    if row > 0 {
+
+                        // This triggers a load of the editing file.
+                        let new_row = ui.current_row.read().unwrap().unwrap_or(row).checked_sub(1).unwrap_or_default();
+                        let column_count = ui.table().table_model().column_count_0a();
+                        let start_index = ui.table().table_filter().index_2a(new_row, 0);
+                        let end_index = ui.table().table_filter().index_2a(new_row, column_count - 1);
+                        let new_selection = QItemSelection::new_2a(&start_index, &end_index);
+
+                        // This triggers a save of the editing item.
+                        selection_model.select_q_item_selection_q_flags_selection_flag(&selection, SelectionFlag::Toggle.into());
+                        selection_model.clear();
+                        selection_model.select_q_item_selection_q_flags_selection_flag(&new_selection, SelectionFlag::Toggle.into());
                     }
                 }
             }
@@ -106,17 +106,20 @@ impl ToolTranslatorSlots {
                 if indexes.count_0a() > 0 {
                     let index = indexes.at(0);
                     let row = index.row();
-                    if ui.table().table_filter().row_count_0a() > 0 && row < ui.table().table_filter().row_count_0a() - 1 {
-                        let new_row = row + 1;
-                        selection_model.clear();
+                    let row_count = ui.table().table_filter().row_count_0a();
+                    if row_count > 0 && row < row_count - 1 {
 
-                        for column in 0..ui.table().table_model().column_count_0a() {
-                            let new_index = ui.table().table_filter().index_2a(new_row, column);
-                            selection_model.select_q_model_index_q_flags_selection_flag(
-                                &new_index,
-                                QFlags::from(SelectionFlag::Select)
-                            );
-                        }
+                        // This triggers a load of the editing file.
+                        let new_row = ui.current_row.read().unwrap().unwrap_or(row) + 1;
+                        let column_count = ui.table().table_model().column_count_0a();
+                        let start_index = ui.table().table_filter().index_2a(new_row, 0);
+                        let end_index = ui.table().table_filter().index_2a(new_row, column_count - 1);
+                        let new_selection = QItemSelection::new_2a(&start_index, &end_index);
+
+                        // This triggers a save of the editing item.
+                        selection_model.select_q_item_selection_q_flags_selection_flag(&selection, SelectionFlag::Toggle.into());
+                        selection_model.clear();
+                        selection_model.select_q_item_selection_q_flags_selection_flag(&new_selection, SelectionFlag::Toggle.into());
                     }
                 }
             }
