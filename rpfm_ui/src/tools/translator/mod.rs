@@ -430,7 +430,10 @@ impl ToolTranslator {
     #[tokio::main]
     async fn ask_google(string: &str, language: &str) -> Result<String> {
         if !string.trim().is_empty() {
-            translate_from_english(string, language).await.map_err(|err| anyhow!(err.to_string()))
+            let string = string.replace("\\\n", "\n");
+            translate_from_english(&string, language).await
+                .map(|string| string.replace("\n", "\\\n"))
+                .map_err(|err| anyhow!(err.to_string()))
         } else {
             Ok(String::new())
         }
