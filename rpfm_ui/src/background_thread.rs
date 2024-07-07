@@ -2601,6 +2601,9 @@ quit_after_campaign_processing;",
         // We need to turn the user script contents into a oneliner or the command will ignore it.
         #[cfg(target_os = "windows")] {
             use std::os::windows::process::CommandExt;
+
+            // Rome 2 reads the victory conditions from here, and for some reason if these folders are not added the startpos ends up missing data.
+            command.raw_arg("add_working_directory assembly_kit\\working_data;add_working_directory assembly_kit\\raw_data\\EmpireDesignData\\campaigns;");
             command.raw_arg(user_script_contents.replace("\n", " "));
         }
 
@@ -2633,10 +2636,16 @@ fn build_starpos_post(dependencies: &Dependencies, pack_file: &mut Pack, campaig
 
     let game = GAME_SELECTED.read().unwrap();
     let game_path = setting_path(game.key());
-    let game_data_path = game.data_path(&game_path)?;
 
     if !game_path.is_dir() {
         return Err(anyhow!("Game path incorrect. Fix it in the settings and try again."));
+    }
+
+    let game_data_path = game.data_path(&game_path)?;
+    let asskit_path = setting_path(&(game.key().to_owned() + "_assembly_kit"));
+
+    if !asskit_path.is_dir() {
+        return Err(anyhow!("Assembly Kit path incorrect. Fix it in the settings and try again."));
     }
 
     let config_path = game.config_path(&game_path).ok_or(anyhow!("Error getting the game's config path."))?;
@@ -2681,8 +2690,8 @@ fn build_starpos_post(dependencies: &Dependencies, pack_file: &mut Pack, campaig
         KEY_THRONES_OF_BRITANNIA |
         KEY_ATTILA => vec![config_path.join(format!("maps/campaigns/{}/startpos.esf", campaign_id))],
 
-        // Rome 2 outputs the startpos in the same place Warhammer 3 does.
-        KEY_ROME_2 => vec![game_data_path.join(format!("campaigns/{}/startpos.esf", campaign_id))],
+        // Rome 2 outputs the startpos in the assembly kit folder.
+        KEY_ROME_2 => vec![asskit_path.join(format!("working_data/campaigns/{}/startpos.esf", campaign_id))],
         KEY_SHOGUN_2 => return Err(anyhow!("Unsupported... yet. If you want to test support for this game, let me know.")),
         KEY_NAPOLEON => return Err(anyhow!("Unsupported... yet. If you want to test support for this game, let me know.")),
         KEY_EMPIRE => return Err(anyhow!("Unsupported... yet. If you want to test support for this game, let me know.")),
