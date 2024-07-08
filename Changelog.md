@@ -16,6 +16,9 @@ If you're looking for the changes included in the latest beta (against the lates
 - Implemented lookup support for filters.
 - Implemented Warhammer 3 support in the Unit Editor.
 - Implemented "Invalid Key on Lua Script" diagnostic.
+- Implemented automatic translation of entries with the same value in the Translator.
+- Implemented automatic translation of entries with the same value as a vanilla entry in the Translator.
+- Implemented automatic translation using google when first clicking on an untranslated line.
 
 ### Changed
 - Loose files in /data are now accessible as dependencies.
@@ -44,6 +47,10 @@ If you're looking for the changes included in the latest beta (against the lates
 - Fixed Drazhir lazyness on updates (may not work).
 - Fixed windows not opening the changelog due to missing associations with md files.
 - Fixed a double update triggering when trying to restart RPFM after an update.
+- Fixed a lot of issues related to selection being broken in the Translator.
+- Fixed a bug where sometimes the rigidmodel 3d renderer would fail to find textures.
+- Fixed Rome 2 Build Startpos process not including victory objectives in the startpos.
+- Fixed "Copy from Source" being a bit broken in the Translator.
 
 ## [4.2.7]
 ### Added
