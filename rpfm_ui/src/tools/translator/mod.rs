@@ -432,7 +432,11 @@ impl ToolTranslator {
         if !string.trim().is_empty() {
             let string = string.replace("\\\n", "\n");
             translate_from_english(&string, language).await
-                .map(|string| string.replace("\n", "\\\n"))
+                .map(|string|
+                    string
+                        .replace("\n", "\\\n")          // Fix jump lines.
+                        .replace("%20", " ")            // Fix weird spaces.
+                )
                 .map_err(|err| anyhow!(err.to_string()))
         } else {
             Ok(String::new())
