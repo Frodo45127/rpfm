@@ -103,14 +103,14 @@ impl Default for SupportedGames {
                     use_manifest: true,
                     store_id: 1_937_780, // Normal Game.
                     //store_id: 2_254_160, // Early Access Weekend
-                    store_id_ak: 9999999, // Unknown, tbfilled when the ak is released.
+                    store_id_ak: 1_937_790,
                     executable: "Pharaoh.exe".to_owned(),
                     data_path: "data".to_owned(),
                     language_path: "data".to_owned(),
                     local_mods_path: "data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/1937780".to_owned(), // Normal Game.
                     //downloaded_mods_path: "./../../workshop/content/2254160".to_owned(), // Early Access Weekend
-                    config_folder: Some("Pharaoh".to_owned()), // TODO: ensure this is correct once the final release of the game is released.
+                    config_folder: Some("Pharaoh".to_owned()),
                 });
 
                 data
