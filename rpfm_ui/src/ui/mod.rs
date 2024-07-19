@@ -78,10 +78,10 @@ use crate::utils::*;
 /// This means every widget/action that's created on start (menus, the TreeView,...) should be here.
 pub struct UI {
     pub app_ui: Rc<AppUI>,
-    pub pack_file_contents_ui: Rc<PackFileContentsUI>,
-    pub global_search_ui: Rc<GlobalSearchUI>,
-    pub diagnostics_ui: Rc<DiagnosticsUI>,
-    pub dependencies_ui: Rc<DependenciesUI>,
+    pub _pack_file_contents_ui: Rc<PackFileContentsUI>,
+    pub _global_search_ui: Rc<GlobalSearchUI>,
+    pub _diagnostics_ui: Rc<DiagnosticsUI>,
+    pub _dependencies_ui: Rc<DependenciesUI>,
 }
 
 /// This struct is used to hold all the Icons used for the window's titlebar.
@@ -307,10 +307,10 @@ impl UI {
         info!("Initialization complete.");
         Ok(Self {
             app_ui,
-            global_search_ui,
-            pack_file_contents_ui,
-            diagnostics_ui,
-            dependencies_ui
+            _global_search_ui: global_search_ui,
+            _pack_file_contents_ui: pack_file_contents_ui,
+            _diagnostics_ui: diagnostics_ui,
+            _dependencies_ui: dependencies_ui
         })
     }
 }
