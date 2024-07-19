@@ -1600,3 +1600,6 @@ text_invalid_key_explanation = In a lua table that has been marked as using valu
     This means if you end up using those values assuming all exists in the table, the script may break.
 
 translation_download_error = Error while trying to download the latest mod translations: {"{"}{"}"}.
+
+reload_renderer = Reload 3D Renderer
+settings_enable_renderer = Enable 3D Renderer

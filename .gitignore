@@ -133,3 +133,12 @@ dark-theme-custom.qss
 
 # These are usually files locked by applications.
 *.*~
+
+# Files copied from the rendering lib.
+/assets/
+
+# Renderer lib log.
+RenderViewLog.txt
+
+# Nuget's exe to fix the renderer repo on build.
+Nuget.exe

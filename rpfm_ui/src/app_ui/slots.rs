@@ -1596,6 +1596,14 @@ impl AppUISlots {
                             if let ViewType::Internal(View::RigidModel(view)) = file_view.view_type() {
                                 crate::ffi::resume_rendering(&view.renderer().as_ptr());
                             }
+
+                            else if let ViewType::Internal(View::VMD(view)) = file_view.view_type() {
+                                crate::ffi::resume_rendering(&view.renderer().as_ptr());
+                            }
+
+                            else if let ViewType::Internal(View::WSModel(view)) = file_view.view_type() {
+                                crate::ffi::resume_rendering(&view.renderer().as_ptr());
+                            }
                         }
 
                         // In normal compilation, stop here the loop.

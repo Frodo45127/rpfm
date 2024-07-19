@@ -272,6 +272,8 @@ pub enum RFileDecoded {
     UnitVariant(UnitVariant),
     Unknown(Unknown),
     Video(Video),
+    VMD(Text),
+    WSModel(Text),
 }
 
 /// This enum specifies the known types of files we can find in a Total War game.
@@ -306,6 +308,8 @@ pub enum FileType {
     UIC,
     UnitVariant,
     Video,
+    VMD,
+    WSModel,
 
     #[default]
     Unknown,
@@ -1536,6 +1540,8 @@ impl RFile {
                     FileType::UnitVariant => RFileDecoded::UnitVariant(UnitVariant::decode(&mut data, &Some(extra_data))?),
                     FileType::Unknown => RFileDecoded::Unknown(Unknown::decode(&mut data, &Some(extra_data))?),
                     FileType::Video => RFileDecoded::Video(Video::decode(&mut data, &Some(extra_data))?),
+                    FileType::VMD => RFileDecoded::VMD(Text::decode(&mut data, &Some(extra_data))?),
+                    FileType::WSModel => RFileDecoded::WSModel(Text::decode(&mut data, &Some(extra_data))?),
                 }
             },
 
@@ -1567,7 +1573,9 @@ impl RFile {
                     FileType::UIC |
                     FileType::UnitVariant |
                     FileType::Unknown |
-                    FileType::Video => {
+                    FileType::Video |
+                    FileType::VMD |
+                    FileType::WSModel => {
 
                         // Copy the provided extra data (if any), then replace the file-specific stuff.
                         let raw_data = data.read(data.is_compressed, data.is_encrypted)?;
@@ -1612,6 +1620,8 @@ impl RFile {
                             FileType::UnitVariant => RFileDecoded::UnitVariant(UnitVariant::decode(&mut data, &Some(extra_data))?),
                             FileType::Unknown => RFileDecoded::Unknown(Unknown::decode(&mut data, &Some(extra_data))?),
                             FileType::Video => RFileDecoded::Video(Video::decode(&mut data, &Some(extra_data))?),
+                            FileType::VMD => RFileDecoded::VMD(Text::decode(&mut data, &Some(extra_data))?),
+                            FileType::WSModel => RFileDecoded::WSModel(Text::decode(&mut data, &Some(extra_data))?),
 
                             FileType::AnimPack |
                             FileType::Pack => unreachable!("decode")
@@ -1719,6 +1729,8 @@ impl RFile {
                     RFileDecoded::UnitVariant(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::Unknown(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::Video(data) => data.encode(&mut buffer, extra_data)?,
+                    RFileDecoded::VMD(data) => data.encode(&mut buffer, extra_data)?,
+                    RFileDecoded::WSModel(data) => data.encode(&mut buffer, extra_data)?,
                 }
 
                 buffer
@@ -1921,6 +1933,14 @@ impl RFile {
 
         else if cfg!(feature = "support_uic") && path.starts_with(uic::BASE_PATH) && uic::EXTENSIONS.iter().any(|x| path.ends_with(x) || !path.contains('.')) {
             self.file_type = FileType::UIC;
+        }
+
+        else if path.ends_with(text::EXTENSION_VMD.0) {
+            self.file_type = FileType::VMD;
+        }
+
+        else if path.ends_with(text::EXTENSION_WSMODEL.0) {
+            self.file_type = FileType::WSModel;
         }
 
         else if text::EXTENSIONS.iter().any(|(x, _)| path.ends_with(x)) {
@@ -2368,6 +2388,8 @@ impl Display for FileType {
             FileType::UnitVariant => write!(f, "Unit Variant"),
             FileType::Unknown => write!(f, "Unknown"),
             FileType::Video => write!(f, "Video"),
+            FileType::VMD => write!(f, "VMD"),
+            FileType::WSModel => write!(f, "WSModel"),
         }
     }
 }
@@ -2401,6 +2423,8 @@ impl From<&str> for FileType {
             "UnitVariant" => FileType::UnitVariant,
             "Unknown" => FileType::Unknown,
             "Video" => FileType::Video,
+            "VMD" => FileType::VMD,
+            "WSModel" => FileType::WSModel,
             _ => unimplemented!(),
         }
     }
@@ -2435,6 +2459,8 @@ impl From<FileType> for String {
             FileType::UnitVariant => "UnitVariant",
             FileType::Unknown => "Unknown",
             FileType::Video => "Video",
+            FileType::VMD => "VMD",
+            FileType::WSModel => "WSModel",
         }.to_owned()
     }
 }
@@ -2468,6 +2494,8 @@ impl From<&RFileDecoded> for FileType {
             RFileDecoded::UnitVariant(_) => Self::UnitVariant,
             RFileDecoded::Unknown(_) => Self::Unknown,
             RFileDecoded::Video(_) => Self::Video,
+            RFileDecoded::VMD(_) => Self::VMD,
+            RFileDecoded::WSModel(_) => Self::WSModel,
         }
     }
 }

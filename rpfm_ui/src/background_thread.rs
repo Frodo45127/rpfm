@@ -3111,6 +3111,8 @@ fn decode_and_send_file(file: &mut RFile, sender: &Sender<Response>) {
         Ok(RFileDecoded::UnitVariant(data)) => CentralCommand::send_back(sender, Response::UnitVariantRFileInfo(data, From::from(&*file))),
         Ok(RFileDecoded::Unknown(_)) => CentralCommand::send_back(sender, Response::Unknown),
         Ok(RFileDecoded::Video(data)) => CentralCommand::send_back(sender, Response::VideoInfoRFileInfo(From::from(&data), From::from(&*file))),
+        Ok(RFileDecoded::VMD(data)) => CentralCommand::send_back(sender, Response::VMDRFileInfo(data, From::from(&*file))),
+        Ok(RFileDecoded::WSModel(data)) => CentralCommand::send_back(sender, Response::WSModelRFileInfo(data, From::from(&*file))),
         Err(error) => CentralCommand::send_back(sender, Response::Error(From::from(error))),
     }
 }

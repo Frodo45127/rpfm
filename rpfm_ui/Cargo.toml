@@ -98,4 +98,4 @@ reqwest = "^0.12"
 # Windows resources support.
 [target.'cfg(windows)'.build-dependencies]
 winres = "^0.1"
-
+fs_extra = "^1.3"

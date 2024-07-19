@@ -85,6 +85,8 @@ pub struct Icons {
     pub text_js: AtomicPtr<QIcon>,
     pub text_css: AtomicPtr<QIcon>,
     pub text_python: AtomicPtr<QIcon>,
+    pub text_vmd: AtomicPtr<QIcon>,
+    pub text_wsmodel: AtomicPtr<QIcon>,
 
     pub rigid_model: AtomicPtr<QIcon>,
     pub unit_variant: AtomicPtr<QIcon>,
@@ -140,6 +142,8 @@ impl Icons {
             text_js: atomic_from_cpp_box(Self::load_icon("text_js", "text-javascript")),
             text_css: atomic_from_cpp_box(Self::load_icon("text_css", "text-css")),
             text_python: atomic_from_cpp_box(Self::load_icon("text_python", "text-x-python")),
+            text_vmd: atomic_from_cpp_box(Self::load_icon("text-xml", "text-xml")),
+            text_wsmodel: atomic_from_cpp_box(Self::load_icon("text_wsmodel", "text-xml")),
             rigid_model: atomic_from_cpp_box(Self::load_icon("rigid_model", "application-x-blender")),
             unit_variant: atomic_from_cpp_box(Self::load_icon("unit_variant", "application-vnd.openxmlformats-officedocument.spreadsheetml.sheet")),
             uic: atomic_from_cpp_box(Self::load_icon("uic", "application-x-designer")),
@@ -233,6 +237,14 @@ impl Icons {
 
                 else if cfg!(feature = "support_uic") && path.starts_with(uic::BASE_PATH) && uic::EXTENSIONS.iter().any(|x| path.ends_with(x) || !path.contains('.')) {
                     &self.uic
+                }
+
+                else if path.ends_with(text::EXTENSION_VMD.0) {
+                    &self.text_vmd
+                }
+
+                else if path.ends_with(text::EXTENSION_WSMODEL.0) {
+                    &self.text_wsmodel
                 }
 
                 else if let Some((_, text_type)) = text::EXTENSIONS.iter().find(|(extension, _)| path.ends_with(extension)) {
@@ -368,6 +380,8 @@ impl Icons {
                     FileType::UnitVariant => &self.unit_variant,
                     FileType::Video => &self.video,
                     FileType::Unknown => &self.file,
+                    FileType::VMD => &self.text_vmd,
+                    FileType::WSModel => &self.text_wsmodel,
 
                 },
                 None => &self.folder,

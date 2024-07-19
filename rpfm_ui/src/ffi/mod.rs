@@ -534,11 +534,11 @@ pub fn get_last_rigid_model_error(parent: &Ptr<QWidget>) -> Result<String> {
 }
 
 #[cfg(feature = "support_model_renderer")]
-extern "C" { fn CreateQRenderingWidget(parent: *mut QWidget, gameIdString: *mut QString, AssetFetchCallBack: extern fn (*mut QListOfQString, *mut QListOfQByteArray)) -> *mut QWidget; }
+extern "C" { fn CreateQRenderingWidget(parent: *mut QWidget, gameIdString: *mut QString, AssetFetchCallBack: extern fn (*mut QListOfQString, *mut QListOfQByteArray), AnimPathsBySkeletonCallBack: extern fn (*mut QString, *mut QListOfQString)) -> *mut QWidget; }
 #[cfg(feature = "support_model_renderer")]
 pub fn create_q_rendering_widget(parent: &Ptr<QWidget>) -> Result<QBox<QWidget>> {
     let game = QString::from_std_str(GAME_SELECTED.read().unwrap().key());
-    let widget = unsafe { CreateQRenderingWidget(parent.as_mut_raw_ptr(), game.as_mut_raw_ptr(), assets_request_callback) };
+    let widget = unsafe { CreateQRenderingWidget(parent.as_mut_raw_ptr(), game.as_mut_raw_ptr(), assets_request_callback, anim_paths_by_skeleton_callback) };
     if widget.is_null() {
         Err(anyhow!("Error creating rendering widget. Check log for more info/reporting it as a bug."))
     } else {

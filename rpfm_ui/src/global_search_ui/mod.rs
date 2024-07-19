@@ -1943,7 +1943,7 @@ impl GlobalSearchUI {
                             }
                         }
                         FileType::SoundBank => todo!(),
-                        FileType::Text => {
+                        FileType::Text | FileType::VMD | FileType::WSModel => {
                             let row_number = parent.child_2a(item.row(), 2).text().to_std_string().parse::<i64>().unwrap() - 1;
                             let text = parent.child_2a(item.row(), 0).text().to_std_string();
                             let start = parent.child_2a(item.row(), 4).text().to_std_string().parse::<usize>().unwrap();
@@ -2228,7 +2228,7 @@ impl GlobalSearchUI {
                             }
                         }
                         FileType::SoundBank => todo!(),
-                        FileType::Text => {
+                        FileType::Text | FileType::VMD | FileType::WSModel => {
                             if let Some(position) = text_matches.iter().position(|x| x.path() == &path) {
                                 text_matches.remove(position);
                             }

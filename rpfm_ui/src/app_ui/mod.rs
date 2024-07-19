@@ -94,7 +94,7 @@ use crate::GAME_SELECTED;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::NEW_FILE_VIEW_CREATED;
 use crate::pack_tree::{BuildData, new_pack_file_tooltip, PackTree, TreeViewOperation};
-use crate::packedfile_views::{anim_fragment_battle::*, animpack::*, anims_table::*, audio::FileAudioView, bmd::FileBMDView, DataSource, decoder::*, dependencies_manager::*, esf::*, external::*, group_formations::*, image::*, matched_combat::*, FileView, packfile::PackFileExtraView, packfile_settings::*, portrait_settings::PortraitSettingsView, SpecialView, table::*, text::*, unit_variant::*, video::*};
+use crate::packedfile_views::{anim_fragment_battle::*, animpack::*, anims_table::*, audio::FileAudioView, bmd::FileBMDView, DataSource, decoder::*, dependencies_manager::*, esf::*, external::*, group_formations::*, image::*, matched_combat::*, FileView, packfile::PackFileExtraView, packfile_settings::*, portrait_settings::PortraitSettingsView, SpecialView, table::*, text::*, unit_variant::*, video::*, vmd::*};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::references_ui::ReferencesUI;
 use crate::SCHEMA;
@@ -2250,7 +2250,12 @@ impl AppUI {
                         #[cfg(feature = "support_model_renderer")] {
                             if let ViewType::Internal(View::RigidModel(view)) = file_view.view_type() {
                                 crate::ffi::pause_rendering(&view.renderer().as_ptr());
+                            } else if let ViewType::Internal(View::VMD(view)) = file_view.view_type() {
+                                crate::ffi::pause_rendering(&view.renderer().as_ptr());
+                            } else if let ViewType::Internal(View::WSModel(view)) = file_view.view_type() {
+                                crate::ffi::pause_rendering(&view.renderer().as_ptr());
                             }
+
                         }
 
                         app_ui.tab_bar_packed_file.remove_tab(index);
@@ -2277,6 +2282,10 @@ impl AppUI {
                         // If they're a rigid view, we need to pause their rendering.
                         #[cfg(feature = "support_model_renderer")] {
                             if let ViewType::Internal(View::RigidModel(view)) = tab_widget.view_type() {
+                                crate::ffi::resume_rendering(&view.renderer().as_ptr());
+                            } else if let ViewType::Internal(View::VMD(view)) = tab_widget.view_type() {
+                                crate::ffi::resume_rendering(&view.renderer().as_ptr());
+                            } else if let ViewType::Internal(View::WSModel(view)) = tab_widget.view_type() {
                                 crate::ffi::resume_rendering(&view.renderer().as_ptr());
                             }
                         }
@@ -2793,6 +2802,42 @@ impl AppUI {
                                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), data_source);
                             }
                         }
+
+                        Response::VMDRFileInfo(data, file_info) => {
+                            FileVMDView::new_view(&mut tab, app_ui, pack_file_contents_ui, &data, FileType::VMD);
+
+                            // Add the file to the 'Currently open' list and make it visible.
+                            app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
+
+                            // Fix the quick notes view.
+                            let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
+                            layout.add_widget_5a(tab.notes_widget(), 0, 99, layout.row_count(), 1);
+
+                            let mut open_list = UI_STATE.set_open_packedfiles();
+                            open_list.push(tab);
+
+                            if data_source == DataSource::PackFile {
+                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), data_source);
+                            }
+                        },
+
+                        Response::WSModelRFileInfo(data, file_info) => {
+                            FileVMDView::new_view(&mut tab, app_ui, pack_file_contents_ui, &data, FileType::WSModel);
+
+                            // Add the file to the 'Currently open' list and make it visible.
+                            app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
+
+                            // Fix the quick notes view.
+                            let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
+                            layout.add_widget_5a(tab.notes_widget(), 0, 99, layout.row_count(), 1);
+
+                            let mut open_list = UI_STATE.set_open_packedfiles();
+                            open_list.push(tab);
+
+                            if data_source == DataSource::PackFile {
+                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), data_source);
+                            }
+                        },
 
                         Response::Error(error) => {
                             app_ui.tab_bar_packed_file.remove_tab(tab_index);

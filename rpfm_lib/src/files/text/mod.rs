@@ -77,7 +77,7 @@ const BOM_UTF_8: [u8;3] = [0xEF,0xBB,0xBF];
 const BOM_UTF_16_LE: [u8;2] = [0xFF,0xFE];
 
 /// List of extensions we recognize as `Text` files, with their respective known format.
-pub const EXTENSIONS: [(&str, TextFormat); 55] = [
+pub const EXTENSIONS: [(&str, TextFormat); 53] = [
     (".bat", TextFormat::Bat),
     (".battle_speech_camera", TextFormat::Plain),
     (".benchmark", TextFormat::Xml),
@@ -126,14 +126,15 @@ pub const EXTENSIONS: [(&str, TextFormat); 55] = [
     (".tsv", TextFormat::Plain),
     (".twui", TextFormat::Lua),
     (".txt", TextFormat::Plain),
-    (".variantmeshdefinition", TextFormat::Xml),
-    (".wsmodel", TextFormat::Xml),
     (".xml", TextFormat::Xml),
     (".xml_temp", TextFormat::Xml),
     (".xml.shader", TextFormat::Xml),
     (".xml.material", TextFormat::Xml),
     (".material", TextFormat::Xml),     // This has to be under xml.material
 ];
+
+pub const EXTENSION_VMD: (&str, TextFormat) = (".variantmeshdefinition", TextFormat::Xml);
+pub const EXTENSION_WSMODEL: (&str, TextFormat) = (".wsmodel", TextFormat::Xml);
 
 #[cfg(test)] mod text_test;
 

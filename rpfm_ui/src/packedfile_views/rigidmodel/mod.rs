@@ -23,13 +23,15 @@ use qt_core::QBox;
 #[cfg(feature = "support_rigidmodel")] use qt_core::QByteArray;
 use qt_core::QPtr;
 
-#[cfg(feature = "support_model_renderer")]use cpp_core::CppDeletable;
 
 use std::sync::Arc;
 #[cfg(feature = "support_model_renderer")] use std::sync::RwLock;
 
 use anyhow::Result;
 use getset::*;
+
+#[cfg(feature = "support_model_renderer")] use rpfm_ui_common::settings::setting_bool;
+#[cfg(feature = "support_model_renderer")] use rpfm_ui_common::utils::show_dialog;
 
 use rpfm_lib::files::FileType;
 use rpfm_lib::files::rigidmodel::RigidModel;
@@ -47,7 +49,7 @@ use crate::packedfile_views::{FileView, View, ViewType};
 pub struct PackedFileRigidModelView {
     #[cfg(feature = "support_rigidmodel")] editor: QBox<QWidget>,
     #[cfg(feature = "support_model_renderer")] renderer: QBox<QWidget>,
-
+    #[cfg(feature = "support_model_renderer")] renderer_enabled: bool,
     #[cfg(feature = "support_model_renderer")] path: Option<Arc<RwLock<String>>>,
 }
 
@@ -68,6 +70,7 @@ impl PackedFileRigidModelView {
         let splitter = QSplitter::from_q_widget(file_view.main_widget());
         layout.add_widget_5a(&splitter, 0, 0, 1, 1);
 
+        let mut renderer_enabled = false;
         let view = Arc::new(PackedFileRigidModelView{
             #[cfg(feature = "support_rigidmodel")] editor: {
                 let data = QByteArray::from_slice(data.data());
@@ -78,22 +81,32 @@ impl PackedFileRigidModelView {
             },
 
             #[cfg(feature = "support_model_renderer")] renderer: {
-                if let Ok(renderer) = create_q_rendering_widget(&mut file_view.main_widget().as_ptr()) {
+                if setting_bool("enable_renderer") {
+                    match create_q_rendering_widget(&mut file_view.main_widget().as_ptr()) {
+                        Ok(renderer) => {
 
-                    // We need to manually kill the renderer or it'll keep lagging the UI.
-                    if let Err(error) = add_new_primary_asset(&renderer.as_ptr(), &file_view.path().read().unwrap(), data.data()) {
-                        renderer.delete();
+                            // We need to manually pause the renderer or it'll keep lagging the UI.
+                            if let Err(error) = add_new_primary_asset(&renderer.as_ptr(), &file_view.path().read().unwrap(), data.data()) {
+                                show_dialog(file_view.main_widget(), error, false);
+                                pause_rendering(&renderer.as_ptr());
+                            }
 
-                        QWidget::new_1a(file_view.main_widget())
-                    } else {
-                        splitter.add_widget(&renderer);
-                        renderer
+                            renderer_enabled = true;
+                            renderer.size_policy().set_horizontal_stretch(1);
+                            splitter.add_widget(&renderer);
+                            renderer
+                        }
+                        Err(error) => {
+                            show_dialog(file_view.main_widget(), error, false);
+                            QWidget::new_1a(file_view.main_widget())
+                        }
                     }
                 } else {
                     QWidget::new_1a(file_view.main_widget())
                 }
             },
 
+            #[cfg(feature = "support_model_renderer")] renderer_enabled,
             #[cfg(feature = "support_model_renderer")] path: Some(file_view.path_raw()),
         });
 
@@ -122,7 +135,9 @@ impl PackedFileRigidModelView {
 
         #[cfg(feature = "support_model_renderer")] {
             if let Some(ref path) = self.path {
-                let _ = add_new_primary_asset(&self.renderer.as_ptr(), &path.read().unwrap(), data.data());
+                if self.renderer_enabled {
+                    let _ = add_new_primary_asset(&self.renderer.as_ptr(), &path.read().unwrap(), data.data());
+                }
             }
         }
 

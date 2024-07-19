@@ -581,7 +581,9 @@ impl GlobalSearch {
                             });
 
                             let edited = match decoded {
-                                RFileDecoded::Text(text) => text.replace(&self.pattern, &self.replace_text, self.case_sensitive, &matching_mode, &search_matches),
+                                RFileDecoded::Text(text) |
+                                RFileDecoded::VMD(text) |
+                                RFileDecoded::WSModel(text) => text.replace(&self.pattern, &self.replace_text, self.case_sensitive, &matching_mode, &search_matches),
                                 _ => unimplemented!(),
                             };
 
@@ -697,7 +699,11 @@ impl SearchOn {
         if *self.portrait_settings() { types.push(FileType::PortraitSettings); }
         if *self.rigid_model() { types.push(FileType::RigidModel); }
         if *self.sound_bank() { types.push(FileType::SoundBank); }
-        if *self.text() { types.push(FileType::Text); }
+        if *self.text() {
+            types.push(FileType::Text);
+            types.push(FileType::VMD);
+            types.push(FileType::WSModel);
+        }
         if *self.uic() { types.push(FileType::UIC); }
         if *self.unit_variant() { types.push(FileType::UnitVariant); }
         if *self.unknown() { types.push(FileType::Unknown); }
@@ -948,8 +954,30 @@ impl Matches {
                     }*/
                     None
                 } else if search_on.text && file.file_type() == FileType::Text {
-                    if let Ok(RFileDecoded::Text(table)) = file.decode(&None, false, true).transpose().unwrap() {
-                        let result = table.search(file.path_in_container_raw(), pattern, case_sensitive, matching_mode);
+                    if let Ok(RFileDecoded::Text(text)) = file.decode(&None, false, true).transpose().unwrap() {
+                        let result = text.search(file.path_in_container_raw(), pattern, case_sensitive, matching_mode);
+                        if !result.matches().is_empty() {
+                            Some((None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, Some(result), None, None, None, None))
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                } else if search_on.text && file.file_type() == FileType::VMD {
+                    if let Ok(RFileDecoded::VMD(text)) = file.decode(&None, false, true).transpose().unwrap() {
+                        let result = text.search(file.path_in_container_raw(), pattern, case_sensitive, matching_mode);
+                        if !result.matches().is_empty() {
+                            Some((None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, Some(result), None, None, None, None))
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                } else if search_on.text && file.file_type() == FileType::WSModel {
+                    if let Ok(RFileDecoded::WSModel(text)) = file.decode(&None, false, true).transpose().unwrap() {
+                        let result = text.search(file.path_in_container_raw(), pattern, case_sensitive, matching_mode);
                         if !result.matches().is_empty() {
                             Some((None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, Some(result), None, None, None, None))
                         } else {

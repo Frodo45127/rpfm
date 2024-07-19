@@ -440,6 +440,8 @@ pub enum Response {
 
     /// Response to return `(Text, RFileInfo)`.
     TextRFileInfo(Text, RFileInfo),
+    VMDRFileInfo(Text, RFileInfo),
+    WSModelRFileInfo(Text, RFileInfo),
 
     /// Response to return `(DB, RFileInfo)`.
     DBRFileInfo(DB, RFileInfo),

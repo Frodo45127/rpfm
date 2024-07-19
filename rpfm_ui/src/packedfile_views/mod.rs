@@ -61,6 +61,7 @@ use self::table::PackedFileTableView;
 use self::text::PackedFileTextView;
 use self::unit_variant::UnitVariantView;
 use self::video::PackedFileVideoView;
+use self::vmd::FileVMDView;
 
 #[cfg(any(feature = "support_rigidmodel", feature = "support_model_renderer"))]
 use self::rigidmodel::PackedFileRigidModelView;
@@ -95,6 +96,7 @@ pub mod uic;
 pub mod unit_variant;
 pub mod utils;
 pub mod video;
+pub mod vmd;
 
 const RFILE_SAVED_ERROR: &str = "The following PackedFile failed to be saved: ";
 const RFILE_RELOAD_ERROR: &str = "The PackedFile you added is not the same type as the one you had before. So… the view showing it will get closed.";
@@ -175,6 +177,8 @@ pub enum View {
     UIC(Arc<FileUICView>),
     UnitVariant(Arc<UnitVariantView>),
     Video(Arc<PackedFileVideoView>),
+    VMD(Arc<FileVMDView>),
+    WSModel(Arc<FileVMDView>),
     None,
 }
 
@@ -432,7 +436,20 @@ impl FileView {
                                 let _ = CENTRAL_COMMAND.send_background(Command::SetVideoFormat(self.path_copy(), view.get_current_format()));
                                 return Ok(());
                             }
-
+                            View::VMD(view) => {
+                                let mut text = Text::default();
+                                let widget = view.get_mut_editor();
+                                let string = get_text_safe(widget).to_std_string();
+                                text.set_contents(string);
+                                RFileDecoded::VMD(text)
+                            },
+                            View::WSModel(view) => {
+                                let mut text = Text::default();
+                                let widget = view.get_mut_editor();
+                                let string = get_text_safe(widget).to_std_string();
+                                text.set_contents(string);
+                                RFileDecoded::WSModel(text)
+                            },
                             View::None => todo!(),
                         };
 
@@ -668,6 +685,26 @@ impl FileView {
                         Response::VideoInfoRFileInfo(video, packed_file_info) => {
                             if let View::Video(old_video) = view {
                                 old_video.reload_view(&video);
+                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
+                            }
+                            else {
+                                return Err(anyhow!(RFILE_RELOAD_ERROR));
+                            }
+                        },
+
+                        Response::VMDRFileInfo(text, packed_file_info) => {
+                            if let View::VMD(old_text) = view {
+                                old_text.reload_view(&text);
+                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
+                            }
+                            else {
+                                return Err(anyhow!(RFILE_RELOAD_ERROR));
+                            }
+                        },
+
+                        Response::WSModelRFileInfo(text, packed_file_info) => {
+                            if let View::WSModel(old_text) = view {
+                                old_text.reload_view(&text);
                                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
                             }
                             else {

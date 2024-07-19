@@ -156,6 +156,7 @@ pub unsafe fn init_settings(main_window: &QPtr<QMainWindow>) {
     set_setting_if_new_bool(&q_settings, "enable_rigidmodel_editor", true);
     set_setting_if_new_bool(&q_settings, "enable_unit_editor", false);
     set_setting_if_new_bool(&q_settings, "enable_esf_editor", false);
+    #[cfg(feature = "support_model_renderer")] set_setting_if_new_bool(&q_settings, "enable_renderer", true);
 
     // Diagnostics Settings
     set_setting_if_new_bool(&q_settings, "diagnostics_trigger_on_open", true);
