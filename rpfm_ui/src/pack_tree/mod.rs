@@ -118,9 +118,6 @@ pub trait PackTree {
     /// This function is used to expand an item and all it's children recursively.
     unsafe fn expand_all_from_item(tree_view: &QTreeView, item: Ptr<QStandardItem>, first_item: bool);
 
-    /// This function is used to expand an item and all it's children recursively.
-    unsafe fn expand_all_from_type(tree_view: &QTreeView, item: &ContainerPath);
-
     /// This function gives you the items selected in the PackFile Content's TreeView.
     unsafe fn get_items_from_main_treeview_selection(pack_file_contents_ui: &Rc<PackFileContentsUI>) -> Vec<Ptr<QStandardItem>>;
 
@@ -442,13 +439,6 @@ impl PackTree for QPtr<QTreeView> {
             }
         }
         None
-    }
-
-    unsafe fn expand_all_from_type(tree_view: &QTreeView, item: &ContainerPath) {
-        let filter: QPtr<QSortFilterProxyModel> = tree_view.model().static_downcast();
-        let model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
-        let item = Self::item_from_path(item, &model);
-        Self::expand_all_from_item(tree_view, item, true);
     }
 
     unsafe fn expand_all_from_item(tree_view: &QTreeView, item: Ptr<QStandardItem>, first_item: bool) {
