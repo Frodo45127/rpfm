@@ -1,17 +1,17 @@
 <!DOCTYPE HTML>
-<html lang="en" class="sidebar-visible no-js rust">
+<html lang="en" class="rust" dir="ltr">
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
         <title>Rusted PackFile Manager Documentation</title>
-        <meta name="robots" content="noindex" />
+        <meta name="robots" content="noindex">
 
 
         <!-- Custom HTML head -->
         
         <meta name="description" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="theme-color" content="#ffffff" />
+        <meta name="theme-color" content="#ffffff">
 
         <link rel="icon" href="favicon.svg">
         <link rel="shortcut icon" href="favicon.png">
@@ -32,7 +32,7 @@
         <!-- Custom theme stylesheets -->
 
     </head>
-    <body>
+    <body class="sidebar-visible no-js">
     <div id="body-container">
         <!-- Provide site root to javascript -->
         <script>
@@ -62,40 +62,71 @@
             try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
             if (theme === null || theme === undefined) { theme = default_theme; }
             var html = document.querySelector('html');
-            html.classList.remove('no-js')
             html.classList.remove('rust')
             html.classList.add(theme);
-            html.classList.add('js');
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
         </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
 
         <!-- Hide / unhide sidebar before it is displayed -->
         <script>
-            var html = document.querySelector('html');
-            var sidebar = 'hidden';
+            var body = document.querySelector('body');
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
             if (document.body.clientWidth >= 1080) {
                 try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
                 sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
             }
-            html.classList.remove('sidebar-visible');
-            html.classList.add("sidebar-" + sidebar);
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
         </script>
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
                 <ol class="chapter"><li class="chapter-item expanded "><a href="chapter_1.html"><strong aria-hidden="true">1.</strong> What's RPFM?</a></li><li class="chapter-item expanded "><a href="chapter_2.html"><strong aria-hidden="true">2.</strong> Initial Configuration</a></li><li class="chapter-item expanded "><a href="chapter_3_0.html"><strong aria-hidden="true">3.</strong> Buttons and What They Do</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="chapter_3_1_0.html"><strong aria-hidden="true">3.1.</strong> Menu Bar</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="chapter_3_1_1.html"><strong aria-hidden="true">3.1.1.</strong> PackFile Menu</a></li><li class="chapter-item expanded "><a href="chapter_3_1_2.html"><strong aria-hidden="true">3.1.2.</strong> MyMod Menu</a></li><li class="chapter-item expanded "><a href="chapter_3_1_3.html"><strong aria-hidden="true">3.1.3.</strong> View Menu</a></li><li class="chapter-item expanded "><a href="chapter_3_1_4.html"><strong aria-hidden="true">3.1.4.</strong> Game Selected Menu</a></li><li class="chapter-item expanded "><a href="chapter_3_1_5.html"><strong aria-hidden="true">3.1.5.</strong> Special Stuff Menu</a></li><li class="chapter-item expanded "><a href="chapter_3_1_8.html"><strong aria-hidden="true">3.1.6.</strong> Tools Menu</a></li><li class="chapter-item expanded "><a href="chapter_3_1_6.html"><strong aria-hidden="true">3.1.7.</strong> About Menu</a></li><li class="chapter-item expanded "><a href="chapter_3_1_7.html"><strong aria-hidden="true">3.1.8.</strong> Debug Menu</a></li></ol></li><li class="chapter-item expanded "><a href="chapter_3_2_0.html"><strong aria-hidden="true">3.2.</strong> PackFile TreeView</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="chapter_3_2_1.html"><strong aria-hidden="true">3.2.1.</strong> Dependency Manager</a></li><li class="chapter-item expanded "><a href="chapter_3_2_2.html"><strong aria-hidden="true">3.2.2.</strong> PackFile Settings</a></li><li class="chapter-item expanded "><a href="chapter_3_2_3.html"><strong aria-hidden="true">3.2.3.</strong> Notes</a></li></ol></li><li class="chapter-item expanded "><a href="chapter_3_3_0.html"><strong aria-hidden="true">3.3.</strong> Global Search</a></li><li class="chapter-item expanded "><a href="chapter_3_4_0.html"><strong aria-hidden="true">3.4.</strong> Diagnostics Panel</a></li><li class="chapter-item expanded "><a href="chapter_3_5_0.html"><strong aria-hidden="true">3.5.</strong> Dependencies Panel</a></li><li class="chapter-item expanded "><a href="chapter_3_6_0.html"><strong aria-hidden="true">3.6.</strong> References Panel</a></li><li class="chapter-item expanded "><a href="chapter_3_7.html"><strong aria-hidden="true">3.7.</strong> Quick Notes Panel</a></li></ol></li><li class="chapter-item expanded "><a href="chapter_4_0.html"><strong aria-hidden="true">4.</strong> Editable Files</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="chapter_4_1.html"><strong aria-hidden="true">4.1.</strong> DB Tables</a></li><li class="chapter-item expanded "><a href="chapter_4_2.html"><strong aria-hidden="true">4.2.</strong> Locs</a></li><li class="chapter-item expanded "><a href="chapter_4_3.html"><strong aria-hidden="true">4.3.</strong> Text</a></li><li class="chapter-item expanded "><a href="chapter_4_4.html"><strong aria-hidden="true">4.4.</strong> Images</a></li><li class="chapter-item expanded "><a href="chapter_4_5.html"><strong aria-hidden="true">4.5.</strong> CA_VP8</a></li><li class="chapter-item expanded "><a href="chapter_4_6.html"><strong aria-hidden="true">4.6.</strong> AnimPacks</a></li><li class="chapter-item expanded "><a href="chapter_4_7.html"><strong aria-hidden="true">4.7.</strong> AnimTables</a></li><li class="chapter-item expanded "><a href="chapter_4_8.html"><strong aria-hidden="true">4.8.</strong> AnimFragments</a></li><li class="chapter-item expanded "><a href="chapter_4_9.html"><strong aria-hidden="true">4.9.</strong> MatchedCombat Tables</a></li><li class="chapter-item expanded "><a href="chapter_4_10.html"><strong aria-hidden="true">4.10.</strong> Portrait Settings</a></li><li class="chapter-item expanded "><a href="chapter_4_11.html"><strong aria-hidden="true">4.11.</strong> Audio</a></li><li class="chapter-item expanded "><a href="chapter_4_12.html"><strong aria-hidden="true">4.12.</strong> RigidModels</a></li></ol></li><li class="chapter-item expanded "><a href="chapter_5.html"><strong aria-hidden="true">5.</strong> DB Decoder</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="chapter_5_1.html"><strong aria-hidden="true">5.1.</strong> DB Types</a></li></ol></li><li class="chapter-item expanded "><a href="chapter_appendix.html"><strong aria-hidden="true">6.</strong> Extras</a></li><li class="chapter-item expanded "><a href="chapter_comp.html"><strong aria-hidden="true">7.</strong> Compilation Instructions</a></li></ol>
             </div>
-            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
         </nav>
+
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
 
         <div id="page-wrapper" class="page-wrapper">
 
             <div class="page">
                                 <div id="menu-bar-hover-placeholder"></div>
-                <div id="menu-bar" class="menu-bar sticky bordered">
+                <div id="menu-bar" class="menu-bar sticky">
                     <div class="left-buttons">
-                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
                             <i class="fa fa-bars"></i>
-                        </button>
+                        </label>
                         <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
                             <i class="fa fa-paint-brush"></i>
                         </button>
@@ -268,7 +299,7 @@ And now, let's begin!</li>
 <li><code>References</code>: A panel to show references found with the <code>Find References</code> feature.</li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="game-selected-menu"><a class="header" href="#game-selected-menu"><code>Game Selected</code> Menu</a></h1>
-<p><img src="./images/image9.png" alt="I'm a man of many games..." /></p>
+<p><img src="./images/image9.png" alt="I&#39;m a man of many games..." /></p>
 <p>In this menu you can <strong>change the currently selected game</strong>. When opening PackFiles, RPFM tries to be smart and auto-select a game, but there are some PackFiles that are the same between games (for example, Attila and Warhammer 1 PackFiles are identical), so... just make sure the right game is selected after opening a PackFile, as that affects how many parts of the program work. The complete list of supported games is:</p>
 <ul>
 <li><code>Warhammer 3</code>: Full Support.</li>
@@ -329,7 +360,7 @@ And now, let's begin!</li>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="debug-menu"><a class="header" href="#debug-menu"><code>Debug</code> Menu</a></h1>
 <p>Stay away from this.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="packfile-treeview"><a class="header" href="#packfile-treeview">PackFile TreeView</a></h1>
-<p><img src="./images/image12.png" alt="It's beautiful..." /></p>
+<p><img src="./images/image12.png" alt="It&#39;s beautiful..." /></p>
 <p>That thing on the left with folders and stuff is the <strong>PackFile's TreeView</strong>. That's where all the files inside your PackFiles will show up. If you don't like it there, it can be moved elsewere, or even closed. When you Right-Click on any of them, this context menu will show up:</p>
 <p><img src="./images/image13.png" alt="Contextualize THIS!" /></p>
 <p>These are the actions you can use to alter the PackFile. Each one of them has a hotkey, in case you're a lazy bastard. These are all the actions in the menu:</p>
@@ -434,7 +465,7 @@ And now, let's begin!</li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="notes"><a class="header" href="#notes">Notes</a></h1>
 <p><img src="./images/notes.png" alt="Note me, Sempai..." /></p>
-<p><code>Notes</code> is a system of simple notes stored in the PackFiles. It's just a way to keep non-standard things (like <em>&quot;this column is for X, remember it when changing Y!&quot;</em>) in your PackFiles. You can have one note per PackFile. Use it for whatever you want. For file-specific notes, use the Quick Notes system.</p>
+<p><code>Notes</code> is a system of simple notes stored in the PackFiles. It's just a way to keep non-standard things (like <em>"this column is for X, remember it when changing Y!"</em>) in your PackFiles. You can have one note per PackFile. Use it for whatever you want. For file-specific notes, use the Quick Notes system.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="global-search"><a class="header" href="#global-search">Global Search</a></h1>
 <p><img src="./images/image15.png" alt="Gonna search you around the globe, with a satelite and infrared to see you move through the night..." /></p>
 <p><code>Global Search</code> allows you to perform a simple search (accepts Regex) across every DB/Loc/Text file inside your PackFile (and the schema of the currently selected game), providing you with a filterable list of results in the right of the screen.</p>
@@ -461,9 +492,9 @@ And now, let's begin!</li>
 <p><img src="./images/dependencies.png" alt="A dependant one?" /></p>
 <p><code>Dependencies</code> panel allows you to quickly access any vanilla/parent file from RPFM, without having to load it to an open PackFile. It also allows you to import them to the currently open PackFile, and extract them to the filesystem. Only works if the dependencies cache has been generated.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="references-panel"><a class="header" href="#references-panel">References Panel</a></h1>
-<p><code>References</code> panel allows you to list all references to a particular value found in both, your PackFile, and any loaded dependencies. To populate it, use the &quot;Find References&quot; table feature.</p>
+<p><code>References</code> panel allows you to list all references to a particular value found in both, your PackFile, and any loaded dependencies. To populate it, use the "Find References" table feature.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="quick-notes"><a class="header" href="#quick-notes">Quick Notes</a></h1>
-<p>If you right-click in a file tab, and hit &quot;Toggle Quick Notes&quot;, you can access the Quick Notes panel. This panel allows you to write notes that will always show up when you open files under a certain path. It's useful for TODO notes, or for documenting file-specific workarounds.</p>
+<p>If you right-click in a file tab, and hit "Toggle Quick Notes", you can access the Quick Notes panel. This panel allows you to write notes that will always show up when you open files under a certain path. It's useful for TODO notes, or for documenting file-specific workarounds.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="editable-files"><a class="header" href="#editable-files">Editable Files</a></h1>
 <p>As explained before, RPFM can not only edit the PackFiles of modern Total War Games, but it can also edit the Files inside them (PackedFiles, or just Files) without the need of extracting them. Ín this section we'll see what PackedFiles can RPFM see/edit.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="db-tables"><a class="header" href="#db-tables">DB Tables</a></h1>
@@ -487,7 +518,7 @@ And now, let's begin!</li>
 <li><code>Clone…/Clone and Insert</code>: Creates a duplicate of every row with a selected cell and inserts the duplicate just below the original row.</li>
 <li><code>Clone…/Clone and Append</code>: Creates a duplicate of every row with a selected cell and appends the duplicates at the end of the table.</li>
 <li><code>Copy …/Copy</code>: It copies whatever is selected to the Clipboard, in a format compatible with Excel, LibreOffice Calc and others.</li>
-<li><code>Copy …/Copy as LUA Table</code>: It copies the entire table as a Lua &quot;Map&lt;String, Vector&lt;data&gt;&gt;&quot; if the table has a key field, or as a series of Vectors if it hasn't, ready to paste it in a script. For scripters.</li>
+<li><code>Copy …/Copy as LUA Table</code>: It copies the entire table as a Lua "Map&lt;String, Vector&lt;data&gt;&gt;" if the table has a key field, or as a series of Vectors if it hasn't, ready to paste it in a script. For scripters.</li>
 <li><code>Copy …/Copy as filter value</code>: It copies whatever is selected to the Clipboard, in a format which can be pasted in the filter input.</li>
 <li><code>Go To …/Go To Definition</code>: If the first cell of the selection is a reference to another table, it tries to open the referenced table. If Dependencies cache has been generated, it'll even open tables from data.pack or equivalent in read-only views.</li>
 <li><code>Go To …/Go To Loc Entry</code>: It tries to open the loc file containing the loc entry relevant for the selected row, if exists. If Dependencies cache has been generated, it'll even open locs from /data in read-only views.</li>
@@ -526,7 +557,7 @@ And now, let's begin!</li>
 <p><img src="./images/image19.png" alt="Localizable at any hour...." /></p>
 <p>Loc PackedFiles are files that end in <code>.loc</code>, and <strong>contain most of the texts you see ingame</strong>. When you open them, you can see they work like a… DB Table. They are really an special type of table, so you can do to them exactly the same stuff you do can do to DB Tables. Loc PackedFiles uses the same colour code for cells and rows as the TreeView.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="text-packedfiles"><a class="header" href="#text-packedfiles">Text PackedFiles</a></h1>
-<p><img src="./images/image20.png" alt="It's textual, you know?" /></p>
+<p><img src="./images/image20.png" alt="It&#39;s textual, you know?" /></p>
 <p>RPFM can open and edit a wide variety of Text PackedFiles, such as <code>XML, HTML, LUA, TXT,...</code>. It has native <strong>Undo/Redo support, Copy/Paste support, Syntax Highlighting...</strong> the normal things for a basic text editor.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="images"><a class="header" href="#images">Images</a></h1>
 <p><img src="./images/image22.png" alt="Imagine how hard can be...." /></p>
@@ -540,7 +571,7 @@ And now, let's begin!</li>
 <ul>
 <li>To add files to your AnimPack, just double-click what you want to add on the left view, and it'll be added to the AnimPack on the right.</li>
 <li>To Extract files from your AnimPack into the PackFile, just double-click the files you want to extract on the right view, and they'll be extracted into the left view.</li>
-<li>To remove files from the AnimPack, just select them and hit &quot;Delete&quot;.</li>
+<li>To remove files from the AnimPack, just select them and hit "Delete".</li>
 </ul>
 <p>NOTE: All add/extract operations are copies, not moves. This means the original file will still be there after being added/extracted.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="animtables"><a class="header" href="#animtables">AnimTables</a></h1>
@@ -577,7 +608,7 @@ And now, let's begin!</li>
 <p>The <code>Current Field Decoded</code> will show up the field that starts in the magenta byte of the <code>PackedFile's Data</code> view, decoded in the different types the tables use. It's use is simple: check what type makes more sense (for example, in the screenshot, it's evidently a <code>StringU8</code>), and click the <code>Use this</code> button in his row. Doing that will add a field of that type to the <code>Fields List</code>, and it'll update the <code>PackedFile's Data</code> View to show where the next field starts. Keep doing that until you think you've decoded the complete first row of the table, hit <code>Finish It!</code> at the right bottom corner, and select the table again. If the decoding is correct, the table will open. And that's how <s>I met your mother</s> you decode a table.</p>
 <p>Under <code>Current Field Decoded</code> we have <code>Selected Field Decoded</code>. It does the same that <code>Current Field Decoded</code>, but from the byte you selected in the <code>PackedFile's Data</code> View. Just select a byte and it'll try to decode any possible field starting from it. It's for helping decoding complex tables.</p>
 <p>To the right, we have some information about the table, and the <code>Versions List</code> (a list of versions of that table we have a definition for). If we right-click in one of them, we can load that version (useful to have something to start when a table gets <em>updated</em> in a patch) or delete it (in case we make a totally disaster and don't want it to be in the schema).</p>
-<p>In the information of the table, the version number is only editable for version 0 tables. Usually, RPFM treats all versions as unique per-game, but version 0 really means <em><strong>no version</strong></em>, so in older games, like empire, there can be multiple &quot;version 0&quot; tables with different definitions. For that, when a version 0 table is decoded, you can set its version to be negative, which will act as an alternative definition for that version 0 table.</p>
+<p>In the information of the table, the version number is only editable for version 0 tables. Usually, RPFM treats all versions as unique per-game, but version 0 really means <em><strong>no version</strong></em>, so in older games, like empire, there can be multiple "version 0" tables with different definitions. For that, when a version 0 table is decoded, you can set its version to be negative, which will act as an alternative definition for that version 0 table.</p>
 <p>It's only for Empire/Napoleon. Don't use it in recent games.</p>
 <p><img src="./images/image28.png" alt="Because no more is needed." /></p>
 <p>And at the bottom, we have:</p>
@@ -609,10 +640,10 @@ And now, let's begin!</li>
 <ul>
 <li>Basic shortcuts (non-editable) for EVERY Table View provided by Qt:</li>
 </ul>
-<p><img src="./images/image29.png" alt="If I cut my arm, it'll be a shortcut or a longcut?" /></p>
+<p><img src="./images/image29.png" alt="If I cut my arm, it&#39;ll be a shortcut or a longcut?" /></p>
 <ul>
 <li>
-<p>If RPFM crashes, it'll generate an error log in his folder called &quot;error-report-xxxxxxx.toml&quot;. That file can help me find the problem, so if you want to help reporting the bug, send me that file too.</p>
+<p>If RPFM crashes, it'll generate an error log in his folder called "error-report-xxxxxxx.toml". That file can help me find the problem, so if you want to help reporting the bug, send me that file too.</p>
 </li>
 <li>
 <p><strong>DON'T OPEN FILES WITH RPFM AND OTHER PROGRAMS LIKE PFM AND THE ASSEMBLY KIT AT THE SAME TIME</strong>!!!!! Just in case you don't realise the problem, let me explain it: to not fill your entire RAM with data you probably aren't going to need, RPFM only reads from disk when needed and what it needs. This means that, if you open the same file with another program, that program <strong>MAY LOCK YOUR FILE, CAUSING EITHER A CORRUPTED PACKFILE OR A VANISHED PACKFILE WHEN SAVING</strong>.</p>
@@ -652,8 +683,7 @@ cargo build --release
 <p>You can also make any editor inherit Craft's environment (and thus, being able to compile RPFM) by opening it from Craft's Terminal.
 Note that some features, like the entire Tools menu, may require a feature flag to be enabled to work. You can check all the feature flags available in rpfm_ui/Cargo.toml, under [Features]. You can pass them like this:</p>
 <pre><code class="language-bash"># To run the ui executable without optimisations (debug mode).
-cargo run --bin rpfm_ui --features &quot;example_feature,example_feature_2&quot;
-
+cargo run --bin rpfm_ui --features "example_feature,example_feature_2"
 </code></pre>
 <h2 id="linux"><a class="header" href="#linux">Linux</a></h2>
 <p>You need to install the following packages on your distro:</p>
@@ -677,8 +707,7 @@ cargo build --release
 </code></pre>
 <p>Note that some features, like the entire Tools menu, may require a feature flag to be enabled to work. You can check all the feature flags available in rpfm_ui/Cargo.toml, under [Features]. You can pass them like this:</p>
 <pre><code class="language-bash"># To run the ui executable without optimisations (debug mode).
-cargo run --bin rpfm_ui --features &quot;example_feature,example_feature_2&quot;
-
+cargo run --bin rpfm_ui --features "example_feature,example_feature_2"
 </code></pre>
 <h2 id="macos"><a class="header" href="#macos">MacOS</a></h2>
 <p>Don't know. Don't have a Mac to compile to it and test. I tried, it compiles, but its fully untested.</p>
@@ -691,6 +720,38 @@ cargo install mdbook
 mdbook build --open
 </code></pre>
 <p>These last instructions should work in any OS where you can install Rust on.</p>
+<h2 id="flags"><a class="header" href="#flags">Flags</a></h2>
+<p>About the flags available (this list may be incomplete):</p>
+<ul>
+<li>
+<p><strong>strict_subclasses_compilation</strong>: Forces a compilation failure if the qt_rpfm_subclasses lib fails to compile.</p>
+</li>
+<li>
+<p><strong>support_rigidmodel</strong>: Compiles RPFM with the RigidModel editor enabled. This requires a .lib file that's not public and whose source code was lost.</p>
+</li>
+<li>
+<p><strong>support_model_renderer</strong>: Compiles RPFM with the 3d Renderer enabled. This has some extra requirements:</p>
+<ul>
+<li>Nuget: You can get it from here: https://dist.nuget.org/win-x86-commandline/latest/nuget.exe. Download it and drop it in the root folder of the repo.</li>
+<li>You need to create the env var "QtToolsPath" and point it to the bin folder of your Qt installation.</li>
+</ul>
+</li>
+<li>
+<p><strong>support_modern_dds</strong>: Compiles RPFM with support for DDS files. Same deal with the rigidmodel one, source was lost.</p>
+</li>
+<li>
+<p><strong>support_uic</strong>: Compiles RPFM with support for UIC files. Was never finished.</p>
+</li>
+<li>
+<p><strong>support_soundbank</strong>: Compiles RPFM with support for SoundBank files. Was never finished.</p>
+</li>
+<li>
+<p><strong>enable_tools</strong>: Compiles RPFM with support for tools. Optional because it adds a significant lenght of time to compilation.</p>
+</li>
+<li>
+<p><strong>only_for_the_brave</strong>: The first time a version of RPFM is executed it shows a dialog with a specific message. For updates that may require to inform the user of something.</p>
+</li>
+</ul>
 
                     </main>
 

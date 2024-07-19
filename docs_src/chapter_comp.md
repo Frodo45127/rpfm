@@ -40,7 +40,6 @@ Note that some features, like the entire Tools menu, may require a feature flag 
 ```bash
 # To run the ui executable without optimisations (debug mode).
 cargo run --bin rpfm_ui --features "example_feature,example_feature_2"
-
 ```
 
 ## Linux
@@ -70,7 +69,6 @@ Note that some features, like the entire Tools menu, may require a feature flag 
 ```bash
 # To run the ui executable without optimisations (debug mode).
 cargo run --bin rpfm_ui --features "example_feature,example_feature_2"
-
 ```
 
 ## MacOS
@@ -90,3 +88,20 @@ mdbook build --open
 ```
 
 These last instructions should work in any OS where you can install Rust on.
+
+## Flags
+
+About the flags available (this list may be incomplete):
+
+* **strict_subclasses_compilation**: Forces a compilation failure if the qt_rpfm_subclasses lib fails to compile.
+* **support_rigidmodel**: Compiles RPFM with the RigidModel editor enabled. This requires a .lib file that's not public and whose source code was lost.
+* **support_model_renderer**: Compiles RPFM with the 3d Renderer enabled. This has some extra requirements:
+
+    * Nuget: You can get it from here: https://dist.nuget.org/win-x86-commandline/latest/nuget.exe. Download it and drop it in the root folder of the repo.
+    * You need to create the env var "QtToolsPath" and point it to the bin folder of your Qt installation.
+
+* **support_modern_dds**: Compiles RPFM with support for DDS files. Same deal with the rigidmodel one, source was lost.
+* **support_uic**: Compiles RPFM with support for UIC files. Was never finished.
+* **support_soundbank**: Compiles RPFM with support for SoundBank files. Was never finished.
+* **enable_tools**: Compiles RPFM with support for tools. Optional because it adds a significant lenght of time to compilation.
+* **only_for_the_brave**: The first time a version of RPFM is executed it shows a dialog with a specific message. For updates that may require to inform the user of something.
