@@ -160,6 +160,7 @@ pub enum EntityCommon {
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub enum EntityWeightCommon {
     Rome2(versions::rome_2::EntityWeight),
+    Attila(versions::rome_2::EntityWeight),
 }
 
 //---------------------------------------------------------------------------//
