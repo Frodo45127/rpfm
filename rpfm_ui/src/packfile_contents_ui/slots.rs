@@ -103,8 +103,6 @@ pub struct PackFileContentsSlots {
 
     pub packfile_contents_tree_view_expand_all: QBox<SlotNoArgs>,
     pub packfile_contents_tree_view_collapse_all: QBox<SlotNoArgs>,
-
-    pub packfile_contents_resize: QBox<SlotNoArgs>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -1367,15 +1365,6 @@ impl PackFileContentsSlots {
             }
         ));
 
-        let packfile_contents_resize = SlotNoArgs::new(&pack_file_contents_ui.packfile_contents_dock_widget, move || {
-
-            // Not yet working.
-            if setting_bool("packfile_treeview_resize_to_fit") {
-                //pack_file_contents_ui.packfile_contents_dock_widget.widget().adjust_size();
-                //pack_file_contents_ui.packfile_contents_tree_view.header().resize_sections(ResizeMode::ResizeToContents);
-            }
-        });
-
         // And here... we return all the slots.
 		Self {
             move_items,
@@ -1421,8 +1410,6 @@ impl PackFileContentsSlots {
 
             packfile_contents_tree_view_expand_all,
             packfile_contents_tree_view_collapse_all,
-
-            packfile_contents_resize
 		}
 	}
 }
