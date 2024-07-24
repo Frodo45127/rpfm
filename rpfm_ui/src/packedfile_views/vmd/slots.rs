@@ -10,7 +10,7 @@
 
 use qt_core::QBox;
 use qt_core::SlotNoArgs;
-use rpfm_ui_common::utils::show_dialog;
+#[cfg(feature = "support_model_renderer")] use rpfm_ui_common::utils::show_dialog;
 
 use std::rc::Rc;
 use std::sync::Arc;
@@ -31,7 +31,7 @@ use super::FileVMDView;
 /// This struct contains the slots of the view of an VMD PackedFile.
 pub struct FileVMDViewSlots {
     pub modified: QBox<SlotNoArgs>,
-    pub reload_render: QBox<SlotNoArgs>,
+    #[cfg(feature = "support_model_renderer")] pub reload_render: QBox<SlotNoArgs>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -59,6 +59,7 @@ impl FileVMDViewSlots {
             }
         ));
 
+        #[cfg(feature = "support_model_renderer")]
         let reload_render = SlotNoArgs::new(&view.editor, clone!(
             view => move || {
                 info!("Triggering `Reload VMD Renderer` By Slot");
@@ -71,7 +72,7 @@ impl FileVMDViewSlots {
         // Return the slots, so we can keep them alive for the duration of the view.
         Self {
             modified,
-            reload_render
+            #[cfg(feature = "support_model_renderer")] reload_render
         }
     }
 }

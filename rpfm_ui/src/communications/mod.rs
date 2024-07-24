@@ -361,6 +361,7 @@ pub enum Command {
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.
 ///
 /// Each response should be named after the types of the items it carries.
+#[allow(dead_code)]
 #[derive(Debug)]
 pub enum Response {
 

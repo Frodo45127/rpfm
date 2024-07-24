@@ -19,7 +19,7 @@ use qt_core::QBox;
 use qt_core::QPtr;
 use qt_core::QString;
 
-use anyhow::Result;
+#[cfg(feature = "support_model_renderer")] use anyhow::Result;
 use getset::Getters;
 #[cfg(feature = "support_model_renderer")]use rpfm_ui_common::settings::setting_bool;
 #[cfg(feature = "support_model_renderer")]use rpfm_ui_common::utils::show_dialog;
@@ -87,7 +87,7 @@ impl FileVMDView {
         left_widget.set_minimum_width(600);
         splitter.add_widget(&left_widget);
 
-        let mut renderer_enabled = false;
+        #[cfg(feature = "support_model_renderer")] let mut renderer_enabled = false;
         let view = Arc::new(FileVMDView {
             path: Some(file_view.path_raw()),
             data_source: file_view.data_source.clone(),
@@ -162,11 +162,6 @@ impl FileVMDView {
         } else {
             Ok(())
         }
-    }
-
-    #[cfg(not(feature = "support_model_renderer"))]
-    pub unsafe fn reload_render(&self) -> Result<()> {
-        Ok(())
     }
 
     /// Function to reload the data of the view without having to delete the view itself.
