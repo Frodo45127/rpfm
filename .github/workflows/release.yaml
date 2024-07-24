@@ -73,7 +73,7 @@ jobs:
 
           # First build every executable one by one, so we can speed up compilation.
           cargo build --release --bin rpfm_cli
-          cargo build --release --features "support_rigidmodel support_model_renderer support_modern_dds enable_tools" --bin rpfm_ui
+          cargo build --release --features "support_rigidmodel support_modern_dds enable_tools" --bin rpfm_ui
 
       - name: Prepare Assets for Release (Linux)
         id: build_linux
