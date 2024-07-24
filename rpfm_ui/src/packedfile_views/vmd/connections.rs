@@ -25,5 +25,5 @@ use super::{FileVMDView, slots::FileVMDViewSlots};
 /// to not pollute the other modules with a ton of connections.
 pub unsafe fn set_connections(ui: &Arc<FileVMDView>, slots: &FileVMDViewSlots) {
     get_text_changed_dummy_widget_safe(&ui.editor.as_ptr()).text_changed().connect(&slots.modified);
-    ui.reload_button.released().connect(&slots.reload_render);
+    #[cfg(feature = "support_model_renderer")] ui.reload_button.released().connect(&slots.reload_render);
 }

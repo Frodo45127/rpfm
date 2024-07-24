@@ -19,17 +19,17 @@ use qt_core::QBox;
 use qt_core::QPtr;
 use qt_core::QString;
 
-#[cfg(feature = "support_model_renderer")] use anyhow::Result;
+use anyhow::Result;
 use getset::Getters;
-use rpfm_ui_common::settings::setting_bool;
-use rpfm_ui_common::utils::show_dialog;
+#[cfg(feature = "support_model_renderer")]use rpfm_ui_common::settings::setting_bool;
+#[cfg(feature = "support_model_renderer")]use rpfm_ui_common::utils::show_dialog;
 
 
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 
 use rpfm_lib::files::{FileType, text::*};
-use rpfm_ui_common::locale::qtr;
+#[cfg(feature = "support_model_renderer")]use rpfm_ui_common::locale::qtr;
 use rpfm_ui_common::utils::create_grid_layout;
 
 use crate::app_ui::AppUI;
@@ -162,6 +162,11 @@ impl FileVMDView {
         } else {
             Ok(())
         }
+    }
+
+    #[cfg(not(feature = "support_model_renderer"))]
+    pub unsafe fn reload_render(&self) -> Result<()> {
+        Ok(())
     }
 
     /// Function to reload the data of the view without having to delete the view itself.
