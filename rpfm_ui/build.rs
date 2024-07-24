@@ -16,13 +16,11 @@ Here it goes all linking/cross-language compilation/platform-specific stuff that
 
 #[cfg(target_os = "windows")] use std::fs::{copy, DirBuilder};
 use std::io::{stderr, stdout, Write};
-use std::path::PathBuf;
 use std::process::{Command, exit};
 
 /// Windows Build Script.
 #[cfg(target_os = "windows")]
 fn main() {
-    use std::fs::remove_dir_all;
 
     common_config();
     let target_path = format!("./../target/{}/", if cfg!(debug_assertions) { "debug" } else { "release"});
@@ -92,8 +90,8 @@ fn main() {
 
                 // Clean the assets folder before re-creating it.
                 let assets_path = "./../assets/";
-                if PathBuf::from(assets_path).is_dir() {
-                    remove_dir_all(&assets_path).unwrap();
+                if std::path::PathBuf::from(assets_path).is_dir() {
+                    std::fs::remove_dir_all(&assets_path).unwrap();
                 }
 
                 let copy_options = fs_extra::dir::CopyOptions::new().overwrite(true);
