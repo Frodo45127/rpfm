@@ -123,6 +123,11 @@ dark-theme-custom.qss
 # This one is the qt lib. AFAIK, Phazer didn't get me permissions to publish it, so to the gitignore it goes.
 /3rdparty/builds/QtRMV2Widget.lib
 
+# Part of the new rendering widget.
+/3rdparty/builds/ImportExport.lib
+/3rdparty/builds/Rldx.lib
+/3rdparty/builds/QtRenderingWidget.lib
+
 # Subclasses lib compilation files.
 *.pro.user
 **/Makefile
