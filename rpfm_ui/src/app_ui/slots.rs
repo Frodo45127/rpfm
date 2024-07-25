@@ -487,6 +487,7 @@ impl AppUISlots {
                         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
 
                         match GAME_SELECTED.read().unwrap().key() {
+                            KEY_PHARAOH_DYNASTIES => app_ui.game_selected_pharaoh_dynasties.trigger(),
                             KEY_PHARAOH => app_ui.game_selected_pharaoh.trigger(),
                             KEY_WARHAMMER_3 => app_ui.game_selected_warhammer_3.trigger(),
                             KEY_TROY => app_ui.game_selected_troy.trigger(),
@@ -682,6 +683,7 @@ impl AppUISlots {
                             // Change the Game Selected to match the one we chose for the new "MyMod".
                             // NOTE: Arena should not be on this list.
                             match &*mod_game {
+                                KEY_PHARAOH_DYNASTIES => app_ui.game_selected_pharaoh_dynasties.trigger(),
                                 KEY_PHARAOH => app_ui.game_selected_pharaoh.trigger(),
                                 KEY_WARHAMMER_3 => app_ui.game_selected_warhammer_3.trigger(),
                                 KEY_TROY => app_ui.game_selected_troy.trigger(),

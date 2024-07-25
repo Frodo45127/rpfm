@@ -21,6 +21,7 @@ use std::sync::{Arc, RwLock};
 use super::{GameInfo, InstallData, InstallType, pfh_file_type::PFHFileType, pfh_version::PFHVersion, VanillaDBTableNameLogic};
 
 // Display Name for all the Supported Games.
+pub const DISPLAY_NAME_PHARAOH_DYNASTIES: &str = "Pharaoh Dynasties";
 pub const DISPLAY_NAME_PHARAOH: &str = "Pharaoh";
 pub const DISPLAY_NAME_WARHAMMER_3: &str = "Warhammer 3";
 pub const DISPLAY_NAME_TROY: &str = "Troy";
@@ -36,6 +37,7 @@ pub const DISPLAY_NAME_EMPIRE: &str = "Empire";
 pub const DISPLAY_NAME_ARENA: &str = "Arena";
 
 // Key for all the supported games.
+pub const KEY_PHARAOH_DYNASTIES: &str = "pharaoh_dynasties";        // Filtered and revised incorrect AK fields. Startpos tables done.
 pub const KEY_PHARAOH: &str = "pharaoh";                            // Filtered and revised incorrect AK fields. Startpos tables done.
 pub const KEY_WARHAMMER_3: &str = "warhammer_3";                    // Filtered and revised incorrect AK fields. Startpos tables done.
 pub const KEY_TROY: &str = "troy";                                  // Filtered and revised incorrect AK fields. Startpos tables done.
@@ -71,6 +73,197 @@ pub struct SupportedGames {
 impl Default for SupportedGames {
     fn default() -> Self {
         let mut game_list = HashMap::new();
+
+        // Pharaoh/Dynasties. This is really the same as pharaoh, but CA re-released as a separate game, so we treat it as a separate game too.
+        game_list.insert(KEY_PHARAOH_DYNASTIES, GameInfo {
+            key: KEY_PHARAOH_DYNASTIES,
+            display_name: DISPLAY_NAME_PHARAOH_DYNASTIES,
+            pfh_versions: {
+                let mut data = HashMap::new();
+                data.insert(PFHFileType::Boot, PFHVersion::PFH5);
+                data.insert(PFHFileType::Release, PFHVersion::PFH5);
+                data.insert(PFHFileType::Patch, PFHVersion::PFH5);
+                data.insert(PFHFileType::Mod, PFHVersion::PFH5);
+                data.insert(PFHFileType::Movie, PFHVersion::PFH5);
+                data
+            },
+            schema_file_name: "schema_ph_dyn.ron".to_owned(),
+            dependencies_cache_file_name: "ph_dyn.pak2".to_owned(),
+            raw_db_version: 2,
+            portrait_settings_version: None,
+            supports_editing: true,
+            db_tables_have_guid: true,
+            locale_file_name: Some("language.txt".to_owned()),
+            banned_packedfiles: vec![],
+            icon_small: "gs_ph_dyn.png".to_owned(),
+            icon_big: "gs_big_ph_dyn.png".to_owned(),
+            vanilla_db_table_name_logic: VanillaDBTableNameLogic::DefaultName("data__".to_owned()),
+            install_data: {
+                let mut data = HashMap::new();
+                data.insert(InstallType::WinSteam, InstallData {
+                    vanilla_packs: vec![],
+                    use_manifest: true,
+                    store_id: 2_951_630,
+                    store_id_ak: 2_951_670,
+                    executable: "Pharaoh.exe".to_owned(),
+                    data_path: "data".to_owned(),
+                    language_path: "data".to_owned(),
+                    local_mods_path: "data".to_owned(),
+                    downloaded_mods_path: "./../../workshop/content/2951630".to_owned(),
+                    config_folder: Some("PharaohDynasties".to_owned()),
+                });
+
+                data
+            },
+            tool_vars: {
+                let mut vars = HashMap::new();
+                vars.insert("faction_painter_factions_table_name".to_owned(), "factions_tables".to_owned());
+                vars.insert("faction_painter_factions_table_definition".to_owned(), "factions_definition".to_owned());
+                vars.insert("faction_painter_factions_row_key".to_owned(), "faction_row".to_owned());
+
+                vars.insert("faction_painter_banner_table_name".to_owned(), "factions_tables".to_owned());
+                vars.insert("faction_painter_banner_table_definition".to_owned(), "factions_definition".to_owned());
+                vars.insert("faction_painter_banner_key_column_name".to_owned(), "key".to_owned());
+                vars.insert("faction_painter_banner_primary_colour_column_name".to_owned(), "banner_colour_primary".to_owned());
+                vars.insert("faction_painter_banner_secondary_colour_column_name".to_owned(), "banner_colour_secondary".to_owned());
+                vars.insert("faction_painter_banner_tertiary_colour_column_name".to_owned(), "banner_colour_tertiary".to_owned());
+                vars.insert("faction_painter_banner_row_key".to_owned(), "faction_row".to_owned());
+
+                vars.insert("faction_painter_uniform_table_name".to_owned(), "factions_tables".to_owned());
+                vars.insert("faction_painter_uniform_table_definition".to_owned(), "factions_definition".to_owned());
+                vars.insert("faction_painter_uniform_key_column_name".to_owned(), "key".to_owned());
+                vars.insert("faction_painter_uniform_primary_colour_column_name".to_owned(), "uniform_colour_primary".to_owned());
+                vars.insert("faction_painter_uniform_secondary_colour_column_name".to_owned(), "uniform_colour_secondary".to_owned());
+                vars.insert("faction_painter_uniform_tertiary_colour_column_name".to_owned(), "uniform_colour_tertiary".to_owned());
+                vars.insert("faction_painter_uniform_row_key".to_owned(), "faction_row".to_owned());
+                vars
+            },
+            lua_autogen_folder: None,
+            ak_lost_fields: vec![
+                "_kv_battle_ai_ability_usage_variables/description".to_owned(),
+                "_kv_experience_bonuses/description".to_owned(),
+                "_kv_fatigue/description".to_owned(),
+                "_kv_fire_values/description".to_owned(),
+                "_kv_key_buildings/description".to_owned(),
+                "_kv_morale/description".to_owned(),
+                "_kv_naval_morale/description".to_owned(),
+                "_kv_naval_rules/description".to_owned(),
+                "_kv_rules/description".to_owned(),
+                "_kv_ui_tweakers/description".to_owned(),
+                "_kv_unit_ability_scaling_rules/description".to_owned(),
+                "_kv_winds_of_magic_params/description".to_owned(),
+                "achievements/game_expansion_key".to_owned(),
+                "ancillary_info/author".to_owned(),
+                "ancillary_info/comment".to_owned(),
+                "ancillary_info/historical_example".to_owned(),
+                "audio_entity_types/actor_type".to_owned(),
+                "audio_entity_types/game_expansion_key".to_owned(),
+                "audio_entity_types/switch".to_owned(),
+                "audio_markers/colour_blue".to_owned(),
+                "audio_markers/colour_green".to_owned(),
+                "audio_markers/colour_red".to_owned(),
+                "audio_metadata_tags/colour_blue".to_owned(),
+                "audio_metadata_tags/colour_green".to_owned(),
+                "audio_metadata_tags/colour_red".to_owned(),
+                "audio_metadata_tags/game_expansion_key".to_owned(),
+                "audio_metadata_tags/path".to_owned(),
+                "battle_animations_table/game_expansion_key".to_owned(),
+                "battle_personalities/game_expansion_key".to_owned(),
+                "battle_set_pieces/game_expansion_key".to_owned(),
+                "battle_skeletons/game_expansion_key".to_owned(),
+                "battles/game_expansion_key".to_owned(),
+                "battles/objectives_team_1".to_owned(),
+                "battles/objectives_team_2".to_owned(),
+                "building_chains/encyclopedia_group".to_owned(),
+                "building_chains/encyclopedia_include_in_index".to_owned(),
+                "building_chains/encyclopedia_name".to_owned(),
+                "building_culture_variants/flavour".to_owned(),
+                "building_levels/commodity_vol".to_owned(),
+                "cai_algorithm_variables/description".to_owned(),
+                "cai_algorithms/description".to_owned(),
+                "cai_decision_interfaces/description".to_owned(),
+                "cai_decision_items_non_record_bound_types/description".to_owned(),
+                "cai_decision_policies/description".to_owned(),
+                "cai_domain_modifier_functions/description".to_owned(),
+                "cai_domain_variables/description".to_owned(),
+                "cai_domains/description".to_owned(),
+                "cai_queries/description".to_owned(),
+                "cai_query_variables/description".to_owned(),
+                "cai_task_management_system_variables/description".to_owned(),
+                "campaign_ai_managers/description".to_owned(),
+                "campaign_map_playable_areas/game_expansion_key".to_owned(),
+                "campaign_map_playable_areas/maxy".to_owned(),
+                "campaign_map_playable_areas/miny".to_owned(),
+                "campaign_map_playable_areas/preview_border".to_owned(),
+                "campaign_payload_ui_details/comment".to_owned(),
+                "campaign_tree_types/game_expansion_key".to_owned(),
+                "campaign_variables/description".to_owned(),
+                "campaigns/game_expansion_key".to_owned(),
+                "cdir_events_mission_option_junctions/game_expansion_key".to_owned(),
+                "cdir_military_generator_configs/game_expansion_key".to_owned(),
+                "cdir_military_generator_templates/game_expansion_key".to_owned(),
+                "character_skill_level_to_effects_junctions/is_factionwide".to_owned(),
+                "character_skills/pre_battle_speech_parameter".to_owned(),
+                "character_traits/author".to_owned(),
+                "character_traits/comment".to_owned(),
+                "deployables/icon_name".to_owned(),
+                "diplomatic_relations_religion/relations_modifier".to_owned(),
+                "faction_groups/ui_icon".to_owned(),
+                "factions/game_expansion_key".to_owned(),
+                "frontend_faction_leaders/game_expansion_key".to_owned(),
+                "government_types/elected_ministers".to_owned(),
+                "government_types/hereditary_ministers".to_owned(),
+                "government_types/rank".to_owned(),
+
+                // This is a loc that's unused, so the bruteforce pass fails to mark it as a loc.
+                "land_units/concealed_name".to_owned(),
+
+                "land_units/game_expansion_key".to_owned(),
+                "loading_screen_quotes/game_expansion_key".to_owned(),
+                "main_units/audio_voiceover_culture_override".to_owned(),
+
+                // Special table. Ignore them.
+                "models_building/cs2_file".to_owned(),
+                "models_building/model_file".to_owned(),
+                "models_building/tech_file".to_owned(),
+
+                "names/nobility".to_owned(),
+                "names_groups/Description".to_owned(),
+                "names_groups/game_expansion_key".to_owned(),
+                "pdlc/game_expansion_key".to_owned(),
+
+                // Pretty sure this is a loc that's not exported in Dave, so the bruteforce pass fails to mark it as a loc.
+                "pooled_resources/negative_display_name".to_owned(),
+
+                "projectiles/game_expansion_key".to_owned(),
+                "regions/in_encyclopedia".to_owned(),
+                "regions/is_sea".to_owned(),
+                "scripted_bonus_value_ids/notes".to_owned(),
+                "scripted_objectives/game_expansion_key".to_owned(),
+                "start_pos_calendars/unique".to_owned(),
+                "start_pos_character_ancillaries/unique".to_owned(),
+                "start_pos_character_to_settlements/unique".to_owned(),
+                "start_pos_character_traits/unique".to_owned(),
+                "start_pos_diplomacy/relations_modifier".to_owned(),
+                "start_pos_diplomacy/unique".to_owned(),
+                "start_pos_faction_effect_bundles/unique".to_owned(),
+                "start_pos_factions/unique".to_owned(),
+                "start_pos_land_units/unique".to_owned(),
+                "start_pos_past_events/unique".to_owned(),
+                "start_pos_region_religions/unique".to_owned(),
+                "start_pos_region_slot_templates/unique".to_owned(),
+                "start_pos_regions/unique".to_owned(),
+                "start_pos_settlements/unique".to_owned(),
+                "technologies/in_encyclopedia".to_owned(),
+                "technology_node_sets/game_expansion_key".to_owned(),
+                "trait_info/applicable_to".to_owned(),
+                "trigger_events/from_ui".to_owned(),
+                "trigger_events/game_expansion_key".to_owned(),
+                "videos/game_expansion_key".to_owned(),
+                "warscape_animated/game_expansion_key".to_owned(),
+            ],
+            install_type_cache: Arc::new(RwLock::new(HashMap::new())),
+        });
 
         // Pharaoh
         game_list.insert(KEY_PHARAOH, GameInfo {
@@ -3390,6 +3583,7 @@ impl Default for SupportedGames {
         });
 
         let order_list = vec![
+            KEY_PHARAOH_DYNASTIES,
             KEY_PHARAOH,
             KEY_WARHAMMER_3,
             KEY_TROY,

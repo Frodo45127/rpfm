@@ -73,7 +73,8 @@ const FACTION_DATA: i32 = 60;
 const FACTION_ICON: i32 = 61;
 
 /// List of games this tool supports.
-const TOOL_SUPPORTED_GAMES: [&str; 10] = [
+const TOOL_SUPPORTED_GAMES: [&str; 11] = [
+    KEY_PHARAOH_DYNASTIES,
     KEY_PHARAOH,
     KEY_WARHAMMER_3,
     KEY_TROY,

@@ -62,7 +62,8 @@ pub const VANILLA_LOC_NAME: &str = "vanilla_english.tsv";
 pub const VANILLA_FIXES_NAME: &str = "vanilla_fixes_";
 
 /// List of games this tool supports.
-const TOOL_SUPPORTED_GAMES: [&str; 12] = [
+const TOOL_SUPPORTED_GAMES: [&str; 13] = [
+    KEY_PHARAOH_DYNASTIES,
     KEY_PHARAOH,
     KEY_WARHAMMER_3,
     KEY_TROY,

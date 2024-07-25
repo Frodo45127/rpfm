@@ -807,6 +807,15 @@ impl GameInfo {
     /// This function returns the list of public tags available in the workshop for each game.
     pub fn steam_workshop_tags(&self) -> Result<Vec<String>> {
         Ok(match self.key() {
+            KEY_PHARAOH_DYNASTIES => vec![
+                String::from("mod"),
+                String::from("graphical"),
+                String::from("campaign"),
+                String::from("ui"),
+                String::from("battle"),
+                String::from("overhaul"),
+                String::from("units"),
+            ],
             KEY_PHARAOH => vec![
                 String::from("mod"),
                 String::from("graphical"),

@@ -2463,6 +2463,7 @@ quit_after_campaign_processing;",
                 // For generating the hlp data, from Warhammer 1 onwards the game outputs it to /data, which may not exists and may conflict with existing files.
                 //
                 // Create the folder just in case, and back any file found.
+                KEY_PHARAOH_DYNASTIES |
                 KEY_PHARAOH |
                 KEY_WARHAMMER_3 |
                 KEY_TROY |
@@ -2671,6 +2672,7 @@ fn build_starpos_post(dependencies: &Dependencies, pack_file: &mut Pack, campaig
 
     // Add the starpos file. As some games have multiple startpos per campaign (3K) we return a vector with all the paths we have to generate.
     let starpos_paths = match game.key() {
+        KEY_PHARAOH_DYNASTIES |
         KEY_PHARAOH |
         KEY_WARHAMMER_3 |
         KEY_TROY |
@@ -2761,6 +2763,7 @@ fn build_starpos_post(dependencies: &Dependencies, pack_file: &mut Pack, campaig
 
             // Same as with startpos. It's different depending on the game.
             let hlp_path = match game.key() {
+                KEY_PHARAOH_DYNASTIES |
                 KEY_PHARAOH |
                 KEY_WARHAMMER_3 |
                 KEY_TROY |

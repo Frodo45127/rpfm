@@ -192,7 +192,7 @@ impl FileAnimFragmentBattleView {
             view.table.table_view().hide_column(15);
             view.table.table_view().hide_column(16);
 
-        } else if game.key() == KEY_WARHAMMER_2 || game.key() == KEY_TROY || game.key() == KEY_PHARAOH {
+        } else if game.key() == KEY_WARHAMMER_2 || game.key() == KEY_TROY || game.key() == KEY_PHARAOH || game.key() == KEY_PHARAOH_DYNASTIES {
             subversion_label.hide();
             table_name_label.hide();
             unmount_table_name_label.hide();

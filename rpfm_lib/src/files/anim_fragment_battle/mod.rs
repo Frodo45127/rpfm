@@ -24,7 +24,7 @@ use std::io::Cursor;
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{RLibError, Result};
 use crate::files::{DecodeableExtraData, Decodeable, EncodeableExtraData, Encodeable, table::*};
-use crate::games::supported_games::{KEY_PHARAOH, KEY_THREE_KINGDOMS, KEY_TROY, KEY_WARHAMMER_2};
+use crate::games::supported_games::{KEY_PHARAOH, KEY_PHARAOH_DYNASTIES, KEY_THREE_KINGDOMS, KEY_TROY, KEY_WARHAMMER_2};
 use crate::schema::*;
 use crate::utils::check_size_mismatch;
 
@@ -320,7 +320,7 @@ impl Decodeable for AnimFragmentBattle {
 
         match version {
             2 => match game_key {
-                KEY_WARHAMMER_2 | KEY_TROY | KEY_PHARAOH => fragment.read_v2_wh2(data)?,
+                KEY_WARHAMMER_2 | KEY_TROY | KEY_PHARAOH | KEY_PHARAOH_DYNASTIES => fragment.read_v2_wh2(data)?,
                 KEY_THREE_KINGDOMS => fragment.read_v2_3k(data)?,
                 _ => Err(RLibError::DecodingMatchedCombatUnsupportedVersion(fragment.version as usize))?,
             },
@@ -345,7 +345,7 @@ impl Encodeable for AnimFragmentBattle {
 
         match self.version {
             2 => match game_key {
-                KEY_WARHAMMER_2 | KEY_TROY | KEY_PHARAOH => self.write_v2_wh2(buffer)?,
+                KEY_WARHAMMER_2 | KEY_TROY | KEY_PHARAOH | KEY_PHARAOH_DYNASTIES => self.write_v2_wh2(buffer)?,
                 KEY_THREE_KINGDOMS => self.write_v2_3k(buffer)?,
                 _ => Err(RLibError::DecodingMatchedCombatUnsupportedVersion(self.version as usize))?,
             },

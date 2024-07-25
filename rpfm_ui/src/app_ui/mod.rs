@@ -211,6 +211,7 @@ pub struct AppUI {
     mymod_import: QPtr<QAction>,
     mymod_export: QPtr<QAction>,
 
+    mymod_open_pharaoh_dynasties: QPtr<QMenu>,
     mymod_open_pharaoh: QPtr<QMenu>,
     mymod_open_warhammer_3: QPtr<QMenu>,
     mymod_open_troy: QPtr<QMenu>,
@@ -242,6 +243,7 @@ pub struct AppUI {
     game_selected_open_game_assembly_kit_folder: QPtr<QAction>,
     game_selected_open_config_folder: QPtr<QAction>,
 
+    game_selected_pharaoh_dynasties: QPtr<QAction>,
     game_selected_pharaoh: QPtr<QAction>,
     game_selected_warhammer_3: QPtr<QAction>,
     game_selected_troy: QPtr<QAction>,
@@ -261,6 +263,11 @@ pub struct AppUI {
     //-------------------------------------------------------------------------------//
     // `Special Stuff` menu.
     //-------------------------------------------------------------------------------//
+
+    // Pharaoh Dynasties actions.
+    special_stuff_ph_dyn_generate_dependencies_cache: QPtr<QAction>,
+    special_stuff_ph_dyn_optimize_packfile: QPtr<QAction>,
+    special_stuff_ph_dyn_build_starpos: QPtr<QAction>,
 
     // Pharaoh actions.
     special_stuff_ph_generate_dependencies_cache: QPtr<QAction>,
@@ -580,6 +587,7 @@ impl AppUI {
 
         menu_bar_mymod.add_separator();
 
+        let mymod_open_pharaoh_dynasties = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_PHARAOH_DYNASTIES));
         let mymod_open_pharaoh = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_PHARAOH));
         let mymod_open_warhammer_3 = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_WARHAMMER_3));
         let mymod_open_troy = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_TROY));
@@ -600,6 +608,7 @@ impl AppUI {
         mymod_import.set_enabled(false);
         mymod_export.set_enabled(false);
 
+        mymod_open_pharaoh_dynasties.menu_action().set_visible(false);
         mymod_open_pharaoh.menu_action().set_visible(false);
         mymod_open_warhammer_3.menu_action().set_visible(false);
         mymod_open_troy.menu_action().set_visible(false);
@@ -636,6 +645,7 @@ impl AppUI {
         let game_selected_open_game_assembly_kit_folder = add_action_to_menu(&menu_bar_game_selected, shortcuts.as_ref(), "game_selected_menu", "open_game_ak_folder", "game_selected_open_game_assembly_kit_folder", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let game_selected_open_config_folder = add_action_to_menu(&menu_bar_game_selected, shortcuts.as_ref(), "game_selected_menu", "open_rpfm_config_folder", "game_selected_open_config_folder", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
 
+        let game_selected_pharaoh_dynasties = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(DISPLAY_NAME_PHARAOH_DYNASTIES));
         let game_selected_pharaoh = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(DISPLAY_NAME_PHARAOH));
         let game_selected_warhammer_3 = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(DISPLAY_NAME_WARHAMMER_3));
         let game_selected_troy = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(DISPLAY_NAME_TROY));
@@ -650,6 +660,7 @@ impl AppUI {
         let game_selected_empire = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(DISPLAY_NAME_EMPIRE));
         let game_selected_arena = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(DISPLAY_NAME_ARENA));
 
+        game_selected_pharaoh_dynasties.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_PHARAOH_DYNASTIES).unwrap().icon_small()))).as_ref());
         game_selected_pharaoh.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_PHARAOH).unwrap().icon_small()))).as_ref());
         game_selected_warhammer_3.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_WARHAMMER_3).unwrap().icon_small()))).as_ref());
         game_selected_troy.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_TROY).unwrap().icon_small()))).as_ref());
@@ -667,8 +678,9 @@ impl AppUI {
         let game_selected_group = QActionGroup::new(&menu_bar_game_selected);
 
         // Configure the `Game Selected` Menu.
-        menu_bar_game_selected.insert_separator(&game_selected_pharaoh);
+        menu_bar_game_selected.insert_separator(&game_selected_pharaoh_dynasties);
         menu_bar_game_selected.insert_separator(&game_selected_arena);
+        game_selected_group.add_action_q_action(&game_selected_pharaoh_dynasties);
         game_selected_group.add_action_q_action(&game_selected_pharaoh);
         game_selected_group.add_action_q_action(&game_selected_warhammer_3);
         game_selected_group.add_action_q_action(&game_selected_troy);
@@ -682,6 +694,7 @@ impl AppUI {
         game_selected_group.add_action_q_action(&game_selected_napoleon);
         game_selected_group.add_action_q_action(&game_selected_empire);
         game_selected_group.add_action_q_action(&game_selected_arena);
+        game_selected_pharaoh_dynasties.set_checkable(true);
         game_selected_pharaoh.set_checkable(true);
         game_selected_warhammer_3.set_checkable(true);
         game_selected_troy.set_checkable(true);
@@ -701,6 +714,7 @@ impl AppUI {
         //-----------------------------------------------//
 
         // Populate the `Special Stuff` menu with submenus.
+        let menu_pharaoh_dynasties = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_PHARAOH_DYNASTIES));
         let menu_pharaoh = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_PHARAOH));
         let menu_warhammer_3 = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_WARHAMMER_3));
         let menu_troy = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_TROY));
@@ -716,6 +730,9 @@ impl AppUI {
         let special_stuff_rescue_packfile = menu_bar_special_stuff.add_action_q_string(&qtr("special_stuff_rescue_packfile"));
 
         // Populate the `Special Stuff` submenus.
+        let special_stuff_ph_dyn_generate_dependencies_cache = add_action_to_menu(&menu_pharaoh_dynasties, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
+        let special_stuff_ph_dyn_optimize_packfile = add_action_to_menu(&menu_pharaoh_dynasties, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
+        let special_stuff_ph_dyn_build_starpos = add_action_to_menu(&menu_pharaoh_dynasties, shortcuts.as_ref(), "special_stuff_menu", "build_starpos", "special_stuff_build_starpos", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_ph_generate_dependencies_cache = add_action_to_menu(&menu_pharaoh, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_ph_optimize_packfile = add_action_to_menu(&menu_pharaoh, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_ph_build_starpos = add_action_to_menu(&menu_pharaoh, shortcuts.as_ref(), "special_stuff_menu", "build_starpos", "special_stuff_build_starpos", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
@@ -865,6 +882,7 @@ impl AppUI {
             mymod_import,
             mymod_export,
 
+            mymod_open_pharaoh_dynasties,
             mymod_open_pharaoh,
             mymod_open_warhammer_3,
             mymod_open_troy,
@@ -896,6 +914,7 @@ impl AppUI {
             game_selected_open_game_assembly_kit_folder,
             game_selected_open_config_folder,
 
+            game_selected_pharaoh_dynasties,
             game_selected_pharaoh,
             game_selected_warhammer_3,
             game_selected_troy,
@@ -915,6 +934,11 @@ impl AppUI {
             //-------------------------------------------------------------------------------//
             // "Special Stuff" menu.
             //-------------------------------------------------------------------------------//
+
+            // Pharaoh Dynasties actions.
+            special_stuff_ph_dyn_generate_dependencies_cache,
+            special_stuff_ph_dyn_optimize_packfile,
+            special_stuff_ph_dyn_build_starpos,
 
             // Pharaoh actions.
             special_stuff_ph_generate_dependencies_cache,
@@ -1353,6 +1377,7 @@ impl AppUI {
                     // NOTE: Arena should never be here.
                     // Change the Game Selected in the UI.
                     match game_folder {
+                        KEY_PHARAOH_DYNASTIES => app_ui.game_selected_pharaoh_dynasties.trigger(),
                         KEY_PHARAOH => app_ui.game_selected_pharaoh.trigger(),
                         KEY_WARHAMMER_3 => app_ui.game_selected_warhammer_3.trigger(),
                         KEY_TROY => app_ui.game_selected_troy.trigger(),
@@ -1406,6 +1431,7 @@ impl AppUI {
                             // Otherwise, it's from Three Kingdoms, Warhammer 2, Troy, Pharaoh or Warhammer 3.
                             else {
                                 match game_selected {
+                                    KEY_PHARAOH_DYNASTIES => app_ui.game_selected_pharaoh_dynasties.trigger(),
                                     KEY_PHARAOH => app_ui.game_selected_pharaoh.trigger(),
                                     KEY_WARHAMMER_3 => app_ui.game_selected_warhammer_3.trigger(),
                                     KEY_TROY => app_ui.game_selected_troy.trigger(),
@@ -1641,6 +1667,11 @@ impl AppUI {
 
             // Check the Game Selected and enable the actions corresponding to out game.
             match game_selected {
+                KEY_PHARAOH_DYNASTIES => {
+                    app_ui.change_packfile_type_data_is_compressed.set_enabled(true);
+                    app_ui.special_stuff_ph_dyn_optimize_packfile.set_enabled(true);
+                    app_ui.special_stuff_ph_dyn_build_starpos.set_enabled(true);
+                },
                 KEY_PHARAOH => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(true);
                     app_ui.special_stuff_ph_optimize_packfile.set_enabled(true);
@@ -1714,6 +1745,11 @@ impl AppUI {
             // Universal Actions.
             app_ui.change_packfile_type_data_is_compressed.set_enabled(false);
 
+            // Disable Pharaoh Dynasties actions.
+            app_ui.special_stuff_ph_dyn_optimize_packfile.set_enabled(false);
+            app_ui.special_stuff_ph_dyn_generate_dependencies_cache.set_enabled(false);
+            app_ui.special_stuff_ph_dyn_build_starpos.set_enabled(false);
+
             // Disable Pharaoh actions.
             app_ui.special_stuff_ph_optimize_packfile.set_enabled(false);
             app_ui.special_stuff_ph_generate_dependencies_cache.set_enabled(false);
@@ -1781,6 +1817,10 @@ impl AppUI {
         // The assembly kit thing should only be available for Rome 2 and later games.
         // And dependencies generation should be enabled for the current game.
         match game_selected {
+            KEY_PHARAOH_DYNASTIES => {
+                app_ui.game_selected_open_game_assembly_kit_folder.set_enabled(true);
+                app_ui.special_stuff_ph_dyn_generate_dependencies_cache.set_enabled(true);
+            },
             KEY_PHARAOH => {
                 app_ui.game_selected_open_game_assembly_kit_folder.set_enabled(true);
                 app_ui.special_stuff_ph_generate_dependencies_cache.set_enabled(true);
@@ -2084,6 +2124,7 @@ impl AppUI {
     ) {
 
         // First, we need to reset the menu, which basically means deleting all the game submenus and hiding them.
+        app_ui.mymod_open_pharaoh_dynasties.menu_action().set_visible(false);
         app_ui.mymod_open_pharaoh.menu_action().set_visible(false);
         app_ui.mymod_open_warhammer_3.menu_action().set_visible(false);
         app_ui.mymod_open_troy.menu_action().set_visible(false);
@@ -2097,6 +2138,7 @@ impl AppUI {
         app_ui.mymod_open_napoleon.menu_action().set_visible(false);
         app_ui.mymod_open_empire.menu_action().set_visible(false);
 
+        app_ui.mymod_open_pharaoh_dynasties.clear();
         app_ui.mymod_open_pharaoh.clear();
         app_ui.mymod_open_warhammer_3.clear();
         app_ui.mymod_open_troy.clear();
@@ -2121,6 +2163,7 @@ impl AppUI {
                     let is_supported = SUPPORTED_GAMES.games().iter().filter_map(|x| if *x.supports_editing() { Some(x.key()) } else { None }).any(|x| x == game_folder_name);
                     if game_folder.path().is_dir() && is_supported {
                         let game_submenu = match &*game_folder_name {
+                            KEY_PHARAOH_DYNASTIES => &app_ui.mymod_open_pharaoh_dynasties,
                             KEY_PHARAOH => &app_ui.mymod_open_pharaoh,
                             KEY_WARHAMMER_3 => &app_ui.mymod_open_warhammer_3,
                             KEY_TROY => &app_ui.mymod_open_troy,
