@@ -70,7 +70,7 @@ impl PackedFileRigidModelView {
         let splitter = QSplitter::from_q_widget(file_view.main_widget());
         layout.add_widget_5a(&splitter, 0, 0, 1, 1);
 
-        let mut renderer_enabled = false;
+        #[cfg(feature = "support_model_renderer")] let mut renderer_enabled = false;
         let view = Arc::new(PackedFileRigidModelView{
             #[cfg(feature = "support_rigidmodel")] editor: {
                 let data = QByteArray::from_slice(data.data());

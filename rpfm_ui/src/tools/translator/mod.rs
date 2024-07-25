@@ -46,7 +46,7 @@ use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::references_ui::ReferencesUI;
 use crate::settings_ui::backend::translations_local_path;
-use crate::views::table::{filter::*, TableType, TableView, utils::get_table_from_view};
+use crate::views::table::{TableType, TableView, utils::get_table_from_view};
 
 use self::slots::ToolTranslatorSlots;
 use super::*;
