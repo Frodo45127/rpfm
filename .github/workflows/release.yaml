@@ -247,8 +247,8 @@ jobs:
           cp C:\actions-runner\_work\rpfm\rpfm/rpfm_ui/ui_templates/* ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\ui\
 
           # These assets are for the model renderer.
-          mkdir assets
-          cp -R C:\actions-runner\_work\rpfm\rpfm/assets/* ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\assets\
+          # mkdir assets
+          # cp -R C:\actions-runner\_work\rpfm\rpfm/assets/* ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\assets\
 
           # Execute windeployqt to add missing translations and the vcredist if needed.
           ${{ matrix.DDISK }}:\Craft\craft\craftenv.ps1
