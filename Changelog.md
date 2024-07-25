@@ -6,7 +6,7 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
-## [Unreleased]
+## [4.3.0]
 ### Added
 - Implemented basic CUF support (lib only).
 - Implemented "Add RPFM as a Tool in Runcher" button in settings.
@@ -19,6 +19,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - Implemented automatic translation of entries with the same value in the Translator.
 - Implemented automatic translation of entries with the same value as a vanilla entry in the Translator.
 - Implemented automatic translation using google when first clicking on an untranslated line.
+- Implemented support for Pharaoh's Dynasties update.
 
 ### Changed
 - Loose files in /data are now accessible as dependencies.
@@ -27,6 +28,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - Changelog should now automatically open after an update.
 - Autosaves are only triggered if the pack has been marked as "edited".
 - Updated minimal rust version to 1.70.
+- Temporarilly disabled the 3d renderer due to an unfixed memory leak.
 
 ### Fixed
 - Fixed "Import from AK" not working due to a misplaced index.
@@ -51,6 +53,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - Fixed a bug where sometimes the rigidmodel 3d renderer would fail to find textures.
 - Fixed Rome 2 Build Startpos process not including victory objectives in the startpos.
 - Fixed "Copy from Source" being a bit broken in the Translator.
+- Fixed Pharaoh's AK path not being found automatically.
 
 ## [4.2.7]
 ### Added
@@ -1361,7 +1364,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.2.7...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.3.0...HEAD
+[4.3.0]: https://github.com/Frodo45127/rpfm/compare/v4.2.7...v4.3.0
 [4.2.7]: https://github.com/Frodo45127/rpfm/compare/v4.2.6...v4.2.7
 [4.2.6]: https://github.com/Frodo45127/rpfm/compare/v4.2.5...v4.2.6
 [4.2.5]: https://github.com/Frodo45127/rpfm/compare/v4.2.4...v4.2.5
