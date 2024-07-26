@@ -1444,6 +1444,7 @@ impl RFile {
             (FileType::Atlas, &RFileDecoded::Atlas(_)) |
             (FileType::Audio, &RFileDecoded::Audio(_)) |
             (FileType::BMD, &RFileDecoded::BMD(_)) |
+            (FileType::BMDVegetation, &RFileDecoded::BMDVegetation(_)) |
             (FileType::Dat, &RFileDecoded::Dat(_)) |
             (FileType::DB, &RFileDecoded::DB(_)) |
             (FileType::ESF, &RFileDecoded::ESF(_)) |
@@ -1460,8 +1461,10 @@ impl RFile {
             (FileType::Text, &RFileDecoded::Text(_)) |
             (FileType::UIC, &RFileDecoded::UIC(_)) |
             (FileType::UnitVariant, &RFileDecoded::UnitVariant(_)) |
-            (FileType::Unknown, &RFileDecoded::Unknown(_)) |
-            (FileType::Video, &RFileDecoded::Video(_)) => self.data = RFileInnerData::Decoded(Box::new(decoded)),
+            (FileType::Video, &RFileDecoded::Video(_)) |
+            (FileType::VMD, &RFileDecoded::VMD(_)) |
+            (FileType::WSModel, &RFileDecoded::WSModel(_)) |
+            (FileType::Unknown, &RFileDecoded::Unknown(_)) => self.data = RFileInnerData::Decoded(Box::new(decoded)),
             _ => return Err(RLibError::DecodedDataDoesNotMatchFileType(self.file_type(), From::from(&decoded)))
         }
 
