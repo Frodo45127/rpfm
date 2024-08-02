@@ -37,7 +37,6 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use rpfm_lib::files::{ContainerPath, FileType, pack::PFHFlags};
-use rpfm_lib::integrations::log::*;
 use rpfm_lib::utils::*;
 
 use rpfm_ui_common::FULL_DATE_FORMAT;
@@ -1511,8 +1510,6 @@ impl PackTree for QPtr<QTreeView> {
             // In case the new path doesn't exists, it's created.
             // Unlike delete, this doesn't remove empty folders unless its the folder we moved..
             TreeViewOperation::Move(moved_paths, base_folders) => {
-                info!("Moving paths: {:?}", moved_paths);
-                info!("Base folder: {:?}", base_folders);
 
                 // First, get the `RFileInfo` of each of the new paths (so we can later build their tooltip, if neccesary).
                 // Only needed for files, ignore folders on this one.
@@ -1525,7 +1522,6 @@ impl PackTree for QPtr<QTreeView> {
                 let files_info = if let Response::VecRFileInfo(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
 
                 for (source_path, new_path) in &moved_paths  {
-                    info!("Is Model Null: {}", model.is_null());
                     let taken_row = Self::take_row_from_path(source_path, &model);
 
                     let new_path = match new_path {
