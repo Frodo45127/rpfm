@@ -2322,8 +2322,64 @@ impl Default for SupportedGames {
             install_data: {
                 let mut data = HashMap::new();
                 data.insert(InstallType::WinSteam, InstallData {
-                    vanilla_packs: vec![],
-                    use_manifest: true,
+                    vanilla_packs: vec![
+                        "blood_rome2.pack".to_owned(),
+                        "boot.pack".to_owned(),
+                        "data.pack".to_owned(),
+                        "data_rome2.pack".to_owned(),
+                        "divided.pack".to_owned(),
+                        "gaul.pack".to_owned(),
+                        "greeks.pack".to_owned(),
+                        "invasion.pack".to_owned(),
+
+                        "local_en_shared_rome2.pack".to_owned(),    // English, but present for a few more languages. Loads before language-specific packs.
+
+                        "local_cz.pack".to_owned(),                 // Czech
+                        "local_en.pack".to_owned(),                 // English
+                        "local_fr.pack".to_owned(),                 // French
+                        "local_ge.pack".to_owned(),                 // German
+                        "local_it.pack".to_owned(),                 // Italian
+                        "local_pl.pack".to_owned(),                 // Polish
+                        "local_ru.pack".to_owned(),                 // Russian
+                        "local_tr.pack".to_owned(),                 // Turkish
+                        "local_sp.pack".to_owned(),                 // Spanish
+
+                        "models.pack".to_owned(),
+                        "models_rome2.pack".to_owned(),
+                        "models2.pack".to_owned(),
+                        "models2_rome2.pack".to_owned(),
+                        "models3_rome2.pack".to_owned(),
+                        "movies.pack".to_owned(),
+                        "movies_rome2.pack".to_owned(),
+                        "music.pack".to_owned(),
+                        "music_rome2.pack".to_owned(),
+
+                        "music_en_shared_rome2.pack".to_owned(),    // English, but present for a few more languages. Loads before language-specific packs.
+
+                        "music_fr.pack".to_owned(),                 // French
+                        "music_ge.pack".to_owned(),                 // German
+                        "music_it.pack".to_owned(),                 // Italian
+                        "music_ru.pack".to_owned(),                 // Russian
+                        "music_sp.pack".to_owned(),                 // Spanish
+
+                        "punic.pack".to_owned(),
+                        "sound.pack".to_owned(),
+                        "sound_rome2.pack".to_owned(),
+                        "terrain.pack".to_owned(),
+                        "terrain_rome2.pack".to_owned(),
+                        "terrain2.pack".to_owned(),
+                        "terrain2_rome2.pack".to_owned(),
+                        "terrain3_rome2.pack".to_owned(),
+                        "tiles.pack".to_owned(),
+                        "tiles_rome2.pack".to_owned(),
+                        "tiles2.pack".to_owned(),
+                        "tiles2_rome2.pack".to_owned(),
+                        "tiles3.pack".to_owned(),
+                        "tiles3_rome2.pack".to_owned(),
+                        "tiles4.pack".to_owned(),
+                        "tiles4_rome2.pack".to_owned()
+                    ],
+                    use_manifest: false,
                     store_id: 214_950,
                     store_id_ak: 267_180,
                     executable: "Rome2.exe".to_owned(),
