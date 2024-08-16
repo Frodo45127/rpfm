@@ -17,6 +17,7 @@ use serde_derive::{Serialize, Deserialize};
 use serde_json::{from_slice, to_string_pretty};
 use itertools::Itertools;
 
+use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Cursor, SeekFrom, Write};
@@ -622,7 +623,7 @@ impl Pack {
     /// This needs a [GameInfo] to get the Packs from, and a game path to search the Packs on.
     pub fn read_and_merge_ca_packs(game: &GameInfo, game_path: &Path) -> Result<Self> {
         let paths = game.ca_packs_paths(game_path)?;
-        let mut pack = Self::read_and_merge(&paths, true, true)?;
+        let mut pack = Self::read_and_merge(&paths, true, true, false)?;
 
         // Make sure it's not mod type.
         pack.header_mut().set_pfh_file_type(PFHFileType::Release);
@@ -632,7 +633,7 @@ impl Pack {
     /// Convenience function to open multiple Packs as one, taking care of overwriting files when needed.
     ///
     /// If this function receives only one path, it works as a normal read_from_disk function. If it receives none, an error will be returned.
-    pub fn read_and_merge(pack_paths: &[PathBuf], lazy_load: bool, ignore_mods: bool) -> Result<Self> {
+    pub fn read_and_merge(pack_paths: &[PathBuf], lazy_load: bool, ignore_mods: bool, keep_order: bool) -> Result<Self> {
         if pack_paths.is_empty() {
             return Err(RLibError::NoPacksProvided);
         }
@@ -675,8 +676,10 @@ impl Pack {
         // Group different type files, and sort them by name.
         packs.sort_by(|pack_a, pack_b| if pack_a.pfh_file_type() != pack_b.pfh_file_type() {
             pack_a.pfh_file_type().cmp(&pack_b.pfh_file_type())
-        } else {
+        } else if !keep_order {
             pack_a.disk_file_path.cmp(&pack_b.disk_file_path)
+        } else {
+            Ordering::Equal
         });
 
         packs.iter_mut()
@@ -698,8 +701,10 @@ impl Pack {
                 .cloned()
                 .collect::<Vec<_>>())
             .collect::<Vec<_>>();
-        dependencies.sort();
-        dependencies.dedup();
+
+        // Dedup the dependencies while preserving the order.
+        let mut set = HashSet::new();
+        dependencies.retain(|x| set.insert(x.clone()));
         pack_new.set_dependencies(dependencies);
 
         // Fix the pack version.

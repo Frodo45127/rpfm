@@ -120,7 +120,7 @@ pub fn background_loop() {
 
             // In case we want to "Open one or more PackFiles"...
             Command::OpenPackFiles(paths) => {
-                match Pack::read_and_merge(&paths, setting_bool("use_lazy_loading"), false) {
+                match Pack::read_and_merge(&paths, setting_bool("use_lazy_loading"), false, false) {
                     Ok(pack) => {
                         pack_file_decoded = pack;
 
@@ -146,7 +146,7 @@ pub fn background_loop() {
             Command::OpenPackExtra(path) => {
                 match pack_files_decoded_extra.get(&path) {
                     Some(pack) => CentralCommand::send_back(&sender, Response::ContainerInfo(ContainerInfo::from(pack))),
-                    None => match Pack::read_and_merge(&[path.to_path_buf()], true, false) {
+                    None => match Pack::read_and_merge(&[path.to_path_buf()], true, false, false) {
                          Ok(pack) => {
                             CentralCommand::send_back(&sender, Response::ContainerInfo(ContainerInfo::from(&pack)));
                             pack_files_decoded_extra.insert(path.to_path_buf(), pack);

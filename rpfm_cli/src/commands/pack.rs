@@ -268,7 +268,7 @@ pub fn diagnose(config: &Config, game_path: &Path, pak_path: &Path, schema_path:
 
     // Load both, the schema and the Packs to memory.
     let schema = Schema::load(schema_path, None)?;
-    let mut pack = Pack::read_and_merge(pack_paths, true, false)?;
+    let mut pack = Pack::read_and_merge(pack_paths, true, false, true)?;
 
     // Prepare the table's extra data,
     let mut extra_data = DecodeableExtraData::default();
@@ -331,7 +331,7 @@ pub fn merge(config: &Config, save_pack_path: &Path, source_pack_paths: &[PathBu
 
     match &config.game {
         Some(game) => {
-            let mut pack = Pack::read_and_merge(source_pack_paths, true, false)?;
+            let mut pack = Pack::read_and_merge(source_pack_paths, true, false, true)?;
             pack.save(Some(save_pack_path), game, &None)?;
             Ok(())
         }
@@ -347,7 +347,7 @@ pub fn add_dependency(config: &Config, pack_path: &Path, dependency: &str) -> Re
 
     match &config.game {
         Some(game) => {
-            let mut pack = Pack::read_and_merge(&[pack_path.to_path_buf()], true, false)?;
+            let mut pack = Pack::read_and_merge(&[pack_path.to_path_buf()], true, false, true)?;
             pack.dependencies_mut().push(dependency.to_owned());
             pack.save(None, game, &None)?;
             Ok(())
@@ -364,7 +364,7 @@ pub fn remove_dependency(config: &Config, pack_path: &Path, dependency: &str) ->
 
     match &config.game {
         Some(game) => {
-            let mut pack = Pack::read_and_merge(&[pack_path.to_path_buf()], true, false)?;
+            let mut pack = Pack::read_and_merge(&[pack_path.to_path_buf()], true, false, true)?;
             if let Some(pos) = pack.dependencies().iter().position(|x| x == dependency) {
                 pack.dependencies_mut().remove(pos);
             }
@@ -383,7 +383,7 @@ pub fn remove_all_dependencies(config: &Config, pack_path: &Path) -> Result<()> 
 
     match &config.game {
         Some(game) => {
-            let mut pack = Pack::read_and_merge(&[pack_path.to_path_buf()], true, false)?;
+            let mut pack = Pack::read_and_merge(&[pack_path.to_path_buf()], true, false, true)?;
             pack.dependencies_mut().clear();
             pack.save(None, game, &None)?;
             Ok(())
