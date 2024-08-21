@@ -20,44 +20,45 @@
 //!
 //! The full list of file extension this lib supports as `Text` files is:
 //!
-//! | ------------------------ | -------- | ------------------------------------------- |
-//! | Extension                | Language | Description                                 |
-//! | ------------------------ | -------- | ------------------------------------------- |
-//! | `.battle_speech_camera`  | `Plain`  | Camera settings file for battle speeches.   |
-//! | `.benchmark`             | `Xml`    | Benchmark settings.                         |
-//! | `.bob`                   | `Plain`  | BoB settings file.                          |
-//! | `.cindyscene`            | `Xml`    | Cutscene editor data.                       |
-//! | `.cindyscenemanager`     | `Xml`    | Cutscene editor data.                       |
-//! | `.code-snippets`         | `Json`   | VSCode snippet file.                        |
-//! | `.code-workspace`        | `Json`   | VSCode workspace file.                      |
-//! | `.csv`                   | `Plain`  | Normal CSV file.                            |
-//! | `.css`                   | `Css`    | Normal CSS file.                            |
-//! | `.environment`           | `Xml`    |                                             |
-//! | `.htm`                   | `Html`   | Normal HTML file.                           |
-//! | `.html`                  | `Html`   | Normal HTML file.                           |
-//! | `.inl`                   | `Cpp`    |                                             |
-//! | `.json`                  | `Json`   | Normal JSON file.                           |
-//! | `.js`                    | `Js`     | Normal Javascript file.                     |
-//! | `.kfa`                   | `Xml`    | Battle Audio Event file.                    |
-//! | `.kfe`                   | `Xml`    | Battle Effect file.                         |
-//! | `.kfl`                   | `Xml`    | Battle Point Light file.                    |
-//! | `.kfsl`                  | `Xml`    | Battle Spot Light file.                     |
-//! | `.kfp`                   | `Xml`    | Battle Prop file.                           |
-//! | `.kfcs`                  | `Xml`    | Battle Composite Scene file.                |
-//! | `.lighting`              | `Xml`    |                                             |
-//! | `.lua`                   | `Lua`    | LUA Script file.                            |
-//! | `.material`              | `Xml`    |                                             |
-//! | `.tai`                   | `Plain`  |                                             |
-//! | `.technique`             | `Xml`    |                                             |
-//! | `.texture_array`         | `Plain`  | List of Campaign Map textures.              |
-//! | `.tsv`                   | `Plain`  | Normal TSV file.                            |
-//! | `.twui`                  | `Lua`    | TWui file, in lua format.                   |
-//! | `.txt`                   | `Plain`  | Plain TXT file.                             |
-//! | `.variantmeshdefinition` | `Xml`    |                                             |
-//! | `.wsmodel`               | `Xml`    |                                             |
-//! | `.xml`                   | `Xml`    | Normal XML file.                            |
-//! | `.xml.shader`            | `Xml`    | Shader setup metadata.                      |
-//! | `.xml.material`          | `Xml`    |                                             |
+//! | ------------------------ | ---------- | ------------------------------------------- |
+//! | Extension                | Language   | Description                                 |
+//! | ------------------------ | ---------- | ------------------------------------------- |
+//! | `.battle_speech_camera`  | `Plain`    | Camera settings file for battle speeches.   |
+//! | `.benchmark`             | `Xml`      | Benchmark settings.                         |
+//! | `.bob`                   | `Plain`    | BoB settings file.                          |
+//! | `.cindyscene`            | `Xml`      | Cutscene editor data.                       |
+//! | `.cindyscenemanager`     | `Xml`      | Cutscene editor data.                       |
+//! | `.code-snippets`         | `Json`     | VSCode snippet file.                        |
+//! | `.code-workspace`        | `Json`     | VSCode workspace file.                      |
+//! | `.csv`                   | `Plain`    | Normal CSV file.                            |
+//! | `.css`                   | `Css`      | Normal CSS file.                            |
+//! | `.environment`           | `Xml`      |                                             |
+//! | `.htm`                   | `Html`     | Normal HTML file.                           |
+//! | `.html`                  | `Html`     | Normal HTML file.                           |
+//! | `.inl`                   | `Cpp`      |                                             |
+//! | `.json`                  | `Json`     | Normal JSON file.                           |
+//! | `.js`                    | `Js`       | Normal Javascript file.                     |
+//! | `.kfa`                   | `Xml`      | Battle Audio Event file.                    |
+//! | `.kfe`                   | `Xml`      | Battle Effect file.                         |
+//! | `.kfl`                   | `Xml`      | Battle Point Light file.                    |
+//! | `.kfsl`                  | `Xml`      | Battle Spot Light file.                     |
+//! | `.kfp`                   | `Xml`      | Battle Prop file.                           |
+//! | `.kfcs`                  | `Xml`      | Battle Composite Scene file.                |
+//! | `.lighting`              | `Xml`      |                                             |
+//! | `.lua`                   | `Lua`      | LUA Script file.                            |
+//! | `.material`              | `Xml`      |                                             |
+//! | `.md`                    | `Markdown` | Markdown files, for readmes.                |
+//! | `.tai`                   | `Plain`    |                                             |
+//! | `.technique`             | `Xml`      |                                             |
+//! | `.texture_array`         | `Plain`    | List of Campaign Map textures.              |
+//! | `.tsv`                   | `Plain`    | Normal TSV file.                            |
+//! | `.twui`                  | `Lua`      | TWui file, in lua format.                   |
+//! | `.txt`                   | `Plain`    | Plain TXT file.                             |
+//! | `.variantmeshdefinition` | `Xml`      |                                             |
+//! | `.wsmodel`               | `Xml`      |                                             |
+//! | `.xml`                   | `Xml`      | Normal XML file.                            |
+//! | `.xml.shader`            | `Xml`      | Shader setup metadata.                      |
+//! | `.xml.material`          | `Xml`      |                                             |
 
 use getset::*;
 use serde_derive::{Serialize, Deserialize};
@@ -77,7 +78,7 @@ const BOM_UTF_8: [u8;3] = [0xEF,0xBB,0xBF];
 const BOM_UTF_16_LE: [u8;2] = [0xFF,0xFE];
 
 /// List of extensions we recognize as `Text` files, with their respective known format.
-pub const EXTENSIONS: [(&str, TextFormat); 53] = [
+pub const EXTENSIONS: [(&str, TextFormat); 54] = [
     (".bat", TextFormat::Bat),
     (".battle_speech_camera", TextFormat::Plain),
     (".benchmark", TextFormat::Xml),
@@ -116,6 +117,7 @@ pub const EXTENSIONS: [(&str, TextFormat); 53] = [
     (".ktr_temp", TextFormat::Xml),
     (".lighting", TextFormat::Xml),
     (".lua", TextFormat::Lua),
+    (".md", TextFormat::Markdown),
     (".mvscene", TextFormat::Xml),
     (".py", TextFormat::Python),
     (".sbs", TextFormat::Xml),
