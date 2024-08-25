@@ -2163,7 +2163,47 @@ impl Default for SupportedGames {
             install_data: {
                 let mut data = HashMap::new();
                 data.insert(InstallType::WinSteam, InstallData {
-                    vanilla_packs: vec![],
+                    vanilla_packs: vec![
+                        "blood.pack".to_owned(),
+                        "boot.pack".to_owned(),
+                        "charlemagne.pack".to_owned(),
+                        "data.pack".to_owned(),
+
+                        "local_en_shared_rome2.pack".to_owned(),    // English, but present for a few more languages. Loads before language-specific packs.
+
+                        "local_cz.pack".to_owned(),                 // Czech
+                        "local_en.pack".to_owned(),                 // English
+                        "local_fr.pack".to_owned(),                 // French
+                        "local_ge.pack".to_owned(),                 // German
+                        "local_it.pack".to_owned(),                 // Italian
+                        "local_pl.pack".to_owned(),                 // Polish
+                        "local_ru.pack".to_owned(),                 // Russian
+                        "local_tr.pack".to_owned(),                 // Turkish
+                        "local_sp.pack".to_owned(),                 // Spanish
+
+                        "models.pack".to_owned(),
+                        "models2.pack".to_owned(),
+                        "models3.pack".to_owned(),
+                        "movies.pack".to_owned(),
+                        "music.pack".to_owned(),
+
+                        "music_en_shared_rome2.pack".to_owned(),    // English, but present for a few more languages. Loads before language-specific packs.
+
+                        "music_fr.pack".to_owned(),                 // French
+                        "music_ge.pack".to_owned(),                 // German
+                        "music_it.pack".to_owned(),                 // Italian
+                        "music_ru.pack".to_owned(),                 // Russian
+                        "music_sp.pack".to_owned(),                 // Spanish
+
+                        "slavs.pack".to_owned(),
+                        "sound.pack".to_owned(),
+                        "terrain.pack".to_owned(),
+                        "terrain2.pack".to_owned(),
+                        "tiles.pack".to_owned(),
+                        "tiles2.pack".to_owned(),
+                        "tiles3.pack".to_owned(),
+                        "tiles4.pack".to_owned(),
+                    ],
                     use_manifest: true,
                     store_id: 325_610,
                     store_id_ak: 343_660,
