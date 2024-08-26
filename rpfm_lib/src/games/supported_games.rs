@@ -2164,6 +2164,7 @@ impl Default for SupportedGames {
                 let mut data = HashMap::new();
                 data.insert(InstallType::WinSteam, InstallData {
                     vanilla_packs: vec![
+                        "belisarius.pack".to_owned(),
                         "blood.pack".to_owned(),
                         "boot.pack".to_owned(),
                         "charlemagne.pack".to_owned(),
