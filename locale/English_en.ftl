@@ -1424,7 +1424,7 @@ not_empty = Cannot Be Empty
 description = Description
 patch_success = Patch saved correctly. It'll be used from the next time you restart RPFM onwards.
 
-column_tooltip_lookup_remote = This column fetch lookup values from the following tables and columns, or their loc values:
+column_tooltip_lookup_remote = This column fetch lookup values from the following tables and columns (or simply columns if they're a loc directly related with this table), or their loc values:
 column_tooltip_lookup_local = This column fetch lookup values from the following columns of this table, or their loc values:
 
 anim_fragment_version = Version

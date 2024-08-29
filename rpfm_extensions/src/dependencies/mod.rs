@@ -2179,29 +2179,13 @@ impl Dependencies {
         let schema_patches = definition.patches().clone();
 
         for field in definition.fields_mut().iter_mut() {
+
+            // First check lookups on the local table.
             if let Some(lookup_data_old) = field.lookup(Some(&schema_patches)) {
+                let mut lookup_data = vec![];
 
-                // If our field is a reference, do recursive checks to find out all the lookup data of a specific field.
-                if let Some((ref_table_name, ref_column)) = field.is_reference(Some(&schema_patches)) {
-                    let mut lookup_data = vec![];
-
-                    for lookup_data_old in &lookup_data_old {
-                        let lookup_string = format!("{}#{}#{}", ref_table_name, ref_column, lookup_data_old);
-                        self.add_recursive_lookups(schema, &schema_patches, lookup_data_old, &mut lookup_data, &lookup_string, &ref_table_name);
-                    }
-
-                    if !lookup_data.is_empty() {
-                        field.set_lookup(Some(lookup_data));
-                    } else {
-                        field.set_lookup(None);
-                    }
-                }
-
-                // If it's not a reference but it has lookups, it's a lookup to the same table, or locs of the same table.
-                //
-                // This should really not trigger thanks to previous optimisations, but I'll leave this as a fallback.
-                else if !lookup_data_old.is_empty() {
-                    let mut lookup_data = vec![];
+                // Check first for local lookups.
+                if !lookup_data_old.is_empty() {
 
                     let table_name = if let Some(table_name) = table_name.strip_suffix("_tables") {
                         table_name.to_owned()
@@ -2214,11 +2198,20 @@ impl Dependencies {
                         self.add_recursive_lookups(schema, &schema_patches, lookup_data_old, &mut lookup_data, &lookup_string, &table_name);
                     }
 
-                    if !lookup_data.is_empty() {
-                        field.set_lookup(Some(lookup_data));
-                    } else {
-                        field.set_lookup(None);
+                }
+
+                // If our field is a reference, do recursive checks to find out all the lookup data of a specific field.
+                if let Some((ref_table_name, ref_column)) = field.is_reference(Some(&schema_patches)) {
+                    for lookup_data_old in &lookup_data_old {
+                        let lookup_string = format!("{}#{}#{}", ref_table_name, ref_column, lookup_data_old);
+                        self.add_recursive_lookups(schema, &schema_patches, lookup_data_old, &mut lookup_data, &lookup_string, &ref_table_name);
                     }
+                }
+
+                if !lookup_data.is_empty() {
+                    field.set_lookup(Some(lookup_data));
+                } else {
+                    field.set_lookup(None);
                 }
             }
         }

@@ -703,10 +703,11 @@ pub unsafe fn build_columns(
     let mut resize_after_data = false;
     let mut keys = vec![];
     let fields_processed = definition.fields_processed();
+    let loc_fields = definition.localised_fields();
     model.set_column_count(fields_processed.len() as i32);
 
     let patches = Some(definition.patches());
-    let tooltips = get_column_tooltips(&schema, &fields_processed, patches, table_name);
+    let tooltips = get_column_tooltips(&schema, &fields_processed, loc_fields, patches, table_name);
     let adjust_columns = setting_bool("adjust_columns_to_content");
     let header = table_view.horizontal_header();
 
@@ -892,6 +893,7 @@ pub unsafe fn build_columns(
 pub unsafe fn get_column_tooltips(
     schema: &Option<Schema>,
     fields: &[Field],
+    loc_fields: &[Field],
     patches: Option<&DefinitionPatch>,
     table_name: Option<&str>,
 ) -> Vec<String> {
@@ -922,7 +924,16 @@ pub unsafe fn get_column_tooltips(
 
                 if let Some(ref lookup) = field.lookup(patches) {
                     if let Some(ref reference) = field.is_reference(patches) {
-                        tooltip_text.push_str(&format!("<p>{}</p><ul><li><i>{}</i></li></ul>", tr("column_tooltip_lookup_remote"), lookup.iter().map(|lookup| format!("{}/{}", reference.0, lookup)).join("</i></li><li><i>")));
+                        let lookups = lookup.iter()
+                            .map(|lookup|
+                                if loc_fields.iter().any(|x| x.name() == lookup) {
+                                    lookup.to_owned()
+                                } else {
+                                    format!("{}/{}", reference.0, lookup)
+                                }
+                            ).join("</i></li><li><i>");
+
+                        tooltip_text.push_str(&format!("<p>{}</p><ul><li><i>{}</i></li></ul>", tr("column_tooltip_lookup_remote"), lookups));
                     } else {
                         tooltip_text.push_str(&format!("<p>{}</p><ul><li><i>{}</i></li></ul>", tr("column_tooltip_lookup_local"), lookup.join("</i></li><li><i>")));
                     }
