@@ -48,6 +48,10 @@ const TERRY_MAP_PATH: &str = "terrain/tiles/battle/_assembly_kit";
 /// This one is the name of the main BMD data file used by maps exported from Terry.
 const DEFAULT_BMD_DATA: &str = "bmd_data.bin";
 
+// Const for the missing locs paths.
+const MISSING_LOCS_PATH_EXISTING: &str = "text/aaa_missing_locs.loc";
+const MISSING_LOCS_PATH_NEW: &str = "text/zzz_missing_locs.loc";
+
 /// These three hints are necessary for the map patching function.
 const FORT_PERIMETER_HINT: &[u8; 18] = b"AIH_FORT_PERIMETER";
 const DEFENSIVE_HILL_HINT: &[u8; 18] = b"AIH_DEFENSIVE_HILL";
@@ -904,7 +908,8 @@ impl Pack {
     }
 
     /// This function is used to generate all loc entries missing from a Pack into a missing.loc file.
-    pub fn generate_missing_loc_data(&mut self) -> Result<Option<ContainerPath>> {
+    pub fn generate_missing_loc_data(&mut self, existing_locs: &HashMap<String, String>) -> Result<Vec<ContainerPath>> {
+        let mut new_files = vec![];
 
         let db_tables = self.files_by_type(&[FileType::DB]);
         let loc_tables = self.files_by_type(&[FileType::Loc]);
@@ -922,7 +927,7 @@ impl Pack {
             } else { None }
         }).flatten().collect::<HashSet<String>>();
 
-        let missing_trads_file_table_data = db_tables.par_iter().filter_map(|rfile| {
+        let (missing_trads_new, missing_trads_overwritten) = db_tables.par_iter().filter_map(|rfile| {
             if let Ok(RFileDecoded::DB(table)) = rfile.decoded() {
                 let definition = table.definition();
                 let loc_fields = definition.localised_fields();
@@ -932,7 +937,8 @@ impl Pack {
 
                     // Get the keys, which may be concatenated. We get them IN THE ORDER THEY ARE IN THE BINARY FILE.
                     let localised_order = definition.localised_key_order();
-                    let mut new_rows = vec![];
+                    let mut new_rows_new = vec![];
+                    let mut new_rows_overwritten = vec![];
 
                     for row in table_data.iter() {
                         for loc_field in loc_fields {
@@ -942,30 +948,42 @@ impl Pack {
                             if !key.is_empty() {
                                 let loc_key = format!("{}_{}_{}", table_name, loc_field.name(), key);
 
-                                if !loc_keys_from_memory.contains(&*loc_key) {
+                                if let Some(value) = existing_locs.get(&loc_key) {
+                                    let mut new_row = missing_trads_file.new_row();
+                                    new_row[0] = DecodedData::StringU16(loc_key);
+                                    new_row[1] = DecodedData::StringU16(value.to_owned());
+                                    new_rows_overwritten.push(new_row);
+
+                                } else if !loc_keys_from_memory.contains(&*loc_key) {
                                     let mut new_row = missing_trads_file.new_row();
                                     new_row[0] = DecodedData::StringU16(loc_key);
                                     new_row[1] = DecodedData::StringU16("PLACEHOLDER".to_owned());
-                                    new_rows.push(new_row);
+                                    new_rows_new.push(new_row);
                                 }
                             }
                         }
                     }
 
-                    return Some(new_rows)
+                    return Some((new_rows_new, new_rows_overwritten))
                 }
             }
             None
-        }).flatten().collect::<Vec<Vec<DecodedData>>>();
+        }).flatten().collect::<(Vec<Vec<DecodedData>>, Vec<Vec<DecodedData>>)>();
 
-        // Save the missing translations to a missing_locs.loc file.
-        let _ = missing_trads_file.set_data(&missing_trads_file_table_data);
-        if !missing_trads_file_table_data.is_empty() {
-            let packed_file = RFile::new_from_decoded(&RFileDecoded::Loc(missing_trads_file), 0,  "text/missing_locs.loc");
-            Ok(self.insert(packed_file)?)
-        } else {
-            Ok(None)
+        // Save the missing translations to two files: one for new translations, and another one for translations in use by this pack.
+        let _ = missing_trads_file.set_data(&missing_trads_new);
+        if !missing_trads_new.is_empty() {
+            let packed_file = RFile::new_from_decoded(&RFileDecoded::Loc(missing_trads_file.clone()), 0, MISSING_LOCS_PATH_NEW);
+            new_files.push(self.insert(packed_file)?.unwrap());
         }
+
+        let _ = missing_trads_file.set_data(&missing_trads_overwritten);
+        if !missing_trads_overwritten.is_empty() {
+            let packed_file = RFile::new_from_decoded(&RFileDecoded::Loc(missing_trads_file), 0, MISSING_LOCS_PATH_EXISTING);
+            new_files.push(self.insert(packed_file)?.unwrap());
+        }
+
+        Ok(new_files)
     }
 
     /// This function is used to patch Warhammer I & II Siege map packs so their AI actually works.

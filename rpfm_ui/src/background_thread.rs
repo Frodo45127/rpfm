@@ -1986,8 +1986,8 @@ pub fn background_loop() {
             }
 
             Command::GenerateMissingLocData => {
-                match pack_file_decoded.generate_missing_loc_data() {
-                    Ok(path) => CentralCommand::send_back(&sender, Response::OptionContainerPath(path)),
+                match generate_missing_loc_data(&mut pack_file_decoded, &dependencies.read().unwrap()) {
+                    Ok(path) => CentralCommand::send_back(&sender, Response::VecContainerPath(path)),
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                 }
             }
@@ -3118,4 +3118,17 @@ fn decode_and_send_file(file: &mut RFile, sender: &Sender<Response>) {
         Ok(RFileDecoded::WSModel(data)) => CentralCommand::send_back(sender, Response::WSModelRFileInfo(data, From::from(&*file))),
         Err(error) => CentralCommand::send_back(sender, Response::Error(From::from(error))),
     }
+}
+
+fn generate_missing_loc_data(pack: &mut Pack, dependencies: &Dependencies) -> Result<Vec<ContainerPath>> {
+    let loc_data = dependencies.loc_data(true, true)?;
+    let mut existing_locs = HashMap::new();
+
+    for loc in &loc_data {
+        if let Ok(RFileDecoded::Loc(ref data)) = loc.decoded() {
+            existing_locs.extend(data.table().data().iter().map(|x| (x[0].data_to_string().to_string(), x[1].data_to_string().to_string())));
+        }
+    }
+
+    pack.generate_missing_loc_data(&existing_locs).map_err(From::from)
 }
