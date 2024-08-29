@@ -229,8 +229,6 @@ impl Decodeable for GroupFormations {
 
         check_size_mismatch(data.stream_position()? as usize, data_len as usize)?;
 
-        dbg!(&decoded);
-
         Ok(decoded)
     }
 }
