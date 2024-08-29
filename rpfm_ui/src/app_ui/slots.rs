@@ -1559,7 +1559,17 @@ impl AppUISlots {
                                                 if let Some(column_data) = icons.get(&(column as i32)) {
                                                     for row in 0..table.table_model().row_count_0a() {
                                                         let item = table.table_model().item_2a(row, column as i32);
-                                                        let paths_join = column_data.0.replace('%', &item.text().to_std_string().replace('\\', "/")).to_lowercase();
+                                                        let cell_data = item.text().to_std_string().replace('\\', "/");
+
+                                                        // For paths, we need to fix the ones in older games starting with / or data/.
+                                                        let mut start_offset = 0;
+                                                        if cell_data.starts_with("/") {
+                                                            start_offset += 1;
+                                                        }
+                                                        if cell_data.starts_with("data/") {
+                                                            start_offset += 5;
+                                                        }
+                                                        let paths_join = column_data.0.replace('%', &cell_data[start_offset..]).to_lowercase();
                                                         let paths_split = paths_join.split(';');
 
                                                         for path in paths_split {

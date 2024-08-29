@@ -516,7 +516,17 @@ pub unsafe fn load_data(
 
                 if enable_icons {
                     if let Some(column_data) = icons.get(&(column as i32)) {
-                        let paths_join = column_data.0.replace('%', &entry[column].data_to_string().replace('\\', "/")).to_lowercase();
+                        let cell_data = entry[column].data_to_string().replace('\\', "/");
+
+                        // For paths, we need to fix the ones in older games starting with / or data/.
+                        let mut start_offset = 0;
+                        if cell_data.starts_with("/") {
+                            start_offset += 1;
+                        }
+                        if cell_data.starts_with("data/") {
+                            start_offset += 5;
+                        }
+                        let paths_join = column_data.0.replace('%', &cell_data[start_offset..]).to_lowercase();
                         let paths_split = paths_join.split(';');
 
                         for path in paths_split {
@@ -1278,7 +1288,20 @@ pub unsafe fn request_backend_files(data: &[Vec<DecodedData>], column: usize, fi
     let base_path = relative_path.as_deref().unwrap_or(&empty_path);
     let paths = data.par_iter()
         .flat_map(|entry| base_path.iter()
-            .map(|base_path| ContainerPath::File(base_path.replace('%', &entry[column].data_to_string().replace('\\', "/"))))
+            .map(|base_path| {
+                let cell_data = entry[column].data_to_string().replace('\\', "/");
+
+                // For paths, we need to fix the ones in older games starting with / or data/.
+                let mut start_offset = 0;
+                if cell_data.starts_with("/") {
+                    start_offset += 1;
+                }
+                if cell_data.starts_with("data/") {
+                    start_offset += 5;
+                }
+
+                ContainerPath::File(base_path.replace('%', &cell_data[start_offset..]))
+            })
             .collect::<Vec<_>>()
         ).collect::<Vec<_>>();
 

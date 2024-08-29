@@ -299,9 +299,35 @@ impl TableDiagnostic {
                         let mut path_found = false;
                         let relative_paths = fields_processed[column].filename_relative_path(patches);
                         let paths = if let Some(relative_paths) = relative_paths {
-                            relative_paths.iter().map(|x| x.replace('%', &cell_data.replace('\\', "/"))).collect::<Vec<_>>()
+                            relative_paths.iter()
+                                .map(|x| {
+                                    let cell_data = cell_data.replace('\\', "/");
+
+                                    // When analysing paths, fix the ones in older games starting with / or data/.
+                                    let mut start_offset = 0;
+                                    if cell_data.starts_with("/") {
+                                        start_offset += 1;
+                                    }
+                                    if cell_data.starts_with("data/") {
+                                        start_offset += 5;
+                                    }
+
+                                    x.replace('%', &cell_data[start_offset..])
+                                })
+                                .collect::<Vec<_>>()
                         } else {
-                            vec![cell_data.replace('\\', "/")]
+                            let cell_data = cell_data.replace('\\', "/");
+
+                            // When analysing paths, fix the ones in older games starting with / or data/.
+                            let mut start_offset = 0;
+                            if cell_data.starts_with("/") {
+                                start_offset += 1;
+                            }
+                            if cell_data.starts_with("data/") {
+                                start_offset += 5;
+                            }
+
+                            vec![cell_data[start_offset..].to_string()]
                         };
 
                         for path in &paths {
