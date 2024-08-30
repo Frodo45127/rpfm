@@ -6,6 +6,25 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [4.3.3]
+### Added
+- Implemented Markdown support.
+
+### Changed
+- Generate Loc Data now splits the generated entries in two files:
+    - "text/zzz_missing_locs.loc" for entries only found in your pack.
+    - "text/aaa_missing_locs.loc" for entries your tables use, but they already exist in the base game. These are autopopulated with vanilla data and autodeleted when optimising.
+
+### Fixed
+- Fixed RPFM failing to detect the selected language of any game installation older than Three Kingdoms, causing lookups to show up in chinese instead.
+- Fixed Attila's dependencies sometimes missing some dlc files.
+- Fixed lookups not working on local columns if the column with it has a reference.
+- Fixed lookup tooltip sometimes pointing to the wrong lookup column.
+- Fixed some file icons not showing up due to a bug in one of the build scripts.
+- Fixed "Path in field not found" diagnostics not working on cells starting with "/".
+- Fixed "Path in field not found" diagnostics not working on cells starting with "data/".
+- Fixed "Path in field not found" diagnostics not working on cells pointing to loose files in the data folder of the game.
+
 ## [4.3.2]
 ### Fixed
 - Fixed dependencies not including a few dlc packs from Rome 2.
