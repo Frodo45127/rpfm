@@ -63,7 +63,7 @@ regex = "^1"
 rand = "^0.8"
 
 # Git support.
-git2 = { version = "^0.18", optional = true }
+git2 = { version = "^0.19", optional = true }
 
 # Pelite, because we need it to get the current version of a game's exe, and I have not a fucking clue how to pass a path to WinApi.
 pelite = "^0.10"
@@ -106,4 +106,4 @@ content_inspector = { version = "^0.2" }
 steamlocate = "2.0.0-beta.0"
 
 # Linear algebra
-nalgebra = "0.32.2"
+nalgebra = "0.33"
