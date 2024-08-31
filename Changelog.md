@@ -6,6 +6,14 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [4.3.4]
+### Fixed
+- Fixed "Generate Missing Loc Data" missing a lot of entries in the generated locs.
+- Fixed "Generate Missing Loc Data" not ignoring the entries in the destination loc when generating it.
+- Fixed "Generate Missing Loc Data" not detecting recent table changes when generating the data.
+- Fixed incorrect type set in VMD and WSModel files when creating them through "Create Text File" or "Create Quick File".
+- Fixed incorrect extension for VMD and WSModel files when creating them through "Create Text File".
+
 ## [4.3.3]
 ### Added
 - Implemented Markdown support.
@@ -1391,7 +1399,9 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.3.2...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.3.4...HEAD
+[4.3.4]: https://github.com/Frodo45127/rpfm/compare/v4.3.3...v4.3.4
+[4.3.3]: https://github.com/Frodo45127/rpfm/compare/v4.3.2...v4.3.3
 [4.3.2]: https://github.com/Frodo45127/rpfm/compare/v4.3.1...v4.3.2
 [4.3.1]: https://github.com/Frodo45127/rpfm/compare/v4.3.0...v4.3.1
 [4.3.0]: https://github.com/Frodo45127/rpfm/compare/v4.2.7...v4.3.0
