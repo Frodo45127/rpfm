@@ -1339,6 +1339,9 @@ impl PackFileContentsSlots {
             pack_file_contents_ui => move |_| {
             info!("Triggering `Generate Loc Data` By Slot");
 
+            // Make sure the backend has all the data updated.
+            let _ = AppUI::back_to_back_end_all(&app_ui, &pack_file_contents_ui);
+
             let receiver = CENTRAL_COMMAND.send_background(Command::GenerateMissingLocData);
             let response = CentralCommand::recv(&receiver);
             match response {
