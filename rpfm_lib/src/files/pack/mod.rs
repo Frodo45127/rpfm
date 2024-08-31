@@ -916,14 +916,16 @@ impl Pack {
         let mut missing_trads_file = Loc::new();
 
         let loc_keys_from_memory = loc_tables.par_iter().filter_map(|rfile| {
-            if let Ok(RFileDecoded::Loc(table)) = rfile.decoded() {
-                Some(table.data().iter().filter_map(|x| {
-                    if let DecodedData::StringU16(data) = &x[0] {
-                        Some(data.to_owned())
-                    } else {
-                        None
-                    }
-                }).collect::<HashSet<String>>())
+            if rfile.path_in_container_raw() != MISSING_LOCS_PATH_NEW && rfile.path_in_container_raw() != MISSING_LOCS_PATH_EXISTING {
+                if let Ok(RFileDecoded::Loc(table)) = rfile.decoded() {
+                    Some(table.data().iter().filter_map(|x| {
+                        if let DecodedData::StringU16(data) = &x[0] {
+                            Some(data.to_owned())
+                        } else {
+                            None
+                        }
+                    }).collect::<HashSet<String>>())
+                } else { None }
             } else { None }
         }).flatten().collect::<HashSet<String>>();
 
