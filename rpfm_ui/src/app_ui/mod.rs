@@ -388,8 +388,10 @@ pub enum NewFile {
     /// Name of the Table.
     Loc(String),
 
-    /// Name of the Table.
+    /// Name of the file and its format.
     Text(String, TextFormat),
+    VMD(String),
+    WSModel(String),
 
     /// Name of the file, version of the file, and a list of entries that must be cloned from existing values in vanilla files (from, to).
     PortraitSettings(String, u32, Vec<(String, String)>),
@@ -3078,6 +3080,8 @@ impl AppUI {
                     match new_file {
                         NewFile::AnimPack(ref mut name) |
                         NewFile::Loc(ref mut name) |
+                        NewFile::VMD(ref mut name) |
+                        NewFile::WSModel(ref mut name) |
                         NewFile::Text(ref mut name, _) |
                         NewFile::PortraitSettings(ref mut name, _, _) |
                         NewFile::DB(ref mut name, _, _) => {
@@ -3095,6 +3099,8 @@ impl AppUI {
                         NewFile::AnimPack(ref name) |
                         NewFile::Loc(ref name) |
                         NewFile::PortraitSettings(ref name, _, _) |
+                        NewFile::VMD(ref name) |
+                        NewFile::WSModel(ref name) |
                         NewFile::Text(ref name, _) => {
 
                             if selected_paths.len() == 1 {
@@ -3440,17 +3446,19 @@ impl AppUI {
                     Ok(Some(NewFile::Loc(file_name)))
                 },
                 FileType::Text => {
-                    if !text::EXTENSIONS.iter().any(|(x, _)| file_name.ends_with(x)) {
+                    if !text::EXTENSIONS.iter().any(|(x, _)| file_name.ends_with(x)) && !file_name.ends_with(text::EXTENSION_VMD.0) && !file_name.ends_with(text::EXTENSION_WSMODEL.0) {
                         file_name.push_str(".txt");
                     }
 
-                    let text_format = if let Some((_, text_format)) = text::EXTENSIONS.iter().find(|(x, _)| file_name.ends_with(x)) {
-                        *text_format
+                    if let Some((_, text_format)) = text::EXTENSIONS.iter().find(|(x, _)| file_name.ends_with(x)) {
+                        Ok(Some(NewFile::Text(file_name, *text_format)))
+                    } else if file_name.ends_with(text::EXTENSION_VMD.0) {
+                        Ok(Some(NewFile::VMD(file_name)))
+                    } else if file_name.ends_with(text::EXTENSION_WSMODEL.0) {
+                        Ok(Some(NewFile::WSModel(file_name)))
                     } else {
-                        TextFormat::Plain
-                    };
-
-                    Ok(Some(NewFile::Text(file_name, text_format)))
+                        Ok(Some(NewFile::Text(file_name, TextFormat::Plain)))
+                    }
                 },
                 FileType::PortraitSettings => {
                     if !file_name.ends_with(portrait_settings::EXTENSION) {

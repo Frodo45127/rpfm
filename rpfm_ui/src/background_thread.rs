@@ -550,6 +550,18 @@ pub fn background_loop() {
                         file.set_format(text_type);
                         RFileDecoded::Text(file)
                     },
+
+                    NewFile::VMD(_) => {
+                        let mut file = Text::default();
+                        file.set_format(TextFormat::Xml);
+                        RFileDecoded::VMD(file)
+                    },
+
+                    NewFile::WSModel(_) => {
+                        let mut file = Text::default();
+                        file.set_format(TextFormat::Xml);
+                        RFileDecoded::WSModel(file)
+                    },
                 };
                 let file = RFile::new_from_decoded(&decoded, 0, &path);
                 match pack_file_decoded.insert(file) {
