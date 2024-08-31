@@ -3222,7 +3222,7 @@ impl AppUI {
                     }
                     new_path.push_str(&name);
 
-                    let new_packed_file = NewFile::Text(name.to_owned(), TextFormat::Xml);
+                    let new_packed_file = NewFile::VMD(name.to_owned());
                     (new_path, new_packed_file)
                 }
 
