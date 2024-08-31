@@ -913,7 +913,8 @@ impl Pack {
 
         let db_tables = self.files_by_type(&[FileType::DB]);
         let loc_tables = self.files_by_type(&[FileType::Loc]);
-        let mut missing_trads_file = Loc::new();
+        let mut missing_trads_file_new = Loc::new();
+        let mut missing_trads_file_overwritten = Loc::new();
 
         let loc_keys_from_memory = loc_tables.par_iter().filter_map(|rfile| {
             if rfile.path_in_container_raw() != MISSING_LOCS_PATH_NEW && rfile.path_in_container_raw() != MISSING_LOCS_PATH_EXISTING {
@@ -951,13 +952,13 @@ impl Pack {
                                 let loc_key = format!("{}_{}_{}", table_name, loc_field.name(), key);
 
                                 if let Some(value) = existing_locs.get(&loc_key) {
-                                    let mut new_row = missing_trads_file.new_row();
+                                    let mut new_row = missing_trads_file_overwritten.new_row();
                                     new_row[0] = DecodedData::StringU16(loc_key);
                                     new_row[1] = DecodedData::StringU16(value.to_owned());
                                     new_rows_overwritten.push(new_row);
 
                                 } else if !loc_keys_from_memory.contains(&*loc_key) {
-                                    let mut new_row = missing_trads_file.new_row();
+                                    let mut new_row = missing_trads_file_new.new_row();
                                     new_row[0] = DecodedData::StringU16(loc_key);
                                     new_row[1] = DecodedData::StringU16("PLACEHOLDER".to_owned());
                                     new_rows_new.push(new_row);
@@ -970,18 +971,22 @@ impl Pack {
                 }
             }
             None
-        }).flatten().collect::<(Vec<Vec<DecodedData>>, Vec<Vec<DecodedData>>)>();
+        }).collect::<(Vec<Vec<Vec<DecodedData>>>, Vec<Vec<Vec<DecodedData>>>)>();
+
+        // NOTE: We do not use rayon's .flatten() because for some reason it eats values it's supposed to keep.
+        let missing_trads_new = missing_trads_new.into_iter().flatten().collect::<Vec<_>>();
+        let missing_trads_overwritten = missing_trads_overwritten.into_iter().flatten().collect::<Vec<_>>();
 
         // Save the missing translations to two files: one for new translations, and another one for translations in use by this pack.
-        let _ = missing_trads_file.set_data(&missing_trads_new);
         if !missing_trads_new.is_empty() {
-            let packed_file = RFile::new_from_decoded(&RFileDecoded::Loc(missing_trads_file.clone()), 0, MISSING_LOCS_PATH_NEW);
+            let _ = missing_trads_file_new.set_data(&missing_trads_new);
+            let packed_file = RFile::new_from_decoded(&RFileDecoded::Loc(missing_trads_file_new), 0, MISSING_LOCS_PATH_NEW);
             new_files.push(self.insert(packed_file)?.unwrap());
         }
 
-        let _ = missing_trads_file.set_data(&missing_trads_overwritten);
         if !missing_trads_overwritten.is_empty() {
-            let packed_file = RFile::new_from_decoded(&RFileDecoded::Loc(missing_trads_file), 0, MISSING_LOCS_PATH_EXISTING);
+            let _ = missing_trads_file_overwritten.set_data(&missing_trads_overwritten);
+            let packed_file = RFile::new_from_decoded(&RFileDecoded::Loc(missing_trads_file_overwritten), 0, MISSING_LOCS_PATH_EXISTING);
             new_files.push(self.insert(packed_file)?.unwrap());
         }
 
