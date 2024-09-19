@@ -197,6 +197,7 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     new_action(table_editor_actions, "patch_columns", "Patch Columns", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString(""), "edit-table-insert-column-right");
     new_action(table_editor_actions, "find_references", "Find References", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString(""), "folder-saved-search-symbolic");
     new_action(table_editor_actions, "go_to_definition", "Go To Definition", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString(""), "go-jump-definition");
+    new_action(table_editor_actions, "revert_value", "Revert Values", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString(""), "edit-select-original");
     table_editor_actions->readSettings();
 
     // Decoder actions.

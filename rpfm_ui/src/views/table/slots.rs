@@ -76,6 +76,7 @@ pub struct TableViewSlots {
     pub invert_selection: QBox<SlotNoArgs>,
     pub reset_selection: QBox<SlotNoArgs>,
     pub rewrite_selection: QBox<SlotNoArgs>,
+    pub revert_value: QBox<SlotNoArgs>,
     pub generate_ids: QBox<SlotNoArgs>,
     pub undo: QBox<SlotNoArgs>,
     pub redo: QBox<SlotNoArgs>,
@@ -501,6 +502,15 @@ impl TableViewSlots {
             view.rewrite_selection(&app_ui, &pack_file_contents_ui);
         }));
 
+        // When we want to revert the selected items to their vanilla/parent values.
+        let revert_value = SlotNoArgs::new(&view.table_view, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            view => move || {
+            info!("Triggering `Revert Values` By Slot");
+            view.revert_values(&app_ui, &pack_file_contents_ui);
+        }));
+
         // When we want to rewrite the selected items using a formula.
         let generate_ids = SlotNoArgs::new(&view.table_view, clone!(
             app_ui,
@@ -918,6 +928,7 @@ impl TableViewSlots {
             invert_selection,
             reset_selection,
             rewrite_selection,
+            revert_value,
             generate_ids,
             undo,
             redo,

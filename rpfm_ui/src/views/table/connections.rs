@@ -44,6 +44,7 @@ pub unsafe fn set_connections(ui: &Arc<TableView>, slots: &TableViewSlots) {
     ui.context_menu_invert_selection().triggered().connect(&slots.invert_selection);
     ui.context_menu_reset_selection().triggered().connect(&slots.reset_selection);
     ui.context_menu_rewrite_selection().triggered().connect(&slots.rewrite_selection);
+    ui.context_menu_revert_value().triggered().connect(&slots.revert_value);
     ui.context_menu_generate_ids().triggered().connect(&slots.generate_ids);
     ui.context_menu_profiles_create().triggered().connect(&slots.profile_new);
     ui.context_menu_undo().triggered().connect(&slots.undo);

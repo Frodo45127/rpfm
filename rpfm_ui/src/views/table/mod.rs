@@ -214,6 +214,7 @@ pub struct TableView {
     context_menu_invert_selection: QPtr<QAction>,
     context_menu_reset_selection: QPtr<QAction>,
     context_menu_rewrite_selection: QPtr<QAction>,
+    context_menu_revert_value: QPtr<QAction>,
     context_menu_generate_ids: QPtr<QAction>,
     context_menu_profiles_apply: QBox<QMenu>,
     context_menu_profiles_delete: QBox<QMenu>,
@@ -411,6 +412,7 @@ impl TableView {
         let context_menu_paste_as_new_row = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "paste_as_new_row", "context_menu_paste_as_new_row", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_generate_ids = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "generate_ids", "context_menu_generate_ids", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_rewrite_selection = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "rewrite_selection", "context_menu_rewrite_selection", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
+        let context_menu_revert_value = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "revert_value", "context_menu_revert_value", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_invert_selection = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "invert_selection", "context_menu_invert_selection", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_reset_selection = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "reset_selected_values", "context_menu_reset_selection", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_resize_columns = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "resize_columns", "context_menu_resize_columns", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
@@ -615,6 +617,7 @@ impl TableView {
             context_menu_invert_selection,
             context_menu_reset_selection,
             context_menu_rewrite_selection,
+            context_menu_revert_value,
             context_menu_generate_ids,
             context_menu_profiles_apply,
             context_menu_profiles_delete,
@@ -1017,6 +1020,7 @@ impl TableView {
         self.context_menu_paste.set_enabled(false);
         self.context_menu_paste_as_new_row.set_enabled(false);
         self.context_menu_rewrite_selection.set_enabled(false);
+        self.context_menu_revert_value.set_enabled(false);
         self.context_menu_generate_ids.set_enabled(false);
         self.context_menu_undo.set_enabled(false);
         self.context_menu_redo.set_enabled(false);
@@ -1075,6 +1079,7 @@ impl TableView {
                     self.context_menu_delete_rows.set_enabled(true);
                     self.context_menu_paste.set_enabled(true);
                     self.context_menu_rewrite_selection.set_enabled(true);
+                    self.context_menu_revert_value.set_enabled(true);
                     self.context_menu_generate_ids.set_enabled(true);
                     self.context_menu_cascade_edition.set_enabled(true);
                 }
@@ -1270,6 +1275,73 @@ impl TableView {
             let fields_processed = self.table_definition().fields_processed();
             self.set_data_on_cells(&realer_cells, 0, &[], &fields_processed, app_ui, pack_file_contents_ui);
         }
+    }
+
+    /// This function reverts the currently selected cells to their vanilla/parent values, if we have them.
+    pub unsafe fn revert_values(&self, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
+
+        // Only do this if we actually have vanilla data to revert to.
+        let vanilla_data = self.vanilla_hashed_tables.read().unwrap();
+        if vanilla_data.is_empty() {
+            return;
+        }
+
+        let mut real_cells = vec![];
+        let mut values = vec![];
+
+        // Same as with the data: don't bother if we don't have keys.
+        let definition = self.table_definition();
+        let fields_processed = definition.fields_processed();
+        let key_pos = definition.key_column_positions();
+        if key_pos.is_empty() {
+            return;
+        }
+
+        let indexes_sorted = get_real_indexes_from_visible_selection_sorted(&self.table_view_ptr(), &self.table_view_filter_ptr());
+        for index in indexes_sorted {
+            if index.is_valid() {
+                let mut value = None;
+
+                // Only edit cells that are actually different from vanilla.
+                let item = self.table_model.item_from_index(&index);
+                if item.data_1a(ITEM_IS_MODIFIED_VS_VANILLA).to_bool() {
+
+                    let keys_joined = key_pos.iter()
+                        .map(|x| self.table_model.index_2a(item.row(), *x as i32).data_1a(2).to_string().to_std_string())
+                        .join("");
+
+                    let field = &fields_processed[item.column() as usize];
+                    for (vanilla_table, hashes) in &*vanilla_data {
+                        if let Some(row) = hashes.get(&keys_joined) {
+                            let local_data = get_field_from_view(&self.table_model.static_upcast(), field, item.row(), item.column());
+
+                            if let Some(vanilla_data) = vanilla_table.data()[*row as usize].get(item.column() as usize) {
+                                if vanilla_data != &local_data {
+                                    value = Some(vanilla_data.data_to_string().to_string());
+                                }
+
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                real_cells.push(index);
+                values.push(value);
+            }
+        }
+
+        let mut realer_cells = vec![];
+        for index in (0..real_cells.len()).rev() {
+            let cell = real_cells.pop().unwrap();
+            if let Some(ref value) = values[index] {
+                realer_cells.push((cell, &**value));
+            }
+        }
+        realer_cells.reverse();
+
+        let fields_processed = self.table_definition().fields_processed();
+        self.set_data_on_cells(&realer_cells, 0, &[], &fields_processed, app_ui, pack_file_contents_ui);
     }
 
     /// This function fills the currently provided cells with a set of ids.
