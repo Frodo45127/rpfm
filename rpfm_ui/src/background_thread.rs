@@ -868,7 +868,7 @@ pub fn background_loop() {
                         match pack_file_decoded.extract(container_path.clone(), &path, true, schema, false, setting_bool("tables_use_old_column_order_for_tsv"), &extra_data) {
                             Ok(mut extracted_path) => extracted_paths.append(&mut extracted_path),
                             Err(error) => {
-                                error!("Error extracting {}: {}", container_path.path_raw(), error);
+                                //error!("Error extracting {}: {}", container_path.path_raw(), error);
                                 errors += 1;
                             },
                         }
