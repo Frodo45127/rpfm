@@ -6,6 +6,14 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [4.3.5]
+### Added
+- Implemented marker (orange underscore) on cells different than vanilla/parent.
+- Implemented "Revert Values" feature, to revert values different than vanilla/parent to their vanilla/parent value.
+
+### Fixed
+- Fixed a bunch of issues and incorrect path checks related to unsanitized game paths.
+
 ## [4.3.4]
 ### Fixed
 - Fixed "Generate Missing Loc Data" missing a lot of entries in the generated locs.
@@ -1399,7 +1407,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.3.4...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.3.5...HEAD
+[4.3.5]: https://github.com/Frodo45127/rpfm/compare/v4.3.4...v4.3.5
 [4.3.4]: https://github.com/Frodo45127/rpfm/compare/v4.3.3...v4.3.4
 [4.3.3]: https://github.com/Frodo45127/rpfm/compare/v4.3.2...v4.3.3
 [4.3.2]: https://github.com/Frodo45127/rpfm/compare/v4.3.1...v4.3.2
