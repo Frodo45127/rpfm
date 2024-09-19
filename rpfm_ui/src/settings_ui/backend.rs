@@ -64,14 +64,20 @@ pub unsafe fn init_settings(main_window: &QPtr<QMainWindow>) {
 
     for game in &SUPPORTED_GAMES.games() {
         let game_key = game.key();
+
+        // Fix unsanitized paths.
+        let current_path = setting_string_from_q_setting(&q_settings, game_key);
+        if current_path.contains("\\") {
+            set_setting_string_to_q_setting(&q_settings, game_key, &current_path.replace("\\", "/"));
+        }
+
         let game_path = if let Ok(Some(game_path)) = game.find_game_install_location() {
-            game_path.to_string_lossy().to_string()
+            game_path.to_string_lossy().replace("\\", "/")
         } else {
             String::new()
         };
 
         // If we got a path and we don't have it saved yet, save it automatically.
-        let current_path = setting_string_from_q_setting(&q_settings, game_key);
         if current_path.is_empty() && !game_path.is_empty() {
             set_setting_string_to_q_setting(&q_settings, game_key, &game_path);
         } else {
@@ -83,7 +89,7 @@ pub unsafe fn init_settings(main_window: &QPtr<QMainWindow>) {
             game_key != KEY_ARENA {
 
             let ak_path = if let Ok(Some(ak_path)) = game.find_assembly_kit_install_location() {
-                ak_path.join("assembly_kit").to_string_lossy().to_string()
+                ak_path.join("assembly_kit").to_string_lossy().replace("\\", "/")
             } else {
                 String::new()
             };
@@ -91,6 +97,11 @@ pub unsafe fn init_settings(main_window: &QPtr<QMainWindow>) {
             // If we got a path and we don't have it saved yet, save it automatically.
             let ak_key = game_key.to_owned() + "_assembly_kit";
             let current_path = setting_string_from_q_setting(&q_settings, &ak_key);
+
+            // Fix unsanitized paths.
+            if current_path.contains("\\") {
+                set_setting_string_to_q_setting(&q_settings, &ak_key, &current_path.replace("\\", "/"));
+            }
 
             // Ignore shogun 2, as that one is a zip.
             if current_path.is_empty() && !ak_path.is_empty() && game_key != KEY_SHOGUN_2 {
