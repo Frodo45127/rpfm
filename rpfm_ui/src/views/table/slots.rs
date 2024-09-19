@@ -288,28 +288,35 @@ impl TableViewSlots {
 
                                 let mut found = false;
                                 for (vanilla_table, hashes) in &*vanilla_data {
-                                    match hashes.get(&keys_joined) {
-                                        Some(row) => {
-                                            let local_data = get_field_from_view(&view.table_model.static_upcast(), field, item.row(), item.column());
+                                    let vanilla_definition = vanilla_table.definition();
+                                    let vanilla_processed_fields = vanilla_definition.fields_processed();
 
-                                            // Make sure to check the column, because we may be getting a different definition of our own here.
-                                            match vanilla_table.data()[*row as usize].get(item.column() as usize) {
-                                                Some(vanilla_data) => {
-                                                    if vanilla_data != &local_data {
-                                                        item.set_data_2a(ref_from_atomic(&QVARIANT_TRUE), ITEM_IS_MODIFIED_VS_VANILLA);
-                                                    } else {
-                                                        item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_MODIFIED_VS_VANILLA);
-                                                    }
+                                    // Ignore fields that are not in the vanilla table.
+                                    if let Some(vanilla_field_column) = vanilla_processed_fields.iter().position(|x| x.name() == field.name()) {
 
-                                                    found = true;
-                                                    break;
-                                                },
+                                        match hashes.get(&keys_joined) {
+                                            Some(row) => {
+                                                let local_data = get_field_from_view(&view.table_model.static_upcast(), field, item.row(), item.column());
 
-                                                None => item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_MODIFIED_VS_VANILLA),
+                                                // Make sure to check the column, because we may be getting a different definition of our own here.
+                                                match vanilla_table.data()[*row as usize].get(vanilla_field_column as usize) {
+                                                    Some(vanilla_data) => {
+                                                        if vanilla_data != &local_data {
+                                                            item.set_data_2a(ref_from_atomic(&QVARIANT_TRUE), ITEM_IS_MODIFIED_VS_VANILLA);
+                                                        } else {
+                                                            item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_MODIFIED_VS_VANILLA);
+                                                        }
+
+                                                        found = true;
+                                                        break;
+                                                    },
+
+                                                    None => item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_MODIFIED_VS_VANILLA),
+                                                }
                                             }
-                                        }
 
-                                        None => continue,
+                                            None => continue,
+                                        }
                                     }
                                 }
 

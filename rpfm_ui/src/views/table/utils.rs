@@ -551,25 +551,33 @@ pub unsafe fn load_data(
                 if !vanilla_data.is_empty() && !key_pos.is_empty() {
 
                     let mut found = false;
-                    for vanilla_data in vanilla_data {
-                        match vanilla_data.1.get(&keys_joined) {
+                    for (vanilla_db, vanilla_data) in vanilla_data {
+                        let vanilla_definition = vanilla_db.definition();
+                        let vanilla_processed_fields = vanilla_definition.fields_processed();
+
+                        match vanilla_data.get(&keys_joined) {
                             Some(row) => {
                                 item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_ADDED_VS_VANILLA);
 
-                                // Make sure to check the column, because we may be getting a different definition of our own here.
-                                match vanilla_data.0.data()[*row as usize].get(column) {
-                                    Some(value) => {
-                                        if value.data_to_string() != field.data_to_string() {
-                                            item.set_data_2a(ref_from_atomic(&QVARIANT_TRUE), ITEM_IS_MODIFIED_VS_VANILLA);
-                                        } else {
-                                            item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_MODIFIED_VS_VANILLA);
-                                        }
+                                // Ignore fields that are not in the vanilla table.
+                                let column = &fields_processed[column];
+                                if let Some(vanilla_field_column) = vanilla_processed_fields.iter().position(|x| x.name() == column.name()) {
+                                    match vanilla_db.data()[*row as usize].get(vanilla_field_column) {
+                                        Some(value) => {
+                                            if value.data_to_string() != field.data_to_string() {
+                                                item.set_data_2a(ref_from_atomic(&QVARIANT_TRUE), ITEM_IS_MODIFIED_VS_VANILLA);
+                                            } else {
+                                                item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_MODIFIED_VS_VANILLA);
+                                            }
 
-                                        found = true;
-                                        break;
-                                    },
+                                            found = true;
+                                            break;
+                                        },
 
-                                    None => item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_MODIFIED_VS_VANILLA),
+                                        None => item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_MODIFIED_VS_VANILLA),
+                                    }
+                                } else {
+                                    item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_MODIFIED_VS_VANILLA);
                                 }
                             }
 
