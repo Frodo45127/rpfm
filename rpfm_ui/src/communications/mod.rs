@@ -356,6 +356,7 @@ pub enum Command {
     #[cfg(feature = "support_model_renderer")] GetAnimPathsBySkeletonName(String),
     #[cfg(feature = "enable_tools")] CheckTranslationsUpdates,
     #[cfg(feature = "enable_tools")] UpdateTranslations,
+    GetTablesFromDependencies(String),
 }
 
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.
@@ -515,7 +516,8 @@ pub enum Response {
     VecContainerPathVecRFileInfo(Vec<ContainerPath>, Vec<RFileInfo>),
     VecContainerPathVecContainerPath(Vec<ContainerPath>, Vec<ContainerPath>),
     StringVecPathBuf(String, Vec<PathBuf>),
-    #[cfg(feature = "enable_tools")] PackTranslation(PackTranslation)
+    #[cfg(feature = "enable_tools")] PackTranslation(PackTranslation),
+    VecRFile(Vec<RFile>),
 }
 
 //-------------------------------------------------------------------------------//

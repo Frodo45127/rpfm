@@ -71,9 +71,15 @@ void QExtendedStyledItemDelegate::paint(QPainter *painter, const QStyleOptionVie
         }
 
         if (item != nullptr) {
+            //QSettings* q_settings = new QSettings("FrodoWazEre", "rpfm");
+            //bool showNewLines = q_settings->value("tables_show_new_lines").toBool();
+            //bool showEditedCells = q_settings->value("tables_show_edited_cells").toBool();
+
             QVariant isKeyVariant = item->data(20);
             QVariant isAddedVariant = item->data(21);
             QVariant isModifiedVariant = item->data(22);
+            QVariant isAddedFromVanillaVariant = item->data(23);
+            QVariant isModifiedFromVanillaVariant = item->data(24);
             QVariant isErrorVariant = item->data(25);
             QVariant isWarningVariant = item->data(26);
             QVariant isInfoVariant = item->data(27);
@@ -81,6 +87,9 @@ void QExtendedStyledItemDelegate::paint(QPainter *painter, const QStyleOptionVie
             bool isKey = !isKeyVariant.isNull() ? isKeyVariant.toBool(): false;
             bool isAdded = !isAddedVariant.isNull() ? isAddedVariant.toBool(): false;
             bool isModified = !isModifiedVariant.isNull() ? isModifiedVariant.toBool(): false;
+
+            bool isAddedFromVanilla = !isAddedFromVanillaVariant.isNull() ? isAddedFromVanillaVariant.toBool(): false;
+            bool isModifiedFromVanilla = !isModifiedFromVanillaVariant.isNull() ? isModifiedFromVanillaVariant.toBool(): false;
 
             bool isError = !isErrorVariant.isNull() ? isErrorVariant.toBool(): false;
             bool isWarning = !isWarningVariant.isNull() ? isWarningVariant.toBool(): false;
@@ -146,6 +155,42 @@ void QExtendedStyledItemDelegate::paint(QPainter *painter, const QStyleOptionVie
                 } else {
                     painter->drawLine(QLineF(option.rect.x() + 1, option.rect.y() + (lineWidth / 2), option.rect.x() + 1, option.rect.y() + option.rect.height() - (lineWidth / 4)));
                 }
+            }
+
+            //if (isModifiedFromVanilla && showEditedCells) {
+            if (isModifiedFromVanilla) {
+                auto pen = QPen();
+                pen.setColor(colour_table_modified);
+
+                int lineWidth = 1;
+                pen.setStyle(Qt::PenStyle::SolidLine);
+                pen.setWidth(lineWidth);
+
+                painter->setPen(pen);
+                painter->drawLine(QLineF(
+                    option.rect.x() + (lineWidth / 0.5),
+                    option.rect.y() + option.rect.height() - (lineWidth / 0.5),
+                    option.rect.x() + option.rect.width() - (lineWidth / 0.5),
+                    option.rect.y() + option.rect.height() - (lineWidth / 0.5)
+                ));
+            }
+
+            //else if (isAddedFromVanilla && showNewLines) {
+            else if (isAddedFromVanilla) {
+                auto pen = QPen();
+                pen.setColor(colour_table_added);
+
+                int lineWidth = 1;
+                pen.setStyle(Qt::PenStyle::SolidLine);
+                pen.setWidth(lineWidth);
+
+                painter->setPen(pen);
+                painter->drawLine(QLineF(
+                    option.rect.x() + (lineWidth / 0.5),
+                    option.rect.y() + option.rect.height() - (lineWidth / 0.5),
+                    option.rect.x() + option.rect.width() - (lineWidth / 0.5),
+                    option.rect.y() + option.rect.height() - (lineWidth / 0.5)
+                ));
             }
 
             // By priority, info goes first.

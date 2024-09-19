@@ -45,6 +45,8 @@ use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::utils::set_modified;
 use crate::references_ui::ReferencesUI;
 use crate::utils::{log_to_status_bar, show_dialog};
+use crate::QVARIANT_FALSE;
+use crate::QVARIANT_TRUE;
 use crate::UI_STATE;
 use super::utils::*;
 use super::*;
@@ -272,6 +274,51 @@ impl TableViewSlots {
                                                 item.set_data_2a(&QVariant::new(), 50);
                                             }
                                         }
+                                    }
+                                }
+                            }
+
+                            let key_pos = definition.key_column_positions();
+                            let vanilla_data = view.vanilla_hashed_tables.read().unwrap();
+                            if !vanilla_data.is_empty() && !key_pos.is_empty() {
+                                let keys_joined = key_pos.iter()
+                                    .map(|x| view.table_model.index_2a(item.row(), *x as i32).data_1a(2).to_string().to_std_string())
+                                    .join("");
+
+                                let mut found = false;
+                                for (vanilla_table, hashes) in &*vanilla_data {
+                                    match hashes.get(&keys_joined) {
+                                        Some(row) => {
+                                            let local_data = get_field_from_view(&view.table_model.static_upcast(), field, item.row(), item.column());
+
+                                            // Make sure to check the column, because we may be getting a different definition of our own here.
+                                            match vanilla_table.data()[*row as usize].get(item.column() as usize) {
+                                                Some(vanilla_data) => {
+                                                    if vanilla_data != &local_data {
+                                                        item.set_data_2a(ref_from_atomic(&QVARIANT_TRUE), ITEM_IS_MODIFIED_VS_VANILLA);
+                                                    } else {
+                                                        item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_MODIFIED_VS_VANILLA);
+                                                    }
+
+                                                    found = true;
+                                                    break;
+                                                },
+
+                                                None => item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_MODIFIED_VS_VANILLA),
+                                            }
+                                        }
+
+                                        None => continue,
+                                    }
+                                }
+
+                                // For this we need to alter all items in the same row.
+                                for column in 0..fields_processed.len() {
+                                    let item = view.table_model.item_2a(item.row(), column as i32);
+                                    if found {
+                                        item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_ADDED_VS_VANILLA);
+                                    } else {
+                                        //item.set_data_2a(ref_from_atomic(&QVARIANT_TRUE), ITEM_IS_ADDED_VS_VANILLA);
                                     }
                                 }
                             }
@@ -547,6 +594,7 @@ impl TableViewSlots {
                                     &data,
                                     &view.timer_delayed_updates,
                                     view.get_data_source(),
+                                    &view.vanilla_hashed_tables.read().unwrap()
                                 );
 
                                 // Prepare the diagnostic pass.

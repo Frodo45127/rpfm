@@ -2279,6 +2279,14 @@ pub fn background_loop() {
                 }
             }
 
+            Command::GetTablesFromDependencies(table_name) => {
+                let dependencies = dependencies.read().unwrap();
+                match dependencies.db_data(&table_name, true, true) {
+                    Ok(files) => CentralCommand::send_back(&sender, Response::VecRFile(files.iter().map(|x| (&**x).clone()).collect::<Vec<_>>())),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                }
+            }
+
             // These two belong to the network thread, not to this one!!!!
             Command::CheckUpdates | Command::CheckSchemaUpdates | Command::CheckLuaAutogenUpdates | Command::CheckEmpireAndNapoleonAKUpdates => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
             #[cfg(feature = "enable_tools")] Command::CheckTranslationsUpdates => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),

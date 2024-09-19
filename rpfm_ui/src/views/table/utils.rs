@@ -438,6 +438,7 @@ pub unsafe fn load_data(
     data: &TableType,
     timer: &QBox<QTimer>,
     data_source: DataSource,
+    vanilla_data: &[(DB, HashMap<String, i32>)]
 ) {
     let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
     let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
@@ -485,10 +486,16 @@ pub unsafe fn load_data(
             BTreeMap::new()
         };
 
+        let key_pos = definition.key_column_positions();
+
         // Get each row in a mass loop.
         let qlists = data.par_iter().map(|entry| {
             let qlist = QListOfQStandardItem::new();
             qlist.reserve(entry.len() as i32);
+
+            let keys_joined = key_pos.iter()
+                .map(|x| entry[*x].data_to_string())
+                .join("");
 
             for (column, field) in entry.iter().enumerate() {
                 let item = get_item_from_decoded_data(field, &keys, column);
@@ -537,6 +544,42 @@ pub unsafe fn load_data(
                                 break;
                             }
                         }
+                    }
+                }
+
+                // If we have keys and vanilla/parent data, try to mark the different cells/rows.
+                if !vanilla_data.is_empty() && !key_pos.is_empty() {
+
+                    let mut found = false;
+                    for vanilla_data in vanilla_data {
+                        match vanilla_data.1.get(&keys_joined) {
+                            Some(row) => {
+                                item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_ADDED_VS_VANILLA);
+
+                                // Make sure to check the column, because we may be getting a different definition of our own here.
+                                match vanilla_data.0.data()[*row as usize].get(column) {
+                                    Some(value) => {
+                                        if value.data_to_string() != field.data_to_string() {
+                                            item.set_data_2a(ref_from_atomic(&QVARIANT_TRUE), ITEM_IS_MODIFIED_VS_VANILLA);
+                                        } else {
+                                            item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_MODIFIED_VS_VANILLA);
+                                        }
+
+                                        found = true;
+                                        break;
+                                    },
+
+                                    None => item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_MODIFIED_VS_VANILLA),
+                                }
+                            }
+
+                            None => continue,
+                        }
+                    }
+
+                    if !found {
+                        // Disabled until I figure a way to make it dynamic.
+                        //item.set_data_2a(ref_from_atomic(&QVARIANT_TRUE), ITEM_IS_ADDED_VS_VANILLA);
                     }
                 }
 
@@ -1030,6 +1073,49 @@ pub unsafe fn read_anim_ids_file() -> Result<HashMap<i32, TableReferences>> {
     refs_final.insert(0, refs);
 
     Ok(refs_final)
+}
+
+
+pub unsafe fn get_vanilla_hashed_tables(file_type: FileType, table_name: &str) -> Result<Vec<(DB, HashMap<String, i32>)>> {
+    match file_type {
+        FileType::DB => {
+
+            // Call the backend passing it the files we have open (so we don't get them from the backend too), and get the frontend data while we wait for it to finish.
+            let receiver = CENTRAL_COMMAND.send_background(Command::GetTablesFromDependencies(table_name.to_owned()));
+            let response = CentralCommand::recv(&receiver);
+            match response {
+                Response::VecRFile(files) => {
+                    let mut data = Vec::with_capacity(files.len());
+                    for file in files {
+
+                        if let Ok(RFileDecoded::DB(table)) = file.decoded() {
+                            let definition = table.definition();
+                            let key_pos = definition.key_column_positions();
+
+                            if !key_pos.is_empty() {
+                                let mut hashes = HashMap::new();
+                                for (index, row) in table.data().iter().enumerate() {
+                                    let keys = key_pos.iter()
+                                        .map(|x| row[*x].data_to_string())
+                                        .join("");
+
+                                    hashes.insert(keys, index as i32);
+                                }
+
+                                data.push((table.clone(), hashes));
+                            }
+                        }
+                    }
+
+                    Ok(data)
+                },
+                Response::Error(error) => Err(error),
+                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+            }
+        }
+
+        _ => Ok(vec![])
+    }
 }
 
 /// This function returns the reference data for an entire table.

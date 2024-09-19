@@ -96,6 +96,8 @@ use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::{DataSource, utils::set_modified, View, ViewType};
 use crate::pack_tree::*;
+use crate::QVARIANT_FALSE;
+use crate::QVARIANT_TRUE;
 use crate::references_ui::ReferencesUI;
 use crate::settings_ui::backend::*;
 use crate::SCHEMA;
@@ -121,6 +123,8 @@ pub static COLUMN_SIZE_STRING: i32 = 350;
 pub static ITEM_IS_KEY: i32 = 20;
 pub static ITEM_IS_ADDED: i32 = 21;
 pub static ITEM_IS_MODIFIED: i32 = 22;
+pub static ITEM_IS_ADDED_VS_VANILLA: i32 = 23;
+pub static ITEM_IS_MODIFIED_VS_VANILLA: i32 = 24;
 pub static ITEM_HAS_ERROR: i32 = 25;
 pub static ITEM_HAS_WARNING: i32 = 26;
 pub static ITEM_HAS_INFO: i32 = 27;
@@ -246,6 +250,7 @@ pub struct TableView {
 
     table_name: Option<String>,
     is_translator: bool,
+    vanilla_hashed_tables: Arc<RwLock<Vec<(DB, HashMap<String, i32>)>>>,
 
     #[getset(skip)]
     data_source: Arc<RwLock<DataSource>>,
@@ -328,6 +333,8 @@ impl TableView {
         // Get the dependency data of this Table.
         let table_name_for_ref = if let Some(name) = table_name { name.to_owned() } else { "".to_owned() };
         let dependency_data = get_reference_data(packed_file_type, &table_name_for_ref, &table_definition)?;
+
+        let vanilla_hashed_tables = get_vanilla_hashed_tables(packed_file_type, &table_name_for_ref).unwrap_or_default();
 
         // Create the locks for undoing and saving. These are needed to optimize the undo/saving process.
         let undo_lock = Arc::new(AtomicBool::new(false));
@@ -645,6 +652,7 @@ impl TableView {
             is_translator,
             dependency_data: Arc::new(RwLock::new(dependency_data)),
             table_definition: Arc::new(RwLock::new(table_definition)),
+            vanilla_hashed_tables: Arc::new(RwLock::new(vanilla_hashed_tables)),
             data_source,
             packed_file_path: packed_file_path.clone(),
             packed_file_type: Arc::new(packed_file_type),
@@ -690,6 +698,7 @@ impl TableView {
             &table_data,
             &packed_file_table_view.timer_delayed_updates,
             packed_file_table_view.get_data_source(),
+            &packed_file_table_view.vanilla_hashed_tables.read().unwrap()
         );
 
         // If we have a default profile, apply it.
@@ -880,7 +889,8 @@ impl TableView {
             &self.dependency_data,
             &data,
             &self.timer_delayed_updates,
-            self.get_data_source()
+            self.get_data_source(),
+            &self.vanilla_hashed_tables.read().unwrap()
         );
 
         // If we have a default profile, apply it.
@@ -1691,6 +1701,56 @@ impl TableView {
                         if index == editions.len() - 1 {
                             model.item_2a(*row, *column).set_data_2a(&QVariant::from_int(1i32), 16);
                             model.item_2a(*row, *column).set_data_2a(&QVariant::new(), 16);
+                        }
+
+                        // We need to update the new row vs vanilla status here, because as that one affects all rows, it's not done automatically.
+                        let definition = self.table_definition();
+                        let fields_processed = definition.fields_processed();
+                        let field = &fields_processed[*column as usize];
+
+                        let key_pos = definition.key_column_positions();
+                        let vanilla_data = self.vanilla_hashed_tables.read().unwrap();
+                        if !vanilla_data.is_empty() && !key_pos.is_empty() {
+                            let keys_joined = key_pos.iter()
+                                .map(|x| self.table_model.index_2a(item.row(), *x as i32).data_1a(2).to_string().to_std_string())
+                                .join("");
+
+                            let mut found = false;
+                            for (vanilla_table, hashes) in &*vanilla_data {
+                                match hashes.get(&keys_joined) {
+                                    Some(row) => {
+                                        let local_data = get_field_from_view(&self.table_model.static_upcast(), field, item.row(), item.column());
+
+                                       // Make sure to check the column, because we may be getting a different definition of our own here.
+                                        match vanilla_table.data()[*row as usize].get(item.column() as usize) {
+                                            Some(vanilla_data) => {
+                                                if vanilla_data != &local_data {
+                                                    item.set_data_2a(ref_from_atomic(&QVARIANT_TRUE), ITEM_IS_MODIFIED_VS_VANILLA);
+                                                } else {
+                                                    item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_MODIFIED_VS_VANILLA);
+                                                }
+
+                                                found = true;
+                                                break;
+                                            },
+
+                                            None => item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_MODIFIED_VS_VANILLA),
+                                        }
+                                    }
+
+                                    None => continue,
+                                }
+                            }
+
+                            // For this we need to alter all items in the same row.
+                            for column in 0..self.table_definition().fields_processed().len() {
+                                let item = self.table_model.item_2a(*row, column as i32);
+                                if found {
+                                    item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_ADDED_VS_VANILLA);
+                                } else {
+                                    //item.set_data_2a(ref_from_atomic(&QVARIANT_TRUE), ITEM_IS_ADDED_VS_VANILLA);
+                                }
+                            }
                         }
                     }
 
@@ -2603,6 +2663,51 @@ impl TableView {
                                 break;
                             }
                         }
+                    }
+                }
+            }
+
+            let key_pos = definition.key_column_positions();
+            let vanilla_data = self.vanilla_hashed_tables.read().unwrap();
+            if !vanilla_data.is_empty() && !key_pos.is_empty() {
+                let keys_joined = key_pos.iter()
+                    .map(|x| self.table_model.index_2a(item.row(), *x as i32).data_1a(2).to_string().to_std_string())
+                    .join("");
+
+                let mut found = false;
+                for (vanilla_table, hashes) in &*vanilla_data {
+                    match hashes.get(&keys_joined) {
+                        Some(row) => {
+                            let local_data = get_field_from_view(&self.table_model.static_upcast(), field, item.row(), item.column());
+
+                            // Make sure to check the column, because we may be getting a different definition of our own here.
+                            match vanilla_table.data()[*row as usize].get(item.column() as usize) {
+                                Some(vanilla_data) => {
+                                    if vanilla_data != &local_data {
+                                        item.set_data_2a(ref_from_atomic(&QVARIANT_TRUE), ITEM_IS_MODIFIED_VS_VANILLA);
+                                    } else {
+                                        item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_MODIFIED_VS_VANILLA);
+                                    }
+
+                                    found = true;
+                                    break;
+                                },
+
+                                None => item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_MODIFIED_VS_VANILLA),
+                            }
+                        }
+
+                        None => continue,
+                    }
+                }
+
+                // For this we need to alter all items in the same row.
+                for column in 0..fields_processed.len() {
+                    let item = self.table_model.item_2a(item.row(), column as i32);
+                    if found {
+                        item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_ADDED_VS_VANILLA);
+                    } else {
+                        //item.set_data_2a(ref_from_atomic(&QVARIANT_TRUE), ITEM_IS_ADDED_VS_VANILLA);
                     }
                 }
             }

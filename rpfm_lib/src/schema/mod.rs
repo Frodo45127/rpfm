@@ -769,6 +769,16 @@ impl Definition {
             .position(|x| x.name() == column_name)
     }
 
+    /// This function returns the position of all key columns on a table.
+    pub fn key_column_positions(&self) -> Vec<usize> {
+        self.fields_processed()
+            .iter()
+            .enumerate()
+            .filter(|(_, x)| x.is_key(Some(self.patches())))
+            .map(|(x, _)| x)
+            .collect::<Vec<_>>()
+    }
+
     /// This function updates the fields in the provided definition with the data in the provided RawDefinition.
     ///
     /// Not all data is updated though, only:
