@@ -39,7 +39,7 @@ use super::get_raw_definition_paths;
 use super::localisable_fields::RawLocalisableField;
 use super::table_data::RawTableRow;
 
-const IGNORABLE_FIELDS: [&str; 4] = ["s_ColLineage", "s_Generation", "s_GUID", "s_Lineage"];
+//const IGNORABLE_FIELDS: [&str; 4] = ["s_ColLineage", "s_Generation", "s_GUID", "s_Lineage"];
 
 //---------------------------------------------------------------------------//
 // Types for parsing the Assembly Kit Schema Files into.
@@ -276,7 +276,7 @@ impl RawDefinition {
                                             for index in od_index {
 
                                                 // Ignore indexes of unused fields, the primary key, and field-specific indexes.
-                                                if IGNORABLE_FIELDS.contains(&&*index.name) || index.name == "PrimaryKey" || index.name == index.key.trim() {
+                                                if index.name == "PrimaryKey" || index.name == index.key.trim() {
                                                     continue;
                                                 }
 
@@ -517,7 +517,7 @@ impl From<&RawDefinitionV0> for RawDefinition {
                             if index.name == "PrimaryKey" {
 
                                 // Always trim to remove the final space, then split by space to find all the keys of the table.
-                                let keys = index.key.trim().split(' ').filter(|x| !IGNORABLE_FIELDS.contains(x)).collect::<Vec<_>>();
+                                let keys = index.key.trim().split(' ').collect::<Vec<_>>();
                                 if keys.is_empty() {
                                     None
                                 } else {
@@ -539,30 +539,20 @@ impl From<&RawDefinitionV0> for RawDefinition {
                         if let Some(ref name) = element.name {
                             if let Some(ref jet_type) = element.jet_type {
 
-                                // Ignore fields that will not end up in a table.
-                                if IGNORABLE_FIELDS.contains(&&**name) {
-                                    continue;
-                                }
-
                                 let mut field = RawField::default();
                                 field.name = name.to_owned();
 
                                 field.field_type = match &**jet_type {
-                                    "decimal" | "single" => "single".to_owned(),
-                                    "double" => "double".to_owned(),
                                     "yesno" => "yesno".to_owned(),
-
-                                    // No fucking clue, but they're stuff not in the tables.
-                                    "oleobject" | "replicationid" => continue,
                                     "integer" => "integer".to_owned(),
                                     "longinteger" | "autonumber" => "autonumber".to_owned(),
-                                    "text" => "text".to_owned(),
+                                    "decimal" | "single" => "single".to_owned(),
+                                    "double" => "double".to_owned(),
+                                    "text" | "memo" | "oleobject" | "replicationid" => "text".to_owned(),
 
                                     // These are dates as in a DateTime format. Treat them as text for now.
                                     "datetime" => "text".to_owned(),
 
-                                    // Loc files?
-                                    "memo" => continue,
                                     _ => todo!("{}", jet_type),
                                 };
 
