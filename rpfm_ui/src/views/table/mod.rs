@@ -335,7 +335,15 @@ impl TableView {
         let table_name_for_ref = if let Some(name) = table_name { name.to_owned() } else { "".to_owned() };
         let dependency_data = get_reference_data(packed_file_type, &table_name_for_ref, &table_definition)?;
 
-        let vanilla_hashed_tables = get_vanilla_hashed_tables(packed_file_type, &table_name_for_ref).unwrap_or_default();
+        // Do not bother getting hashed data for tables that are not modded.
+        let vanilla_hashed_tables = {
+            let data_source = data_source.read().unwrap();
+            if *data_source == DataSource::PackFile || *data_source == DataSource::ParentFiles {
+                get_vanilla_hashed_tables(packed_file_type, &table_name_for_ref).unwrap_or_default()
+            } else {
+                vec![]
+            }
+        };
 
         // Create the locks for undoing and saving. These are needed to optimize the undo/saving process.
         let undo_lock = Arc::new(AtomicBool::new(false));
