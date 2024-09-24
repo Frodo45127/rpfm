@@ -247,14 +247,19 @@ pub fn path_to_absolute_string(path: &Path) -> String {
 /// This function generates an absolute path from a path.
 ///
 /// This does nothing if the path doesn't exists.
-pub fn path_to_absolute_path(path: &Path) -> PathBuf {
+pub fn path_to_absolute_path(path: &Path, strip_prefix: bool) -> PathBuf {
     let mut path = path.to_owned();
 
     match canonicalize(&path) {
         Ok(cannon_path) => {
             let cannon_path_str = cannon_path.to_string_lossy();
-            if let Some(strip) = cannon_path_str.strip_prefix("\\\\?\\") {
-                path = PathBuf::from(strip);
+
+            if strip_prefix {
+                if let Some(strip) = cannon_path_str.strip_prefix("\\\\?\\") {
+                    path = PathBuf::from(strip);
+                } else {
+                    path = cannon_path;
+                }
             } else {
                 path = cannon_path;
             }
@@ -263,14 +268,17 @@ pub fn path_to_absolute_path(path: &Path) -> PathBuf {
         // These errors are usually for trying to cannonicalize an already cannon path, or because the file doesn't exist.
         Err(_) => {
             let path_str = path.to_string_lossy();
-            if let Some(strip) = path_str.strip_prefix("\\\\?\\") {
-                path = PathBuf::from(strip);
+            if strip_prefix {
+                if let Some(strip) = path_str.strip_prefix("\\\\?\\") {
+                    path = PathBuf::from(strip);
+                }
             }
         }
     }
 
     path
 }
+
 
 //--------------------------------------------------------//
 // Time utils.
