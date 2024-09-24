@@ -6,6 +6,16 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [4.3.6]
+### Changed
+- Pack dependencies now can be disabled for load ingame, so they're still used by RPFM, but they don't alter your load order.
+
+### Fixed
+- Fixed some Empire and Napoleon tables being missing in the Assembly Kit section of the dependencies.
+- Fixed some columns being marked as "different" when they were checked against tables with different definitions (like outdated mods vs vanilla files).
+- Fixed different column checks being done on non-mod tables.
+- Fixed harmless error that spammed the crash reports.
+
 ## [4.3.5]
 ### Added
 - Implemented marker (orange underscore) on cells different than vanilla/parent.
@@ -1407,7 +1417,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.3.5...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.3.6...HEAD
+[4.3.6]: https://github.com/Frodo45127/rpfm/compare/v4.3.5...v4.3.6
 [4.3.5]: https://github.com/Frodo45127/rpfm/compare/v4.3.4...v4.3.5
 [4.3.4]: https://github.com/Frodo45127/rpfm/compare/v4.3.3...v4.3.4
 [4.3.3]: https://github.com/Frodo45127/rpfm/compare/v4.3.2...v4.3.3
