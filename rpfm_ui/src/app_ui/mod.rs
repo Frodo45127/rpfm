@@ -2959,7 +2959,7 @@ impl AppUI {
                 },
                 SpecialView::Pack(ref path) => (path.to_owned(), QString::from_std_str(path)),
                 SpecialView::PackSettings => (RESERVED_NAME_SETTINGS.to_owned(), qtr("settings")),
-                SpecialView::PackDependencies => (RESERVED_NAME_DEPENDENCIES_MANAGER.to_owned(), qtr("table_dependency_manager_title")),
+                SpecialView::PackDependencies => (RESERVED_NAME_DEPENDENCIES_MANAGER_V2.to_owned(), qtr("table_dependency_manager_title")),
             };
 
             // Close all preview views except the file we're opening. The path used for the manager is empty.

@@ -738,7 +738,7 @@ diagnostics_colum_report_type = Report Type
 diagnostic_type = Diagnostic Report Type
 diagnostic_show = Show?
 
-dependency_packfile_list_label = <p><b style="color:red;">WARNING: Adding a PackFile to this list will load that PackFile if present EVEN IF IT'S NOT SELECTED IN THE MOD MANAGER!</b></p><p></p>
+dependency_packfile_list_label = <p><b style="color:red;">WARNING: Checking the "Load Before Ingame?" checkbox will force-load that Pack before this one (possibly altering the load order) if present EVEN IF IT'S NOT SELECTED IN THE MOD MANAGER!</b></p><p></p>
 
 context_menu_open_packfile_settings = Open PackFile Settings
 pfs_diagnostics_files_to_ignore_label =

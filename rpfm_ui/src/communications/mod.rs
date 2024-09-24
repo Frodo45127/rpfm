@@ -233,7 +233,7 @@ pub enum Command {
     GetDependencyPackFilesList,
 
     /// This command is used to set the list of PackFiles that are marked as dependency of our PackFile.
-    SetDependencyPackFilesList(Vec<String>),
+    SetDependencyPackFilesList(Vec<(bool, String)>),
 
     /// This command is used to get a full list of PackedFile from all known sources to the UI. Requires the path of the PackedFile.
     GetRFilesFromAllSources(Vec<ContainerPath>, bool),
@@ -518,6 +518,7 @@ pub enum Response {
     StringVecPathBuf(String, Vec<PathBuf>),
     #[cfg(feature = "enable_tools")] PackTranslation(PackTranslation),
     VecRFile(Vec<RFile>),
+    VecBoolString(Vec<(bool, String)>)
 }
 
 //-------------------------------------------------------------------------------//

@@ -824,7 +824,7 @@ pub unsafe fn build_columns(
                                 .unwrap_or(COLUMN_SIZE_STRING as usize);
                             table_view.set_column_width(index as i32, size as i32 + 30);
                         }
-                        _ => table_view.set_column_width(index as i32, COLUMN_SIZE_STRING),
+                        _ => table_view.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
                     }
                 }
                 TableType::DB(ref table) => {

@@ -292,7 +292,7 @@ pub fn diagnose(config: &Config, game_path: &Path, pak_path: &Path, schema_path:
 
             // Build the dependencies cache for the game and generate the references for our specific Pack.
             let mut dependencies = Dependencies::default();
-            dependencies.rebuild(&Some(schema.clone()), pack.dependencies(), Some(pak_path), game_info, game_path, &PathBuf::new())?;
+            dependencies.rebuild(&Some(schema.clone()), &pack.dependencies().iter().map(|x| x.1.clone()).collect::<Vec<_>>(), Some(pak_path), game_info, game_path, &PathBuf::new())?;
             dependencies.generate_local_db_references(&schema, &pack, &tables);
 
             // Trigger a diagnostics check.
@@ -348,7 +348,7 @@ pub fn add_dependency(config: &Config, pack_path: &Path, dependency: &str) -> Re
     match &config.game {
         Some(game) => {
             let mut pack = Pack::read_and_merge(&[pack_path.to_path_buf()], true, false, true)?;
-            pack.dependencies_mut().push(dependency.to_owned());
+            pack.dependencies_mut().push((true, dependency.to_owned()));
             pack.save(None, game, &None)?;
             Ok(())
         }
@@ -365,7 +365,7 @@ pub fn remove_dependency(config: &Config, pack_path: &Path, dependency: &str) ->
     match &config.game {
         Some(game) => {
             let mut pack = Pack::read_and_merge(&[pack_path.to_path_buf()], true, false, true)?;
-            if let Some(pos) = pack.dependencies().iter().position(|x| x == dependency) {
+            if let Some(pos) = pack.dependencies().iter().map(|(_, x)| x).position(|x| x == dependency) {
                 pack.dependencies_mut().remove(pos);
             }
             pack.save(None, game, &None)?;

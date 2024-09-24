@@ -63,7 +63,9 @@ impl DependenciesManagerView {
         let receiver = CENTRAL_COMMAND.send_background(Command::GetDependencyPackFilesList);
         let response = CentralCommand::recv(&receiver);
         let table_data = match response {
-            Response::VecString(table) => TableType::DependencyManager(table.iter().map(|x| vec![DecodedData::StringU8(x.to_owned()); 1]).collect::<Vec<Vec<DecodedData>>>()),
+            Response::VecBoolString(table) => TableType::DependencyManager(table.iter()
+                .map(|(hard, pack)| vec![DecodedData::Boolean(hard.to_owned()), DecodedData::StringU8(pack.to_owned())])
+                .collect::<Vec<Vec<DecodedData>>>()),
             _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
         };
 

@@ -16,7 +16,7 @@ This module contains the code to manage the views and actions of each decodeable
 
 use qt_widgets::QWidget;
 
-use qt_core::QBox;
+use qt_core::{CheckState, QBox};
 
 use anyhow::{anyhow, Result};
 use getset::Getters;
@@ -321,7 +321,6 @@ impl FileView {
                             View::Audio(_) => return Ok(()),
                             View::Decoder(_) => return Ok(()),
                             View::DependenciesManager(view) => {
-                                let mut entries = vec![];
                                 let model = view.get_ref_table().table_model_ptr();
                                 if model.is_null() {
                                     warn!("
@@ -356,9 +355,11 @@ impl FileView {
 
                                         ", false);
                                 } else {
+                                    let mut entries = vec![];
                                     for row in 0..model.row_count_0a() {
-                                        let item = model.item_1a(row).text().to_std_string();
-                                        entries.push(item);
+                                        let hard = model.item_2a(row, 0).check_state() == CheckState::Checked;
+                                        let pack = model.item_2a(row, 1).text().to_std_string();
+                                        entries.push((hard, pack));
                                     }
 
                                     // Save the new list and return Ok.

@@ -294,7 +294,7 @@ pub fn background_loop() {
                 // Branch 1: dependencies rebuilt.
                 if rebuild_dependencies {
                 info!("Branch 1.");
-                    let pack_dependencies = pack_file_decoded.dependencies().to_vec();
+                    let pack_dependencies = pack_file_decoded.dependencies().iter().map(|x| x.1.clone()).collect::<Vec<_>>();
                     let handle = thread::spawn(move || {
                         let game_selected = GAME_SELECTED.read().unwrap();
                         let game_path = setting_path(game_selected.key());
@@ -352,7 +352,8 @@ pub fn background_loop() {
                             match cache.save(&dependencies_path) {
                                 Ok(_) => {
                                     let secondary_path = setting_path(SECONDARY_PATH);
-                                    let _ = dependencies.write().unwrap().rebuild(&SCHEMA.read().unwrap(), pack_file_decoded.dependencies(), Some(&dependencies_path), &game_selected, &game_path, &secondary_path);
+                                    let pack_dependencies = pack_file_decoded.dependencies().iter().map(|x| x.1.clone()).collect::<Vec<_>>();
+                                    let _ = dependencies.write().unwrap().rebuild(&SCHEMA.read().unwrap(), &pack_dependencies, Some(&dependencies_path), &game_selected, &game_path, &secondary_path);
                                     let dependencies_info = DependenciesInfo::from(&*dependencies.read().unwrap());
                                     CentralCommand::send_back(&sender, Response::DependenciesInfo(dependencies_info));
                                 },
@@ -476,7 +477,7 @@ pub fn background_loop() {
             Command::GetPackFilePath => CentralCommand::send_back(&sender, Response::PathBuf(PathBuf::from(pack_file_decoded.disk_file_path()))),
 
             // In case we want to get the Dependency PackFiles of our PackFile...
-            Command::GetDependencyPackFilesList => CentralCommand::send_back(&sender, Response::VecString(pack_file_decoded.dependencies().to_vec())),
+            Command::GetDependencyPackFilesList => CentralCommand::send_back(&sender, Response::VecBoolString(pack_file_decoded.dependencies().to_vec())),
 
             // In case we want to set the Dependency PackFiles of our PackFile...
             Command::SetDependencyPackFilesList(packs) => { pack_file_decoded.set_dependencies(packs); },
@@ -1252,8 +1253,9 @@ pub fn background_loop() {
                                         let game_path = setting_path(game.key());
                                         let secondary_path = setting_path(SECONDARY_PATH);
                                         let dependencies_file_path = dependencies_cache_path().unwrap().join(game.dependencies_cache_file_name());
+                                        let pack_dependencies = pack_file_decoded.dependencies().iter().map(|x| x.1.clone()).collect::<Vec<_>>();
 
-                                        match dependencies.write().unwrap().rebuild(&SCHEMA.read().unwrap(), pack_file_decoded.dependencies(), Some(&*dependencies_file_path), &game, &game_path, &secondary_path) {
+                                        match dependencies.write().unwrap().rebuild(&SCHEMA.read().unwrap(), &pack_dependencies, Some(&*dependencies_file_path), &game, &game_path, &secondary_path) {
                                             Ok(_) => CentralCommand::send_back(&sender, Response::Success),
                                             Err(_) => CentralCommand::send_back(&sender, Response::Error(anyhow!("Schema updated, but dependencies cache rebuilding failed. You may need to regenerate it."))),
                                         }
@@ -1423,9 +1425,10 @@ pub fn background_loop() {
                     let game_path = setting_path(game_selected.key());
                     let dependencies_file_path = dependencies_cache_path().unwrap().join(game_selected.dependencies_cache_file_name());
                     let file_path = if !rebuild_only_current_mod_dependencies { Some(&*dependencies_file_path) } else { None };
+                    let pack_dependencies = pack_file_decoded.dependencies().iter().map(|x| x.1.clone()).collect::<Vec<_>>();
 
                     let secondary_path = setting_path(SECONDARY_PATH);
-                    let _ = dependencies.write().unwrap().rebuild(&SCHEMA.read().unwrap(), pack_file_decoded.dependencies(), file_path, &game_selected, &game_path, &secondary_path);
+                    let _ = dependencies.write().unwrap().rebuild(&SCHEMA.read().unwrap(), &pack_dependencies, file_path, &game_selected, &game_path, &secondary_path);
                     let dependencies_info = DependenciesInfo::from(&*dependencies.read().unwrap());
                     CentralCommand::send_back(&sender, Response::DependenciesInfo(dependencies_info));
                 } else {

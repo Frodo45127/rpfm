@@ -322,6 +322,7 @@ impl TableView {
             TableType::Atlas(ref table) => (table.definition().clone(), None, FileType::Atlas, false),
             TableType::DependencyManager(_) => {
                 let mut definition = Definition::new(-1, None);
+                definition.fields_mut().push(Field::new("Load before ingame?".to_owned(), FieldType::Boolean, true, None, false, None, None, None, String::new(), -1, 0, BTreeMap::new(), None));
                 definition.fields_mut().push(Field::new("Parent Packs".to_owned(), FieldType::StringU8, true, None, false, None, None, None, String::new(), -1, 0, BTreeMap::new(), None));
                 (definition, None, FileType::Unknown, false)
             },
@@ -884,6 +885,7 @@ impl TableView {
             #[cfg(feature = "enable_tools")] TableType::TranslatorTable(ref table) => table.definition().clone(),
             TableType::DependencyManager(_) => {
                 let mut definition = Definition::new(-1, None);
+                definition.fields_mut().push(Field::new("Load before ingame?".to_owned(), FieldType::Boolean, true, None, false, None, None, None, String::new(), -1, 0, BTreeMap::new(), None));
                 definition.fields_mut().push(Field::new("Parent Packs".to_owned(), FieldType::StringU8, true, None, false, None, None, None, String::new(), -1, 0, BTreeMap::new(), None));
                 definition
             }

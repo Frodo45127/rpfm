@@ -71,9 +71,9 @@ impl Pack {
             return Err(RLibError::PackIndexesNotComplete)
         }
 
-        // Get the Packs this Pack depends on, if any.
+        // Get the Packs this Pack depends on, if any. Note that we ignore this list if we have a dependencies manager file.
         for _ in 0..packs_count {
-            self.dependencies.push(buffer_mem.read_string_u8_0terminated()?);
+            self.dependencies.push((true, buffer_mem.read_string_u8_0terminated()?));
         }
 
         // Get if the files are encrypted or not.
@@ -186,15 +186,19 @@ impl Pack {
 
         // Build the dependencies index on memory. This one is never big, so no need of par_iter.
         let mut dependencies_index = vec![];
-        for dependency in &self.dependencies {
-            dependencies_index.write_string_u8_0terminated(dependency)?;
+        let mut dependencies_count = 0;
+        for (hard, dependency) in &self.dependencies {
+            if *hard {
+                dependencies_index.write_string_u8_0terminated(dependency)?;
+                dependencies_count += 1;
+            }
         }
 
         // Write the entire header to a memory buffer.
         let mut header = vec![];
         header.write_string_u8(self.header.pfh_version.value())?;
         header.write_u32(self.header.bitmask.bits() | self.header.pfh_file_type.value())?;
-        header.write_u32(self.dependencies.len() as u32)?;
+        header.write_u32(dependencies_count)?;
         header.write_u32(dependencies_index.len() as u32)?;
         header.write_u32(sorted_files.len() as u32)?;
         header.write_u32(files_index.par_iter().map(|x| x.len() as u32).sum())?;

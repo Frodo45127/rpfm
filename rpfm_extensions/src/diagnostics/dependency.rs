@@ -15,7 +15,7 @@ use serde_derive::{Serialize, Deserialize};
 
 use std::{fmt, fmt::Display};
 
-use rpfm_lib::files::pack::RESERVED_NAME_DEPENDENCIES_MANAGER;
+use rpfm_lib::files::pack::RESERVED_NAME_DEPENDENCIES_MANAGER_V2;
 
 use crate::diagnostics::*;
 
@@ -55,7 +55,7 @@ pub enum DependencyDiagnosticReportType {
 impl Default for DependencyDiagnostic {
     fn default() -> Self {
         Self {
-            path: RESERVED_NAME_DEPENDENCIES_MANAGER.to_owned(),
+            path: RESERVED_NAME_DEPENDENCIES_MANAGER_V2.to_owned(),
             results: vec![],
         }
     }
@@ -97,11 +97,11 @@ impl DependencyDiagnostic {
     /// This function takes care of checking for errors in the Dependency Manager.
     pub fn check(pack: &Pack) ->Option<DiagnosticType> {
         let mut diagnostic = DependencyDiagnostic::default();
-        for (index, pack) in pack.dependencies().iter().enumerate() {
+        for (index, (_, pack)) in pack.dependencies().iter().enumerate() {
 
             // TODO: Make it so this also checks if the PackFile actually exists,
             if pack.is_empty() || !pack.ends_with(".pack") || pack.contains(' ') {
-                let result = DependencyDiagnosticReport::new(DependencyDiagnosticReportType::InvalidDependencyPackName(pack.to_string()), &[(index as i32, 0)]);
+                let result = DependencyDiagnosticReport::new(DependencyDiagnosticReportType::InvalidDependencyPackName(pack.to_string()), &[(index as i32, 1)]);
                 diagnostic.results_mut().push(result);
             }
         }

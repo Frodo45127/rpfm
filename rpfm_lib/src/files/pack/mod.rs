@@ -58,6 +58,7 @@ const DEFENSIVE_HILL_HINT: &[u8; 18] = b"AIH_DEFENSIVE_HILL";
 const SIEGE_AREA_NODE_HINT: &[u8; 19] = b"AIH_SIEGE_AREA_NODE";
 
 pub const RESERVED_NAME_DEPENDENCIES_MANAGER: &str = "dependencies_manager.rpfm_reserved";
+pub const RESERVED_NAME_DEPENDENCIES_MANAGER_V2: &str = "dependencies_manager_v2.rpfm_reserved";
 pub const RESERVED_NAME_EXTRA_PACKFILE: &str = "extra_packfile.rpfm_reserved";
 pub const RESERVED_NAME_SETTINGS: &str = "settings.rpfm_reserved";
 pub const RESERVED_NAME_SETTINGS_EXTRACTED: &str = "settings.rpfm_reserved.json";
@@ -156,10 +157,10 @@ pub struct Pack {
     /// Header data of this Pack.
     header: PackHeader,
 
-    /// List of Packs this Pack requires to be loaded before himself when starting the game.
+    /// List of Packs this Pack depends on. If the boolean is true, the packs are also required to be loaded before himself when starting the game.
     ///
-    /// In other places, we refer to this as the `Dependency List`.
-    dependencies: Vec<String>,
+    /// In other places, we may refer to this as the `Dependency List`.
+    dependencies: Vec<(bool, String)>,
 
     /// List of files this Pack contains.
     files: HashMap<String, RFile>,
@@ -550,6 +551,12 @@ impl Pack {
             pack.settings = PackSettings::load(data)?;
         }
 
+        if let Some(mut deps) = pack.files.remove(RESERVED_NAME_DEPENDENCIES_MANAGER_V2) {
+            deps.load()?;
+            let data = deps.cached()?;
+            pack.dependencies = from_slice(data)?;
+        }
+
         // Generate the path list.
         if !skip_path_cache_generation {
             pack.paths_cache_generate();
@@ -598,6 +605,13 @@ impl Pack {
                 data.write_all(to_string_pretty(&self.settings)?.as_bytes())?;
                 let file = RFile::new_from_vec(&data, FileType::Text, 0, RESERVED_NAME_SETTINGS);
                 self.files.insert(RESERVED_NAME_SETTINGS.to_owned(), file);
+
+                // Saving Pack dependencies.
+                let mut data = vec![];
+                data.write_all(to_string_pretty(&self.dependencies)?.as_bytes())?;
+                let file = RFile::new_from_vec(&data, FileType::Text, 0, RESERVED_NAME_DEPENDENCIES_MANAGER_V2);
+                self.files.insert(RESERVED_NAME_DEPENDENCIES_MANAGER_V2.to_owned(), file);
+
             }
         }
 
@@ -701,7 +715,7 @@ impl Pack {
         let mut dependencies = packs.iter()
             .flat_map(|pack| pack.dependencies()
                 .iter()
-                .filter(|dependency| !pack_names.contains(dependency))
+                .filter(|(_, dependency)| !pack_names.contains(dependency))
                 .cloned()
                 .collect::<Vec<_>>())
             .collect::<Vec<_>>();
@@ -755,7 +769,7 @@ impl Pack {
         let mut dependencies = packs.iter()
             .flat_map(|pack| pack.dependencies()
                 .iter()
-                .filter(|dependency| !pack_names.contains(dependency))
+                .filter(|(_, dependency)| !pack_names.contains(dependency))
                 .cloned()
                 .collect::<Vec<_>>())
             .collect::<Vec<_>>();
