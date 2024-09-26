@@ -751,6 +751,10 @@ impl TableView {
 
             header.block_signals(false);
         }
+
+        // We need to update the view afterwards. Otherwise it'll be stuck with old data due to signals not updating it.
+        self.timer_delayed_updates.set_interval(5);
+        self.timer_delayed_updates.start_0a();
     }
 
     pub unsafe fn delete_table_view_profile(&self, key: &str) {
