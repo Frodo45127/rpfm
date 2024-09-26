@@ -2327,7 +2327,7 @@ impl ContainerPath {
 
                         // If the other one is a folder that contains it, dont add it.
                         let path = item_type.path_raw();
-                        item_type.is_folder() && path_to_add.starts_with(path) && path_to_add.len() > path.len()
+                        item_type.is_folder() && path_to_add.starts_with(path) && path_to_add.len() > path.len() && path_to_add.is_char_boundary(path.len()) && path_to_add.as_bytes()[path.len()] == b'/'
                     })
                 }
             }
