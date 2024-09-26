@@ -39,8 +39,6 @@ use super::get_raw_definition_paths;
 use super::localisable_fields::RawLocalisableField;
 use super::table_data::RawTableRow;
 
-//const IGNORABLE_FIELDS: [&str; 4] = ["s_ColLineage", "s_Generation", "s_GUID", "s_Lineage"];
-
 //---------------------------------------------------------------------------//
 // Types for parsing the Assembly Kit Schema Files into.
 //---------------------------------------------------------------------------//

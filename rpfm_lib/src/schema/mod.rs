@@ -105,7 +105,11 @@ const INVALID_VERSION: i32 = -100;
 /// Name for unamed colour groups.
 pub const MERGE_COLOUR_NO_NAME: &str = "Unnamed Colour Group";
 
+/// Ending for named colour groups.
 pub const MERGE_COLOUR_POST: &str = "_hex";
+
+/// Fields that can be ignored in missing field checks.
+const IGNORABLE_FIELDS: [&str; 4] = ["s_ColLineage", "s_Generation", "s_GUID", "s_Lineage"];
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
@@ -879,7 +883,8 @@ impl Definition {
                     }
                 }
 
-                if !found {
+                // We automatically ignore certain old fields that have nothing to do with the game's data.
+                if !found && !IGNORABLE_FIELDS.contains(&&*raw_field.name) {
                     unfound_fields.push(format!("{}/{}", raw_table_name, raw_field.name));
                 }
             }
