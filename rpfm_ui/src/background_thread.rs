@@ -2402,20 +2402,24 @@ fn build_starpos(dependencies: &Dependencies, pack_file: &Pack, campaign_id: &st
         String::new()
     };
 
+    let game = GAME_SELECTED.read().unwrap();
+
     // Note: 3K uses 2 passes per campaign, each one with a different startpos, but both share the hlp/spd process, so that only needs to be generated once.
-    let user_script_contents = format!("
+    // Also, extra folders is to fix a bug in Rome 2, Attila and possibly Thrones where objectives are not processed if certain folders are missing.
+    let extra_folders = "add_working_directory assembly_kit\\working_data;add_working_directory assembly_kit\\raw_data\\EmpireDesignData\\campaigns;";
+    let mut user_script_contents = if game.key() == KEY_ATTILA || game.key() == KEY_THRONES_OF_BRITANNIA { extra_folders.to_owned() } else { String::new() };
+
+    user_script_contents.push_str(&format!("
 mod {};
 process_campaign_startpos {} {};
 {}
 quit_after_campaign_processing;",
         pack_name, campaign_id, sub_start_pos, process_hlp_spd_data_string
-    );
+    ));
 
     // Games may fail to launch if we don't have this path created, which is done the first time we start the game.
-    let game = GAME_SELECTED.read().unwrap();
     let game_path = setting_path(game.key());
     let game_data_path = game.data_path(&game_path)?;
-
     if !game_path.is_dir() {
         return Err(anyhow!("Game path incorrect. Fix it in the settings and try again."));
     }
@@ -2628,7 +2632,7 @@ quit_after_campaign_processing;",
             use std::os::windows::process::CommandExt;
 
             // Rome 2 reads the victory conditions from here, and for some reason if these folders are not added the startpos ends up missing data.
-            command.raw_arg("add_working_directory assembly_kit\\working_data;add_working_directory assembly_kit\\raw_data\\EmpireDesignData\\campaigns;");
+            command.raw_arg(extra_folders);
             command.raw_arg(user_script_contents.replace("\n", " "));
         }
 
