@@ -132,7 +132,10 @@ pub mod unit_editor;
 #[getset(get = "pub", get_mut = "pub")]
 pub struct Tool {
 
-    /// Main widget of the tool, built from a Template. Usually, the dialog.
+    /// The dialog of the tool.
+    dialog: QBox<QDialog>,
+
+    /// Main widget of the tool, built from a Template.
     main_widget: QBox<QWidget>,
 
     /// Paths which the tool requires data from.
@@ -180,8 +183,9 @@ impl Tool {
             _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
         }
 
-        // Load the UI Template.
-        let main_widget = crate::utils::load_template(parent, template_path)?;
+        // Load the UI Template. All templates must be simple widgets.
+        let dialog = new_q_dialog_custom_safe(parent.cast_into(), are_you_sure_dialog);
+        let main_widget = crate::utils::load_template(&dialog, template_path)?;
 
         // Get the common widgets for all tools.
         let message_widget: QPtr<QWidget> = Self::find_widget_no_tool(&main_widget.static_upcast(), "message_widget")?;
@@ -195,6 +199,7 @@ impl Tool {
 
         // Then, build the tool.
         Ok(Self{
+            dialog,
             main_widget,
             used_paths,
             packed_files: Rc::new(RefCell::new(HashMap::new())),
@@ -204,8 +209,8 @@ impl Tool {
     }
 
     /// This function returns the main widget casted as a QDialog, which should be the type of the widget defined in the UI Template.
-    pub unsafe fn get_ref_dialog(&self) -> qt_core::QPtr<QDialog> {
-        self.main_widget.static_downcast::<QDialog>()
+    pub unsafe fn get_ref_dialog(&self) -> &QBox<QDialog> {
+        &self.dialog
     }
 
     /// This function sets the title of the Tool's window.

@@ -54,7 +54,8 @@ SOURCES += \
     src/tree_item_delegate.cpp \
     src/treeview_draggable.cpp \
     src/unit_variant_item_delegate.cpp \
-    src/treeview_filter.cpp
+    src/treeview_filter.cpp \
+    src/q_dialog_custom.cpp
 
 INCLUDEPATH += include
 
@@ -83,7 +84,8 @@ HEADERS += \
     include/q_main_window_custom.h \
     include/spoiler.h \
     include/kcolor_combo.h \
-    include/unit_variant_item_delegate.h
+    include/unit_variant_item_delegate.h \
+    include/q_dialog_custom.h
 
 release:DESTDIR = release
 release:OBJECTS_DIR = release/.obj

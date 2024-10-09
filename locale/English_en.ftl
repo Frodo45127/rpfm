@@ -558,6 +558,7 @@ game_selected_changed_on_opening = Game Selected changed to {"{"}{"}"}, as the P
 rpfm_title = Rusted PackFile Manager
 delete_mymod_0 = <p>Are you sure you want to delete this <i>'MyMod'</i> from your disk?</p><p>There is no way to recover it after that.</p>
 delete_mymod_1 = <p>There are some changes yet to be saved.</p><p>Are you sure you want to exit?</p>
+close_tool = <p>Are you sure you want to close the tool?</p><p>Changes will be lost.</p>
 
 api_response_success_new_stable_update = <h4>New major stable update found: {"{"}{"}"}</h4> <p>Please, make sure to save your work in progress before hitting 'Update', or you may lose it.</p>
 api_response_success_new_beta_update = <h4>New beta update found: {"{"}{"}"}</h4><p>Please, make sure to save your work in progress before hitting 'Update', or you may lose it.</p>

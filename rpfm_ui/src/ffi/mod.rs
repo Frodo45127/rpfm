@@ -14,6 +14,7 @@ Module containing the ffi functions used for custom widgets.
 
 use qt_widgets::QAbstractSpinBox;
 use qt_widgets::QAction;
+use qt_widgets::QDialog;
 use qt_widgets::QLabel;
 use qt_widgets::QLayout;
 use qt_widgets::QLineEdit;
@@ -233,6 +234,12 @@ pub fn main_window_drop_pack_signal(widget: QPtr<QWidget>) -> Signal<(*const ::q
             ),
         )
     }
+}
+
+// This function allow us to create a custom dialog.
+extern "C" { fn new_q_dialog_custom(parent: *mut QWidget, are_you_sure_dialog: extern fn(*mut QDialog) -> bool) -> *mut QDialog; }
+pub fn new_q_dialog_custom_safe(parent: Ptr<QWidget>, are_you_sure_dialog: extern fn(*mut QDialog) -> bool) -> QBox<QDialog> {
+    unsafe { QBox::from_raw(new_q_dialog_custom(parent.as_mut_raw_ptr(), are_you_sure_dialog)) }
 }
 
 //---------------------------------------------------------------------------//
@@ -689,8 +696,11 @@ pub extern fn anim_paths_by_skeleton_callback(skeleton_name: *mut QString, out: 
 /// This function allow us to create a dialog when trying to close the main window.
 pub extern fn are_you_sure(main_window: *mut QMainWindow, is_delete_my_mod: bool) -> bool {
     let title = qtr("rpfm_title");
-    let message = if is_delete_my_mod { qtr("delete_mymod_0") }
-    else if UI_STATE.get_is_modified() { qtr("delete_mymod_1") }
+    let message = if is_delete_my_mod {
+        qtr("delete_mymod_0")
+    } else if UI_STATE.get_is_modified() {
+        qtr("delete_mymod_1")
+    }
 
     // In any other situation... just return true and forget about the dialog.
     else { return true };
@@ -704,6 +714,23 @@ pub extern fn are_you_sure(main_window: *mut QMainWindow, is_delete_my_mod: bool
         16384, // Yes
         1, // By default, select yes.
         main_window,
+    ).exec() == 3 }
+}
+
+/// This function allow us to create a dialog when trying to close another dialog.
+pub extern fn are_you_sure_dialog(dialog: *mut QDialog) -> bool {
+    let title = qtr("rpfm_title");
+    let message = qtr("close_tool");
+
+    // Create the dialog and run it (Yes => 3, No => 4).
+    unsafe { QMessageBox::from_2_q_string_icon3_int_q_widget(
+        &title,
+        &message,
+        q_message_box::Icon::Warning,
+        65536, // No
+        16384, // Yes
+        1, // By default, select yes.
+        dialog,
     ).exec() == 3 }
 }
 

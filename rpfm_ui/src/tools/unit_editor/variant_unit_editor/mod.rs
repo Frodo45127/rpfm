@@ -306,7 +306,7 @@ impl SubToolVariantUnitEditor {
         view.load_data(data)?;
 
         // If we hit ok, save the data back to the parent tool.
-        if view.tool.main_widget().static_downcast::<QDialog>().exec() == 1 {
+        if view.tool.dialog().exec() == 1 {
             Ok(Some(view.save_data()?))
         }
 
