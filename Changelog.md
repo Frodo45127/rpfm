@@ -6,6 +6,17 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [4.3.7]
+### Added
+- Implemented "Show Edited Cells" button on table filters.
+- Implemented "Are you sure?" dialog when closing a tool dialog.
+
+### Fixed
+- Fixed "Apply Profile" not visually updating the table, causing a model/view desync.
+- Fixed incorrect dedup check causing issues like sometimes folders not being deleted when hitting delete in the file TreeView.
+- Fixed definition updater reporting incorrect missing fields for Empire and Napoleon.
+- Fixed victory conditions not being included in startpos in Attila and Thrones.
+
 ## [4.3.6]
 ### Changed
 - Pack dependencies now can be disabled for load ingame, so they're still used by RPFM, but they don't alter your load order.
@@ -1417,7 +1428,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.3.6...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.3.7...HEAD
+[4.3.7]: https://github.com/Frodo45127/rpfm/compare/v4.3.6...v4.3.7
 [4.3.6]: https://github.com/Frodo45127/rpfm/compare/v4.3.5...v4.3.6
 [4.3.5]: https://github.com/Frodo45127/rpfm/compare/v4.3.4...v4.3.5
 [4.3.4]: https://github.com/Frodo45127/rpfm/compare/v4.3.3...v4.3.4
