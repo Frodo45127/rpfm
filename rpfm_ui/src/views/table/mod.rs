@@ -1116,6 +1116,7 @@ impl TableView {
         let mut show_blank_cells = vec![];
         let mut match_groups = vec![];
         let mut variant_to_search = vec![];
+        let mut show_edited_cells = vec![];
 
         let filters = self.filters.read().unwrap();
         for filter in filters.iter() {
@@ -1150,6 +1151,9 @@ impl TableView {
                 // Check if we should filter out blank cells or not.
                 show_blank_cells.push(filter.show_blank_cells_button().is_checked());
 
+                // Check if we should filter out edited cells or not.
+                show_edited_cells.push(filter.show_edited_cells_button().is_checked());
+
                 let pattern = filter.filter_line_edit().text().to_std_string();
                 use_nott.push(filter.not_checkbox().is_checked());
 
@@ -1161,7 +1165,7 @@ impl TableView {
         }
 
         // Filter whatever it's in that column by the text we got.
-        trigger_tableview_filter_safe(&self.table_filter, &columns, patterns, &use_nott, &use_regex, &sensitivity, &show_blank_cells, &match_groups, &variant_to_search);
+        trigger_tableview_filter_safe(&self.table_filter, &columns, patterns, &use_nott, &use_regex, &sensitivity, &show_blank_cells, &match_groups, &variant_to_search, &show_edited_cells);
 
         // Update the line count.
         self.update_line_counter();

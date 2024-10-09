@@ -27,6 +27,7 @@ pub unsafe fn set_connections_filter(ui: &FilterView, slots: &FilterViewSlots) {
     ui.case_sensitive_button.toggled().connect(&slots.filter_case_sensitive_button);
     ui.use_regex_button.toggled().connect(&slots.filter_use_regex_button);
     ui.show_blank_cells_button.toggled().connect(&slots.filter_show_blank_cells_button);
+    ui.show_edited_cells_button.toggled().connect(&slots.filter_show_edited_cells_button);
     ui.timer_delayed_updates.timeout().connect(&slots.filter_trigger);
     ui.add_button.released().connect(&slots.filter_add);
     ui.remove_button.released().connect(&slots.filter_remove);

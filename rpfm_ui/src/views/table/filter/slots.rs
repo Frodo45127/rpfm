@@ -37,6 +37,7 @@ pub struct FilterViewSlots {
     pub filter_case_sensitive_button: QBox<SlotNoArgs>,
     pub filter_use_regex_button: QBox<SlotNoArgs>,
     pub filter_show_blank_cells_button: QBox<SlotNoArgs>,
+    pub filter_show_edited_cells_button: QBox<SlotNoArgs>,
     pub filter_trigger: QBox<SlotNoArgs>,
     pub filter_check_regex: QBox<SlotOfQString>,
     pub filter_add: QBox<SlotNoArgs>,
@@ -100,6 +101,11 @@ impl FilterViewSlots {
             parent_view.filter_table();
         }));
 
+        let filter_show_edited_cells_button = SlotNoArgs::new(&view.main_widget, clone!(
+            parent_view => move || {
+            parent_view.filter_table();
+        }));
+
         // Function triggered by the filter timer.
         let filter_trigger = SlotNoArgs::new(&view.main_widget, clone!(
             parent_view => move || {
@@ -146,6 +152,7 @@ impl FilterViewSlots {
             filter_case_sensitive_button,
             filter_use_regex_button,
             filter_show_blank_cells_button,
+            filter_show_edited_cells_button,
             filter_trigger,
             filter_check_regex,
             filter_add,

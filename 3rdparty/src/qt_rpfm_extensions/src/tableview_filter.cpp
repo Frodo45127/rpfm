@@ -21,7 +21,8 @@ extern "C" void trigger_tableview_filter(
     QList<int> case_sensitive,
     QList<int> show_blank_cells,
     QList<int> match_groups_per_column,
-    QList<int> variant_to_search
+    QList<int> variant_to_search,
+    QList<int> show_edited_cells
 ) {
     QTableViewSortFilterProxyModel* filter2 = static_cast<QTableViewSortFilterProxyModel*>(filter);
     filter2->columns = columns;
@@ -32,6 +33,7 @@ extern "C" void trigger_tableview_filter(
     filter2->show_blank_cells = show_blank_cells;
     filter2->match_groups_per_column = match_groups_per_column;
     filter2->variant_to_search = variant_to_search;
+    filter2->show_edited_cells = show_edited_cells;
     filter2->setFilterKeyColumn(0);
 }
 
@@ -74,6 +76,7 @@ bool QTableViewSortFilterProxyModel::filterAcceptsRow(int source_row, const QMod
             QString pattern = patterns.at(match);
             Qt::CaseSensitivity case_sensitivity = static_cast<Qt::CaseSensitivity>(case_sensitive.at(match));
             bool show_blank_cells_in_column = show_blank_cells.at(match) == 1 ? true: false;
+            bool show_edited_cells_in_column = show_edited_cells.at(match) == 1 ? true: false;
 
             QVector<int>* variants = new QVector<int>();
             if (variant_to_search.at(match) == 0) {
@@ -88,12 +91,20 @@ bool QTableViewSortFilterProxyModel::filterAcceptsRow(int source_row, const QMod
             QModelIndex currntIndex = sourceModel()->index(source_row, column, source_parent);
             QStandardItem *currntData = static_cast<QStandardItemModel*>(sourceModel())->itemFromIndex(currntIndex);
 
+            QVariant isModifiedFromVanillaVariant = currntData->data(24);
+            bool isModifiedFromVanilla = !isModifiedFromVanillaVariant.isNull() ? isModifiedFromVanillaVariant.toBool(): false;
+
             if (currntIndex.isValid()) {
+
+                // If the variant is modified and we want to show modified cells, we let it pass the filters.
+                if (show_edited_cells_in_column && isModifiedFromVanilla) {
+                    continue;
+                }
 
                 // Checkbox matches.
                 //
                 // NOTE: isCheckable is broken if the cell is not editable.
-                if (currntData->data(Qt::CheckStateRole).isValid()) {
+                else if (currntData->data(Qt::CheckStateRole).isValid()) {
                     QString pattern_lower = pattern.toLower();
                     bool isChecked = currntData->checkState() == Qt::CheckState::Checked;
 

@@ -58,6 +58,7 @@ pub struct FilterView {
     case_sensitive_button: QPtr<QToolButton>,
     use_regex_button: QPtr<QToolButton>,
     show_blank_cells_button: QPtr<QToolButton>,
+    show_edited_cells_button: QPtr<QToolButton>,
     group_combobox: QPtr<QComboBox>,
     column_combobox: QPtr<QComboBox>,
     variant_combobox: QPtr<QComboBox>,
@@ -85,6 +86,7 @@ impl FilterView {
         let case_sensitive_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "case_sensitive_button")?;
         let use_regex_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "use_regex")?;
         let show_blank_cells_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "show_blank_cells_button")?;
+        let show_edited_cells_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "show_edited_cells_button")?;
         let group_combobox: QPtr<QComboBox> = find_widget(&main_widget.static_upcast(), "group_combobox")?;
         let column_combobox: QPtr<QComboBox> = find_widget(&main_widget.static_upcast(), "column_combobox")?;
         let variant_combobox: QPtr<QComboBox> = find_widget(&main_widget.static_upcast(), "variant_combobox")?;
@@ -97,6 +99,7 @@ impl FilterView {
         use_regex_button.set_tool_tip(&qtr("table_filter_use_regex"));
         use_regex_button.set_checked(true);
         show_blank_cells_button.set_tool_tip(&qtr("table_filter_show_blank_cells"));
+        show_edited_cells_button.set_tool_tip(&qtr("table_filter_show_edited_cells"));
         case_sensitive_button.set_tool_tip(&qtr("table_filter_case_sensitive"));
         timer_delayed_updates.set_single_shot(true);
 
@@ -144,6 +147,7 @@ impl FilterView {
             case_sensitive_button,
             use_regex_button,
             show_blank_cells_button,
+            show_edited_cells_button,
             group_combobox,
             column_combobox,
             variant_combobox,

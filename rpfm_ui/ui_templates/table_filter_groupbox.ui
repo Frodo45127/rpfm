@@ -32,24 +32,7 @@
    <property name="spacing">
     <number>0</number>
    </property>
-   <item row="2" column="0">
-    <widget class="QCheckBox" name="not_checkbox">
-     <property name="text">
-      <string>!</string>
-     </property>
-    </widget>
-   </item>
-   <item row="2" column="6">
-    <widget class="QComboBox" name="column_combobox">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-    </widget>
-   </item>
-   <item row="2" column="9">
+   <item row="2" column="10">
     <widget class="QToolButton" name="remove_button">
      <property name="enabled">
       <bool>false</bool>
@@ -69,6 +52,33 @@
      </property>
      <property name="checkable">
       <bool>false</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="4">
+    <widget class="QToolButton" name="show_blank_cells_button">
+     <property name="text">
+      <string/>
+     </property>
+     <property name="icon">
+      <iconset theme="markasblank">
+       <normaloff>.</normaloff>.</iconset>
+     </property>
+     <property name="iconSize">
+      <size>
+       <width>22</width>
+       <height>22</height>
+      </size>
+     </property>
+     <property name="checkable">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="0">
+    <widget class="QCheckBox" name="not_checkbox">
+     <property name="text">
+      <string>!</string>
      </property>
     </widget>
    </item>
@@ -103,49 +113,12 @@
     </widget>
    </item>
    <item row="2" column="8">
-    <widget class="QToolButton" name="add_button">
-     <property name="text">
-      <string/>
-     </property>
-     <property name="icon">
-      <iconset theme="list-add">
-       <normaloff>.</normaloff>.</iconset>
-     </property>
-     <property name="iconSize">
-      <size>
-       <width>22</width>
-       <height>22</height>
-      </size>
-     </property>
-    </widget>
-   </item>
-   <item row="2" column="7">
     <widget class="QComboBox" name="group_combobox">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
        <horstretch>0</horstretch>
        <verstretch>0</verstretch>
       </sizepolicy>
-     </property>
-    </widget>
-   </item>
-   <item row="2" column="4">
-    <widget class="QToolButton" name="show_blank_cells_button">
-     <property name="text">
-      <string/>
-     </property>
-     <property name="icon">
-      <iconset theme="markasblank">
-       <normaloff>.</normaloff>.</iconset>
-     </property>
-     <property name="iconSize">
-      <size>
-       <width>22</width>
-       <height>22</height>
-      </size>
-     </property>
-     <property name="checkable">
-      <bool>true</bool>
      </property>
     </widget>
    </item>
@@ -169,13 +142,59 @@
      </property>
     </widget>
    </item>
-   <item row="2" column="5">
+   <item row="2" column="7">
+    <widget class="QComboBox" name="column_combobox">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="9">
+    <widget class="QToolButton" name="add_button">
+     <property name="text">
+      <string/>
+     </property>
+     <property name="icon">
+      <iconset theme="list-add">
+       <normaloff>.</normaloff>.</iconset>
+     </property>
+     <property name="iconSize">
+      <size>
+       <width>22</width>
+       <height>22</height>
+      </size>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="6">
     <widget class="QComboBox" name="variant_combobox">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
        <horstretch>0</horstretch>
        <verstretch>0</verstretch>
       </sizepolicy>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="5">
+    <widget class="QToolButton" name="show_edited_cells_button">
+     <property name="text">
+      <string>...</string>
+     </property>
+     <property name="icon">
+      <iconset theme="cell_edit"/>
+     </property>
+     <property name="iconSize">
+      <size>
+       <width>22</width>
+       <height>22</height>
+      </size>
+     </property>
+     <property name="checkable">
+      <bool>true</bool>
      </property>
     </widget>
    </item>
