@@ -1686,6 +1686,7 @@ pub fn background_loop() {
 
             Command::ImportDependenciesToOpenPackFile(paths_by_data_source) => {
                 let mut added_paths = vec![];
+                let mut not_added_paths = vec![];
 
                 let dependencies = dependencies.read().unwrap();
                 for (data_source, paths) in &paths_by_data_source {
@@ -1701,10 +1702,13 @@ pub fn background_loop() {
                     };
 
                     for file in files.into_values() {
+                        let file_path = file.path_in_container_raw().to_owned();
                         let mut file = file.clone();
                         let _ = file.guess_file_type();
                         if let Ok(Some(path)) = pack_file_decoded.insert(file) {
                             added_paths.push(path);
+                        } else {
+                            not_added_paths.push(file_path);
                         }
                     }
                 }
@@ -1750,11 +1754,7 @@ pub fn background_loop() {
                                                                 let file = RFile::new_from_decoded(&RFileDecoded::DB(table), 0, &path);
                                                                 files.push(file);
                                                             },
-                                                            Err(_) => {
-                                                                CentralCommand::send_back(&sender, Response::Error(anyhow!("One or more files failed to import due to missing definition.")));
-                                                                CentralCommand::send_back(&sender, Response::Success);
-                                                                continue 'background_loop;
-                                                            }
+                                                            Err(_) => not_added_paths.push(path.clone()),
                                                         }
                                                     }
                                                 }
@@ -1777,11 +1777,7 @@ pub fn background_loop() {
                                                             let file = RFile::new_from_decoded(&RFileDecoded::DB(table), 0, &path);
                                                             files.push(file);
                                                         },
-                                                        Err(_) => {
-                                                            CentralCommand::send_back(&sender, Response::Error(anyhow!("One or more files failed to import due to missing definition.")));
-                                                            CentralCommand::send_back(&sender, Response::Success);
-                                                            continue 'background_loop;
-                                                        }
+                                                        Err(_) => not_added_paths.push(path.clone()),
                                                     }
                                                 }
 
@@ -1800,17 +1796,12 @@ pub fn background_loop() {
                                                         let file = RFile::new_from_decoded(&RFileDecoded::DB(table), 0, path);
                                                         files.push(file);
                                                     },
-                                                    Err(_) => {
-                                                        CentralCommand::send_back(&sender, Response::Error(anyhow!("One or more files failed to import due to missing definition.")));
-                                                        CentralCommand::send_back(&sender, Response::Success);
-                                                        continue 'background_loop;
-                                                    }
+                                                    Err(_) => not_added_paths.push(path.clone()),
                                                 }
                                             }
                                         }
                                     }
 
-                                    // Only add the files if none failed to import.
                                     for file in files {
                                         if let Ok(Some(path)) = pack_file_decoded.insert(file) {
                                             added_paths.push(path);
@@ -1833,7 +1824,11 @@ pub fn background_loop() {
                 }
 
                 CentralCommand::send_back(&sender, Response::VecContainerPath(added_paths));
-                CentralCommand::send_back(&sender, Response::Success);
+                if not_added_paths.is_empty() {
+                    CentralCommand::send_back(&sender, Response::Success);
+                } else {
+                    CentralCommand::send_back(&sender, Response::VecString(not_added_paths));
+                }
             },
 
             Command::GetRFilesFromAllSources(paths, force_lowercased_paths) => {
