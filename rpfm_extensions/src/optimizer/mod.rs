@@ -73,6 +73,9 @@ impl OptimizableContainer for Pack {
             return Err(RLibError::DependenciesCacheNotGeneratedorOutOfDate);
         }
 
+        // Cache the pack paths for the text file checks.
+        let pack_paths = self.paths().keys().map(|x| x.to_owned()).collect::<HashSet<String>>();
+
         // List of files to optimize.
         let mut files_to_optimize = match paths_to_optimize {
             Some(paths) => self.files_by_paths_mut(&paths, false),
@@ -137,14 +140,22 @@ impl OptimizableContainer for Pack {
 
                     FileType::Text => {
                         if !path.is_empty() && (
-                            path.starts_with("prefabs/") ||
-                            path.starts_with("terrain/battles/") ||
-                            path.starts_with("terrain/tiles/battle/")
-                        )
+                                path.starts_with("prefabs/") ||
+                                path.starts_with("terrain/battles/") ||
+                                path.starts_with("terrain/tiles/battle/")
+                            )
                             && !path.ends_with(".wsmodel")
                             && !path.ends_with(".environment")
                             && !path.ends_with(".environment_group")
                             && !path.ends_with(".environment_group.override")
+
+                            // Delete all xml files that match a bin file.
+                            && (
+                                path.ends_with(".xml") && (
+                                    pack_paths.contains(&path[..path.len() - 4].to_lowercase()) ||
+                                    pack_paths.contains(&(path[..path.len() - 4].to_lowercase() + ".bin"))
+                                )
+                            )
                          {
                             if let Ok(Some(RFileDecoded::Text(text))) = rfile.decode(&None, false, true) {
                                 if *text.format() == TextFormat::Xml {
