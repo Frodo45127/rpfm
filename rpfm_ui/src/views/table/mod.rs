@@ -1795,60 +1795,7 @@ impl TableView {
 
                         // We need to update the new row vs vanilla status here, because as that one affects all rows, it's not done automatically.
                         let definition = self.table_definition();
-                        let fields_processed = definition.fields_processed();
-                        let field = &fields_processed[*column as usize];
-
-                        let key_pos = definition.key_column_positions();
-                        let vanilla_data = self.vanilla_hashed_tables.read().unwrap();
-                        if !vanilla_data.is_empty() && !key_pos.is_empty() {
-                            let keys_joined = key_pos.iter()
-                                .map(|x| self.table_model.index_2a(item.row(), *x as i32).data_1a(2).to_string().to_std_string())
-                                .join("");
-
-                            let mut found = false;
-                            for (vanilla_table, hashes) in &*vanilla_data {
-                                let vanilla_definition = vanilla_table.definition();
-                                let vanilla_processed_fields = vanilla_definition.fields_processed();
-
-                                // Ignore fields that are not in the vanilla table.
-                                if let Some(vanilla_field_column) = vanilla_processed_fields.iter().position(|x| x.name() == field.name()) {
-
-                                    match hashes.get(&keys_joined) {
-                                        Some(row) => {
-                                            let local_data = get_field_from_view(&self.table_model.static_upcast(), field, item.row(), item.column());
-
-                                            // Make sure to check the column, because we may be getting a different definition of our own here.
-                                            match vanilla_table.data()[*row as usize].get(vanilla_field_column as usize) {
-                                                Some(vanilla_data) => {
-                                                    if vanilla_data != &local_data {
-                                                        item.set_data_2a(ref_from_atomic(&QVARIANT_TRUE), ITEM_IS_MODIFIED_VS_VANILLA);
-                                                    } else {
-                                                        item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_MODIFIED_VS_VANILLA);
-                                                    }
-
-                                                    found = true;
-                                                    break;
-                                                },
-
-                                                None => item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_MODIFIED_VS_VANILLA),
-                                            }
-                                        }
-
-                                        None => continue,
-                                    }
-                                }
-                            }
-
-                            // For this we need to alter all items in the same row.
-                            for column in 0..self.table_definition().fields_processed().len() {
-                                let item = self.table_model.item_2a(*row, column as i32);
-                                if found {
-                                    item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_ADDED_VS_VANILLA);
-                                } else {
-                                    //item.set_data_2a(ref_from_atomic(&QVARIANT_TRUE), ITEM_IS_ADDED_VS_VANILLA);
-                                }
-                            }
-                        }
+                        self.update_row_diff_marker(&definition, item.row());
                     }
 
                     // Select all the edited items.
@@ -2764,57 +2711,7 @@ impl TableView {
                 }
             }
 
-            let key_pos = definition.key_column_positions();
-            let vanilla_data = self.vanilla_hashed_tables.read().unwrap();
-            if !vanilla_data.is_empty() && !key_pos.is_empty() {
-                let keys_joined = key_pos.iter()
-                    .map(|x| self.table_model.index_2a(item.row(), *x as i32).data_1a(2).to_string().to_std_string())
-                    .join("");
-
-                let mut found = false;
-                for (vanilla_table, hashes) in &*vanilla_data {
-                    let vanilla_definition = vanilla_table.definition();
-                    let vanilla_processed_fields = vanilla_definition.fields_processed();
-
-                    // Ignore fields that are not in the vanilla table.
-                    if let Some(vanilla_field_column) = vanilla_processed_fields.iter().position(|x| x.name() == field.name()) {
-
-                        match hashes.get(&keys_joined) {
-                            Some(row) => {
-                                let local_data = get_field_from_view(&self.table_model.static_upcast(), field, item.row(), item.column());
-
-                                // Make sure to check the column, because we may be getting a different definition of our own here.
-                                match vanilla_table.data()[*row as usize].get(vanilla_field_column as usize) {
-                                    Some(vanilla_data) => {
-                                        if vanilla_data != &local_data {
-                                            item.set_data_2a(ref_from_atomic(&QVARIANT_TRUE), ITEM_IS_MODIFIED_VS_VANILLA);
-                                        } else {
-                                            item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_MODIFIED_VS_VANILLA);
-                                        }
-
-                                        found = true;
-                                        break;
-                                    },
-
-                                    None => item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_MODIFIED_VS_VANILLA),
-                                }
-                            }
-
-                            None => continue,
-                        }
-                    }
-                }
-
-                // For this we need to alter all items in the same row.
-                for column in 0..fields_processed.len() {
-                    let item = self.table_model.item_2a(item.row(), column as i32);
-                    if found {
-                        item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_ADDED_VS_VANILLA);
-                    } else {
-                        //item.set_data_2a(ref_from_atomic(&QVARIANT_TRUE), ITEM_IS_ADDED_VS_VANILLA);
-                    }
-                }
-            }
+            self.update_row_diff_marker(&definition, item.row());
         }
     }
 
@@ -2843,6 +2740,74 @@ impl TableView {
         self.filter_table();
 
         self.table_view.viewport().repaint();
+    }
+
+    pub unsafe fn update_row_diff_marker(&self, definition: &Definition, row: i32) {
+        let fields_processed = definition.fields_processed();
+        let key_pos = definition.key_column_positions();
+
+        let vanilla_data = self.vanilla_hashed_tables.read().unwrap();
+        let mut found = false;
+        if !vanilla_data.is_empty() && !key_pos.is_empty() {
+            let keys_joined = key_pos.iter()
+                .map(|x| self.table_model.index_2a(row, *x as i32).data_1a(2).to_string().to_std_string())
+                .join("");
+
+            for (vanilla_table, hashes) in &*vanilla_data {
+                let vanilla_definition = vanilla_table.definition();
+                let vanilla_processed_fields = vanilla_definition.fields_processed();
+
+                match hashes.get(&keys_joined) {
+                    Some(vanilla_row) => {
+                        for (column, field) in fields_processed.iter().enumerate() {
+                            let local_data = get_field_from_view(&self.table_model.static_upcast(), field, row, column as i32);
+                            let item = self.table_model.item_2a(row, column as i32);
+
+                            match vanilla_processed_fields.iter().position(|x| x.name() == field.name()) {
+                                Some(vanilla_field_column) => {
+
+                                    // Make sure to check the column, because we may be getting a different definition of our own here.
+                                    match vanilla_table.data()[*vanilla_row as usize].get(vanilla_field_column as usize) {
+                                        Some(vanilla_data) => {
+                                            if vanilla_data != &local_data {
+                                                item.set_data_2a(ref_from_atomic(&QVARIANT_TRUE), ITEM_IS_MODIFIED_VS_VANILLA);
+                                            } else {
+                                                item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_MODIFIED_VS_VANILLA);
+                                            }
+
+                                            found = true;
+                                            continue;
+                                        },
+
+                                        // This is really an error, but for now we just hide it.
+                                        None => item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_MODIFIED_VS_VANILLA),
+                                    }
+                                }
+
+                                // If the field is not in the vanilla table, mark it as not modified.
+                                None => item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_MODIFIED_VS_VANILLA),
+                            }
+                        }
+                    }
+
+                    // Not found in this file. May exist in another file.
+                    None => continue,
+                }
+
+                // Only use the first occurrence of the key joined.
+                if found {
+                    break;
+                }
+            }
+        }
+
+        // For this we need to alter all items in the same row.
+        let hitem = self.table_model.horizontal_header_item(row);
+        if found {
+            hitem.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_ADDED_VS_VANILLA);
+        } else {
+            hitem.set_data_2a(ref_from_atomic(&QVARIANT_TRUE), ITEM_IS_ADDED_VS_VANILLA);
+        }
     }
 
     /// This function triggers a cascade edition through the entire program of the selected cells.
