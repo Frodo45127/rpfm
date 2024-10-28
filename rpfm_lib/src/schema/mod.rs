@@ -431,8 +431,6 @@ impl Schema {
                 definition.fields.iter_mut().for_each(|field| {
                     if let Some((ref_table, ref_column)) = field.is_reference(None) {
                         if ref_table.trim().is_empty() || ref_column.trim().is_empty() {
-                            dbg!(&table_name);
-                            dbg!(field.name());
                             field.is_reference = None;
                         }
                     }
