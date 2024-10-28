@@ -33,6 +33,7 @@ use crate::schema::*;
 #[cfg(feature = "integration_log")] use crate::integrations::log::info;
 
 use self::localisable_fields::RawLocalisableFields;
+use self::table_data::RawTable;
 use self::table_definition::{RawDefinition, RawRelationshipsTable};
 
 pub mod localisable_fields;
@@ -136,6 +137,38 @@ pub fn update_schema_from_raw_files(
 
                         if let Some(ref raw_localisable_fields) = raw_localisable_fields {
                             definition.update_from_raw_localisable_fields(raw_definition, &raw_localisable_fields.fields)
+                        }
+
+                        // Update the patches with description data if found. We only support single-key tables for this.
+                        if raw_definition.fields.iter().any(|x| x.name == "description") &&
+                            definition.fields().iter().all(|x| x.name() != "description") &&
+                            definition.localised_fields().iter().all(|x| x.name() != "description"){
+                            let mut data = vec![];
+
+                            if let Some(raw_key_field) = raw_definition.fields.iter().find(|x| x.primary_key == "1") {
+                                if let Some(_) = raw_definition.fields.iter().find(|x| x.name == "description") {
+                                    if let Ok(raw_table) = RawTable::read(raw_definition, ass_kit_path, *raw_db_version) {
+                                        for row in raw_table.rows {
+                                            if let Some(key_field) = row.fields.iter().find(|field| field.field_name == raw_key_field.name) {
+                                                if let Some(description_field) = row.fields.iter().find(|field| field.field_name == "description") {
+                                                    data.push(format!("{};;;;;{}", key_field.field_data, description_field.field_data));
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            if !data.is_empty() {
+                                let fields_processed = definition.fields_processed();
+                                let key_field = fields_processed.iter().find(|x| x.is_key(None)).unwrap();
+                                let mut hashmap = HashMap::new();
+                                hashmap.insert("lookup_hardcoded".to_owned(), data.join(":::::"));
+
+                                // Not the best way to do it, but it works.
+                                definition.patches_mut().clear();
+                                definition.patches_mut().insert(key_field.name().to_string(), hashmap);
+                            }
                         }
                     }
                 }

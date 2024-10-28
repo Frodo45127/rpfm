@@ -1336,6 +1336,26 @@ impl Dependencies {
             }
         );
 
+        for index in 0..fields_processed.len() {
+            match vanilla_references.get_mut(&(index as i32)) {
+                Some(references) => {
+                    let hardcoded_lookup = fields_processed[index as usize].lookup_hardcoded(patches);
+                    if !hardcoded_lookup.is_empty() {
+                        references.data.extend(hardcoded_lookup);
+                    }
+                },
+                None => {
+                    let mut references = TableReferences::default();
+                    *references.field_name_mut() = fields_processed[index as usize].name().to_owned();
+                    let hardcoded_lookup = fields_processed[index as usize].lookup_hardcoded(patches);
+                    if !hardcoded_lookup.is_empty() {
+                        references.data.extend(hardcoded_lookup);
+                        vanilla_references.insert(index as i32, references);
+                    }
+                },
+            }
+        }
+
         vanilla_references
     }
 

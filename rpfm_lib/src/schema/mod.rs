@@ -422,6 +422,8 @@ impl Schema {
         let mut file = BufWriter::new(File::create(path)?);
         let config = PrettyConfig::default();
 
+        let mut patches = HashMap::new();
+
         // Make sure all definitions are properly sorted by version number.
         self.definitions.iter_mut().for_each(|(table_name, definitions)| {
             definitions.sort_by(|a, b| b.version().cmp(a.version()));
@@ -434,9 +436,21 @@ impl Schema {
                             field.is_reference = None;
                         }
                     }
-                })
+                });
+
+                // Move any lookup_hardcoded patch to schema patches.
+                if definition.patches.values().any(|x| x.keys().any(|y| y == "lookup_hardcoded")) {
+                    let mut def_patches = definition.patches().clone();
+                    def_patches.retain(|_, value| {
+                        value.retain(|key, _| key == "lookup_hardcoded");
+                        !value.is_empty()
+                    });
+                    patches.insert(table_name.to_owned(), def_patches);
+                }
             })
         });
+
+        Self::add_patch_to_patch_set(self.patches_mut(), &patches);
 
         file.write_all(to_string_pretty(&self, config)?.as_bytes())?;
         Ok(())
@@ -1033,6 +1047,23 @@ impl Field {
 
     pub fn lookup_no_patch(&self) -> Option<Vec<String>> {
         self.lookup.clone()
+    }
+
+    pub fn lookup_hardcoded(&self, schema_patches: Option<&DefinitionPatch>) -> HashMap<String, String> {
+        if let Some(schema_patches) = schema_patches {
+            if let Some(patch) = schema_patches.get(self.name()) {
+                if let Some(field_patch) = patch.get("lookup_hardcoded") {
+                    let entries = field_patch.split(":::::").map(|x| x.split(";;;;;").collect::<Vec<_>>()).collect::<Vec<_>>();
+                    let mut hashmap = HashMap::new();
+                    for entry in entries {
+                        hashmap.insert(entry[0].to_owned(), entry[1].to_owned());
+                    }
+                    return hashmap;
+                }
+            }
+        }
+
+        HashMap::new()
     }
 
     pub fn description(&self, schema_patches: Option<&DefinitionPatch>) -> String {
