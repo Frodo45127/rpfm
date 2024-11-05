@@ -143,9 +143,21 @@ pub fn update_schema_from_raw_files(
                         if raw_definition.fields.iter().any(|x| x.name == "description") &&
                             definition.fields().iter().all(|x| x.name() != "description") &&
                             definition.localised_fields().iter().all(|x| x.name() != "description"){
+                            let fields_processed = definition.fields_processed();
                             let mut data = vec![];
 
-                            if let Some(raw_key_field) = raw_definition.fields.iter().find(|x| x.primary_key == "1") {
+                            // Calculate the key field. Here we may have problems with keys set by patches, so we do some... guessing.
+                            let key_field = fields_processed.iter().find(|x| x.is_key(Some(definition.patches())));
+                            let raw_key_field = raw_definition.fields.iter().find(|x| x.primary_key == "1");
+                            let key_field = if let Some(raw_key_field) = raw_key_field {
+                                Some(raw_key_field)
+                            } else if let Some(key_field) = key_field {
+                                raw_definition.fields.iter().find(|x| x.name == key_field.name())
+                            } else {
+                                None
+                            };
+
+                            if let Some(raw_key_field) = key_field {
                                 if let Some(_) = raw_definition.fields.iter().find(|x| x.name == "description") {
                                     if let Ok(raw_table) = RawTable::read(raw_definition, ass_kit_path, *raw_db_version) {
                                         for row in raw_table.rows {
@@ -160,8 +172,7 @@ pub fn update_schema_from_raw_files(
                             }
 
                             if !data.is_empty() {
-                                let fields_processed = definition.fields_processed();
-                                let key_field = fields_processed.iter().find(|x| x.is_key(None)).unwrap();
+                                let key_field = fields_processed.iter().find(|x| x.is_key(Some(definition.patches()))).unwrap();
                                 let mut hashmap = HashMap::new();
                                 hashmap.insert("lookup_hardcoded".to_owned(), data.join(":::::"));
 
