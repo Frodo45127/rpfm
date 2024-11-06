@@ -78,8 +78,9 @@ const BOM_UTF_8: [u8;3] = [0xEF,0xBB,0xBF];
 const BOM_UTF_16_LE: [u8;2] = [0xFF,0xFE];
 
 /// List of extensions we recognize as `Text` files, with their respective known format.
-pub const EXTENSIONS: [(&str, TextFormat); 54] = [
+pub const EXTENSIONS: [(&str, TextFormat); 55] = [
     (".bat", TextFormat::Bat),
+    (".battle_script", TextFormat::Lua),
     (".battle_speech_camera", TextFormat::Plain),
     (".benchmark", TextFormat::Xml),
     (".bob", TextFormat::Plain),
