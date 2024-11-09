@@ -179,7 +179,12 @@
 <p>You need to download and install:</p>
 <ul>
 <li><a href="https://developer.microsoft.com/en-US/windows/downloads/windows-10-sdk"><em><strong>Windows SDK</strong></em></a>.</li>
-<li><em><strong>MSVC</strong></em> (with C++ support from the Visual Studio installer).</li>
+<li><em><strong>Visual Studio Community 2019</strong></em> (from <a href="https://download.visualstudio.microsoft.com/download/pr/e84651e1-d13a-4bd2-a658-f47a1011ffd1/e17f0d85d70dc9f1e437a78a90dcfc527befe3dc11644e02435bdfe8fd51da27/vs_Community.exe">here</a>, because microsoft kinda hides the link). 2022 is not supported, use 2019.</li>
+<li><em><strong>MSVC</strong></em> (from the Visual Studio 2019 installer).
+<ul>
+<li>Once this is installed, create the VCTOOLSREDISTDIR user env variable, and point it to "C:\Program Files\Microsoft Visual Studio\2019\Community\VC\Redist\MSVC\xx.xx.xxxxx" or wherever MSVC got installed.</li>
+</ul>
+</li>
 <li><em><strong>Rust 1.64 with the MSVC toolchain</strong></em> (or superior).</li>
 <li><em><strong>Craft</strong></em> (from KDE).</li>
 </ul>
