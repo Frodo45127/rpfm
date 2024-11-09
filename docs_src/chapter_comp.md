@@ -23,6 +23,11 @@ craft -i kiconthemes
 craft -i breeze-icons
 ```
 
+NOTE: You may need to specify you want the QT5 version of those libs. Like this:
+```bash
+craft -i libs/qt5/qtimageformats
+```
+
 Now you can open craft, move to RPFM's source code folder and call from that terminal:
 
 ```bash
