@@ -6,6 +6,17 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [4.3.8]
+### Added
+- Implemented support for hardcoded lookups (they use description columns' contents from the assembly kit as lookups).
+- Added setting to disable diff marker on tables.
+- Added support for .battle_script files.
+
+### Fixed
+- When an "Import from dependencies" operation fails on some fails, it no longer causes the rest of the files to also fail to import.
+- Optimizer should no longer be overly agressive deleting xml files in map folders.
+- Diff marker has been refactored to hopefully fix all the small situations where it failed to work correctly.
+
 ## [4.3.7]
 ### Added
 - Implemented "Show Edited Cells" button on table filters.
@@ -1428,7 +1439,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.3.7...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.3.8...HEAD
+[4.3.8]: https://github.com/Frodo45127/rpfm/compare/v4.3.7...v4.3.8
 [4.3.7]: https://github.com/Frodo45127/rpfm/compare/v4.3.6...v4.3.7
 [4.3.6]: https://github.com/Frodo45127/rpfm/compare/v4.3.5...v4.3.6
 [4.3.5]: https://github.com/Frodo45127/rpfm/compare/v4.3.4...v4.3.5

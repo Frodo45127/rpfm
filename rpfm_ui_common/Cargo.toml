@@ -19,8 +19,8 @@ support_soundbank = ["rpfm_lib/support_soundbank"]
 [dependencies]
 
 # Internal dependencies.
-rpfm_lib = { path = "../rpfm_lib", version = "4.3.7", features = ["integration_log", "integration_git"] }
-rpfm_extensions = { path = "../rpfm_extensions", version = "4.3.7" }
+rpfm_lib = { path = "../rpfm_lib", version = "4.3.8", features = ["integration_log", "integration_git"] }
+rpfm_extensions = { path = "../rpfm_extensions", version = "4.3.8" }
 
 # Config dependencies.
 directories = "^5.0"
