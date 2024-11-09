@@ -1606,3 +1606,5 @@ translation_download_error = Error while trying to download the latest mod trans
 reload_renderer = Reload 3D Renderer
 settings_enable_renderer = Enable 3D Renderer
 context_menu_revert_value = Revert Values
+
+settings_enable_diff_markers = Enable Diff Markers

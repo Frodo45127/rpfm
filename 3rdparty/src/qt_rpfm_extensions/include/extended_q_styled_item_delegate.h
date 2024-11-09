@@ -24,6 +24,7 @@ protected:
     bool dark_theme;
     bool use_filter;
     bool use_right_side_mark;
+    bool use_diff_markers;
     QColor colour_table_added;
     QColor colour_table_modified;
     QColor colour_diagnostic_error;

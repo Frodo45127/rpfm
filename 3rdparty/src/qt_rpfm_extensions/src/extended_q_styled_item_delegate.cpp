@@ -25,6 +25,7 @@ QExtendedStyledItemDelegate::QExtendedStyledItemDelegate(QObject *parent, QTimer
     use_right_side_mark = right_side_mark;
 
     QSettings* q_settings = new QSettings("FrodoWazEre", "rpfm");
+    use_diff_markers = q_settings->value("enable_diff_markers").toBool();
 
     if (dark_theme) {
         colour_table_added = QColor(q_settings->value("colour_dark_table_added").toString());
@@ -71,10 +72,6 @@ void QExtendedStyledItemDelegate::paint(QPainter *painter, const QStyleOptionVie
         }
 
         if (item != nullptr) {
-            //QSettings* q_settings = new QSettings("FrodoWazEre", "rpfm");
-            //bool showNewLines = q_settings->value("tables_show_new_lines").toBool();
-            //bool showEditedCells = q_settings->value("tables_show_edited_cells").toBool();
-
             QVariant isKeyVariant = item->data(20);
             QVariant isAddedVariant = item->data(21);
             QVariant isModifiedVariant = item->data(22);
@@ -88,8 +85,8 @@ void QExtendedStyledItemDelegate::paint(QPainter *painter, const QStyleOptionVie
             bool isAdded = !isAddedVariant.isNull() ? isAddedVariant.toBool(): false;
             bool isModified = !isModifiedVariant.isNull() ? isModifiedVariant.toBool(): false;
 
-            bool isAddedFromVanilla = !isAddedFromVanillaVariant.isNull() ? isAddedFromVanillaVariant.toBool(): false;
-            bool isModifiedFromVanilla = !isModifiedFromVanillaVariant.isNull() ? isModifiedFromVanillaVariant.toBool(): false;
+            bool isAddedFromVanilla = !isAddedFromVanillaVariant.isNull() && use_diff_markers ? isAddedFromVanillaVariant.toBool(): false;
+            bool isModifiedFromVanilla = !isModifiedFromVanillaVariant.isNull() && use_diff_markers ? isModifiedFromVanillaVariant.toBool(): false;
 
             bool isError = !isErrorVariant.isNull() ? isErrorVariant.toBool(): false;
             bool isWarning = !isWarningVariant.isNull() ? isWarningVariant.toBool(): false;

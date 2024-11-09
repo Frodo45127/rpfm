@@ -2804,9 +2804,9 @@ impl TableView {
         // For this we need to alter all items in the same row.
         let hitem = self.table_model.horizontal_header_item(row);
         if found {
-            hitem.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_ADDED_VS_VANILLA);
+            //hitem.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_ADDED_VS_VANILLA);
         } else {
-            hitem.set_data_2a(ref_from_atomic(&QVARIANT_TRUE), ITEM_IS_ADDED_VS_VANILLA);
+            //hitem.set_data_2a(ref_from_atomic(&QVARIANT_TRUE), ITEM_IS_ADDED_VS_VANILLA);
         }
     }
 

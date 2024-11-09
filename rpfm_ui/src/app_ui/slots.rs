@@ -1528,6 +1528,15 @@ impl AppUISlots {
                                 table.table_model().block_signals(true);
 
                                 let definition = table.table_definition();
+
+                                // Update the delegates so they pick the most recent values from the settings.
+                                setup_item_delegates(
+                                    &table.table_view().static_upcast(),
+                                    &definition,
+                                    &data,
+                                    table.timer_delayed_updates()
+                                );
+
                                 let fields_processed = definition.fields_processed();
                                 let patches = Some(definition.patches());
 

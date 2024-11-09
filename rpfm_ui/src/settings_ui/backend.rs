@@ -159,6 +159,7 @@ pub unsafe fn init_settings(main_window: &QPtr<QMainWindow>) {
     set_setting_if_new_bool(&q_settings, "tables_use_old_column_order_for_tsv", true);
     set_setting_if_new_bool(&q_settings, "enable_lookups", true);
     set_setting_if_new_bool(&q_settings, "enable_icons", true);
+    set_setting_if_new_bool(&q_settings, "enable_diff_markers", true);
 
     // Debug Settings.
     set_setting_if_new_bool(&q_settings, "check_for_missing_table_definitions", false);
