@@ -1481,24 +1481,26 @@ impl Dependencies {
                                 // If it's the last step, check if it's a loc, or a table column.
                                 if index == ref_lookup_steps.len() - 1 {
                                     if let Some(file) = cache.get(lookup_ref_table) {
-                                        if let Ok(RFileDecoded::DB(db)) = file[0].decoded() {
-                                            let definition = db.definition();
-                                            let fields_processed = definition.fields_processed();
-                                            let localised_fields = definition.localised_fields();
+                                        if let Some(file) = file.get(0) {
+                                            if let Ok(RFileDecoded::DB(db)) = file.decoded() {
+                                                let definition = db.definition();
+                                                let fields_processed = definition.fields_processed();
+                                                let localised_fields = definition.localised_fields();
 
-                                            match localised_fields.iter().position(|x| x.name() == lookup_ref_lookup) {
-                                                Some(loc_pos) => {
-                                                    is_loc = true;
-                                                    col_pos = loc_pos;
-                                                },
-                                                None => match fields_processed.iter().position(|x| x.name() == lookup_ref_lookup) {
-                                                    Some(pos) => {
-                                                        is_loc = false;
-                                                        col_pos = pos;
+                                                match localised_fields.iter().position(|x| x.name() == lookup_ref_lookup) {
+                                                    Some(loc_pos) => {
+                                                        is_loc = true;
+                                                        col_pos = loc_pos;
                                                     },
-                                                    None => {
-                                                        error!("Missing column for lookup. This is a bug.");
-                                                    },
+                                                    None => match fields_processed.iter().position(|x| x.name() == lookup_ref_lookup) {
+                                                        Some(pos) => {
+                                                            is_loc = false;
+                                                            col_pos = pos;
+                                                        },
+                                                        None => {
+                                                            //error!("Missing column for lookup. This is a bug.");
+                                                        },
+                                                    }
                                                 }
                                             }
                                         }
@@ -1517,12 +1519,16 @@ impl Dependencies {
                                                 let localised_order = definition.localised_key_order();
 
                                                 let loc_key = if is_loc {
-                                                    let mut loc_key = String::with_capacity(2 + lookup_ref_table.len() + localised_fields[col_pos].name().len());
-                                                    loc_key.push_str(lookup_ref_table);
-                                                    loc_key.push('_');
-                                                    loc_key.push_str(localised_fields[col_pos].name());
-                                                    loc_key.push('_');
-                                                    loc_key
+                                                    if let Some(loc_field) = localised_fields.get(col_pos) {
+                                                        let mut loc_key = String::with_capacity(2 + lookup_ref_table.len() + loc_field.name().len());
+                                                        loc_key.push_str(lookup_ref_table);
+                                                        loc_key.push('_');
+                                                        loc_key.push_str(loc_field.name());
+                                                        loc_key.push('_');
+                                                        loc_key
+                                                    } else {
+                                                        String::new()
+                                                    }
                                                 } else {
                                                     String::new()
                                                 };
