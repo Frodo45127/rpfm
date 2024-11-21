@@ -131,6 +131,13 @@ impl RawTable {
                     Self::default()
                 };
 
+                // Remove the best waifus, because they end up appearing in lookups!!!
+                for row in &mut raw_table.rows {
+                    for field in &mut row.fields {
+                        field.field_data = field.field_data.replace("Frodo Best Waifu", "").trim().to_owned();
+                    }
+                }
+
                 raw_table.definition = Some(raw_definition.clone());
                 Ok(raw_table)
             }
