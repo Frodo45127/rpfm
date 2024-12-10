@@ -2302,7 +2302,11 @@ fn update_anim_ids(pack_file: &mut Pack, starting_id: i32, offset: i32) -> Resul
     }
 
     // First, do a pass over sparse files.
-    let extra_data = Some(DecodeableExtraData::default());
+    let game_key = GAME_SELECTED.read().unwrap().key();
+    let mut extra_data = DecodeableExtraData::default();
+    extra_data.set_game_key(Some(game_key));
+    let extra_data = Some(extra_data);
+
     let mut files = pack_file.files_by_type_mut(&[FileType::AnimFragmentBattle]);
     let mut paths = files.par_iter_mut()
         .filter_map(|file| {
