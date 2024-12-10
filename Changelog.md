@@ -6,6 +6,14 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [4.3.9]
+### Fixed
+- Fixed a bug that caused folders to not be correctly marked as "modified" after using the "Update Anim Ids" tool.
+- Fixed the "Update Anim Ids" tool not updating files within animpacks.
+- Fixed a rare crash related to missing lookups.
+- Fixed a lookup error message spamming the crash reporting service.
+- Frodo is best waifu no more.
+
 ## [4.3.8]
 ### Added
 - Implemented support for hardcoded lookups (they use description columns' contents from the assembly kit as lookups).
@@ -1439,7 +1447,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.3.8...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.3.9...HEAD
+[4.3.9]: https://github.com/Frodo45127/rpfm/compare/v4.3.8...v4.3.9
 [4.3.8]: https://github.com/Frodo45127/rpfm/compare/v4.3.7...v4.3.8
 [4.3.7]: https://github.com/Frodo45127/rpfm/compare/v4.3.6...v4.3.7
 [4.3.6]: https://github.com/Frodo45127/rpfm/compare/v4.3.5...v4.3.6
