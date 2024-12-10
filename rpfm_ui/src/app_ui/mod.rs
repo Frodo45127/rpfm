@@ -4337,6 +4337,7 @@ impl AppUI {
             match response {
                 Response::VecContainerPath(paths) => {
                     if !paths.is_empty() {
+                        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Modify(paths.clone()), DataSource::PackFile);
                         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths), DataSource::PackFile);
                         UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
                     }
