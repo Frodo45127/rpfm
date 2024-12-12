@@ -568,6 +568,8 @@ impl Default for SupportedGames {
                 "_kv_unit_ability_scaling_rules/description".to_owned(),
                 "_kv_winds_of_magic_params/description".to_owned(),
                 "advice_levels/locatable".to_owned(),
+                "agent_recruitment_categories/onscreen_description".to_owned(),
+                "alternative_pooled_resource_junctions/description".to_owned(),
                 "ancillary_info/author".to_owned(),
                 "ancillary_info/comment".to_owned(),
                 "ancillary_info/historical_example".to_owned(),
