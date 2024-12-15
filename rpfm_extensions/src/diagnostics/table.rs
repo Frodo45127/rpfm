@@ -419,7 +419,7 @@ impl TableDiagnostic {
                     diagnostic.results_mut().push(result);
                 }
 
-                if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, None, Some("EmptyKeyFields"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && row_keys_are_empty {
+                if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, None, Some("EmptyKeyFields"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && row_keys_are_empty && key_amount > 1 {
                     let cells_affected = row_keys.keys().map(|column| (row as i32, *column)).collect::<Vec<(i32, i32)>>();
                     let result = TableDiagnosticReport::new(TableDiagnosticReportType::EmptyKeyFields, &cells_affected, &fields_processed);
                     diagnostic.results_mut().push(result);
