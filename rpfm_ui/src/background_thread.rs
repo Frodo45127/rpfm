@@ -421,9 +421,29 @@ pub fn background_loop() {
                                             // Note: this shows the list of "missing" fields.
                                             let _ = update_schema_from_raw_files(schema, &game_selected, &asskit_path, &schema_path, &tables_to_skip, &tables_to_check_split);
 
-                                            match schema.save(&schemas_path().unwrap().join(GAME_SELECTED.read().unwrap().schema_file_name())) {
-                                                Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                                                Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                                            // This generates the automatic patches in the schema (like ".png are files" kinda patches).
+                                            if dependencies.generate_automatic_patches(schema).is_ok() {
+
+                                                // Fix for old file relative paths using incorrect separators.
+                                                schema.definitions_mut().par_iter_mut().for_each(|x| {
+                                                    x.1.iter_mut().for_each(|y| {
+                                                        y.fields_mut().iter_mut().for_each(|z| {
+                                                            if let Some(path) = z.filename_relative_path(None) {
+                                                                if path.len() == 1 && path[0].contains(",") {
+                                                                    let new_paths = path[0].split(',').map(|x| x.trim()).join(";");
+                                                                    z.set_filename_relative_path(Some(new_paths));
+                                                                }
+                                                            }
+                                                        });
+                                                    });
+                                                });
+
+                                                match schema.save(&schemas_path().unwrap().join(GAME_SELECTED.read().unwrap().schema_file_name())) {
+                                                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                                                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                                                }
+                                            } else {
+                                                CentralCommand::send_back(&sender, Response::Success)
                                             }
                                         } else {
                                             CentralCommand::send_back(&sender, Response::Success)

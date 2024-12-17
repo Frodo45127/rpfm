@@ -139,6 +139,21 @@ pub fn update_schema_from_raw_files(
                             definition.update_from_raw_localisable_fields(raw_definition, &raw_localisable_fields.fields)
                         }
 
+                        // Not the best way to do it, but it works.
+                        definition.patches_mut().clear();
+
+                        // Add unused field info.
+                        for raw_field in &raw_definition.fields {
+                            if raw_field.highlight_flag.is_some() {
+                                if raw_field.highlight_flag.clone().unwrap() == "#c8c8c8" {
+                                    let mut hashmap = HashMap::new();
+                                    hashmap.insert("unused".to_owned(), "true".to_owned());
+
+                                    definition.patches_mut().insert(raw_field.name.to_string(), hashmap);
+                                }
+                            }
+                        }
+
                         // Update the patches with description data if found. We only support single-key tables for this.
                         if raw_definition.fields.iter().any(|x| x.name == "description") &&
                             definition.fields().iter().all(|x| x.name() != "description") &&
@@ -176,8 +191,6 @@ pub fn update_schema_from_raw_files(
                                 let mut hashmap = HashMap::new();
                                 hashmap.insert("lookup_hardcoded".to_owned(), data.join(":::::"));
 
-                                // Not the best way to do it, but it works.
-                                definition.patches_mut().clear();
                                 definition.patches_mut().insert(key_field.name().to_string(), hashmap);
                             }
                         }

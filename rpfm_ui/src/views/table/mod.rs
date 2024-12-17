@@ -713,6 +713,14 @@ impl TableView {
             &packed_file_table_view.vanilla_hashed_tables.read().unwrap()
         );
 
+        // Before applying the profile, check the relevant sidebar checks.
+        for visual_index in 0..packed_file_table_view.table_view.horizontal_header().length() {
+            let logical_index = packed_file_table_view.table_view.horizontal_header().logical_index(visual_index);
+            if packed_file_table_view.table_view.horizontal_header().is_section_hidden(logical_index) {
+                packed_file_table_view.sidebar_hide_checkboxes()[logical_index as usize].set_checked(true);
+            }
+        }
+
         // If we have a default profile, apply it.
         if !packed_file_table_view.profile_default().read().unwrap().is_empty() {
             packed_file_table_view.apply_table_view_profile(&packed_file_table_view.profile_default().read().unwrap());
@@ -909,6 +917,14 @@ impl TableView {
             self.get_data_source(),
             &self.vanilla_hashed_tables.read().unwrap()
         );
+
+        // Before applying the profile, check the relevant sidebar checks.
+        for visual_index in 0..self.table_view.horizontal_header().length() {
+            let logical_index = self.table_view.horizontal_header().logical_index(visual_index);
+            if self.table_view.horizontal_header().is_section_hidden(logical_index) {
+                self.sidebar_hide_checkboxes()[logical_index as usize].set_checked(true);
+            }
+        }
 
         // If we have a default profile, apply it.
         if !self.profile_default().read().unwrap().is_empty() {

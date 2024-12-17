@@ -772,6 +772,9 @@ pub unsafe fn build_columns(
     let adjust_columns = setting_bool("adjust_columns_to_content");
     let header = table_view.horizontal_header();
 
+    let mut columns_to_hide = vec![];
+    let hide_unused_columns = setting_bool("hide_unused_columns");
+
     let description_icon = if setting_bool("use_dark_theme") {
         QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/description_icon_dark.png", ASSETS_PATH.to_string_lossy())))
     }  else {
@@ -913,6 +916,10 @@ pub unsafe fn build_columns(
         // If the field is key, add that column to the "Key" list, so we can move them at the beginning later.
         if field.is_key(patches) { keys.push(index); }
         if field.ca_order() != -1 { do_we_have_ca_order |= true; }
+
+        if hide_unused_columns && field.unused(patches) {
+            columns_to_hide.push(index);
+        }
     }
 
     // Now the order. If we have a sort order from the schema, we use that one.
@@ -945,6 +952,10 @@ pub unsafe fn build_columns(
         }
 
         header.block_signals(false);
+    }
+
+    for i in &columns_to_hide {
+        header.hide_section(*i as i32);
     }
 
     resize_after_data

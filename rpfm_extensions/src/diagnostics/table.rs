@@ -292,6 +292,12 @@ impl TableDiagnostic {
                 let mut row_keys_are_empty = true;
                 let mut row_keys: BTreeMap<i32, Cow<str>> = BTreeMap::new();
                 for (column, field) in fields_processed.iter().enumerate() {
+
+                    // Skip unused field on diagnostics.
+                    if field.unused(patches) {
+                        continue;
+                    }
+
                     let cell_data = cells[column].data_to_string();
 
                     // Path checks.

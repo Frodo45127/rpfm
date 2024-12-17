@@ -161,6 +161,7 @@ pub unsafe fn init_settings(main_window: &QPtr<QMainWindow>) {
     set_setting_if_new_bool(&q_settings, "enable_lookups", true);
     set_setting_if_new_bool(&q_settings, "enable_icons", true);
     set_setting_if_new_bool(&q_settings, "enable_diff_markers", true);
+    set_setting_if_new_bool(&q_settings, "hide_unused_columns", true);
 
     // Debug Settings.
     set_setting_if_new_bool(&q_settings, "check_for_missing_table_definitions", false);

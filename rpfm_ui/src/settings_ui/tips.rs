@@ -39,6 +39,7 @@ pub unsafe fn set_tips(settings_ui: &Rc<SettingsUI>) {
     let ignore_game_files_in_ak = qtr("settings_ignore_game_files_in_ak");
     let enable_multifolder_filepicker = qtr("settings_enable_multifolder_filepicker");
     let enable_pack_contents_drag_and_drop = qtr("settings_enable_pack_contents_drag_and_drop");
+    let hide_unused_columns = qtr("settings_hide_unused_columns");
 
     settings_ui.ui_global_use_dark_theme_label.set_tool_tip(&ui_global_use_dark_theme_tip);
     settings_ui.ui_global_use_dark_theme_checkbox.set_tool_tip(&ui_global_use_dark_theme_tip);
@@ -66,6 +67,8 @@ pub unsafe fn set_tips(settings_ui: &Rc<SettingsUI>) {
     settings_ui.enable_multifolder_filepicker_checkbox.set_tool_tip(&enable_multifolder_filepicker);
     settings_ui.enable_pack_contents_drag_and_drop_label.set_tool_tip(&enable_pack_contents_drag_and_drop);
     settings_ui.enable_pack_contents_drag_and_drop_checkbox.set_tool_tip(&enable_pack_contents_drag_and_drop);
+    settings_ui.ui_table_hide_unused_columns_label.set_tool_tip(&hide_unused_columns);
+    settings_ui.ui_table_hide_unused_columns_checkbox.set_tool_tip(&hide_unused_columns);
 
     //-----------------------------------------------//
     // `Extra` tips.

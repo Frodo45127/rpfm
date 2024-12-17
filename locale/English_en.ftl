@@ -1611,3 +1611,6 @@ settings_enable_diff_markers = Enable Diff Markers
 
 enable_pack_contents_drag_and_drop = Enable Pack Content's Drag & Drop:
 settings_enable_pack_contents_drag_and_drop = This allows you to toggle the Drag & Drop behaviour of the Pack Contents treeview.
+
+hide_unused_columns = Hide Unused Columns:
+settings_hide_unused_columns = If this is enabled, RPFM will automatically hide columns marked as "unused" in the Assembly Kit.

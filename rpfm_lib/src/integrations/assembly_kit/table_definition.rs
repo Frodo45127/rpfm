@@ -23,6 +23,7 @@ For more information about PAK files, check the `generate_pak_file()` function. 
 Currently, due to the complexity of parsing the table type `0`, we don't have support for PAK files in Empire and Napoleon.
 !*/
 
+use itertools::Itertools;
 use rayon::prelude::*;
 use serde_derive::Deserialize;
 use serde_xml_rs::from_reader;
@@ -98,6 +99,9 @@ pub struct RawField {
 
     /// If it has to be exported for the encyclopaedia? No idea really. `1` for `true`, `0` for false.
     pub encyclopaedia_export: Option<String>,
+
+    /// Used by Warhammer 3 to mark unused fields. #c8c8c8 means unused.
+    pub highlight_flag: Option<String>,
 
     /// This one is custom. Is for marking fields of old games (napoleon and shogun 2) to use proper types.
     pub is_old_game: Option<bool>,
@@ -429,13 +433,18 @@ impl From<&RawField> for Field {
         }
         else { (None, None) };
 
+        // CA sometimes uses comma as separator, and has random spaces between paths.
+        let filename_relative_path = raw_field.filename_relative_path.clone().map(|x| {
+            x.split(',').map(|y| y.trim()).join(";")
+        });
+
         Self::new(
             raw_field.name.to_owned(),
             field_type,
             raw_field.primary_key == "1",
             raw_field.default_value.clone(),
             raw_field.is_filename.is_some(),
-            raw_field.filename_relative_path.clone(),
+            filename_relative_path,
             is_reference,
             lookup,
             if let Some(x) = &raw_field.field_description { x.to_owned() } else { String::new() },

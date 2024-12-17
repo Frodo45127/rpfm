@@ -26,7 +26,7 @@ use rpfm_lib::error::{Result, RLibError};
 use rpfm_lib::files::{Container, ContainerPath, db::DB, DecodeableExtraData, FileType, pack::Pack, RFile, RFileDecoded};
 use rpfm_lib::games::GameInfo;
 use rpfm_lib::integrations::{assembly_kit::table_data::RawTable, log::{info, error}};
-use rpfm_lib::schema::{Definition, Field, FieldType, Schema};
+use rpfm_lib::schema::{Definition, DefinitionPatch, Field, FieldType, Schema};
 use rpfm_lib::utils::{current_time, files_from_subdir, last_modified_time_from_files, starts_with_case_insensitive};
 
 use crate::VERSION;
@@ -2157,6 +2157,179 @@ impl Dependencies {
                 }
             }
         }
+
+        Ok(())
+    }
+
+    /// This function generates automatic schema patches based mainly on bruteforcing and some clever logic.
+    pub fn generate_automatic_patches(&self, schema: &mut Schema) -> Result<()> {
+        let db_tables = self.db_and_loc_data(true, false, true, false)?
+            .iter()
+            .filter_map(|file| if let Ok(RFileDecoded::DB(table)) = file.decoded() { Some(table) } else { None })
+            .collect::<Vec<_>>();
+
+        let current_patches = schema.patches_mut();
+        let mut new_patches: HashMap<String, DefinitionPatch> = HashMap::new();
+
+        // Cache all image paths.
+        let vanilla_paths = self.vanilla_files()
+            .keys()
+            .filter(|x| x.ends_with(".png"))
+            .collect::<Vec<_>>();
+
+        for table in &db_tables {
+            let definition = table.definition();
+            let fields = definition.fields_processed();
+            for (column, field) in fields.iter().enumerate() {
+                match field.field_type() {
+                    FieldType::StringU8 |
+                    FieldType::StringU16 |
+                    FieldType::OptionalStringU8 |
+                    FieldType::OptionalStringU16 => {
+
+                        // Icons can be found by:
+                        // - Checking if the data contains ".png".
+                        // - Checking if the data contains "Icon" or "Image" in the name.
+                        //
+                        // Note that if the field contains incomplete/relative paths, this will guess and try to find unique files that match the path.
+                        let mut possible_icon = false;
+                        let low_name = field.name().to_lowercase();
+                        if (low_name.contains("icon") || low_name.contains("image")) &&
+
+                            // This really should be called category. It's wrong in the ak.
+                            !(table.table_name() == "character_traits_tables" && field.name() == "icon") {
+                            possible_icon = true;
+                        }
+
+                        // Use hashset for uniqueness and ram usage.
+                        let possible_relative_paths = table.data().par_iter()
+                            .filter_map(|row| {
+
+                                // Only check fields that are not already marked, or are marked but without path (like override_icon in incidents).
+                                if !field.is_filename(None) || (
+                                        field.is_filename(None) && (
+                                            field.filename_relative_path(None).is_none() ||
+                                            field.filename_relative_path(None).unwrap().is_empty()
+                                        )
+                                    ) || (
+
+                                        // This table has an incorrect path by default.
+                                        table.table_name() == "advisors_tables" && field.name() == "advisor_icon_path"
+                                    ) {
+
+                                    // These checks filter out certain problematic cell values:
+                                    // - x: means empty in some image fields.
+                                    // - placeholder: because it's in multiple places and generates false positives.
+                                    let data = row[column].data_to_string().to_lowercase().replace("\\", "/");
+                                    if !data.is_empty() &&
+                                        data != "x" &&
+                                        data != "placeholder" &&
+                                        data != "placeholder.png" && (
+                                            possible_icon ||
+                                            data.ends_with(".png")
+                                        ) {
+
+                                        let possible_paths = vanilla_paths.iter()
+
+                                            // Manual filters for some fields that are known to trigger hard-to-fix false positives.
+                                            .filter(|x| {
+                                                if (table.table_name() == "incidents_tables" && field.name() == "ui_image") ||
+                                                    (table.table_name() == "dilemmas_tables" && field.name() == "ui_image") {
+                                                    x.starts_with("ui/eventpics/")
+                                                } else if table.table_name() == "pooled_resources_tables" && field.name() == "optional_icon_path" {
+                                                    x.starts_with("ui/skins/")
+                                                } else if table.table_name() == "victory_types_tables" && field.name() == "icon" {
+                                                    x.starts_with("ui/campaign ui/victory_type_icons/")
+                                                } else {
+                                                    true
+                                                }
+                                            })
+
+                                            // This filter is for reducing false positives in these cases:
+                                            // - "default" or generic data.
+                                            // - "x" value for invalid paths
+                                            // - Entries that end in "_", which is used for some button path entries.
+                                            .filter(|x| if !data.ends_with('_') {
+                                                if !data.contains("/") {
+                                                    if !data.contains('.') {
+                                                        x.contains(&("/".to_owned() + &data + "."))
+                                                    } else {
+                                                        x.contains(&("/".to_owned() + &data))
+                                                    }
+                                                } else {
+                                                    x.contains(&data)
+                                                }
+                                            } else {
+                                                false
+                                            })
+                                            .map(|x| x.replace(&data, "%"))
+                                            .collect::<Vec<_>>();
+
+
+                                        if !possible_paths.is_empty() {
+                                            return Some(possible_paths)
+                                        }
+                                    }
+                                }
+
+                                None
+                            })
+                            .flatten()
+                            .collect::<HashSet<String>>();
+
+                        // Debug message.
+                        if !possible_relative_paths.is_empty() && (possible_relative_paths.len() > 1 || (possible_relative_paths.len() == 1 && possible_relative_paths.iter().collect::<Vec<_>>()[0] != "%")) {
+                            info!("Checking table {}, field {} ...", table.table_name(), field.name());
+                            dbg!(&possible_relative_paths);
+                        }
+
+                        // Only make patches for fields we manage to pinpoint to a file.
+                        if !possible_relative_paths.is_empty() {
+                            let mut possible_relative_paths = possible_relative_paths.iter().collect::<Vec<_>>();
+                            possible_relative_paths.sort();
+
+                            let mut patch = HashMap::new();
+                            if !field.is_filename(None) {
+                                patch.insert("is_filename".to_owned(), "true".to_owned());
+                            }
+
+                            // Only add paths if we're not dealing with single paths with full replacement, or we're force-replacing a path (advisors table).
+                            if possible_relative_paths.len() > 1 || (
+                                (
+                                    possible_relative_paths.len() == 1 &&
+                                    possible_relative_paths[0].contains('%') &&
+                                    possible_relative_paths[0] != "%"
+                                ) || (
+                                    possible_relative_paths[0] == "%" &&
+                                    field.filename_relative_path(None).is_some() &&
+                                    !field.filename_relative_path(None).unwrap().is_empty()
+                                )
+                            ) {
+                                patch.insert("filename_relative_path".to_owned(), possible_relative_paths.into_iter().join(";"));
+                            }
+
+                            // Do not bother with empty patches.
+                            if !patch.is_empty() {
+                                match new_patches.get_mut(table.table_name()) {
+                                    Some(patches) => match patches.get_mut(field.name()) {
+                                        Some(patches) => patches.extend(patch),
+                                        None => { patches.insert(field.name().to_owned(), patch); }
+                                    },
+                                    None => {
+                                        let mut table_patch = HashMap::new();
+                                        table_patch.insert(field.name().to_owned(), patch);
+                                        new_patches.insert(table.table_name().to_string(), table_patch);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    _ => continue
+                }
+            }
+        }
+
+        Schema::add_patch_to_patch_set(current_patches, &new_patches);
 
         Ok(())
     }

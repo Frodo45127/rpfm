@@ -64,6 +64,7 @@ Inside the schema there are `VersionedFile` variants of different types, with a 
 !*/
 
 use getset::*;
+use itertools::Itertools;
 use rayon::prelude::*;
 use ron::de::{from_bytes, from_str};
 use ron::ser::{to_string_pretty, PrettyConfig};
@@ -209,6 +210,10 @@ pub struct Field {
 
     /// If the field is part of a 3-part RGB column set, and which one (R, G or B) it is.
     is_part_of_colour: Option<u8>,
+
+    /// If the field is not used by the game. This one is set through patches, so we don't serialize it.
+    #[serde(skip_serializing, skip_deserializing)]
+    unused: bool,
 }
 
 /// This enum defines every type of field the lib can encode/decode.
@@ -438,11 +443,21 @@ impl Schema {
                     }
                 });
 
-                // Move any lookup_hardcoded patch to schema patches.
+                // Move any lookup_hardcoded patches to schema patches.
                 if definition.patches.values().any(|x| x.keys().any(|y| y == "lookup_hardcoded")) {
                     let mut def_patches = definition.patches().clone();
                     def_patches.retain(|_, value| {
                         value.retain(|key, _| key == "lookup_hardcoded");
+                        !value.is_empty()
+                    });
+                    patches.insert(table_name.to_owned(), def_patches);
+                }
+
+                // Move any unused patches to schema patches.
+                if definition.patches.values().any(|x| x.keys().any(|y| y == "unused")) {
+                    let mut def_patches = definition.patches().clone();
+                    def_patches.retain(|_, value| {
+                        value.retain(|key, _| key == "unused");
                         !value.is_empty()
                     });
                     patches.insert(table_name.to_owned(), def_patches);
@@ -651,13 +666,16 @@ impl Definition {
     /// This function returns the list of fields a table contains, after it has been expanded/changed due to the attributes of each field.
     pub fn fields_processed(&self) -> Vec<Field> {
         let mut split_colour_fields: BTreeMap<u8, Field> = BTreeMap::new();
+        let patches = self.patches();
         let mut fields = self.fields().iter()
             .filter_map(|x|
                 if x.is_bitwise() > 1 {
+                    let unused = x.unused(Some(patches));
                     let mut fields = vec![x.clone(); x.is_bitwise() as usize];
                     fields.iter_mut().enumerate().for_each(|(index, field)| {
                         field.set_name(format!("{}_{}", field.name(), index + 1));
                         field.set_field_type(FieldType::Boolean);
+                        field.set_unused(unused);
                     });
                     Some(fields)
                 }
@@ -696,8 +714,13 @@ impl Definition {
 
                             // Update the default value with the one for this colour.
                             field.set_default_value(default_value);
+
+                            if !field.unused(Some(patches)) {
+                                field.set_unused(x.unused(Some(patches)));
+                            }
                         },
                         None => {
+                            let unused = x.unused(Some(patches));
                             let colour_split = x.name().rsplitn(2, '_').collect::<Vec<&str>>();
                             let colour_field_name = if colour_split.len() == 2 {
                                 format!("{}{}", colour_split[1].to_lowercase(), MERGE_COLOUR_POST)
@@ -708,6 +731,7 @@ impl Definition {
                             let mut field = x.clone();
                             field.set_name(colour_field_name);
                             field.set_field_type(FieldType::ColourRGB);
+                            field.set_unused(unused);
 
                             // We need to fix the default value so it's a ColourRGB one.
                             let default_value = match field.default_value(None) {
@@ -823,8 +847,13 @@ impl Definition {
                         field.default_value = raw_field.default_value.clone();
                     }
 
-                    if raw_field.filename_relative_path.is_some() {
-                        field.filename_relative_path = raw_field.filename_relative_path.clone();
+                    if let Some(ref path) = raw_field.filename_relative_path {
+                        let mut new_path = path.to_owned();
+                        if path.contains(",") {
+                            new_path = path.split(',').map(|x| x.trim()).join(";");
+                        }
+
+                        field.filename_relative_path = Some(new_path);
                     }
 
                     // Make sure to cleanup any old invalid definition.
@@ -957,7 +986,8 @@ impl Field {
             ca_order,
             is_bitwise,
             enum_values,
-            is_part_of_colour
+            is_part_of_colour,
+            unused: false
         }
     }
 
@@ -1115,6 +1145,24 @@ impl Field {
 
         false
     }
+
+    /// Getter for the `unused` field.
+    pub fn unused(&self, schema_patches: Option<&DefinitionPatch>) -> bool {
+
+        // By default all fields are used, except the ones set through patches. If it's unused, skip patches.
+        self.unused || {
+
+            if let Some(schema_patches) = schema_patches {
+                if let Some(patch) = schema_patches.get(self.name()) {
+                    if let Some(cannot_be_empty) = patch.get("unused") {
+                        return cannot_be_empty.parse::<bool>().unwrap_or(false);
+                    }
+                }
+            }
+
+            false
+        }
+    }
 }
 
 //---------------------------------------------------------------------------//
@@ -1149,6 +1197,7 @@ impl Default for Field {
             is_bitwise: 0,
             enum_values: BTreeMap::new(),
             is_part_of_colour: None,
+            unused: false,
         }
     }
 }
