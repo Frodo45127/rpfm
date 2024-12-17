@@ -148,6 +148,7 @@ pub unsafe fn init_settings(main_window: &QPtr<QMainWindow>) {
     set_setting_if_new_bool(&q_settings, "autosave_folder_size_warning_triggered", false);
     set_setting_if_new_bool(&q_settings, "ignore_game_files_in_ak", false);
     set_setting_if_new_bool(&q_settings, "enable_multifolder_filepicker", false);
+    set_setting_if_new_bool(&q_settings, "enable_pack_contents_drag_and_drop", true);
 
     // Table Settings.
     set_setting_if_new_bool(&q_settings, "adjust_columns_to_content", true);

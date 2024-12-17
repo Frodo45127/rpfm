@@ -30,7 +30,10 @@ pub unsafe fn set_connections(ui: &PackFileContentsUI, slots: &PackFileContentsS
         ui.packfile_contents_tree_view.selection_model().selection_changed().connect(&slots.open_packedfile_preview);
     }
     ui.packfile_contents_tree_view.double_clicked().connect(&slots.open_packedfile_full);
-    draggable_file_tree_view_drop_signal(ui.packfile_contents_tree_view.static_upcast()).connect(&slots.move_items);
+
+    if setting_bool("enable_pack_contents_drag_and_drop") {
+        draggable_file_tree_view_drop_signal(ui.packfile_contents_tree_view.static_upcast()).connect(&slots.move_items);
+    }
 
     // Trigger the filter whenever the "filtered" text or any of his settings changes.
     ui.filter_timer_delayed_updates.timeout().connect(&slots.filter_trigger);

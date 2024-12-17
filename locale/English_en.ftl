@@ -1608,3 +1608,6 @@ settings_enable_renderer = Enable 3D Renderer
 context_menu_revert_value = Revert Values
 
 settings_enable_diff_markers = Enable Diff Markers
+
+enable_pack_contents_drag_and_drop = Enable Pack Content's Drag & Drop:
+settings_enable_pack_contents_drag_and_drop = This allows you to toggle the Drag & Drop behaviour of the Pack Contents treeview.

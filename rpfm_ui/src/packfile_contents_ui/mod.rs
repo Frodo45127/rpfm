@@ -183,6 +183,8 @@ impl PackFileContentsUI {
 
         }
 
+        packfile_contents_tree_view.set_drag_enabled(setting_bool("enable_pack_contents_drag_and_drop"));
+
         // Create and configure the widgets to control the `TreeView`s filter.
         let filter_timer_delayed_updates = QTimer::new_1a(&packfile_contents_dock_widget);
         filter_timer_delayed_updates.set_single_shot(true);
