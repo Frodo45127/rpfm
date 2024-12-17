@@ -856,6 +856,17 @@ impl Definition {
                         field.filename_relative_path = Some(new_path);
                     }
 
+                    // Some fields are marked as filename, but only have fragment paths, which do not seem to correlate to game file paths.
+                    // We need to disable those to avoid false positives on diagnostics.
+                    field.is_filename = match raw_field.is_filename {
+                        Some(_) => if raw_field.fragment_path.is_some() && raw_field.filename_relative_path.is_none() {
+                            false
+                        } else {
+                            true
+                        }
+                        None => false,
+                    };
+
                     // Make sure to cleanup any old invalid definition.
                     if let Some(ref description) = raw_field.field_description {
                         field.description = description.to_owned();
@@ -877,7 +888,6 @@ impl Definition {
                         }
                     }
 
-                    field.is_filename = raw_field.is_filename.is_some();
                     field.ca_order = index as i16;
 
                     // Detect and group colour fiels.

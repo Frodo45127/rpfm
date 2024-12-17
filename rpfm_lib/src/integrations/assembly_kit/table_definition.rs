@@ -438,12 +438,23 @@ impl From<&RawField> for Field {
             x.split(',').map(|y| y.trim()).join(";")
         });
 
+        // Some fields are marked as filename, but only have fragment paths, which do not seem to correlate to game file paths.
+        // We need to disable those to avoid false positives on diagnostics.
+        let is_filename = match raw_field.is_filename {
+            Some(_) => if raw_field.fragment_path.is_some() && raw_field.filename_relative_path.is_none() {
+                false
+            } else {
+                true
+            }
+            None => false,
+        };
+
         Self::new(
             raw_field.name.to_owned(),
             field_type,
             raw_field.primary_key == "1",
             raw_field.default_value.clone(),
-            raw_field.is_filename.is_some(),
+            is_filename,
             filename_relative_path,
             is_reference,
             lookup,
