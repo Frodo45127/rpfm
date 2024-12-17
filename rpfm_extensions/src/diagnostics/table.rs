@@ -301,39 +301,62 @@ impl TableDiagnostic {
                     let cell_data = cells[column].data_to_string();
 
                     // Path checks.
-                    if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, Some(field.name()), Some("FieldWithPathNotFound"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && !cell_data.is_empty() && fields_processed[column].is_filename(patches) && !ignore_path_columns.contains(&column) {
+                    if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, Some(field.name()), Some("FieldWithPathNotFound"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) &&
+                        !cell_data.is_empty() &&
+                        cell_data != "." &&
+                        cell_data != "x" &&
+                        cell_data != "false" &&
+                        cell_data != "building_placeholder" &&
+                        cell_data != "placeholder" &&
+                        cell_data != "PLACEHOLDER" &&
+                        cell_data != "placeholder.png" &&
+                        cell_data != "placehoder.png" &&
+                        fields_processed[column].is_filename(patches) &&
+                        !ignore_path_columns.contains(&column) {
+
                         let mut path_found = false;
                         let relative_paths = fields_processed[column].filename_relative_path(patches);
                         let paths = if let Some(relative_paths) = relative_paths {
                             relative_paths.iter()
                                 .map(|x| {
+                                    let mut paths = vec![];
                                     let cell_data = cell_data.replace('\\', "/");
+                                    for cell_data in cell_data.split(',') {
 
-                                    // When analysing paths, fix the ones in older games starting with / or data/.
-                                    let mut start_offset = 0;
-                                    if cell_data.starts_with("/") {
-                                        start_offset += 1;
-                                    }
-                                    if cell_data.starts_with("data/") {
-                                        start_offset += 5;
+                                        // When analysing paths, fix the ones in older games starting with / or data/.
+                                        let mut start_offset = 0;
+                                        if cell_data.starts_with("/") {
+                                            start_offset += 1;
+                                        }
+                                        if cell_data.starts_with("data/") {
+                                            start_offset += 5;
+                                        }
+
+                                        paths.push(x.replace('%', &cell_data[start_offset..]));
                                     }
 
-                                    x.replace('%', &cell_data[start_offset..])
+                                    paths
                                 })
+                                .flatten()
                                 .collect::<Vec<_>>()
                         } else {
+                            let mut paths = vec![];
                             let cell_data = cell_data.replace('\\', "/");
+                            for cell_data in cell_data.split(',') {
 
-                            // When analysing paths, fix the ones in older games starting with / or data/.
-                            let mut start_offset = 0;
-                            if cell_data.starts_with("/") {
-                                start_offset += 1;
-                            }
-                            if cell_data.starts_with("data/") {
-                                start_offset += 5;
+                                // When analysing paths, fix the ones in older games starting with / or data/.
+                                let mut start_offset = 0;
+                                if cell_data.starts_with("/") {
+                                    start_offset += 1;
+                                }
+                                if cell_data.starts_with("data/") {
+                                    start_offset += 5;
+                                }
+
+                                paths.push(cell_data[start_offset..].to_string());
                             }
 
-                            vec![cell_data[start_offset..].to_string()]
+                            paths
                         };
 
                         for path in &paths {
