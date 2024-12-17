@@ -962,7 +962,12 @@ impl Dependencies {
 
         // File check.
         if !file_paths.is_empty() {
-            hashmap.extend(file_paths.par_iter().filter_map(|file_path| self.file(file_path, include_vanilla, include_parent, case_insensitive).ok().map(|file| (file_path.to_owned(), file))).collect::<Vec<(_,_)>>());
+            hashmap.extend(file_paths.par_iter()
+                .filter_map(|file_path| self.file(file_path, include_vanilla, include_parent, case_insensitive)
+                    .ok()
+                    .map(|file| (file_path.to_owned(), file)))
+                .collect::<Vec<(_,_)>>()
+            );
         }
 
         // Folder check.
@@ -2171,10 +2176,15 @@ impl Dependencies {
         let current_patches = schema.patches_mut();
         let mut new_patches: HashMap<String, DefinitionPatch> = HashMap::new();
 
-        // Cache all image paths.
-        let vanilla_paths = self.vanilla_files()
+        // Cache all image and video paths.
+        let image_paths = self.vanilla_files()
             .keys()
-            .filter(|x| x.ends_with(".png"))
+            .filter(|x| x.ends_with(".png") || x.ends_with(".tga"))
+            .collect::<Vec<_>>();
+
+        let video_paths = self.vanilla_files()
+            .keys()
+            .filter(|x| x.ends_with(".ca_vp8"))
             .collect::<Vec<_>>();
 
         for table in &db_tables {
@@ -2202,7 +2212,7 @@ impl Dependencies {
                         }
 
                         // Use hashset for uniqueness and ram usage.
-                        let possible_relative_paths = table.data().par_iter()
+                        let mut possible_relative_paths = table.data().par_iter()
                             .filter_map(|row| {
 
                                 // Only check fields that are not already marked, or are marked but without path (like override_icon in incidents).
@@ -2214,26 +2224,42 @@ impl Dependencies {
                                     ) || (
 
                                         // This table has an incorrect path by default.
-                                        table.table_name() == "advisors_tables" && field.name() == "advisor_icon_path"
+                                        (table.table_name() == "advisors_tables" && field.name() == "advisor_icon_path") ||
+
+                                        // This one is missing subpaths.
+                                        (table.table_name() == "campaign_post_battle_captive_options_tables" && field.name() == "icon_path") ||
+
+                                        // This one for some reason points to "working_data" and has no replacement bit.
+                                        (table.table_name() == "narrative_viewer_tabs_tables" && field.name() == "image_path") ||
+
+                                        // This one has a path missing the replacement bits.
+                                        (table.table_name() == "technology_ui_groups_tables" && field.name() == "optional_background_image")
                                     ) {
 
                                     // These checks filter out certain problematic cell values:
+                                    // - .: means empty in some image fields.
                                     // - x: means empty in some image fields.
                                     // - placeholder: because it's in multiple places and generates false positives.
                                     let data = row[column].data_to_string().to_lowercase().replace("\\", "/");
                                     if !data.is_empty() &&
+                                        data != "." &&
                                         data != "x" &&
+                                        data != "false" &&
+                                        data != "building_placeholder" &&
+                                        data != "placehoder.png" &&
                                         data != "placeholder" &&
                                         data != "placeholder.png" && (
                                             possible_icon ||
-                                            data.ends_with(".png")
+                                            data.ends_with(".png") || data.ends_with(".tga")
                                         ) {
 
-                                        let possible_paths = vanilla_paths.iter()
+                                        let possible_paths = image_paths.iter()
 
                                             // Manual filters for some fields that are known to trigger hard-to-fix false positives.
                                             .filter(|x| {
-                                                if (table.table_name() == "incidents_tables" && field.name() == "ui_image") ||
+                                                if table.table_name() == "campaign_post_battle_captive_options_tables" && field.name() == "icon_path" {
+                                                    x.starts_with("ui/campaign ui/captive_option_icons/")
+                                                } else if (table.table_name() == "incidents_tables" && field.name() == "ui_image") ||
                                                     (table.table_name() == "dilemmas_tables" && field.name() == "ui_image") {
                                                     x.starts_with("ui/eventpics/")
                                                 } else if table.table_name() == "pooled_resources_tables" && field.name() == "optional_icon_path" {
@@ -2277,10 +2303,98 @@ impl Dependencies {
                             .flatten()
                             .collect::<HashSet<String>>();
 
+                        // Video files can be found by:
+                        // - Checking if the data contains ".ca_vp8".
+                        // - Checking if the data contains "video" in the name.
+                        //
+                        // Note that if the field contains incomplete/relative paths, this will guess and try to find unique files that match the path.
+                        let mut possible_video = false;
+                        if low_name.contains("video") {
+                            possible_video = true;
+                        }
+
+                        possible_relative_paths.extend(
+                            table.data().par_iter().filter_map(|row| {
+
+                                // Only check fields that are not already marked, or are marked but without path (like override_icon in incidents).
+                                if !field.is_filename(None) || (
+                                        field.is_filename(None) && (
+                                            field.filename_relative_path(None).is_none() ||
+                                            field.filename_relative_path(None).unwrap().is_empty()
+                                        )
+                                    ) || (
+
+                                        // This table is missing the subpaths (which are valid) by default.
+                                        table.table_name() == "videos_tables" && field.name() == "video_name"
+                                    ) {
+
+                                    let data = row[column].data_to_string().to_lowercase().replace("\\", "/");
+                                    if !data.is_empty() && (
+                                            possible_video ||
+                                            data.ends_with(".ca_vp8")
+                                        ) {
+
+                                        let possible_paths = video_paths.iter()
+
+                                            // This filter is for reducing false positives in these cases:
+                                            // - "%_something", which is used for sequential videos.
+                                            // - Faction-specific videos.
+                                            .filter(|x| if !data.contains('.') {
+                                                    x.contains(&("/".to_owned() + &data + "."))
+                                                } else {
+                                                    x.contains(&("/".to_owned() + &data))
+                                                })
+                                            .map(|x| x.replace(&data, "%"))
+                                            .collect::<Vec<_>>();
+
+
+                                        if !possible_paths.is_empty() {
+                                            return Some(possible_paths)
+                                        }
+                                    }
+                                }
+
+                                None
+                            })
+                            .flatten()
+                            .collect::<HashSet<String>>()
+                        );
+
                         // Debug message.
                         if !possible_relative_paths.is_empty() && (possible_relative_paths.len() > 1 || (possible_relative_paths.len() == 1 && possible_relative_paths.iter().collect::<Vec<_>>()[0] != "%")) {
                             info!("Checking table {}, field {} ...", table.table_name(), field.name());
                             dbg!(&possible_relative_paths);
+                        }
+
+                        // This one has an incorrect relative path value that needs to be patched out.
+                        //
+                        // This is due to we assigning a name to this column which matches a different column in the AK.
+                        if (table.table_name() == "models_building_tables" && field.name() == "logic_file") ||
+                            (table.table_name() == "models_sieges_tables" && (field.name() == "model_file" || field.name() == "logic_file" || field.name() == "collision_file")) ||
+                            (table.table_name() == "models_deployables_tables" && (field.name() == "model_file" || field.name() == "logic_file" || field.name() == "collision_file")) {
+                            possible_relative_paths.clear();
+                            possible_relative_paths.insert("%".to_owned());
+                        }
+
+                        // These columns have incomplete paths or are incorrectly marked as files. Do not treat them as file paths.
+                        if (table.table_name() == "ui_mercenary_recruitment_infos_tables" && field.name() == "hire_button_icon_path") ||
+                            (table.table_name() == "battles_tables" && (field.name() == "specification" || field.name() == "battle_environment_audio")) ||
+                            (table.table_name() == "factions_tables" && field.name() == "key") ||
+                            (table.table_name() == "frontend_faction_leaders_tables" && field.name() == "key") {
+                            let mut patch = HashMap::new();
+                            patch.insert("is_filename".to_owned(), "false".to_owned());
+
+                            match new_patches.get_mut(table.table_name()) {
+                                Some(patches) => match patches.get_mut(field.name()) {
+                                    Some(patches) => patches.extend(patch),
+                                    None => { patches.insert(field.name().to_owned(), patch); }
+                                },
+                                None => {
+                                    let mut table_patch = HashMap::new();
+                                    table_patch.insert(field.name().to_owned(), patch);
+                                    new_patches.insert(table.table_name().to_string(), table_patch);
+                                }
+                            }
                         }
 
                         // Only make patches for fields we manage to pinpoint to a file.
