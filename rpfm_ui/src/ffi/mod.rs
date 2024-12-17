@@ -14,7 +14,7 @@ Module containing the ffi functions used for custom widgets.
 
 use qt_widgets::QAbstractSpinBox;
 use qt_widgets::QAction;
-use qt_widgets::QDialog;
+#[cfg(feature = "enable_tools")] use qt_widgets::QDialog;
 use qt_widgets::QLabel;
 use qt_widgets::QLayout;
 use qt_widgets::QLineEdit;
@@ -237,8 +237,8 @@ pub fn main_window_drop_pack_signal(widget: QPtr<QWidget>) -> Signal<(*const ::q
 }
 
 // This function allow us to create a custom dialog.
-extern "C" { fn new_q_dialog_custom(parent: *mut QWidget, are_you_sure_dialog: extern fn(*mut QDialog) -> bool) -> *mut QDialog; }
-pub fn new_q_dialog_custom_safe(parent: Ptr<QWidget>, are_you_sure_dialog: extern fn(*mut QDialog) -> bool) -> QBox<QDialog> {
+#[cfg(feature = "enable_tools")] extern "C" { fn new_q_dialog_custom(parent: *mut QWidget, are_you_sure_dialog: extern fn(*mut QDialog) -> bool) -> *mut QDialog; }
+#[cfg(feature = "enable_tools")] pub fn new_q_dialog_custom_safe(parent: Ptr<QWidget>, are_you_sure_dialog: extern fn(*mut QDialog) -> bool) -> QBox<QDialog> {
     unsafe { QBox::from_raw(new_q_dialog_custom(parent.as_mut_raw_ptr(), are_you_sure_dialog)) }
 }
 
@@ -718,7 +718,7 @@ pub extern fn are_you_sure(main_window: *mut QMainWindow, is_delete_my_mod: bool
 }
 
 /// This function allow us to create a dialog when trying to close another dialog.
-pub extern fn are_you_sure_dialog(dialog: *mut QDialog) -> bool {
+#[cfg(feature = "enable_tools")] pub extern fn are_you_sure_dialog(dialog: *mut QDialog) -> bool {
     let title = qtr("rpfm_title");
     let message = qtr("close_tool");
 

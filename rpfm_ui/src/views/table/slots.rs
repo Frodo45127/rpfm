@@ -45,8 +45,6 @@ use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::utils::set_modified;
 use crate::references_ui::ReferencesUI;
 use crate::utils::{log_to_status_bar, show_dialog};
-use crate::QVARIANT_FALSE;
-use crate::QVARIANT_TRUE;
 use crate::UI_STATE;
 use super::utils::*;
 use super::*;
