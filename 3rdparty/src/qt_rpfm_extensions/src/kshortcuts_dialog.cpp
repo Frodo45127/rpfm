@@ -85,7 +85,8 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     KActionCollection* file_tab_actions = new KActionCollection(parent, "file_tab");
     file_tab_actions->setComponentDisplayName("File Tabs");
     new_action(file_tab_actions, "close_tab", "Close Tab", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+W"), "project-development-close");
-    new_action(file_tab_actions, "close_other_tabs", "Close All Tabs", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""), "view-close");
+    new_action(file_tab_actions, "close_all_tabs", "Close All Tabs", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""), "view-close");
+    new_action(file_tab_actions, "close_other_tabs", "Close All Other Tabs", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""), "view-close");
     new_action(file_tab_actions, "close_other_tabs_left", "Close All Tabs to the Left", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""), "view-left-close");
     new_action(file_tab_actions, "close_other_tabs_right", "Close All Tabs to the Right", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""), "view-right-close");
     new_action(file_tab_actions, "previus_tab", "Previous Tab", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+Shift+Tab"), "go-previous-symbolic");

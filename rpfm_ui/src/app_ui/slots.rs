@@ -183,6 +183,7 @@ pub struct AppUISlots {
     pub tab_bar_packed_file_context_menu_show: QBox<SlotOfQPoint>,
     pub tab_bar_packed_file_close: QBox<SlotNoArgs>,
     pub tab_bar_packed_file_close_all: QBox<SlotNoArgs>,
+    pub tab_bar_packed_file_close_all_other: QBox<SlotNoArgs>,
     pub tab_bar_packed_file_close_all_left: QBox<SlotNoArgs>,
     pub tab_bar_packed_file_close_all_right: QBox<SlotNoArgs>,
     pub tab_bar_packed_file_prev: QBox<SlotNoArgs>,
@@ -1773,6 +1774,21 @@ impl AppUISlots {
         let tab_bar_packed_file_close_all = SlotNoArgs::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui => move || {
+            let indexes = UI_STATE.get_open_packedfiles().iter().filter_map(|file_view| {
+                let index_to_check = app_ui.tab_bar_packed_file.index_of(file_view.main_widget());
+                if index_to_check != -1 {
+                    Some(index_to_check)
+                } else {
+                    None
+                }
+            }).collect::<Vec<i32>>();
+
+            AppUI::file_view_hide(&app_ui, &pack_file_contents_ui, &indexes);
+        }));
+
+        let tab_bar_packed_file_close_all_other = SlotNoArgs::new(&app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui => move || {
             let index = app_ui.tab_bar_packed_file.current_index();
             let indexes = UI_STATE.get_open_packedfiles().iter().filter_map(|file_view| {
                 let index_to_check = app_ui.tab_bar_packed_file.index_of(file_view.main_widget());
@@ -2036,6 +2052,7 @@ impl AppUISlots {
             tab_bar_packed_file_context_menu_show,
             tab_bar_packed_file_close,
             tab_bar_packed_file_close_all,
+            tab_bar_packed_file_close_all_other,
             tab_bar_packed_file_close_all_left,
             tab_bar_packed_file_close_all_right,
             tab_bar_packed_file_prev,

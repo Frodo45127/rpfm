@@ -364,6 +364,7 @@ pub struct AppUI {
     tab_bar_packed_file_context_menu: QBox<QMenu>,
     tab_bar_packed_file_close: QPtr<QAction>,
     tab_bar_packed_file_close_all: QPtr<QAction>,
+    tab_bar_packed_file_close_all_other: QPtr<QAction>,
     tab_bar_packed_file_close_all_left: QPtr<QAction>,
     tab_bar_packed_file_close_all_right: QPtr<QAction>,
     tab_bar_packed_file_prev: QPtr<QAction>,
@@ -462,9 +463,10 @@ impl AppUI {
 
         // Create the Contextual Menu Actions.
         let tab_bar_packed_file_close = add_action_to_menu(&tab_bar_packed_file_context_menu.static_upcast(), shortcuts.as_ref(), "file_tab", "close_tab", "close_tab", Some(tab_bar_packed_file.static_upcast::<qt_widgets::QWidget>()));
-        let tab_bar_packed_file_close_all = add_action_to_menu(&tab_bar_packed_file_context_menu.static_upcast(), shortcuts.as_ref(), "file_tab", "close_other_tabs", "close_all_other_tabs", Some(tab_bar_packed_file.static_upcast::<qt_widgets::QWidget>()));
         let tab_bar_packed_file_close_all_left = add_action_to_menu(&tab_bar_packed_file_context_menu.static_upcast(), shortcuts.as_ref(), "file_tab", "close_other_tabs_left", "close_tabs_to_left", Some(tab_bar_packed_file.static_upcast::<qt_widgets::QWidget>()));
         let tab_bar_packed_file_close_all_right = add_action_to_menu(&tab_bar_packed_file_context_menu.static_upcast(), shortcuts.as_ref(), "file_tab", "close_other_tabs_right", "close_tabs_to_right", Some(tab_bar_packed_file.static_upcast::<qt_widgets::QWidget>()));
+        let tab_bar_packed_file_close_all_other = add_action_to_menu(&tab_bar_packed_file_context_menu.static_upcast(), shortcuts.as_ref(), "file_tab", "close_other_tabs", "close_all_other_tabs", Some(tab_bar_packed_file.static_upcast::<qt_widgets::QWidget>()));
+        let tab_bar_packed_file_close_all = add_action_to_menu(&tab_bar_packed_file_context_menu.static_upcast(), shortcuts.as_ref(), "file_tab", "close_all_tabs", "close_all_tabs", Some(tab_bar_packed_file.static_upcast::<qt_widgets::QWidget>()));
         let tab_bar_packed_file_prev = add_action_to_menu(&tab_bar_packed_file_context_menu.static_upcast(), shortcuts.as_ref(), "file_tab", "previus_tab", "prev_tab", Some(tab_bar_packed_file.static_upcast::<qt_widgets::QWidget>()));
         let tab_bar_packed_file_next = add_action_to_menu(&tab_bar_packed_file_context_menu.static_upcast(), shortcuts.as_ref(), "file_tab", "next_tab", "next_tab", Some(tab_bar_packed_file.static_upcast::<qt_widgets::QWidget>()));
         let tab_bar_packed_file_import_from_dependencies = add_action_to_menu(&tab_bar_packed_file_context_menu.static_upcast(), shortcuts.as_ref(), "file_tab", "import_from_dependencies", "import_from_dependencies", Some(tab_bar_packed_file.static_upcast::<qt_widgets::QWidget>()));
@@ -472,6 +474,7 @@ impl AppUI {
 
         tab_bar_packed_file_close.set_enabled(true);
         tab_bar_packed_file_close_all.set_enabled(true);
+        tab_bar_packed_file_close_all_other.set_enabled(true);
         tab_bar_packed_file_close_all_left.set_enabled(true);
         tab_bar_packed_file_close_all_right.set_enabled(true);
         tab_bar_packed_file_prev.set_enabled(true);
@@ -1037,6 +1040,7 @@ impl AppUI {
             tab_bar_packed_file_context_menu,
             tab_bar_packed_file_close,
             tab_bar_packed_file_close_all,
+            tab_bar_packed_file_close_all_other,
             tab_bar_packed_file_close_all_left,
             tab_bar_packed_file_close_all_right,
             tab_bar_packed_file_prev,

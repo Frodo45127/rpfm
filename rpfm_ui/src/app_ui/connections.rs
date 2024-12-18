@@ -183,6 +183,7 @@ pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
     app_ui.tab_bar_packed_file.custom_context_menu_requested().connect(&slots.tab_bar_packed_file_context_menu_show);
     app_ui.tab_bar_packed_file_close.triggered().connect(&slots.tab_bar_packed_file_close);
     app_ui.tab_bar_packed_file_close_all.triggered().connect(&slots.tab_bar_packed_file_close_all);
+    app_ui.tab_bar_packed_file_close_all_other.triggered().connect(&slots.tab_bar_packed_file_close_all_other);
     app_ui.tab_bar_packed_file_close_all_left.triggered().connect(&slots.tab_bar_packed_file_close_all_left);
     app_ui.tab_bar_packed_file_close_all_right.triggered().connect(&slots.tab_bar_packed_file_close_all_right);
     app_ui.tab_bar_packed_file_prev.triggered().connect(&slots.tab_bar_packed_file_prev);

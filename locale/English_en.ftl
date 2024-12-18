@@ -834,6 +834,7 @@ load_template_options_section = Options
 load_template_params_section = Parameters
 
 close_tab = Close Tab
+close_all_tabs = Close All Tabs
 close_all_other_tabs = Close Other Tabs
 close_tabs_to_left = Close Tabs to the Left
 close_tabs_to_right = Close Tabs to the Right
