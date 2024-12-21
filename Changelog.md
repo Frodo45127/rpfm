@@ -10,6 +10,7 @@ If you're looking for the changes included in the latest beta (against the lates
 ### Added
 - Implemented setting to disable drag&drop behavior on the TreeView.
 - Implemented "Close All Tabs" button.
+- Implemented setting to automatically hide unused columns.
 
 ### Changed
 - Improved Assembly Kit integration.
