@@ -346,14 +346,15 @@ pub fn background_loop() {
                 let asskit_path = assembly_kit_path().ok();
 
                 if game_path.is_dir() {
-                    match Dependencies::generate_dependencies_cache(&game_selected, &game_path, &asskit_path, ignore_game_files_in_ak) {
+                    let schema = SCHEMA.read().unwrap();
+                    match Dependencies::generate_dependencies_cache(&schema, &game_selected, &game_path, &asskit_path, ignore_game_files_in_ak) {
                         Ok(mut cache) => {
                             let dependencies_path = dependencies_cache_path().unwrap().join(game_selected.dependencies_cache_file_name());
                             match cache.save(&dependencies_path) {
                                 Ok(_) => {
                                     let secondary_path = setting_path(SECONDARY_PATH);
                                     let pack_dependencies = pack_file_decoded.dependencies().iter().map(|x| x.1.clone()).collect::<Vec<_>>();
-                                    let _ = dependencies.write().unwrap().rebuild(&SCHEMA.read().unwrap(), &pack_dependencies, Some(&dependencies_path), &game_selected, &game_path, &secondary_path);
+                                    let _ = dependencies.write().unwrap().rebuild(&schema, &pack_dependencies, Some(&dependencies_path), &game_selected, &game_path, &secondary_path);
                                     let dependencies_info = DependenciesInfo::from(&*dependencies.read().unwrap());
                                     CentralCommand::send_back(&sender, Response::DependenciesInfo(dependencies_info));
                                 },

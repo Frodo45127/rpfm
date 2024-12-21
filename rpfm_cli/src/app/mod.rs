@@ -175,6 +175,10 @@ pub enum CommandsDependencies {
         #[arg(short, long, required = true, value_name = "GAME_PATH")]
         game_path: PathBuf,
 
+        /// Path of the schema for the game the Pack/s is for.
+        #[arg(short, long, required = true, value_name = "SCHEMA_PATH")]
+        schema_path: PathBuf,
+
         /// Path of the assembly kit the dependencies cache is for.
         ///
         /// Optional.

@@ -25,7 +25,7 @@ use std::path::Path;
 
 use crate::error::{Result, RLibError};
 use crate::files::{db::DB, table::{DecodedData, Table}};
-use crate::schema::FieldType;
+use crate::schema::{Definition, FieldType};
 
 use super::table_definition::RawDefinition;
 
@@ -144,22 +144,14 @@ impl RawTable {
             _ => Err(RLibError::AssemblyKitUnsupportedVersion(version))
         }
     }
-}
 
-impl TryFrom<&RawTable> for DB {
-    type Error = RLibError;
-
-    fn try_from(raw_table: &RawTable) -> Result<Self> {
-        let table = Table::try_from(raw_table)?;
-        Ok(Self::from(table))
+    pub fn to_db(&self, definition: Option<&Definition>) -> Result<DB> {
+        let table = Self::to_table(self, definition)?;
+        Ok(DB::from(table))
     }
-}
 
-impl TryFrom<&RawTable> for Table {
-    type Error = RLibError;
-
-    fn try_from(raw_table: &RawTable) -> Result<Self> {
-        let raw_definition = raw_table.definition.as_ref().ok_or(RLibError::RawTableMissingDefinition)?;
+    pub fn to_table(&self, definition: Option<&Definition>) -> Result<Table> {
+        let mut raw_definition = self.definition.as_ref().cloned().ok_or(RLibError::RawTableMissingDefinition)?;
         let table_name = if let Some(ref raw_definition) = raw_definition.name {
 
             // Remove the .xml of the name in the most awesome way there is.
@@ -172,9 +164,26 @@ impl TryFrom<&RawTable> for Table {
             format!("{x}_tables")
         } else { String::new() };
 
-        let mut table = Self::new(&From::from(raw_definition), None, &table_name);
+        // We need to pre-patch some of the raw definition fields to avoid the "0 on empty fields" bug.
+        if let Some(ref definition) = definition {
+            for field in definition.fields_processed() {
+                if let Some(raw_field) = raw_definition.fields.iter_mut().find(|x| x.name == field.name()) {
+                    match field.field_type() {
+                        FieldType::StringU8 |
+                        FieldType::OptionalStringU8 => {
+                            if raw_field.field_type == "integer" {
+                                raw_field.field_type = "text".to_owned();
+                            }
+                        },
+                        _ => continue,
+                    }
+                }
+            }
+        }
+
+        let mut table = Table::new(&From::from(&raw_definition), None, &table_name);
         let mut entries = vec![];
-        for row in &raw_table.rows {
+        for row in &self.rows {
             let mut entry = vec![];
 
             // Some games (Thrones, Attila, Rome 2 and Shogun 2) may have missing fields when said field is empty.

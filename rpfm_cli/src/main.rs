@@ -84,7 +84,7 @@ fn main() {
         }
 
         Commands::Dependencies { commands } => match commands {
-            CommandsDependencies::Generate { pak_path, game_path, assembly_kit_path } => crate::commands::dependencies::generate(&config, &pak_path, &game_path, &assembly_kit_path),
+            CommandsDependencies::Generate { pak_path, game_path, schema_path, assembly_kit_path } => crate::commands::dependencies::generate(&config, &pak_path, &game_path, &schema_path, &assembly_kit_path),
         }
 
         Commands::Pack { commands } => match commands {

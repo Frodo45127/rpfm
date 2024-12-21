@@ -1343,7 +1343,7 @@ impl PackedFileDecoderView {
         }).unwrap(), raw_db_version).unwrap();
 
         let raw_table = RawTable::read(&raw_definition, &raw_db_path, raw_db_version)?;
-        let imported_table = DB::try_from(&raw_table)?;
+        let imported_table = raw_table.to_db(None)?;
 
         let raw_localisable_fields: RawLocalisableFields = RawLocalisableFields::read(&raw_db_path, raw_db_version).map_err(|error| anyhow!("{}. This happens when the TExc_LocalisableFields.xml file is missing/empty/broken in raw_data/db. If it's so, copy it from another game and try again.", error))?;
         let mut raw_columns: Vec<Vec<String>> = vec![];

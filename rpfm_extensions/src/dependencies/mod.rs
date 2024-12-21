@@ -220,7 +220,7 @@ impl Dependencies {
     }
 
     /// This function generates the dependencies cache for the game provided and returns it.
-    pub fn generate_dependencies_cache(game_info: &GameInfo, game_path: &Path, asskit_path: &Option<PathBuf>, ignore_game_files_in_ak: bool) -> Result<Self> {
+    pub fn generate_dependencies_cache(schema: &Option<Schema>, game_info: &GameInfo, game_path: &Path, asskit_path: &Option<PathBuf>, ignore_game_files_in_ak: bool) -> Result<Self> {
         let mut cache = Self::default();
         cache.build_date = current_time()?;
         cache.version = VERSION.to_owned();
@@ -291,7 +291,7 @@ impl Dependencies {
 
         // This one can fail, leaving the dependencies with only game data.
         if let Some(path) = asskit_path {
-            let _ = cache.generate_asskit_only_db_tables(path, *game_info.raw_db_version(), ignore_game_files_in_ak);
+            let _ = cache.generate_asskit_only_db_tables(schema, path, *game_info.raw_db_version(), ignore_game_files_in_ak);
         }
 
         Ok(cache)
@@ -303,14 +303,31 @@ impl Dependencies {
     /// with version -1. That will allow us to use them for dependency checking and for populating combos.
     ///
     /// To keep things fast, only undecoded or missing (from the game files) tables will be included into the PAK2 file.
-    fn generate_asskit_only_db_tables(&mut self, raw_db_path: &Path, version: i16, ignore_game_files: bool) -> Result<()> {
+    fn generate_asskit_only_db_tables(&mut self, schema: &Option<Schema>, raw_db_path: &Path, version: i16, ignore_game_files: bool) -> Result<()> {
         let files_to_ignore = if ignore_game_files {
             self.vanilla_tables.keys().map(|table_name| &table_name[..table_name.len() - 7]).collect::<Vec<_>>()
         } else {
             vec![]
         };
         let raw_tables = RawTable::read_all(raw_db_path, version, &files_to_ignore)?;
-        let asskit_only_db_tables = raw_tables.par_iter().map(TryFrom::try_from).collect::<Result<Vec<DB>>>()?;
+        let asskit_only_db_tables = raw_tables.par_iter()
+            .map(|x| match schema {
+                Some(schema) => {
+                    let mut table_name = x.definition.clone().unwrap().name.unwrap().to_owned();
+                    table_name.pop();
+                    table_name.pop();
+                    table_name.pop();
+                    table_name.pop();
+
+                    table_name = format!("{table_name}_tables");
+
+                    let definition = schema.definitions().get(&table_name).map(|x| x.get(0)).flatten();
+
+                    x.to_db(definition)
+                }
+                None => x.to_db(None),
+            })
+            .collect::<Result<Vec<DB>>>()?;
 
         // We need to bruteforce loc keys for ak tables here, so locs relations are setup correctly for ak tables.
         let mut asskit_only_db_tables = asskit_only_db_tables.par_iter().map(|table| (table.table_name().to_owned(), table.clone())).collect::<HashMap<String, DB>>();
