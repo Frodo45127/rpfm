@@ -352,6 +352,7 @@ pub enum Command {
     BuildStarposPost(String, bool),
     BuildStarposCleanup(String, bool),
     BuildStarposGetCampaingIds,
+    BuildStarposCheckVictoryConditions,
     UpdateAnimIds(i32, i32),
     #[cfg(feature = "support_model_renderer")] GetAnimPathsBySkeletonName(String),
     #[cfg(feature = "enable_tools")] CheckTranslationsUpdates,

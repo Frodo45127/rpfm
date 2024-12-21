@@ -64,6 +64,8 @@ use crate::SUPPORTED_GAMES;
 use crate::utils::initialize_encodeable_extra_data;
 
 #[allow(dead_code)] const USER_SCRIPT_FILE_NAME: &str = "user.script.txt";
+#[allow(dead_code)] const VICTORY_OBJECTIVES_FILE_NAME: &str = "db/victory_objectives.txt";
+#[allow(dead_code)] const VICTORY_OBJECTIVES_EXTRACTED_FILE_NAME: &str = "victory_objectives.txt";
 
 /// This is the background loop that's going to be executed in a parallel thread to the UI. No UI or "Unsafe" stuff here.
 ///
@@ -2246,19 +2248,27 @@ pub fn background_loop() {
                 CentralCommand::send_back(&sender, Response::HashSetString(ids));
             }
 
+            Command::BuildStarposCheckVictoryConditions => {
+                if pack_file_decoded.file(VICTORY_OBJECTIVES_FILE_NAME, false).is_some() {
+                    CentralCommand::send_back(&sender, Response::Success);
+                } else {
+                    CentralCommand::send_back(&sender, Response::Error(anyhow!("Missing \"db/victory_objectives.txt\" file. Processing the startpos without this file will result in issues in campaign. Add the file to the pack and try again.")));
+                }
+            }
+
             Command::BuildStarpos(campaign_id, process_hlp_spd_data) => {
 
                 // 3K needs two passes, one per startpos, and there are two per campaign.
                 if GAME_SELECTED.read().unwrap().key() == KEY_THREE_KINGDOMS {
-                    match build_starpos(&dependencies.read().unwrap(), &pack_file_decoded, &campaign_id, process_hlp_spd_data, "historical") {
-                        Ok(_) => match build_starpos(&dependencies.read().unwrap(), &pack_file_decoded, &campaign_id, false, "romance") {
+                    match build_starpos(&dependencies.read().unwrap(), &mut pack_file_decoded, &campaign_id, process_hlp_spd_data, "historical") {
+                        Ok(_) => match build_starpos(&dependencies.read().unwrap(), &mut pack_file_decoded, &campaign_id, false, "romance") {
                             Ok(_) => CentralCommand::send_back(&sender, Response::Success),
                             Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                         }
                         Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                     }
                 } else {
-                    match build_starpos(&dependencies.read().unwrap(), &pack_file_decoded, &campaign_id, process_hlp_spd_data, "") {
+                    match build_starpos(&dependencies.read().unwrap(), &mut pack_file_decoded, &campaign_id, process_hlp_spd_data, "") {
                         Ok(_) => CentralCommand::send_back(&sender, Response::Success),
                         Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                     }
@@ -2406,7 +2416,7 @@ fn update_anim_ids(pack_file: &mut Pack, starting_id: i32, offset: i32) -> Resul
 }
 
 // About the sub-startpos thing: 3k uses 2 startpos per campaign, so we need to do two passes for it, one for each campaign.
-fn build_starpos(dependencies: &Dependencies, pack_file: &Pack, campaign_id: &str, process_hlp_spd_data: bool, sub_start_pos: &str) -> Result<()> {
+fn build_starpos(dependencies: &Dependencies, pack_file: &mut Pack, campaign_id: &str, process_hlp_spd_data: bool, sub_start_pos: &str) -> Result<()> {
     let pack_name = pack_file.disk_file_name();
     if pack_name.is_empty() {
         return Err(anyhow!("The Pack needs to be saved to disk in order to build a startpos. Save it and try again."));
@@ -2425,17 +2435,13 @@ fn build_starpos(dependencies: &Dependencies, pack_file: &Pack, campaign_id: &st
     let game = GAME_SELECTED.read().unwrap();
 
     // Note: 3K uses 2 passes per campaign, each one with a different startpos, but both share the hlp/spd process, so that only needs to be generated once.
-    // Also, extra folders is to fix a bug in Rome 2, Attila and possibly Thrones where objectives are not processed if certain folders are missing.
-    let extra_folders = "add_working_directory assembly_kit\\working_data;add_working_directory assembly_kit\\raw_data\\EmpireDesignData\\campaigns;";
-    let mut user_script_contents = if game.key() == KEY_ATTILA || game.key() == KEY_THRONES_OF_BRITANNIA { extra_folders.to_owned() } else { String::new() };
-
-    user_script_contents.push_str(&format!("
+    let user_script_contents = format!("
 mod {};
 process_campaign_startpos {} {};
 {}
 quit_after_campaign_processing;",
         pack_name, campaign_id, sub_start_pos, process_hlp_spd_data_string
-    ));
+    );
 
     // Games may fail to launch if we don't have this path created, which is done the first time we start the game.
     let game_path = setting_path(game.key());
@@ -2447,6 +2453,14 @@ quit_after_campaign_processing;",
     if !PathBuf::from(pack_file.disk_file_path()).starts_with(&game_data_path) {
         return Err(anyhow!("The Pack needs to be in /data. Install it there and try again."));
     }
+
+    // We need to extract the victory_objectives.txt file to "data/campaign_id/".
+    let mut game_campaign_path = game_data_path.to_path_buf();
+    game_campaign_path.push(campaign_id);
+    DirBuilder::new().recursive(true).create(&game_campaign_path)?;
+
+    game_campaign_path.push(VICTORY_OBJECTIVES_EXTRACTED_FILE_NAME);
+    pack_file.extract(ContainerPath::File(VICTORY_OBJECTIVES_FILE_NAME.to_owned()), &game_campaign_path, false, &None, true, false, &None)?;
 
     let config_path = game.config_path(&game_path).ok_or(anyhow!("Error getting the game's config path."))?;
     let scripts_path = config_path.join("scripts");
@@ -2650,9 +2664,6 @@ quit_after_campaign_processing;",
         // We need to turn the user script contents into a oneliner or the command will ignore it.
         #[cfg(target_os = "windows")] {
             use std::os::windows::process::CommandExt;
-
-            // Rome 2 reads the victory conditions from here, and for some reason if these folders are not added the startpos ends up missing data.
-            command.raw_arg(extra_folders);
             command.raw_arg(user_script_contents.replace("\n", " "));
         }
 
@@ -2695,6 +2706,13 @@ fn build_starpos_post(dependencies: &Dependencies, pack_file: &mut Pack, campaig
 
     if !asskit_path.is_dir() {
         return Err(anyhow!("Assembly Kit path incorrect. Fix it in the settings and try again."));
+    }
+
+    // We need to delete the "data/campaign_id/" folder.
+    let mut game_campaign_path = game_data_path.to_path_buf();
+    game_campaign_path.push(campaign_id);
+    if game_campaign_path.is_dir() {
+        let _ = std::fs::remove_dir_all(game_campaign_path);
     }
 
     let config_path = game.config_path(&game_path).ok_or(anyhow!("Error getting the game's config path."))?;

@@ -59,7 +59,7 @@ use qt_core::QVariant;
 
 use cpp_core::CppBox;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use getset::Getters;
 use itertools::Itertools;
 use self_update::cargo_crate_version;
@@ -4232,10 +4232,24 @@ impl AppUI {
                 let mut ids = ids.into_iter().collect::<Vec<_>>();
                 ids.sort();
 
+                if ids.is_empty() {
+                    return Err(anyhow!("Campaigns table either not found or found without campaign entries. Fix it, then try again."));
+                }
+
                 for id in &ids {
                     campaign_id_combobox.add_item_q_string(&QString::from_std_str(id));
                 }
             },
+
+            // In ANY other situation, it's a message problem.
+            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+        }
+
+        let receiver = CENTRAL_COMMAND.send_background(Command::BuildStarposCheckVictoryConditions);
+        let response = CENTRAL_COMMAND.recv_try(&receiver);
+        match response {
+            Response::Success => {}
+            Response::Error(error) => return Err(error),
 
             // In ANY other situation, it's a message problem.
             _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
