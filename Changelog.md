@@ -6,6 +6,23 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [4.3.10]
+### Added
+- Implemented setting to disable drag&drop behavior on the TreeView.
+- Implemented "Close All Tabs" button.
+
+### Changed
+- Improved Assembly Kit integration.
+- "Build Startpos" now requires the campaigns table to be present in the pack. If not, there will be an error message asking you to add it.
+- "Build Startpos" now makes the game use the "db/victory_objectives.txt" file in the Pack instead of the one on the Assembly Kit folder.
+
+### Fixed
+- Fixed empty keys diagnostic generating false positives on tables with no key column.
+- Fixed Assembly Kit integration importing incorrectly-formatted filename paths.
+- Fixed Assembly Kit integration importing fields incorrectly marked as files.
+- Fixed a large amount of false-positives in the "Path does not exist" diagnostic.
+- Fixed Assembly Kit startpos tables incorrectly importing some empty files with "0" as value.
+
 ## [4.3.9]
 ### Fixed
 - Fixed a bug that caused folders to not be correctly marked as "modified" after using the "Update Anim Ids" tool.
@@ -1447,7 +1464,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.3.9...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.3.10...HEAD
+[4.3.10]: https://github.com/Frodo45127/rpfm/compare/v4.3.9...v4.3.10
 [4.3.9]: https://github.com/Frodo45127/rpfm/compare/v4.3.8...v4.3.9
 [4.3.8]: https://github.com/Frodo45127/rpfm/compare/v4.3.7...v4.3.8
 [4.3.7]: https://github.com/Frodo45127/rpfm/compare/v4.3.6...v4.3.7
