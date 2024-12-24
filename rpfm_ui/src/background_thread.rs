@@ -1993,18 +1993,26 @@ pub fn background_loop() {
             Command::DeleteNote(path, id) => pack_file_decoded.notes_mut().delete_note(&path, id),
 
             Command::SaveLocalSchemaPatch(patches) => {
-                match *SCHEMA.write().unwrap() {
-                    Some(ref mut schema) => {
-                        let path = table_patches_path().unwrap().join(GAME_SELECTED.read().unwrap().schema_file_name());
-                        match schema.new_patch(&patches, &path) {
-                            Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                            Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
-                        }
-                    }
-                    None => CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected."))),
+                let path = table_patches_path().unwrap().join(GAME_SELECTED.read().unwrap().schema_file_name());
+                match Schema::new_patch(&patches, &path) {
+                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                 }
             }
-
+            Command::RemoveLocalSchemaPatchesForTable(table_name) => {
+                let path = table_patches_path().unwrap().join(GAME_SELECTED.read().unwrap().schema_file_name());
+                match Schema::remove_patch_for_table(&table_name, &path) {
+                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                }
+            }
+            Command::RemoveLocalSchemaPatchesForTableAndField(table_name, field_name) => {
+                let path = table_patches_path().unwrap().join(GAME_SELECTED.read().unwrap().schema_file_name());
+                match Schema::remove_patch_for_field(&table_name, &field_name, &path) {
+                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                }
+            }
             Command::ImportSchemaPatch(patch) => {
                 match *SCHEMA.write().unwrap() {
                     Some(ref mut schema) => {

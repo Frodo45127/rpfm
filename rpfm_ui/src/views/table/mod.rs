@@ -56,6 +56,7 @@ use qt_core::QStringList;
 use qt_core::QString;
 use qt_core::QTimer;
 use qt_core::QVariant;
+use qt_core::SlotNoArgs;
 
 use qt_ui_tools::QUiLoader;
 
@@ -83,6 +84,7 @@ use rpfm_lib::integrations::log::error;
 use rpfm_lib::schema::{Definition, Field, FieldType, Schema};
 
 use rpfm_ui_common::ASSETS_PATH;
+use rpfm_ui_common::clone;
 use rpfm_ui_common::locale::{qtr, qtre, tr};
 
 use crate::app_ui::AppUI;
@@ -3015,6 +3017,41 @@ impl TableView {
         let button_box: QPtr<QDialogButtonBox> = find_widget(&main_widget.static_upcast(), "button_box")?;
 
         let dialog = main_widget.static_downcast::<QDialog>();
+
+        button_box.button(StandardButton::RestoreDefaults).set_text(&qtr("remove_patches_for_table"));
+        button_box.button(StandardButton::Reset).set_text(&qtr("remove_patches_for_column"));
+
+        button_box.button(StandardButton::RestoreDefaults).released().connect(&SlotNoArgs::new(self.table_view(), clone!(
+            dialog,
+            edited_table_name => move || {
+                let receiver = CENTRAL_COMMAND.send_background(Command::RemoveLocalSchemaPatchesForTable(edited_table_name.to_owned()));
+                let response = CentralCommand::recv(&receiver);
+                match response {
+                    Response::Success => show_dialog(&dialog, tr("patch_removed_table"), true),
+                    Response::Error(error) => show_dialog(&dialog, error.to_string(), false),
+                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                }
+
+                dialog.close();
+            }
+        )));
+
+        button_box.button(StandardButton::Reset).released().connect(&SlotNoArgs::new(self.table_view(), clone!(
+            dialog,
+            field,
+            edited_table_name => move || {
+                let receiver = CENTRAL_COMMAND.send_background(Command::RemoveLocalSchemaPatchesForTableAndField(edited_table_name.to_owned(), field.name().to_owned()));
+                let response = CentralCommand::recv(&receiver);
+                match response {
+                    Response::Success => show_dialog(&dialog, tr("patch_removed_column"), true),
+                    Response::Error(error) => show_dialog(&dialog, error.to_string(), false),
+                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                }
+
+                dialog.close();
+            }
+        )));
+
         button_box.button(StandardButton::Cancel).released().connect(dialog.slot_close());
         button_box.button(StandardButton::Ok).released().connect(dialog.slot_accept());
 
@@ -3118,7 +3155,7 @@ impl TableView {
             let receiver = CENTRAL_COMMAND.send_background(Command::SaveLocalSchemaPatch(patch));
             let response = CentralCommand::recv(&receiver);
             match response {
-                Response::Success => show_dialog(&self.table_view, tr("patch_success"), true),
+                Response::Success => show_dialog(self.table_view(), tr("patch_success"), true),
                 Response::Error(error) => return Err(error),
                 _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
             }

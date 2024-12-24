@@ -323,6 +323,8 @@ pub enum Command {
     NotesForPath(String),
 
     SaveLocalSchemaPatch(HashMap<String, DefinitionPatch>),
+    RemoveLocalSchemaPatchesForTable(String),
+    RemoveLocalSchemaPatchesForTableAndField(String, String),
 
     /// This command is used to import a schema patch in the local schema patches.
     ImportSchemaPatch(HashMap<String, DefinitionPatch>),

@@ -245,13 +245,47 @@ pub enum FieldType {
 impl Schema {
 
     /// This function will save a new patch to the local patches list.
-    pub fn new_patch(&mut self, patches: &HashMap<String, DefinitionPatch>, path: &Path) -> Result<()> {
+    pub fn new_patch(patches: &HashMap<String, DefinitionPatch>, path: &Path) -> Result<()> {
         let mut file = BufReader::new(File::open(path)?);
         let mut data = Vec::with_capacity(file.get_ref().metadata()?.len() as usize);
         file.read_to_end(&mut data)?;
         let mut local_patches: HashMap<String, DefinitionPatch> = from_bytes(&data)?;
 
         Self::add_patch_to_patch_set(&mut local_patches, patches);
+
+        let mut file = BufWriter::new(File::create(path)?);
+        let config = PrettyConfig::default();
+        file.write_all(to_string_pretty(&local_patches, config)?.as_bytes())?;
+
+        Ok(())
+    }
+
+    /// This function will remove the local patches for the specified table.
+    pub fn remove_patch_for_table(table_name: &str, path: &Path) -> Result<()> {
+        let mut file = BufReader::new(File::open(path)?);
+        let mut data = Vec::with_capacity(file.get_ref().metadata()?.len() as usize);
+        file.read_to_end(&mut data)?;
+        let mut local_patches: HashMap<String, DefinitionPatch> = from_bytes(&data)?;
+
+        local_patches.remove(table_name);
+
+        let mut file = BufWriter::new(File::create(path)?);
+        let config = PrettyConfig::default();
+        file.write_all(to_string_pretty(&local_patches, config)?.as_bytes())?;
+
+        Ok(())
+    }
+
+    /// This function will remove the local patches for the specified table and field.
+    pub fn remove_patch_for_field(table_name: &str, field_name: &str, path: &Path) -> Result<()> {
+        let mut file = BufReader::new(File::open(path)?);
+        let mut data = Vec::with_capacity(file.get_ref().metadata()?.len() as usize);
+        file.read_to_end(&mut data)?;
+        let mut local_patches: HashMap<String, DefinitionPatch> = from_bytes(&data)?;
+
+        if let Some(table_patches) = local_patches.get_mut(table_name) {
+            table_patches.remove(field_name);
+        }
 
         let mut file = BufWriter::new(File::create(path)?);
         let config = PrettyConfig::default();

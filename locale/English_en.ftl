@@ -1621,3 +1621,7 @@ settings_enable_pack_contents_drag_and_drop = This allows you to toggle the Drag
 hide_unused_columns = Hide Unused Columns:
 settings_hide_unused_columns = If this is enabled, RPFM will automatically hide columns marked as "unused" in the Assembly Kit.
 unused = Unused
+patch_removed_table = Local patches for this table have been removed.
+patch_removed_column = Local patches for this column have been removed.
+remove_patches_for_table = Remove Patches for Table
+remove_patches_for_column = Remove Patches for Column
