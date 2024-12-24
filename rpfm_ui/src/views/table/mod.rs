@@ -3333,7 +3333,7 @@ impl TableView {
                             DataSource::ParentFiles |
                             DataSource::AssKitFiles |
                             DataSource::GameFiles => {
-                                let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(&path, DataSource::GameFiles);
+                                let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(&path, data_source);
                                 if let Some(ref tree_index) = tree_index {
                                     if tree_index.is_valid() {
                                         let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view().static_upcast::<QObject>());
