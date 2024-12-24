@@ -1413,6 +1413,7 @@ column_patch_instructions = <p>This allows you to make a patch for the currently
         <li><b>Reference Data</b>: If the column is meant to reference another table's column, put here the table name without the "_tables" ending and the column name, separated with ";". <br/>For example, "abilities;key" for a column referencing the table "abilities", and the column "key".</li>
         <li><b>Lookup Columns</b>: List of column names, separated with ";", which will be shown as lookups in each cell. Only works on columns referencing other tables (valid values: columns on the other table or loc columns dependant on the other table), <br/>or on key columnns on single-key tables (valid values: columns on this table or loc columns dependant on this table).</li>
         <li><b>Cannot Be Empty</b>: If empty values should be marked as errors in diagnostics.</li>
+        <li><b>Unused</b>: The column is not used in the game selected and can be automatically hidden if set to be hidden in the settings.</li>
         <li><b>Description</b>: Text that can be added to the column description that appears on a tooltip when you hover over the column title.</li>
     </ul>
 
@@ -1619,3 +1620,4 @@ settings_enable_pack_contents_drag_and_drop = This allows you to toggle the Drag
 
 hide_unused_columns = Hide Unused Columns:
 settings_hide_unused_columns = If this is enabled, RPFM will automatically hide columns marked as "unused" in the Assembly Kit.
+unused = Unused

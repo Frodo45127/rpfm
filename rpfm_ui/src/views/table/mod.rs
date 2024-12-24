@@ -3000,6 +3000,7 @@ impl TableView {
         let is_reference_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "is_reference_label")?;
         let lookup_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "lookup_label")?;
         let not_empty_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "not_empty_label")?;
+        let unused_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "unused_label")?;
         let description_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "description_label")?;
 
         let is_key_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "is_key_checkbox")?;
@@ -3009,6 +3010,7 @@ impl TableView {
         let is_reference_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "is_reference_line_edit")?;
         let lookup_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "lookup_line_edit")?;
         let not_empty_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "not_empty_checkbox")?;
+        let unused_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "unused_checkbox")?;
         let description_text_edit: QPtr<QTextEdit> = find_widget(&main_widget.static_upcast(), "description_text_edit")?;
         let button_box: QPtr<QDialogButtonBox> = find_widget(&main_widget.static_upcast(), "button_box")?;
 
@@ -3026,6 +3028,7 @@ impl TableView {
         is_reference_label.set_text(&qtr("is_reference"));
         lookup_label.set_text(&qtr("lookup"));
         not_empty_label.set_text(&qtr("not_empty"));
+        unused_label.set_text(&qtr("unused"));
         description_label.set_text(&qtr("description"));
 
         // Setup data.
@@ -3052,7 +3055,8 @@ impl TableView {
             lookup_line_edit.set_text(&QString::from_std_str(value.join(";")));
         }
 
-        not_empty_checkbox.set_checked(field.cannot_be_empty(Some(self.table_definition().patches())));
+        not_empty_checkbox.set_checked(field.cannot_be_empty(patches));
+        unused_checkbox.set_checked(field.unused(patches));
         description_text_edit.set_text(&QString::from_std_str(field.description(patches)));
 
         // Launch.
@@ -3094,6 +3098,10 @@ impl TableView {
 
             if field.cannot_be_empty(patches) != not_empty_checkbox.is_checked() {
                 column_data.insert("not_empty".to_owned(), not_empty_checkbox.is_checked().to_string());
+            }
+
+            if field.unused(patches) != unused_checkbox.is_checked() {
+                column_data.insert("unused".to_owned(), unused_checkbox.is_checked().to_string());
             }
 
             let description_value = field.description(patches);
