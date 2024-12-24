@@ -2249,7 +2249,7 @@ pub fn background_loop() {
             }
 
             Command::BuildStarposCheckVictoryConditions => {
-                if pack_file_decoded.file(VICTORY_OBJECTIVES_FILE_NAME, false).is_some() {
+                if &*GAME_SELECTED.read().unwrap().key() == KEY_WARHAMMER_3 || pack_file_decoded.file(VICTORY_OBJECTIVES_FILE_NAME, false).is_some() {
                     CentralCommand::send_back(&sender, Response::Success);
                 } else {
                     CentralCommand::send_back(&sender, Response::Error(anyhow!("Missing \"db/victory_objectives.txt\" file. Processing the startpos without this file will result in issues in campaign. Add the file to the pack and try again.")));
@@ -2458,13 +2458,15 @@ quit_after_campaign_processing;",
         return Err(anyhow!("The Pack needs to be in /data. Install it there and try again."));
     }
 
-    // We need to extract the victory_objectives.txt file to "data/campaign_id/".
-    let mut game_campaign_path = game_data_path.to_path_buf();
-    game_campaign_path.push(campaign_id);
-    DirBuilder::new().recursive(true).create(&game_campaign_path)?;
+    // We need to extract the victory_objectives.txt file to "data/campaign_id/". Warhammer 3 doesn't use this file.
+    if game.key() != KEY_WARHAMMER_3 {
+        let mut game_campaign_path = game_data_path.to_path_buf();
+        game_campaign_path.push(campaign_id);
+        DirBuilder::new().recursive(true).create(&game_campaign_path)?;
 
-    game_campaign_path.push(VICTORY_OBJECTIVES_EXTRACTED_FILE_NAME);
-    pack_file.extract(ContainerPath::File(VICTORY_OBJECTIVES_FILE_NAME.to_owned()), &game_campaign_path, false, &None, true, false, &None)?;
+        game_campaign_path.push(VICTORY_OBJECTIVES_EXTRACTED_FILE_NAME);
+        pack_file.extract(ContainerPath::File(VICTORY_OBJECTIVES_FILE_NAME.to_owned()), &game_campaign_path, false, &None, true, false, &None)?;
+    }
 
     let config_path = game.config_path(&game_path).ok_or(anyhow!("Error getting the game's config path."))?;
     let scripts_path = config_path.join("scripts");
@@ -2715,11 +2717,15 @@ fn build_starpos_post(dependencies: &Dependencies, pack_file: &mut Pack, campaig
         return Err(anyhow!("Assembly Kit path incorrect. Fix it in the settings and try again."));
     }
 
-    // We need to delete the "data/campaign_id/" folder.
-    let mut game_campaign_path = game_data_path.to_path_buf();
-    game_campaign_path.push(campaign_id);
-    if game_campaign_path.is_dir() {
-        let _ = std::fs::remove_dir_all(game_campaign_path);
+    // Warhammer 3 doesn't use this folder.
+    if game.key() != KEY_WARHAMMER_3 {
+
+        // We need to delete the "data/campaign_id/" folder.
+        let mut game_campaign_path = game_data_path.to_path_buf();
+        game_campaign_path.push(campaign_id);
+        if game_campaign_path.is_dir() {
+            let _ = std::fs::remove_dir_all(game_campaign_path);
+        }
     }
 
     let config_path = game.config_path(&game_path).ok_or(anyhow!("Error getting the game's config path."))?;
