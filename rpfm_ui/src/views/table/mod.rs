@@ -78,7 +78,7 @@ use std::rc::Rc;
 
 use rpfm_extensions::dependencies::TableReferences;
 
-use rpfm_lib::files::{FileType, db::DB, loc::Loc, table::*};
+use rpfm_lib::files::{ContainerPath, FileType, db::DB, loc::Loc, table::*};
 use rpfm_lib::integrations::log::error;
 use rpfm_lib::schema::{Definition, Field, FieldType, Schema};
 
@@ -234,6 +234,7 @@ pub struct TableView {
 
     _context_menu_go_to: QBox<QMenu>,
     context_menu_go_to_definition: QPtr<QAction>,
+    context_menu_go_to_file: QPtr<QAction>,
     context_menu_go_to_loc: Vec<QPtr<QAction>>,
 
     sidebar_scroll_area: QBox<QScrollArea>,
@@ -440,6 +441,7 @@ impl TableView {
         let context_menu_redo = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "redo", "context_menu_redo", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_go_to = QMenu::from_q_string_q_widget(&qtr("context_menu_go_to"), &table_view);
         let context_menu_go_to_definition = add_action_to_menu(&context_menu_go_to.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "go_to_definition", "context_menu_go_to_definition", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
+        let context_menu_go_to_file = add_action_to_menu(&context_menu_go_to.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "go_to_file", "context_menu_go_to_file", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
         let mut context_menu_go_to_loc = vec![];
 
         for (index, loc_column) in table_definition.localised_fields().iter().enumerate() {
@@ -646,6 +648,7 @@ impl TableView {
 
             _context_menu_go_to: context_menu_go_to,
             context_menu_go_to_definition,
+            context_menu_go_to_file,
             context_menu_go_to_loc,
 
             sidebar_hide_checkboxes,
@@ -1075,10 +1078,27 @@ impl TableView {
                 self.context_menu_go_to_loc.iter().for_each(|x| x.set_enabled(false));
             }
 
-            if [FileType::DB, FileType::Loc].contains(&self.packed_file_type) {
+            if *self.packed_file_type == FileType::Loc {
                 self.context_menu_go_to_definition.set_enabled(true);
+                self.context_menu_go_to_file.set_enabled(false);
+            } else if *self.packed_file_type == FileType::DB {
+
+                // Go to Definition and Go To File only should be enabled if we actually are in a field where they'll work.
+                let columns = (0..indexes.count_0a()).map(|x| indexes.at(x).column()).collect::<HashSet<_>>();
+                let table_definition = self.table_definition();
+                let schema_patches = table_definition.patches();
+                let fields_processed = table_definition.fields_processed();
+
+                self.context_menu_go_to_definition.set_enabled(columns.iter()
+                    .filter_map(|x| fields_processed.get(*x as usize))
+                    .any(|y| y.is_reference(Some(&schema_patches)).is_some()));
+
+                self.context_menu_go_to_file.set_enabled(columns.iter()
+                    .filter_map(|x| fields_processed.get(*x as usize))
+                    .any(|y| y.is_filename(Some(&schema_patches))));
             } else {
                 self.context_menu_go_to_definition.set_enabled(false);
+                self.context_menu_go_to_file.set_enabled(false);
             }
         }
 
@@ -1087,6 +1107,7 @@ impl TableView {
             self.context_menu_copy.set_enabled(false);
             self.context_menu_copy_as_lua_table.set_enabled(false);
             self.context_menu_go_to_definition.set_enabled(false);
+            self.context_menu_go_to_file.set_enabled(false);
             self.context_menu_go_to_loc.iter().for_each(|x| x.set_enabled(false));
         }
 
@@ -3260,6 +3281,139 @@ impl TableView {
                 }
             } else {
                 error_message = tr("source_data_for_field_not_found");
+            }
+        }
+
+        if error_message.is_empty() { None }
+        else { Some(error_message) }
+    }
+
+    /// This function tries to open the file referenced by a key, if exists.
+    ///
+    /// If the file it's not found, it does nothing.
+    pub unsafe fn go_to_file(
+        &self,
+        app_ui: &Rc<AppUI>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        global_search_ui: &Rc<GlobalSearchUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>,
+        dependencies_ui: &Rc<DependenciesUI>,
+        references_ui: &Rc<ReferencesUI>,
+    ) -> Option<String> {
+
+        let mut error_message = String::new();
+        let indexes = self.table_view.selection_model().selection().indexes();
+        if indexes.count_0a() > 0 {
+            let paths = match *self.packed_file_type {
+
+                // We just get the path for the first cell selected.
+                FileType::DB => {
+                    let index = self.table_filter.map_to_source(self.table_view.selection_model().selection().indexes().at(0));
+                    let table_definition = self.table_definition();
+                    let patches = table_definition.patches();
+                    if let Some(field) = self.table_definition().fields_processed().get(index.column() as usize) {
+                        if field.is_filename(Some(patches)) {
+
+                            // If there are paths, map them with the cell data.
+                            if let Some(raw_paths) = field.filename_relative_path(Some(patches)) {
+                                let mut map_paths = vec![];
+                                let cell_data = index.data_0a().to_string().to_std_string();
+                                for path in raw_paths {
+                                    map_paths.push(ContainerPath::File(path.replace("%", &cell_data)));
+                                }
+
+                                Some(map_paths)
+                            }
+
+                            // If there are not paths, consider the cell data a full path.
+                            else { Some(vec![ContainerPath::File(index.data_0a().to_string().to_std_string())]) }
+                        } else { None }
+                    } else { None }
+                }
+                _ => None,
+            };
+
+            if let Some(paths) = paths {
+                if !paths.is_empty() {
+
+                    // Ask the backend to know what paths we have as files.
+                    let receiver = CENTRAL_COMMAND.send_background(Command::GetRFilesFromAllSources(paths.clone(), true));
+                    let response = CentralCommand::recv(&receiver);
+                    match response {
+                        Response::HashMapDataSourceHashMapStringRFile(mut files) => {
+                            let mut file = None;
+
+                            // Set the current file as non-preview, so it doesn't close when opening the source one.
+                            if let Some(packed_file_path) = self.get_packed_file_path() {
+                                if let Some(file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.path_read() == *packed_file_path && x.data_source() == self.get_data_source()) {
+                                    file_view.set_is_preview(false);
+                                }
+                            }
+
+                            if let Some(files) = files.remove(&DataSource::GameFiles) {
+                                let mut paths = files.keys().collect::<Vec<_>>();
+                                paths.sort();
+                                if let Some(path) = paths.get(0) {
+                                    let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(&path, DataSource::GameFiles);
+                                    if let Some(ref tree_index) = tree_index {
+                                        if tree_index.is_valid() {
+                                            let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view().static_upcast::<QObject>());
+                                            dependencies_ui.dependencies_tree_view().scroll_to_1a(tree_index.as_ref().unwrap());
+                                            dependencies_ui.dependencies_tree_view().selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
+                                        }
+                                    }
+
+                                    file = Some((DataSource::GameFiles, path.to_string()));
+                                }
+                            }
+
+                            if let Some(files) = files.remove(&DataSource::ParentFiles) {
+                                let mut paths = files.keys().collect::<Vec<_>>();
+                                paths.sort();
+                                if let Some(path) = paths.get(0) {
+                                    let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(&path, DataSource::ParentFiles);
+                                    if let Some(ref tree_index) = tree_index {
+                                        if tree_index.is_valid() {
+                                            let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view().static_upcast::<QObject>());
+                                            dependencies_ui.dependencies_tree_view().scroll_to_1a(tree_index.as_ref().unwrap());
+                                            dependencies_ui.dependencies_tree_view().selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
+                                        }
+                                    }
+
+                                    file = Some((DataSource::ParentFiles, path.to_string()));
+                                }
+                            }
+
+                            if let Some(files) = files.remove(&DataSource::PackFile) {
+                                let mut paths = files.keys().collect::<Vec<_>>();
+                                paths.sort();
+                                if let Some(path) = paths.get(0) {
+                                    let tree_index = pack_file_contents_ui.packfile_contents_tree_view().expand_treeview_to_item(&path, DataSource::PackFile);
+                                    if let Some(ref tree_index) = tree_index {
+                                        if tree_index.is_valid() {
+                                            let _blocker = QSignalBlocker::from_q_object(pack_file_contents_ui.packfile_contents_tree_view().static_upcast::<QObject>());
+                                            pack_file_contents_ui.packfile_contents_tree_view().scroll_to_1a(tree_index.as_ref().unwrap());
+                                            pack_file_contents_ui.packfile_contents_tree_view().selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
+
+                                        }
+                                    }
+
+                                    file = Some((DataSource::PackFile, path.to_string()));
+                                }
+                            }
+
+                            // If we have a file and its data source, open it.
+                            if let Some((data_source, path)) = file {
+                                AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui, Some(path.to_owned()), true, false, data_source);
+                            }
+                        },
+                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                    };
+                } else {
+                    error_message = tr("file_for_field_not_found");
+                }
+            } else {
+                error_message = tr("file_for_field_not_found");
             }
         }
 

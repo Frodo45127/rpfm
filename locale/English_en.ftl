@@ -947,7 +947,9 @@ are_you_sure_delete_filtered_out_rows = Are you sure you want to delete all filt
 
 context_menu_go_to = Go To…
 context_menu_go_to_definition = Go To Definition
+context_menu_go_to_file = Go To File
 source_data_for_field_not_found = The source of the selected data could not be found.
+file_for_field_not_found = The file referenced in the selected data could not be found.
 context_menu_go_to_loc = Go To Loc Entry:  {"{"}{"}"}
 loc_key_not_found = The loc entry couldn't be found.
 table_filter_show_blank_cells = Show Blank Cells

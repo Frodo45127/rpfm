@@ -58,6 +58,7 @@ pub unsafe fn set_connections(ui: &Arc<TableView>, slots: &TableViewSlots) {
     ui.context_menu_find_references().triggered().connect(&slots.find_references);
     ui.context_menu_patch_column().triggered().connect(&slots.patch_column);
     ui.context_menu_go_to_definition().triggered().connect(&slots.go_to_definition);
+    ui.context_menu_go_to_file().triggered().connect(&slots.go_to_file);
     ui.context_menu_smart_delete().triggered().connect(&slots.smart_delete);
 
     ui.context_menu_go_to_loc().iter()

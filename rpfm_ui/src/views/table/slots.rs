@@ -88,6 +88,7 @@ pub struct TableViewSlots {
     pub patch_column: QBox<SlotNoArgs>,
     pub find_references: QBox<SlotNoArgs>,
     pub go_to_definition: QBox<SlotNoArgs>,
+    pub go_to_file: QBox<SlotNoArgs>,
     pub go_to_loc: Vec<QBox<SlotNoArgs>>,
     pub hide_show_columns: Vec<QBox<SlotOfInt>>,
     pub hide_show_columns_all: QBox<SlotOfInt>,
@@ -737,6 +738,21 @@ impl TableViewSlots {
             }
         ));
 
+        let go_to_file = SlotNoArgs::new(&view.table_view, clone!(
+            view,
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui,
+            dependencies_ui,
+            references_ui => move || {
+                info!("Triggering `Go To File` By Slot");
+                if let Some(error) = view.go_to_file(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui) {
+                    log_to_status_bar(&error);
+                }
+            }
+        ));
+
         let mut go_to_loc = vec![];
 
         for field in view.table_definition().localised_fields() {
@@ -897,6 +913,7 @@ impl TableViewSlots {
             patch_column,
             find_references,
             go_to_definition,
+            go_to_file,
             go_to_loc,
             hide_show_columns,
             hide_show_columns_all,
