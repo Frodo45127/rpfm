@@ -2435,13 +2435,17 @@ fn build_starpos(dependencies: &Dependencies, pack_file: &mut Pack, campaign_id:
     let game = GAME_SELECTED.read().unwrap();
 
     // Note: 3K uses 2 passes per campaign, each one with a different startpos, but both share the hlp/spd process, so that only needs to be generated once.
-    let user_script_contents = format!("
+    // Also, extra folders is to fix a bug in Rome 2, Attila and possibly Thrones where objectives are not processed if certain folders are missing.
+    let extra_folders = "add_working_directory assembly_kit\\working_data;";
+    let mut user_script_contents = if game.key() == KEY_ATTILA || game.key() == KEY_THRONES_OF_BRITANNIA { extra_folders.to_owned() } else { String::new() };
+
+    user_script_contents.push_str(&format!("
 mod {};
 process_campaign_startpos {} {};
 {}
 quit_after_campaign_processing;",
         pack_name, campaign_id, sub_start_pos, process_hlp_spd_data_string
-    );
+    ));
 
     // Games may fail to launch if we don't have this path created, which is done the first time we start the game.
     let game_path = setting_path(game.key());
@@ -2664,6 +2668,9 @@ quit_after_campaign_processing;",
         // We need to turn the user script contents into a oneliner or the command will ignore it.
         #[cfg(target_os = "windows")] {
             use std::os::windows::process::CommandExt;
+
+            // Rome 2 needs the working_data folder in order to throw the startpos file there.
+            command.raw_arg(extra_folders);
             command.raw_arg(user_script_contents.replace("\n", " "));
         }
 
