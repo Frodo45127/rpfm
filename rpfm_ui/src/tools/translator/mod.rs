@@ -28,7 +28,7 @@ use cpp_core::Ref;
 
 use anyhow::anyhow;
 use getset::*;
-use rust_translate::translate_from_english;
+use serde_json::Value;
 
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
@@ -432,7 +432,7 @@ impl ToolTranslator {
     async fn ask_google(string: &str, language: &str) -> Result<String> {
         if !string.trim().is_empty() {
             let string = string.replace("\\\n", "\n");
-            translate_from_english(&string, language).await
+            Self::translate(&string, language).await
                 .map(|string|
                     string
                         .replace("\n", "\\\n")          // Fix jump lines.
@@ -442,6 +442,24 @@ impl ToolTranslator {
         } else {
             Ok(String::new())
         }
+    }
+
+    pub async fn translate(text: &str, to: &str) -> Result<String, Box<dyn std::error::Error>> {
+        let url = format!("https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl={to}&dt=t&q={text}");
+
+        let response = reqwest::get(&url).await?.text().await?;
+        let translated_text: String = if let Some(data) = serde_json::from_str::<Value>(&response)?[0].as_array() {
+            let mut string = String::new();
+            for item in data {
+                string.push_str(item[0].as_str().unwrap());
+            }
+
+            string
+        } else {
+            return Err(anyhow!("Error retrieving google translation.").into());
+        };
+
+        Ok(translated_text)
     }
 
     pub unsafe fn import_from_another_pack(&self) -> Result<()> {

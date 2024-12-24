@@ -2836,7 +2836,6 @@ dependencies = [
  "rpfm_extensions",
  "rpfm_lib",
  "rpfm_ui_common",
- "rust-translate",
  "self_update",
  "serde",
  "serde_derive",
@@ -2871,17 +2870,6 @@ dependencies = [
  "serde_json",
  "time",
  "unic-langid",
-]
-
-[[package]]
-name = "rust-translate"
-version = "0.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a9fbfb590f45879266b32b5f1db49edb69c80a81722157e9b95457c619b707a"
-dependencies = [
- "reqwest",
- "serde_json",
- "tokio",
 ]
 
 [[package]]
