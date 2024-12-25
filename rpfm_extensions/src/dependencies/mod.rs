@@ -2215,13 +2215,16 @@ impl Dependencies {
                     FieldType::OptionalStringU16 => {
 
                         // Icons can be found by:
-                        // - Checking if the data contains ".png".
+                        // - Checking if the data contains ".png" or ".tga".
                         // - Checking if the data contains "Icon" or "Image" in the name.
                         //
                         // Note that if the field contains incomplete/relative paths, this will guess and try to find unique files that match the path.
                         let mut possible_icon = false;
                         let low_name = field.name().to_lowercase();
                         if (low_name.contains("icon") || low_name.contains("image")) &&
+
+                            // Attila. This doesn't match with anything that makes sense.
+                            !(table.table_name() == "building_sets_tables" && field.name() == "icon") &&
 
                             // This really should be called category. It's wrong in the ak.
                             !(table.table_name() == "character_traits_tables" && field.name() == "icon") {
@@ -2257,14 +2260,25 @@ impl Dependencies {
                                     // - .: means empty in some image fields.
                                     // - x: means empty in some image fields.
                                     // - placeholder: because it's in multiple places and generates false positives.
-                                    let data = row[column].data_to_string().to_lowercase().replace("\\", "/");
-                                    if !data.is_empty() &&
+                                    let mut data = row[column].data_to_string().to_lowercase().replace("\\", "/");
+
+                                    // Fix formatting for cells which start with / or \\.
+                                    if data.starts_with("/") {
+                                        if data.len() > 1 {
+                                            data = data[1..].to_owned();
+                                        } else {
+                                            data = String::new();
+                                        }
+                                    }
+
+                                    if !data.is_empty() && !data.ends_with("/") &&
                                         data != "." &&
                                         data != "x" &&
                                         data != "false" &&
                                         data != "building_placeholder" &&
                                         data != "placehoder.png" &&
                                         data != "placeholder" &&
+                                        data != "placeholder.tga" &&
                                         data != "placeholder.png" && (
                                             possible_icon ||
                                             data.ends_with(".png") || data.ends_with(".tga")
@@ -2274,15 +2288,72 @@ impl Dependencies {
 
                                             // Manual filters for some fields that are known to trigger hard-to-fix false positives.
                                             .filter(|x| {
-                                                if table.table_name() == "campaign_post_battle_captive_options_tables" && field.name() == "icon_path" {
+                                                if table.table_name() == "aide_de_camp_speeches_tables" && field.name() == "icon_name" {
+                                                    x.starts_with("ui/battle ui/adc_icons/")
+                                                } else if table.table_name() == "agent_string_subculture_overrides_tables" && field.name() == "icon_path" {
+                                                    x.starts_with("ui/campaign ui/agents/icons/")
+                                                } else if table.table_name() == "ancillary_types_tables" && field.name() == "ui_icon" {
+                                                    x.starts_with("ui/portraits/ancillaries/")
+                                                } else if table.table_name() == "battlefield_building_categories_tables" && field.name() == "icon_path" {
+                                                    x.starts_with("ui/battle ui/building icons/")
+                                                } else if table.table_name() == "bonus_value_uis_tables" && field.name() == "icon" {
+                                                    x.starts_with("ui/campaign ui/effect_bundles/")
+                                                } else if table.table_name() == "building_culture_variants_tables" && field.name() == "icon" {
+                                                    x.starts_with("ui/buildings/icons/")
+                                                } else if table.table_name() == "campaign_payload_ui_details_tables" && field.name() == "icon" {
+                                                    x.starts_with("ui/campaign ui/effect_bundles/")
+                                                } else if table.table_name() == "campaign_post_battle_captive_options_tables" && field.name() == "icon_path" {
                                                     x.starts_with("ui/campaign ui/captive_option_icons/")
-                                                } else if (table.table_name() == "incidents_tables" && field.name() == "ui_image") ||
-                                                    (table.table_name() == "dilemmas_tables" && field.name() == "ui_image") {
+                                                } else if table.table_name() == "capture_point_types_tables" && field.name() == "icon_name" {
+                                                    x.starts_with("ui/battle ui/capture_point_icons/")
+                                                } else if table.table_name() == "character_skills_tables" && field.name() == "image_path" {
+                                                    x.starts_with("ui/campaign ui/skills/")
+                                                } else if table.table_name() == "character_traits_tables" && field.name() == "icon_custom" {
+                                                    x.starts_with("ui/campaign ui/effect_bundles/")
+
+                                                // This is to fix issues with incomplete cursor paths.
+                                                } else if table.table_name() == "cursors_tables" && field.name() == "image" {
+                                                    !x.starts_with(&(data.to_owned() + "_"))
+                                                } else if table.table_name() == "dilemmas_tables" && field.name() == "ui_image" {
                                                     x.starts_with("ui/eventpics/")
+                                                } else if table.table_name() == "effect_bundles_tables" && field.name() == "ui_icon" {
+                                                    x.starts_with("ui/campaign ui/effect_bundles/")
+                                                } else if table.table_name() == "effects_tables" && (field.name() == "icon" || field.name() == "icon_negative") {
+                                                    x.starts_with("ui/campaign ui/effect_bundles/")
+                                                } else if table.table_name() == "faction_groups_tables" && field.name() == "ui_icon" {
+                                                    x.starts_with("ui/campaign ui/effect_bundles/")
+                                                } else if table.table_name() == "incidents_tables" && field.name() == "ui_image" {
+                                                    x.starts_with("ui/eventpics/")
+                                                } else if table.table_name() == "message_event_strings_tables" && field.name() == "image" {
+                                                    x.starts_with("ui/eventpics/")
+                                                } else if table.table_name() == "missions_tables" && field.name() == "ui_icon" {
+                                                    x.starts_with("ui/campaign ui/message_icons/")
+
+                                                // This is to fix false positives in sequencial missions in Pharaoh.
+                                                } else if table.table_name() == "missions_tables" && field.name() == "ui_image" {
+                                                    x.starts_with("ui/eventpics/") && x.ends_with(&(data.to_owned() + ".png"))
                                                 } else if table.table_name() == "pooled_resources_tables" && field.name() == "optional_icon_path" {
                                                     x.starts_with("ui/skins/")
+                                                } else if table.table_name() == "projectile_shot_type_enum_tables" && field.name() == "icon_name" {
+                                                    x.starts_with("ui/battle ui/ability_icons/")
+                                                } else if table.table_name() == "religions_tables" && field.name() == "ui_icon_path" {
+                                                    x.starts_with("ui/campaign ui/religion_icons/")
+                                                } else if table.table_name() == "special_ability_phases_tables" && field.name() == "ticker_icon" {
+                                                    x.starts_with("ui/battle ui/ability_icons/")
+                                                } else if table.table_name() == "technologies_tables" && field.name() == "icon_name" {
+                                                    x.starts_with("ui/campaign ui/technologies/")
+                                                } else if table.table_name() == "technologies_tables" && field.name() == "info_pic" {
+                                                    x.starts_with("ui/eventpics/")
+                                                } else if table.table_name() == "trait_categories_tables" && field.name() == "icon_path" {
+                                                    x.starts_with("ui/campaign ui/effect_bundles/")
+                                                } else if table.table_name() == "ui_unit_groupings_tables" && field.name() == "icon" {
+                                                    x.starts_with("ui/common ui/unit_category_icons/")
                                                 } else if table.table_name() == "victory_types_tables" && field.name() == "icon" {
                                                     x.starts_with("ui/campaign ui/victory_type_icons/")
+
+                                                // For some reason, some brilliant mind at CA decided to end a video name with ".png". So we need to filter this here.
+                                                } else if table.table_name() == "videos_tables" && field.name() == "video_name" {
+                                                    x.starts_with("movies/")
                                                 } else {
                                                     true
                                                 }
@@ -2305,7 +2376,10 @@ impl Dependencies {
                                             } else {
                                                 false
                                             })
-                                            .map(|x| x.replace(&data, "%"))
+
+                                            // Replace only the last instance, to avoid weird folder-replacing bugs.
+                                            .filter_map(|x| x.rfind(&data).map(|pos| (x, pos)))
+                                            .map(|(x, pos)| x[..pos].to_owned() + &x[pos..].replacen(&data, "%", 1))
                                             .collect::<Vec<_>>();
 
 
@@ -2345,14 +2419,30 @@ impl Dependencies {
                                         table.table_name() == "videos_tables" && field.name() == "video_name"
                                     ) {
 
-                                    let data = row[column].data_to_string().to_lowercase().replace("\\", "/");
+                                    let mut data = row[column].data_to_string().to_lowercase().replace("\\", "/");
+
+                                    // Fix formatting for cells which start with / or \\.
+                                    if data.starts_with("/") {
+                                        if data.len() > 1 {
+                                            data = data[1..].to_owned();
+                                        } else {
+                                            data = String::new();
+                                        }
+                                    }
+
                                     if !data.is_empty() && (
                                             possible_video ||
                                             data.ends_with(".ca_vp8")
                                         ) {
 
                                         let possible_paths = video_paths.iter()
-
+                                            .filter(|x| {
+                                                if table.table_name() == "videos_tables" && field.name() == "video_name" {
+                                                    x.starts_with("movies/")
+                                                } else {
+                                                    true
+                                                }
+                                            })
                                             // This filter is for reducing false positives in these cases:
                                             // - "%_something", which is used for sequential videos.
                                             // - Faction-specific videos.
@@ -2361,7 +2451,10 @@ impl Dependencies {
                                                 } else {
                                                     x.contains(&("/".to_owned() + &data))
                                                 })
-                                            .map(|x| x.replace(&data, "%"))
+
+                                            // Replace only the last instance, to avoid weird folder-replacing bugs.
+                                            .filter_map(|x| x.rfind(&data).map(|pos| (x, pos)))
+                                            .map(|(x, pos)| x[..pos].to_owned() + &x[pos..].replacen(&data, "%", 1))
                                             .collect::<Vec<_>>();
 
 
