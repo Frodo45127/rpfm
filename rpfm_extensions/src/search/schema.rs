@@ -15,6 +15,7 @@ This module contains the code needed to get schema matches from a `GlobalSearch`
 !*/
 
 use getset::{Getters, MutGetters};
+use serde_derive::{Deserialize, Serialize};
 
 use rpfm_lib::schema::Schema;
 
@@ -25,7 +26,7 @@ use super::{MatchingMode, Searchable};
 //-------------------------------------------------------------------------------//
 
 /// This struct represents all the matches of the global search within a Schema.
-#[derive(Debug, Default, Clone, Getters, MutGetters)]
+#[derive(Debug, Default, Clone, Getters, MutGetters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub")]
 pub struct SchemaMatches {
 
@@ -34,7 +35,7 @@ pub struct SchemaMatches {
 }
 
 /// This struct represents a match on a column name within a Schema.
-#[derive(Debug, Clone, Getters, MutGetters)]
+#[derive(Debug, Clone, Getters, MutGetters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub")]
 pub struct SchemaMatch {
 

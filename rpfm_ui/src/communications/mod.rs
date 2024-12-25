@@ -16,6 +16,7 @@ use qt_core::QEventLoop;
 
 use anyhow::Error;
 use crossbeam::channel::{Receiver, Sender, unbounded};
+use serde_derive::{Deserialize, Serialize};
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::Debug;
@@ -64,7 +65,7 @@ pub struct CentralCommand<T: Send + Sync + Debug> {
 ///
 /// Each command should include the data needed for his own execution. For a more detailed explanation, check the
 /// docs of each command.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum Command {
 
     /// This command is used to close a thread.

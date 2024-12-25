@@ -316,7 +316,7 @@ pub enum FileType {
 }
 
 /// This enum represents a ***Path*** inside a [Container].
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub enum ContainerPath {
 
     /// This variant represents the path of a single file.

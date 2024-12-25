@@ -20,6 +20,7 @@ use qt_core::{CheckState, QBox};
 
 use anyhow::{anyhow, Result};
 use getset::Getters;
+use serde_derive::{Deserialize, Serialize};
 
 use std::{fmt, fmt::Display};
 use std::rc::Rc;
@@ -132,7 +133,7 @@ pub enum ViewType {
 }
 
 /// This enum represents the source of the data in the view.
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, Ord, PartialOrd)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, Ord, PartialOrd, Serialize, Deserialize)]
 pub enum DataSource {
 
     /// This means the data is from somewhere in our PackFile.

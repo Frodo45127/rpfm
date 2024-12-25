@@ -15,6 +15,7 @@ This module contains the code needed to get table matches from a `GlobalSearch`.
 !*/
 
 use getset::{Getters, MutGetters};
+use serde_derive::{Deserialize, Serialize};
 
 use rpfm_lib::files::{db::DB, loc::Loc, table::DecodedData};
 use rpfm_lib::schema::Field;
@@ -26,7 +27,7 @@ use super::{find_in_string, MatchingMode, Replaceable, Searchable, replace_match
 //-------------------------------------------------------------------------------//
 
 /// This struct represents all the matches of the global search within a table.
-#[derive(Debug, Clone, Eq, PartialEq, Getters, MutGetters)]
+#[derive(Debug, Clone, Eq, PartialEq, Getters, MutGetters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub")]
 pub struct TableMatches {
 
@@ -38,7 +39,7 @@ pub struct TableMatches {
 }
 
 /// This struct represents a match on a row of a Table PackedFile (DB & Loc).
-#[derive(Debug, Clone, Eq, PartialEq, Getters, MutGetters)]
+#[derive(Debug, Clone, Eq, PartialEq, Getters, MutGetters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub")]
 pub struct TableMatch {
 

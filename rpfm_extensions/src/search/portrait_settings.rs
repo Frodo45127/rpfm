@@ -9,6 +9,7 @@
 //---------------------------------------------------------------------------//
 
 use getset::{Getters, MutGetters};
+use serde_derive::{Deserialize, Serialize};
 
 use rpfm_lib::files::portrait_settings::PortraitSettings;
 
@@ -19,7 +20,7 @@ use super::{find_in_string, MatchingMode, Replaceable, Searchable, replace_match
 //-------------------------------------------------------------------------------//
 
 /// This struct represents all the matches of the global search within an PortraitSettings File.
-#[derive(Debug, Clone, Getters, MutGetters)]
+#[derive(Debug, Clone, Getters, MutGetters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub")]
 pub struct PortraitSettingsMatches {
 
@@ -31,7 +32,7 @@ pub struct PortraitSettingsMatches {
 }
 
 /// This struct represents a match within an PortraitSettings File.
-#[derive(Debug, Default, Clone, Eq, PartialEq, Getters, MutGetters)]
+#[derive(Debug, Default, Clone, Eq, PartialEq, Getters, MutGetters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub")]
 pub struct PortraitSettingsMatch {
 

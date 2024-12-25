@@ -10,6 +10,7 @@
 
 use getset::{Getters, MutGetters};
 use regex::bytes::RegexBuilder;
+use serde_derive::{Deserialize, Serialize};
 
 use rpfm_lib::files::rigidmodel::RigidModel;
 
@@ -20,7 +21,7 @@ use super::{find_in_bytes, MatchingMode, Replaceable, Searchable, replace_match_
 //-------------------------------------------------------------------------------//
 
 /// This struct represents all the matches of the global search within an RigidModel File.
-#[derive(Debug, Clone, Getters, MutGetters)]
+#[derive(Debug, Clone, Getters, MutGetters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub")]
 pub struct RigidModelMatches {
 
@@ -32,7 +33,7 @@ pub struct RigidModelMatches {
 }
 
 /// This struct represents a match within an RigidModel File.
-#[derive(Debug, Clone, Eq, PartialEq, Getters, MutGetters)]
+#[derive(Debug, Clone, Eq, PartialEq, Getters, MutGetters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub")]
 pub struct RigidModelMatch {
 

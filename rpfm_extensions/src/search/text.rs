@@ -16,6 +16,7 @@ This module contains the code needed to get text matches from a `GlobalSearch`.
 
 use getset::{Getters, MutGetters};
 use itertools::Itertools;
+use serde_derive::{Deserialize, Serialize};
 
 use rpfm_lib::files::text::Text;
 
@@ -26,7 +27,7 @@ use super::{find_in_string, MatchingMode, Replaceable, Searchable, replace_match
 //-------------------------------------------------------------------------------//
 
 /// This struct represents all the matches of the global search within a text PackedFile.
-#[derive(Debug, Clone, Getters, MutGetters)]
+#[derive(Debug, Clone, Getters, MutGetters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub")]
 pub struct TextMatches {
 
@@ -38,7 +39,7 @@ pub struct TextMatches {
 }
 
 /// This struct represents a match on a piece of text within a Text PackedFile.
-#[derive(Debug, Clone, Eq, PartialEq, Getters, MutGetters)]
+#[derive(Debug, Clone, Eq, PartialEq, Getters, MutGetters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub")]
 pub struct TextMatch {
 

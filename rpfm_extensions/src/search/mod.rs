@@ -17,6 +17,7 @@ This module contains the code needed to get a `GlobalSearch` over an entire `Pac
 use getset::*;
 use regex::{RegexBuilder, Regex};
 use rayon::prelude::*;
+use serde_derive::{Deserialize, Serialize};
 
 use rpfm_lib::error::{Result, RLibError};
 use rpfm_lib::files::{Container, ContainerPath, DecodeableExtraData, FileType, pack::Pack, RFile, RFileDecoded};
@@ -97,7 +98,7 @@ pub trait Replaceable: Searchable {
 //-------------------------------------------------------------------------------//
 
 /// This struct contains the information needed to perform a global search, and the results of said search.
-#[derive(Default, Debug, Clone, Getters, MutGetters, Setters)]
+#[derive(Default, Debug, Clone, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct GlobalSearch {
 
@@ -135,7 +136,7 @@ pub enum MatchingMode {
 }
 
 /// This enum is a way to put together all kind of matches.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MatchHolder {
     Anim(UnknownMatches),
     AnimFragmentBattle(AnimFragmentBattleMatches),
@@ -163,7 +164,7 @@ pub enum MatchHolder {
 }
 
 /// This enum is specifies the source where the search should be performed.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[derive(Default)]
 pub enum SearchSource {
     #[default] Pack,
@@ -173,7 +174,7 @@ pub enum SearchSource {
 }
 
 /// This struct specifies in what file types is the search going to be performed.
-#[derive(Default, Debug, Clone, Getters, Setters)]
+#[derive(Default, Debug, Clone, Getters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", set = "pub")]
 pub struct SearchOn {
     anim: bool,
@@ -202,7 +203,7 @@ pub struct SearchOn {
 }
 
 /// This struct stores the search matches, separated by file type.
-#[derive(Default, Debug, Clone, Getters)]
+#[derive(Default, Debug, Clone, Getters, Serialize, Deserialize)]
 #[getset(get = "pub")]
 pub struct Matches {
     anim: Vec<UnknownMatches>,

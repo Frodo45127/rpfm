@@ -63,6 +63,7 @@ use anyhow::{anyhow, Result};
 use getset::Getters;
 use itertools::Itertools;
 use self_update::cargo_crate_version;
+use serde_derive::{Deserialize, Serialize};
 use time::OffsetDateTime;
 
 use std::cell::RefCell;
@@ -377,7 +378,7 @@ pub struct AppUI {
 }
 
 /// This enum contains the data needed to create a new PackedFile.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum NewFile {
 
     /// Name of the PackedFile.

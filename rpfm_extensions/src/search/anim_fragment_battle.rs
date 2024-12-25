@@ -9,6 +9,7 @@
 //---------------------------------------------------------------------------//
 
 use getset::{Getters, MutGetters};
+use serde_derive::{Deserialize, Serialize};
 
 use rpfm_lib::files::anim_fragment_battle::AnimFragmentBattle;
 
@@ -19,7 +20,7 @@ use super::{find_in_string, MatchingMode, replace_match_string, Replaceable, Sea
 //-------------------------------------------------------------------------------//
 
 /// This struct represents all the matches of the global search within an Anim Fragment Battle File.
-#[derive(Debug, Clone, Getters, MutGetters)]
+#[derive(Debug, Clone, Getters, MutGetters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub")]
 pub struct AnimFragmentBattleMatches {
 
@@ -31,7 +32,7 @@ pub struct AnimFragmentBattleMatches {
 }
 
 /// This struct represents a match within an Anim Fragment Battle File.
-#[derive(Debug, Clone, Eq, PartialEq, Getters, MutGetters)]
+#[derive(Debug, Clone, Eq, PartialEq, Getters, MutGetters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub")]
 pub struct AnimFragmentBattleMatch {
 
