@@ -179,7 +179,7 @@ pub enum RLibError {
     DecodingTableFieldSequenceDataError(u32, u32, String, String),
 
     #[error("Error trying to decode a table: {0}. The incomplete table is: {1:#?}.")]
-    DecodingTableIncomplete(String, Table),
+    DecodingTableIncomplete(String, Box<Table>),
 
     #[error("Missing extra data required to decode the file. This means the programmer messed up the code while that tries to decode files.")]
     DecodingMissingExtraData,

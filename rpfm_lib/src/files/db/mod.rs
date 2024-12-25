@@ -148,7 +148,7 @@ impl Decodeable for DB {
         //
         // If we have return_incomplete enabled, we pass whatever we got decoded into this error.
         check_size_mismatch(data.stream_position()? as usize, len as usize).map_err(|error| {
-            RLibError::DecodingTableIncomplete(error.to_string(), table.clone())
+            RLibError::DecodingTableIncomplete(error.to_string(), Box::new(table.clone()))
         })?;
 
         // If we've reached this, we've successfully decoded the table.
