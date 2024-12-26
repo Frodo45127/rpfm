@@ -958,7 +958,7 @@ impl DiagnosticsUI {
         }
 
         // If it's a table, focus on the matched cell.
-        match &*model.item_2a(model_index.row(), 1).text().to_std_string() {
+        match &*diagnostic_type {
             "AnimFragmentBattle" => {
                 if let Some(file_view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).find(|x| *x.path_read() == path) {
 
