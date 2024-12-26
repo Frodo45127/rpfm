@@ -438,7 +438,7 @@ impl GroupFormations {
                         }
                         block.block = Block::Spanning(container);
                     },
-                    _ => todo!("unknown block type {}.", block_type),
+                    _ => return Err(RLibError::GroupFormationUnknownBlockType(block_type)),
                 }
 
                 formation.group_formation_blocks.push(block);

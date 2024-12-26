@@ -349,6 +349,9 @@ pub enum RLibError {
     #[error("Merging files of type {0} is not supported.")]
     RFileMergeNotSupportedForType(String),
 
+    #[error("Block Type {0} is not supported.")]
+    GroupFormationUnknownBlockType(u32),
+
     #[error("This Pack is empty, so we can't patch it.")]
     PatchSiegeAIEmptyPack,
 
