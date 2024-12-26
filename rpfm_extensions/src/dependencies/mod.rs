@@ -1271,9 +1271,11 @@ impl Dependencies {
     pub fn db_reference_data(&self, schema: &Schema, pack: &Pack, table_name: &str, definition: &Definition, loc_data: &Option<HashMap<Cow<str>, Cow<str>>>) -> HashMap<i32, TableReferences> {
 
         // First check if the data is already cached, to speed up things.
+        //
+        // NOTE: The None branch should only trigger in cases were there's a bug. We just let it pass without reference instead of crashing.
         let mut vanilla_references = match self.local_tables_references.get(table_name) {
             Some(cached_data) => cached_data.clone(),
-            None => panic!("To be fixed: If you see this, you forgot to call generate_local_db_references before this."),
+            None => HashMap::new(),
         };
 
         // If we receive premade loc data (because this may trigger on many files at the same time), don't calculate it here.
