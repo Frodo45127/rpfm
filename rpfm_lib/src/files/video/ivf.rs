@@ -111,11 +111,15 @@ impl Video {
 
         let mut offset = 0;
         for (index, frame) in self.frame_table.iter().enumerate() {
-            let frame_data = &self.frame_data[offset..(offset + frame.size as usize)];
-            buffer.write_u32(frame_data.len() as u32)?;
-            buffer.write_u64(index as u64)?;
-            buffer.write_all(frame_data)?;
-            offset += frame.size as usize;
+
+            // This is not really correct, but this avoids a crash.
+            if self.frame_data.get(offset).is_some() && self.frame_data.get(offset + frame.size as usize).is_some() {
+                let frame_data = &self.frame_data[offset..(offset + frame.size as usize)];
+                buffer.write_u32(frame_data.len() as u32)?;
+                buffer.write_u64(index as u64)?;
+                buffer.write_all(frame_data)?;
+                offset += frame.size as usize;
+            }
         }
 
         Ok(())
