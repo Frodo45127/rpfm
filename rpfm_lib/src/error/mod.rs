@@ -343,6 +343,9 @@ pub enum RLibError {
     #[error("Merging tables with different table names is not supported.")]
     RFileMergeTablesDifferentNames,
 
+    #[error("Merging tables needs at least two tables.")]
+    RFileMergeTablesNotEnoughTablesProvided,
+
     #[error("Merging files of type {0} is not supported.")]
     RFileMergeNotSupportedForType(String),
 

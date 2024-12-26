@@ -541,6 +541,10 @@ impl DB {
             return Err(RLibError::RFileMergeTablesDifferentNames);
         }
 
+        if sources.len() < 2 {
+            return Err(RLibError::RFileMergeTablesNotEnoughTablesProvided);
+        }
+
         let mut new_table = Self::new(sources[0].definition(), Some(sources[0].patches()), sources[0].table_name());
         let sources = sources.par_iter()
             .map(|table| {
