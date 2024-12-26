@@ -112,8 +112,9 @@ impl Video {
         let mut offset = 0;
         for (index, frame) in self.frame_table.iter().enumerate() {
 
-            // This is not really correct, but this avoids a crash.
-            if self.frame_data.get(offset).is_some() && self.frame_data.get(offset + frame.size as usize).is_some() {
+            // This is not really correct, but this avoids a crash. -1 because we're interested in the last valid byte.
+            let end = (offset + frame.size as usize).checked_sub(1).ok_or(RLibError::IVFInvalidSubstraction)?;
+            if self.frame_data.get(offset).is_some() && self.frame_data.get(end).is_some() {
                 let frame_data = &self.frame_data[offset..(offset + frame.size as usize)];
                 buffer.write_u32(frame_data.len() as u32)?;
                 buffer.write_u64(index as u64)?;

@@ -361,6 +361,9 @@ pub enum RLibError {
     #[error("No Schema provided.")]
     SchemaNotProvided,
 
+    #[error("Invalid substraction when processing an IVF file. This means the something went wrong when saving the IVF file.")]
+    IVFInvalidSubstraction,
+
     #[error("The game {0} doesn't support the Steam Workshop.")]
     GameDoesntSupportWorkshop(String),
 
