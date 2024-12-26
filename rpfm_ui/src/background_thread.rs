@@ -2114,7 +2114,7 @@ pub fn background_loop() {
                         // Sublime support.
                         if sublime_support {
                             let mut sublime_config_path = mymod_path.to_owned();
-                            sublime_config_path.push(format!("{}.sublime-project", mymod_path.file_name().unwrap().to_string_lossy()));
+                            sublime_config_path.push(format!("{}.sublime-project", mod_name));
                             if let Ok(file) = File::create(sublime_config_path) {
                                 let mut file = BufWriter::new(file);
                                 let _ = file.write_all("
