@@ -20,6 +20,15 @@ If you're looking for the changes included in the latest beta (against the lates
 - Fixed "Go To Loc" not working when the loc is in a parent pack.
 - Fixed "Go To Definition" being triggeable when the cell is not a loc key or a reference.
 - Fixed translator's automatic translations (from Google Translate) with more than one sentence being cut off after the first sentence.
+- Fixed CTD when importing an Assembly Kit table with no Pack open.
+- Fixed CTD when trying to open a file in an external tool if the file is not in the open Pack.
+- Fixed CTD when saving a video as IVF.
+- Fixed CTD when initializing a MyMod folder with a sublime project.
+- Fixed rare CTD when checking diagnostics after generating the dependencies cache with a Pack already open.
+- Fixed rare CTD when opening diagnostics matches.
+- Fixed rare CTD when opening certain groupformation files.
+- Fixed CTD when merge tables is triggered with no tables selected.
+- Fixed CTD when importing incomplete TSV of an open table.
 
 ## [4.3.10]
 ### Added
