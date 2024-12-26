@@ -156,7 +156,7 @@ impl TextDiagnostic {
                                         for table in &tables {
                                             if let Ok(RFileDecoded::DB(table)) = table.decoded() {
                                                 let definition = table.definition();
-                                                if let Some(column) = definition.column_position_by_name(&table_column) {
+                                                if let Some(column) = definition.column_position_by_name(table_column) {
                                                     for row in table.data().iter() {
                                                         if row[column].data_to_string() == *key_to_check {
                                                             found = true;

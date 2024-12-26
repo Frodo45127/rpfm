@@ -165,7 +165,7 @@ impl RawTable {
         } else { String::new() };
 
         // We need to pre-patch some of the raw definition fields to avoid the "0 on empty fields" bug.
-        if let Some(ref definition) = definition {
+        if let Some(definition) = definition {
             for field in definition.fields_processed() {
                 if let Some(raw_field) = raw_definition.fields.iter_mut().find(|x| x.name == field.name()) {
                     match field.field_type() {
@@ -196,14 +196,14 @@ impl RawTable {
 
                         entry.push(match field_def.field_type() {
                             FieldType::Boolean => DecodedData::Boolean(field.field_data == "true" || field.field_data == "1"),
-                            FieldType::F32 => DecodedData::F32(if let Ok(data) = field.field_data.parse::<f32>() { data } else { 0.0 }),
-                            FieldType::F64 => DecodedData::F64(if let Ok(data) = field.field_data.parse::<f64>() { data } else { 0.0 }),
-                            FieldType::I16 => DecodedData::I16(if let Ok(data) = field.field_data.parse::<i16>() { data } else { 0 }),
-                            FieldType::I32 => DecodedData::I32(if let Ok(data) = field.field_data.parse::<i32>() { data } else { 0 }),
-                            FieldType::I64 => DecodedData::I64(if let Ok(data) = field.field_data.parse::<i64>() { data } else { 0 }),
-                            FieldType::OptionalI16 => DecodedData::OptionalI16(if let Ok(data) = field.field_data.parse::<i16>() { data } else { 0 }),
-                            FieldType::OptionalI32 => DecodedData::OptionalI32(if let Ok(data) = field.field_data.parse::<i32>() { data } else { 0 }),
-                            FieldType::OptionalI64 => DecodedData::OptionalI64(if let Ok(data) = field.field_data.parse::<i64>() { data } else { 0 }),
+                            FieldType::F32 => DecodedData::F32(field.field_data.parse::<f32>().unwrap_or_default()),
+                            FieldType::F64 => DecodedData::F64(field.field_data.parse::<f64>().unwrap_or_default()),
+                            FieldType::I16 => DecodedData::I16(field.field_data.parse::<i16>().unwrap_or_default()),
+                            FieldType::I32 => DecodedData::I32(field.field_data.parse::<i32>().unwrap_or_default()),
+                            FieldType::I64 => DecodedData::I64(field.field_data.parse::<i64>().unwrap_or_default()),
+                            FieldType::OptionalI16 => DecodedData::OptionalI16(field.field_data.parse::<i16>().unwrap_or_default()),
+                            FieldType::OptionalI32 => DecodedData::OptionalI32(field.field_data.parse::<i32>().unwrap_or_default()),
+                            FieldType::OptionalI64 => DecodedData::OptionalI64(field.field_data.parse::<i64>().unwrap_or_default()),
                             FieldType::ColourRGB => DecodedData::ColourRGB(field.field_data.to_string()),
                             FieldType::StringU8 => DecodedData::StringU8(if field.field_data == "Frodo Best Waifu" { String::new() } else { field.field_data.to_string() }),
                             FieldType::StringU16 => DecodedData::StringU16(if field.field_data == "Frodo Best Waifu" { String::new() } else { field.field_data.to_string() }),

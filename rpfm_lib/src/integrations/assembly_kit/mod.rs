@@ -8,15 +8,13 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*!
-Module with all the code to interact with the Assembly Kit's Files.
-
-This module contains all the code related with the integrations with the Assembly Kit.
-To differentiate between the different types of Assembly Kit, there are multiple versions:
-- `0`: Empire and Napoleon.
-- `1`: Shogun 2.
-- `2`: Anything since Rome 2.
-!*/
+//! Module with all the code to interact with the Assembly Kit's Files.
+//!
+//! This module contains all the code related with the integrations with the Assembly Kit.
+//! To differentiate between the different types of Assembly Kit, there are multiple versions:
+//! - `0`: Empire and Napoleon.
+//! - `1`: Shogun 2.
+//! - `2`: Anything since Rome 2.
 
 use rayon::prelude::*;
 use serde_xml_rs::from_reader;
@@ -144,13 +142,11 @@ pub fn update_schema_from_raw_files(
 
                         // Add unused field info.
                         for raw_field in &raw_definition.fields {
-                            if raw_field.highlight_flag.is_some() {
-                                if raw_field.highlight_flag.clone().unwrap() == "#c8c8c8" {
-                                    let mut hashmap = HashMap::new();
-                                    hashmap.insert("unused".to_owned(), "true".to_owned());
+                            if raw_field.highlight_flag.is_some() && raw_field.highlight_flag.clone().unwrap() == "#c8c8c8" {
+                                let mut hashmap = HashMap::new();
+                                hashmap.insert("unused".to_owned(), "true".to_owned());
 
-                                    definition.patches_mut().insert(raw_field.name.to_string(), hashmap);
-                                }
+                                definition.patches_mut().insert(raw_field.name.to_string(), hashmap);
                             }
                         }
 
@@ -173,7 +169,7 @@ pub fn update_schema_from_raw_files(
                             };
 
                             if let Some(raw_key_field) = key_field {
-                                if let Some(_) = raw_definition.fields.iter().find(|x| x.name == "description") {
+                                if raw_definition.fields.iter().any(|x| x.name == "description") {
                                     if let Ok(raw_table) = RawTable::read(raw_definition, ass_kit_path, *raw_db_version) {
                                         for row in raw_table.rows {
                                             if let Some(key_field) = row.fields.iter().find(|field| field.field_name == raw_key_field.name) {

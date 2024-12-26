@@ -22,7 +22,11 @@
     clippy::clone_on_copy,                  // Disabled because triggers false positives on qt cloning.
     clippy::mutex_atomic,                   // Disabled because in the only instance it triggers, we do it on purpose.
     clippy::too_many_arguments,             // Disabled because it gets annoying really quick.
-    clippy::assigning_clones
+    clippy::assigning_clones,
+    clippy::arc_with_non_send_sync,
+    clippy::upper_case_acronyms,
+    clippy::type_complexity,
+    clippy::enum_variant_names,
 )]
 
 // This disables the terminal window on windows on release builds.

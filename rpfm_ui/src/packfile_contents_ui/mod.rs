@@ -228,7 +228,7 @@ impl PackFileContentsUI {
         let packfile_contents_tree_view_collapse_all = add_action_to_menu(&packfile_contents_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "pack_tree_context_menu", "collapse_all", "treeview_collapse_all", Some(packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>()));
 
         // Configure the `Contextual Menu` for the `PackFile` TreeView.
-        packfile_contents_tree_view_context_menu.insert_separator(&menu_open.menu_action());
+        packfile_contents_tree_view_context_menu.insert_separator(menu_open.menu_action());
         packfile_contents_tree_view_context_menu.insert_separator(&context_menu_rename);
         packfile_contents_tree_view_context_menu.insert_separator(&context_menu_merge_tables);
 

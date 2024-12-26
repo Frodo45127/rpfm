@@ -561,6 +561,10 @@ impl Table {
         self.table_data.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.table_data.is_empty()
+    }
+
     pub(crate) fn decode_table<R: ReadBytes>(data: &mut R, definition: &Definition, entry_count: Option<u32>, return_incomplete: bool) -> Result<Vec<Vec<DecodedData>>> {
 
         // If we received an entry count, it's the root table. If not, it's a nested one.

@@ -318,7 +318,7 @@ impl TableDiagnostic {
                         let relative_paths = fields_processed[column].filename_relative_path(patches);
                         let paths = if let Some(relative_paths) = relative_paths {
                             relative_paths.iter()
-                                .map(|x| {
+                                .flat_map(|x| {
                                     let mut paths = vec![];
                                     let cell_data = cell_data.replace('\\', "/");
                                     for cell_data in cell_data.split(',') {
@@ -337,7 +337,6 @@ impl TableDiagnostic {
 
                                     paths
                                 })
-                                .flatten()
                                 .collect::<Vec<_>>()
                         } else {
                             let mut paths = vec![];

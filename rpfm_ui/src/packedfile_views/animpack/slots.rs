@@ -204,43 +204,43 @@ impl PackedFileAnimPackViewSlots {
             }
         ));
 
-        let pack_filter_change_text = SlotOfQString::new(&view.pack_tree_view.parent(), clone!(
+        let pack_filter_change_text = SlotOfQString::new(view.pack_tree_view.parent(), clone!(
             view => move |_| {
                 PackedFileAnimPackView::filter_files(&view, false);
             }
         ));
-        let pack_filter_change_autoexpand_matches = SlotOfBool::new(&view.pack_tree_view.parent(), clone!(
+        let pack_filter_change_autoexpand_matches = SlotOfBool::new(view.pack_tree_view.parent(), clone!(
             view => move |_| {
                 PackedFileAnimPackView::filter_files(&view, false);
             }
         ));
-        let pack_filter_change_case_sensitive = SlotOfBool::new(&view.pack_tree_view.parent(), clone!(
+        let pack_filter_change_case_sensitive = SlotOfBool::new(view.pack_tree_view.parent(), clone!(
             view => move |_| {
                 PackedFileAnimPackView::filter_files(&view, false);
             }
         ));
 
-        let anim_pack_filter_change_text = SlotOfQString::new(&view.pack_tree_view.parent(), clone!(
+        let anim_pack_filter_change_text = SlotOfQString::new(view.pack_tree_view.parent(), clone!(
             view => move |_| {
                 PackedFileAnimPackView::filter_files(&view, true);
             }
         ));
-        let anim_pack_filter_change_autoexpand_matches = SlotOfBool::new(&view.pack_tree_view.parent(), clone!(
+        let anim_pack_filter_change_autoexpand_matches = SlotOfBool::new(view.pack_tree_view.parent(), clone!(
             view => move |_| {
                 PackedFileAnimPackView::filter_files(&view, true);
             }
         ));
-        let anim_pack_filter_change_case_sensitive = SlotOfBool::new(&view.pack_tree_view.parent(), clone!(
+        let anim_pack_filter_change_case_sensitive = SlotOfBool::new(view.pack_tree_view.parent(), clone!(
             view => move |_| {
                 PackedFileAnimPackView::filter_files(&view, true);
             }
         ));
 
         // Actions without buttons for the TreeView.
-        let pack_expand_all = SlotNoArgs::new(&view.pack_tree_view.parent(), clone!(view => move || { view.pack_tree_view.expand_all(); }));
-        let pack_collapse_all = SlotNoArgs::new(&view.pack_tree_view.parent(), clone!(view => move || { view.pack_tree_view.collapse_all(); }));
-        let anim_pack_expand_all = SlotNoArgs::new(&view.pack_tree_view.parent(), clone!(view => move || { view.anim_pack_tree_view.expand_all(); }));
-        let anim_pack_collapse_all = SlotNoArgs::new(&view.pack_tree_view.parent(), clone!(view => move || { view.anim_pack_tree_view.collapse_all(); }));
+        let pack_expand_all = SlotNoArgs::new(view.pack_tree_view.parent(), clone!(view => move || { view.pack_tree_view.expand_all(); }));
+        let pack_collapse_all = SlotNoArgs::new(view.pack_tree_view.parent(), clone!(view => move || { view.pack_tree_view.collapse_all(); }));
+        let anim_pack_expand_all = SlotNoArgs::new(view.pack_tree_view.parent(), clone!(view => move || { view.anim_pack_tree_view.expand_all(); }));
+        let anim_pack_collapse_all = SlotNoArgs::new(view.pack_tree_view.parent(), clone!(view => move || { view.anim_pack_tree_view.collapse_all(); }));
 
         // Return the slots, so we can keep them alive for the duration of the view.
         Self {

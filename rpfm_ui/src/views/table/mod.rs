@@ -1093,11 +1093,11 @@ impl TableView {
 
                 self.context_menu_go_to_definition.set_enabled(columns.iter()
                     .filter_map(|x| fields_processed.get(*x as usize))
-                    .any(|y| y.is_reference(Some(&schema_patches)).is_some()));
+                    .any(|y| y.is_reference(Some(schema_patches)).is_some()));
 
                 self.context_menu_go_to_file.set_enabled(columns.iter()
                     .filter_map(|x| fields_processed.get(*x as usize))
-                    .any(|y| y.is_filename(Some(&schema_patches))));
+                    .any(|y| y.is_filename(Some(schema_patches))));
             } else {
                 self.context_menu_go_to_definition.set_enabled(false);
                 self.context_menu_go_to_file.set_enabled(false);
@@ -1411,9 +1411,7 @@ impl TableView {
         // Get the initial value of the dialog.
         let initial_value = if let Some(first) = indexes_sorted.first() {
             if first.is_valid() {
-                if let Ok(data) = self.table_filter.map_to_source(*first).data_0a().to_string().to_std_string().parse::<i64>() {
-                    data
-                } else { 0 }
+                self.table_filter.map_to_source(*first).data_0a().to_string().to_std_string().parse::<i64>().unwrap_or_default()
             } else { 0 }
         } else { 0 };
 
@@ -2806,7 +2804,7 @@ impl TableView {
                                 Some(vanilla_field_column) => {
 
                                     // Make sure to check the column, because we may be getting a different definition of our own here.
-                                    match vanilla_table.data()[*vanilla_row as usize].get(vanilla_field_column as usize) {
+                                    match vanilla_table.data()[*vanilla_row as usize].get(vanilla_field_column) {
                                         Some(vanilla_data) => {
                                             if vanilla_data != &local_data {
                                                 item.set_data_2a(ref_from_atomic(&QVARIANT_TRUE), ITEM_IS_MODIFIED_VS_VANILLA);
@@ -3398,8 +3396,8 @@ impl TableView {
                             if let Some(files) = files.remove(&DataSource::GameFiles) {
                                 let mut paths = files.keys().collect::<Vec<_>>();
                                 paths.sort();
-                                if let Some(path) = paths.get(0) {
-                                    let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(&path, DataSource::GameFiles);
+                                if let Some(path) = paths.first() {
+                                    let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(path, DataSource::GameFiles);
                                     if let Some(ref tree_index) = tree_index {
                                         if tree_index.is_valid() {
                                             let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view().static_upcast::<QObject>());
@@ -3415,8 +3413,8 @@ impl TableView {
                             if let Some(files) = files.remove(&DataSource::ParentFiles) {
                                 let mut paths = files.keys().collect::<Vec<_>>();
                                 paths.sort();
-                                if let Some(path) = paths.get(0) {
-                                    let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(&path, DataSource::ParentFiles);
+                                if let Some(path) = paths.first() {
+                                    let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(path, DataSource::ParentFiles);
                                     if let Some(ref tree_index) = tree_index {
                                         if tree_index.is_valid() {
                                             let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view().static_upcast::<QObject>());
@@ -3432,8 +3430,8 @@ impl TableView {
                             if let Some(files) = files.remove(&DataSource::PackFile) {
                                 let mut paths = files.keys().collect::<Vec<_>>();
                                 paths.sort();
-                                if let Some(path) = paths.get(0) {
-                                    let tree_index = pack_file_contents_ui.packfile_contents_tree_view().expand_treeview_to_item(&path, DataSource::PackFile);
+                                if let Some(path) = paths.first() {
+                                    let tree_index = pack_file_contents_ui.packfile_contents_tree_view().expand_treeview_to_item(path, DataSource::PackFile);
                                     if let Some(ref tree_index) = tree_index {
                                         if tree_index.is_valid() {
                                             let _blocker = QSignalBlocker::from_q_object(pack_file_contents_ui.packfile_contents_tree_view().static_upcast::<QObject>());

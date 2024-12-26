@@ -1265,7 +1265,7 @@ impl GlobalSearchUI {
                         let pos = Self::new_item();
                         let len = Self::new_item();
 
-                        pos_formatted.set_text(&QString::from_std_str(&format!("0x{:0>8X}", *match_row.pos())));
+                        pos_formatted.set_text(&QString::from_std_str(format!("0x{:0>8X}", *match_row.pos())));
                         pos.set_data_2a(&QVariant::from_u64(*match_row.pos() as u64), 2);
                         len.set_data_2a(&QVariant::from_u64(*match_row.len() as u64), 2);
 
@@ -1597,7 +1597,7 @@ impl GlobalSearchUI {
                         let pos = Self::new_item();
                         let len = Self::new_item();
 
-                        pos_formatted.set_text(&QString::from_std_str(&format!("0x{:0>8X}", *match_row.pos())));
+                        pos_formatted.set_text(&QString::from_std_str(format!("0x{:0>8X}", *match_row.pos())));
                         pos.set_data_2a(&QVariant::from_u64(*match_row.pos() as u64), 2);
                         len.set_data_2a(&QVariant::from_u64(*match_row.len() as u64), 2);
 

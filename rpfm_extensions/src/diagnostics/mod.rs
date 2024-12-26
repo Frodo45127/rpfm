@@ -8,16 +8,14 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*!
-Module with all the code related to the `Diagnostics`.
-
-This module contains the code needed to get a `Diagnostics` over an entire `PackFile`.
-
-Notes on cells_affected:
-- Both -1: affects the entire table.
-- Row -1: affects all rows in single column.
-- Column -1: affects all columns in single row.
-!*/
+//! Module with all the code related to the `Diagnostics`.
+//!
+//! This module contains the code needed to get a `Diagnostics` over an entire `PackFile`.
+//!
+//! Notes on cells_affected:
+//! - Both -1: affects the entire table.
+//! - Row -1: affects all rows in single column.
+//! - Column -1: affects all columns in single row.
 
 use getset::{Getters, MutGetters};
 use rayon::prelude::*;
@@ -334,7 +332,7 @@ impl Diagnostics {
                         )
                     },
                     FileType::Loc => TableDiagnostic::check_loc(file, &self.diagnostics_ignored, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields),
-                    FileType::Text => TextDiagnostic::check(file, &pack, dependencies, &self.diagnostics_ignored, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields),
+                    FileType::Text => TextDiagnostic::check(file, pack, dependencies, &self.diagnostics_ignored, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields),
                     FileType::PortraitSettings => PortraitSettingsDiagnostic::check(file, &art_set_ids, &variant_filenames, dependencies, &self.diagnostics_ignored, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields, local_file_path_list),
                     _ => None,
                 };

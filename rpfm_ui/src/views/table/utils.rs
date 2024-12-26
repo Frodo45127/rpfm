@@ -265,11 +265,7 @@ pub unsafe fn get_default_item_from_field(field: &Field, patches: Option<&Defini
         FieldType::F32 => {
             let item = QStandardItem::new();
             let data = if let Some(default_value) = field.default_value(patches) {
-                if let Ok(default_value) = default_value.parse::<f32>() {
-                    default_value
-                } else {
-                    0.0f32
-                }
+                default_value.parse::<f32>().unwrap_or_default()
             } else {
                 0.0f32
             };
@@ -284,11 +280,7 @@ pub unsafe fn get_default_item_from_field(field: &Field, patches: Option<&Defini
         FieldType::F64 => {
             let item = QStandardItem::new();
             let data = if let Some(default_value) = field.default_value(patches) {
-                if let Ok(default_value) = default_value.parse::<f64>() {
-                    default_value
-                } else {
-                    0.0f64
-                }
+                default_value.parse::<f64>().unwrap_or_default()
             } else {
                 0.0f64
             };
@@ -323,11 +315,7 @@ pub unsafe fn get_default_item_from_field(field: &Field, patches: Option<&Defini
         FieldType::OptionalI32 => {
             let item = QStandardItem::new();
             let data = if let Some(default_value) = field.default_value(patches) {
-                if let Ok(default_value) = default_value.parse::<i32>() {
-                    default_value
-                } else {
-                    0i32
-                }
+                default_value.parse::<i32>().unwrap_or_default()
             } else {
                 0i32
             };
@@ -342,11 +330,7 @@ pub unsafe fn get_default_item_from_field(field: &Field, patches: Option<&Defini
         FieldType::OptionalI64 => {
             let item = QStandardItem::new();
             let data = if let Some(default_value) = field.default_value(patches) {
-                if let Ok(default_value) = default_value.parse::<i64>() {
-                    default_value
-                } else {
-                    0i64
-                }
+                default_value.parse::<i64>().unwrap_or_default()
             } else {
                 0i64
             };

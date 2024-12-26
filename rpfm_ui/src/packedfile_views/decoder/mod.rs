@@ -1113,7 +1113,7 @@ impl PackedFileDecoderView {
         }
 
         // Loop through all the rows.
-        let entries = if let Some(entries) = entries { entries } else { 1 };
+        let entries = entries.unwrap_or(1);
         let row_count = if let Some(ref model_index) = model_index {
             self.table_model.item_from_index(model_index.as_ref()).row_count()
         } else { self.table_model.row_count_0a() };
@@ -1162,7 +1162,7 @@ impl PackedFileDecoderView {
                         item.set_text(&QString::from_std_str(&decoded_data));
 
                         let item = self.table_model.item_from_index(&model_index.sibling_at_column(0));
-                        item.set_text(&QString::from_std_str(&format!("{}", row + 1)));
+                        item.set_text(&QString::from_std_str(format!("{}", row + 1)));
                     }
 
                     // If it's a sequence,decode also it's internal first row, then move the index to skip the rest.

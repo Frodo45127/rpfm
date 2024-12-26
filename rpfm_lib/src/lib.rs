@@ -22,7 +22,9 @@
 #![allow(
     clippy::too_many_arguments,             // Disabled because it gets annoying really quick.
     clippy::field_reassign_with_default,    // Disabled because it gets annoying on tests.
-    clippy::assigning_clones
+    clippy::assigning_clones,
+    clippy::type_complexity,
+    clippy::upper_case_acronyms,
 )]
 
 use lazy_static::*;

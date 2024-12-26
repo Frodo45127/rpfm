@@ -156,6 +156,11 @@ impl Loc {
         self.table.len()
     }
 
+    /// This function returns if the Loc Table is empty.
+    pub fn is_empty(&self) -> bool {
+        self.table.is_empty()
+    }
+
     /// This function replaces the definition of this table with the one provided.
     ///
     /// This updates the table's data to follow the format marked by the new definition, so you can use it to *update* the version of your table.

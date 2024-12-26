@@ -3156,6 +3156,7 @@ impl AppUI {
     /// - `text/xxxx` -> Loc Table.
     /// - `script/xxxx` -> Lua PackedFile.
     /// - `variantmeshes/variantmeshdefinitions/xxxx` -> VMD PackedFile.
+    ///
     /// The name used for each packfile is a generic one.
     pub unsafe fn new_queek_packed_file(app_ui: &Rc<Self>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
 

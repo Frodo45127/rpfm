@@ -2029,7 +2029,7 @@ pub fn background_loop() {
             Command::GenerateMissingLocData => {
                 match generate_missing_loc_data(&mut pack_file_decoded, &dependencies.read().unwrap()) {
                     Ok(path) => CentralCommand::send_back(&sender, Response::VecContainerPath(path)),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                 }
             }
 
@@ -2257,7 +2257,7 @@ pub fn background_loop() {
             }
 
             Command::BuildStarposCheckVictoryConditions => {
-                if &*GAME_SELECTED.read().unwrap().key() == KEY_WARHAMMER_3 || pack_file_decoded.file(VICTORY_OBJECTIVES_FILE_NAME, false).is_some() {
+                if GAME_SELECTED.read().unwrap().key() == KEY_WARHAMMER_3 || pack_file_decoded.file(VICTORY_OBJECTIVES_FILE_NAME, false).is_some() {
                     CentralCommand::send_back(&sender, Response::Success);
                 } else {
                     CentralCommand::send_back(&sender, Response::Error(anyhow!("Missing \"db/victory_objectives.txt\" file. Processing the startpos without this file will result in issues in campaign. Add the file to the pack and try again.")));
@@ -2319,7 +2319,7 @@ pub fn background_loop() {
             Command::GetTablesFromDependencies(table_name) => {
                 let dependencies = dependencies.read().unwrap();
                 match dependencies.db_data(&table_name, true, true) {
-                    Ok(files) => CentralCommand::send_back(&sender, Response::VecRFile(files.iter().map(|x| (&**x).clone()).collect::<Vec<_>>())),
+                    Ok(files) => CentralCommand::send_back(&sender, Response::VecRFile(files.iter().map(|x| (**x).clone()).collect::<Vec<_>>())),
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                 }
             }
@@ -3078,7 +3078,7 @@ fn add_tile_maps_and_tiles(pack: &mut Pack, dependencies: &mut Dependencies, sch
             });
 
             let file_name = format!("{}_{}.bin", subpath.replace('/', "_"), tile.file_name().unwrap().to_string_lossy());
-            tile_database.push(&format!("_tile_database/TILES/{}", file_name));
+            tile_database.push(format!("_tile_database/TILES/{}", file_name));
             let tile_database_path = format!("terrain/tiles/battle/_tile_database/TILES/{}", file_name);
 
             added_paths.push(pack.insert_file(&tile_database, &tile_database_path, &None)?.unwrap());

@@ -292,15 +292,13 @@ impl PackTranslation {
             .iter()
             .sorted_by(|(_, tr1), (_, tr2)| Ord::cmp(tr1.key(), tr2.key()))
             .sorted_by(|(_, tr1), (_, tr2)| Ord::cmp(tr2.needs_retranslation(), tr1.needs_retranslation()))
-            .map(|(_, tr)| {
-            let mut row = Vec::with_capacity(5);
-            row.push(DecodedData::StringU8(tr.key().to_owned()));
-            row.push(DecodedData::Boolean(*tr.needs_retranslation()));
-            row.push(DecodedData::Boolean(*tr.removed()));
-            row.push(DecodedData::StringU8(tr.value_original().to_owned()));
-            row.push(DecodedData::StringU8(tr.value_translated().to_owned()));
-            row
-        }).collect::<Vec<_>>();
+            .map(|(_, tr)| vec![
+                DecodedData::StringU8(tr.key().to_owned()),
+                DecodedData::Boolean(*tr.needs_retranslation()),
+                DecodedData::Boolean(*tr.removed()),
+                DecodedData::StringU8(tr.value_original().to_owned()),
+                DecodedData::StringU8(tr.value_translated().to_owned()),
+            ]).collect::<Vec<_>>();
 
         table.set_data(&data)?;
         Ok(table)

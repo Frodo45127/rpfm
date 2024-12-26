@@ -302,7 +302,7 @@ pub enum Command {
     /// This command is used for the Find References feature. Contains list of table/columns to search, and value to search.
     SearchReferences(HashMap<String, Vec<String>>, String),
 
-    /// This command is used to get the type of a File.
+    // This command is used to get the type of a File.
     //GetFileType(String),
 
     /// This command is used to get the name of the currently open PackFile.
@@ -404,7 +404,7 @@ pub enum Response {
     // Response to return (GlobalSearch, Vec<RFileInfo>).
     GlobalSearchVecRFileInfo(Box<GlobalSearch>, Vec<RFileInfo>),
 
-    /// Response to return (`Vec<Vec<String>>`).
+    // Response to return (`Vec<Vec<String>>`).
     //VecVecString(Vec<Vec<String>>),
 
     // Response to return (Vec<ContainerPath>).
@@ -413,7 +413,7 @@ pub enum Response {
     // Response to return (Vec<(ContainerPath, Vec<String>)>).
     VecContainerPathContainerPath(Vec<(ContainerPath, ContainerPath)>),
 
-    /// Response to return (String, `Vec<Vec<String>>`).
+    // Response to return (String, `Vec<Vec<String>>`).
     //StringVecVecString((String, Vec<Vec<String>>)),
 
     /// Response to return `APIResponse`.

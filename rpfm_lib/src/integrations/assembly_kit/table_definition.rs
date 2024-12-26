@@ -441,11 +441,7 @@ impl From<&RawField> for Field {
         // Some fields are marked as filename, but only have fragment paths, which do not seem to correlate to game file paths.
         // We need to disable those to avoid false positives on diagnostics.
         let is_filename = match raw_field.is_filename {
-            Some(_) => if raw_field.fragment_path.is_some() && raw_field.filename_relative_path.is_none() {
-                false
-            } else {
-                true
-            }
+            Some(_) => !(raw_field.fragment_path.is_some() && raw_field.filename_relative_path.is_none()),
             None => false,
         };
 

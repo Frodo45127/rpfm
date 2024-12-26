@@ -321,7 +321,7 @@ impl Dependencies {
 
                     table_name = format!("{table_name}_tables");
 
-                    let definition = schema.definitions().get(&table_name).map(|x| x.get(0)).flatten();
+                    let definition = schema.definitions().get(&table_name).and_then(|x| x.first());
 
                     x.to_db(definition)
                 }
@@ -1358,18 +1358,18 @@ impl Dependencies {
             }
         );
 
-        for index in 0..fields_processed.len() {
+        for (index, field) in fields_processed.iter().enumerate() {
             match vanilla_references.get_mut(&(index as i32)) {
                 Some(references) => {
-                    let hardcoded_lookup = fields_processed[index as usize].lookup_hardcoded(patches);
+                    let hardcoded_lookup = field.lookup_hardcoded(patches);
                     if !hardcoded_lookup.is_empty() {
                         references.data.extend(hardcoded_lookup);
                     }
                 },
                 None => {
                     let mut references = TableReferences::default();
-                    *references.field_name_mut() = fields_processed[index as usize].name().to_owned();
-                    let hardcoded_lookup = fields_processed[index as usize].lookup_hardcoded(patches);
+                    *references.field_name_mut() = field.name().to_owned();
+                    let hardcoded_lookup = field.lookup_hardcoded(patches);
                     if !hardcoded_lookup.is_empty() {
                         references.data.extend(hardcoded_lookup);
                         vanilla_references.insert(index as i32, references);
@@ -1503,7 +1503,7 @@ impl Dependencies {
                                 // If it's the last step, check if it's a loc, or a table column.
                                 if index == ref_lookup_steps.len() - 1 {
                                     if let Some(file) = cache.get(lookup_ref_table) {
-                                        if let Some(file) = file.get(0) {
+                                        if let Some(file) = file.first() {
                                             if let Ok(RFileDecoded::DB(db)) = file.decoded() {
                                                 let definition = db.definition();
                                                 let fields_processed = definition.fields_processed();
@@ -1597,7 +1597,7 @@ impl Dependencies {
                             }
                         }
 
-                        (ref_lookup_steps, is_loc, col_pos)
+                        (ref_lookup_steps, is_loc)
 
                     }).collect::<Vec<_>>();
 
@@ -1609,10 +1609,10 @@ impl Dependencies {
                         let reference_data = row[ref_column_index].data_to_string();
 
                         // Then, we get the lookup data. Only calculate it for non-empty keys.
-                        for (lookup_steps, is_loc, column) in lookups_analyzed.iter() {
+                        for (lookup_steps, is_loc) in lookups_analyzed.iter() {
                             if !reference_data.is_empty() {
 
-                                if let Some(lookup) = self.db_reference_data_generic_lookup(&cache, loc_data, &reference_data, lookup_steps, *is_loc, *column, &table_data_cache) {
+                                if let Some(lookup) = self.db_reference_data_generic_lookup(&cache, loc_data, &reference_data, lookup_steps, *is_loc, &table_data_cache) {
                                     lookup_data.push(lookup);
                                 }
                             }
@@ -1642,10 +1642,9 @@ impl Dependencies {
         &self,
         cache: &HashMap<String, Vec<&RFile>>,
         loc_data: &HashMap<Cow<str>, Cow<str>>,
-        lookup_key: &Cow<str>,
+        lookup_key: &str,
         lookup_steps: &[Vec<&str>],
         is_loc: bool,
-        column: usize,
         table_data_cache: &HashMap<String, HashMap<String, String>>
     ) -> Option<String> {
         let mut data_found: Option<String> = None;
@@ -1662,12 +1661,12 @@ impl Dependencies {
                 let table_data_column_cache_key = file.path_in_container_raw().to_owned() + &current_step.join("++");
                 if let Some(table_data_column_cache) = table_data_cache.get(&table_data_column_cache_key) {
 
-                    if let Some(lookup_value) = table_data_column_cache.get(&**lookup_key) {
+                    if let Some(lookup_value) = table_data_column_cache.get(lookup_key) {
 
                         // If we're not yet in the last step, reduce the steps and repeat.
                         if lookup_steps.len() > 1 {
                             if !lookup_value.is_empty() {
-                                data_found = self.db_reference_data_generic_lookup(cache, loc_data, &Cow::from(lookup_value), &lookup_steps[1..], is_loc, column, table_data_cache);
+                                data_found = self.db_reference_data_generic_lookup(cache, loc_data, lookup_value, &lookup_steps[1..], is_loc, table_data_cache);
                             }
                         }
 
@@ -2184,6 +2183,7 @@ impl Dependencies {
     }
 
     /// This function generates automatic schema patches based mainly on bruteforcing and some clever logic.
+    #[allow(clippy::if_same_then_else)]
     pub fn generate_automatic_patches(&self, schema: &mut Schema) -> Result<()> {
         let db_tables = self.db_and_loc_data(true, false, true, false)?
             .iter()

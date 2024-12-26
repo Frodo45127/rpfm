@@ -177,6 +177,7 @@ pub trait PackTree {
     /// BIG NOTE: Each StandardItem should keep track of his own status, meaning that their data means:
     /// - Position 20: Type. 1 is File, 2 is Folder, 4 is PackFile.
     /// - Position 21: Status. 0 is untouched, 1 is added, 2 is modified.
+    ///
     /// In case you don't realise, those are bitmasks.
     unsafe fn update_treeview(&self, has_filter: bool, operation: TreeViewOperation, source: DataSource);
 }
@@ -1700,6 +1701,7 @@ unsafe fn clean_treeview(item: Option<Ptr<QStandardItem>>, model: &QStandardItem
 /// - aFile.
 /// - ZFile.
 /// - zFile.
+///
 /// The reason for this function is because the native Qt function doesn't order folders before files.
 unsafe fn sort_item_in_tree_view(
     model: &QPtr<QStandardItemModel>,
@@ -1859,7 +1861,7 @@ impl BuildData {
     }
 }
 
-fn sort_folders_before_files_alphabetically_container_paths(files: &mut Vec<ContainerPath>) {
+fn sort_folders_before_files_alphabetically_container_paths(files: &mut [ContainerPath]) {
     files.par_sort_unstable_by(|a, b| {
         let a_path = a.path_raw();
         let b_path = b.path_raw();
@@ -1873,7 +1875,7 @@ fn sort_folders_before_files_alphabetically_container_paths(files: &mut Vec<Cont
 // - FolderB
 // - FileA
 // - FileB
-fn sort_folders_before_files_alphabetically_file_infos(files: &mut Vec<RFileInfo>) {
+fn sort_folders_before_files_alphabetically_file_infos(files: &mut [RFileInfo]) {
     files.par_sort_unstable_by(|a, b| {
         let a_path = a.path();
         let b_path = b.path();
