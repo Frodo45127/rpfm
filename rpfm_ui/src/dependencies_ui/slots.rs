@@ -171,7 +171,11 @@ impl DependenciesUISlots {
                         },
                         DataSource::AssKitFiles => {
                             dependencies_ui.context_menu_extract.set_enabled(false);
-                            dependencies_ui.context_menu_import.set_enabled(true);
+                            if pack_file_contents_ui.packfile_contents_tree_model().row_count_0a() > 0 {
+                                dependencies_ui.context_menu_import.set_enabled(true);
+                            } else {
+                                dependencies_ui.context_menu_import.set_enabled(false);
+                            }
                         },
                         DataSource::ExternalFile => {
                             dependencies_ui.context_menu_extract.set_enabled(false);
