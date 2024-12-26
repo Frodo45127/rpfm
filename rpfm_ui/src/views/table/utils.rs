@@ -815,6 +815,13 @@ pub unsafe fn build_columns(
                     }
                 }
                 TableType::DB(ref table) => {
+
+                    // I'm not sure why, but when importing TSVs the resizing sometimes crash due to index out of len errors.
+                    // So we only resize if there are enough columns.
+                    if table.data().par_iter().any(|row| row.len() < index) {
+                        continue;
+                    }
+
                     match field.field_type() {
                         FieldType::Boolean |
                         FieldType::F32 |
