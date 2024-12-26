@@ -1231,7 +1231,7 @@ pub fn background_loop() {
                             Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                         }
                     }
-                    _ => todo!("Make cases for dependencies."),
+                    _ => CentralCommand::send_back(&sender, Response::Error(anyhow!("Opening dependencies files in external programs is not yet supported."))),
                 }
             }
 
