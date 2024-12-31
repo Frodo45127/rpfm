@@ -44,13 +44,14 @@ use std::io::{Read, BufReader};
 use std::sync::{Arc, RwLock};
 
 use rpfm_lib::notes::Note;
+
 use rpfm_ui_common::ASSETS_PATH;
 use rpfm_ui_common::locale::{qtr, tr};
+use rpfm_ui_common::utils::*;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::ffi::new_tips_item_delegate_safe;
-use crate::utils::*;
 
 mod connections;
 mod slots;

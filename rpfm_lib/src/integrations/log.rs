@@ -29,7 +29,7 @@ use simplelog::{ColorChoice, CombinedLogger, LevelFilter, SharedLogger, TermLogg
 use std::borrow::Cow;
 use std::fs::{DirBuilder, File};
 use std::io::{BufWriter, Write};
-use std::{panic, panic::PanicInfo};
+use std::{panic, panic::PanicHookInfo};
 use std::path::Path;
 use std::sync::{Arc, RwLock};
 
@@ -127,7 +127,7 @@ impl Logger {
         let sentry_enabled = sentry_guard.is_enabled();
         let orig_hook = panic::take_hook();
         let logging_path = logging_path.to_owned();
-        panic::set_hook(Box::new(move |info: &panic::PanicInfo| {
+        panic::set_hook(Box::new(move |info: &PanicHookInfo| {
             warn!("Panic detected. Generating backtraces and crash logs...");
 
             // Get the data printed into the logs, because I'm tired of this getting "missed" when is a cross-thread crash.
@@ -152,7 +152,7 @@ impl Logger {
     /// Create a new local Crash Report from a `Panic`.
     ///
     /// Remember that this creates the Crash Report in memory. If you want to save it to disk, you've to do it later.
-    pub fn new(panic_info: &PanicInfo, version: &str) -> Self {
+    pub fn new(panic_info: &PanicHookInfo, version: &str) -> Self {
 
         let info = os_info::get();
         let operating_system = format!("OS: {}\nVersion: {}", info.os_type(), info.version());

@@ -57,8 +57,14 @@ use rpfm_lib::games::{GameInfo, supported_games::{SupportedGames, KEY_WARHAMMER_
 use rpfm_lib::integrations::log::*;
 use rpfm_lib::schema::Schema;
 
+use rpfm_ui_common::APP_NAME;
 use rpfm_ui_common::icons::Icons;
 use rpfm_ui_common::locale::*;
+use rpfm_ui_common::ORG_DOMAIN;
+use rpfm_ui_common::ORG_NAME;
+use rpfm_ui_common::SETTINGS;
+use rpfm_ui_common::settings::error_path;
+use rpfm_ui_common::utils::*;
 
 use crate::communications::{CentralCommand, Command, Response};
 use crate::settings_ui::backend::*;
@@ -100,7 +106,7 @@ lazy_static! {
 
     /// The current GameSelected. If invalid, it uses WH3 as default.
     static ref GAME_SELECTED: Arc<RwLock<&'static GameInfo>> = Arc::new(RwLock::new(
-        match SUPPORTED_GAMES.game(&setting_string("default_game")) {
+        match SUPPORTED_GAMES.game(&SETTINGS.read().unwrap().string("default_game")) {
             Some(game) => game,
             None => SUPPORTED_GAMES.game(KEY_WARHAMMER_3).unwrap(),
         }
@@ -216,6 +222,10 @@ fn main() {
         QCoreApplication::set_organization_domain(&QString::from_std_str("com"));
         QCoreApplication::set_organization_name(&QString::from_std_str("FrodoWazEre"));
         QCoreApplication::set_application_name(&QString::from_std_str("rpfm"));
+
+        *ORG_DOMAIN.write().unwrap() = String::from("com");
+        *ORG_NAME.write().unwrap() = String::from("FrodoWazEre");
+        *APP_NAME.write().unwrap() = String::from("rpfm");
 
         // This fixes the app icon on wayland.
         QGuiApplication::set_desktop_file_name(&QString::from_std_str("rpfm"));

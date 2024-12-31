@@ -41,13 +41,14 @@ use rpfm_lib::utils::*;
 
 use rpfm_ui_common::FULL_DATE_FORMAT;
 use rpfm_ui_common::locale::qtr;
+use rpfm_ui_common::SETTINGS;
+use rpfm_ui_common::utils::*;
 
 use crate::backend::*;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::packedfile_views::DataSource;
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::settings_ui::backend::*;
 use crate::TREEVIEW_ICONS;
 use crate::utils::*;
 
@@ -1325,7 +1326,7 @@ impl PackTree for QPtr<QTreeView> {
                         }
                     }
 
-                    if setting_bool("expand_treeview_when_adding_items") {
+                    if SETTINGS.read().unwrap().bool("expand_treeview_when_adding_items") {
                         self.expand_treeview_to_item(path, source);
                     }
                 }
@@ -1537,7 +1538,7 @@ impl PackTree for QPtr<QTreeView> {
                 }
 
                 // Remove the now empty folders.
-                self.update_treeview(has_filter, TreeViewOperation::Delete(base_folders, setting_bool("delete_empty_folders_on_delete")), source);
+                self.update_treeview(has_filter, TreeViewOperation::Delete(base_folders, SETTINGS.read().unwrap().bool("delete_empty_folders_on_delete")), source);
             },
 
             // If you want to mark an item so it can't lose his modified state...
@@ -1927,7 +1928,7 @@ fn sort_folders_before_files_alphabetically_paths(a_path: &str, b_path: &str) ->
 }
 
 pub unsafe fn get_color_correct() -> String {
-    if setting_bool("use_dark_theme") {
+    if SETTINGS.read().unwrap().bool("use_dark_theme") {
         GREEN_DARK.to_owned()
     } else {
         GREEN_BRIGHT.to_owned()
@@ -1935,7 +1936,7 @@ pub unsafe fn get_color_correct() -> String {
 }
 
 pub unsafe fn get_color_wrong() -> String {
-    if setting_bool("use_dark_theme") {
+    if SETTINGS.read().unwrap().bool("use_dark_theme") {
         RED_DARK.to_owned()
     } else {
         RED_BRIGHT.to_owned()
@@ -1943,7 +1944,7 @@ pub unsafe fn get_color_wrong() -> String {
 }
 
 pub unsafe fn get_color_clean() -> String {
-    if setting_bool("use_dark_theme") {
+    if SETTINGS.read().unwrap().bool("use_dark_theme") {
         MEDIUM_DARKER_GREY.to_owned()
     } else {
         TRANSPARENT_BRIGHT.to_owned()
@@ -1951,7 +1952,7 @@ pub unsafe fn get_color_clean() -> String {
 }
 
 pub unsafe fn get_color_info() -> String {
-    if setting_bool("use_dark_theme") {
+    if SETTINGS.read().unwrap().bool("use_dark_theme") {
         INFO_UNPRESSED_DARK.to_owned()
     } else {
         INFO_UNPRESSED_LIGHT.to_owned()
@@ -1959,7 +1960,7 @@ pub unsafe fn get_color_info() -> String {
 }
 
 pub unsafe fn get_color_warning() -> String {
-    if setting_bool("use_dark_theme") {
+    if SETTINGS.read().unwrap().bool("use_dark_theme") {
         WARNING_UNPRESSED_DARK.to_owned()
     } else {
         WARNING_UNPRESSED_LIGHT.to_owned()
@@ -1967,7 +1968,7 @@ pub unsafe fn get_color_warning() -> String {
 }
 
 pub unsafe fn get_color_error() -> String {
-    if setting_bool("use_dark_theme") {
+    if SETTINGS.read().unwrap().bool("use_dark_theme") {
         ERROR_UNPRESSED_DARK.to_owned()
     } else {
         ERROR_UNPRESSED_LIGHT.to_owned()
@@ -1975,7 +1976,7 @@ pub unsafe fn get_color_error() -> String {
 }
 
 pub unsafe fn get_color_info_pressed() -> String {
-    if setting_bool("use_dark_theme") {
+    if SETTINGS.read().unwrap().bool("use_dark_theme") {
         INFO_PRESSED_DARK.to_owned()
     } else {
         INFO_PRESSED_LIGHT.to_owned()
@@ -1983,7 +1984,7 @@ pub unsafe fn get_color_info_pressed() -> String {
 }
 
 pub unsafe fn get_color_warning_pressed() -> String {
-    if setting_bool("use_dark_theme") {
+    if SETTINGS.read().unwrap().bool("use_dark_theme") {
         WARNING_PRESSED_DARK.to_owned()
     } else {
         WARNING_PRESSED_LIGHT.to_owned()
@@ -1991,7 +1992,7 @@ pub unsafe fn get_color_warning_pressed() -> String {
 }
 
 pub unsafe fn get_color_error_pressed() -> String {
-    if setting_bool("use_dark_theme") {
+    if SETTINGS.read().unwrap().bool("use_dark_theme") {
         ERROR_PRESSED_DARK.to_owned()
     } else {
         ERROR_PRESSED_LIGHT.to_owned()

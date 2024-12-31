@@ -38,7 +38,7 @@ use anyhow::Result;
 use rpfm_lib::files::{esf::ESF, FileType};
 
 use rpfm_ui_common::locale::qtr;
-use rpfm_ui_common::utils::{load_template, find_widget};
+use rpfm_ui_common::utils::{create_grid_layout, load_template, find_widget};
 
 use crate::app_ui::AppUI;
 use crate::dependencies_ui::DependenciesUI;
@@ -50,7 +50,6 @@ use crate::packedfile_views::esf::slots::PackedFileESFViewSlots;
 use crate::packedfile_views::FileView;
 use crate::packedfile_views::PackFileContentsUI;
 use crate::references_ui::ReferencesUI;
-use crate::utils::create_grid_layout;
 
 use self::esf_detailed_view::ESFDetailedView;
 

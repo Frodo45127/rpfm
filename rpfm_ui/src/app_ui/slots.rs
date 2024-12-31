@@ -49,6 +49,9 @@ use rpfm_lib::integrations::log::*;
 
 use rpfm_ui_common::clone;
 use rpfm_ui_common::locale::{qtr, tr, tre};
+use rpfm_ui_common::SETTINGS;
+use rpfm_ui_common::settings::config_path;
+use rpfm_ui_common::utils::*;
 
 use crate::app_ui::AppUI;
 use crate::backend::*;
@@ -292,7 +295,7 @@ impl AppUISlots {
                             return show_dialog(&app_ui.main_window, error, false);
                         }
 
-                        if setting_bool("diagnostics_trigger_on_open") {
+                        if SETTINGS.read().unwrap().bool("diagnostics_trigger_on_open") {
                             DiagnosticsUI::check(&app_ui, &diagnostics_ui);
                         }
                     }
@@ -345,7 +348,7 @@ impl AppUISlots {
                     return show_dialog(&app_ui.main_window, "Pack to install not found on disk.", false);
                 }
 
-                if let Ok(mut game_local_mods_path) = GAME_SELECTED.read().unwrap().local_mods_path(&setting_path(GAME_SELECTED.read().unwrap().key())) {
+                if let Ok(mut game_local_mods_path) = GAME_SELECTED.read().unwrap().local_mods_path(&SETTINGS.read().unwrap().path_buf(GAME_SELECTED.read().unwrap().key())) {
                     if !game_local_mods_path.is_dir() {
                         return show_dialog(&app_ui.main_window, "Game Path not configured. Go to <i>'PackFile/Settings'</i> and configure it.", false);
                     }
@@ -358,7 +361,7 @@ impl AppUISlots {
                         game_local_mods_path.push(mod_name);
 
                         // Check if the PackFile is not a CA one before installing.
-                        let ca_paths = match GAME_SELECTED.read().unwrap().ca_packs_paths(&setting_path(GAME_SELECTED.read().unwrap().key())) {
+                        let ca_paths = match GAME_SELECTED.read().unwrap().ca_packs_paths(&SETTINGS.read().unwrap().path_buf(GAME_SELECTED.read().unwrap().key())) {
                             Ok(paths) => paths,
                             Err(_) => return show_dialog(&app_ui.main_window, "You can't do that to a CA PackFile, you monster!", false),
                         };
@@ -403,7 +406,7 @@ impl AppUISlots {
                     return show_dialog(&app_ui.main_window, "Pack to install not found on disk.", false);
                 }
 
-                if let Ok(mut game_local_mods_path) = GAME_SELECTED.read().unwrap().local_mods_path(&setting_path(GAME_SELECTED.read().unwrap().key())) {
+                if let Ok(mut game_local_mods_path) = GAME_SELECTED.read().unwrap().local_mods_path(&SETTINGS.read().unwrap().path_buf(GAME_SELECTED.read().unwrap().key())) {
                     if !game_local_mods_path.is_dir() {
                         return show_dialog(&app_ui.main_window, "Game Path not configured. Go to <i>'PackFile/Settings'</i> and configure it.", false);
                     }
@@ -415,7 +418,7 @@ impl AppUISlots {
                     if let Some(ref mod_name) = pack_path.file_name() {
                         game_local_mods_path.push(mod_name);
 
-                        let ca_paths = match GAME_SELECTED.read().unwrap().ca_packs_paths(&setting_path(GAME_SELECTED.read().unwrap().key())) {
+                        let ca_paths = match GAME_SELECTED.read().unwrap().ca_packs_paths(&SETTINGS.read().unwrap().path_buf(GAME_SELECTED.read().unwrap().key())) {
                             Ok(paths) => paths,
                             Err(_) => return show_dialog(&app_ui.main_window, "You can't do that to a CA PackFile, you monster!", false),
                         };
@@ -450,7 +453,7 @@ impl AppUISlots {
                 info!("Triggering `Load all CA PackFiles` By Slot");
 
                 // Reset the autosave timer.
-                let timer = setting_int("autosave_interval");
+                let timer = SETTINGS.read().unwrap().i32("autosave_interval");
                 if timer > 0 {
                     app_ui.timer_backup_autosave.set_interval(timer * 60 * 1000);
                     app_ui.timer_backup_autosave.start_0a();
@@ -575,21 +578,21 @@ impl AppUISlots {
                 info!("Triggering `Preferences Dialog` By Slot");
 
                 let game_key = GAME_SELECTED.read().unwrap().key();
-                let mymod_path_old = setting_path(MYMOD_BASE_PATH);
-                let secondary_path_old = setting_path(SECONDARY_PATH);
-                let game_path_old = setting_path(game_key);
-                let ak_path_old = setting_path(&format!("{game_key}_assembly_kit"));
-                let dark_theme_old = setting_bool("use_dark_theme");
-                let font_name_old = setting_string("font_name");
-                let font_size_old = setting_int("font_size");
+                let mymod_path_old = SETTINGS.read().unwrap().path_buf(MYMOD_BASE_PATH);
+                let secondary_path_old = SETTINGS.read().unwrap().path_buf(SECONDARY_PATH);
+                let game_path_old = SETTINGS.read().unwrap().path_buf(game_key);
+                let ak_path_old = SETTINGS.read().unwrap().path_buf(&format!("{game_key}_assembly_kit"));
+                let dark_theme_old = SETTINGS.read().unwrap().bool("use_dark_theme");
+                let font_name_old = SETTINGS.read().unwrap().string("font_name");
+                let font_size_old = SETTINGS.read().unwrap().i32("font_size");
 
                 match SettingsUI::new(&app_ui) {
                     Ok(saved) => {
                         if saved {
-                            let mymod_path_new = setting_path(MYMOD_BASE_PATH);
-                            let secondary_path_new = setting_path(SECONDARY_PATH);
-                            let game_path_new = setting_path(game_key);
-                            let ak_path_new = setting_path(&format!("{game_key}_assembly_kit"));
+                            let mymod_path_new = SETTINGS.read().unwrap().path_buf(MYMOD_BASE_PATH);
+                            let secondary_path_new = SETTINGS.read().unwrap().path_buf(SECONDARY_PATH);
+                            let game_path_new = SETTINGS.read().unwrap().path_buf(game_key);
+                            let ak_path_new = SETTINGS.read().unwrap().path_buf(&format!("{game_key}_assembly_kit"));
 
                             // If we changed the "MyMod's Folder" path, disable the MyMod mode and set it so the MyMod menu will be re-built
                             // next time we open the MyMod menu.
@@ -605,21 +608,21 @@ impl AppUISlots {
                             }
 
                             // If we detect a change in theme, reload it.
-                            let dark_theme_new = setting_bool("use_dark_theme");
+                            let dark_theme_new = SETTINGS.read().unwrap().bool("use_dark_theme");
                             if dark_theme_old != dark_theme_new {
                                 crate::utils::reload_theme(&app_ui);
                             }
 
                             // If we detect a change in the saved font, trigger a font change.
-                            let font_name = setting_string("font_name");
-                            let font_size = setting_int("font_size");
+                            let font_name = SETTINGS.read().unwrap().string("font_name");
+                            let font_size = SETTINGS.read().unwrap().i32("font_size");
                             if font_name_old != font_name || font_size_old != font_size {
                                 let font = QFont::from_q_string_int(&QString::from_std_str(&font_name), font_size);
                                 QApplication::set_font_1a(&font);
                             }
 
                             // If we detect a factory reset, reset the window's geometry and state.
-                            let factory_reset = setting_bool("factoryReset");
+                            let factory_reset = SETTINGS.read().unwrap().bool("factoryReset");
                             if factory_reset {
                                 app_ui.main_window().restore_geometry(&setting_byte_array("originalGeometry"));
                                 app_ui.main_window().restore_state_1a(&setting_byte_array("originalWindowState"));
@@ -630,7 +633,7 @@ impl AppUISlots {
                 }
 
                 // Make sure we don't drag the factory reset setting, no matter if the user saved or not.
-                set_setting_bool("factoryReset", false);
+                let _ = SETTINGS.write().unwrap().set_bool("factoryReset", false);
             }
         ));
 
@@ -659,7 +662,7 @@ impl AppUISlots {
         // What happens when we trigger the "Open MyMod Folder" action.
         let mymod_open_mymod_folder = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
-            let path = setting_path("mymods_base_path");
+            let path = SETTINGS.read().unwrap().path_buf("mymods_base_path");
             if path.is_dir() {
                 let _ = open::that(&path);
             } else {
@@ -714,7 +717,7 @@ impl AppUISlots {
                                     GlobalSearchUI::clear(&global_search_ui);
 
                                     // Reset the autosave timer.
-                                    let timer = setting_int("autosave_interval");
+                                    let timer = SETTINGS.read().unwrap().i32("autosave_interval");
                                     if timer > 0 {
                                         app_ui.timer_backup_autosave.set_interval(timer * 60 * 1000);
                                         app_ui.timer_backup_autosave.start_0a();
@@ -800,7 +803,7 @@ impl AppUISlots {
                         // copy the PackFile to the data folder of the selected game.
                         OperationalMode::MyMod(ref game_folder_name, ref mod_name) => {
                             old_mod_name = mod_name.to_owned();
-                            let mymods_base_path = setting_path(MYMOD_BASE_PATH);
+                            let mymods_base_path = SETTINGS.read().unwrap().path_buf(MYMOD_BASE_PATH);
                             if mymods_base_path.is_dir() {
 
                                 // We get the "MyMod"s PackFile path.
@@ -931,7 +934,7 @@ impl AppUISlots {
         // What happens when we trigger the "Launch Game" action.
         let game_selected_launch_game = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
-            match GAME_SELECTED.read().unwrap().game_launch_command(&setting_path(GAME_SELECTED.read().unwrap().key())) {
+            match GAME_SELECTED.read().unwrap().game_launch_command(&SETTINGS.read().unwrap().path_buf(GAME_SELECTED.read().unwrap().key())) {
                 Ok(command) => { let _ = open::that(command); },
                 _ => show_dialog(&app_ui.main_window, "The currently selected game cannot be launched from Steam.", false),
             }
@@ -940,7 +943,7 @@ impl AppUISlots {
         // What happens when we trigger the "Open Game's Data Folder" action.
         let game_selected_open_game_data_folder = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
-            if let Ok(path) = GAME_SELECTED.read().unwrap().data_path(&setting_path(GAME_SELECTED.read().unwrap().key())) {
+            if let Ok(path) = GAME_SELECTED.read().unwrap().data_path(&SETTINGS.read().unwrap().path_buf(GAME_SELECTED.read().unwrap().key())) {
                 let _ = open::that(path);
             } else {
                 show_dialog(&app_ui.main_window, "Game Path not configured. Go to <i>'PackFile/Settings'</i> and configure it.", false);
@@ -950,7 +953,7 @@ impl AppUISlots {
         // What happens when we trigger the "Open Game's Assembly Kit Folder" action.
         let game_selected_open_game_assembly_kit_folder = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
-            let path = setting_path(&format!("{}_assembly_kit", GAME_SELECTED.read().unwrap().key()));
+            let path = SETTINGS.read().unwrap().path_buf(&format!("{}_assembly_kit", GAME_SELECTED.read().unwrap().key()));
             if path.is_dir() {
                 let _ = open::that(&path);
             } else {
@@ -991,7 +994,7 @@ impl AppUISlots {
                 if AppUI::are_you_sure_edition(&app_ui, "generate_dependencies_cache_are_you_sure") {
                     info!("Triggering `Generate Dependencies Cache` By Slot");
 
-                    if (GAME_SELECTED.read().unwrap().raw_db_version() > &0 && !setting_path(&format!("{}_assembly_kit", GAME_SELECTED.read().unwrap().key())).is_dir()) ||
+                    if (GAME_SELECTED.read().unwrap().raw_db_version() > &0 && !SETTINGS.read().unwrap().path_buf(&format!("{}_assembly_kit", GAME_SELECTED.read().unwrap().key())).is_dir()) ||
                         (*GAME_SELECTED.read().unwrap().raw_db_version() == 0 && !old_ak_files_path().unwrap_or_default().join(GAME_SELECTED.read().unwrap().key()).is_dir()) {
                         show_dialog(&app_ui.main_window, tr("generate_dependencies_cache_warn"), false);
                     }
@@ -1171,7 +1174,7 @@ impl AppUISlots {
                                 let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, DataSource::PackFile, false);
                             }
 
-                            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Delete(paths_to_delete.to_vec(), setting_bool("delete_empty_folders_on_delete")), DataSource::PackFile);
+                            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Delete(paths_to_delete.to_vec(), SETTINGS.read().unwrap().bool("delete_empty_folders_on_delete")), DataSource::PackFile);
 
                             for path in &paths_to_delete {
                                 let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path.path_raw(), DataSource::PackFile, false);
@@ -1545,7 +1548,7 @@ impl AppUISlots {
                                 for (column, field) in fields_processed.iter().enumerate() {
 
                                     // Update lookups pointing to other tables/locs. We don't need to update self-referencing lookups, as those update on edit.
-                                    if setting_bool("enable_lookups") && field.lookup(patches).is_some() {
+                                    if SETTINGS.read().unwrap().bool("enable_lookups") && field.lookup(patches).is_some() {
                                         if let Some(column_data) = data.get(&(column as i32)) {
                                             let column_data = column_data.data();
                                             if !column_data.is_empty() {
@@ -1561,7 +1564,7 @@ impl AppUISlots {
                                     }
 
                                     // Update icons.
-                                    if setting_bool("enable_icons") && field.is_filename(patches) {
+                                    if SETTINGS.read().unwrap().bool("enable_icons") && field.is_filename(patches) {
                                         let mut icons = BTreeMap::new();
                                         if let Ok(ref table_data) = table_data {
 
@@ -1730,15 +1733,15 @@ impl AppUISlots {
                 // Before autosaving, check the space used by autosaves and throw a warning if we pass 25GB
                 if let Ok(autosave_path) = backup_autosave_path() {
                     if let Ok(folder_size) = fs_extra::dir::get_size(autosave_path) {
-                        if folder_size > 26843545600 && !setting_bool("autosave_folder_size_warning_triggered") {
-                            set_setting_bool("autosave_folder_size_warning_triggered", true);
+                        if folder_size > 26843545600 && !SETTINGS.read().unwrap().bool("autosave_folder_size_warning_triggered") {
+                            let _ = SETTINGS.write().unwrap().set_bool("autosave_folder_size_warning_triggered", true);
 
                             show_dialog(app_ui.main_window(), tr("autosave_folder_size_warning"), false);
                         }
 
                         // Make the warning available again once we get under 25GB.
                         else if folder_size <= 26843545600 {
-                            set_setting_bool("autosave_folder_size_warning_triggered", false);
+                            let _ = SETTINGS.write().unwrap().set_bool("autosave_folder_size_warning_triggered", false);
                         }
                     }
                 }
@@ -1750,7 +1753,7 @@ impl AppUISlots {
                 }
 
                 // Reset the timer.
-                let timer = setting_int("autosave_interval");
+                let timer = SETTINGS.read().unwrap().i32("autosave_interval");
                 if timer > 0 {
                     app_ui.timer_backup_autosave.set_interval(timer * 60 * 1000);
                     app_ui.timer_backup_autosave.start_0a();
@@ -1944,7 +1947,7 @@ impl AppUISlots {
                     return show_dialog(&app_ui.main_window, error, false);
                 }
 
-                if setting_bool("diagnostics_trigger_on_open") {
+                if SETTINGS.read().unwrap().bool("diagnostics_trigger_on_open") {
                     DiagnosticsUI::check(&app_ui, &diagnostics_ui);
                 }
             }

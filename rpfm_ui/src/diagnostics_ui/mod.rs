@@ -58,6 +58,8 @@ use rpfm_lib::games::supported_games::*;
 use rpfm_lib::integrations::log::info;
 
 use rpfm_ui_common::locale::{qtr, qtre};
+use rpfm_ui_common::SETTINGS;
+use rpfm_ui_common::utils::*;
 
 use crate::app_ui::AppUI;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
@@ -69,7 +71,6 @@ use crate::global_search_ui::GlobalSearchUI;
 use crate::pack_tree::*;
 use crate::packedfile_views::{DataSource, FileView, View, ViewType, SpecialView};
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::settings_ui::backend::*;
 use crate::UI_STATE;
 use crate::references_ui::ReferencesUI;
 use crate::utils::*;
@@ -254,7 +255,7 @@ impl DiagnosticsUI {
         diagnostics_table_filter.set_source_model(&diagnostics_table_model);
         diagnostics_table_view.set_model(&diagnostics_table_filter);
 
-        if setting_bool("tight_table_mode") {
+        if SETTINGS.read().unwrap().bool("tight_table_mode") {
             diagnostics_table_view.vertical_header().set_minimum_section_size(22);
             diagnostics_table_view.vertical_header().set_maximum_section_size(22);
             diagnostics_table_view.vertical_header().set_default_section_size(22);

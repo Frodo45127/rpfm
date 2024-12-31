@@ -8,18 +8,20 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*!
-Module with all the code to deal with the settings used to configure this lib.
-
-This module contains all the code related with the settings used by the lib to work. These
-settings are saved in the config folder, in a file called `settings.ron`, in case you want
-to change them manually.
-!*/
+//! Module with all the code to deal with the settings used to configure this program.
 
 use qt_widgets::QApplication;
 use qt_widgets::QMainWindow;
 
+use qt_core::QBox;
+use qt_core::QByteArray;
 use qt_core::QPtr;
+use qt_core::QSettings;
+use qt_core::QString;
+use qt_core::QVariant;
+
+use cpp_core::CppBox;
+use cpp_core::Ref;
 
 use anyhow::{anyhow, Result};
 use ron::ser::{PrettyConfig, to_string_pretty};
@@ -33,7 +35,8 @@ use rpfm_lib::error::RLibError;
 use rpfm_lib::games::{*, supported_games::*};
 use rpfm_lib::schema::{SCHEMA_FOLDER, DefinitionPatch};
 
-pub use rpfm_ui_common::settings::*;
+use rpfm_ui_common::SETTINGS;
+use rpfm_ui_common::settings::{config_path, error_path};
 
 use crate::GAME_SELECTED;
 use crate::SUPPORTED_GAMES;
@@ -54,21 +57,19 @@ const TABLE_PROFILES_FOLDER: &str = "table_profiles";
 //-------------------------------------------------------------------------------//
 
 pub unsafe fn init_settings(main_window: &QPtr<QMainWindow>) {
-    let q_settings = settings();
+    let mut settings = SETTINGS.write().unwrap();
+    settings.set_block_write(true);
 
-    set_setting_if_new_q_byte_array(&q_settings, "originalGeometry", main_window.save_geometry().as_ref());
-    set_setting_if_new_q_byte_array(&q_settings, "originalWindowState", main_window.save_state_0a().as_ref());
-
-    set_setting_if_new_string(&q_settings, MYMOD_BASE_PATH, "");
-    set_setting_if_new_string(&q_settings, SECONDARY_PATH, "");
+    settings.initialize_string(MYMOD_BASE_PATH, "");
+    settings.initialize_string(SECONDARY_PATH, "");
 
     for game in &SUPPORTED_GAMES.games() {
         let game_key = game.key();
 
         // Fix unsanitized paths.
-        let current_path = setting_string_from_q_setting(&q_settings, game_key);
+        let current_path = settings.string(game_key);
         if current_path.contains("\\") {
-            set_setting_string_to_q_setting(&q_settings, game_key, &current_path.replace("\\", "/"));
+            let _ = settings.set_string(game_key, &current_path.replace("\\", "/"));
         }
 
         let game_path = if let Ok(Some(game_path)) = game.find_game_install_location() {
@@ -79,9 +80,9 @@ pub unsafe fn init_settings(main_window: &QPtr<QMainWindow>) {
 
         // If we got a path and we don't have it saved yet, save it automatically.
         if current_path.is_empty() && !game_path.is_empty() {
-            set_setting_string_to_q_setting(&q_settings, game_key, &game_path);
+            let _ = settings.set_string(game_key, &game_path);
         } else {
-            set_setting_if_new_string(&q_settings, game_key, &game_path);
+            settings.initialize_string(game_key, &game_path);
         }
 
         if game_key != KEY_EMPIRE &&
@@ -96,85 +97,93 @@ pub unsafe fn init_settings(main_window: &QPtr<QMainWindow>) {
 
             // If we got a path and we don't have it saved yet, save it automatically.
             let ak_key = game_key.to_owned() + "_assembly_kit";
-            let current_path = setting_string_from_q_setting(&q_settings, &ak_key);
+            let current_path = settings.string(&ak_key);
 
             // Fix unsanitized paths.
             if current_path.contains("\\") {
-                set_setting_string_to_q_setting(&q_settings, &ak_key, &current_path.replace("\\", "/"));
+                let _ = settings.set_string(&ak_key, &current_path.replace("\\", "/"));
             }
 
             // Ignore shogun 2, as that one is a zip.
             if current_path.is_empty() && !ak_path.is_empty() && game_key != KEY_SHOGUN_2 {
-                set_setting_string_to_q_setting(&q_settings, &ak_key, &ak_path);
+                let _ = settings.set_string(&ak_key, &ak_path);
             } else {
-                set_setting_if_new_string(&q_settings, &ak_key, &ak_path);
+                settings.initialize_string(&ak_key, &ak_path);
             }
         }
     }
 
     // General Settings.
-    set_setting_if_new_string(&q_settings, "default_game", KEY_WARHAMMER_3);
-    set_setting_if_new_string(&q_settings, "language", "English_en");
-    set_setting_if_new_string(&q_settings, "update_channel", STABLE);
-    set_setting_if_new_int(&q_settings, "autosave_amount", 10);
-    set_setting_if_new_int(&q_settings, "autosave_interval", 5);
+    settings.initialize_string("default_game", KEY_WARHAMMER_3);
+    settings.initialize_string("language", "English_en");
+    settings.initialize_string("update_channel", STABLE);
+    settings.initialize_i32("autosave_amount", 10);
+    settings.initialize_i32("autosave_interval", 5);
 
     let font = QApplication::font();
     let font_name = font.family().to_std_string();
     let font_size = font.point_size();
-    set_setting_if_new_string(&q_settings, "font_name", &font_name);
-    set_setting_if_new_int(&q_settings, "font_size", font_size);
-    set_setting_if_new_string(&q_settings, "original_font_name", &font_name);
-    set_setting_if_new_int(&q_settings, "original_font_size", font_size);
+    settings.initialize_string("font_name", &font_name);
+    settings.initialize_i32("font_size", font_size);
+    settings.initialize_string("original_font_name", &font_name);
+    settings.initialize_i32("original_font_size", font_size);
 
     // UI Settings.
-    set_setting_if_new_bool(&q_settings, "start_maximized", false);
-    set_setting_if_new_bool(&q_settings, "use_dark_theme", false);
-    set_setting_if_new_bool(&q_settings, "hide_background_icon", true);
-    set_setting_if_new_bool(&q_settings, "allow_editing_of_ca_packfiles", false);
-    set_setting_if_new_bool(&q_settings, "check_updates_on_start", true);
-    set_setting_if_new_bool(&q_settings, "check_schema_updates_on_start", true);
-    set_setting_if_new_bool(&q_settings, "check_lua_autogen_updates_on_start", true);
-    set_setting_if_new_bool(&q_settings, "check_old_ak_updates_on_start", true);
-    set_setting_if_new_bool(&q_settings, "use_lazy_loading", true);
-    set_setting_if_new_bool(&q_settings, "optimize_not_renamed_packedfiles", false);
-    set_setting_if_new_bool(&q_settings, "disable_uuid_regeneration_on_db_tables", true);
-    set_setting_if_new_bool(&q_settings, "packfile_treeview_resize_to_fit", false);
-    set_setting_if_new_bool(&q_settings, "expand_treeview_when_adding_items", true);
-    set_setting_if_new_bool(&q_settings, "use_right_size_markers", false);
-    set_setting_if_new_bool(&q_settings, "disable_file_previews", false);
-    set_setting_if_new_bool(&q_settings, "include_base_folder_on_add_from_folder", true);
-    set_setting_if_new_bool(&q_settings, "delete_empty_folders_on_delete", true);
-    set_setting_if_new_bool(&q_settings, "autosave_folder_size_warning_triggered", false);
-    set_setting_if_new_bool(&q_settings, "ignore_game_files_in_ak", false);
-    set_setting_if_new_bool(&q_settings, "enable_multifolder_filepicker", false);
-    set_setting_if_new_bool(&q_settings, "enable_pack_contents_drag_and_drop", true);
+    settings.initialize_bool("start_maximized", false);
+    settings.initialize_bool("use_dark_theme", false);
+    settings.initialize_bool("hide_background_icon", true);
+    settings.initialize_bool("allow_editing_of_ca_packfiles", false);
+    settings.initialize_bool("check_updates_on_start", true);
+    settings.initialize_bool("check_schema_updates_on_start", true);
+    settings.initialize_bool("check_lua_autogen_updates_on_start", true);
+    settings.initialize_bool("check_old_ak_updates_on_start", true);
+    settings.initialize_bool("use_lazy_loading", true);
+    settings.initialize_bool("optimize_not_renamed_packedfiles", false);
+    settings.initialize_bool("disable_uuid_regeneration_on_db_tables", true);
+    settings.initialize_bool("packfile_treeview_resize_to_fit", false);
+    settings.initialize_bool("expand_treeview_when_adding_items", true);
+    settings.initialize_bool("use_right_size_markers", false);
+    settings.initialize_bool("disable_file_previews", false);
+    settings.initialize_bool("include_base_folder_on_add_from_folder", true);
+    settings.initialize_bool("delete_empty_folders_on_delete", true);
+    settings.initialize_bool("autosave_folder_size_warning_triggered", false);
+    settings.initialize_bool("ignore_game_files_in_ak", false);
+    settings.initialize_bool("enable_multifolder_filepicker", false);
+    settings.initialize_bool("enable_pack_contents_drag_and_drop", true);
 
     // Table Settings.
-    set_setting_if_new_bool(&q_settings, "adjust_columns_to_content", true);
-    set_setting_if_new_bool(&q_settings, "extend_last_column_on_tables", true);
-    set_setting_if_new_bool(&q_settings, "disable_combos_on_tables", false);
-    set_setting_if_new_bool(&q_settings, "tight_table_mode", false);
-    set_setting_if_new_bool(&q_settings, "table_resize_on_edit", false);
-    set_setting_if_new_bool(&q_settings, "tables_use_old_column_order", true);
-    set_setting_if_new_bool(&q_settings, "tables_use_old_column_order_for_tsv", true);
-    set_setting_if_new_bool(&q_settings, "enable_lookups", true);
-    set_setting_if_new_bool(&q_settings, "enable_icons", true);
-    set_setting_if_new_bool(&q_settings, "enable_diff_markers", true);
-    set_setting_if_new_bool(&q_settings, "hide_unused_columns", true);
+    settings.initialize_bool("adjust_columns_to_content", true);
+    settings.initialize_bool("extend_last_column_on_tables", true);
+    settings.initialize_bool("disable_combos_on_tables", false);
+    settings.initialize_bool("tight_table_mode", false);
+    settings.initialize_bool("table_resize_on_edit", false);
+    settings.initialize_bool("tables_use_old_column_order", true);
+    settings.initialize_bool("tables_use_old_column_order_for_tsv", true);
+    settings.initialize_bool("enable_lookups", true);
+    settings.initialize_bool("enable_icons", true);
+    settings.initialize_bool("enable_diff_markers", true);
+    settings.initialize_bool("hide_unused_columns", true);
 
     // Debug Settings.
-    set_setting_if_new_bool(&q_settings, "check_for_missing_table_definitions", false);
-    set_setting_if_new_bool(&q_settings, "enable_debug_menu", false);
-    set_setting_if_new_bool(&q_settings, "spoof_ca_authoring_tool", false);
-    set_setting_if_new_bool(&q_settings, "enable_rigidmodel_editor", true);
-    set_setting_if_new_bool(&q_settings, "enable_unit_editor", false);
-    set_setting_if_new_bool(&q_settings, "enable_esf_editor", false);
-    #[cfg(feature = "support_model_renderer")] set_setting_if_new_bool(&q_settings, "enable_renderer", true);
+    settings.initialize_bool("check_for_missing_table_definitions", false);
+    settings.initialize_bool("enable_debug_menu", false);
+    settings.initialize_bool("spoof_ca_authoring_tool", false);
+    settings.initialize_bool("enable_rigidmodel_editor", true);
+    settings.initialize_bool("enable_unit_editor", false);
+    settings.initialize_bool("enable_esf_editor", false);
+    #[cfg(feature = "support_model_renderer")] settings.initialize_bool("enable_renderer", true);
 
     // Diagnostics Settings
-    set_setting_if_new_bool(&q_settings, "diagnostics_trigger_on_open", true);
-    set_setting_if_new_bool(&q_settings, "diagnostics_trigger_on_table_edit", true);
+    settings.initialize_bool("diagnostics_trigger_on_open", true);
+    settings.initialize_bool("diagnostics_trigger_on_table_edit", true);
+
+    settings.set_block_write(false);
+    let _ = settings.write();
+
+    // These settings need to use QSettings because they're read in the C++ side.
+    let q_settings = qt_core::QSettings::new();
+    set_setting_if_new_q_byte_array(&q_settings, "originalGeometry", main_window.save_geometry().as_ref());
+    set_setting_if_new_q_byte_array(&q_settings, "originalWindowState", main_window.save_state_0a().as_ref());
 
     // Colours.
     set_setting_if_new_string(&q_settings, "colour_light_table_added", "#87ca00");
@@ -194,6 +203,22 @@ pub unsafe fn init_settings(main_window: &QPtr<QMainWindow>) {
 //-------------------------------------------------------------------------------//
 //                             Extra Helpers
 //-------------------------------------------------------------------------------//
+
+pub unsafe fn set_setting_if_new_string(q_settings: &QBox<QSettings>, setting: &str, value: &str) {
+    if !q_settings.value_1a(&QString::from_std_str(setting)).is_valid() {
+        q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_q_string(&QString::from_std_str(value)));
+    }
+}
+
+pub unsafe fn set_setting_if_new_q_byte_array(q_settings: &QBox<QSettings>, setting: &str, value: Ref<QByteArray>) {
+    if !q_settings.value_1a(&QString::from_std_str(setting)).is_valid() {
+        q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_q_byte_array(value));
+    }
+}
+
+pub unsafe fn setting_byte_array(setting: &str) -> CppBox<QByteArray> {
+    QSettings::new().value_1a(&QString::from_std_str(setting)).to_byte_array()
+}
 
 /// Function to initialize the config folder, so RPFM can use it to store his stuff.
 ///
@@ -295,7 +320,7 @@ pub fn assembly_kit_path() -> Result<PathBuf> {
 
         // Post-Shogun 2 games.
         2 | 1 => {
-            let mut base_path = setting_path(&format!("{}_assembly_kit", game_selected.key()));
+            let mut base_path = SETTINGS.read().unwrap().path_buf(&format!("{}_assembly_kit", game_selected.key()));
             base_path.push("raw_data/db");
             Ok(base_path)
         }

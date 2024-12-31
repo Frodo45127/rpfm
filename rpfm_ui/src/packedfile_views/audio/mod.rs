@@ -23,8 +23,9 @@ use std::sync::{Arc, RwLock};
 
 use rpfm_lib::files::{audio::Audio, FileType};
 
+use rpfm_ui_common::utils::{find_widget, load_template};
+
 use crate::packedfile_views::{FileView, View, ViewType};
-use crate::utils::{find_widget, load_template};
 
 mod connections;
 mod slots;

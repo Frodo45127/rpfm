@@ -49,6 +49,7 @@ use std::sync::{Arc, RwLock};
 use rpfm_lib::files::{FileType, unit_variant::*};
 
 use rpfm_ui_common::locale::{qtr, tr};
+use rpfm_ui_common::utils::*;
 
 use crate::app_ui::AppUI;
 use crate::packfile_contents_ui::PackFileContentsUI;

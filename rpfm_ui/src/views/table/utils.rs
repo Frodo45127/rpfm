@@ -54,12 +54,12 @@ use rpfm_lib::integrations::log::*;
 use rpfm_lib::schema::{Definition, DefinitionPatch, Field, FieldType};
 
 use rpfm_ui_common::locale::{qtr, tr, tre};
+use rpfm_ui_common::SETTINGS;
 
 use crate::ffi::*;
 use crate::packedfile_views::DataSource;
 use crate::QVARIANT_TRUE;
 use crate::QVARIANT_FALSE;
-use crate::utils::*;
 
 use super::*;
 
@@ -455,8 +455,8 @@ pub unsafe fn load_data(
         let fields_processed = definition.fields_processed();
         let patches = Some(definition.patches());
         let keys = fields_processed.iter().enumerate().filter_map(|(x, y)| if y.is_key(patches) { Some(x as i32) } else { None }).collect::<Vec<i32>>();
-        let enable_lookups = setting_bool("enable_lookups");
-        let enable_icons = setting_bool("enable_icons");
+        let enable_lookups = SETTINGS.read().unwrap().bool("enable_lookups");
+        let enable_icons = SETTINGS.read().unwrap().bool("enable_icons");
 
         let icons: BTreeMap<i32, (String, HashMap<String, AtomicPtr<QIcon>>)> = if enable_icons {
             let mut map = BTreeMap::new();
@@ -753,13 +753,13 @@ pub unsafe fn build_columns(
 
     let patches = Some(definition.patches());
     let tooltips = get_column_tooltips(&schema, &fields_processed, loc_fields, patches, table_name);
-    let adjust_columns = setting_bool("adjust_columns_to_content");
+    let adjust_columns = SETTINGS.read().unwrap().bool("adjust_columns_to_content");
     let header = table_view.horizontal_header();
 
     let mut columns_to_hide = vec![];
-    let hide_unused_columns = setting_bool("hide_unused_columns");
+    let hide_unused_columns = SETTINGS.read().unwrap().bool("hide_unused_columns");
 
-    let description_icon = if setting_bool("use_dark_theme") {
+    let description_icon = if SETTINGS.read().unwrap().bool("use_dark_theme") {
         QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/description_icon_dark.png", ASSETS_PATH.to_string_lossy())))
     }  else {
         QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/description_icon_light.png", ASSETS_PATH.to_string_lossy())))
@@ -914,7 +914,7 @@ pub unsafe fn build_columns(
     }
 
     // Now the order. If we have a sort order from the schema, we use that one.
-    if !setting_bool("tables_use_old_column_order") && do_we_have_ca_order {
+    if !SETTINGS.read().unwrap().bool("tables_use_old_column_order") && do_we_have_ca_order {
         let mut fields = fields_processed.iter()
             .enumerate()
             .map(|(x, y)| (x, y.ca_order()))
@@ -1158,13 +1158,13 @@ pub unsafe fn setup_item_delegates(
     timer: &QBox<QTimer>
 ) {
     let table_object = table_view.static_upcast::<QObject>().as_ptr();
-    let enable_lookups = setting_bool("enable_lookups");
+    let enable_lookups = SETTINGS.read().unwrap().bool("enable_lookups");
 
     for (column, field) in definition.fields_processed().iter().enumerate() {
         let references = table_references.get(&(column as i32));
 
         // Combos are a bit special, as they may or may not replace other delegates. If we disable them, use the normal delegates.
-        if !setting_bool("disable_combos_on_tables") && references.is_some() || !field.enum_values().is_empty() {
+        if !SETTINGS.read().unwrap().bool("disable_combos_on_tables") && references.is_some() || !field.enum_values().is_empty() {
             let values = QStringList::new();
             let lookups = QStringList::new();
             if let Some(data) = references {

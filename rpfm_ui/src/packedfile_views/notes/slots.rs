@@ -22,7 +22,7 @@ use std::sync::Arc;
 
 use rpfm_ui_common::clone;
 
-use crate::utils::show_dialog;
+use rpfm_ui_common::utils::show_dialog;
 
 use super::NotesView;
 

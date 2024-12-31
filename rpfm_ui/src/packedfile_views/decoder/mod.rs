@@ -60,6 +60,9 @@ use std::io::{Cursor, Seek, SeekFrom};
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 
+use rpfm_ui_common::SETTINGS;
+use rpfm_ui_common::utils::*;
+
 use rpfm_lib::binary::ReadBytes;
 use rpfm_lib::integrations::assembly_kit::{get_raw_definition_paths, table_definition::RawDefinition, table_data::RawTable, localisable_fields::RawLocalisableFields};
 use rpfm_lib::files::{ContainerPath, db::DB, Decodeable, DecodeableExtraData, table::DecodedData};
@@ -75,7 +78,6 @@ use crate::GAME_SELECTED;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::{FileView, View, ViewType};
 use crate::SCHEMA;
-use crate::setting_bool;
 use crate::utils::*;
 
 use self::slots::PackedFileDecoderViewSlots;
@@ -594,7 +596,7 @@ impl PackedFileDecoderView {
         // Header Marking section.
         //---------------------------------------------//
 
-        let use_dark_theme = setting_bool("use_dark_theme");
+        let use_dark_theme = SETTINGS.read().unwrap().bool("use_dark_theme");
         let brush = QBrush::from_global_color(if use_dark_theme { GlobalColor::DarkRed } else { GlobalColor::Red });
         let header_format = QTextCharFormat::new();
         header_format.set_background(&brush);
@@ -752,7 +754,7 @@ impl PackedFileDecoderView {
         //---------------------------------------------//
 
         // Prepare to paint the changes in the hex data views.
-        let use_dark_theme = setting_bool("use_dark_theme");
+        let use_dark_theme = SETTINGS.read().unwrap().bool("use_dark_theme");
         let index_format = QTextCharFormat::new();
         let decoded_format = QTextCharFormat::new();
         let neutral_format = QTextCharFormat::new();

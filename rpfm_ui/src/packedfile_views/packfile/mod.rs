@@ -38,6 +38,7 @@ use anyhow::Result;
 use getset::Getters;
 
 use rpfm_ui_common::locale::qtr;
+use rpfm_ui_common::utils::{find_widget, load_template};
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;

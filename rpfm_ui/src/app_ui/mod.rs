@@ -49,7 +49,6 @@ use qt_core::QBox;
 use qt_core::QEventLoop;
 use qt_core::QListOfQObject;
 use qt_core::QPtr;
-use qt_core::QStringList;
 use qt_core::QRegExp;
 use qt_core::{SlotNoArgs, SlotOfBool};
 use qt_core::QSortFilterProxyModel;
@@ -83,6 +82,8 @@ use rpfm_ui_common::clone;
 use rpfm_ui_common::FULL_DATE_FORMAT;
 use rpfm_ui_common::icons::IconType;
 use rpfm_ui_common::locale::{qtr, tre};
+use rpfm_ui_common::SETTINGS;
+use rpfm_ui_common::utils::*;
 
 use crate::backend::*;
 use crate::CENTRAL_COMMAND;
@@ -501,7 +502,7 @@ impl AppUI {
 
         // This menu is hidden unless you enable it.
         let menu_bar_debug = menu_bar.add_menu_q_string(&qtr("menu_bar_debug"));
-        if !setting_bool("enable_debug_menu") {
+        if !SETTINGS.read().unwrap().bool("enable_debug_menu") {
             menu_bar_debug.menu_action().set_visible(false);
         }
 
@@ -789,7 +790,7 @@ impl AppUI {
         let tools_faction_painter = menu_bar_tools.add_action_q_string(&qtr("tools_faction_painter"));
         let tools_unit_editor = menu_bar_tools.add_action_q_string(&qtr("tools_unit_editor"));
         let tools_translator = menu_bar_tools.add_action_q_string(&qtr("tools_translator"));
-        if !setting_bool("enable_unit_editor") {
+        if !SETTINGS.read().unwrap().bool("enable_unit_editor") {
             tools_unit_editor.set_enabled(false);
         }
 
@@ -1318,28 +1319,28 @@ impl AppUI {
 
         // If it's only one packfile, store it in the recent file list.
         if pack_file_paths.len() == 1 {
-            let q_settings = settings();
+            let mut settings = SETTINGS.write().unwrap();
+            settings.initialize_vec_string("recentFileList", &[]);
 
-            let paths = if q_settings.contains(&QString::from_std_str("recentFileList")) {
-                q_settings.value_1a(&QString::from_std_str("recentFileList")).to_string_list()
-            } else {
-                QStringList::new()
-            };
+            let mut paths = settings.vec_string("recentFileList");
 
-            let pos = paths.index_of_1a(&QString::from_std_str(pack_file_paths[0].to_str().unwrap()));
-            if pos != -1 {
-                paths.remove_at(pos);
+            if let Some(pos) = paths.iter().position(|x| x == pack_file_paths[0].to_str().unwrap()) {
+                paths.remove(pos);
             }
 
-            paths.prepend(&QString::from_std_str(pack_file_paths[0].to_str().unwrap()));
+            paths.reverse();
+            paths.push(pack_file_paths[0].to_str().unwrap().to_owned());
+            paths.reverse();
 
-            while paths.count_0a() > 10 {
-                paths.remove_last();
+            while paths.len() > 10 {
+                paths.pop();
             }
-            q_settings.set_value(&QString::from_std_str("recentFileList"), &QVariant::from_q_string_list(&paths));
+
+            // Ignore failures to save this setting.
+            let _ = settings.set_vec_string("recentFileList", &paths);
         }
 
-        let timer = setting_int("autosave_interval");
+        let timer = SETTINGS.read().unwrap().i32("autosave_interval");
         if timer > 0 {
             app_ui.timer_backup_autosave.set_interval(timer * 60 * 1000);
             app_ui.timer_backup_autosave.start_0a();
@@ -1555,7 +1556,7 @@ impl AppUI {
 
             // In case we have a default path for the Game Selected and that path is valid,
             // we use his data folder as base path for saving our PackFile.
-            else if let Ok(ref path) = GAME_SELECTED.read().unwrap().local_mods_path(&setting_path(GAME_SELECTED.read().unwrap().key())) {
+            else if let Ok(ref path) = GAME_SELECTED.read().unwrap().local_mods_path(&SETTINGS.read().unwrap().path_buf(GAME_SELECTED.read().unwrap().key())) {
                 if path.is_dir() { file_dialog.set_directory_q_string(&QString::from_std_str(path.to_string_lossy().as_ref())); }
             }
 
@@ -1642,13 +1643,13 @@ impl AppUI {
 
             // Ensure it's a file and it's not in data before proceeding.
             let enable_install = if !pack_path.is_file() { false }
-            else if let Ok(game_data_path) = GAME_SELECTED.read().unwrap().local_mods_path(&setting_path(GAME_SELECTED.read().unwrap().key())) {
+            else if let Ok(game_data_path) = GAME_SELECTED.read().unwrap().local_mods_path(&SETTINGS.read().unwrap().path_buf(GAME_SELECTED.read().unwrap().key())) {
                 game_data_path.is_dir() && !pack_path.starts_with(&game_data_path)
             } else { false };
             app_ui.packfile_install.set_enabled(enable_install);
 
             let enable_uninstall = if !pack_path.is_file() { false }
-            else if let Ok(mut game_data_path) = GAME_SELECTED.read().unwrap().local_mods_path(&setting_path(GAME_SELECTED.read().unwrap().key())) {
+            else if let Ok(mut game_data_path) = GAME_SELECTED.read().unwrap().local_mods_path(&SETTINGS.read().unwrap().path_buf(GAME_SELECTED.read().unwrap().key())) {
                 if !game_data_path.is_dir() || pack_path.starts_with(&game_data_path) { false }
                 else {
                     game_data_path.push(pack_path.file_name().unwrap().to_string_lossy().to_string());
@@ -1658,7 +1659,7 @@ impl AppUI {
             app_ui.packfile_uninstall.set_enabled(enable_uninstall);
 
             // If there is a "MyMod" path set in the settings...
-            let path = PathBuf::from(setting_string(MYMOD_BASE_PATH));
+            let path = PathBuf::from(SETTINGS.read().unwrap().string(MYMOD_BASE_PATH));
             if path.is_dir() { app_ui.mymod_new.set_enabled(true); }
             else { app_ui.mymod_new.set_enabled(false); }
         }
@@ -1902,12 +1903,10 @@ impl AppUI {
         //---------------------------------------------------------------------------------------//
 
         // Recent PackFiles.
-        let q_settings = settings();
-        if q_settings.contains(&QString::from_std_str("recentFileList")) {
-            let paths = q_settings.value_1a(&QString::from_std_str("recentFileList")).to_string_list();
+        let recent_file_paths = SETTINGS.read().unwrap().vec_string("recentFileList");
+        if !recent_file_paths.is_empty() {
 
-            for index in 0..paths.count_0a() {
-                let path_str = paths.at(index).to_std_string();
+            for path_str in recent_file_paths {
 
                 // That means our file is a valid PackFile and it needs to be added to the menu.
                 let path = PathBuf::from(&path_str);
@@ -1927,7 +1926,7 @@ impl AppUI {
                                 return show_dialog(&app_ui.main_window, error, false);
                             }
 
-                            if setting_bool("diagnostics_trigger_on_open") {
+                            if SETTINGS.read().unwrap().bool("diagnostics_trigger_on_open") {
 
                                 // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
                                 app_ui.menu_bar_packfile.set_enabled(false);
@@ -1946,7 +1945,7 @@ impl AppUI {
         }
 
         // Get the path of every PackFile in the content folder (if the game's path it's configured) and make an action for each one of them.
-        let mut content_paths = GAME_SELECTED.read().unwrap().content_packs_paths(&setting_path(GAME_SELECTED.read().unwrap().key()));
+        let mut content_paths = GAME_SELECTED.read().unwrap().content_packs_paths(&SETTINGS.read().unwrap().path_buf(GAME_SELECTED.read().unwrap().key()));
         if let Some(ref mut paths) = content_paths {
             paths.sort_unstable_by_key(|x| x.file_name().unwrap().to_string_lossy().as_ref().to_owned());
             for path in paths {
@@ -1967,7 +1966,7 @@ impl AppUI {
                             return show_dialog(&app_ui.main_window, error, false);
                         }
 
-                        if setting_bool("diagnostics_trigger_on_open") {
+                        if SETTINGS.read().unwrap().bool("diagnostics_trigger_on_open") {
 
                             // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
                             app_ui.menu_bar_packfile.set_enabled(false);
@@ -1985,7 +1984,7 @@ impl AppUI {
         }
 
         // Get the path of every PackFile in the secondary folder (if it's configured) and make an action for each one of them.
-        let mut secondary_paths = GAME_SELECTED.read().unwrap().secondary_packs_paths(&setting_path(SECONDARY_PATH));
+        let mut secondary_paths = GAME_SELECTED.read().unwrap().secondary_packs_paths(&SETTINGS.read().unwrap().path_buf(SECONDARY_PATH));
         if let Some(ref mut paths) = secondary_paths {
             paths.sort_unstable_by_key(|x| x.file_name().unwrap().to_string_lossy().as_ref().to_owned());
             for path in paths {
@@ -2006,7 +2005,7 @@ impl AppUI {
                             return show_dialog(&app_ui.main_window, error, false);
                         }
 
-                        if setting_bool("diagnostics_trigger_on_open") {
+                        if SETTINGS.read().unwrap().bool("diagnostics_trigger_on_open") {
 
                             // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
                             app_ui.menu_bar_packfile.set_enabled(false);
@@ -2024,7 +2023,7 @@ impl AppUI {
         }
 
         // Get the path of every PackFile in the data folder (if the game's path it's configured) and make an action for each one of them.
-        let mut data_paths = GAME_SELECTED.read().unwrap().data_packs_paths(&setting_path(GAME_SELECTED.read().unwrap().key()));
+        let mut data_paths = GAME_SELECTED.read().unwrap().data_packs_paths(&SETTINGS.read().unwrap().path_buf(GAME_SELECTED.read().unwrap().key()));
         if let Some(ref mut paths) = data_paths {
             paths.sort_unstable_by_key(|x| x.file_name().unwrap().to_string_lossy().as_ref().to_owned());
             for path in paths {
@@ -2045,7 +2044,7 @@ impl AppUI {
                             return show_dialog(&app_ui.main_window, error, false);
                         }
 
-                        if setting_bool("diagnostics_trigger_on_open") {
+                        if SETTINGS.read().unwrap().bool("diagnostics_trigger_on_open") {
 
                             // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
                             app_ui.menu_bar_packfile.set_enabled(false);
@@ -2092,7 +2091,7 @@ impl AppUI {
                                                 return show_dialog(&app_ui.main_window, error, false);
                                             }
 
-                                            if setting_bool("diagnostics_trigger_on_open") {
+                                            if SETTINGS.read().unwrap().bool("diagnostics_trigger_on_open") {
 
                                                 // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
                                                 app_ui.menu_bar_packfile.set_enabled(false);
@@ -2160,7 +2159,7 @@ impl AppUI {
         app_ui.mymod_open_empire.clear();
 
         // If we have the "MyMod" path configured, get all the packfiles under the `MyMod` folder, separated by supported game.
-        let mymod_base_path = setting_path(MYMOD_BASE_PATH);
+        let mymod_base_path = SETTINGS.read().unwrap().path_buf(MYMOD_BASE_PATH);
         if mymod_base_path.is_dir() {
             if let Ok(game_folder_list) = mymod_base_path.read_dir() {
                 for game_folder in game_folder_list.flatten() {
@@ -2208,7 +2207,7 @@ impl AppUI {
                                                 return show_dialog(&app_ui.main_window, error, false);
                                             }
 
-                                            if setting_bool("diagnostics_trigger_on_open") {
+                                            if SETTINGS.read().unwrap().bool("diagnostics_trigger_on_open") {
 
                                                 // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
                                                 app_ui.menu_bar_mymod.set_enabled(false);
@@ -2724,7 +2723,7 @@ impl AppUI {
                         // If the file is a RigidModel PackedFile...
                         #[cfg(any(feature = "support_rigidmodel", feature = "support_model_renderer"))]
                         Response::RigidModelRFileInfo(data, file_info) => {
-                            if setting_bool("enable_rigidmodel_editor") || cfg!(feature = "support_model_renderer") {
+                            if SETTINGS.read().unwrap().bool("enable_rigidmodel_editor") || cfg!(feature = "support_model_renderer") {
                                 match PackedFileRigidModelView::new_view(&mut tab, &data) {
                                     Ok(_) => {
 
@@ -3636,7 +3635,7 @@ impl AppUI {
 
         // Populate the lists with the available tile maps and tiles from the assembly kit.
         let game_key = GAME_SELECTED.read().unwrap().key();
-        let ak_path = setting_path(&format!("{game_key}_assembly_kit"));
+        let ak_path = SETTINGS.read().unwrap().path_buf(&format!("{game_key}_assembly_kit"));
 
         let tile_maps_path = ak_path.join("working_data/terrain/battles");
         let tile_maps = final_folders_from_subdir(&tile_maps_path, true)?;
@@ -4036,7 +4035,7 @@ impl AppUI {
         }
 
         // If we have the setting enabled, ask the backend to generate the missing definition list.
-        if setting_bool("check_for_missing_table_definitions") {
+        if SETTINGS.read().unwrap().bool("check_for_missing_table_definitions") {
             let _ = CENTRAL_COMMAND.send_background(Command::GetMissingDefinitions);
         }
     }
@@ -4054,7 +4053,7 @@ impl AppUI {
         let _ = CENTRAL_COMMAND.send_background(Command::NewPackFile);
 
         // Reset the autosave timer.
-        let timer = setting_int("autosave_interval");
+        let timer = SETTINGS.read().unwrap().i32("autosave_interval");
         if timer > 0 {
             app_ui.timer_backup_autosave.set_interval(timer * 60 * 1000);
             app_ui.timer_backup_autosave.start_0a();
@@ -4125,7 +4124,7 @@ impl AppUI {
 
             // If we have a "MyMod" selected...
             OperationalMode::MyMod(ref game_folder_name, ref mod_name) => {
-                let mymods_base_path = setting_path("mymods_base_path");
+                let mymods_base_path = SETTINGS.read().unwrap().path_buf("mymods_base_path");
                 if mymods_base_path.is_dir() {
 
                     // We get the assets folder of our mod (without .pack extension). This mess removes the .pack.

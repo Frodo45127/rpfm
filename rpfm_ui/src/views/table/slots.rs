@@ -34,6 +34,7 @@ use rpfm_lib::files::{ContainerPath, RFileDecoded};
 use rpfm_lib::integrations::log::*;
 
 use rpfm_ui_common::clone;
+use rpfm_ui_common::utils::show_dialog;
 
 use crate::app_ui::AppUI;
 use crate::dependencies_ui::DependenciesUI;
@@ -44,7 +45,7 @@ use crate::packedfile_views::DataSource;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::utils::set_modified;
 use crate::references_ui::ReferencesUI;
-use crate::utils::{log_to_status_bar, show_dialog};
+use crate::utils::log_to_status_bar;
 use crate::UI_STATE;
 use super::utils::*;
 use super::*;
@@ -140,7 +141,7 @@ impl TableViewSlots {
                         }
                     }
 
-                    if setting_bool("diagnostics_trigger_on_table_edit") && diagnostics_ui.diagnostics_dock_widget().is_visible() {
+                    if SETTINGS.read().unwrap().bool("diagnostics_trigger_on_table_edit") && diagnostics_ui.diagnostics_dock_widget().is_visible() {
                         for path in &paths_to_check {
                             let path_types = vec![ContainerPath::File(path.to_owned())];
                             DiagnosticsUI::check_on_path(&app_ui, &diagnostics_ui, path_types);
@@ -203,7 +204,7 @@ impl TableViewSlots {
                             let field = &fields_processed[item.column() as usize];
 
                             // Update the lookup data while the model is blocked.
-                            if setting_bool("enable_lookups") {
+                            if SETTINGS.read().unwrap().bool("enable_lookups") {
                                 let dependency_data = view.dependency_data.read().unwrap();
                                 if let Some(column_data) = dependency_data.get(&item.column()) {
                                     if let Some(lookup) = column_data.data().get(&item.text().to_std_string()) {
@@ -245,7 +246,7 @@ impl TableViewSlots {
                             }
 
                             // If the edited column has icons we need to fetch the new icon from the backend and apply it.
-                            if setting_bool("enable_icons") && field.is_filename(patches) {
+                            if SETTINGS.read().unwrap().bool("enable_icons") && field.is_filename(patches) {
                                 let mut icons = BTreeMap::new();
                                 let data = vec![vec![get_field_from_view(&view.table_model.static_upcast(), field, item.row(), item.column())]];
 
@@ -300,7 +301,7 @@ impl TableViewSlots {
                     }
                 }
 
-                if setting_bool("table_resize_on_edit") {
+                if SETTINGS.read().unwrap().bool("table_resize_on_edit") {
                     view.table_view.horizontal_header().resize_sections(ResizeMode::ResizeToContents);
                 }
 
@@ -631,7 +632,7 @@ impl TableViewSlots {
         // When we want to resize the columns depending on their contents...
         let resize_columns = SlotNoArgs::new(&view.table_view, clone!(view => move || {
             view.table_view.horizontal_header().resize_sections(ResizeMode::ResizeToContents);
-            if setting_bool("extend_last_column_on_tables") {
+            if SETTINGS.read().unwrap().bool("extend_last_column_on_tables") {
                 view.table_view.horizontal_header().set_stretch_last_section(false);
                 view.table_view.horizontal_header().set_stretch_last_section(true);
             }
@@ -778,7 +779,7 @@ impl TableViewSlots {
         let mut hide_show_columns = vec![];
         let mut freeze_columns = vec![];
 
-        let fields = view.table_definition().fields_processed_sorted(setting_bool("tables_use_old_column_order"));
+        let fields = view.table_definition().fields_processed_sorted(SETTINGS.read().unwrap().bool("tables_use_old_column_order"));
         let fields_processed = view.table_definition().fields_processed();
         for field in &fields {
             if let Some(index) = fields_processed.iter().position(|x| x == field) {

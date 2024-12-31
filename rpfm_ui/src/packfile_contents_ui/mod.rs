@@ -49,6 +49,8 @@ use std::rc::Rc;
 use rpfm_lib::files::{ContainerPath, pack::RESERVED_NAME_NOTES};
 
 use rpfm_ui_common::locale::qtr;
+use rpfm_ui_common::SETTINGS;
+use rpfm_ui_common::utils::*;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
@@ -172,7 +174,7 @@ impl PackFileContentsUI {
         new_tree_item_delegate_safe(&packfile_contents_tree_view.static_upcast::<QObject>().as_ptr(), true);
 
         // Not yet working.
-        if setting_bool("packfile_treeview_resize_to_fit") {
+        if SETTINGS.read().unwrap().bool("packfile_treeview_resize_to_fit") {
             //packfile_contents_tree_view.set_size_adjust_policy(qt_widgets::q_abstract_scroll_area::SizeAdjustPolicy::AdjustToContents);
             //packfile_contents_tree_view.horizontal_scroll_bar().set_disabled(true);
             //packfile_contents_tree_view.set_horizontal_scroll_bar_policy(qt_core::ScrollBarPolicy::ScrollBarAlwaysOff);
@@ -183,7 +185,7 @@ impl PackFileContentsUI {
 
         }
 
-        packfile_contents_tree_view.set_drag_enabled(setting_bool("enable_pack_contents_drag_and_drop"));
+        packfile_contents_tree_view.set_drag_enabled(SETTINGS.read().unwrap().bool("enable_pack_contents_drag_and_drop"));
 
         // Create and configure the widgets to control the `TreeView`s filter.
         let filter_timer_delayed_updates = QTimer::new_1a(&packfile_contents_dock_widget);
@@ -403,9 +405,7 @@ impl PackFileContentsUI {
         move_checkbox.set_text(&qtr("rename_move_checkbox"));
 
         // Remember the last status of the move checkbox.
-        if setting_variant_from_q_setting(&settings(), "move_checkbox_status").can_convert(1) {
-            move_checkbox.set_checked(setting_bool("move_checkbox_status"));
-        }
+        move_checkbox.set_checked(SETTINGS.read().unwrap().bool("move_checkbox_status"));
 
         match selected_items.len().cmp(&1) {
 
@@ -454,7 +454,7 @@ impl PackFileContentsUI {
 
         Ok(
             if dialog.exec() == 1 {
-                set_setting_bool("move_checkbox_status", move_checkbox.is_checked());
+                let _ = SETTINGS.write().unwrap().set_bool("move_checkbox_status", move_checkbox.is_checked());
 
                 let new_text = rewrite_sequence_line_edit.text().to_std_string();
                 if new_text.is_empty() {
@@ -482,7 +482,7 @@ impl PackFileContentsUI {
 
             // In MyMod mode we extract directly to the folder of the selected MyMod, keeping the folder structure.
             OperationalMode::MyMod(ref game_folder_name, ref mod_name) => {
-                let mymods_base_path = setting_path(MYMOD_BASE_PATH);
+                let mymods_base_path = SETTINGS.read().unwrap().path_buf(MYMOD_BASE_PATH);
                 if mymods_base_path.is_dir() {
 
                     // We get the assets folder of our mod (without .pack extension). This mess removes the .pack.

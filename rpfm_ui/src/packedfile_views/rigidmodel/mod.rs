@@ -81,7 +81,7 @@ impl PackedFileRigidModelView {
             },
 
             #[cfg(feature = "support_model_renderer")] renderer: {
-                if setting_bool("enable_renderer") {
+                if SETTINGS.read().unwrap().bool("enable_renderer") {
                     match create_q_rendering_widget(&mut file_view.main_widget().as_ptr()) {
                         Ok(renderer) => {
 

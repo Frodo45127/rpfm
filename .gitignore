@@ -111,6 +111,7 @@ missing_table_definitions.txt
 gh-token
 
 # New RPFM Config files. This one shouldn't be added either.
+settings.json
 settings.ron
 shortcuts.ron
 

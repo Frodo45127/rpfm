@@ -30,14 +30,14 @@ use std::sync::{Arc, RwLock, RwLockReadGuard};
 use rpfm_lib::integrations::log::*;
 use rpfm_lib::files::{atlas::Atlas, ContainerPath, db::DB, loc::Loc, FileType, RFileDecoded, text::Text};
 
+use rpfm_ui_common::utils::{create_grid_layout, show_dialog};
+
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi::get_text_safe;
 use crate::pack_tree::*;
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::utils::create_grid_layout;
-use crate::utils::show_dialog;
 use crate::UI_STATE;
 use crate::views::table::utils::get_table_from_view;
 use crate::views::table::TableType;

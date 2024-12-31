@@ -31,6 +31,7 @@ use rpfm_lib::files::{ContainerPath, Decodeable, DecodeableExtraData, db::DB};
 use rpfm_lib::schema::{Definition, FieldType};
 
 use rpfm_ui_common::clone;
+use rpfm_ui_common::utils::*;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
