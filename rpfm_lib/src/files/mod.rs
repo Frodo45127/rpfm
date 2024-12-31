@@ -457,7 +457,17 @@ pub trait Container {
     /// The case-insensitive option only works when extracting folders. Individual file extractions are always case sensitive.
     ///
     /// If a schema is provided, this function will try to extract any DB/Loc file as a TSV. If it fails to decode them, it'll extract them as binary files.
-    fn extract(&mut self, container_path: ContainerPath, destination_path: &Path, keep_container_path_structure: bool, schema: &Option<Schema>, case_insensitive: bool, keys_first: bool, extra_data: &Option<EncodeableExtraData>) -> Result<Vec<PathBuf>> {
+    fn extract(&mut self,
+        container_path: ContainerPath,
+        destination_path: &Path,
+        keep_container_path_structure: bool,
+        schema: &Option<Schema>,
+        case_insensitive: bool,
+        keys_first: bool,
+        extra_data: &Option<EncodeableExtraData>,
+        keep_data_in_memory: bool
+    ) -> Result<Vec<PathBuf>> {
+
         let mut extracted_paths = vec![];
         match container_path {
             ContainerPath::File(mut container_path) => {
@@ -480,7 +490,9 @@ pub trait Container {
                 // If the file is on disk, load it to memory before saving. Why? Because if we import a file, then export it on the same position,
                 // we clear the disk file before loading its data to memory, which breaks stuff like MyMod Import/Export.
                 if let RFileInnerData::OnDisk(_) = &rfile.data {
-                    rfile.load()?;
+                    if keep_data_in_memory {
+                        rfile.load()?;
+                    }
                 }
 
                 // If we want to extract as tsv and we got a db/loc, export to tsv.
@@ -551,7 +563,9 @@ pub trait Container {
                     // If the file is on disk, load it to memory before saving. Why? Because if we import a file, then export it on the same position,
                     // we clear the disk file before loading its data to memory, which breaks stuff like MyMod Import/Export.
                     if let RFileInnerData::OnDisk(_) = &rfile.data {
-                        rfile.load()?;
+                        if keep_data_in_memory {
+                            rfile.load()?;
+                        }
                     }
 
                     // If we want to extract as tsv and we got a db/loc, export to tsv.
