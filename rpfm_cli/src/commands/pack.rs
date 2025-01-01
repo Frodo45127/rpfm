@@ -47,6 +47,7 @@ pub fn set_pack_type(config: &Config, pack_path: &Path, pfh_file_type: PFHFileTy
     extra_data.set_disk_file_path(Some(&pack_path_str));
     extra_data.set_timestamp(last_modified_time_from_file(reader.get_ref())?);
     extra_data.set_data_size(reader.len()?);
+    extra_data.set_lazy_load(true);
 
     let mut pack = Pack::decode(&mut reader, &Some(extra_data))?;
     pack.preload()?;
@@ -76,6 +77,7 @@ pub fn list(config: &Config, path: &Path) -> Result<()> {
     extra_data.set_disk_file_path(Some(path_str));
     extra_data.set_timestamp(last_modified_time_from_file(reader.get_ref())?);
     extra_data.set_data_size(reader.len()?);
+    extra_data.set_lazy_load(true);
 
     let pack = Pack::decode(&mut reader, &Some(extra_data))?;
     let files: BTreeMap<_, _> = pack.files().iter().collect();
@@ -127,6 +129,7 @@ pub fn add(config: &Config, schema_path: &Option<PathBuf>, pack_path: &Path, fil
     extra_data.set_disk_file_path(Some(&pack_path_str));
     extra_data.set_timestamp(last_modified_time_from_file(reader.get_ref())?);
     extra_data.set_data_size(reader.len()?);
+    extra_data.set_lazy_load(true);
 
     let mut pack = Pack::decode(&mut reader, &Some(extra_data))?;
 
@@ -171,6 +174,7 @@ pub fn delete(config: &Config, pack_path: &Path, file_path: &[String], folder_pa
     extra_data.set_disk_file_path(Some(&pack_path_str));
     extra_data.set_timestamp(last_modified_time_from_file(reader.get_ref())?);
     extra_data.set_data_size(reader.len()?);
+    extra_data.set_lazy_load(true);
 
     let mut pack = Pack::decode(&mut reader, &Some(extra_data))?;
 
@@ -222,6 +226,7 @@ pub fn extract(config: &Config, schema_path: &Option<PathBuf>, pack_path: &Path,
     extra_data.set_disk_file_path(Some(&pack_path_str));
     extra_data.set_timestamp(last_modified_time_from_file(reader.get_ref())?);
     extra_data.set_data_size(reader.len()?);
+    extra_data.set_lazy_load(true);
 
     let mut pack = Pack::decode(&mut reader, &Some(extra_data))?;
     let mut extra_data = EncodeableExtraData::default();
