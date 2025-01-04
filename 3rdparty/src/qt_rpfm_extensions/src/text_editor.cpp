@@ -99,4 +99,6 @@ extern "C" void scroll_to_pos_and_select(QWidget* view, int start_row, int start
     KTextEditor::Range* range = new KTextEditor::Range(*start_cursor, *end_cursor);
 
     doc_view->setSelection(*range);
+    doc_view->setCursorPosition(*start_cursor);
+    doc_view->setScrollPosition(*start_cursor);
 }
