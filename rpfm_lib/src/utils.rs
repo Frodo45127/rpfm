@@ -72,14 +72,13 @@ pub fn line_column_from_string_pos(string: &str, pos: u64) -> (u64, u64) {
     let mut row = 0;
     let mut col = 0;
     let mut pos_processed = 0;
+    let end_skip = if string.contains("\r\n") { 2 } else { 1 };
 
     for (index, line) in string.lines().enumerate() {
 
         // If we're not yet in the line, continue.
         if pos > pos_processed + line.len() as u64 {
-
-            // + 1 for \n, +2 for \n\r
-            pos_processed += line.len() as u64 + 2;
+            pos_processed += line.len() as u64 + end_skip;
             continue;
         }
 
