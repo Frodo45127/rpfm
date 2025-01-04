@@ -88,7 +88,7 @@ impl TextDiagnostic {
         }
     }
 
-    /// This function takes care of checking for PortraitSettings-Related for errors.
+    /// This function takes care of checking for Text-Related for errors.
     pub fn check(
         file: &RFile,
         pack: &Pack,
@@ -124,12 +124,17 @@ impl TextDiagnostic {
 
                                 // +1 to not include the { at the start.
                                 let data_to_search = &text[start_pos + pos + 6 + data_start + 1..start_pos + pos + 6 + data_start + data_end];
-                                let data_split = data_to_search.split(',')
-                                    .map(|x|
-                                        x.replace("\"", " ")
-                                            .replace("\n", " ")
-                                            .replace("\r", " ")
-                                    )
+                                let data_split = data_to_search.split('\n')
+                                    .filter_map(|x| {
+
+                                        // On each line, we want the data between commas.
+                                        let spl = x.split('\"').collect::<Vec<_>>();
+                                        if spl.len() == 3 {
+                                            Some(spl[1].to_owned())
+                                        } else {
+                                            None
+                                        }
+                                    })
                                     .collect::<Vec<_>>();
 
                                 let mut not_found = HashMap::new();
