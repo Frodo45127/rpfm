@@ -116,7 +116,11 @@ impl TextDiagnostic {
                     // We expect table name and column.
                     if table_data.len() == 2 {
                         let table_name = if table_data[0].ends_with("_tables") { table_data[0].to_owned() } else { table_data[0].to_owned() + "_tables" };
-                        let table_column = &table_data[1];
+                        let table_column = if table_data[1].ends_with("\r") {
+                            &table_data[1][..table_data[1].len() - 1]
+                        } else {
+                            &table_data[1]
+                        };
 
                         // Data to search are strings in commas between {}.
                         if let Some(data_start) = text[start_pos + pos + 6..].find('{') {
