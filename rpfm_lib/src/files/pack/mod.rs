@@ -314,6 +314,9 @@ impl Container for Pack {
         } else if path == RESERVED_NAME_SETTINGS_EXTRACTED {
             self.settings = PackSettings::load(&file.encode(&None, false, false, true)?.unwrap())?;
             Ok(None)
+        } else if path == RESERVED_NAME_DEPENDENCIES_MANAGER_V2 {
+            self.dependencies = from_slice(&file.encode(&None, false, false, true)?.unwrap())?;
+            Ok(None)
         }
 
         // If it's not filtered out, add it to the Pack.
