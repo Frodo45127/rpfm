@@ -28,6 +28,7 @@ pub unsafe fn set_tips(app_ui: &Rc<AppUI>) {
     app_ui.packfile_open_packfile.set_status_tip(&qtr("tt_packfile_open_packfile"));
     app_ui.packfile_save_packfile.set_status_tip(&qtr("tt_packfile_save_packfile"));
     app_ui.packfile_save_packfile_as.set_status_tip(&qtr("tt_packfile_save_packfile_as"));
+    app_ui.packfile_save_packfile_for_release.set_status_tip(&qtr("tt_packfile_save_packfile_for_release"));
     app_ui.packfile_install.set_status_tip(&qtr("tt_packfile_install"));
     app_ui.packfile_uninstall.set_status_tip(&qtr("tt_packfile_uninstall"));
     app_ui.packfile_load_all_ca_packfiles.set_status_tip(&qtr("tt_packfile_load_all_ca_packfiles"));

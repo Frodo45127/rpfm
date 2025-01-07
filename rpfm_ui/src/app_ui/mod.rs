@@ -174,6 +174,7 @@ pub struct AppUI {
     packfile_open_packfile: QPtr<QAction>,
     packfile_save_packfile: QPtr<QAction>,
     packfile_save_packfile_as: QPtr<QAction>,
+    packfile_save_packfile_for_release: QPtr<QAction>,
     packfile_install: QPtr<QAction>,
     packfile_uninstall: QPtr<QAction>,
     packfile_open_recent: QBox<QMenu>,
@@ -514,6 +515,7 @@ impl AppUI {
         let packfile_open_packfile = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "open_pack", "open_packfile", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let packfile_save_packfile = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "save_pack", "save_packfile", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let packfile_save_packfile_as = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "save_pack_as", "save_packfile_as", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
+        let packfile_save_packfile_for_release = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "save_pack_for_release", "save_packfile_for_release", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let packfile_install = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "install_pack", "packfile_install", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let packfile_uninstall = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "uninstall_pack", "packfile_uninstall", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
 
@@ -850,6 +852,7 @@ impl AppUI {
             packfile_open_packfile,
             packfile_save_packfile,
             packfile_save_packfile_as,
+            packfile_save_packfile_for_release,
             packfile_install,
             packfile_uninstall,
             packfile_open_recent,
@@ -1523,6 +1526,7 @@ impl AppUI {
         app_ui: &Rc<Self>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         save_as: bool,
+        optimize: bool
     ) -> Result<()> {
 
         let mut result = Ok(());
@@ -1530,6 +1534,21 @@ impl AppUI {
 
         // First, we need to save all open `PackedFiles` to the backend. If one fails, we want to know what one.
         AppUI::back_to_back_end_all(app_ui, pack_file_contents_ui)?;
+
+        if optimize {
+            let _ = AppUI::purge_them_all(&app_ui, &pack_file_contents_ui, true);
+
+            let receiver = CENTRAL_COMMAND.send_background(Command::OptimizePackFile);
+            let response = CENTRAL_COMMAND.recv_try(&receiver);
+            match response {
+                Response::HashSetString(response) => {
+                    let response = response.iter().map(|x| ContainerPath::File(x.to_owned())).collect::<Vec<ContainerPath>>();
+                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Delete(response, true), DataSource::PackFile);
+                }
+                Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
+                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+            }
+        }
 
         let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFilePath);
         let response = CentralCommand::recv(&receiver);
@@ -1625,6 +1644,7 @@ impl AppUI {
             app_ui.packfile_new_packfile.set_enabled(false);
             app_ui.packfile_save_packfile.set_enabled(false);
             app_ui.packfile_save_packfile_as.set_enabled(false);
+            app_ui.packfile_save_packfile_for_release.set_enabled(false);
             app_ui.packfile_install.set_enabled(false);
             app_ui.packfile_uninstall.set_enabled(false);
 
@@ -1639,6 +1659,7 @@ impl AppUI {
             app_ui.packfile_new_packfile.set_enabled(true);
             app_ui.packfile_save_packfile.set_enabled(enable);
             app_ui.packfile_save_packfile_as.set_enabled(enable);
+            app_ui.packfile_save_packfile_for_release.set_enabled(enable);
 
             // Ensure it's a file and it's not in data before proceeding.
             let enable_install = if !pack_path.is_file() { false }

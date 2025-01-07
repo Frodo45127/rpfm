@@ -97,6 +97,7 @@ pub struct AppUISlots {
     pub packfile_open_packfile: QBox<SlotOfBool>,
     pub packfile_save_packfile: QBox<SlotOfBool>,
     pub packfile_save_packfile_as: QBox<SlotOfBool>,
+    pub packfile_save_packfile_for_release: QBox<SlotOfBool>,
     pub packfile_install: QBox<SlotOfBool>,
     pub packfile_uninstall: QBox<SlotOfBool>,
     pub packfile_load_all_ca_packfiles: QBox<SlotOfBool>,
@@ -305,7 +306,7 @@ impl AppUISlots {
             app_ui,
             pack_file_contents_ui => move |_| {
                 info!("Triggering `Save PackFile` By Slot");
-                if let Err(error) = AppUI::save_packfile(&app_ui, &pack_file_contents_ui, false) {
+                if let Err(error) = AppUI::save_packfile(&app_ui, &pack_file_contents_ui, false, false) {
                     show_dialog(&app_ui.main_window, error, false);
                 }
             }
@@ -316,7 +317,17 @@ impl AppUISlots {
             app_ui,
             pack_file_contents_ui => move |_| {
                 info!("Triggering `Save PackFile As` By Slot");
-                if let Err(error) = AppUI::save_packfile(&app_ui, &pack_file_contents_ui, true) {
+                if let Err(error) = AppUI::save_packfile(&app_ui, &pack_file_contents_ui, true, false) {
+                    show_dialog(&app_ui.main_window, error, false);
+                }
+            }
+        ));
+
+        let packfile_save_packfile_for_release = SlotOfBool::new(&app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui => move |_| {
+                info!("Triggering `Save PackFile For Release` By Slot");
+                if let Err(error) = AppUI::save_packfile(&app_ui, &pack_file_contents_ui, false, true) {
                     show_dialog(&app_ui.main_window, error, false);
                 }
             }
@@ -329,7 +340,7 @@ impl AppUISlots {
                 info!("Triggering `Install` By Slot");
 
                 // Save before installing, to ensure we always have the latest data on install.
-                if let Err(error) = AppUI::save_packfile(&app_ui, &pack_file_contents_ui, false) {
+                if let Err(error) = AppUI::save_packfile(&app_ui, &pack_file_contents_ui, false, false) {
                     return show_dialog(&app_ui.main_window, error, false);
                 }
 
@@ -1976,6 +1987,7 @@ impl AppUISlots {
             packfile_open_packfile,
             packfile_save_packfile,
             packfile_save_packfile_as,
+            packfile_save_packfile_for_release,
             packfile_install,
             packfile_uninstall,
             packfile_load_all_ca_packfiles,

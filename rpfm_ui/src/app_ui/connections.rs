@@ -34,6 +34,7 @@ pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
     app_ui.packfile_open_packfile.triggered().connect(&slots.packfile_open_packfile);
     app_ui.packfile_save_packfile.triggered().connect(&slots.packfile_save_packfile);
     app_ui.packfile_save_packfile_as.triggered().connect(&slots.packfile_save_packfile_as);
+    app_ui.packfile_save_packfile_for_release.triggered().connect(&slots.packfile_save_packfile_for_release);
     app_ui.packfile_install.triggered().connect(&slots.packfile_install);
     app_ui.packfile_uninstall.triggered().connect(&slots.packfile_uninstall);
     app_ui.packfile_load_all_ca_packfiles.triggered().connect(&slots.packfile_load_all_ca_packfiles);
