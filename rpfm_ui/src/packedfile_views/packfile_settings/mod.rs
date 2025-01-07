@@ -108,40 +108,46 @@ impl PackFileSettingsView {
 
         for (key, setting) in settings.settings_string() {
             let label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{key}_label")), pack_file_view.main_widget());
-            let _description_label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{key}_description_label")), pack_file_view.main_widget());
+            let description_label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{key}_description_label")), pack_file_view.main_widget());
             let edit = QLineEdit::from_q_string_q_widget(&QString::from_std_str(setting), pack_file_view.main_widget());
 
             layout.add_widget_5a(&label, row, 0, 1, 1);
-            layout.add_widget_5a(&edit, row, 1, 1, 1);
+            layout.add_widget_5a(&description_label, row + 1, 0, 1, 1);
+            layout.add_widget_5a(&edit, row, 1, 2, 1);
+            layout.set_row_stretch(row + 1, 100);
 
             settings_text_single_line.insert(key.to_owned(), edit);
-            row += 1;
+            row += 2;
         }
 
         for (key, setting) in settings.settings_bool() {
             let label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{key}_label")), pack_file_view.main_widget());
-            let _description_label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{key}_description_label")), pack_file_view.main_widget());
+            let description_label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{key}_description_label")), pack_file_view.main_widget());
             let edit = QCheckBox::from_q_widget(pack_file_view.main_widget());
             edit.set_checked(*setting);
 
             layout.add_widget_5a(&label, row, 0, 1, 1);
-            layout.add_widget_5a(&edit, row, 1, 1, 1);
+            layout.add_widget_5a(&description_label, row + 1, 0, 1, 1);
+            layout.add_widget_5a(&edit, row, 1, 2, 1);
+            layout.set_row_stretch(row + 1, 100);
 
             settings_bool.insert(key.to_owned(), edit);
-            row += 1;
+            row += 2;
         }
 
         for (key, setting) in settings.settings_number() {
             let label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{key}_label")), pack_file_view.main_widget());
-            let _description_label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{key}_description_label")), pack_file_view.main_widget());
+            let description_label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{key}_description_label")), pack_file_view.main_widget());
             let edit = QSpinBox::new_1a(pack_file_view.main_widget());
             edit.set_value(*setting);
 
             layout.add_widget_5a(&label, row, 0, 1, 1);
-            layout.add_widget_5a(&edit, row, 1, 1, 1);
+            layout.add_widget_5a(&description_label, row + 1, 0, 1, 1);
+            layout.add_widget_5a(&edit, row, 1, 2, 1);
+            layout.set_row_stretch(row + 1, 100);
 
             settings_number.insert(key.to_owned(), edit);
-            row += 1;
+            row += 2;
         }
 
         let padding_widget = QWidget::new_1a(pack_file_view.main_widget());

@@ -54,7 +54,6 @@ use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::FIRST_GAME_CHANGE_DONE;
 use crate::GAME_SELECTED;
-use crate::initialize_pack_settings;
 use crate::packedfile_views::DataSource;
 use crate::SCHEMA;
 use crate::settings_ui::backend::*;
@@ -113,7 +112,6 @@ pub fn background_loop() {
                 let game_selected = GAME_SELECTED.read().unwrap();
                 let pack_version = game_selected.pfh_version_by_file_type(PFHFileType::Mod);
                 pack_file_decoded = Pack::new_with_name_and_version("unknown.pack", pack_version);
-                pack_file_decoded.set_settings(initialize_pack_settings());
 
                 if let Some(version_number) = game_selected.game_version_number(&setting_path(game_selected.key())) {
                     pack_file_decoded.set_game_version(version_number);

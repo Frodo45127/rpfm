@@ -720,49 +720,59 @@ impl AppUISlots {
                                         app_ui.timer_backup_autosave.start_0a();
                                     }
 
-                                    // Prepare the settings depending on what we choose to ignore.
-                                    let mut pack_settings = initialize_pack_settings();
-                                    pack_settings.settings_text_mut().insert("import_files_to_ignore".to_owned(), paths_ignore_on_import);
-
-                                    let _ = CENTRAL_COMMAND.send_background(Command::NewPackFile);
-                                    let _ = CENTRAL_COMMAND.send_background(Command::SetPackSettings(pack_settings));
-                                    let receiver = CENTRAL_COMMAND.send_background(Command::SavePackFileAs(mymod_pack_path.clone()));
+                                    let receiver = CENTRAL_COMMAND.send_background(Command::GetPackSettings);
                                     let response = CENTRAL_COMMAND.recv_try(&receiver);
                                     match response {
-                                        Response::ContainerInfo(pack_file_info) => {
+                                        Response::PackSettings(mut pack_settings) => {
 
-                                            let mut build_data = BuildData::new();
-                                            build_data.editable = true;
-                                            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
-                                            let packfile_item = pack_file_contents_ui.packfile_contents_tree_model().item_1a(0);
-                                            packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
-                                            packfile_item.set_text(&QString::from_std_str(full_mod_name));
+                                            // Prepare the settings depending on what we choose to ignore.
+                                            pack_settings.settings_text_mut().insert("import_files_to_ignore".to_owned(), paths_ignore_on_import);
 
-                                            // Set the UI to the state it should be in.
-                                            app_ui.change_packfile_type_mod.set_checked(true);
-                                            app_ui.change_packfile_type_data_is_encrypted.set_checked(false);
-                                            app_ui.change_packfile_type_index_includes_timestamp.set_checked(false);
-                                            app_ui.change_packfile_type_index_is_encrypted.set_checked(false);
-                                            app_ui.change_packfile_type_header_is_extended.set_checked(false);
-                                            app_ui.change_packfile_type_data_is_compressed.set_checked(false);
+                                            let _ = CENTRAL_COMMAND.send_background(Command::NewPackFile);
+                                            let _ = CENTRAL_COMMAND.send_background(Command::SetPackSettings(pack_settings));
+                                            let receiver = CENTRAL_COMMAND.send_background(Command::SavePackFileAs(mymod_pack_path.clone()));
+                                            let response = CENTRAL_COMMAND.recv_try(&receiver);
+                                            match response {
+                                                Response::ContainerInfo(pack_file_info) => {
 
-                                            AppUI::enable_packfile_actions(&app_ui, &PathBuf::from(pack_file_info.file_path()), true);
+                                                    let mut build_data = BuildData::new();
+                                                    build_data.editable = true;
+                                                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
+                                                    let packfile_item = pack_file_contents_ui.packfile_contents_tree_model().item_1a(0);
+                                                    packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
+                                                    packfile_item.set_text(&QString::from_std_str(full_mod_name));
 
-                                            UI_STATE.set_operational_mode(&app_ui, Some(&mymod_pack_path));
-                                            UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
+                                                    // Set the UI to the state it should be in.
+                                                    app_ui.change_packfile_type_mod.set_checked(true);
+                                                    app_ui.change_packfile_type_data_is_encrypted.set_checked(false);
+                                                    app_ui.change_packfile_type_index_includes_timestamp.set_checked(false);
+                                                    app_ui.change_packfile_type_index_is_encrypted.set_checked(false);
+                                                    app_ui.change_packfile_type_header_is_extended.set_checked(false);
+                                                    app_ui.change_packfile_type_data_is_compressed.set_checked(false);
 
-                                            AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &diagnostics_ui, &global_search_ui);
-                                            app_ui.toggle_main_window(true);
-                                        }
+                                                    AppUI::enable_packfile_actions(&app_ui, &PathBuf::from(pack_file_info.file_path()), true);
 
-                                        Response::Error(error) => {
-                                            app_ui.toggle_main_window(true);
-                                            show_dialog(&app_ui.main_window, error, false);
+                                                    UI_STATE.set_operational_mode(&app_ui, Some(&mymod_pack_path));
+                                                    UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
+
+                                                    AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &diagnostics_ui, &global_search_ui);
+                                                    app_ui.toggle_main_window(true);
+                                                }
+
+                                                Response::Error(error) => {
+                                                    app_ui.toggle_main_window(true);
+                                                    show_dialog(&app_ui.main_window, error, false);
+                                                }
+
+                                                // In ANY other situation, it's a message problem.
+                                                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                                            }
                                         }
 
                                         // In ANY other situation, it's a message problem.
                                         _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                                     }
+
                                 }
                                 Response::Error(error) => {
                                     app_ui.toggle_main_window(true);

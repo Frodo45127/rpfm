@@ -43,7 +43,7 @@ use std::fmt::Display;
 use std::fs::File;
 use std::io::Read;
 
-use rpfm_lib::files::{EncodeableExtraData, pack::PackSettings};
+use rpfm_lib::files::EncodeableExtraData;
 use rpfm_lib::games::GameInfo;
 use rpfm_lib::integrations::log::*;
 
@@ -408,14 +408,6 @@ pub unsafe fn reload_theme(app_ui: &AppUI) {
         qt_widgets::QApplication::set_palette_1a(light_palette);
         qapp.set_style_sheet(light_style_sheet);
     }
-}
-
-pub fn initialize_pack_settings() -> PackSettings {
-    let mut pack_settings = PackSettings::default();
-    pack_settings.settings_text_mut().insert("diagnostics_files_to_ignore".to_owned(), "".to_owned());
-    pack_settings.settings_text_mut().insert("import_files_to_ignore".to_owned(), "".to_owned());
-    pack_settings.settings_bool_mut().insert("disable_autosaves".to_owned(), false);
-    pack_settings
 }
 
 pub fn initialize_encodeable_extra_data(game_info: &GameInfo) -> EncodeableExtraData {

@@ -774,8 +774,11 @@ pfs_diagnostics_files_to_ignore_description_label =
 
 pfs_import_files_to_ignore_label = <h3>Files to Ignore when Importing</h3>
 pfs_import_files_to_ignore_description_label = <p>The files on this list will be ignored when importing from a MyMod folder. Only for MyMods. Paths are relative, the glory of the empire is absolute.</p>
-pfs_disable_autosaves_label = <h3>Disable Autosaves for this PackFile</h3>
-pfs_disable_autosaves_description_label = <p></p>
+pfs_disable_autosaves_label = <span>&nbsp;</span><h3>Disable Autosaves for this PackFile</h3>
+pfs_disable_autosaves_description_label = <p>Checking this, autosave for only this specific Pack will be disabled.</p>
+pfs_do_not_generate_existing_locs_label = <span>&nbsp;</span><h3>Do Not Generate Existing Locs</h3>
+pfs_do_not_generate_existing_locs_description_label = <p>If you check this, "Generate Missing Locs" will not include Loc entries that already exist in vanilla or parent files.</p>
+    <p>If you used this feature before, this means the loc file starting with "aaa_" will not be generated.</p>
 
 instructions_ca_vp8 = It's simple, the video can have 2 formats: CAMV (used by the game) and IVF (reproducible on a media player with VP8 codecs).
   To export a video, convert it to IVF and extract it.

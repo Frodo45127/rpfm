@@ -49,8 +49,8 @@ const TERRY_MAP_PATH: &str = "terrain/tiles/battle/_assembly_kit";
 const DEFAULT_BMD_DATA: &str = "bmd_data.bin";
 
 // Const for the missing locs paths.
-pub const MISSING_LOCS_PATH_EXISTING: &str = "text/aaa_missing_locs.loc";
-pub const MISSING_LOCS_PATH_NEW: &str = "text/zzz_missing_locs.loc";
+const MISSING_LOCS_PATH_START_EXISTING: &str = "text/aaa_missing_locs_";
+const MISSING_LOCS_PATH_START_NEW: &str = "text/zzz_missing_locs_";
 
 /// These three hints are necessary for the map patching function.
 const FORT_PERIMETER_HINT: &[u8; 18] = b"AIH_FORT_PERIMETER";
@@ -238,7 +238,7 @@ pub struct PackHeader {
 ///
 /// Pack Settings are settings that are baked into a file in the Pack when saving,
 /// so they can be shared across multiple instances.
-#[derive(Clone, Debug, PartialEq, Eq, Default, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct PackSettings {
 
@@ -551,7 +551,7 @@ impl Pack {
         if let Some(mut settings) = pack.files.remove(RESERVED_NAME_SETTINGS) {
             settings.load()?;
             let data = settings.cached()?;
-            pack.settings = PackSettings::load(data)?;
+            pack.settings.load_and_update(data)?;
         }
 
         if let Some(mut deps) = pack.files.remove(RESERVED_NAME_DEPENDENCIES_MANAGER_V2) {
@@ -924,9 +924,21 @@ impl Pack {
         matches!(self.header.pfh_version, PFHVersion::PFH6 | PFHVersion::PFH5)
     }
 
+    /// This function returns the paths (as Strings) of the files used for missing loc data generation for the loaded Pack.
+    ///
+    /// The first one is the one for existing entries. The second one is the one for new entries.
+    pub fn missing_locs_paths(&self) -> (String, String) {
+        (
+            MISSING_LOCS_PATH_START_EXISTING.to_owned() + &self.disk_file_name() + ".loc",
+            MISSING_LOCS_PATH_START_NEW.to_owned() + &self.disk_file_name() + ".loc"
+        )
+    }
+
     /// This function is used to generate all loc entries missing from a Pack into a missing.loc file.
     pub fn generate_missing_loc_data(&mut self, existing_locs: &HashMap<String, String>) -> Result<Vec<ContainerPath>> {
         let mut new_files = vec![];
+
+        let (missing_locs_path_existing, missing_locs_path_new) = self.missing_locs_paths();
 
         let db_tables = self.files_by_type(&[FileType::DB]);
         let loc_tables = self.files_by_type(&[FileType::Loc]);
@@ -934,7 +946,7 @@ impl Pack {
         let mut missing_trads_file_overwritten = Loc::new();
 
         let loc_keys_from_memory = loc_tables.par_iter().filter_map(|rfile| {
-            if rfile.path_in_container_raw() != MISSING_LOCS_PATH_NEW && rfile.path_in_container_raw() != MISSING_LOCS_PATH_EXISTING {
+            if rfile.path_in_container_raw() != missing_locs_path_new && rfile.path_in_container_raw() != missing_locs_path_existing {
                 if let Ok(RFileDecoded::Loc(table)) = rfile.decoded() {
                     Some(table.data().iter().filter_map(|x| {
                         if let DecodedData::StringU16(data) = &x[0] {
@@ -997,13 +1009,13 @@ impl Pack {
         // Save the missing translations to two files: one for new translations, and another one for translations in use by this pack.
         if !missing_trads_new.is_empty() {
             let _ = missing_trads_file_new.set_data(&missing_trads_new);
-            let packed_file = RFile::new_from_decoded(&RFileDecoded::Loc(missing_trads_file_new), 0, MISSING_LOCS_PATH_NEW);
+            let packed_file = RFile::new_from_decoded(&RFileDecoded::Loc(missing_trads_file_new), 0, &missing_locs_path_new);
             new_files.push(self.insert(packed_file)?.unwrap());
         }
 
-        if !missing_trads_overwritten.is_empty() {
+        if !missing_trads_overwritten.is_empty() && !self.settings.setting_bool("do_not_generate_existing_locs").unwrap_or(&false) {
             let _ = missing_trads_file_overwritten.set_data(&missing_trads_overwritten);
-            let packed_file = RFile::new_from_decoded(&RFileDecoded::Loc(missing_trads_file_overwritten), 0, MISSING_LOCS_PATH_EXISTING);
+            let packed_file = RFile::new_from_decoded(&RFileDecoded::Loc(missing_trads_file_overwritten), 0, &missing_locs_path_existing);
             new_files.push(self.insert(packed_file)?.unwrap());
         }
 
@@ -1176,9 +1188,21 @@ impl PackNotes {
 
 impl PackSettings {
 
-    /// This function tries to load the settings from the current Pack and return them.
+    /// This function tries to load the settings from a slice and return them.
     pub fn load(data: &[u8]) -> Result<Self> {
         from_slice(data).map_err(From::from)
+    }
+
+    /// This function tries to load the settings from a slice, update them so they don't have any missing values and return them.
+    pub fn load_and_update(&mut self, data: &[u8]) -> Result<()> {
+        let settings: Self = from_slice(data)?;
+
+        self.settings_bool.extend(settings.settings_bool);
+        self.settings_number.extend(settings.settings_number);
+        self.settings_string.extend(settings.settings_string);
+        self.settings_text.extend(settings.settings_text);
+
+        Ok(())
     }
 
     /// This function returns the provided string setting, if found.
@@ -1273,5 +1297,22 @@ impl Default for PackHeader {
 impl Default for PFHFlags {
     fn default() -> Self {
         Self::empty()
+    }
+}
+
+impl Default for PackSettings {
+    fn default() -> Self {
+        let mut settings = Self {
+            settings_text: BTreeMap::new(),
+            settings_string: BTreeMap::new(),
+            settings_bool: BTreeMap::new(),
+            settings_number: BTreeMap::new(),
+        };
+
+        settings.settings_text_mut().insert("diagnostics_files_to_ignore".to_owned(), "".to_owned());
+        settings.settings_text_mut().insert("import_files_to_ignore".to_owned(), "".to_owned());
+        settings.settings_bool_mut().insert("disable_autosaves".to_owned(), false);
+        settings.settings_bool_mut().insert("do_not_generate_existing_locs".to_owned(), false);
+        settings
     }
 }
