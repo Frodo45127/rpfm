@@ -23,6 +23,7 @@ use serde_derive::{Serialize, Deserialize};
 use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap};
 use std::fs::File;
+use std::hash::{Hash, Hasher};
 use std::io::SeekFrom;
 
 use crate::error::{RLibError, Result};
@@ -84,8 +85,9 @@ pub enum DecodedData {
 // Implementations for `DecodedData`.
 //----------------------------------------------------------------//
 
-/// PartialEq implementation of `DecodedData`. We need this implementation due to
+/// Eq and PartialEq implementation of `DecodedData`. We need this implementation due to
 /// the float comparison being... special.
+impl Eq for DecodedData {}
 impl PartialEq for DecodedData {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
@@ -106,6 +108,29 @@ impl PartialEq for DecodedData {
             (DecodedData::SequenceU16(x), DecodedData::SequenceU16(y)) => x == y,
             (DecodedData::SequenceU32(x), DecodedData::SequenceU32(y)) => x == y,
             _ => false
+        }
+    }
+}
+
+impl Hash for DecodedData {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            DecodedData::Boolean(y) => y.hash(state),
+            DecodedData::F32(y) => y.to_string().hash(state),
+            DecodedData::F64(y) => y.to_string().hash(state),
+            DecodedData::I16(y) => y.hash(state),
+            DecodedData::I32(y) => y.hash(state),
+            DecodedData::I64(y) => y.hash(state),
+            DecodedData::ColourRGB(y) => y.hash(state),
+            DecodedData::StringU8(y) => y.hash(state),
+            DecodedData::StringU16(y) => y.hash(state),
+            DecodedData::OptionalI16(y) => y.hash(state),
+            DecodedData::OptionalI32(y) => y.hash(state),
+            DecodedData::OptionalI64(y) => y.hash(state),
+            DecodedData::OptionalStringU8(y) => y.hash(state),
+            DecodedData::OptionalStringU16(y) => y.hash(state),
+            DecodedData::SequenceU16(y) => y.hash(state),
+            DecodedData::SequenceU32(y) => y.hash(state),
         }
     }
 }

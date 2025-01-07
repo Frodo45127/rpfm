@@ -1028,8 +1028,6 @@ optimize_packfile_are_you_sure = <h3>Are you sure you want to optimize this Pack
     <p>
         Please, do a backup before using this if you're not sure, because I don't want complains about "I pressed this and my mod dissapeared!!!" again. What this does is:
         <ul>
-            <li><b>Sort DB tables by their first key, or first column</b> (unless the table is datacoring).</li>
-            <li><b>Sort LOC tables by their key</b> (unless the table is datacoring).</li>
             <li><b>Remove duplicated entries on DB tables</b> (unless the table is datacoring).</li>
             <li><b>Remove duplicated entries on LOC tables</b> (unless the table is datacoring).</li>
             <li><b>Remove rows unchanged from default row on DB tables</b> (unless the table is datacoring).</li>

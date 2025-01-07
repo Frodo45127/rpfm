@@ -10,9 +10,6 @@
 
 //! This module contains the [Optimizable] and [OptimizableContainer] trait.
 
-use rayon::prelude::*;
-
-use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 
 use rpfm_lib::error::{RLibError, Result};
@@ -197,9 +194,6 @@ impl Optimizable for DB {
 
         // Get a manipulable copy of all the entries, so we can optimize it.
         let mut entries = self.data().to_vec();
-        let definition = self.definition();
-        let patches = Some(definition.patches());
-        let first_key = definition.fields_processed_sorted(true).iter().position(|x| x.is_key(patches)).unwrap_or(0);
 
         match dependencies.db_data(self.table_name(), true, true) {
             Ok(mut vanilla_tables) => {
@@ -252,29 +246,9 @@ impl Optimizable for DB {
                     !vanilla_table.contains(&serde_json::to_string(&entry_json).unwrap()) && entry != &new_row
                 });
 
-                // Sort the table so it can be dedup. Sorting floats is a pain in the ass.
-                entries.par_sort_by(|a, b| {
-                    let ordering = if let DecodedData::F32(x) = a[first_key] {
-                        if let DecodedData::F32(y) = b[first_key] {
-                            if float_eq::float_eq!(x, y, abs <= 0.0001) {
-                                Some(Ordering::Equal)
-                            } else { None }
-                        } else { None }
-                    } else if let DecodedData::F64(x) = a[first_key] {
-                        if let DecodedData::F64(y) = b[first_key] {
-                            if float_eq::float_eq!(x, y, abs <= 0.0001) {
-                                Some(Ordering::Equal)
-                            } else { None }
-                        } else { None }
-                    } else { None };
-
-                    match ordering {
-                        Some(ordering) => ordering,
-                        None => a[first_key].data_to_string().partial_cmp(&b[first_key].data_to_string()).unwrap_or(Ordering::Equal)
-                    }
-                });
-
-                entries.dedup();
+                // Dedupper. This is slower than a normal dedup, but it doesn't reorder rows.
+                let mut dummy_set = HashSet::new();
+                entries.retain(|x| dummy_set.insert(x.clone()));
 
                 // Then we overwrite the entries and return if the table is empty or now, so we can optimize it further at the Container level.
                 //
@@ -330,9 +304,9 @@ impl Optimizable for Loc {
                     }
                 });
 
-                // Sort the table so it can be dedup.
-                entries.par_sort_by(|a, b| a[0].data_to_string().partial_cmp(&b[0].data_to_string()).unwrap_or(Ordering::Equal));
-                entries.dedup();
+                // Dedupper. This is slower than a normal dedup, but it doesn't reorder rows.
+                let mut dummy_set = HashSet::new();
+                entries.retain(|x| dummy_set.insert(x.clone()));
 
                 // Then we overwrite the entries and return if the table is empty or now, so we can optimize it further at the Container level.
                 //
