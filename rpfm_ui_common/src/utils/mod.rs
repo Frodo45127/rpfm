@@ -14,6 +14,7 @@ Module with all the utility functions, to make our programming lives easier.
 
 use qt_widgets::QGridLayout;
 use qt_widgets::QStatusBar;
+use qt_widgets::QVBoxLayout;
 use qt_widgets::{QMessageBox, q_message_box::{Icon, StandardButton}};
 use qt_widgets::QWidget;
 
@@ -154,8 +155,14 @@ pub unsafe fn load_template(parent: impl CastInto<Ptr<QWidget>>, path: &str) -> 
     let mut file = BufReader::new(File::open(path)?);
     file.read_to_end(&mut data)?;
 
+    let parent: Ptr<QWidget> = parent.cast_into();
+    let layout = QVBoxLayout::new_1a(parent.clone());
+    parent.set_layout(&layout);
+
     let ui_loader = QUiLoader::new_0a();
     let main_widget = ui_loader.load_bytes_with_parent(&data, parent);
+
+    layout.add_widget(&main_widget);
 
     Ok(main_widget)
 }
