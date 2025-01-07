@@ -1628,3 +1628,18 @@ patch_removed_table = Local patches for this table have been removed.
 patch_removed_column = Local patches for this column have been removed.
 remove_patches_for_table = Remove Patches for Table
 remove_patches_for_column = Remove Patches for Column
+
+label_missing_loc_data_file_detected = Missing Loc Data file detected
+missing_loc_data_file_detected_explanation = The files generated using the "Generate Missing Loc Data" feature are not supposed to be kept.
+
+    Why? Because RPFM will overwrite any change you make to them the next time you use the feature again. The intended workflow affecting them is:
+
+        - Modder makes tables and populates them.
+        - Modder generates locs.
+        - Modder either renames the zzz_* file or move its contents elsewhere.
+        - Modder copies the lines it needs to edit from existing vanilla values from the aaa_* file into its own loc files.
+        - Modding continues until it's release time.
+        - Modder goes to Special Stuff/Game/Optimize PackFile and runs the optimizer, which should remove the aaa file (removing the overwriting/untranslation issue) and the zzz (if it's empty).
+        - Modder publish/updates the mod.
+
+    You do not need to use that workflow specifically, but this warning will remember you that you should delete the auto-generated loc files before publishing this mod.

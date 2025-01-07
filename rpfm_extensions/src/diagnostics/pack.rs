@@ -39,7 +39,8 @@ pub struct PackDiagnosticReport {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PackDiagnosticReportType {
-    InvalidPackName(String)
+    InvalidPackName(String),
+    MissingLocDataFileDetected(String)
 }
 
 //-------------------------------------------------------------------------------//
@@ -58,12 +59,14 @@ impl DiagnosticReport for PackDiagnosticReport {
     fn message(&self) -> String {
         match &self.report_type {
             PackDiagnosticReportType::InvalidPackName(pack_name) => format!("Invalid Pack name: {pack_name}"),
+            PackDiagnosticReportType::MissingLocDataFileDetected(pack_name) => format!("Missing Loc Data file in Pack: {pack_name}"),
         }
     }
 
     fn level(&self) -> DiagnosticLevel {
         match self.report_type {
             PackDiagnosticReportType::InvalidPackName(_) => DiagnosticLevel::Error,
+            PackDiagnosticReportType::MissingLocDataFileDetected(_) => DiagnosticLevel::Warning,
         }
     }
 }
@@ -72,6 +75,7 @@ impl Display for PackDiagnosticReportType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         Display::fmt(match self {
             Self::InvalidPackName(_) => "InvalidPackFileName",
+            Self::MissingLocDataFileDetected(_) => "MissingLocDataFileDetected",
         }, f)
     }
 }
@@ -85,6 +89,17 @@ impl PackDiagnostic {
         let name = pack.disk_file_name();
         if name.contains(' ') {
             let result = PackDiagnosticReport::new(PackDiagnosticReportType::InvalidPackName(name));
+            diagnostic.results_mut().push(result);
+        }
+
+        let (existing, new) = pack.missing_locs_paths();
+        if pack.paths().contains_key(&existing) {
+            let result = PackDiagnosticReport::new(PackDiagnosticReportType::MissingLocDataFileDetected(existing));
+            diagnostic.results_mut().push(result);
+        }
+
+        if pack.paths().contains_key(&new) {
+            let result = PackDiagnosticReport::new(PackDiagnosticReportType::MissingLocDataFileDetected(new));
             diagnostic.results_mut().push(result);
         }
 

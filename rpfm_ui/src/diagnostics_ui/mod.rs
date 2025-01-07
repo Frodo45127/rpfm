@@ -159,6 +159,7 @@ pub struct DiagnosticsUI {
     checkbox_meta_file_path_not_found: QBox<QCheckBox>,
     checkbox_snd_file_path_not_found: QBox<QCheckBox>,
     checkbox_lua_invalid_key: QBox<QCheckBox>,
+    checkbox_missing_loc_data_file_detected: QBox<QCheckBox>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -308,6 +309,7 @@ impl DiagnosticsUI {
         let checkbox_meta_file_path_not_found = QCheckBox::from_q_string_q_widget(&qtr("label_meta_file_path_not_found"), &sidebar_scroll_area);
         let checkbox_snd_file_path_not_found = QCheckBox::from_q_string_q_widget(&qtr("label_snd_file_path_not_found"), &sidebar_scroll_area);
         let checkbox_lua_invalid_key = QCheckBox::from_q_string_q_widget(&qtr("label_lua_invalid_key"), &sidebar_scroll_area);
+        let checkbox_missing_loc_data_file_detected = QCheckBox::from_q_string_q_widget(&qtr("label_missing_loc_data_file_detected"), &sidebar_scroll_area);
 
         checkbox_all.set_checked(false);
         checkbox_outdated_table.set_checked(true);
@@ -346,6 +348,7 @@ impl DiagnosticsUI {
         checkbox_meta_file_path_not_found.set_checked(true);
         checkbox_snd_file_path_not_found.set_checked(true);
         checkbox_lua_invalid_key.set_checked(true);
+        checkbox_missing_loc_data_file_detected.set_checked(true);
 
         sidebar_grid.add_widget_1a(&checkbox_all);
         sidebar_grid.add_widget_1a(&checkbox_outdated_table);
@@ -384,6 +387,7 @@ impl DiagnosticsUI {
         sidebar_grid.add_widget_1a(&checkbox_meta_file_path_not_found);
         sidebar_grid.add_widget_1a(&checkbox_snd_file_path_not_found);
         sidebar_grid.add_widget_1a(&checkbox_lua_invalid_key);
+        sidebar_grid.add_widget_1a(&checkbox_missing_loc_data_file_detected);
 
         Ok(Self {
 
@@ -456,6 +460,7 @@ impl DiagnosticsUI {
             checkbox_meta_file_path_not_found,
             checkbox_snd_file_path_not_found,
             checkbox_lua_invalid_key,
+            checkbox_missing_loc_data_file_detected,
         })
     }
 
@@ -681,6 +686,11 @@ impl DiagnosticsUI {
                                 diag_type.set_text(&QString::from_std_str(diagnostic_type.to_string()));
                                 message.set_text(&QString::from_std_str(result.message()));
                                 report_type.set_text(&QString::from_std_str(result.report_type().to_string()));
+
+                                // For missing loc diags, we need to pass the loc path.
+                                if let PackDiagnosticReportType::MissingLocDataFileDetected(loc_path) = result.report_type() {
+                                    path.set_text(&QString::from_std_str(loc_path));
+                                }
 
                                 // Set the tooltips to the diag type and description columns.
                                 Self::set_tooltips_packfile(&[&level, &path, &message], result.report_type());
@@ -1578,6 +1588,9 @@ impl DiagnosticsUI {
         if diagnostics_ui.checkbox_invalid_packfile_name.is_checked() {
             diagnostic_type_pattern.push_str(&format!("{}|", PackDiagnosticReportType::InvalidPackName(String::new())));
         }
+        if diagnostics_ui.checkbox_invalid_packfile_name.is_checked() {
+            diagnostic_type_pattern.push_str(&format!("{}|", PackDiagnosticReportType::MissingLocDataFileDetected(String::new())));
+        }
 
         if diagnostics_ui.checkbox_datacored_portrait_settings.is_checked() {
             diagnostic_type_pattern.push_str(&format!("{}|", PortraitSettingsDiagnosticReportType::DatacoredPortraitSettings));
@@ -1820,6 +1833,7 @@ impl DiagnosticsUI {
     pub unsafe fn set_tooltips_packfile(items: &[&CppBox<QStandardItem>], report_type: &PackDiagnosticReportType) {
         let tool_tip = match report_type {
             PackDiagnosticReportType::InvalidPackName(_) => qtr("invalid_packfile_name_explanation"),
+            PackDiagnosticReportType::MissingLocDataFileDetected(_) => qtr("missing_loc_data_file_detected_explanation"),
         };
 
         for item in items {
@@ -1920,6 +1934,9 @@ impl DiagnosticsUI {
 
         if !self.checkbox_invalid_packfile_name.is_checked() {
             diagnostics_ignored.push(PackDiagnosticReportType::InvalidPackName(String::new()).to_string());
+        }
+        if !self.checkbox_invalid_packfile_name.is_checked() {
+            diagnostics_ignored.push(PackDiagnosticReportType::MissingLocDataFileDetected(String::new()).to_string());
         }
 
         if !self.checkbox_datacored_portrait_settings.is_checked() {

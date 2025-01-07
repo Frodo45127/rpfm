@@ -83,4 +83,6 @@ pub unsafe fn set_connections(ui: &DiagnosticsUI, slots: &DiagnosticsUISlots) {
     ui.checkbox_file_path_not_found.toggled().connect(slots.toggle_filters());
     ui.checkbox_meta_file_path_not_found.toggled().connect(slots.toggle_filters());
     ui.checkbox_snd_file_path_not_found.toggled().connect(slots.toggle_filters());
+    ui.checkbox_lua_invalid_key.toggled().connect(slots.toggle_filters());
+    ui.checkbox_missing_loc_data_file_detected.toggled().connect(slots.toggle_filters());
 }

@@ -432,6 +432,8 @@ impl DiagnosticsUISlots {
                 let _blocker_32 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_file_path_not_found.static_upcast::<QObject>());
                 let _blocker_33 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_meta_file_path_not_found.static_upcast::<QObject>());
                 let _blocker_34 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_snd_file_path_not_found.static_upcast::<QObject>());
+                let _blocker_35 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_lua_invalid_key.static_upcast::<QObject>());
+                let _blocker_36 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_missing_loc_data_file_detected.static_upcast::<QObject>());
 
                 if toggled {
                     diagnostics_ui.checkbox_outdated_table.set_checked(true);
@@ -469,6 +471,8 @@ impl DiagnosticsUISlots {
                     diagnostics_ui.checkbox_file_path_not_found.set_checked(true);
                     diagnostics_ui.checkbox_meta_file_path_not_found.set_checked(true);
                     diagnostics_ui.checkbox_snd_file_path_not_found.set_checked(true);
+                    diagnostics_ui.checkbox_lua_invalid_key.set_checked(true);
+                    diagnostics_ui.checkbox_missing_loc_data_file_detected.set_checked(true);
                 }
 
                 DiagnosticsUI::filter(&app_ui, &diagnostics_ui);
