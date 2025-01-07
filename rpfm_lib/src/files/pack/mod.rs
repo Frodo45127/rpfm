@@ -49,8 +49,8 @@ const TERRY_MAP_PATH: &str = "terrain/tiles/battle/_assembly_kit";
 const DEFAULT_BMD_DATA: &str = "bmd_data.bin";
 
 // Const for the missing locs paths.
-const MISSING_LOCS_PATH_EXISTING: &str = "text/aaa_missing_locs.loc";
-const MISSING_LOCS_PATH_NEW: &str = "text/zzz_missing_locs.loc";
+pub const MISSING_LOCS_PATH_EXISTING: &str = "text/aaa_missing_locs.loc";
+pub const MISSING_LOCS_PATH_NEW: &str = "text/zzz_missing_locs.loc";
 
 /// These three hints are necessary for the map patching function.
 const FORT_PERIMETER_HINT: &[u8; 18] = b"AIH_FORT_PERIMETER";

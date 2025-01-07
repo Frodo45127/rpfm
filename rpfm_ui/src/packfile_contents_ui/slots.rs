@@ -1347,6 +1347,13 @@ impl PackFileContentsSlots {
             match response {
                 Response::VecContainerPath(paths_to_add) => {
                     pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths_to_add), DataSource::PackFile);
+
+                    // Reload correctly the UI.
+                    UI_STATE.set_open_packedfiles()
+                        .iter_mut()
+                        .filter(|view| view.data_source() == DataSource::PackFile && (&view.path_copy() == MISSING_LOCS_PATH_EXISTING || &view.path_copy() == MISSING_LOCS_PATH_NEW))
+                        .for_each(|view| { let _ = view.reload(&view.path_copy(), &pack_file_contents_ui); });
+
                     UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                 }
 
