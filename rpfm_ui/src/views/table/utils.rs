@@ -50,7 +50,6 @@ use rpfm_extensions::dependencies::TableReferences;
 
 use rpfm_lib::binary::WriteBytes;
 use rpfm_lib::files::{ContainerPath, RFileDecoded, table::Table};
-use rpfm_lib::integrations::log::*;
 use rpfm_lib::schema::{Definition, DefinitionPatch, Field, FieldType};
 
 use rpfm_ui_common::locale::{qtr, tr, tre};
@@ -74,11 +73,7 @@ pub unsafe fn update_undo_model(model: &QPtr<QStandardItemModel>, undo_model: &Q
     for row in 0..model.row_count_0a() {
         for column in 0..model.column_count_0a() {
             let item = model.item_2a(row, column);
-            if item.is_null() {
-                error!("Null on item model? WTF? Row: {}, Column: {}", row, column);
-            } else {
-                undo_model.set_item_3a(row, column, (*item).clone());
-            }
+            undo_model.set_item_3a(row, column, (*item).clone());
         }
     }
     undo_model.block_signals(false);
