@@ -43,20 +43,22 @@ QTableViewSortFilterProxyModel::QTableViewSortFilterProxyModel(QObject *parent):
 // Function called when the filter changes.
 bool QTableViewSortFilterProxyModel::filterAcceptsRow(int source_row, const QModelIndex &source_parent) const {
 
-    // First, split the matches in groups.
-    QVector<QVector<int>> matches_per_group = QVector<QVector<int>>();
-
-    // Initialize the groups so it doesn't explode later.
-    const int max_groups = *std::max_element(match_groups_per_column.begin(), match_groups_per_column.end()) + 1;
-    for (int i = 0; i < max_groups; ++i) {
-        matches_per_group.append(QVector<int>());
+    // If we have no filters, show everything.
+    if (patterns.isEmpty()) {
+        return true;
     }
 
-    // Split matches per groups.
+    // First, split the matches in groups.
+    QMap<int, QVector<int>> matches_per_group = QMap<int, QVector<int>>();
+
+    // Initialize the groups so it doesn't explode later.
     for (int i = 0; i < match_groups_per_column.count(); ++i) {
         int group = match_groups_per_column.at(i);
-
-        if (!matches_per_group[group].contains(i)) {
+        if (matches_per_group.contains(group)) {
+            auto vec = QVector<int>();
+            vec.append(i);
+            matches_per_group.insert(group, vec);
+        } else {
             matches_per_group[group].append(i);
         }
     }
@@ -65,15 +67,21 @@ bool QTableViewSortFilterProxyModel::filterAcceptsRow(int source_row, const QMod
     // - For a group to be valid, all matches on it must be valid (if one of them is not valid, the entire group is invalid).
     // - For a row to be valid, one of the group needs to be valid (we keep trying until we find a valid one).
     // This means we have to check one group at a time, and if one of them is valid, the full row is valid.
-    for (int j = 0; j < max_groups; ++j) {
+    for (const QVector<int>& group: qAsConst(matches_per_group)) {
         bool is_group_valid = true;
 
         // For each column, check if it's on the current group.
-        for (int match: matches_per_group.at(j)) {
+        for (int match: group) {
+
+            // Ignore empty matches.
+            QString pattern = patterns.at(match);
+            if (pattern.isEmpty()) {
+                continue;
+            }
+
             int column = columns.at(match);
             bool use_regex = regex.at(match) == 1 ? true: false;
             bool use_nott = nott.at(match) == 1 ? true: false;
-            QString pattern = patterns.at(match);
             Qt::CaseSensitivity case_sensitivity = static_cast<Qt::CaseSensitivity>(case_sensitive.at(match));
             bool show_blank_cells_in_column = show_blank_cells.at(match) == 1 ? true: false;
             bool show_edited_cells_in_column = show_edited_cells.at(match) == 1 ? true: false;
