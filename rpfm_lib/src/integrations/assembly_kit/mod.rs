@@ -190,6 +190,40 @@ pub fn update_schema_from_raw_files(
                                 definition.patches_mut().insert(key_field.name().to_string(), hashmap);
                             }
                         }
+
+                        // In older games, names_tables type and gender need hardcoded lookups to bypass an issue with mismatching types between ak and game files.
+                        if table_name == "names_tables" {
+                            let fields_processed = definition.fields_processed();
+
+                            if let Some(field) = fields_processed.iter().find(|x| x.name() == "type") {
+                                if *field.field_type() == FieldType::I32 {
+                                    let mut hashmap = HashMap::new();
+                                    let data = vec![
+                                        String::from("0;;;;;forename"),
+                                        String::from("1;;;;;family_name"),
+                                        String::from("2;;;;;clan_name"),
+                                        String::from("3;;;;;other"),
+                                    ];
+
+                                    hashmap.insert("lookup_hardcoded".to_owned(), data.join(":::::"));
+                                    definition.patches_mut().insert(field.name().to_string(), hashmap);
+                                }
+                            }
+
+                            if let Some(field) = fields_processed.iter().find(|x| x.name() == "gender") {
+                                if *field.field_type() == FieldType::I32 {
+                                    let mut hashmap = HashMap::new();
+                                    let data = vec![
+                                        String::from("0;;;;;m"),
+                                        String::from("1;;;;;f"),
+                                        String::from("2;;;;;b"),
+                                    ];
+
+                                    hashmap.insert("lookup_hardcoded".to_owned(), data.join(":::::"));
+                                    definition.patches_mut().insert(field.name().to_string(), hashmap);
+                                }
+                            }
+                        }
                     }
                 }
             }

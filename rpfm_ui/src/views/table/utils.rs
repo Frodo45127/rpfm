@@ -1166,9 +1166,25 @@ pub unsafe fn setup_item_delegates(
                 let mut data = data.data().iter().collect::<Vec<(&String, &String)>>();
                 data.sort_by_key(|x| x.0);
                 data.iter().for_each(|x| {
-                    values.append_q_string(&QString::from_std_str(x.0));
-                    if enable_lookups {
-                        lookups.append_q_string(&QString::from_std_str(x.1));
+
+                    // Only add values that can be put in the cell.
+                    let can_be_used = match field.field_type() {
+                        FieldType::F32 => x.0.parse::<f32>().is_ok(),
+                        FieldType::F64 => x.0.parse::<f64>().is_ok(),
+                        FieldType::I16 => x.0.parse::<i16>().is_ok(),
+                        FieldType::I32 => x.0.parse::<i32>().is_ok(),
+                        FieldType::I64 => x.0.parse::<i64>().is_ok(),
+                        FieldType::OptionalI16 => x.0.parse::<i16>().is_ok(),
+                        FieldType::OptionalI32 => x.0.parse::<i32>().is_ok(),
+                        FieldType::OptionalI64 => x.0.parse::<i64>().is_ok(),
+                        _ => true,
+                    };
+
+                    if can_be_used {
+                        values.append_q_string(&QString::from_std_str(x.0));
+                        if enable_lookups {
+                            lookups.append_q_string(&QString::from_std_str(x.1));
+                        }
                     }
                 });
             }
