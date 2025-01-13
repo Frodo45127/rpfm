@@ -138,7 +138,7 @@ impl FilterView {
         }
 
         // Add the new filter at the bottom of the window.
-        parent_grid.add_widget_5a(&main_widget, view.filters().len() as i32 + 4, 0, 1, 2);
+        parent_grid.add_widget_5a(&main_widget, parent_grid.row_count(), 0, 1, 2);
 
         let filter = Arc::new(Self {
             main_widget,
