@@ -6,6 +6,33 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [4.3.12]
+### Added
+- Implemented Pack Setting to disable generation of the "aaa_" file when generating the pack's missing loc data.
+- Implemented diagnostic to detect missing loc data files.
+- Implemented Save Pack for Release (optimizes the pack, then saves it).
+- Added small workflow tutorials and explanations to the manual.
+
+### Changed
+- Generate Missing Loc Data file names are now pack-dependant, to increase compatibility for people not deleting them.
+- Optimizing a pack no longer sorts all the tables and locs.
+
+### Fixed
+- Fixed CLI not using lazy-loading when opening packs on certain operations, resulting in absurd amounts of ram used.
+- Fixed LUA diagnostic positions being incorrectly calculated.
+- Fixed LUA diagnostics generating false positives due to comments or end-of-table commas.
+- Fixed LUA diagnostics not scrolling to position when opened.
+- Fixed LUA diagnostics not working on files with Windows/Mac endings.
+- Fixed MyMod Import not properly importing the fake dependencies file.
+- Fixed Generate Missing Loc Data not correctly reloading the edited files.
+- Fixed old Packs not being able to use new Pack settings.
+- Fixed misaligned/missing text in Pack Settings.
+- Fixed tools not being resizable.
+- Fixed CTD when opening a diagnostic pointing to a cell that no longer exist.
+- Fixed inconsistent behavior on table filters when using groups.
+- Fixed missing/invalid lookups on names tables for Rome 2, Attila and Thrones.
+- Fixed inconsistent behavior when adding and removing table filters to a table.
+
 ## [4.3.11]
 ### Added
 - Implemented "Go To File" for fields that reference a file.
@@ -1489,7 +1516,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.3.11...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.3.12...HEAD
+[4.3.12]: https://github.com/Frodo45127/rpfm/compare/v4.3.11...v4.3.12
 [4.3.11]: https://github.com/Frodo45127/rpfm/compare/v4.3.10...v4.3.11
 [4.3.10]: https://github.com/Frodo45127/rpfm/compare/v4.3.9...v4.3.10
 [4.3.9]: https://github.com/Frodo45127/rpfm/compare/v4.3.8...v4.3.9
