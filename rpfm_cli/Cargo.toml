@@ -23,7 +23,7 @@ rpfm_extensions = { path = "../rpfm_extensions", version = "4.3.11" }
 anyhow = "1.0"
 
 # Config dependencies.
-directories = "^5.0"
+directories = "^6.0"
 lazy_static = "^1.2"
 
 # CLI parsing, formatting and color support.

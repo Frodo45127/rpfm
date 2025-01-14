@@ -33,12 +33,12 @@ rpfm_extensions = { path = "../rpfm_extensions", version = "4.3.11" }
 rpfm_ui_common = { path = "../rpfm_ui_common" }
 
 # Config dependencies.
-directories = "^5.0"
+directories = "^6.0"
 lazy_static = "^1.2"
 
 # Error managing.
-anyhow = "1.0"
-thiserror = "1.0"
+anyhow = "^1"
+thiserror = "^2"
 
 # Basic get/set support.
 getset = "^0.1"
@@ -73,14 +73,14 @@ meval = "^0.2"
 float_eq = "^1"
 
 # Audio playback support.
-rodio = "^0.19"
+rodio = "^0.20"
 
 # Improved multi-thread Support.
 crossbeam = "^0.8" # Maybe replace it with flume?
 rayon = "^1.3"
 
 # Better iterator support.
-itertools = "^0.13"
+itertools = "^0.14"
 
 # Folder size calculations.
 fs_extra = "^1.3"
@@ -89,7 +89,7 @@ fs_extra = "^1.3"
 tokio = { version = "1.0", features = ["full"] }
 
 # Autoupdate support.
-self_update = { version = "^0.41", features = ["archive-zip", "compression-zip-deflate", "compression-zip-bzip2", "compression-flate2"] }
+self_update = { version = "^0.42", features = ["archive-zip", "compression-zip-deflate", "compression-zip-bzip2", "compression-flate2"] }
 tempfile = "^3.1"
 zip-extract = "^0.2"
 reqwest = "^0.12"
