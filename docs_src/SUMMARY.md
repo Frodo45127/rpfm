@@ -37,4 +37,7 @@
 - [DB Decoder](./chapter_5.md)
 	- [DB Types](./chapter_5_1.md)
 - [Extras](./chapter_appendix.md)
+- [Tutorials](./chapter_tutorials_intro.md)
+    - [How To Translate A Mod](./chapter_tutorials_translator.md)
+    - [How To Optimize Your Mod](./chapter_tutorials_optimizer.md)
 - [Compilation Instructions](./chapter_comp.md)
