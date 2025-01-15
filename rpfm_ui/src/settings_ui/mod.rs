@@ -614,6 +614,10 @@ impl SettingsUI {
         ui_table_view_grid.add_widget_5a(&ui_table_hide_unused_columns_label, 12, 0, 1, 2);
         ui_table_view_grid.add_widget_5a(&ui_table_hide_unused_columns_checkbox, 12, 2, 1, 1);
 
+        // Hide them because it seems CA is using fields that CA marked as unused...
+        ui_table_hide_unused_columns_label.set_visible(false);
+        ui_table_hide_unused_columns_checkbox.set_visible(false);
+
         let settings_ui_table_colour_light_label = QLabel::from_q_string_q_widget(&qtr("settings_ui_table_colour_light_label"), &ui_table_view_frame);
         let settings_ui_table_colour_dark_label = QLabel::from_q_string_q_widget(&qtr("settings_ui_table_colour_dark_label"), &ui_table_view_frame);
 

@@ -752,7 +752,7 @@ pub unsafe fn build_columns(
     let header = table_view.horizontal_header();
 
     let mut columns_to_hide = vec![];
-    let hide_unused_columns = setting_bool("hide_unused_columns");
+    let hide_unused_columns = false; //setting_bool("hide_unused_columns");
 
     let description_icon = if setting_bool("use_dark_theme") {
         QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/description_icon_dark.png", ASSETS_PATH.to_string_lossy())))
