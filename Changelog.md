@@ -6,6 +6,13 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [4.3.13]
+### Removed
+- Removed "Hide Unused Columns" setting, as turns out some of them were actually used.
+
+### Fixed
+- Fixed only last filter of each group actually working.
+
 ## [4.3.12]
 ### Added
 - Implemented Pack Setting to disable generation of the "aaa_" file when generating the pack's missing loc data.
@@ -1516,7 +1523,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.3.12...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.3.13...HEAD
+[4.3.13]: https://github.com/Frodo45127/rpfm/compare/v4.3.12...v4.3.13
 [4.3.12]: https://github.com/Frodo45127/rpfm/compare/v4.3.11...v4.3.12
 [4.3.11]: https://github.com/Frodo45127/rpfm/compare/v4.3.10...v4.3.11
 [4.3.10]: https://github.com/Frodo45127/rpfm/compare/v4.3.9...v4.3.10
