@@ -54,7 +54,7 @@ bool QTableViewSortFilterProxyModel::filterAcceptsRow(int source_row, const QMod
     // Initialize the groups so it doesn't explode later.
     for (int i = 0; i < match_groups_per_column.count(); ++i) {
         int group = match_groups_per_column.at(i);
-        if (matches_per_group.contains(group)) {
+        if (!matches_per_group.contains(group)) {
             auto vec = QVector<int>();
             vec.append(i);
             matches_per_group.insert(group, vec);
