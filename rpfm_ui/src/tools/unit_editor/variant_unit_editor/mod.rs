@@ -369,7 +369,7 @@ impl SubToolVariantUnitEditor {
     unsafe fn get_unit_variants_colours_data(&self, data: &HashMap<String, String>) -> Result<()> {
         if let Some(definition) = data.get("unit_variants_colours_definition") {
             let definition = serde_json::from_str(definition)?;
-            let reference_data = get_reference_data(FileType::DB, "unit_variants_colours_tables", &definition)?;
+            let reference_data = get_reference_data(FileType::DB, "unit_variants_colours_tables", &definition, false)?;
 
             let column_faction = definition.column_position_by_name("faction").ok_or_else(|| ToolsError::MissingColumnInTable("unit_variants_colours".to_string(), "faction".to_string()))?;
             let column_soldier_type = definition.column_position_by_name("soldier_type").ok_or_else(|| ToolsError::MissingColumnInTable("unit_variants_colours".to_string(), "soldier_type".to_string()))?;
