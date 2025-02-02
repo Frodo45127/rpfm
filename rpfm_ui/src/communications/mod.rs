@@ -228,7 +228,7 @@ pub enum Command {
 
     /// This command is used to decode all tables referenced by columns in the provided definition and return their data.
     /// It requires the table name, the definition of the table to get the reference data from and the list of PackedFiles to ignore.
-    GetReferenceDataFromDefinition(String, Definition),
+    GetReferenceDataFromDefinition(String, Definition, bool),
 
     /// This command is used to get the list of PackFiles that are marked as dependency of our PackFile.
     GetDependencyPackFilesList,

@@ -270,7 +270,7 @@ pub struct TableView {
     banned_table: bool,
 
     #[getset(skip)]
-    reference_map: Arc<HashMap<String, HashMap<String, Vec<String>>>>,
+    reference_map: Arc<RwLock<HashMap<String, HashMap<String, Vec<String>>>>>,
 
     profile_default: Arc<RwLock<String>>,
     profiles: Arc<RwLock<HashMap<String, TableViewProfile>>>,
@@ -337,7 +337,7 @@ impl TableView {
 
         // Get the dependency data of this Table.
         let table_name_for_ref = if let Some(name) = table_name { name.to_owned() } else { "".to_owned() };
-        let dependency_data = get_reference_data(packed_file_type, &table_name_for_ref, &table_definition)?;
+        let dependency_data = get_reference_data(packed_file_type, &table_name_for_ref, &table_definition, false)?;
 
         // Do not bother getting hashed data for tables that are not modded.
         let vanilla_hashed_tables = {
@@ -674,7 +674,7 @@ impl TableView {
             packed_file_path: packed_file_path.clone(),
             packed_file_type: Arc::new(packed_file_type),
             banned_table,
-            reference_map: Arc::new(reference_map),
+            reference_map: Arc::new(RwLock::new(reference_map)),
             profile_default: Arc::new(RwLock::new(String::new())),
             profiles: Arc::new(RwLock::new(HashMap::new())),
 

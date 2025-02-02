@@ -552,6 +552,27 @@ impl TableViewSlots {
                                     _ => None,
                                 };
 
+                                // Due to this being able to import different versions of the table we have, we need to update all the definition-specific data
+                                // before loading the new data to the UI. Otherwise we may trigger index out of bounds errors.
+                                if let TableType::DB(ref data) = data {
+                                    *view.table_definition.write().unwrap() = data.definition().clone();
+
+                                    let definition = view.table_definition.read().unwrap();
+                                    let table_name = if let Some(name) = view.table_name() { name.to_owned() } else { "".to_owned() };
+
+                                    // Get the reference data for this table, to speedup reference searching.
+                                    *view.reference_map.write().unwrap() = if let Some(schema) = &*SCHEMA.read().unwrap() {
+                                        schema.referencing_columns_for_table(&table_name, &definition)
+                                    } else {
+                                        HashMap::new()
+                                    };
+
+                                    // Regenerate the references for this table, as we may have different columns with new references.
+                                    if let Ok(data) = get_reference_data(*view.packed_file_type, &table_name, &definition, true) {
+                                        view.set_dependency_data(&data);
+                                    }
+                                }
+
                                 load_data(
                                     &view.table_view_ptr(),
                                     &view.table_definition(),
@@ -697,7 +718,7 @@ impl TableViewSlots {
                 let index = view.table_filter.map_to_source(filter_index.as_ref());
                 if index.is_valid() && !view.table_model.item_from_index(&index).is_checkable() {
                     if let Some(field) = view.table_definition.read().unwrap().fields_processed().get(index.column() as usize) {
-                        if let Some(reference_data) = view.reference_map.get(field.name()) {
+                        if let Some(reference_data) = view.reference_map.read().unwrap().get(field.name()) {
 
                             // Stop if we have another find already running.
                             if references_ui.references_table_view().is_enabled() {

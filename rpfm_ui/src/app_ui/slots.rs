@@ -1545,7 +1545,7 @@ impl AppUISlots {
                             // For tables, we have to update the dependency data, reload its profiles and reset the dropdown's data.
                             let table = table.get_ref_table();
                             let table_name = if let Some(name) = table.table_name() { name.to_owned() } else { "".to_owned() };
-                            if let Ok(data) = get_reference_data(*table.get_packed_file_type(), &table_name, &table.table_definition()) {
+                            if let Ok(data) = get_reference_data(*table.get_packed_file_type(), &table_name, &table.table_definition(), false) {
                                 table.set_dependency_data(&data);
                                 table.table_model().block_signals(true);
 

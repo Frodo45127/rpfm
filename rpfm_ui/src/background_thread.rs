@@ -1088,12 +1088,12 @@ pub fn background_loop() {
             }
 
             // In case we want to get the reference data for a definition...
-            Command::GetReferenceDataFromDefinition(table_name, definition) => {
+            Command::GetReferenceDataFromDefinition(table_name, definition, force_local_ref_generation) => {
                 let mut reference_data = HashMap::new();
 
                 // Only generate the cache references if we don't already have them generated.
                 if let Some(ref schema) = *SCHEMA.read().unwrap() {
-                    if dependencies.read().unwrap().local_tables_references().get(&table_name).is_none() {
+                    if dependencies.read().unwrap().local_tables_references().get(&table_name).is_none() || force_local_ref_generation {
                         dependencies.write().unwrap().generate_local_definition_references(schema, &table_name, &definition);
                     }
 
