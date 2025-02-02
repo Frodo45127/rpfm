@@ -759,7 +759,9 @@ impl TableView {
                 let visual_index = header.visual_index(*logical_index);
                 header.move_section(visual_index, dest_index as i32);
 
-                self.sidebar_hide_checkboxes()[*logical_index as usize].set_checked(profile.columns_hidden.contains(logical_index));
+                if let Some(checkbox) = self.sidebar_hide_checkboxes().get(*logical_index as usize) {
+                    checkbox.set_checked(profile.columns_hidden.contains(logical_index));
+                }
             }
 
             header.block_signals(false);
