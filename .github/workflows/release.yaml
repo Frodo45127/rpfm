@@ -265,7 +265,7 @@ jobs:
       - name: Upload build artifact (Linux)
         id: upload-release-asset-linux
         if: matrix.os == 'self-hosted-linux'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
           path: /usr/src/app/_work/rpfm/rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
@@ -273,7 +273,7 @@ jobs:
       - name: Upload build artifact (Windows)
         id: upload-release-asset-windows
         if: matrix.os == 'self-hosted-windows'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
           path: ${{ matrix.DDISK }}:/deploy/rpfm-release-assets/rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
@@ -360,7 +360,7 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           path: ./downloads
 
