@@ -543,7 +543,8 @@ impl TableViewSlots {
                                     RFileDecoded::Loc(data) => TableType::Loc(data),
                                     _ => unimplemented!(),
                                 };
-                                let old_data = view.get_copy_of_table();
+                                //let old_data = view.get_copy_of_table();
+                                //let old_definition = view.table_definition.read().unwrap().clone();
 
                                 view.undo_lock.store(true, Ordering::SeqCst);
 
@@ -589,7 +590,9 @@ impl TableViewSlots {
 
                                 view.undo_lock.store(false, Ordering::SeqCst);
 
-                                view.history_undo.write().unwrap().push(TableOperations::ImportTSV(old_data));
+                                // Due to versioning bugs and discrepancies between backend and frontend, we need to clear the undo history, so this operation cannot be reverted.
+                                //view.history_undo.write().unwrap().push(TableOperations::ImportTSV(old_data));
+                                view.history_undo.write().unwrap().clear();
                                 view.history_redo.write().unwrap().clear();
                                 update_undo_model(&view.table_model_ptr(), &view.undo_model_ptr());
 

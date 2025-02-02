@@ -175,8 +175,8 @@ pub enum TableOperations {
     /// Intended for when removing rows. It holds a list of positions where the rows where deleted and the deleted rows data, in consecutive batches.
     RemoveRows(Vec<(i32, Vec<Vec<AtomicPtr<QStandardItem>>>)>),
 
-    /// It holds a copy of the entire table, before importing.
-    ImportTSV(Vec<AtomicPtr<QListOfQStandardItem>>),
+    // It holds a copy of the entire table, before importing, and its definition, because it may change.
+    //ImportTSV(Vec<AtomicPtr<QListOfQStandardItem>>),
 
     /// A Jack-of-all-Trades. It holds a `Vec<TableOperations>`, for those situations one is not enough.
     Carolina(Vec<TableOperations>),
@@ -1915,7 +1915,9 @@ impl TableView {
                 }
 
                 // This action is special and we have to manually trigger a save for it.
-                TableOperations::ImportTSV(table_data) => {
+                //
+                // Also, this operation is NOT CHEAP. We need to replace the definition and effectively reload the entire table and associated data.
+                /*TableOperations::ImportTSV(table_data) => {
 
                     let old_data = self.get_copy_of_table();
                     history_opposite.push(TableOperations::ImportTSV(old_data));
@@ -1928,7 +1930,7 @@ impl TableView {
                         self.table_model.append_row_q_list_of_q_standard_item(row.as_ref().unwrap())
                     }
                     self.undo_lock.store(false, Ordering::SeqCst);
-                }
+                }*/
 
                 TableOperations::Carolina(mut operations) => {
                     is_carolina = true;
@@ -3617,7 +3619,7 @@ impl Debug for TableOperations {
             Self::Editing(data) => write!(f, "Cell/s edited, starting in row {}, column {}.", (data[0].0).0, (data[0].0).1),
             Self::AddRows(data) => write!(f, "Removing row/s added in position/s {}.", data.iter().map(|x| x.to_string()).join(", ")),
             Self::RemoveRows(data) => write!(f, "Re-adding row/s removed in {} batches.", data.len()),
-            Self::ImportTSV(_) => write!(f, "Imported TSV file."),
+            //Self::ImportTSV(_) => write!(f, "Imported TSV file."),
             Self::Carolina(_) => write!(f, "Carolina, trátame bien, no te rías de mi, no me arranques la piel."),
         }
     }
