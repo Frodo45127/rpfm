@@ -108,18 +108,18 @@ fn test_assladers_begone() {
 
                     data.encode(&mut after, &None).unwrap();
 
-                    let dest_path_end = path.strip_prefix(base_path).unwrap();
-                    let dest_path = dest_path.join(dest_path_end);
-                    let mut dest_path_parent = dest_path.to_path_buf();
-                    dest_path_parent.pop();
-
-                    DirBuilder::new().recursive(true).create(&dest_path_parent).unwrap();
-
-                    let mut writer = BufWriter::new(File::create(&dest_path).unwrap());
-                    writer.write_all(&after).unwrap();
-
                     if before != after {
                         println!("File edited: {}", dest_path.to_string_lossy().to_string());
+
+                        let dest_path_end = path.strip_prefix(base_path).unwrap();
+                        let dest_path = dest_path.join(dest_path_end);
+                        let mut dest_path_parent = dest_path.to_path_buf();
+                        dest_path_parent.pop();
+
+                        DirBuilder::new().recursive(true).create(&dest_path_parent).unwrap();
+
+                        let mut writer = BufWriter::new(File::create(&dest_path).unwrap());
+                        writer.write_all(&after).unwrap();
                     }
                 }
                 Err(error) => {
