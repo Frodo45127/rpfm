@@ -61,6 +61,27 @@ fn test_encode_cs2_corner_parsed() {
 }
 
 #[test]
+fn test_encode_cs2_parsed_v20_3k() {
+    let path_1 = "../test_files/test_decode_v20_3k.cs2.parsed";
+    let path_2 = "../test_files/test_encode_v20_3k.cs2.parsed";
+    let mut reader = BufReader::new(File::open(path_1).unwrap());
+
+    let decodeable_extra_data = DecodeableExtraData::default();
+
+    let data_len = reader.len().unwrap();
+    let before = reader.read_slice(data_len as usize, true).unwrap();
+    let mut data = Cs2Parsed::decode(&mut reader, &Some(decodeable_extra_data)).unwrap();
+    let mut after = vec![];
+
+    data.encode(&mut after, &None).unwrap();
+
+    let mut writer = BufWriter::new(File::create(path_2).unwrap());
+    writer.write_all(&after).unwrap();
+
+    assert_eq!(before, after);
+}
+
+#[test]
 fn test_encode_cs2_parsed_v21() {
     let path_1 = "../test_files/test_decode_v21.cs2.parsed";
     let path_2 = "../test_files/test_encode_v21.cs2.parsed";

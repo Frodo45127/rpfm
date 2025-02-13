@@ -21,28 +21,29 @@ impl Cs2Parsed {
 
     pub fn read_v20<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
         self.str_1 = data.read_sized_string_u8()?;
-        self.matrix_1 = Transform4x4::decode(data, &None)?;
+        self.bounding_box = Transform4x4::decode(data, &None)?;
         self.int_1 = data.read_i32()?;
 
         // Pieces
         for _ in 0..data.read_u32()? {
             let mut piece = Piece::default();
 
-            piece.str_2 = data.read_sized_string_u8()?;
-            piece.str_3 = data.read_sized_string_u8()?;
-            piece.matrix_2 = Transform4x4::decode(data, &None)?;
+            // Tech node.
+            piece.name = data.read_sized_string_u8()?;
+            piece.node_name = data.read_sized_string_u8()?;
+            piece.node_transform = Transform4x4::decode(data, &None)?;
             piece.int_3 = data.read_i32()?;
 
             for _ in 0..data.read_u32()? {
                 let mut destruct = Destruct::default();
-                destruct.key = data.read_sized_string_u16()?;
-                destruct.i_1 = data.read_u32()?;
+                destruct.name = data.read_sized_string_u16()?;
+                destruct.index = data.read_u32()?;
 
                 // Collision outlines?
                 for _ in 0..data.read_u32()? {
                     destruct.collision_outlines.push(CollisionOutline {
-                        key: data.read_sized_string_u16()?,
-                        line: Outline3d::decode(data, &None)?,
+                        name: data.read_sized_string_u16()?,
+                        vertices: Outline3d::decode(data, &None)?,
                         uk_1: data.read_u32()?,
                     });
                 }
@@ -50,9 +51,9 @@ impl Cs2Parsed {
                 // Pipes.
                 for _ in 0..data.read_u32()? {
                     destruct.pipes.push(Pipe {
-                        key: data.read_sized_string_u16()?,
+                        name: data.read_sized_string_u16()?,
                         line: Outline3d::decode(data, &None)?,
-                        uk_1: data.read_u32()?,
+                        line_type: data.read_u32()?,
                     });
 
                 }
@@ -62,9 +63,8 @@ impl Cs2Parsed {
                     let mut thingies = vec![];
                     for _ in 0..data.read_u32()? {
                         thingies.push(OrangeThingy {
-                            f_1: data.read_f32()?,
-                            f_2: data.read_f32()?,
-                            u_1: data.read_u32()?,
+                            vertex: Point2d::decode(data, &None)?,
+                            vertex_type: data.read_u32()?,
                         });
                     }
 
@@ -74,34 +74,43 @@ impl Cs2Parsed {
                 // Platforms.
                 for _ in 0..data.read_u32()? {
                     destruct.platforms.push(Platform {
-                        f_1: data.read_f32()?,
-                        f_2: data.read_f32()?,
-                        f_3: data.read_f32()?,
-                        line: Outline3d::decode(data, &None)?,
-                        b_1: data.read_bool()?,
-                        b_2: data.read_bool()?,
-                        b_3: data.read_bool()?,
+                        normal: Point3d::decode(data, &None)?,
+                        vertices: Outline3d::decode(data, &None)?,
+                        flag_1: data.read_bool()?,
+                        flag_2: data.read_bool()?,
+                        flag_3: data.read_bool()?,
                     });
                 }
 
-                destruct.i_2 = data.read_i32()?;
-                destruct.m_1 = Transform3x4::decode(data, &None)?;
+                destruct.uk_2 = data.read_i32()?;
+
+                destruct.bounding_box = Cube::decode(data, &None)?;
+
+                destruct.uk_3 = data.read_i32()?;
+                destruct.uk_4 = data.read_i32()?;
+                destruct.uk_5 = data.read_i32()?;
+                destruct.uk_6 = data.read_i32()?;
+                destruct.uk_7 = data.read_i32()?;
+
+                // Destructible pillars? No, you didn't read it wrong. It's -1 when it's empty, so we have to use i32 here.
+                for _ in 0..data.read_u32()? {
+                    destruct.file_refs.push(FileRef {
+                        key: data.read_sized_string_u8()?,
+                        name: data.read_sized_string_u8()?,
+                        transform: Transform4x4::decode(data, &None)?,
+                        uk_1: data.read_i16()?
+                    });
+                }
 
                 // EF lines.
                 for _ in 0..data.read_u32()? {
                     destruct.ef_lines.push(EFLine {
-                        key: data.read_sized_string_u16()?,
-                        uk_1: data.read_u32()?,
-                        f_1: data.read_f32()?,
-                        f_2: data.read_f32()?,
-                        f_3: data.read_f32()?,
-                        f_4: data.read_f32()?,
-                        f_5: data.read_f32()?,
-                        f_6: data.read_f32()?,
-                        f_7: data.read_f32()?,
-                        f_8: data.read_f32()?,
-                        f_9: data.read_f32()?,
-                        uk_2: data.read_u32()?,
+                        name: data.read_sized_string_u16()?,
+                        action: data.read_u32()?,
+                        start: Point3d::decode(data, &None)?,
+                        end: Point3d::decode(data, &None)?,
+                        direction: Point3d::decode(data, &None)?,
+                        parent_index: data.read_u32()?
                     });
                 }
 
@@ -109,25 +118,43 @@ impl Cs2Parsed {
                 for _ in 0..data.read_u32()? {
                     destruct.docking_lines.push(DockingLine {
                         key: data.read_sized_string_u16()?,
-                        f_0: data.read_f32()?,
-                        f_1: data.read_f32()?,
-                        f_2: data.read_f32()?,
-                        f_3: data.read_f32()?,
-                        f_4: data.read_f32()?,
-                        f_5: data.read_f32()?
+                        start: Point2d::decode(data, &None)?,
+                        end: Point2d::decode(data, &None)?,
+                        direction: Point2d::decode(data, &None)?,
                     });
                 }
 
                 destruct.f_1 = data.read_f32()?;
-                destruct.f_2 = data.read_f32()?;
-                destruct.f_3 = data.read_f32()?;
-                destruct.f_4 = data.read_f32()?;
+
+                for _ in 0..data.read_u32()? {
+                    destruct.action_vfx.push(Vfx {
+                        key: data.read_sized_string_u8()?,
+                        matrix_1: Transform4x4::decode(data, &None)?,
+                    });
+                }
+
+                for _ in 0..data.read_u32()? {
+                    destruct.action_vfx_attachments.push(Vfx {
+                        key: data.read_sized_string_u8()?,
+                        matrix_1: Transform4x4::decode(data, &None)?,
+                    });
+                }
+
+                for _ in 0..data.read_u32()? {
+                    let mut vec = vec![];
+                    for _ in 0..data.read_u32()? {
+                        vec.push(data.read_i16()?);
+                    }
+                    destruct.bin_data.push(vec);
+                }
+
                 destruct.f_5 = data.read_f32()?;
 
                 piece.destructs.push(destruct);
             }
 
             piece.f_6 = data.read_f32()?;
+
             self.pieces.push(piece);
         }
 
@@ -137,97 +164,113 @@ impl Cs2Parsed {
     pub fn write_v20<W: WriteBytes>(&mut self, buffer: &mut W) -> Result<()> {
         buffer.write_sized_string_u8(&self.str_1)?;
 
-        self.matrix_1.encode(buffer, &None)?;
+        self.bounding_box.encode(buffer, &None)?;
 
         buffer.write_i32(self.int_1)?;
         buffer.write_u32(self.pieces.len() as u32)?;
         for piece in &mut self.pieces {
-            buffer.write_sized_string_u8(&piece.str_2)?;
-            buffer.write_sized_string_u8(&piece.str_3)?;
+            buffer.write_sized_string_u8(&piece.name)?;
+            buffer.write_sized_string_u8(&piece.node_name)?;
 
-            piece.matrix_2.encode(buffer, &None)?;
+            piece.node_transform.encode(buffer, &None)?;
 
             buffer.write_i32(piece.int_3)?;
             buffer.write_u32(piece.destructs.len() as u32)?;
             for destruct in &mut piece.destructs {
-                buffer.write_sized_string_u16(&destruct.key)?;
-                buffer.write_u32(destruct.i_1)?;
+                buffer.write_sized_string_u16(&destruct.name)?;
+                buffer.write_u32(destruct.index)?;
 
                 buffer.write_u32(destruct.collision_outlines.len() as u32)?;
                 for outline in &mut destruct.collision_outlines {
-                    buffer.write_sized_string_u16(&outline.key)?;
-                    outline.line.encode(buffer, &None)?;
+                    buffer.write_sized_string_u16(&outline.name)?;
+                    outline.vertices.encode(buffer, &None)?;
                     buffer.write_u32(outline.uk_1)?;
                 }
 
                 buffer.write_u32(destruct.pipes.len() as u32)?;
                 for pipe in &mut destruct.pipes {
-                    buffer.write_sized_string_u16(&pipe.key)?;
+                    buffer.write_sized_string_u16(&pipe.name)?;
                     pipe.line.encode(buffer, &None)?;
-                    buffer.write_u32(pipe.uk_1)?;
+                    buffer.write_u32(pipe.line_type)?;
                 }
 
                 buffer.write_u32(destruct.orange_thingies.len() as u32)?;
-                for orange_thingies in &destruct.orange_thingies {
+                for orange_thingies in &mut destruct.orange_thingies {
 
                     buffer.write_u32(orange_thingies.len() as u32)?;
-                    for orange_thingy in orange_thingies.iter() {
-                        buffer.write_f32(orange_thingy.f_1)?;
-                        buffer.write_f32(orange_thingy.f_2)?;
-                        buffer.write_u32(orange_thingy.u_1)?;
+                    for orange_thingy in orange_thingies {
+                        orange_thingy.vertex.encode(buffer, &None)?;
+                        buffer.write_u32(orange_thingy.vertex_type)?;
                     }
                 }
 
                 buffer.write_u32(destruct.platforms.len() as u32)?;
                 for platform in &mut destruct.platforms {
-                    buffer.write_f32(platform.f_1)?;
-                    buffer.write_f32(platform.f_2)?;
-                    buffer.write_f32(platform.f_3)?;
+                    platform.normal.encode(buffer, &None)?;
+                    platform.vertices.encode(buffer, &None)?;
 
-                    platform.line.encode(buffer, &None)?;
-
-                    buffer.write_bool(platform.b_1)?;
-                    buffer.write_bool(platform.b_2)?;
-                    buffer.write_bool(platform.b_3)?;
+                    buffer.write_bool(platform.flag_1)?;
+                    buffer.write_bool(platform.flag_2)?;
+                    buffer.write_bool(platform.flag_3)?;
                 }
 
-                buffer.write_i32(destruct.i_2)?;
-                destruct.m_1.encode(buffer, &None)?;
+                buffer.write_i32(destruct.uk_2)?;
+                destruct.bounding_box.encode(buffer, &None)?;
+                buffer.write_i32(destruct.uk_3)?;
+                buffer.write_i32(destruct.uk_4)?;
+                buffer.write_i32(destruct.uk_5)?;
+                buffer.write_i32(destruct.uk_6)?;
+                buffer.write_i32(destruct.uk_7)?;
+
+                buffer.write_u32(destruct.file_refs.len() as u32)?;
+                for file_ref in &mut destruct.file_refs {
+                    buffer.write_sized_string_u8(&file_ref.key)?;
+                    buffer.write_sized_string_u8(&file_ref.name)?;
+
+                    file_ref.transform.encode(buffer, &None)?;
+                    buffer.write_i16(file_ref.uk_1)?;
+                }
 
                 buffer.write_u32(destruct.ef_lines.len() as u32)?;
                 for ef_line in &mut destruct.ef_lines {
-                    buffer.write_sized_string_u16(&ef_line.key)?;
-                    buffer.write_u32(ef_line.uk_1)?;
-
-                    buffer.write_f32(ef_line.f_1)?;
-                    buffer.write_f32(ef_line.f_2)?;
-                    buffer.write_f32(ef_line.f_3)?;
-                    buffer.write_f32(ef_line.f_4)?;
-                    buffer.write_f32(ef_line.f_5)?;
-                    buffer.write_f32(ef_line.f_6)?;
-                    buffer.write_f32(ef_line.f_7)?;
-                    buffer.write_f32(ef_line.f_8)?;
-                    buffer.write_f32(ef_line.f_9)?;
-
-                    buffer.write_u32(ef_line.uk_2)?;
+                    buffer.write_sized_string_u16(&ef_line.name)?;
+                    buffer.write_u32(ef_line.action)?;
+                    ef_line.start.encode(buffer, &None)?;
+                    ef_line.end.encode(buffer, &None)?;
+                    ef_line.direction.encode(buffer, &None)?;
+                    buffer.write_u32(ef_line.parent_index)?;
                 }
 
                 buffer.write_u32(destruct.docking_lines.len() as u32)?;
                 for docking_line in &mut destruct.docking_lines {
                     buffer.write_sized_string_u16(&docking_line.key)?;
-                    buffer.write_f32(docking_line.f_0)?;
-
-                    buffer.write_f32(docking_line.f_1)?;
-                    buffer.write_f32(docking_line.f_2)?;
-                    buffer.write_f32(docking_line.f_3)?;
-                    buffer.write_f32(docking_line.f_4)?;
-                    buffer.write_f32(docking_line.f_5)?;
+                    docking_line.start.encode(buffer, &None)?;
+                    docking_line.end.encode(buffer, &None)?;
+                    docking_line.direction.encode(buffer, &None)?;
                 }
 
                 buffer.write_f32(destruct.f_1)?;
-                buffer.write_f32(destruct.f_2)?;
-                buffer.write_f32(destruct.f_3)?;
-                buffer.write_f32(destruct.f_4)?;
+
+                buffer.write_u32(destruct.action_vfx.len() as u32)?;
+                for vfx in &mut destruct.action_vfx {
+                    buffer.write_sized_string_u8(&vfx.key)?;
+                    vfx.matrix_1.encode(buffer, &None)?;
+                }
+
+                buffer.write_u32(destruct.action_vfx_attachments.len() as u32)?;
+                for vfx in &mut destruct.action_vfx_attachments {
+                    buffer.write_sized_string_u8(&vfx.key)?;
+                    vfx.matrix_1.encode(buffer, &None)?;
+                }
+
+                buffer.write_u32(destruct.bin_data.len() as u32)?;
+                for bin_data in &destruct.bin_data {
+                    buffer.write_u32(bin_data.len() as u32)?;
+                    for bin_data in bin_data {
+                        buffer.write_i16(*bin_data)?;
+                    }
+                }
+
                 buffer.write_f32(destruct.f_5)?;
             }
 

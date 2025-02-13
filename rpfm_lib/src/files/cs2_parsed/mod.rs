@@ -31,99 +31,108 @@ mod versions;
 pub struct Cs2Parsed {
     version: u32,
     str_1: String,
-    matrix_1: Transform4x4,
+    bounding_box: Transform4x4,
     int_1: i32,
     pieces: Vec<Piece>,
 }
 
 #[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
 pub struct Piece {
-    str_2: String,
-    str_3: String,
-    matrix_2: Transform4x4,
+    name: String,
+    node_name: String,
+    node_transform: Transform4x4,
     int_3: i32,
-    int_4: i32,                 // Only in v21.
+    int_4: i32,                 // Only in v21. Array.
     destructs: Vec<Destruct>,
     f_6: f32,
 }
 
 #[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
 pub struct Destruct {
-    key: String,
-    i_1: u32,
+    name: String,
+    index: u32,
     collision_outlines: Vec<CollisionOutline>,
+    pipes: Vec<Pipe>,
     orange_thingies: Vec<Vec<OrangeThingy>>,
     platforms: Vec<Platform>,
-    i_2: i32,
-    m_1: Transform3x4,
-    pipes: Vec<Pipe>,
+    //uk_1: Vec<u16>,                         // No clue. It's there only sometimes.
+    uk_2: i32,
+    bounding_box: Cube,                      // Same, no clue. Only there in some files.
+    uk_3: i32,
+    uk_4: i32,
+    uk_5: i32,
+    uk_6: i32,
+    uk_7: i32,
+    file_refs: Vec<FileRef>,
     ef_lines: Vec<EFLine>,
     docking_lines: Vec<DockingLine>,
-    f_1: f32,
-    f_2: f32,
-    f_3: f32,
-    f_4: f32,
-    f_5: f32,
+    f_1: f32,                               // Another array
+    action_vfx: Vec<Vfx>,
+    action_vfx_attachments: Vec<Vfx>,
+    bin_data: Vec<Vec<i16>>,                // no idea, but looks like a list of values.
+    f_5: f32,                               // And no idea.
 }
 
 #[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
 pub struct CollisionOutline {
-    key: String,
-    line: Outline3d,
+    name: String,
+    vertices: Outline3d,
     uk_1: u32,
 }
 
 #[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
+pub struct FileRef {
+    key: String,
+    name: String,
+    transform: Transform4x4,
+    uk_1: i16,
+}
+
+#[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
 pub struct OrangeThingy {
-    f_1: f32,
-    f_2: f32,
-    u_1: u32,
+    vertex: Point2d,
+    vertex_type: u32,
 }
 
 #[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
 pub struct Platform {
-    f_1: f32,
-    f_2: f32,
-    f_3: f32,
-    line: Outline3d,
-    b_1: bool,
-    b_2: bool,
-    b_3: bool,
+    normal: Point3d,
+    vertices: Outline3d,
+    flag_1: bool,
+    flag_2: bool,
+    flag_3: bool,
 }
 
 
 #[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
 pub struct Pipe {
-    key: String,
+    name: String,
     line: Outline3d,
-    uk_1: u32,
+    line_type: u32,
 }
 
 #[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
 pub struct EFLine {
-    key: String,
-    uk_1: u32,
-    f_1: f32,
-    f_2: f32,
-    f_3: f32,
-    f_4: f32,
-    f_5: f32,
-    f_6: f32,
-    f_7: f32,
-    f_8: f32,
-    f_9: f32,
-    uk_2: u32,
+    name: String,
+    action: u32,
+    start: Point3d,
+    end: Point3d,
+    direction: Point3d,
+    parent_index: u32,
 }
 
 #[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
 pub struct DockingLine {
     key: String,
-    f_0: f32,
-    f_1: f32,
-    f_2: f32,
-    f_3: f32,
-    f_4: f32,
-    f_5: f32,
+    start: Point2d,
+    end: Point2d,
+    direction: Point2d,
+}
+
+#[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
+pub struct Vfx {
+    key: String,
+    matrix_1: Transform4x4,
 }
 
 //---------------------------------------------------------------------------//
