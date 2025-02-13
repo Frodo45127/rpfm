@@ -123,7 +123,7 @@ fn test_assladers_begone() {
 
                     for piece in &mut data.pieces {
                         for destruct in &mut piece.destructs {
-                            destruct.pipes.retain(|pipe| !pipe.key.contains("ladder"));
+                            destruct.pipes.retain(|pipe| !pipe.name.contains("ladder"));
                         }
                     }
 
