@@ -417,7 +417,7 @@ pub fn background_loop() {
 
                                         // NOTE: This deletes all loc fields first, so we need to get the loc fields AGAIN after this from the TExc_LocalisableFields.xml, if said file exists and it's readable.
                                         // That's why it does the update again, to re-populate the loc fields list with the ones not bruteforced. It's ineficient, but gets the job done.
-                                        if dependencies.bruteforce_loc_key_order(schema, possible_loc_fields, None).is_ok() {
+                                        if dependencies.bruteforce_loc_key_order(schema, possible_loc_fields, Some(&pack_file_decoded), None).is_ok() {
 
                                             // Note: this shows the list of "missing" fields.
                                             let _ = update_schema_from_raw_files(schema, &game_selected, &asskit_path, &schema_path, &tables_to_skip, &tables_to_check_split);

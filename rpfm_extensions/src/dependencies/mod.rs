@@ -357,7 +357,7 @@ impl Dependencies {
 
         self.vanilla_files.par_extend(files);
 
-        self.bruteforce_loc_key_order(&mut Schema::default(), None, Some(&mut asskit_only_db_tables))?;
+        self.bruteforce_loc_key_order(&mut Schema::default(), None, None, Some(&mut asskit_only_db_tables))?;
         self.asskit_only_db_tables = asskit_only_db_tables;
 
         Ok(())
@@ -1955,7 +1955,7 @@ impl Dependencies {
     }
 
     /// This function bruteforces the order in which multikeyed tables get their keys together for loc entries.
-    pub fn bruteforce_loc_key_order(&self, schema: &mut Schema, locs: Option<HashMap<String, Vec<String>>>, mut ak_files: Option<&mut HashMap<String, DB>>) -> Result<()> {
+    pub fn bruteforce_loc_key_order(&self, schema: &mut Schema, locs: Option<HashMap<String, Vec<String>>>, local_files: Option<&Pack>, mut ak_files: Option<&mut HashMap<String, DB>>) -> Result<()> {
         let mut fields_still_not_found = vec![];
 
         // Get all vanilla loc keys into a big hashmap so we can check them fast.
@@ -1971,8 +1971,20 @@ impl Dependencies {
             None => HashMap::new(),
         };
 
+        // This is to fix bruteforcing not working on tables like campaigns.
+        let mut local_files = match local_files {
+            Some(ref pack) => pack.files_by_type(&[FileType::DB])
+                .iter()
+                .filter_map(|x| match x.decoded() {
+                    Ok(RFileDecoded::DB(db)) => Some(db),
+                    _ => None,
+                })
+                .collect::<Vec<_>>(),
+            None => Vec::new(),
+        };
+
         // Get all the tables so we don't need to re-fetch each table individually.
-        let db_tables = if ak_files.is_some() {
+        let mut db_tables = if ak_files.is_some() {
             ak_tables.values().collect::<Vec<_>>()
         } else {
             self.db_and_loc_data(true, false, true, false)?
@@ -1980,6 +1992,8 @@ impl Dependencies {
                 .filter_map(|file| if let Ok(RFileDecoded::DB(table)) = file.decoded() { Some(table) } else { None })
                 .collect::<Vec<_>>()
         };
+
+        db_tables.extend_from_slice(&mut local_files);
 
         // Merge tables of the same name and version, so we got more chances of loc data being found.
         let mut db_tables_dedup: Vec<DB> = vec![];
