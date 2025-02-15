@@ -22,6 +22,7 @@
 //! | [`Audio`]             | No                 | No                 |
 //! | [`BMD`]               | Limited            | Limited            |
 //! | [`BMD_Vegetation`]    | Limited            | Limited            |
+//! | [`CS2_Collision`]     | Limited            | Limited            |
 //! | [`CS2_Parsed`]        | Limited            | Limited            |
 //! | [`Dat`]               | Limited            | Limited            |
 //! | [`DB`]                | Yes                | Yes                |
@@ -56,6 +57,7 @@
 //! [`Audio`]: crate::files::audio::Audio
 //! [`BMD`]: crate::files::bmd::Bmd
 //! [`BMD_Vegetation`]: crate::files::bmd_vegetation::BmdVegetation
+//! [`CS2_Collision`]: crate::files::cs2_collision::Cs2Collision
 //! [`CS2_Parsed`]: crate::files::cs2_parsed::Cs2Parsed
 //! [`Dat`]: crate::files::dat::Dat
 //! [`DB`]: crate::files::db::DB
@@ -135,6 +137,7 @@ pub mod atlas;
 pub mod audio;
 #[allow(dead_code)]pub mod bmd;
 #[allow(dead_code)]pub mod bmd_vegetation;
+pub mod cs2_collision;
 pub mod cs2_parsed;
 pub mod dat;
 pub mod db;

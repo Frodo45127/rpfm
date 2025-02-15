@@ -11,6 +11,8 @@
 use getset::*;
 use serde_derive::{Serialize, Deserialize};
 
+use std::ops::Sub;
+
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::Result;
 use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
@@ -75,7 +77,7 @@ pub struct Point2d {
     y: f32,
 }
 
-#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[derive(Default, PartialEq, Copy, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Point3d {
     x: f32,
@@ -583,6 +585,8 @@ pub trait Matrix {
         });
         matrix
     }
+
+    fn identity() -> Self;
 }
 
 impl Matrix for Transform3x4 {
@@ -634,6 +638,23 @@ impl Matrix for Transform3x4 {
     fn m33(&self) -> f32 {
         1.0
     }
+
+    fn identity() -> Self {
+        Self {
+            m00: 1.0,
+            m01: 0.0,
+            m02: 0.0,
+            m10: 0.0,
+            m11: 1.0,
+            m12: 0.0,
+            m20: 0.0,
+            m21: 0.0,
+            m22: 1.0,
+            m30: 0.0,
+            m31: 0.0,
+            m32: 0.0,
+        }
+    }
 }
 
 impl Matrix for Transform4x4 {
@@ -684,5 +705,72 @@ impl Matrix for Transform4x4 {
     }
     fn m33(&self) -> f32 {
         self.m33
+    }
+
+    fn identity() -> Self {
+        Self {
+            m00: 1.0,
+            m01: 0.0,
+            m02: 0.0,
+            m03: 0.0,
+            m10: 0.0,
+            m11: 1.0,
+            m12: 0.0,
+            m13: 0.0,
+            m20: 0.0,
+            m21: 0.0,
+            m22: 1.0,
+            m23: 0.0,
+            m30: 0.0,
+            m31: 0.0,
+            m32: 0.0,
+            m33: 1.0,
+        }
+    }
+}
+
+impl Point3d {
+    pub fn new(x: f32, y: f32, z: f32) -> Self {
+        Self { x, y, z }
+    }
+}
+
+
+impl Sub for Point3d {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self {
+            x: self.x - rhs.x,
+            y: self.y - rhs.y,
+            z: self.z - rhs.z,
+        }
+    }
+}
+
+impl From<Cube> for Transform4x4 {
+    fn from(value: Cube) -> Self {
+        Self {
+            m00: value.min_x,
+            m01: value.min_y,
+            m02: value.min_z,
+            m10: value.max_x,
+            m11: value.max_y,
+            m12: value.max_z,
+            ..Default::default()
+        }
+    }
+}
+
+impl From<Transform4x4> for Cube {
+    fn from(value: Transform4x4) -> Self {
+        Self {
+            min_x: value.m00,
+            min_y: value.m01,
+            min_z: value.m02,
+            max_x: value.m10,
+            max_y: value.m11,
+            max_z: value.m12
+        }
     }
 }

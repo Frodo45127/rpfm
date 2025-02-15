@@ -20,8 +20,9 @@ use super::*;
 impl Cs2Parsed {
 
     pub fn read_v21<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
-        self.str_1 = data.read_sized_string_u8()?;
-        self.bounding_box = Transform4x4::decode(data, &None)?;
+        self.ui_flag.name = data.read_sized_string_u8()?;
+        self.ui_flag.transform = Transform4x4::decode(data, &None)?;
+
         self.int_1 = data.read_i32()?;
 
         // Pieces
@@ -54,7 +55,7 @@ impl Cs2Parsed {
                     destruct.pipes.push(Pipe {
                         name: data.read_sized_string_u16()?,
                         line: Outline3d::decode(data, &None)?,
-                        line_type: data.read_u32()?,
+                        line_type: PipeType::try_from(data.read_i32()?)?,
                     });
 
                 }
@@ -107,7 +108,7 @@ impl Cs2Parsed {
                 for _ in 0..data.read_u32()? {
                     destruct.ef_lines.push(EFLine {
                         name: data.read_sized_string_u16()?,
-                        action: data.read_u32()?,
+                        action: EFLineType::try_from(data.read_i32()?)?,
                         start: Point3d::decode(data, &None)?,
                         end: Point3d::decode(data, &None)?,
                         direction: Point3d::decode(data, &None)?,
@@ -163,9 +164,8 @@ impl Cs2Parsed {
     }
 
     pub fn write_v21<W: WriteBytes>(&mut self, buffer: &mut W) -> Result<()> {
-        buffer.write_sized_string_u8(&self.str_1)?;
-
-        self.bounding_box.encode(buffer, &None)?;
+        buffer.write_sized_string_u8(&self.ui_flag.name)?;
+        self.ui_flag.transform.encode(buffer, &None)?;
 
         buffer.write_i32(self.int_1)?;
         buffer.write_u32(self.pieces.len() as u32)?;
@@ -193,7 +193,7 @@ impl Cs2Parsed {
                 for pipe in &mut destruct.pipes {
                     buffer.write_sized_string_u16(&pipe.name)?;
                     pipe.line.encode(buffer, &None)?;
-                    buffer.write_u32(pipe.line_type)?;
+                    buffer.write_i32(pipe.line_type.into())?;
                 }
 
                 buffer.write_u32(destruct.orange_thingies.len() as u32)?;
@@ -236,7 +236,7 @@ impl Cs2Parsed {
                 buffer.write_u32(destruct.ef_lines.len() as u32)?;
                 for ef_line in &mut destruct.ef_lines {
                     buffer.write_sized_string_u16(&ef_line.name)?;
-                    buffer.write_u32(ef_line.action)?;
+                    buffer.write_i32(ef_line.action.into())?;
                     ef_line.start.encode(buffer, &None)?;
                     ef_line.end.encode(buffer, &None)?;
                     ef_line.direction.encode(buffer, &None)?;

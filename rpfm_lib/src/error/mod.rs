@@ -112,6 +112,12 @@ pub enum RLibError {
     #[error("Unknown ESF Signature: {0}")]
     UnknownESFSignature(String),
 
+    #[error("Unknown EF Line Type: {0}")]
+    UnknownEFLineType(String),
+
+    #[error("Unknown Pipe Type: {0}")]
+    UnknownPipeType(String),
+
     #[error("This is either not a Text File, or a Text File using an unsupported encoding")]
     DecodingTextUnsupportedEncodingOrNotATextFile,
 
