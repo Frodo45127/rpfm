@@ -515,7 +515,7 @@ pub trait Container {
                         if result.is_err() {
 
                             #[cfg(feature = "integration_log")] {
-                                warn!("File with path {} failed to extract as TSV. Did you forget to provide schema via --tsv-as-binary flag? Extracting it as binary.", rfile.path_in_container_raw());
+                                warn!("File with path {} failed to extract as TSV. Extracting it as binary.", rfile.path_in_container_raw());
                             }
 
                             extracted_paths.push(destination_path.to_owned());
@@ -588,7 +588,7 @@ pub trait Container {
                             if result.is_err() {
 
                                 #[cfg(feature = "integration_log")] {
-                                    warn!("File with path {} failed to extract as TSV. Did you forget to provide schema via --tsv-as-binary flag? Extracting it as binary.", rfile.path_in_container_raw());
+                                    warn!("File with path {} failed to extract as TSV. Extracting it as binary.", rfile.path_in_container_raw());
                                 }
 
                                 extracted_paths.push(destination_path.to_owned());
@@ -677,7 +677,7 @@ pub trait Container {
                     if let Err(_error) = rfile {
 
                         #[cfg(feature = "integration_log")] {
-                            warn!("File with path {} failed to import as TSV. Did you forget to provide schema via --tsv-as-binary flag? Importing it as binary. Error was: {}", &source_path.to_string_lossy(), _error);
+                            warn!("File with path {} failed to import as TSV. Did you forget to provide schema with --tsv-as-binary flag? Importing it as binary. Error was: {}", &source_path.to_string_lossy(), _error);
                         }
 
                         tsv_imported = false;
@@ -756,7 +756,7 @@ pub trait Container {
                         if let Err(_error) = rfile {
 
                             #[cfg(feature = "integration_log")] {
-                                warn!("File with path {} failed to import as TSV. Did you forget to provide schema via --tsv-as-binary flag? Importing it as binary. Error was: {}", &file_path.to_string_lossy(), _error);
+                                warn!("File with path {} failed to import as TSV. Did you forget to provide schema with --tsv-as-binary flag? Importing it as binary. Error was: {}", &file_path.to_string_lossy(), _error);
                             }
 
                             tsv_imported = false;
