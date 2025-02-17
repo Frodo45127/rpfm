@@ -27,6 +27,7 @@ const SHIP_STAIRCASE: i32 = 1;
 const SHIP_WALK: i32 = 2;
 const SHIP_LADDER: i32 = 3;
 const SIEGE_LADDER1: i32 = 8;
+const STAIRS: i32 = 9;
 const ROPE: i32 = 10;
 const DOOR_NO_TELEPORT: i32 = 13;
 const JUMP: i32 = 14;
@@ -100,9 +101,9 @@ pub struct Destruct {
     uk_2: i32,
     bounding_box: Cube,                      // Same, no clue. Only there in some files.
     uk_3: i32,
-    uk_4: i32,
+    projectile_emitters: Vec<ProjectileEmitter>,
     uk_5: i32,
-    uk_6: i32,
+    soft_collisions: Vec<SoftCollisions>,
     uk_7: i32,
     file_refs: Vec<FileRef>,
     ef_lines: Vec<EFLine>,
@@ -110,8 +111,8 @@ pub struct Destruct {
     f_1: f32,                               // Another array
     action_vfx: Vec<Vfx>,
     action_vfx_attachments: Vec<Vfx>,
-    bin_data: Vec<Vec<i16>>,                // no idea, but looks like a list of values.
-    f_5: f32,                               // And no idea.
+    bin_data: Vec<Vec<i16>>,                // No idea, but looks like a list of values and the amount correlates with the mount of vfx.
+    bin_data_2: Vec<Vec<i16>>,              // And no idea. Present in one destruct in 3k gates.
 }
 
 #[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
@@ -125,6 +126,20 @@ pub struct CollisionOutline {
     name: String,
     vertices: Outline3d,
     uk_1: u32,
+}
+
+#[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
+pub struct SoftCollisions {
+    name: String,
+    transform: Transform4x4,
+    uk_1: i16,
+    point_1: Point2d,
+}
+
+#[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
+pub struct ProjectileEmitter {
+    name: String,
+    transform: Transform4x4,
 }
 
 #[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
@@ -199,6 +214,8 @@ enum PipeType {
     ShipLadder,
     /// Ladders used to climb walls in old games (ETW/NTW).
     SiegeLadder1,
+    /// Stairs used to climb a specific wall from the inside in 3K.
+    Stairs,
     /// Rope used to climb walls in 3K.
     Rope,
     /// Door threshold to enter garrisonable buildings.
@@ -399,6 +416,7 @@ impl TryFrom<i32> for PipeType {
             SHIP_WALK => Ok(Self::ShipWalk),
             SHIP_LADDER => Ok(Self::ShipLadder),
             SIEGE_LADDER1 => Ok(Self::SiegeLadder1),
+            STAIRS => Ok(Self::Stairs),
             ROPE => Ok(Self::Rope),
             DOOR_NO_TELEPORT => Ok(Self::DoorNoTeleport),
             JUMP => Ok(Self::Jump),
@@ -419,6 +437,7 @@ impl From<PipeType> for i32 {
             PipeType::ShipWalk => SHIP_WALK,
             PipeType::ShipLadder => SHIP_LADDER,
             PipeType::SiegeLadder1 => SIEGE_LADDER1,
+            PipeType::Stairs => STAIRS,
             PipeType::Rope => ROPE,
             PipeType::DoorNoTeleport => DOOR_NO_TELEPORT,
             PipeType::Jump => JUMP,

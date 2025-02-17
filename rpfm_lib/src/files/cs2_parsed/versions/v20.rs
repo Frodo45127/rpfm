@@ -56,7 +56,6 @@ impl Cs2Parsed {
                         line: Outline3d::decode(data, &None)?,
                         line_type: PipeType::try_from(data.read_i32()?)?,
                     });
-
                 }
 
                 // This is the weird orange line in terry?
@@ -88,12 +87,28 @@ impl Cs2Parsed {
                 destruct.bounding_box = Cube::decode(data, &None)?;
 
                 destruct.uk_3 = data.read_i32()?;
-                destruct.uk_4 = data.read_i32()?;
+
+                for _ in 0..data.read_u32()? {
+                    destruct.projectile_emitters.push(ProjectileEmitter {
+                        name: data.read_sized_string_u8()?,
+                        transform: Transform4x4::decode(data, &None)?,
+                    });
+                }
+
                 destruct.uk_5 = data.read_i32()?;
-                destruct.uk_6 = data.read_i32()?;
+
+                for _ in 0..data.read_u32()? {
+                    destruct.soft_collisions.push(SoftCollisions {
+                        name: data.read_sized_string_u16()?,
+                        transform: Transform4x4::decode(data, &None)?,
+                        uk_1: data.read_i16()?,
+                        point_1: Point2d::decode(data, &None)?,
+                    });
+                }
+
                 destruct.uk_7 = data.read_i32()?;
 
-                // Destructible pillars? No, you didn't read it wrong. It's -1 when it's empty, so we have to use i32 here.
+                // Destructible pillars.
                 for _ in 0..data.read_u32()? {
                     destruct.file_refs.push(FileRef {
                         key: data.read_sized_string_u8()?,
@@ -149,7 +164,13 @@ impl Cs2Parsed {
                     destruct.bin_data.push(vec);
                 }
 
-                destruct.f_5 = data.read_f32()?;
+                for _ in 0..data.read_u32()? {
+                    let mut vec = vec![];
+                    for _ in 0..data.read_u32()? {
+                        vec.push(data.read_i16()?);
+                    }
+                    destruct.bin_data_2.push(vec.clone());
+                }
 
                 piece.destructs.push(destruct);
             }
@@ -217,9 +238,23 @@ impl Cs2Parsed {
                 buffer.write_i32(destruct.uk_2)?;
                 destruct.bounding_box.encode(buffer, &None)?;
                 buffer.write_i32(destruct.uk_3)?;
-                buffer.write_i32(destruct.uk_4)?;
+
+                buffer.write_u32(destruct.projectile_emitters.len() as u32)?;
+                for emitter in &mut destruct.projectile_emitters {
+                    buffer.write_sized_string_u8(&emitter.name)?;
+                    emitter.transform.encode(buffer, &None)?;
+                }
+
                 buffer.write_i32(destruct.uk_5)?;
-                buffer.write_i32(destruct.uk_6)?;
+
+                buffer.write_u32(destruct.soft_collisions.len() as u32)?;
+                for soft_collision in &mut destruct.soft_collisions {
+                    buffer.write_sized_string_u16(&soft_collision.name)?;
+                    soft_collision.transform.encode(buffer, &None)?;
+                    buffer.write_i16(soft_collision.uk_1)?;
+                    soft_collision.point_1.encode(buffer, &None)?;
+                }
+
                 buffer.write_i32(destruct.uk_7)?;
 
                 buffer.write_u32(destruct.file_refs.len() as u32)?;
@@ -271,7 +306,13 @@ impl Cs2Parsed {
                     }
                 }
 
-                buffer.write_f32(destruct.f_5)?;
+                buffer.write_u32(destruct.bin_data_2.len() as u32)?;
+                for bin_data in &destruct.bin_data_2 {
+                    buffer.write_u32(bin_data.len() as u32)?;
+                    for bin_data in bin_data {
+                        buffer.write_i16(*bin_data)?;
+                    }
+                }
             }
 
             buffer.write_f32(piece.f_6)?;
