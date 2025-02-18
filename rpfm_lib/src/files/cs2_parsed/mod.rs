@@ -23,6 +23,15 @@ pub const EXTENSION: &str = ".cs2.parsed";
 
 mod versions;
 
+//PT_WALL_CLIMB,
+//PT_DESTROYED_WALL_CLIMB,
+//PT_WOOD_WALL_CLIMB,
+//PT_DESTROYED_WOOD_WALL_CLIMB,
+//PT_CLIMB_LADDER
+//PT_SHIP_GRAPPLE
+//PT_JUMP_DISEMBARK
+//PT_JUMP_ANIM
+
 const SHIP_STAIRCASE: i32 = 1;
 const SHIP_WALK: i32 = 2;
 const SHIP_LADDER: i32 = 3;
@@ -30,9 +39,9 @@ const SIEGE_LADDER1: i32 = 8;
 const STAIRS: i32 = 9;
 const ROPE: i32 = 10;
 const DOOR_NO_TELEPORT: i32 = 13;
-const JUMP: i32 = 14;
-const DOOR_TELEPORT: i32 = 30;
-const JUMP_RAMP: i32 = 32;
+const JUMP: i32 = 14;                   // PT_JUMP
+const WALL_DOOR_TELEPORT: i32 = 30;     // PT_WALL_DOOR
+const JUMP_RAMP: i32 = 32;              // PT_JUMP_RAMP
 const LADDER_LEFT: i32 = 33;
 const LADDER_RIGHT: i32 = 34;
 const SIEGE_LADDER2: i32 = 35;
@@ -99,7 +108,7 @@ pub struct Destruct {
     orange_thingies: Vec<Vec<OrangeThingy>>,
     platforms: Vec<Platform>,
     uk_2: i32,
-    bounding_box: Cube,                      // Same, no clue. Only there in some files.
+    bounding_box: Cube,
     uk_3: i32,
     projectile_emitters: Vec<ProjectileEmitter>,
     uk_5: i32,
@@ -223,7 +232,7 @@ enum PipeType {
     /// Alternative pipe for units to jump into walls.
     Jump,
     /// Teleportation pipes, to teleport from one extreme to the other. Used in Warhammer walls to climb from the inside.
-    DoorTeleport,
+    WallDoorTeleport,
     /// Pipe used for units to jump from siege tower ramps into walls.
     JumpRamp,
     /// Ladder used in siege towers.
@@ -308,6 +317,7 @@ impl Decodeable for Cs2Parsed {
         match decoded.version {
             21 => decoded.read_v21(data)?,
             20 => decoded.read_v20(data)?,
+            18 => decoded.read_v18(data)?,
              _ => return Err(RLibError::DecodingUnsupportedVersion(decoded.version as usize)),
         }
 
@@ -326,6 +336,7 @@ impl Encodeable for Cs2Parsed {
         match self.version {
             21 => self.write_v21(buffer)?,
             20 => self.write_v20(buffer)?,
+            18 => self.write_v18(buffer)?,
             _ => unimplemented!()
         }
 
@@ -420,7 +431,7 @@ impl TryFrom<i32> for PipeType {
             ROPE => Ok(Self::Rope),
             DOOR_NO_TELEPORT => Ok(Self::DoorNoTeleport),
             JUMP => Ok(Self::Jump),
-            DOOR_TELEPORT => Ok(Self::DoorTeleport),
+            WALL_DOOR_TELEPORT => Ok(Self::WallDoorTeleport),
             JUMP_RAMP => Ok(Self::JumpRamp),
             LADDER_LEFT => Ok(Self::LadderLeft),
             LADDER_RIGHT => Ok(Self::LadderRight),
@@ -441,7 +452,7 @@ impl From<PipeType> for i32 {
             PipeType::Rope => ROPE,
             PipeType::DoorNoTeleport => DOOR_NO_TELEPORT,
             PipeType::Jump => JUMP,
-            PipeType::DoorTeleport => DOOR_TELEPORT,
+            PipeType::WallDoorTeleport => WALL_DOOR_TELEPORT,
             PipeType::JumpRamp => JUMP_RAMP,
             PipeType::LadderLeft => LADDER_LEFT,
             PipeType::LadderRight => LADDER_RIGHT,
