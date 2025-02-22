@@ -15,14 +15,11 @@ This module contains the struct `Table`, used to manage the decoded data of a ta
 !*/
 
 use base64::{Engine, engine::general_purpose::STANDARD};
-use csv::{StringRecordsIter, Writer};
 use float_eq::float_eq;
-use getset::*;
 use serde_derive::{Serialize, Deserialize};
 
 use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap};
-use std::fs::File;
 use std::hash::{Hash, Hasher};
 use std::io::SeekFrom;
 
@@ -31,30 +28,209 @@ use crate::binary::{ReadBytes, WriteBytes};
 use crate::schema::*;
 use crate::utils::parse_str_as_bool;
 
-mod local;
+pub mod local;
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
-/// This struct contains the data of a Table-like PackedFile after being decoded.
-///
-/// This is for internal use. If you need to interact with this in any way, do it through the PackedFile that contains it, not directly.
-#[derive(Clone, Debug, PartialEq, Getters, Setters, Serialize, Deserialize)]
-#[getset(get = "pub", set = "pub")]
-pub struct Table {
+/// Trait for structs with table-like data.
+pub trait Table: Send + Sync {
 
-    /// A copy of the `Definition` this table uses, so we don't have to check the schema everywhere.
-    table_name: String,
+    // Getters
+    fn name(&self) -> &str;
 
-    #[getset(skip)]
-    definition: Definition,
+    /// This function returns a reference of the definition of this Table.
+    fn definition(&self) -> &Definition;
 
-    #[getset(skip)]
-    definition_patch: DefinitionPatch,
+    /// This function returns a reference of the definition patches of this Table.
+    fn patches(&self) -> &DefinitionPatch;
 
-    #[getset(skip)]
-    table_data: Vec<Vec<DecodedData>>
+    /// This function returns the data stored in the table.
+    fn data(&self) -> Cow<[Vec<DecodedData>]>;
+
+    /// This function returns a mutable reference to the data of the table.
+    ///
+    /// Note that using this makes you responsible of keeping the structure of the table "valid".
+    fn data_mut(&mut self) -> &mut Vec<Vec<DecodedData>>;
+
+    // Setters
+    fn set_name(&mut self, val: String);
+
+    /// This function replaces the definition of this table with the one provided.
+    ///
+    /// This updates the table's data to follow the format marked by the new definition, so you can use it to *update* the version of your table.
+    fn set_definition(&mut self, new_definition: &Definition);
+
+    /// This function replaces the data of this table with the one provided.
+    ///
+    /// This can (and will) fail if the data is not of the format defined by the definition of the table.
+    fn set_data(&mut self, data: &[Vec<DecodedData>]) -> Result<()>;
+
+    /// This function returns the position of a column in a definition before sorting, or None if the column is not found.
+    fn column_position_by_name(&self, column_name: &str) -> Option<usize>;
+
+    fn is_empty(&self) -> bool;
+    fn len(&self) -> usize;
+
+    /// This function returns a new empty row for the provided definition.
+    fn new_row(&self) -> Vec<DecodedData> {
+        let definition = self.definition();
+        let schema_patches = Some(self.patches());
+
+        definition.fields_processed().iter()
+            .map(|field|
+                match field.field_type() {
+                    FieldType::Boolean => {
+                        if let Some(default_value) = field.default_value(schema_patches) {
+                            if default_value.to_lowercase() == "true" {
+                                DecodedData::Boolean(true)
+                            } else {
+                                DecodedData::Boolean(false)
+                            }
+                        } else {
+                            DecodedData::Boolean(false)
+                        }
+                    }
+                    FieldType::F32 => {
+                        if let Some(default_value) = field.default_value(schema_patches) {
+                            if let Ok(default_value) = default_value.parse::<f32>() {
+                                DecodedData::F32(default_value)
+                            } else {
+                                DecodedData::F32(0.0)
+                            }
+                        } else {
+                            DecodedData::F32(0.0)
+                        }
+                    },
+                    FieldType::F64 => {
+                        if let Some(default_value) = field.default_value(schema_patches) {
+                            if let Ok(default_value) = default_value.parse::<f64>() {
+                                DecodedData::F64(default_value)
+                            } else {
+                                DecodedData::F64(0.0)
+                            }
+                        } else {
+                            DecodedData::F64(0.0)
+                        }
+                    },
+                    FieldType::I16 => {
+                        if let Some(default_value) = field.default_value(schema_patches) {
+                            if let Ok(default_value) = default_value.parse::<i16>() {
+                                DecodedData::I16(default_value)
+                            } else {
+                                DecodedData::I16(0)
+                            }
+                        } else {
+                            DecodedData::I16(0)
+                        }
+                    },
+                    FieldType::I32 => {
+                        if let Some(default_value) = field.default_value(schema_patches) {
+                            if let Ok(default_value) = default_value.parse::<i32>() {
+                                DecodedData::I32(default_value)
+                            } else {
+                                DecodedData::I32(0)
+                            }
+                        } else {
+                            DecodedData::I32(0)
+                        }
+                    },
+                    FieldType::I64 => {
+                        if let Some(default_value) = field.default_value(schema_patches) {
+                            if let Ok(default_value) = default_value.parse::<i64>() {
+                                DecodedData::I64(default_value)
+                            } else {
+                                DecodedData::I64(0)
+                            }
+                        } else {
+                            DecodedData::I64(0)
+                        }
+                    },
+
+                    FieldType::ColourRGB => {
+                        if let Some(default_value) = field.default_value(schema_patches) {
+                            if u32::from_str_radix(&default_value, 16).is_ok() {
+                                DecodedData::ColourRGB(default_value)
+                            } else {
+                                DecodedData::ColourRGB("000000".to_owned())
+                            }
+                        } else {
+                            DecodedData::ColourRGB("000000".to_owned())
+                        }
+                    },
+                    FieldType::StringU8 => {
+                        if let Some(default_value) = field.default_value(schema_patches) {
+                            DecodedData::StringU8(default_value)
+                        } else {
+                            DecodedData::StringU8(String::new())
+                        }
+                    }
+                    FieldType::StringU16 => {
+                        if let Some(default_value) = field.default_value(schema_patches) {
+                            DecodedData::StringU16(default_value)
+                        } else {
+                            DecodedData::StringU16(String::new())
+                        }
+                    }
+
+                    FieldType::OptionalI16 => {
+                        if let Some(default_value) = field.default_value(schema_patches) {
+                            if let Ok(default_value) = default_value.parse::<i16>() {
+                                DecodedData::OptionalI16(default_value)
+                            } else {
+                                DecodedData::OptionalI16(0)
+                            }
+                        } else {
+                            DecodedData::OptionalI16(0)
+                        }
+                    },
+                    FieldType::OptionalI32 => {
+                        if let Some(default_value) = field.default_value(schema_patches) {
+                            if let Ok(default_value) = default_value.parse::<i32>() {
+                                DecodedData::OptionalI32(default_value)
+                            } else {
+                                DecodedData::OptionalI32(0)
+                            }
+                        } else {
+                            DecodedData::OptionalI32(0)
+                        }
+                    },
+                    FieldType::OptionalI64 => {
+                        if let Some(default_value) = field.default_value(schema_patches) {
+                            if let Ok(default_value) = default_value.parse::<i64>() {
+                                DecodedData::OptionalI64(default_value)
+                            } else {
+                                DecodedData::OptionalI64(0)
+                            }
+                        } else {
+                            DecodedData::OptionalI64(0)
+                        }
+                    },
+
+                    FieldType::OptionalStringU8 => {
+                        if let Some(default_value) = field.default_value(schema_patches) {
+                            DecodedData::OptionalStringU8(default_value)
+                        } else {
+                            DecodedData::OptionalStringU8(String::new())
+                        }
+                    }
+                    FieldType::OptionalStringU16 => {
+                        if let Some(default_value) = field.default_value(schema_patches) {
+                            DecodedData::OptionalStringU16(default_value)
+                        } else {
+                            DecodedData::OptionalStringU16(String::new())
+                        }
+                    },
+                    FieldType::SequenceU16(_) => DecodedData::SequenceU16(vec![0, 0]),
+                    FieldType::SequenceU32(_) => DecodedData::SequenceU32(vec![0, 0, 0, 0])
+                }
+            )
+            .collect()
+    }
+
+    /// This function tries to find all rows with the provided data, if they exists in this table.
+    fn rows_containing_data(&self, column_name: &str, data: &str) -> Option<(usize, Vec<usize>)>;
 }
 
 /// This enum is used to store different types of data in a unified way. Used, for example, to store the data from each field in a DB Table.
@@ -446,945 +622,477 @@ impl DecodedData {
 }
 
 //----------------------------------------------------------------//
-// Implementations for `Table`.
+// Util functions for tables.
 //----------------------------------------------------------------//
 
-/// Implementation of `Table`.
-impl Table {
+/// This function escapes certain characters of the provided string.
+fn escape_special_chars(data: &mut String) {
 
-    /// This function creates a new Table from an existing definition.
-    pub fn new(definition: &Definition, definition_patch: Option<&DefinitionPatch>, table_name: &str) -> Self {
-        let table_data = vec![];
-        let definition_patch = if let Some(patch) = definition_patch { patch.clone() } else { HashMap::new() };
-
-        Self {
-            definition: definition.clone(),
-            definition_patch,
-            table_name: table_name.to_owned(),
-            table_data
-        }
-    }
-
-    /// This function returns a reference of the definition of this Table.
-    pub fn definition(&self) -> &Definition {
-        &self.definition
-    }
-
-    /// This function returns a reference of the definition patches of this Table.
-    pub fn patches(&self) -> &DefinitionPatch {
-        &self.definition_patch
-    }
-
-    /// This function returns a mutable reference to the data of the table.
-    ///
-    /// Note that using this makes you responsible of keeping the structure of the table "valid".
-    pub fn data_mut(&mut self) -> &mut Vec<Vec<DecodedData>> {
-        &mut self.table_data
-    }
-
-    /// This function returns the position of a column in a definition before sorting, or None if the column is not found.
-    pub fn column_position_by_name(&self, column_name: &str) -> Option<usize> {
-        self.definition().column_position_by_name(column_name)
-    }
-
-    /// This function replaces the definition of this table with the one provided.
-    ///
-    /// This updates the table's data to follow the format marked by the new definition, so you can use it to *update* the version of your table.
-    pub fn set_definition(&mut self, new_definition: &Definition) {
-
-        // It's simple: we compare both schemas, and get the original and final positions of each column.
-        // If a column is new, his original position is -1. If has been removed, his final position is -1.
-        let mut positions: Vec<(i32, i32)> = vec![];
-        let new_fields_processed = new_definition.fields_processed();
-        let old_fields_processed = self.definition.fields_processed();
-
-        for (new_pos, new_field) in new_fields_processed.iter().enumerate() {
-            if let Some(old_pos) = old_fields_processed.iter().position(|x| x.name() == new_field.name()) {
-                positions.push((old_pos as i32, new_pos as i32))
-            } else { positions.push((-1, new_pos as i32)); }
-        }
-
-        // Then, for each field in the old definition, check if exists in the new one.
-        for (old_pos, old_field) in old_fields_processed.iter().enumerate() {
-            if !new_fields_processed.iter().any(|x| x.name() == old_field.name()) { positions.push((old_pos as i32, -1)); }
-        }
-
-        // We sort the columns by their destination.
-        positions.sort_by_key(|x| x.1);
-
-        // Then, we create the new data using the old one and the column changes.
-        let mut new_entries: Vec<Vec<DecodedData>> = Vec::with_capacity(self.table_data.len());
-        for row in self.table_data.iter() {
-            let mut entry = vec![];
-            for (old_pos, new_pos) in &positions {
-
-                // If the new position is -1, it means the column got removed. We skip it.
-                if *new_pos == -1 { continue; }
-
-                // If the old position is -1, it means we got a new column. We need to get his type and create a `Default` field with it.
-                else if *old_pos == -1 {
-                    let field_type = new_fields_processed[*new_pos as usize].field_type();
-                    let default_value = new_fields_processed[*new_pos as usize].default_value(Some(&self.definition_patch));
-                    entry.push(DecodedData::new_from_type_and_value(field_type, &default_value));
-                }
-
-                // Otherwise, we got a moved column. Check here if it needs type conversion.
-                else if new_fields_processed[*new_pos as usize].field_type() != old_fields_processed[*old_pos as usize].field_type() {
-                    let converted_data = match row[*old_pos as usize].convert_between_types(new_fields_processed[*new_pos as usize].field_type()) {
-                        Ok(data) => data,
-                        Err(_) => {
-                            let field_type = new_fields_processed[*new_pos as usize].field_type();
-                            let default_value = new_fields_processed[*new_pos as usize].default_value(Some(&self.definition_patch));
-                            DecodedData::new_from_type_and_value(field_type, &default_value)
-                        }
-                    };
-                    entry.push(converted_data);
-                }
-
-                // If we reach this, we just got a moved column without any extra change.
-                else {
-                    entry.push(row[*old_pos as usize].clone());
-                }
-            }
-            new_entries.push(entry);
-        }
-
-        self.table_data = new_entries;
-
-        // Then, we finally replace our definition and our data.
-        self.definition = new_definition.clone();
-    }
-
-    /// This function replaces the data of this table with the one provided.
-    ///
-    /// This can (and will) fail if the data is not of the format defined by the definition of the table.
-    pub fn set_data(&mut self, data: &[Vec<DecodedData>]) -> Result<()> {
-        let fields_processed = self.definition.fields_processed();
-        for row in data {
-
-            // First, we need to make sure all rows we have are exactly what we expect.
-            if row.len() != fields_processed.len() {
-                return Err(RLibError::TableRowWrongFieldCount(fields_processed.len(), row.len()))
-            }
-
-            for (index, cell) in row.iter().enumerate() {
-
-                // Next, we need to ensure each file is of the type we expected.
-                let field = fields_processed.get(index).unwrap();
-                if !cell.is_field_type_correct(field.field_type()) {
-                    return Err(RLibError::EncodingTableWrongFieldType(FieldType::from(cell).to_string(), field.field_type().to_string()))
-                }
+    // When performed on mass, this takes 25% of the time to decode a table. Only do it if we really have characters to replace.
+    if memchr::memchr(b'\n', data.as_bytes()).is_some() || memchr::memchr(b'\t', data.as_bytes()).is_some() {
+        let mut output = Vec::with_capacity(data.len() + 10);
+        for c in data.bytes() {
+            match c {
+                b'\n' => output.extend_from_slice(b"\\\\n"),
+                b'\t' => output.extend_from_slice(b"\\\\t"),
+                _ => output.push(c),
             }
         }
 
-        // If we passed all the checks, replace the data.
-        self.table_data = data.to_vec();
-        Ok(())
+        unsafe { *data.as_mut_vec() = output };
+    }
+}
+
+/// This function unescapes certain characters of the provided string.
+fn unescape_special_chars(data: &str) -> String {
+    data.replace("\\\\t", "\t").replace("\\\\n", "\n")
+}
+
+//----------------------------------------------------------------//
+// Decoding and encoding functions for tables.
+//----------------------------------------------------------------//
+
+pub(crate) fn decode_table<R: ReadBytes>(data: &mut R, definition: &Definition, entry_count: Option<u32>, return_incomplete: bool) -> Result<Vec<Vec<DecodedData>>> {
+
+    // If we received an entry count, it's the root table. If not, it's a nested one.
+    let entry_count = match entry_count {
+        Some(entry_count) => entry_count,
+        None => data.read_u32()?,
+    };
+
+    // Do not specify size here, because a badly written definition can end up triggering an OOM crash if we do.
+    let fields = definition.fields();
+    let mut table = if entry_count < 10_000 { Vec::with_capacity(entry_count as usize) } else { vec![] };
+
+    for row in 0..entry_count {
+        table.push(decode_row(data, fields, row, return_incomplete)?);
     }
 
-    pub fn len(&self) -> usize {
-        self.table_data.len()
-    }
+    Ok(table)
+}
 
-    pub fn is_empty(&self) -> bool {
-        self.table_data.is_empty()
-    }
+fn decode_row<R: ReadBytes>(data: &mut R, fields: &[Field], row: u32, return_incomplete: bool) -> Result<Vec<DecodedData>> {
+    let mut split_colours: BTreeMap<u8, HashMap<String, u8>> = BTreeMap::new();
+    let mut row_data = Vec::with_capacity(fields.len());
+    for (column, field) in fields.iter().enumerate() {
 
-    pub(crate) fn decode_table<R: ReadBytes>(data: &mut R, definition: &Definition, entry_count: Option<u32>, return_incomplete: bool) -> Result<Vec<Vec<DecodedData>>> {
-
-        // If we received an entry count, it's the root table. If not, it's a nested one.
-        let entry_count = match entry_count {
-            Some(entry_count) => entry_count,
-            None => data.read_u32()?,
+        // Decode the field, then apply any postprocess operation we need.
+        let column = column as u32;
+        let field_data = match decode_field(data, field, row, column) {
+            Ok(data) => data,
+            Err(error) => {
+                if return_incomplete {
+                    return Ok(row_data);
+                } else {
+                    return Err(error);
+                }
+            }
         };
-
-        // Do not specify size here, because a badly written definition can end up triggering an OOM crash if we do.
-        let fields = definition.fields();
-        let mut table = if entry_count < 10_000 { Vec::with_capacity(entry_count as usize) } else { vec![] };
-
-        for row in 0..entry_count {
-            table.push(Self::decode_row(data, fields, row, return_incomplete)?);
-        }
-
-        Ok(table)
+        decode_field_postprocess(&mut row_data, field_data, field, &mut split_colours)
     }
 
-    fn decode_row<R: ReadBytes>(data: &mut R, fields: &[Field], row: u32, return_incomplete: bool) -> Result<Vec<DecodedData>> {
-        let mut split_colours: BTreeMap<u8, HashMap<String, u8>> = BTreeMap::new();
-        let mut row_data = Vec::with_capacity(fields.len());
-        for (column, field) in fields.iter().enumerate() {
+    decode_row_postprocess(&mut row_data, &mut split_colours)?;
 
-            // Decode the field, then apply any postprocess operation we need.
-            let column = column as u32;
-            let field_data = match Self::decode_field(data, field, row, column) {
-                Ok(data) => data,
-                Err(error) => {
-                    if return_incomplete {
-                        return Ok(row_data);
-                    } else {
-                        return Err(error);
-                    }
+    Ok(row_data)
+}
+
+fn decode_field<R: ReadBytes>(data: &mut R, field: &Field, row: u32, column: u32) -> Result<DecodedData> {
+    match field.field_type() {
+        FieldType::Boolean => {
+            data.read_bool()
+                .map(DecodedData::Boolean)
+                .map_err(|_| RLibError::DecodingTableFieldError(row + 1, column + 1, "Boolean".to_string()))
+        }
+        FieldType::F32 => {
+            if let Ok(data) = data.read_f32() { Ok(DecodedData::F32(data)) }
+            else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "F32".to_string())) }
+        }
+        FieldType::F64 => {
+            if let Ok(data) = data.read_f64() { Ok(DecodedData::F64(data)) }
+            else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "F64".to_string())) }
+        }
+        FieldType::I16 => {
+            if let Ok(data) = data.read_i16() { Ok(DecodedData::I16(data))  }
+            else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "I16".to_string())) }
+        }
+        FieldType::I32 => {
+            if let Ok(data) = data.read_i32() { Ok(DecodedData::I32(data)) }
+            else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "I32".to_string())) }
+        }
+        FieldType::I64 => {
+            if let Ok(data) = data.read_i64() { Ok(DecodedData::I64(data)) }
+            else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "I64".to_string())) }
+        }
+        FieldType::ColourRGB => {
+            if let Ok(data) = data.read_string_colour_rgb() { Ok(DecodedData::ColourRGB(data)) }
+            else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "Colour RGB".to_string())) }
+        }
+        FieldType::StringU8 => {
+            if let Ok(mut data) = data.read_sized_string_u8() {
+                escape_special_chars(&mut data);
+                Ok(DecodedData::StringU8(data)) }
+            else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "UTF-8 String".to_string())) }
+        }
+        FieldType::StringU16 => {
+            if let Ok(mut data) = data.read_sized_string_u16() {
+                escape_special_chars(&mut data);
+                Ok(DecodedData::StringU16(data)) }
+            else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "UTF-16 String".to_string())) }
+        }
+        FieldType::OptionalI16 => {
+            if let Ok(data) = data.read_optional_i16() { Ok(DecodedData::OptionalI16(data)) }
+            else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "Optional I16".to_string())) }
+        }
+        FieldType::OptionalI32 => {
+            if let Ok(data) = data.read_optional_i32() { Ok(DecodedData::OptionalI32(data)) }
+            else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "Optional I32".to_string())) }
+        }
+        FieldType::OptionalI64 => {
+            if let Ok(data) = data.read_optional_i64() { Ok(DecodedData::OptionalI64(data)) }
+            else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "Optional I64".to_string())) }
+        }
+
+        FieldType::OptionalStringU8 => {
+            if let Ok(mut data) = data.read_optional_string_u8() {
+                escape_special_chars(&mut data);
+                Ok(DecodedData::OptionalStringU8(data)) }
+            else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "Optional UTF-8 String".to_string())) }
+        }
+        FieldType::OptionalStringU16 => {
+            if let Ok(mut data) = data.read_optional_string_u16() {
+                escape_special_chars(&mut data);
+                Ok(DecodedData::OptionalStringU16(data)) }
+            else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "Optional UTF-16 String".to_string())) }
+        }
+
+        FieldType::SequenceU16(definition) => {
+            let start = data.stream_position()?;
+            let entry_count = data.read_u16()?;
+            match decode_table(data, definition, Some(entry_count as u32), false) {
+                Ok(_) => {
+                    let end = data.stream_position()? - start;
+                    data.seek(SeekFrom::Start(start))?;
+                    let blob = data.read_slice(end as usize, false)?;
+                    Ok(DecodedData::SequenceU16(blob))
                 }
+                Err(error) => Err(RLibError::DecodingTableFieldSequenceDataError(row + 1, column + 1, error.to_string(), "SequenceU16".to_string()))
+            }
+        }
+
+        FieldType::SequenceU32(definition) => {
+            let start = data.stream_position()?;
+            let entry_count = data.read_u32()?;
+            match decode_table(data, definition, Some(entry_count), false) {
+                Ok(_) => {
+                    let end = data.stream_position()? - start;
+                    data.seek(SeekFrom::Start(start))?;
+                    let blob = data.read_slice(end as usize, false)?;
+                    Ok(DecodedData::SequenceU32(blob))
+                }
+                Err(error) => Err(RLibError::DecodingTableFieldSequenceDataError(row + 1, column + 1, error.to_string(), "SequenceU32".to_string()))
+            }
+        }
+    }
+}
+
+fn decode_row_postprocess(row_data: &mut Vec<DecodedData>, split_colours: &mut BTreeMap<u8, HashMap<String, u8>>) -> Result<()> {
+    for split_colour in split_colours.values() {
+        let mut colour_hex = "".to_owned();
+        if let Some(r) = split_colour.get("r") {
+            colour_hex.push_str(&format!("{r:02X?}"));
+        }
+
+        if let Some(r) = split_colour.get("red") {
+            colour_hex.push_str(&format!("{r:02X?}"));
+        }
+
+        if let Some(g) = split_colour.get("g") {
+            colour_hex.push_str(&format!("{g:02X?}"));
+        }
+
+        if let Some(g) = split_colour.get("green") {
+            colour_hex.push_str(&format!("{g:02X?}"));
+        }
+
+        if let Some(b) = split_colour.get("b") {
+            colour_hex.push_str(&format!("{b:02X?}"));
+        }
+
+        if let Some(b) = split_colour.get("blue") {
+            colour_hex.push_str(&format!("{b:02X?}"));
+        }
+
+        if u32::from_str_radix(&colour_hex, 16).is_ok() {
+            row_data.push(DecodedData::ColourRGB(colour_hex));
+        } else {
+            return Err(RLibError::DecodingTableCombinedColour);
+        }
+    }
+
+    Ok(())
+}
+
+fn decode_field_postprocess(row_data: &mut Vec<DecodedData>, data: DecodedData, field: &Field, split_colours: &mut BTreeMap<u8, HashMap<String, u8>>) {
+
+    // If the field is a bitwise, split it into multiple fields. This is currently limited to integer types.
+    if field.is_bitwise() > 1 {
+        if [FieldType::I16, FieldType::I32, FieldType::I64].contains(field.field_type()) {
+            let data = match data {
+                DecodedData::I16(ref data) => *data as i64,
+                DecodedData::I32(ref data) => *data as i64,
+                DecodedData::I64(ref data) => *data,
+                _ => unimplemented!()
             };
-            Self::decode_field_postprocess(&mut row_data, field_data, field, &mut split_colours)
+
+            for bitwise_column in 0..field.is_bitwise() {
+                row_data.push(DecodedData::Boolean(data & (1 << bitwise_column) != 0));
+            }
         }
-
-        Self::decode_row_postprocess(&mut row_data, &mut split_colours)?;
-
-        Ok(row_data)
     }
 
-    fn decode_field<R: ReadBytes>(data: &mut R, field: &Field, row: u32, column: u32) -> Result<DecodedData> {
-        match field.field_type() {
-            FieldType::Boolean => {
-                data.read_bool()
-                    .map(DecodedData::Boolean)
-                    .map_err(|_| RLibError::DecodingTableFieldError(row + 1, column + 1, "Boolean".to_string()))
+    // If the field has enum values, we turn it into a string. Same as before, only for integer types.
+    else if !field.enum_values().is_empty() {
+        if [FieldType::I16, FieldType::I32, FieldType::I64].contains(field.field_type()) {
+            let data = match data {
+                DecodedData::I16(ref data) => *data as i32,
+                DecodedData::I32(ref data) => *data,
+                DecodedData::I64(ref data) => *data as i32,
+                _ => unimplemented!()
+            };
+            match field.enum_values().get(&data) {
+                Some(data) => row_data.push(DecodedData::StringU8(data.to_owned())),
+                None => row_data.push(DecodedData::StringU8(data.to_string()))
             }
-            FieldType::F32 => {
-                if let Ok(data) = data.read_f32() { Ok(DecodedData::F32(data)) }
-                else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "F32".to_string())) }
-            }
-            FieldType::F64 => {
-                if let Ok(data) = data.read_f64() { Ok(DecodedData::F64(data)) }
-                else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "F64".to_string())) }
-            }
-            FieldType::I16 => {
-                if let Ok(data) = data.read_i16() { Ok(DecodedData::I16(data))  }
-                else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "I16".to_string())) }
-            }
-            FieldType::I32 => {
-                if let Ok(data) = data.read_i32() { Ok(DecodedData::I32(data)) }
-                else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "I32".to_string())) }
-            }
-            FieldType::I64 => {
-                if let Ok(data) = data.read_i64() { Ok(DecodedData::I64(data)) }
-                else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "I64".to_string())) }
-            }
-            FieldType::ColourRGB => {
-                if let Ok(data) = data.read_string_colour_rgb() { Ok(DecodedData::ColourRGB(data)) }
-                else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "Colour RGB".to_string())) }
-            }
-            FieldType::StringU8 => {
-                if let Ok(mut data) = data.read_sized_string_u8() {
-                    Self::escape_special_chars(&mut data);
-                    Ok(DecodedData::StringU8(data)) }
-                else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "UTF-8 String".to_string())) }
-            }
-            FieldType::StringU16 => {
-                if let Ok(mut data) = data.read_sized_string_u16() {
-                    Self::escape_special_chars(&mut data);
-                    Ok(DecodedData::StringU16(data)) }
-                else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "UTF-16 String".to_string())) }
-            }
-            FieldType::OptionalI16 => {
-                if let Ok(data) = data.read_optional_i16() { Ok(DecodedData::OptionalI16(data)) }
-                else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "Optional I16".to_string())) }
-            }
-            FieldType::OptionalI32 => {
-                if let Ok(data) = data.read_optional_i32() { Ok(DecodedData::OptionalI32(data)) }
-                else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "Optional I32".to_string())) }
-            }
-            FieldType::OptionalI64 => {
-                if let Ok(data) = data.read_optional_i64() { Ok(DecodedData::OptionalI64(data)) }
-                else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "Optional I64".to_string())) }
-            }
+        }
+    }
 
-            FieldType::OptionalStringU8 => {
-                if let Ok(mut data) = data.read_optional_string_u8() {
-                    Self::escape_special_chars(&mut data);
-                    Ok(DecodedData::OptionalStringU8(data)) }
-                else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "Optional UTF-8 String".to_string())) }
-            }
-            FieldType::OptionalStringU16 => {
-                if let Ok(mut data) = data.read_optional_string_u16() {
-                    Self::escape_special_chars(&mut data);
-                    Ok(DecodedData::OptionalStringU16(data)) }
-                else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "Optional UTF-16 String".to_string())) }
-            }
+    // If the field is part of an split colour field group, don't add it. We'll separate it from the rest, then merge them into a ColourRGB field.
+    else if let Some(colour_index) = field.is_part_of_colour() {
+        if [FieldType::I16, FieldType::I32, FieldType::I64, FieldType::F32, FieldType::F64].contains(field.field_type()) {
+            let data = match data {
+                DecodedData::I16(ref data) => *data as u8,
+                DecodedData::I32(ref data) => *data as u8,
+                DecodedData::I64(ref data) => *data as u8,
+                DecodedData::F32(ref data) => *data as u8,
+                DecodedData::F64(ref data) => *data as u8,
+                _ => unimplemented!()
+            };
 
-            FieldType::SequenceU16(definition) => {
-                let start = data.stream_position()?;
-                let entry_count = data.read_u16()?;
-                match Self::decode_table(data, definition, Some(entry_count as u32), false) {
-                    Ok(_) => {
-                        let end = data.stream_position()? - start;
-                        data.seek(SeekFrom::Start(start))?;
-                        let blob = data.read_slice(end as usize, false)?;
-                        Ok(DecodedData::SequenceU16(blob))
-                    }
-                    Err(error) => Err(RLibError::DecodingTableFieldSequenceDataError(row + 1, column + 1, error.to_string(), "SequenceU16".to_string()))
+            // This can be r, g, b, red, green, blue.
+            let colour_split = field.name().rsplitn(2, '_').collect::<Vec<&str>>();
+            let colour_channel = colour_split[0].to_lowercase();
+            match split_colours.get_mut(&colour_index) {
+                Some(colour_pack) => {
+                    colour_pack.insert(colour_channel, data);
                 }
-            }
-
-            FieldType::SequenceU32(definition) => {
-                let start = data.stream_position()?;
-                let entry_count = data.read_u32()?;
-                match Self::decode_table(data, definition, Some(entry_count), false) {
-                    Ok(_) => {
-                        let end = data.stream_position()? - start;
-                        data.seek(SeekFrom::Start(start))?;
-                        let blob = data.read_slice(end as usize, false)?;
-                        Ok(DecodedData::SequenceU32(blob))
-                    }
-                    Err(error) => Err(RLibError::DecodingTableFieldSequenceDataError(row + 1, column + 1, error.to_string(), "SequenceU32".to_string()))
+                None => {
+                    let mut colour_pack = HashMap::new();
+                    colour_pack.insert(colour_channel, data);
+                    split_colours.insert(colour_index, colour_pack);
                 }
             }
         }
     }
 
-    fn decode_row_postprocess(row_data: &mut Vec<DecodedData>, split_colours: &mut BTreeMap<u8, HashMap<String, u8>>) -> Result<()> {
-        for split_colour in split_colours.values() {
-            let mut colour_hex = "".to_owned();
-            if let Some(r) = split_colour.get("r") {
-                colour_hex.push_str(&format!("{r:02X?}"));
-            }
-
-            if let Some(r) = split_colour.get("red") {
-                colour_hex.push_str(&format!("{r:02X?}"));
-            }
-
-            if let Some(g) = split_colour.get("g") {
-                colour_hex.push_str(&format!("{g:02X?}"));
-            }
-
-            if let Some(g) = split_colour.get("green") {
-                colour_hex.push_str(&format!("{g:02X?}"));
-            }
-
-            if let Some(b) = split_colour.get("b") {
-                colour_hex.push_str(&format!("{b:02X?}"));
-            }
-
-            if let Some(b) = split_colour.get("blue") {
-                colour_hex.push_str(&format!("{b:02X?}"));
-            }
-
-            if u32::from_str_radix(&colour_hex, 16).is_ok() {
-                row_data.push(DecodedData::ColourRGB(colour_hex));
-            } else {
-                return Err(RLibError::DecodingTableCombinedColour);
-            }
-        }
-
-        Ok(())
+    else {
+        row_data.push(data);
     }
+}
 
-    fn decode_field_postprocess(row_data: &mut Vec<DecodedData>, data: DecodedData, field: &Field, split_colours: &mut BTreeMap<u8, HashMap<String, u8>>) {
+pub fn encode_table<W: WriteBytes>(entries: &[Vec<DecodedData>], data: &mut W, definition: &Definition, patches: &Option<&DefinitionPatch>) -> Result<()> {
 
-        // If the field is a bitwise, split it into multiple fields. This is currently limited to integer types.
-        if field.is_bitwise() > 1 {
-            if [FieldType::I16, FieldType::I32, FieldType::I64].contains(field.field_type()) {
-                let data = match data {
-                    DecodedData::I16(ref data) => *data as i64,
-                    DecodedData::I32(ref data) => *data as i64,
-                    DecodedData::I64(ref data) => *data,
-                    _ => unimplemented!()
-                };
+    // Get the table data in local format, no matter in what backend we stored it.
+    let fields = definition.fields();
+    let fields_processed = definition.fields_processed();
 
-                for bitwise_column in 0..field.is_bitwise() {
-                    row_data.push(DecodedData::Boolean(data & (1 << bitwise_column) != 0));
-                }
-            }
+    // Get the colour positions of the tables, if any.
+    let combined_colour_positions = fields.iter().filter_map(|field| {
+        if let Some(colour_group) = field.is_part_of_colour() {
+            let colour_split = field.name().rsplitn(2, '_').collect::<Vec<&str>>();
+            let colour_field_name: String = if colour_split.len() == 2 { format!("{}{}", colour_split[1].to_lowercase(), MERGE_COLOUR_POST) } else { format!("{}_{}", MERGE_COLOUR_NO_NAME.to_lowercase(), colour_group) };
+
+            definition.column_position_by_name(&colour_field_name).map(|x| (colour_field_name, x))
+        } else { None }
+    }).collect::<HashMap<String, usize>>();
+
+    for row in entries.iter() {
+
+        // First, we need to make sure we have the amount of fields we expected to be in the row.
+        if row.len() != fields_processed.len() {
+            return Err(RLibError::TableRowWrongFieldCount(fields_processed.len(), row.len()))
         }
 
-        // If the field has enum values, we turn it into a string. Same as before, only for integer types.
-        else if !field.enum_values().is_empty() {
-            if [FieldType::I16, FieldType::I32, FieldType::I64].contains(field.field_type()) {
-                let data = match data {
-                    DecodedData::I16(ref data) => *data as i32,
-                    DecodedData::I32(ref data) => *data,
-                    DecodedData::I64(ref data) => *data as i32,
-                    _ => unimplemented!()
-                };
-                match field.enum_values().get(&data) {
-                    Some(data) => row_data.push(DecodedData::StringU8(data.to_owned())),
-                    None => row_data.push(DecodedData::StringU8(data.to_string()))
-                }
-            }
-        }
+        // The way we process it is, we iterate over the definition fields (because it's what we need to write)
+        // and write the fields getting only what we need from the table data.
+        let mut data_column = 0;
+        for field in fields {
 
-        // If the field is part of an split colour field group, don't add it. We'll separate it from the rest, then merge them into a ColourRGB field.
-        else if let Some(colour_index) = field.is_part_of_colour() {
-            if [FieldType::I16, FieldType::I32, FieldType::I64, FieldType::F32, FieldType::F64].contains(field.field_type()) {
-                let data = match data {
-                    DecodedData::I16(ref data) => *data as u8,
-                    DecodedData::I32(ref data) => *data as u8,
-                    DecodedData::I64(ref data) => *data as u8,
-                    DecodedData::F32(ref data) => *data as u8,
-                    DecodedData::F64(ref data) => *data as u8,
-                    _ => unimplemented!()
-                };
-
-                // This can be r, g, b, red, green, blue.
-                let colour_split = field.name().rsplitn(2, '_').collect::<Vec<&str>>();
-                let colour_channel = colour_split[0].to_lowercase();
-                match split_colours.get_mut(&colour_index) {
-                    Some(colour_pack) => {
-                        colour_pack.insert(colour_channel, data);
-                    }
-                    None => {
-                        let mut colour_pack = HashMap::new();
-                        colour_pack.insert(colour_channel, data);
-                        split_colours.insert(colour_index, colour_pack);
-                    }
-                }
-            }
-        }
-
-        else {
-            row_data.push(data);
-        }
-    }
-
-    pub fn encode<W: WriteBytes>(&self, data: &mut W, schema_patches: &Option<&DefinitionPatch>) -> Result<()> {
-
-        // Get the table data in local format, no matter in what backend we stored it.
-        let entries = self.data();
-        let fields = self.definition.fields();
-        let fields_processed = self.definition.fields_processed();
-
-        // Get the colour positions of the tables, if any.
-        let combined_colour_positions = fields.iter().filter_map(|field| {
+            // First special situation: join back split colour columns, if the field is a split colour.
             if let Some(colour_group) = field.is_part_of_colour() {
-                let colour_split = field.name().rsplitn(2, '_').collect::<Vec<&str>>();
-                let colour_field_name: String = if colour_split.len() == 2 { format!("{}{}", colour_split[1].to_lowercase(), MERGE_COLOUR_POST) } else { format!("{}_{}", MERGE_COLOUR_NO_NAME.to_lowercase(), colour_group) };
+                let field_name = field.name().to_lowercase();
+                let colour_split = field_name.rsplitn(2, '_').collect::<Vec<&str>>();
+                let colour_channel = colour_split[0];
+                let colour_field_name = if colour_split.len() == 2 {
+                    format!("{}{}", colour_split[1], MERGE_COLOUR_POST)
+                } else {
+                    format!("{}_{}", MERGE_COLOUR_NO_NAME.to_lowercase(), colour_group)
+                };
 
-                self.definition.column_position_by_name(&colour_field_name).map(|x| (colour_field_name, x))
-            } else { None }
-        }).collect::<HashMap<String, usize>>();
+                if let Some(data_column) = combined_colour_positions.get(&colour_field_name) {
+                    match &row[*data_column] {
+                        DecodedData::ColourRGB(field_data) => {
 
-        for row in entries.iter() {
+                            // Encode the full colour, then grab the byte of our field.
+                            let mut encoded = vec![];
+                            encoded.write_string_colour_rgb(field_data)?;
 
-            // First, we need to make sure we have the amount of fields we expected to be in the row.
-            if row.len() != fields_processed.len() {
-                return Err(RLibError::TableRowWrongFieldCount(fields_processed.len(), row.len()))
+                            let field_data =
+                                if colour_channel == "r" || colour_channel == "red" { encoded[2] }
+                                else if colour_channel == "g" || colour_channel == "green" { encoded[1] }
+                                else if colour_channel == "b" || colour_channel == "blue" { encoded[0] }
+                            else { 0 };
+
+                            // Only these types can be split colours.
+                            match field.field_type() {
+                                FieldType::I16 => data.write_i16(field_data as i16)?,
+                                FieldType::I32 => data.write_i32(field_data as i32)?,
+                                FieldType::I64 => data.write_i64(field_data as i64)?,
+                                FieldType::F32 => data.write_f32(field_data as f32)?,
+                                FieldType::F64 => data.write_f64(field_data as f64)?,
+                                _ => return Err(RLibError::EncodingTableWrongFieldType(FieldType::from(&row[*data_column]).to_string(), field.field_type().to_string()))
+                            }
+
+
+                        },
+                        _ => return Err(RLibError::EncodingTableWrongFieldType(FieldType::from(&row[*data_column]).to_string(), field.field_type().to_string()))
+                    }
+                }
             }
 
-            // The way we process it is, we iterate over the definition fields (because it's what we need to write)
-            // and write the fields getting only what we need from the table data.
-            let mut data_column = 0;
-            for field in fields {
+            // Second special situation: bitwise columns.
+            else if field.is_bitwise() > 1 {
+                let mut field_data: i64 = 0;
 
-                // First special situation: join back split colour columns, if the field is a split colour.
-                if let Some(colour_group) = field.is_part_of_colour() {
-                    let field_name = field.name().to_lowercase();
-                    let colour_split = field_name.rsplitn(2, '_').collect::<Vec<&str>>();
-                    let colour_channel = colour_split[0];
-                    let colour_field_name = if colour_split.len() == 2 {
-                        format!("{}{}", colour_split[1], MERGE_COLOUR_POST)
-                    } else {
-                        format!("{}_{}", MERGE_COLOUR_NO_NAME.to_lowercase(), colour_group)
-                    };
-
-                    if let Some(data_column) = combined_colour_positions.get(&colour_field_name) {
-                        match &row[*data_column] {
-                            DecodedData::ColourRGB(field_data) => {
-
-                                // Encode the full colour, then grab the byte of our field.
-                                let mut encoded = vec![];
-                                encoded.write_string_colour_rgb(field_data)?;
-
-                                let field_data =
-                                    if colour_channel == "r" || colour_channel == "red" { encoded[2] }
-                                    else if colour_channel == "g" || colour_channel == "green" { encoded[1] }
-                                    else if colour_channel == "b" || colour_channel == "blue" { encoded[0] }
-                                else { 0 };
-
-                                // Only these types can be split colours.
-                                match field.field_type() {
-                                    FieldType::I16 => data.write_i16(field_data as i16)?,
-                                    FieldType::I32 => data.write_i32(field_data as i32)?,
-                                    FieldType::I64 => data.write_i64(field_data as i64)?,
-                                    FieldType::F32 => data.write_f32(field_data as f32)?,
-                                    FieldType::F64 => data.write_f64(field_data as f64)?,
-                                    _ => return Err(RLibError::EncodingTableWrongFieldType(FieldType::from(&row[*data_column]).to_string(), field.field_type().to_string()))
-                                }
-
-
-                            },
-                            _ => return Err(RLibError::EncodingTableWrongFieldType(FieldType::from(&row[*data_column]).to_string(), field.field_type().to_string()))
+                // Bitwise columns are always consecutive booleans.
+                for bitwise_column in 0..field.is_bitwise() {
+                    if let DecodedData::Boolean(boolean) = row[data_column] {
+                        if boolean {
+                            field_data |= 1 << bitwise_column;
                         }
                     }
-                }
 
-                // Second special situation: bitwise columns.
-                else if field.is_bitwise() > 1 {
-                    let mut field_data: i64 = 0;
-
-                    // Bitwise columns are always consecutive booleans.
-                    for bitwise_column in 0..field.is_bitwise() {
-                        if let DecodedData::Boolean(boolean) = row[data_column] {
-                            if boolean {
-                                field_data |= 1 << bitwise_column;
-                            }
-                        }
-
-                        else {
-                            return Err(RLibError::EncodingTableWrongFieldType(FieldType::from(&row[data_column]).to_string(), field.field_type().to_string()))
-                        }
-
-                        data_column += 1;
-                    }
-
-                    // Only integer types can be bitwise.
-                    match field.field_type() {
-                        FieldType::I16 => data.write_i16(field_data as i16)?,
-                        FieldType::I32 => data.write_i32(field_data as i32)?,
-                        FieldType::I64 => data.write_i64(field_data)?,
-                        _ => return Err(RLibError::EncodingTableWrongFieldType(FieldType::from(&row[data_column]).to_string(), field.field_type().to_string()))
-                    }
-                }
-
-                // If no special behavior has been needed, encode the field as a normal field, except for strings.
-                else {
-
-                    match &row[data_column] {
-                        DecodedData::Boolean(field_data) => data.write_bool(*field_data)?,
-                        DecodedData::F32(field_data) => data.write_f32(*field_data)?,
-                        DecodedData::F64(field_data) => data.write_f64(*field_data)?,
-                        DecodedData::I16(field_data) => data.write_i16(*field_data)?,
-                        DecodedData::I32(field_data) => data.write_i32(*field_data)?,
-                        DecodedData::I64(field_data) => data.write_i64(*field_data)?,
-                        DecodedData::ColourRGB(field_data) => data.write_string_colour_rgb(field_data)?,
-                        DecodedData::OptionalI16(field_data) => {
-                            data.write_bool(true)?;
-                            data.write_i16(*field_data)?
-                        },
-                        DecodedData::OptionalI32(field_data) => {
-                            data.write_bool(true)?;
-                            data.write_i32(*field_data)?
-                        },
-                        DecodedData::OptionalI64(field_data) => {
-                            data.write_bool(true)?;
-                            data.write_i64(*field_data)?
-                        },
-
-                        // String fields may need preprocessing applied to them before encoding.
-                        DecodedData::StringU8(field_data) |
-                        DecodedData::StringU16(field_data) |
-                        DecodedData::OptionalStringU8(field_data) |
-                        DecodedData::OptionalStringU16(field_data) => {
-
-                            // String files may be representations of enums (as integer => string) for ease of use.
-                            // If so, we need to find the underlying integer key of our string and encode that.
-                            if !field.enum_values().is_empty() {
-                                let field_data = match field.enum_values()
-                                    .iter()
-                                    .find_map(|(x, y)|
-                                        if y.to_lowercase() == field_data.to_lowercase() { Some(x) } else { None }) {
-                                    Some(value) => {
-                                        match field.field_type() {
-                                            FieldType::I16 => DecodedData::I16(*value as i16),
-                                            FieldType::I32 => DecodedData::I32(*value),
-                                            FieldType::I64 => DecodedData::I64(*value as i64),
-                                            _ => return Err(RLibError::EncodingTableWrongFieldType(field_data.to_string(), field.field_type().to_string()))
-                                        }
-                                    }
-                                    None => match row[data_column].convert_between_types(field.field_type()) {
-                                        Ok(data) => data,
-                                        Err(_) => {
-                                            let default_value = field.default_value(*schema_patches);
-                                            DecodedData::new_from_type_and_value(field.field_type(), &default_value)
-                                        }
-                                    }
-                                };
-
-                                // If there are no problems, encode the data.
-                                match field_data {
-                                    DecodedData::I16(field_data) => data.write_i16(field_data)?,
-                                    DecodedData::I32(field_data) => data.write_i32(field_data)?,
-                                    DecodedData::I64(field_data) => data.write_i64(field_data)?,
-                                    _ => return Err(RLibError::EncodingTableWrongFieldType(field_data.data_to_string().to_string(), field.field_type().to_string()))
-                                }
-                            }
-                            else {
-
-                                // If there are no problems, encode the data.
-                                match field.field_type() {
-                                    FieldType::StringU8 => data.write_sized_string_u8(&Self::unescape_special_chars(field_data))?,
-                                    FieldType::StringU16 => data.write_sized_string_u16(&Self::unescape_special_chars(field_data))?,
-                                    FieldType::OptionalStringU8 => data.write_optional_string_u8(&Self::unescape_special_chars(field_data))?,
-                                    FieldType::OptionalStringU16 => data.write_optional_string_u16(&Self::unescape_special_chars(field_data))?,
-                                    _ => return Err(RLibError::EncodingTableWrongFieldType(field_data.to_string(), field.field_type().to_string()))
-                                }
-                            }
-                        }
-
-                        // Make sure we at least have the counter before writing. We need at least that.
-                        DecodedData::SequenceU16(field_data) => {
-                            if field_data.len() < 2 {
-                                data.write_all(&[0, 0])?
-                            } else {
-                                data.write_all(field_data)?
-                            }
-                        },
-                        DecodedData::SequenceU32(field_data) => {
-                            if field_data.len() < 4 {
-                                data.write_all(&[0, 0, 0, 0])?
-                            } else {
-                                data.write_all(field_data)?
-                            }
-                        }
+                    else {
+                        return Err(RLibError::EncodingTableWrongFieldType(FieldType::from(&row[data_column]).to_string(), field.field_type().to_string()))
                     }
 
                     data_column += 1;
                 }
-            }
-        }
 
-        Ok(())
-    }
-
-    /// This function returns the data stored in the table.
-    pub fn data(&self) -> Cow<[Vec<DecodedData>]> {
-        Cow::from(&self.table_data)
-    }
-
-    /// This function returns a new empty row for the provided definition.
-    pub fn new_row(definition: &Definition, schema_patches: Option<&DefinitionPatch>) -> Vec<DecodedData> {
-        definition.fields_processed().iter()
-            .map(|field|
+                // Only integer types can be bitwise.
                 match field.field_type() {
-                    FieldType::Boolean => {
-                        if let Some(default_value) = field.default_value(schema_patches) {
-                            if default_value.to_lowercase() == "true" {
-                                DecodedData::Boolean(true)
-                            } else {
-                                DecodedData::Boolean(false)
-                            }
-                        } else {
-                            DecodedData::Boolean(false)
-                        }
-                    }
-                    FieldType::F32 => {
-                        if let Some(default_value) = field.default_value(schema_patches) {
-                            if let Ok(default_value) = default_value.parse::<f32>() {
-                                DecodedData::F32(default_value)
-                            } else {
-                                DecodedData::F32(0.0)
-                            }
-                        } else {
-                            DecodedData::F32(0.0)
-                        }
-                    },
-                    FieldType::F64 => {
-                        if let Some(default_value) = field.default_value(schema_patches) {
-                            if let Ok(default_value) = default_value.parse::<f64>() {
-                                DecodedData::F64(default_value)
-                            } else {
-                                DecodedData::F64(0.0)
-                            }
-                        } else {
-                            DecodedData::F64(0.0)
-                        }
-                    },
-                    FieldType::I16 => {
-                        if let Some(default_value) = field.default_value(schema_patches) {
-                            if let Ok(default_value) = default_value.parse::<i16>() {
-                                DecodedData::I16(default_value)
-                            } else {
-                                DecodedData::I16(0)
-                            }
-                        } else {
-                            DecodedData::I16(0)
-                        }
-                    },
-                    FieldType::I32 => {
-                        if let Some(default_value) = field.default_value(schema_patches) {
-                            if let Ok(default_value) = default_value.parse::<i32>() {
-                                DecodedData::I32(default_value)
-                            } else {
-                                DecodedData::I32(0)
-                            }
-                        } else {
-                            DecodedData::I32(0)
-                        }
-                    },
-                    FieldType::I64 => {
-                        if let Some(default_value) = field.default_value(schema_patches) {
-                            if let Ok(default_value) = default_value.parse::<i64>() {
-                                DecodedData::I64(default_value)
-                            } else {
-                                DecodedData::I64(0)
-                            }
-                        } else {
-                            DecodedData::I64(0)
-                        }
-                    },
-
-                    FieldType::ColourRGB => {
-                        if let Some(default_value) = field.default_value(schema_patches) {
-                            if u32::from_str_radix(&default_value, 16).is_ok() {
-                                DecodedData::ColourRGB(default_value)
-                            } else {
-                                DecodedData::ColourRGB("000000".to_owned())
-                            }
-                        } else {
-                            DecodedData::ColourRGB("000000".to_owned())
-                        }
-                    },
-                    FieldType::StringU8 => {
-                        if let Some(default_value) = field.default_value(schema_patches) {
-                            DecodedData::StringU8(default_value)
-                        } else {
-                            DecodedData::StringU8(String::new())
-                        }
-                    }
-                    FieldType::StringU16 => {
-                        if let Some(default_value) = field.default_value(schema_patches) {
-                            DecodedData::StringU16(default_value)
-                        } else {
-                            DecodedData::StringU16(String::new())
-                        }
-                    }
-
-                    FieldType::OptionalI16 => {
-                        if let Some(default_value) = field.default_value(schema_patches) {
-                            if let Ok(default_value) = default_value.parse::<i16>() {
-                                DecodedData::OptionalI16(default_value)
-                            } else {
-                                DecodedData::OptionalI16(0)
-                            }
-                        } else {
-                            DecodedData::OptionalI16(0)
-                        }
-                    },
-                    FieldType::OptionalI32 => {
-                        if let Some(default_value) = field.default_value(schema_patches) {
-                            if let Ok(default_value) = default_value.parse::<i32>() {
-                                DecodedData::OptionalI32(default_value)
-                            } else {
-                                DecodedData::OptionalI32(0)
-                            }
-                        } else {
-                            DecodedData::OptionalI32(0)
-                        }
-                    },
-                    FieldType::OptionalI64 => {
-                        if let Some(default_value) = field.default_value(schema_patches) {
-                            if let Ok(default_value) = default_value.parse::<i64>() {
-                                DecodedData::OptionalI64(default_value)
-                            } else {
-                                DecodedData::OptionalI64(0)
-                            }
-                        } else {
-                            DecodedData::OptionalI64(0)
-                        }
-                    },
-
-                    FieldType::OptionalStringU8 => {
-                        if let Some(default_value) = field.default_value(schema_patches) {
-                            DecodedData::OptionalStringU8(default_value)
-                        } else {
-                            DecodedData::OptionalStringU8(String::new())
-                        }
-                    }
-                    FieldType::OptionalStringU16 => {
-                        if let Some(default_value) = field.default_value(schema_patches) {
-                            DecodedData::OptionalStringU16(default_value)
-                        } else {
-                            DecodedData::OptionalStringU16(String::new())
-                        }
-                    },
-                    FieldType::SequenceU16(_) => DecodedData::SequenceU16(vec![0, 0]),
-                    FieldType::SequenceU32(_) => DecodedData::SequenceU32(vec![0, 0, 0, 0])
+                    FieldType::I16 => data.write_i16(field_data as i16)?,
+                    FieldType::I32 => data.write_i32(field_data as i32)?,
+                    FieldType::I64 => data.write_i64(field_data)?,
+                    _ => return Err(RLibError::EncodingTableWrongFieldType(FieldType::from(&row[data_column]).to_string(), field.field_type().to_string()))
                 }
-            )
-            .collect()
-    }
+            }
 
-    /// This function returns the list of table/columns that reference the provided columns,
-    /// and if there may be a loc entry that changing our column may need a change.
-    ///
-    /// This supports more than one reference level, except for locs.
-    /// TODO: Make loc editions be as deep as needed.
-    pub fn tables_and_columns_referencing_our_own(schema_option: &Option<Schema>, table_name: &str, column_name: &str, fields: &[Field], localised_fields: &[Field]) -> Option<(BTreeMap<String, Vec<String>>, bool)> {
-        if let Some(ref schema) = *schema_option {
+            // If no special behavior has been needed, encode the field as a normal field, except for strings.
+            else {
 
-            // Make sure the table name is correct.
-            let short_table_name = if table_name.ends_with("_tables") { table_name.split_at(table_name.len() - 7).0 } else { table_name };
-            let mut tables: BTreeMap<String, Vec<String>> = BTreeMap::new();
+                match &row[data_column] {
+                    DecodedData::Boolean(field_data) => data.write_bool(*field_data)?,
+                    DecodedData::F32(field_data) => data.write_f32(*field_data)?,
+                    DecodedData::F64(field_data) => data.write_f64(*field_data)?,
+                    DecodedData::I16(field_data) => data.write_i16(*field_data)?,
+                    DecodedData::I32(field_data) => data.write_i32(*field_data)?,
+                    DecodedData::I64(field_data) => data.write_i64(*field_data)?,
+                    DecodedData::ColourRGB(field_data) => data.write_string_colour_rgb(field_data)?,
+                    DecodedData::OptionalI16(field_data) => {
+                        data.write_bool(true)?;
+                        data.write_i16(*field_data)?
+                    },
+                    DecodedData::OptionalI32(field_data) => {
+                        data.write_bool(true)?;
+                        data.write_i32(*field_data)?
+                    },
+                    DecodedData::OptionalI64(field_data) => {
+                        data.write_bool(true)?;
+                        data.write_i64(*field_data)?
+                    },
 
-            // We get all the db definitions from the schema, then iterate all of them to find what tables/columns reference our own.
-            for (ref_table_name, ref_definition) in schema.definitions() {
-                let mut columns: Vec<String> = vec![];
-                for ref_version in ref_definition {
-                    let ref_fields = ref_version.fields_processed();
-                    let ref_patches = Some(ref_version.patches());
-                    let ref_fields_localised = ref_version.localised_fields();
-                    for ref_field in &ref_fields {
-                        if let Some((ref_ref_table, ref_ref_field)) = ref_field.is_reference(ref_patches) {
+                    // String fields may need preprocessing applied to them before encoding.
+                    DecodedData::StringU8(field_data) |
+                    DecodedData::StringU16(field_data) |
+                    DecodedData::OptionalStringU8(field_data) |
+                    DecodedData::OptionalStringU16(field_data) => {
 
-                            // As this applies to all versions of a table, skip repeated fields.
-                            if ref_ref_table == short_table_name && ref_ref_field == column_name && !columns.iter().any(|x| x == ref_field.name()) {
-                                columns.push(ref_field.name().to_owned());
-
-                                // If we find a referencing column, get recursion working to check if there is any column referencing this one that needs to be edited.
-                                if let Some((ref_of_ref, _)) = Self::tables_and_columns_referencing_our_own(schema_option, ref_table_name, ref_field.name(), &ref_fields, ref_fields_localised) {
-                                    for refs in &ref_of_ref {
-                                        match tables.get_mut(refs.0) {
-                                            Some(columns) => for value in refs.1 {
-                                                if !columns.contains(value) {
-                                                    columns.push(value.to_owned());
-                                                }
-                                            }
-                                            None => { tables.insert(refs.0.to_owned(), refs.1.to_vec()); },
-                                        }
+                        // String files may be representations of enums (as integer => string) for ease of use.
+                        // If so, we need to find the underlying integer key of our string and encode that.
+                        if !field.enum_values().is_empty() {
+                            let field_data = match field.enum_values()
+                                .iter()
+                                .find_map(|(x, y)|
+                                    if y.to_lowercase() == field_data.to_lowercase() { Some(x) } else { None }) {
+                                Some(value) => {
+                                    match field.field_type() {
+                                        FieldType::I16 => DecodedData::I16(*value as i16),
+                                        FieldType::I32 => DecodedData::I32(*value),
+                                        FieldType::I64 => DecodedData::I64(*value as i64),
+                                        _ => return Err(RLibError::EncodingTableWrongFieldType(field_data.to_string(), field.field_type().to_string()))
                                     }
                                 }
-                            }
-                        }
-                    }
-                }
-
-                // Only add them if we actually found columns.
-                if !columns.is_empty() {
-                    tables.insert(ref_table_name.to_owned(), columns);
-                }
-            }
-
-            // Also, check if we have to be careful about localised fields.
-            let patches = schema.patches().get(table_name);
-            let has_loc_fields = if let Some(field) = fields.iter().find(|x| x.name() == column_name) {
-                (field.is_key(patches) || field.name() == "key") && !localised_fields.is_empty()
-            } else { false };
-
-            Some((tables, has_loc_fields))
-        } else {
-           None
-        }
-    }
-
-    /// This function tries to find all rows with the provided data, if they exists in this table.
-    pub fn rows_containing_data(&self, column_name: &str, data: &str) -> Option<(usize, Vec<usize>)> {
-        let mut row_indexes = vec![];
-
-        let column_index = self.column_position_by_name(column_name)?;
-        for (row_index, row) in self.data().iter().enumerate() {
-            if let Some(cell_data) = row.get(column_index) {
-                if cell_data.data_to_string() == data {
-                    row_indexes.push(row_index);
-                }
-            }
-        }
-
-        if row_indexes.is_empty() {
-            None
-        } else {
-            Some((column_index, row_indexes))
-        }
-    }
-
-    //----------------------------------------------------------------//
-    // TSV Functions for tables.
-    //----------------------------------------------------------------//
-
-    /// This function tries to imports a TSV file on the path provided into a binary db table.
-    pub(crate) fn tsv_import(records: StringRecordsIter<File>, definition: &Definition, field_order: &HashMap<u32, String>, table_name: &str, schema_patches: Option<&DefinitionPatch>) -> Result<Self> {
-        let mut table = Table::new(definition, None, table_name);
-        let mut entries = vec![];
-
-        let fields_processed = definition.fields_processed();
-
-        for (row, record) in records.enumerate() {
-            match record {
-                Ok(record) => {
-                    let mut entry = Self::new_row(definition, schema_patches);
-                    for (column, field) in record.iter().enumerate() {
-
-                        // Get the column name from the header, and try to map it to a column in the table's.
-                        if let Some(column_name) = field_order.get(&(column as u32)) {
-                            if let Some(column_number) = fields_processed.iter().position(|x| x.name() == column_name) {
-
-                                entry[column_number] = match fields_processed[column_number].field_type() {
-                                    FieldType::Boolean => parse_str_as_bool(field).map(DecodedData::Boolean).map_err(|_| RLibError::ImportTSVIncorrectRow(row, column))?,
-                                    FieldType::F32 => DecodedData::F32(field.parse::<f32>().map_err(|_| RLibError::ImportTSVIncorrectRow(row, column))?),
-                                    FieldType::F64 => DecodedData::F64(field.parse::<f64>().map_err(|_| RLibError::ImportTSVIncorrectRow(row, column))?),
-                                    FieldType::I16 => DecodedData::I16(field.parse::<i16>().map_err(|_| RLibError::ImportTSVIncorrectRow(row, column))?),
-                                    FieldType::I32 => DecodedData::I32(field.parse::<i32>().map_err(|_| RLibError::ImportTSVIncorrectRow(row, column))?),
-                                    FieldType::I64 => DecodedData::I64(field.parse::<i64>().map_err(|_| RLibError::ImportTSVIncorrectRow(row, column))?),
-                                    FieldType::OptionalI16 => DecodedData::OptionalI16(field.parse::<i16>().map_err(|_| RLibError::ImportTSVIncorrectRow(row, column))?),
-                                    FieldType::OptionalI32 => DecodedData::OptionalI32(field.parse::<i32>().map_err(|_| RLibError::ImportTSVIncorrectRow(row, column))?),
-                                    FieldType::OptionalI64 => DecodedData::OptionalI64(field.parse::<i64>().map_err(|_| RLibError::ImportTSVIncorrectRow(row, column))?),
-                                    FieldType::ColourRGB => DecodedData::ColourRGB(if u32::from_str_radix(field, 16).is_ok() {
-                                        field.to_owned()
-                                    } else {
-                                        Err(RLibError::ImportTSVIncorrectRow(row, column))?
-                                    }),
-                                    FieldType::StringU8 => DecodedData::StringU8(field.to_owned()),
-                                    FieldType::StringU16 => DecodedData::StringU16(field.to_owned()),
-                                    FieldType::OptionalStringU8 => DecodedData::OptionalStringU8(field.to_owned()),
-                                    FieldType::OptionalStringU16 => DecodedData::OptionalStringU16(field.to_owned()),
-
-                                    // For now fail on Sequences. These are a bit special and I don't know if the're even possible in TSV.
-                                    FieldType::SequenceU16(_) => DecodedData::SequenceU16(STANDARD.decode(field).map_err(|_| RLibError::ImportTSVIncorrectRow(row, column))?),
-                                    FieldType::SequenceU32(_) => DecodedData::SequenceU32(STANDARD.decode(field).map_err(|_| RLibError::ImportTSVIncorrectRow(row, column))?),
+                                None => match row[data_column].convert_between_types(field.field_type()) {
+                                    Ok(data) => data,
+                                    Err(_) => {
+                                        let default_value = field.default_value(*patches);
+                                        DecodedData::new_from_type_and_value(field.field_type(), &default_value)
+                                    }
                                 }
+                            };
+
+                            // If there are no problems, encode the data.
+                            match field_data {
+                                DecodedData::I16(field_data) => data.write_i16(field_data)?,
+                                DecodedData::I32(field_data) => data.write_i32(field_data)?,
+                                DecodedData::I64(field_data) => data.write_i64(field_data)?,
+                                _ => return Err(RLibError::EncodingTableWrongFieldType(field_data.data_to_string().to_string(), field.field_type().to_string()))
+                            }
+                        }
+                        else {
+
+                            // If there are no problems, encode the data.
+                            match field.field_type() {
+                                FieldType::StringU8 => data.write_sized_string_u8(&unescape_special_chars(field_data))?,
+                                FieldType::StringU16 => data.write_sized_string_u16(&unescape_special_chars(field_data))?,
+                                FieldType::OptionalStringU8 => data.write_optional_string_u8(&unescape_special_chars(field_data))?,
+                                FieldType::OptionalStringU16 => data.write_optional_string_u16(&unescape_special_chars(field_data))?,
+                                _ => return Err(RLibError::EncodingTableWrongFieldType(field_data.to_string(), field.field_type().to_string()))
                             }
                         }
                     }
-                    entries.push(entry);
+
+                    // Make sure we at least have the counter before writing. We need at least that.
+                    DecodedData::SequenceU16(field_data) => {
+                        if field_data.len() < 2 {
+                            data.write_all(&[0, 0])?
+                        } else {
+                            data.write_all(field_data)?
+                        }
+                    },
+                    DecodedData::SequenceU32(field_data) => {
+                        if field_data.len() < 4 {
+                            data.write_all(&[0, 0, 0, 0])?
+                        } else {
+                            data.write_all(field_data)?
+                        }
+                    }
                 }
-                Err(_) => return Err(RLibError::ImportTSVIncorrectRow(row, 0)),
+
+                data_column += 1;
             }
         }
-
-        // If we reached this point without errors, we replace the old data with the new one and return success.
-        table.set_data(&entries)?;
-        Ok(table)
     }
 
-    /// This function exports the provided data to a TSV file.
-    pub(crate) fn tsv_export(&self, writer: &mut Writer<File>, table_path: &str, keys_first: bool) -> Result<()> {
-
-        let fields_processed = self.definition().fields_processed();
-        let fields_sorted = self.definition().fields_processed_sorted(keys_first);
-        let fields_sorted_properly = fields_sorted.iter()
-            .map(|field_sorted| (fields_processed.iter().position(|field| field == field_sorted).unwrap(), field_sorted))
-            .collect::<Vec<(_,_)>>();
-
-        // We serialize the info of the table (name and version) in the first line, and the column names in the second one.
-        let metadata = (format!("#{};{};{}", self.table_name(), self.definition().version(), table_path), vec![String::new(); fields_sorted_properly.len() - 1]);
-        writer.serialize(fields_sorted_properly.iter().map(|(_, field)| field.name()).collect::<Vec<&str>>())?;
-        writer.serialize(metadata)?;
-
-        // Then we serialize each entry in the DB Table.
-        let entries = self.data();
-        for entry in &*entries {
-            let sorted_entry = fields_sorted_properly.iter()
-                .map(|(index, _)| entry[*index].data_to_string())
-                .collect::<Vec<Cow<str>>>();
-            writer.serialize(sorted_entry)?;
-        }
-
-        writer.flush().map_err(From::from)
-    }
-
-    //----------------------------------------------------------------//
-    // Util functions for tables.
-    //----------------------------------------------------------------//
-
-    /// This function escapes certain characters of the provided string.
-    fn escape_special_chars(data: &mut String) {
-
-        // When performed on mass, this takes 25% of the time to decode a table. Only do it if we really have characters to replace.
-        if memchr::memchr(b'\n', data.as_bytes()).is_some() || memchr::memchr(b'\t', data.as_bytes()).is_some() {
-            let mut output = Vec::with_capacity(data.len() + 10);
-            for c in data.bytes() {
-                match c {
-                    b'\n' => output.extend_from_slice(b"\\\\n"),
-                    b'\t' => output.extend_from_slice(b"\\\\t"),
-                    _ => output.push(c),
-                }
-            }
-
-            unsafe { *data.as_mut_vec() = output };
-        }
-    }
-
-    /// This function unescapes certain characters of the provided string.
-    fn unescape_special_chars(data: &str) -> String {
-        data.replace("\\\\t", "\t").replace("\\\\n", "\n")
-    }
+    Ok(())
 }

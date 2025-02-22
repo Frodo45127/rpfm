@@ -43,7 +43,7 @@ use std::fs::{copy, remove_file, remove_dir_all};
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use rpfm_lib::files::{ContainerPath, pack::RESERVED_NAME_NOTES};
+use rpfm_lib::files::{ContainerPath, pack::RESERVED_NAME_NOTES, table::Table};
 use rpfm_lib::games::{pfh_file_type::PFHFileType, supported_games::*};
 use rpfm_lib::integrations::log::*;
 

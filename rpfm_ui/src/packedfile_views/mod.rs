@@ -28,7 +28,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 
 use rpfm_lib::integrations::log::*;
-use rpfm_lib::files::{atlas::Atlas, ContainerPath, db::DB, loc::Loc, FileType, RFileDecoded, text::Text};
+use rpfm_lib::files::{atlas::Atlas, ContainerPath, db::DB, loc::Loc, FileType, RFileDecoded, table::Table, text::Text};
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;

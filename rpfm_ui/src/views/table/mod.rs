@@ -79,7 +79,7 @@ use std::rc::Rc;
 
 use rpfm_extensions::dependencies::TableReferences;
 
-use rpfm_lib::files::{ContainerPath, FileType, db::DB, loc::Loc, table::*};
+use rpfm_lib::files::{ContainerPath, FileType, db::DB, loc::Loc, table::{*, local::TableInMemory}};
 use rpfm_lib::integrations::log::error;
 use rpfm_lib::schema::{Definition, Field, FieldType, Schema};
 
@@ -150,14 +150,14 @@ const NEW_PROFILE_VIEW_RELEASE: &str = "ui/new_table_view_profile_dialog.ui";
 /// This enum is used to distinguish between the different types of tables we can decode.
 #[derive(Clone, Debug)]
 pub enum TableType {
-    AnimFragmentBattle(Table),
-    Atlas(Table),
+    AnimFragmentBattle(TableInMemory),
+    Atlas(TableInMemory),
     DependencyManager(Vec<Vec<DecodedData>>),
     DB(DB),
     Loc(Loc),
 
     /// This one is for random views that just need a table with advanced behavior.
-    NormalTable(Table),
+    NormalTable(TableInMemory),
 
     /// This one is for the translator view.
     #[cfg(feature = "enable_tools")] TranslatorTable(Table),

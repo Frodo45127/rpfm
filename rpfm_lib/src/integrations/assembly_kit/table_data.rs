@@ -24,7 +24,7 @@ use std::io::{BufReader, Read};
 use std::path::Path;
 
 use crate::error::{Result, RLibError};
-use crate::files::{db::DB, table::{DecodedData, Table}};
+use crate::files::{db::DB, table::{DecodedData, local::TableInMemory, Table}};
 use crate::schema::{Definition, FieldType};
 
 use super::table_definition::RawDefinition;
@@ -150,7 +150,7 @@ impl RawTable {
         Ok(DB::from(table))
     }
 
-    pub fn to_table(&self, definition: Option<&Definition>) -> Result<Table> {
+    pub fn to_table(&self, definition: Option<&Definition>) -> Result<TableInMemory> {
         let mut raw_definition = self.definition.as_ref().cloned().ok_or(RLibError::RawTableMissingDefinition)?;
         let table_name = if let Some(ref raw_definition) = raw_definition.name {
 
@@ -181,7 +181,7 @@ impl RawTable {
             }
         }
 
-        let mut table = Table::new(&From::from(&raw_definition), None, &table_name);
+        let mut table = TableInMemory::new(&From::from(&raw_definition), None, &table_name);
         let mut entries = vec![];
         for row in &self.rows {
             let mut entry = vec![];

@@ -38,7 +38,7 @@ use rpfm_extensions::optimizer::OptimizableContainer;
 #[cfg(feature = "enable_tools")] use rpfm_extensions::translator::PackTranslation;
 
 use rpfm_lib::binary::WriteBytes;
-use rpfm_lib::files::{animpack::AnimPack, Container, ContainerPath, db::DB, DecodeableExtraData, FileType, loc::Loc, pack::*, portrait_settings::PortraitSettings, RFile, RFileDecoded, text::*};
+use rpfm_lib::files::{animpack::AnimPack, Container, ContainerPath, db::DB, DecodeableExtraData, FileType, loc::Loc, pack::*, portrait_settings::PortraitSettings, RFile, RFileDecoded, table::Table, text::*};
 use rpfm_lib::games::{GameInfo, LUA_REPO, LUA_BRANCH, LUA_REMOTE, OLD_AK_REPO, OLD_AK_BRANCH, OLD_AK_REMOTE, pfh_file_type::PFHFileType, supported_games::*, VanillaDBTableNameLogic};
 #[cfg(feature = "enable_tools")] use rpfm_lib::games::{TRANSLATIONS_REPO, TRANSLATIONS_BRANCH, TRANSLATIONS_REMOTE};
 use rpfm_lib::integrations::{assembly_kit::*, git::*, log::*};
@@ -1458,9 +1458,11 @@ pub fn background_loop() {
             },
 
             Command::CascadeEdition(table_name, definition, changes) => {
-                let edited_paths = changes.iter().flat_map(|(field, value_before, value_after)| {
-                    DB::cascade_edition(&mut pack_file_decoded, &SCHEMA.read().unwrap(), &table_name, field, &definition, value_before, value_after)
-                }).collect::<Vec<_>>();
+                let edited_paths = if let Some(ref schema) = *SCHEMA.read().unwrap() {
+                    changes.iter().flat_map(|(field, value_before, value_after)| {
+                        DB::cascade_edition(&mut pack_file_decoded, schema, &table_name, field, &definition, value_before, value_after)
+                    }).collect::<Vec<_>>()
+                } else { vec![] };
 
                 let packed_files_info = pack_file_decoded.files_by_paths(&edited_paths, false).into_par_iter().map(From::from).collect();
                 CentralCommand::send_back(&sender, Response::VecContainerPathVecRFileInfo(edited_paths, packed_files_info));

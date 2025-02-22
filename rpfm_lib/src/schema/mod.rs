@@ -611,6 +611,67 @@ impl Schema {
         }).collect()
     }
 
+    /// This function returns the list of table/columns that reference the provided columns,
+    /// and if there may be a loc entry that changing our column may need a change.
+    ///
+    /// This supports more than one reference level, except for locs.
+    pub fn tables_and_columns_referencing_our_own(
+        &self,
+        table_name: &str,
+        column_name: &str,
+        fields: &[Field],
+        localised_fields: &[Field]
+    ) -> (BTreeMap<String, Vec<String>>, bool) {
+
+        // Make sure the table name is correct.
+        let short_table_name = if table_name.ends_with("_tables") { table_name.split_at(table_name.len() - 7).0 } else { table_name };
+        let mut tables: BTreeMap<String, Vec<String>> = BTreeMap::new();
+
+        // We get all the db definitions from the schema, then iterate all of them to find what tables/columns reference our own.
+        for (ref_table_name, ref_definition) in self.definitions() {
+            let mut columns: Vec<String> = vec![];
+            for ref_version in ref_definition {
+                let ref_fields = ref_version.fields_processed();
+                let ref_patches = Some(ref_version.patches());
+                let ref_fields_localised = ref_version.localised_fields();
+                for ref_field in &ref_fields {
+                    if let Some((ref_ref_table, ref_ref_field)) = ref_field.is_reference(ref_patches) {
+
+                        // As this applies to all versions of a table, skip repeated fields.
+                        if ref_ref_table == short_table_name && ref_ref_field == column_name && !columns.iter().any(|x| x == ref_field.name()) {
+                            columns.push(ref_field.name().to_owned());
+
+                            // If we find a referencing column, get recursion working to check if there is any column referencing this one that needs to be edited.
+                            let (ref_of_ref, _) = self.tables_and_columns_referencing_our_own(ref_table_name, ref_field.name(), &ref_fields, ref_fields_localised);
+                            for refs in &ref_of_ref {
+                                match tables.get_mut(refs.0) {
+                                    Some(columns) => for value in refs.1 {
+                                        if !columns.contains(value) {
+                                            columns.push(value.to_owned());
+                                        }
+                                    }
+                                    None => { tables.insert(refs.0.to_owned(), refs.1.to_vec()); },
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Only add them if we actually found columns.
+            if !columns.is_empty() {
+                tables.insert(ref_table_name.to_owned(), columns);
+            }
+        }
+
+        // Also, check if we have to be careful about localised fields.
+        let patches = self.patches().get(table_name);
+        let has_loc_fields = if let Some(field) = fields.iter().find(|x| x.name() == column_name) {
+            (field.is_key(patches) || field.name() == "key") && !localised_fields.is_empty()
+        } else { false };
+
+        (tables, has_loc_fields)
+    }
     /// This function tries to load multiple patches from a str.
     pub fn load_patches_from_str(patch: &str) -> Result<HashMap<String, DefinitionPatch>> {
         from_str(patch).map_err(From::from)

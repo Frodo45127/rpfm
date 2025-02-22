@@ -45,7 +45,7 @@ use std::fs::File;
 
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{RLibError, Result};
-use crate::files::{DecodeableExtraData, Decodeable, EncodeableExtraData, Encodeable, table::{DecodedData, Table}};
+use crate::files::{DecodeableExtraData, Decodeable, EncodeableExtraData, Encodeable, table::{DecodedData, local::TableInMemory, Table}};
 use crate::schema::*;
 use crate::utils::check_size_mismatch;
 
@@ -80,7 +80,7 @@ const VERSION: i32 = 1;
 pub struct Loc {
 
     /// The table's data, containing all the stuff needed to decode/encode it.
-    table: Table,
+    table: TableInMemory,
 }
 
 //---------------------------------------------------------------------------//
@@ -101,7 +101,7 @@ impl Loc {
         let definition = Self::new_definition();
 
         Self {
-            table: Table::new(&definition, None, TSV_NAME_LOC),
+            table: TableInMemory::new(&definition, None, TSV_NAME_LOC),
         }
     }
 
@@ -136,7 +136,7 @@ impl Loc {
 
     /// This function returns a valid empty (with default values if any) row for this table.
     pub fn new_row(&self) -> Vec<DecodedData> {
-        Table::new_row(self.definition(), None)
+        self.table().new_row()
     }
 
     /// This function replaces the data of this table with the one provided.
@@ -215,7 +215,7 @@ impl Loc {
     /// This function imports a TSV file into a decoded Loc file.
     pub fn tsv_import(records: StringRecordsIter<File>, field_order: &HashMap<u32, String>) -> Result<Self> {
         let definition = Self::new_definition();
-        let table = Table::tsv_import(records, &definition, field_order, TSV_NAME_LOC, None)?;
+        let table = TableInMemory::tsv_import(records, &definition, field_order, TSV_NAME_LOC, None)?;
         let loc = Loc::from(table);
         Ok(loc)
     }
@@ -234,7 +234,7 @@ impl Decodeable for Loc {
         let (_version, entry_count) = Self::read_header(data)?;
 
         let definition = Self::new_definition();
-        let table = Table::decode(data, &definition, &HashMap::new(), Some(entry_count), false, TSV_NAME_LOC)?;
+        let table = TableInMemory::decode(data, &definition, &HashMap::new(), Some(entry_count), false, TSV_NAME_LOC)?;
 
         // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt.
         check_size_mismatch(data.stream_position()? as usize, data.len()? as usize)?;
@@ -254,13 +254,13 @@ impl Encodeable for Loc {
         buffer.write_i32(*self.table.definition().version())?;
         buffer.write_u32(self.table.len() as u32)?;
 
-        self.table.encode(buffer, &None)
+        self.table.encode(buffer)
     }
 }
 
 /// Implementation to create a `Loc` from a `Table` directly.
-impl From<Table> for Loc {
-    fn from(mut table: Table) -> Self {
+impl From<TableInMemory> for Loc {
+    fn from(mut table: TableInMemory) -> Self {
         table.set_table_name(TSV_NAME_LOC.to_owned());
         Self {
             table,

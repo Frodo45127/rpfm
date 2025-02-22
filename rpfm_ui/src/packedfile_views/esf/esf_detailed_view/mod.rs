@@ -39,7 +39,7 @@ use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 use std::vec;
 
-use rpfm_lib::files::{esf::NodeType, table::*};
+use rpfm_lib::files::{esf::NodeType, table::{*, local::*}};
 use rpfm_lib::schema::*;
 
 use crate::app_ui::AppUI;
@@ -424,7 +424,7 @@ impl ESFDetailedView {
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
-                    let mut table = Table::new(&definition, None, "");
+                    let mut table = TableInMemory::new(&definition, None, "");
                     let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::I32((*x).into())]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
@@ -445,7 +445,7 @@ impl ESFDetailedView {
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
-                    let mut table = Table::new(&definition, None, "");
+                    let mut table = TableInMemory::new(&definition, None, "");
                     let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::Boolean(*x)]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
@@ -466,7 +466,7 @@ impl ESFDetailedView {
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
-                    let mut table = Table::new(&definition, None, "");
+                    let mut table = TableInMemory::new(&definition, None, "");
                     let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::I16((*x).into())]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
@@ -487,7 +487,7 @@ impl ESFDetailedView {
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
-                    let mut table = Table::new(&definition, None, "");
+                    let mut table = TableInMemory::new(&definition, None, "");
                     let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::I16(*x)]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
@@ -508,7 +508,7 @@ impl ESFDetailedView {
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
-                    let mut table = Table::new(&definition, None, "");
+                    let mut table = TableInMemory::new(&definition, None, "");
                     let _ = table.set_data(&values.value().iter().map(|x| vec![DecodedData::I32(*x)]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
@@ -529,7 +529,7 @@ impl ESFDetailedView {
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
-                    let mut table = Table::new(&definition, None, "");
+                    let mut table = TableInMemory::new(&definition, None, "");
                     let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::I64(*x)]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
@@ -550,7 +550,7 @@ impl ESFDetailedView {
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
-                    let mut table = Table::new(&definition, None, "");
+                    let mut table = TableInMemory::new(&definition, None, "");
                     let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::I16((*x).into())]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
@@ -571,7 +571,7 @@ impl ESFDetailedView {
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
-                    let mut table = Table::new(&definition, None, "");
+                    let mut table = TableInMemory::new(&definition, None, "");
                     let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::I16(*x as i16)]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
@@ -592,7 +592,7 @@ impl ESFDetailedView {
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
-                    let mut table = Table::new(&definition, None, "");
+                    let mut table = TableInMemory::new(&definition, None, "");
                     let _ = table.set_data(&values.value().iter().map(|x| vec![DecodedData::I32(*x as i32)]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
@@ -613,7 +613,7 @@ impl ESFDetailedView {
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
-                    let mut table = Table::new(&definition, None, "");
+                    let mut table = TableInMemory::new(&definition, None, "");
                     let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::I64(*x as i64)]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
@@ -634,7 +634,7 @@ impl ESFDetailedView {
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
-                    let mut table = Table::new(&definition, None, "");
+                    let mut table = TableInMemory::new(&definition, None, "");
                     let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::F32(*x)]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
@@ -655,7 +655,7 @@ impl ESFDetailedView {
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
-                    let mut table = Table::new(&definition, None, "");
+                    let mut table = TableInMemory::new(&definition, None, "");
                     let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::F32(*x as f32)]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
@@ -678,7 +678,7 @@ impl ESFDetailedView {
                     definition.fields_mut().push(x_field);
                     definition.fields_mut().push(y_field);
 
-                    let mut table = Table::new(&definition, None, "");
+                    let mut table = TableInMemory::new(&definition, None, "");
                     let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::F32(*x.x()), DecodedData::F32(*x.y())]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
@@ -703,7 +703,7 @@ impl ESFDetailedView {
                     definition.fields_mut().push(y_field);
                     definition.fields_mut().push(z_field);
 
-                    let mut table = Table::new(&definition, None, "");
+                    let mut table = TableInMemory::new(&definition, None, "");
                     let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::F32(*x.x()), DecodedData::F32(*x.y()), DecodedData::F32(*x.z())]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
@@ -724,7 +724,7 @@ impl ESFDetailedView {
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
-                    let mut table = Table::new(&definition, None, "");
+                    let mut table = TableInMemory::new(&definition, None, "");
                     let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::StringU8(x.to_owned())]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
@@ -745,7 +745,7 @@ impl ESFDetailedView {
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
-                    let mut table = Table::new(&definition, None, "");
+                    let mut table = TableInMemory::new(&definition, None, "");
                     let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::StringU8(x.to_owned())]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
@@ -766,7 +766,7 @@ impl ESFDetailedView {
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
 
-                    let mut table = Table::new(&definition, None, "");
+                    let mut table = TableInMemory::new(&definition, None, "");
                     let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::I16(*x)]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);

@@ -19,7 +19,7 @@ use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 
 use rpfm_lib::error::{Result, RLibError};
-use rpfm_lib::files::{Container, FileType, loc::Loc, pack::Pack, RFile, RFileDecoded, table::*};
+use rpfm_lib::files::{Container, FileType, loc::Loc, pack::Pack, RFile, RFileDecoded, table::{DecodedData, local::TableInMemory, Table}};
 use rpfm_lib::schema::*;
 
 use crate::dependencies::Dependencies;
@@ -251,7 +251,7 @@ impl PackTranslation {
         definition
     }
 
-    pub fn from_table(&mut self, table: &Table) -> Result<()> {
+    pub fn from_table(&mut self, table: &TableInMemory) -> Result<()> {
         self.translations_mut().clear();
 
         for row in table.data().iter() {
@@ -283,9 +283,9 @@ impl PackTranslation {
         Ok(())
     }
 
-    pub fn to_table(&self) -> Result<Table> {
+    pub fn to_table(&self) -> Result<TableInMemory> {
         let definition = Self::definition();
-        let mut table = Table::new(&definition, None, "");
+        let mut table = TableInMemory::new(&definition, None, "");
 
         // Due to bugs in the table filters, we pre-sort the data by putting stuff that needs to be retranslated at the start.
         let data = self.translations()

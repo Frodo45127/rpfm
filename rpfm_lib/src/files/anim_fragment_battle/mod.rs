@@ -23,7 +23,7 @@ use std::io::Cursor;
 
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{RLibError, Result};
-use crate::files::{DecodeableExtraData, Decodeable, EncodeableExtraData, Encodeable, table::*};
+use crate::files::{DecodeableExtraData, Decodeable, EncodeableExtraData, Encodeable, table::{DecodedData, local::TableInMemory, Table}};
 use crate::games::supported_games::{KEY_PHARAOH, KEY_PHARAOH_DYNASTIES, KEY_THREE_KINGDOMS, KEY_TROY, KEY_WARHAMMER_2};
 use crate::schema::*;
 use crate::utils::check_size_mismatch;
@@ -145,7 +145,7 @@ impl AnimFragmentBattle {
         (definition, anim_refs_definition)
     }
 
-    pub fn from_table(table: &Table) -> Result<Vec<Entry>> {
+    pub fn from_table(table: &TableInMemory) -> Result<Vec<Entry>> {
         let mut entries = vec![];
 
         let definition = table.definition();
@@ -192,7 +192,7 @@ impl AnimFragmentBattle {
             if let DecodedData::SequenceU32(ref data) = row[9] {
                 if let FieldType::SequenceU32(ref definition) = fields_processed[9].field_type() {
                     let mut data = Cursor::new(data);
-                    let data = Table::decode(&mut data, definition, &HashMap::new(), None, false, fields_processed[9].name())?;
+                    let data = TableInMemory::decode(&mut data, definition, &HashMap::new(), None, false, fields_processed[9].name())?;
                     let mut entries = vec![];
 
                     for row in data.data().iter() {
@@ -255,9 +255,9 @@ impl AnimFragmentBattle {
         Ok(entries)
     }
 
-    pub fn to_table(&self) -> Result<Table> {
+    pub fn to_table(&self) -> Result<TableInMemory> {
         let (definition, anim_refs_definition) = Self::definitions();
-        let mut table = Table::new(&definition, None, "");
+        let mut table = TableInMemory::new(&definition, None, "");
 
         let data = self.entries()
             .iter()
@@ -273,7 +273,7 @@ impl AnimFragmentBattle {
             row.push(DecodedData::Boolean(entry.weapon_bone().contains(WeaponBone::WEAPON_BONE_5)));
             row.push(DecodedData::Boolean(entry.weapon_bone().contains(WeaponBone::WEAPON_BONE_6)));
 
-            let mut anim_refs_subtable = Table::new(&anim_refs_definition, None, "anim_refs");
+            let mut anim_refs_subtable = TableInMemory::new(&anim_refs_definition, None, "anim_refs");
             let mut anim_ref_rows = Vec::with_capacity(entry.anim_refs().len());
             for anim_ref in entry.anim_refs() {
                 let anim_ref_row = vec![
@@ -286,7 +286,7 @@ impl AnimFragmentBattle {
             anim_refs_subtable.set_data(&anim_ref_rows).unwrap();
             let mut writer = vec![];
             writer.write_u32(anim_ref_rows.len() as u32).unwrap();
-            let _ = anim_refs_subtable.encode(&mut writer, &None);
+            let _ = anim_refs_subtable.encode(&mut writer);
 
             row.push(DecodedData::SequenceU32(writer));
 

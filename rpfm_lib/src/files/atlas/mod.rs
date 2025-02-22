@@ -15,11 +15,9 @@ use std::collections::BTreeMap;
 
 use crate::error::Result;
 use crate::binary::{ReadBytes, WriteBytes};
-use crate::files::{DecodeableExtraData, Decodeable, EncodeableExtraData, Encodeable, table::Table};
+use crate::files::{DecodeableExtraData, Decodeable, EncodeableExtraData, Encodeable, table::{DecodedData, local::TableInMemory, Table}};
 use crate::schema::{Definition, Field, FieldType};
 use crate::utils::check_size_mismatch;
-
-use super::table::DecodedData;
 
 pub const EXTENSION: &str = ".atlas";
 
@@ -58,8 +56,8 @@ pub struct AtlasEntry {
 //                           Implementation
 //---------------------------------------------------------------------------//
 
-impl From<Table> for Atlas {
-    fn from(value: Table) -> Self {
+impl From<TableInMemory> for Atlas {
+    fn from(value: TableInMemory) -> Self {
         let entries = value.data()
             .iter()
             .map(|row| AtlasEntry {
@@ -82,7 +80,7 @@ impl From<Table> for Atlas {
     }
 }
 
-impl From<Atlas> for Table {
+impl From<Atlas> for TableInMemory {
     fn from(value: Atlas) -> Self {
         let mut table = Self::new(&Atlas::definition(), None, "");
         let data = value.entries.iter()

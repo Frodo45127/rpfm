@@ -1260,7 +1260,7 @@ pub unsafe fn sort_column(
 pub unsafe fn get_table_from_view(
     model: &QPtr<QStandardItemModel>,
     definition: &Definition
-) -> Result<Table> {
+) -> Result<TableInMemory> {
     let mut entries = vec![];
 
     for row in 0..model.row_count_0a() {
@@ -1274,7 +1274,7 @@ pub unsafe fn get_table_from_view(
         entries.push(new_row);
     }
 
-    let mut table = Table::new(definition, None, "");
+    let mut table = TableInMemory::new(definition, None, "");
     table.set_data(&entries)?;
     Ok(table)
 }
@@ -1329,7 +1329,7 @@ pub unsafe fn open_subtable(
         let fields_processed = definition.fields_processed();
         if let Some(field) = fields_processed.get(model_index.column() as usize) {
             if let FieldType::SequenceU32(definition) = field.field_type() {
-                if let Ok(table) = Table::decode(&mut data, definition, &HashMap::new(), None, false, field.name()) {
+                if let Ok(table) = TableInMemory::decode(&mut data, definition, &HashMap::new(), None, false, field.name()) {
                     let table_data = match *view.packed_file_type {
                         FileType::AnimFragmentBattle => TableType::AnimFragmentBattle(table),
                         FileType::DB => TableType::DB(From::from(table)),
@@ -1375,7 +1375,7 @@ pub unsafe fn open_subtable(
 
                             // Subtables come from Sequence fields, and in those we NEED to manually write the amount of rows before the data, or we will get broken data.
                             data.write_u32(table.data().len() as u32).unwrap();
-                            let _ = table.encode(&mut data, &None);
+                            let _ = table.encode(&mut data);
 
                             view.table_filter().set_data_3a(
                                 model_index,
