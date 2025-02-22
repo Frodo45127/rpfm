@@ -200,7 +200,7 @@ impl TableInMemory {
         // Try to create the table, in case it doesn't exist yet. Ignore a failure here, as it'll mean the table already exists.
         let params: Vec<String> = vec![];
         let create_table = self.definition().map_to_sql_create_table_string(true, self.table_name());
-        let _ = pool.get()?.execute(&create_table, params_from_iter(params)).map(|_| ());
+        pool.get()?.execute(&create_table, params_from_iter(params)).map(|_| ())?;
 
         self.insert_all_to_sql(pool)?;
         Ok(())
