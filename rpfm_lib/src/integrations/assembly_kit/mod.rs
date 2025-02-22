@@ -198,11 +198,11 @@ pub fn update_schema_from_raw_files(
                             if let Some(field) = fields_processed.iter().find(|x| x.name() == "type") {
                                 if *field.field_type() == FieldType::I32 {
                                     let mut hashmap = HashMap::new();
-                                    let data = vec![
+                                    let data = [
                                         String::from("0;;;;;forename"),
                                         String::from("1;;;;;family_name"),
                                         String::from("2;;;;;clan_name"),
-                                        String::from("3;;;;;other"),
+                                        String::from("3;;;;;other")
                                     ];
 
                                     hashmap.insert("lookup_hardcoded".to_owned(), data.join(":::::"));
@@ -213,7 +213,7 @@ pub fn update_schema_from_raw_files(
                             if let Some(field) = fields_processed.iter().find(|x| x.name() == "gender") {
                                 if *field.field_type() == FieldType::I32 {
                                     let mut hashmap = HashMap::new();
-                                    let data = vec![
+                                    let data = [
                                         String::from("0;;;;;m"),
                                         String::from("1;;;;;f"),
                                         String::from("2;;;;;b"),

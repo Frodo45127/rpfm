@@ -40,7 +40,7 @@ pub trait WriteBytes: Write {
     /// assert_eq!(data, vec![1]);
     /// ```
     fn write_bool(&mut self, boolean: bool) -> Result<()> {
-        self.write_u8(u8::from(boolean)).map_err(From::from)
+        self.write_u8(u8::from(boolean))
     }
 
     /// This function tries to write a byte value to `self`.
@@ -441,7 +441,7 @@ pub trait WriteBytes: Write {
     /// assert_eq!(data, vec![6, 0, 87, 97, 104, 97, 104, 97]);
     /// ```
     fn write_sized_string_u8(&mut self, string: &str) -> Result<()> {
-        self.write_u16(string.as_bytes().len() as u16)?;
+        self.write_u16(string.len() as u16)?;
         self.write_string_u8(string)
     }
 
@@ -464,7 +464,7 @@ pub trait WriteBytes: Write {
         }
         else {
             self.write_bool(true)?;
-            self.write_u16(string.as_bytes().len() as u16)?;
+            self.write_u16(string.len() as u16)?;
             self.write_string_u8(string)
         }
     }

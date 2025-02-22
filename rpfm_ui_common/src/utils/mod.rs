@@ -156,7 +156,7 @@ pub unsafe fn load_template(parent: impl CastInto<Ptr<QWidget>>, path: &str) -> 
     file.read_to_end(&mut data)?;
 
     let parent: Ptr<QWidget> = parent.cast_into();
-    let layout = QVBoxLayout::new_1a(parent.clone());
+    let layout = QVBoxLayout::new_1a(parent);
     parent.set_layout(&layout);
 
     let ui_loader = QUiLoader::new_0a();

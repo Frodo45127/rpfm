@@ -1972,8 +1972,8 @@ impl Dependencies {
         };
 
         // This is to fix bruteforcing not working on tables like campaigns.
-        let mut local_files = match local_files {
-            Some(ref pack) => pack.files_by_type(&[FileType::DB])
+        let local_files = match local_files {
+            Some(pack) => pack.files_by_type(&[FileType::DB])
                 .iter()
                 .filter_map(|x| match x.decoded() {
                     Ok(RFileDecoded::DB(db)) => Some(db),
@@ -1993,7 +1993,7 @@ impl Dependencies {
                 .collect::<Vec<_>>()
         };
 
-        db_tables.extend_from_slice(&mut local_files);
+        db_tables.extend_from_slice(&local_files);
 
         // Merge tables of the same name and version, so we got more chances of loc data being found.
         let mut db_tables_dedup: Vec<DB> = vec![];

@@ -308,5 +308,5 @@ impl PackTranslation {
 /// Special serializer function to sort the translations HashMap before serializing.
 fn ordered_map_translations<S>(value: &HashMap<String, Translation>, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer, {
     let ordered: BTreeMap<_, _> = value.iter().collect();
-    ordered.serialize(serializer).map_err(From::from)
+    ordered.serialize(serializer)
 }

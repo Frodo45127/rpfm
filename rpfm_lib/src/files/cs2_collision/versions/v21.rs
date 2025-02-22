@@ -8,6 +8,8 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
+use std::io::SeekFrom;
+
 use crate::error::Result;
 use crate::binary::{ReadBytes, WriteBytes};
 
@@ -23,7 +25,7 @@ impl Cs2Collision {
         self.bounding_box = Cube::decode(data, &None)?;
 
         while data.read_u8().is_ok() {
-            data.seek_relative(-1)?;
+            data.seek(SeekFrom::Current(-1))?;
 
             let mut collision_3d = Collision3d::default();
             collision_3d.name = data.read_sized_string_u8()?;

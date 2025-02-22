@@ -706,7 +706,7 @@ impl Schema {
         ron::ser::to_writer_pretty(&mut data, &patches, config)?;
         let file_name = "patch.txt";
 
-        Logger::send_event(sentry_guard, level, &message, Some((file_name, &data))).map_err(From::from)
+        Logger::send_event(sentry_guard, level, &message, Some((file_name, &data)))
     }
 
     /// This function tries to upload a bunch of [Definition] to Sentry's service.
@@ -721,7 +721,7 @@ impl Schema {
         ron::ser::to_writer_pretty(&mut data, &definitions, config)?;
         let file_name = "definition.txt";
 
-        Logger::send_event(sentry_guard, level, &message, Some((file_name, &data))).map_err(From::from)
+        Logger::send_event(sentry_guard, level, &message, Some((file_name, &data)))
     }
 }
 

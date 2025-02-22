@@ -1536,7 +1536,7 @@ impl AppUI {
         AppUI::back_to_back_end_all(app_ui, pack_file_contents_ui)?;
 
         if optimize {
-            let _ = AppUI::purge_them_all(&app_ui, &pack_file_contents_ui, true);
+            let _ = AppUI::purge_them_all(app_ui, pack_file_contents_ui, true);
 
             let receiver = CENTRAL_COMMAND.send_background(Command::OptimizePackFile);
             let response = CENTRAL_COMMAND.recv_try(&receiver);

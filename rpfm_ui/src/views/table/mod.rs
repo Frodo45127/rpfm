@@ -2255,20 +2255,6 @@ impl TableView {
         update_undo_model(&self.table_model_ptr(), &self.undo_model_ptr());
     }
 
-    /// This function returns a copy of the entire model.
-    pub unsafe fn get_copy_of_table(&self) -> Vec<AtomicPtr<QListOfQStandardItem>> {
-        let mut old_data = vec![];
-        for row in 0..self.table_model.row_count_0a() {
-            let qlist = QListOfQStandardItem::new();
-            for column in 0..self.table_model.column_count_0a() {
-                let item = self.table_model.item_2a(row, column);
-                qlist.append_q_standard_item(&(*item).clone().as_mut_raw_ptr());
-            }
-            old_data.push(atomic_from_ptr(qlist.into_ptr()));
-        }
-        old_data
-    }
-
     /// This function creates the entire "Rewrite selection" dialog for tables. It returns the rewriting sequence, or None.
     pub unsafe fn create_rewrite_selection_dialog(&self) -> Option<(bool, String)> {
 

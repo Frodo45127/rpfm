@@ -1352,7 +1352,7 @@ impl PackFileContentsSlots {
                     for path in &paths_to_add {
                         UI_STATE.set_open_packedfiles()
                             .iter_mut()
-                            .filter(|view| view.data_source() == DataSource::PackFile && &view.path_copy() == path.path_raw())
+                            .filter(|view| view.data_source() == DataSource::PackFile && view.path_copy() == path.path_raw())
                             .for_each(|view| { let _ = view.reload(&view.path_copy(), &pack_file_contents_ui); });
                     }
 
