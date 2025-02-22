@@ -25,6 +25,7 @@ use std::fs::File;
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{Result, RLibError};
 use crate::files::table::DecodedData;
+#[cfg(feature = "integration_log")] use crate::integrations::log::{info, warn};
 use crate::schema::{Definition, DefinitionPatch, Field, FieldType};
 use crate::utils::parse_str_as_bool;
 
@@ -200,7 +201,19 @@ impl TableInMemory {
         // Try to create the table, in case it doesn't exist yet. Ignore a failure here, as it'll mean the table already exists.
         let params: Vec<String> = vec![];
         let create_table = self.definition().map_to_sql_create_table_string(true, self.table_name());
-        pool.get()?.execute(&create_table, params_from_iter(params)).map(|_| ())?;
+        match pool.get()?.execute(&create_table, params_from_iter(params)) {
+            Ok(_) => {
+                #[cfg(feature = "integration_log")] {
+                    info!("Table {} created succesfully.", self.table_name());
+                }
+            },
+
+            Err(_) => {
+                #[cfg(feature = "integration_log")] {
+                    warn!("Table {} failed to be created.", self.table_name());
+                }
+            },
+        }
 
         self.insert_all_to_sql(pool)?;
         Ok(())
