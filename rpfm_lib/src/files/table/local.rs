@@ -13,6 +13,9 @@
 use base64::{Engine, engine::general_purpose::STANDARD};
 use csv::{StringRecordsIter, Writer};
 use getset::*;
+#[cfg(feature = "integration_sqlite")]use r2d2::Pool;
+#[cfg(feature = "integration_sqlite")]use r2d2_sqlite::SqliteConnectionManager;
+#[cfg(feature = "integration_sqlite")]use rusqlite::params_from_iter;
 use serde_derive::{Serialize, Deserialize};
 
 use std::borrow::Cow;
@@ -22,7 +25,7 @@ use std::fs::File;
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{Result, RLibError};
 use crate::files::table::DecodedData;
-use crate::schema::{Definition, DefinitionPatch, FieldType};
+use crate::schema::{Definition, DefinitionPatch, Field, FieldType};
 use crate::utils::parse_str_as_bool;
 
 use super::{Table, decode_table, encode_table};
@@ -48,7 +51,10 @@ pub struct TableInMemory {
     definition_patch: DefinitionPatch,
 
     #[getset(skip)]
-    table_data: Vec<Vec<DecodedData>>
+    table_data: Vec<Vec<DecodedData>>,
+
+    #[serde(skip)]
+    #[cfg(feature = "integration_sqlite")]table_unique_id: u64,
 }
 
 //----------------------------------------------------------------//
@@ -66,7 +72,8 @@ impl TableInMemory {
             definition: definition.clone(),
             definition_patch,
             table_name: table_name.to_owned(),
-            table_data
+            table_data,
+            #[cfg(feature = "integration_sqlite")]table_unique_id: rand::random::<u64>(),
         }
     }
 
@@ -85,6 +92,7 @@ impl TableInMemory {
             definition_patch: definition_patch.clone(),
             table_name: table_name.to_owned(),
             table_data,
+            #[cfg(feature = "integration_sqlite")]table_unique_id: rand::random::<u64>(),
         };
 
         Ok(table)
@@ -97,6 +105,8 @@ impl TableInMemory {
     //----------------------------------------------------------------//
     // TSV Functions for tables.
     //----------------------------------------------------------------//
+    // TODO: Make tsv trait.
+
 
     /// This function tries to imports a TSV file on the path provided into a binary db table.
     pub(crate) fn tsv_import(records: StringRecordsIter<File>, definition: &Definition, field_order: &HashMap<u32, String>, table_name: &str, schema_patches: Option<&DefinitionPatch>) -> Result<Self> {
@@ -177,6 +187,149 @@ impl TableInMemory {
         }
 
         writer.flush().map_err(From::from)
+    }
+
+    //----------------------------------------------------------------//
+    // SQL functions for tables.
+    //----------------------------------------------------------------//
+
+    /// This function insert the table in memory into a sql database.
+    #[cfg(feature = "integration_sqlite")]
+    pub fn db_to_sql(&self, pool: &Pool<SqliteConnectionManager>) -> Result<()> {
+
+        // Try to create the table, in case it doesn't exist yet. Ignore a failure here, as it'll mean the table already exists.
+        let params: Vec<String> = vec![];
+        let create_table = self.definition().map_to_sql_create_table_string(true, self.table_name());
+        let _ = pool.get()?.execute(&create_table, params_from_iter(params)).map(|_| ());
+
+        self.insert_all_to_sql(pool)?;
+        Ok(())
+    }
+
+    #[cfg(feature = "integration_sqlite")]
+    pub fn sql_to_db(&mut self, pool: &Pool<SqliteConnectionManager>) -> Result<()> {
+        self.table_data = self.select_all_from_sql(pool)?;
+        Ok(())
+    }
+
+    /// This function inserts the provided rows of data into a database.
+    #[cfg(feature = "integration_sqlite")]
+    fn insert_all_to_sql(&self, pool: &Pool<SqliteConnectionManager>) -> Result<()> {
+        let mut params = vec![];
+        let values = self.table_data.iter().map(|row| {
+            format!("({}, {})", self.table_unique_id, row.iter().map(|field| {
+                match field {
+                    DecodedData::Boolean(data) => if *data { "1".to_owned() } else { "0".to_owned() },
+                    DecodedData::F32(data) => format!("{data:.4}"),
+                    DecodedData::F64(data) => format!("{data:.4}"),
+                    DecodedData::I16(data) => format!("\"{data}\""),
+                    DecodedData::I32(data) => format!("\"{data}\""),
+                    DecodedData::I64(data) => format!("\"{data}\""),
+                    DecodedData::ColourRGB(data) => format!("\"{}\"", data.replace('\"', "\\\"")),
+                    DecodedData::StringU8(data) => format!("\"{}\"", data.replace('\"', "\\\"")),
+                    DecodedData::StringU16(data) => format!("\"{}\"", data.replace('\"', "\\\"")),
+                    DecodedData::OptionalI16(data) => format!("\"{data}\""),
+                    DecodedData::OptionalI32(data) => format!("\"{data}\""),
+                    DecodedData::OptionalI64(data) => format!("\"{data}\""),
+                    DecodedData::OptionalStringU8(data) => format!("\"{}\"", data.replace('\"', "\\\"")),
+                    DecodedData::OptionalStringU16(data) => format!("\"{}\"", data.replace('\"', "\\\"")),
+                    DecodedData::SequenceU16(data) => {
+                        params.push(data.to_vec());
+                        "?".to_owned()
+                    },
+                    DecodedData::SequenceU32(data) => {
+                        params.push(data.to_vec());
+                        "?".to_owned()
+                    },
+                }
+            }).collect::<Vec<_>>().join(","))
+        }).collect::<Vec<_>>().join(",");
+
+        let query = format!("INSERT OR REPLACE INTO \"{}_v{}\" {} VALUES {}",
+            self.table_name().replace('\"', "'"),
+            self.definition().version(),
+            self.definition().map_to_sql_insert_into_string(),
+            values
+        );
+
+        pool.get()?.execute(&query, params_from_iter(params.iter()))
+            .map(|_| ())
+            .map_err(From::from)
+    }
+
+    /// This function inserts the provided rows of data into a database.
+    #[cfg(feature = "integration_sqlite")]
+    fn select_all_from_sql(&self, pool: &Pool<SqliteConnectionManager>) -> Result<Vec<Vec<DecodedData>>> {
+        let definition = self.definition();
+        let fields_processed = definition.fields_processed();
+
+        let field_names = fields_processed.iter().map(|field| field.name()).collect::<Vec<&str>>().join(",");
+        let query = format!("SELECT {} FROM \"{}_v{}\" WHERE table_unique_id = {} order by ROWID",
+            field_names,
+            self.table_name().replace('\"', "'"),
+            definition.version(),
+            self.table_unique_id()
+        );
+
+        let conn = pool.get()?;
+        let mut stmt = conn.prepare(&query)?;
+        let rows = stmt.query_map([], |row| {
+            let mut data = Vec::with_capacity(fields_processed.len());
+            for (i, field) in fields_processed.iter().enumerate() {
+                data.push(match field.field_type() {
+                    FieldType::Boolean => DecodedData::Boolean(row.get(i)?),
+                    FieldType::F32 => DecodedData::F32(row.get(i)?),
+                    FieldType::F64 => DecodedData::F64(row.get(i)?),
+                    FieldType::I16 => DecodedData::I16(row.get(i)?),
+                    FieldType::I32 => DecodedData::I32(row.get(i)?),
+                    FieldType::I64 => DecodedData::I64(row.get(i)?),
+                    FieldType::ColourRGB => DecodedData::ColourRGB(row.get(i)?),
+                    FieldType::StringU8 => DecodedData::StringU8(row.get(i)?),
+                    FieldType::StringU16 => DecodedData::StringU16(row.get(i)?),
+                    FieldType::OptionalI16 => DecodedData::OptionalI16(row.get(i)?),
+                    FieldType::OptionalI32 => DecodedData::OptionalI32(row.get(i)?),
+                    FieldType::OptionalI64 => DecodedData::OptionalI64(row.get(i)?),
+                    FieldType::OptionalStringU8 => DecodedData::OptionalStringU8(row.get(i)?),
+                    FieldType::OptionalStringU16 => DecodedData::OptionalStringU16(row.get(i)?),
+                    FieldType::SequenceU16(_) => DecodedData::SequenceU16(row.get(i)?),
+                    FieldType::SequenceU32(_) => DecodedData::SequenceU32(row.get(i)?),
+                });
+            }
+
+            Ok(data)
+        })?;
+
+        let mut data = vec![];
+        for row in rows {
+            data.push(row?);
+        }
+
+        Ok(data)
+    }
+
+    /// This function inserts the provided rows of data into a database.
+    #[cfg(feature = "integration_sqlite")]
+    pub fn count_table(
+        pool: &Pool<SqliteConnectionManager>,
+        table_name: &str,
+        table_version: i32,
+        table_unique_id: u64,
+    ) -> Result<u64> {
+        let query = format!("SELECT COUNT(*) FROM \"{}_v{}\" WHERE table_unique_id = {}",
+            table_name.replace('\"', "'"),
+            table_version,
+            table_unique_id
+        );
+
+        let conn = pool.get()?;
+        let mut stmt = conn.prepare(&query)?;
+        let mut rows = stmt.query([])?;
+        let mut count = 0;
+        if let Some(row) = rows.next()? {
+            count = row.get(0)?;
+        }
+
+        Ok(count)
     }
 }
 

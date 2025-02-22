@@ -13,7 +13,7 @@ edition.workspace = true
 rust-version.workspace = true
 
 [features]
-default = ["integration_assembly_kit"]
+default = ["integration_assembly_kit", "integration_sqlite"]
 
 support_error_bincode = ["dep:bincode"]
 enable_content_inspector = []
@@ -21,6 +21,7 @@ enable_content_inspector = []
 integration_assembly_kit = ["dep:serde-xml-rs"]
 integration_git = ["dep:git2"]
 integration_log = ["dep:backtrace", "dep:log", "dep:os_info", "dep:sentry", "dep:simplelog"]
+integration_sqlite = ["dep:rusqlite", "dep:r2d2_sqlite", "dep:r2d2"]
 
 support_rigidmodel = []
 support_uic = []
@@ -107,3 +108,8 @@ steamlocate = "2.0.0-beta.0"
 
 # Linear algebra
 nalgebra = "0.33"
+
+# SQLite support
+rusqlite = { version = "^0.29", optional = true, features = ["blob", "bundled"] }
+r2d2_sqlite = { version = "^0.22", optional = true }
+r2d2 = { version = "^0.8", optional = true }

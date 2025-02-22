@@ -82,6 +82,7 @@ use std::path::Path;
 #[cfg(feature = "integration_assembly_kit")]use crate::integrations::assembly_kit::table_definition::RawDefinition;
 #[cfg(feature = "integration_assembly_kit")]use crate::integrations::assembly_kit::table_definition::RawField;
 #[cfg(feature = "integration_log")] use crate::integrations::log::*;
+#[cfg(feature = "integration_sqlite")] use rusqlite::types::Type;
 
 use crate::error::Result;
 use crate::files::table::DecodedData;
@@ -914,6 +915,64 @@ impl Definition {
             .collect::<Vec<_>>()
     }
 
+    /// This function maps a table definition to a `CREATE TABLE` SQL Query.
+    #[cfg(feature = "integration_sqlite")]
+    pub fn map_to_sql_create_table_string(&self, key_first: bool, table_name: &str) -> String {
+        let patches = Some(self.patches());
+        let fields_sorted = self.fields_processed_sorted(key_first);
+        let fields_query = fields_sorted.iter().map(|field| field.map_to_sql_string(patches)).collect::<Vec<_>>().join(",");
+
+        let local_keys_join = fields_sorted.iter().filter_map(|field| if field.is_key(patches) { Some(format!("\"{}\"", field.name()))} else { None }).collect::<Vec<_>>().join(",");
+        let local_keys = format!("CONSTRAINT unique_key PRIMARY KEY (\"table_unique_id\", {local_keys_join})");
+        let foreign_keys = fields_sorted.iter()
+            .filter_map(|field| field.is_reference(patches).clone().map(|(ref_table, ref_column)| (field.name(), ref_table, ref_column)))
+            .map(|(loc_name, ref_table, ref_field)| format!("CONSTRAINT fk_{table_name} FOREIGN KEY (\"{loc_name}\") REFERENCES {ref_table}(\"{ref_field}\") ON UPDATE CASCADE ON DELETE CASCADE"))
+            .collect::<Vec<_>>()
+            .join(",");
+
+        if foreign_keys.is_empty() {
+            if local_keys_join.is_empty() {
+                format!("CREATE TABLE \"{}_v{}\" (\"table_unique_id\" INTEGER DEFAULT 0, {})",
+                    table_name.replace('\"', "'"),
+                    self.version(),
+                    fields_query
+                )
+            } else {
+                format!("CREATE TABLE \"{}_v{}\" (\"table_unique_id\" INTEGER DEFAULT 0, {}, {})",
+                    table_name.replace('\"', "'"),
+                    self.version(),
+                    fields_query,
+                    local_keys
+                )
+            }
+        } else if local_keys_join.is_empty() {
+            format!("CREATE TABLE \"{}_v{}\" (\"table_unique_id\" INTEGER DEFAULT 0, {}, {})",
+                table_name.replace('\"', "'"),
+                self.version(),
+                fields_query,
+                foreign_keys
+            )
+        } else {
+            format!("CREATE TABLE \"{}_v{}\" (\"table_unique_id\" INTEGER DEFAULT 0, {}, {}, {})",
+                table_name.replace('\"', "'"),
+                self.version(),
+                fields_query,
+                local_keys,
+                foreign_keys
+            )
+        }
+    }
+
+    /// This function maps a table definition to a `CREATE TABLE` SQL Query.
+    #[cfg(feature = "integration_sqlite")]
+    pub fn map_to_sql_insert_into_string(&self) -> String {
+        let fields_sorted = self.fields_processed();
+        let fields_query = fields_sorted.iter().map(|field| format!("\"{}\"", field.name())).collect::<Vec<_>>().join(",");
+        let fields_query = format!("(\"table_unique_id\", {fields_query})");
+
+        fields_query
+    }
+
     /// This function updates the fields in the provided definition with the data in the provided RawDefinition.
     ///
     /// Not all data is updated though, only:
@@ -1264,8 +1323,45 @@ impl Field {
             false
         }
     }
+
+    /// This function maps our field to a String ready to be used in a SQL `CREATE TABLE` command.
+    #[cfg(feature = "integration_sqlite")]
+    pub fn map_to_sql_string(&self, schema_patches: Option<&DefinitionPatch>) -> String {
+        let mut string = format!(" \"{}\" {:?} ", self.name(), self.field_type().map_to_sql_type());
+
+        if let Some(default_value) = self.default_value(schema_patches) {
+            string.push_str(&format!(" DEFAULT \"{default_value}\""));
+        }
+
+        string
+    }
 }
 
+impl FieldType {
+
+    /// This function maps our type to a SQLite Type.
+    #[cfg(feature = "integration_sqlite")]
+    pub fn map_to_sql_type(&self) -> Type {
+        match self {
+            FieldType::Boolean => Type::Integer,
+            FieldType::F32 => Type::Real,
+            FieldType::F64 => Type::Real,
+            FieldType::I16 => Type::Integer,
+            FieldType::I32 => Type::Integer,
+            FieldType::I64 => Type::Integer,
+            FieldType::ColourRGB => Type::Text,
+            FieldType::StringU8 => Type::Text,
+            FieldType::StringU16 => Type::Text,
+            FieldType::OptionalI16 => Type::Integer,
+            FieldType::OptionalI32 => Type::Integer,
+            FieldType::OptionalI64 => Type::Integer,
+            FieldType::OptionalStringU8 => Type::Text,
+            FieldType::OptionalStringU16 => Type::Text,
+            FieldType::SequenceU16(_) => Type::Blob,
+            FieldType::SequenceU32(_) => Type::Blob,
+        }
+    }
+}
 //---------------------------------------------------------------------------//
 //                         Extra Implementations
 //---------------------------------------------------------------------------//
