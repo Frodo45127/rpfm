@@ -283,7 +283,7 @@ impl DB {
     /// This function returns a reference to the entries of this DB table.
     ///
     /// Make sure to keep the table structure valid for the table definition.
-    pub fn data_mut(&mut self) -> &mut [Vec<DecodedData>] {
+    pub fn data_mut(&mut self) -> &mut Vec<Vec<DecodedData>> {
         self.table.data_mut()
     }
 
