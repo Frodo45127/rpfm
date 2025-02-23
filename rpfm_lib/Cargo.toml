@@ -13,7 +13,7 @@ edition.workspace = true
 rust-version.workspace = true
 
 [features]
-default = ["integration_assembly_kit", "integration_sqlite"]
+default = ["integration_assembly_kit"]
 
 support_error_bincode = ["dep:bincode"]
 enable_content_inspector = []
@@ -110,6 +110,6 @@ steamlocate = "2.0.0-beta.0"
 nalgebra = "0.33"
 
 # SQLite support
-rusqlite = { version = "^0.29", optional = true, features = ["blob", "bundled"] }
-r2d2_sqlite = { version = "^0.22", optional = true }
+rusqlite = { version = "^0.33", optional = true, features = ["blob", "bundled"] }
+r2d2_sqlite = { version = "^0.26", optional = true }
 r2d2 = { version = "^0.8", optional = true }

@@ -38,6 +38,8 @@
 
 use csv::{StringRecordsIter, Writer};
 use getset::Getters;
+#[cfg(feature = "integration_sqlite")]use r2d2::Pool;
+#[cfg(feature = "integration_sqlite")]use r2d2_sqlite::SqliteConnectionManager;
 use rayon::prelude::*;
 use serde_derive::{Serialize, Deserialize};
 use uuid::Uuid;
@@ -270,6 +272,12 @@ impl DB {
     /// This function returns a reference to the entries of this DB table.
     pub fn data(&self) -> Cow<[Vec<DecodedData>]> {
         self.table.data()
+    }
+
+    /// This function dumps the contents of the provided table into a SQL database.
+    #[cfg(feature = "integration_sqlite")]
+    pub fn sql_to_db(&mut self, pool: &Pool<SqliteConnectionManager>) -> Result<()> {
+        self.table.sql_to_db(pool)
     }
 
     /// This function returns a reference to the entries of this DB table.

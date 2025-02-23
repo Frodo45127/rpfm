@@ -25,8 +25,8 @@ use std::fs::File;
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{Result, RLibError};
 use crate::files::table::DecodedData;
-#[cfg(feature = "integration_log")] use crate::integrations::log::{info, warn};
-use crate::schema::{Definition, DefinitionPatch, Field, FieldType};
+//#[cfg(feature = "integration_log")] use crate::integrations::log::{info, warn};
+use crate::schema::{Definition, DefinitionPatch, FieldType};
 use crate::utils::parse_str_as_bool;
 
 use super::{Table, decode_table, encode_table};
@@ -200,18 +200,18 @@ impl TableInMemory {
 
         // Try to create the table, in case it doesn't exist yet. Ignore a failure here, as it'll mean the table already exists.
         let params: Vec<String> = vec![];
-        let create_table = self.definition().map_to_sql_create_table_string(true, self.table_name());
+        let create_table = self.definition().map_to_sql_create_table_string(self.table_name());
         match pool.get()?.execute(&create_table, params_from_iter(params)) {
             Ok(_) => {
-                #[cfg(feature = "integration_log")] {
-                    info!("Table {} created succesfully.", self.table_name());
-                }
+                //#[cfg(feature = "integration_log")] {
+                //    info!("Table {} created succesfully.", self.table_name());
+                //}
             },
 
-            Err(_) => {
-                #[cfg(feature = "integration_log")] {
-                    warn!("Table {} failed to be created.", self.table_name());
-                }
+            Err(error) => {
+                //#[cfg(feature = "integration_log")] {
+                //    warn!("Table {} failed to be created: {error}", self.table_name());
+                //}
             },
         }
 
@@ -238,14 +238,14 @@ impl TableInMemory {
                     DecodedData::I16(data) => format!("\"{data}\""),
                     DecodedData::I32(data) => format!("\"{data}\""),
                     DecodedData::I64(data) => format!("\"{data}\""),
-                    DecodedData::ColourRGB(data) => format!("\"{}\"", data.replace('\"', "\\\"")),
-                    DecodedData::StringU8(data) => format!("\"{}\"", data.replace('\"', "\\\"")),
-                    DecodedData::StringU16(data) => format!("\"{}\"", data.replace('\"', "\\\"")),
+                    DecodedData::ColourRGB(data) => format!("\"{}\"", data.replace('\"', "\"\"")),
+                    DecodedData::StringU8(data) => format!("\"{}\"", data.replace('\"', "\"\"")),
+                    DecodedData::StringU16(data) => format!("\"{}\"", data.replace('\"', "\"\"")),
                     DecodedData::OptionalI16(data) => format!("\"{data}\""),
                     DecodedData::OptionalI32(data) => format!("\"{data}\""),
                     DecodedData::OptionalI64(data) => format!("\"{data}\""),
-                    DecodedData::OptionalStringU8(data) => format!("\"{}\"", data.replace('\"', "\\\"")),
-                    DecodedData::OptionalStringU16(data) => format!("\"{}\"", data.replace('\"', "\\\"")),
+                    DecodedData::OptionalStringU8(data) => format!("\"{}\"", data.replace('\"', "\"\"")),
+                    DecodedData::OptionalStringU16(data) => format!("\"{}\"", data.replace('\"', "\"\"")),
                     DecodedData::SequenceU16(data) => {
                         params.push(data.to_vec());
                         "?".to_owned()
