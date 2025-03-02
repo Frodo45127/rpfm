@@ -45,6 +45,7 @@ const JUMP_RAMP: i32 = 32;              // PT_JUMP_RAMP
 const LADDER_LEFT: i32 = 33;
 const LADDER_RIGHT: i32 = 34;
 const SIEGE_LADDER2: i32 = 35;
+const GROUND_TELEPORT: i32 = 38;
 
 const LOW_WALL: i32 = 0;
 const HIGH_WALL: i32 = 1;
@@ -170,7 +171,11 @@ pub struct Platform {
     normal: Point3d,
     vertices: Outline3d,
     flag_1: bool,
+
+    /// No idea what's exactly, but if it's true, the pathfinder treats the platform as "ground" and units can just walk over it.
     flag_2: bool,
+
+    /// No idea, but it's set in the platforms for siege tower ramps.
     flag_3: bool,
 }
 
@@ -241,6 +246,8 @@ enum PipeType {
     LadderRight,
     /// Ladders used to climb walls in at least the WH games.
     SiegeLadder2,
+    /// Used in WH3 barricades to teleport units from one side of a barricade to the other.
+    GroundTeleport,
 }
 
 #[derive(PartialEq, Copy, Clone, Debug, Default, Serialize, Deserialize)]
@@ -436,6 +443,7 @@ impl TryFrom<i32> for PipeType {
             LADDER_LEFT => Ok(Self::LadderLeft),
             LADDER_RIGHT => Ok(Self::LadderRight),
             SIEGE_LADDER2 => Ok(Self::SiegeLadder2),
+            GROUND_TELEPORT => Ok(Self::GroundTeleport),
             _ => Err(RLibError::UnknownPipeType(value.to_string())),
         }
     }
@@ -456,7 +464,8 @@ impl From<PipeType> for i32 {
             PipeType::JumpRamp => JUMP_RAMP,
             PipeType::LadderLeft => LADDER_LEFT,
             PipeType::LadderRight => LADDER_RIGHT,
-            PipeType::SiegeLadder2 => SIEGE_LADDER2
+            PipeType::SiegeLadder2 => SIEGE_LADDER2,
+            PipeType::GroundTeleport => GROUND_TELEPORT
         }
     }
 }
