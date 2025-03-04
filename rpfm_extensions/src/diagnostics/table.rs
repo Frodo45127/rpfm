@@ -294,9 +294,9 @@ impl TableDiagnostic {
                 for (column, field) in fields_processed.iter().enumerate() {
 
                     // Skip unused field on diagnostics.
-                    if field.unused(patches) {
-                        continue;
-                    }
+                    //if field.unused(patches) {
+                    //    continue;
+                    //}
 
                     let cell_data = cells[column].data_to_string();
 
