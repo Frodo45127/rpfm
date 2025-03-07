@@ -27,54 +27,41 @@ impl PortraitSettings {
 
         for _ in 0..entries_count {
             let id = data.read_sized_string_u8()?;
-
-            let z = data.read_f32()?;
-            let y = data.read_f32()?;
-            let yaw = data.read_f32()?;
-            let pitch = data.read_f32()?;
-            let fov = data.read_f32()?;
-            let skeleton_node = data.read_sized_string_u8()?;
-
             let camera_settings_head = CameraSetting {
-                z,
-                y,
-                yaw,
-                pitch,
-                fov,
-                skeleton_node,
+                z: data.read_f32()?,
+                y: data.read_f32()?,
+                yaw: data.read_f32()?,
+                pitch: data.read_f32()?,
+                fov: data.read_f32()?,
+                skeleton_node: data.read_sized_string_u8()?,
+                ..Default::default()
             };
 
             // Body camera is optional, only used by characters.
             let has_body_camera = data.read_bool()?;
             let camera_settings_body = if has_body_camera {
-                let z = data.read_f32()?;
-                let y = data.read_f32()?;
-                let yaw = data.read_f32()?;
-                let pitch = data.read_f32()?;
-                let fov = data.read_f32()?;
-                let skeleton_node = data.read_sized_string_u8()?;
-
                 Some(CameraSetting {
-                    z,
-                    y,
-                    yaw,
-                    pitch,
-                    fov,
-                    skeleton_node,
+                    z: data.read_f32()?,
+                    y: data.read_f32()?,
+                    yaw: data.read_f32()?,
+                    pitch: data.read_f32()?,
+                    fov: data.read_f32()?,
+                    skeleton_node: data.read_sized_string_u8()?,
+                    ..Default::default()
                 })
             } else {
                 None
             };
 
-            let count = data.read_u32()?;
             let mut variants = vec![];
-            for _ in 0..count {
+            for _ in 0..data.read_u32()? {
                 variants.push(Variant {
                     filename: data.read_sized_string_u8()?,
                     file_diffuse: data.read_sized_string_u8()?,
                     file_mask_1: data.read_sized_string_u8()?,
                     file_mask_2: data.read_sized_string_u8()?,
                     file_mask_3: data.read_sized_string_u8()?,
+                    ..Default::default()
                 });
             }
 

@@ -89,6 +89,15 @@ pub struct CameraSetting {
     /// Rotation angle of the camera, vertically. In degrees.
     pitch: f32,
 
+    /// Only in V1.
+    distance: f32,
+
+    /// Only in V1.
+    theta: f32,
+
+    /// Only in V1.
+    phi: f32,
+
     /// Field of View.
     fov: f32,
 
@@ -117,6 +126,21 @@ pub struct Variant {
 
     /// No idea. Optional.
     file_mask_3: String,
+
+    /// Only in v1.
+    season: String,
+
+    /// Only in v1.
+    level: i32,
+
+    /// Only in v1.
+    age: i32,
+
+    /// Only in v1.
+    politician: bool,
+
+    /// Only in v1.
+    faction_leader: bool,
 }
 
 //---------------------------------------------------------------------------//
@@ -132,7 +156,7 @@ impl Decodeable for PortraitSettings {
         settings.version = version;
 
         match version {
-            //1 => settings.read_v1(data)?,
+            1 => settings.read_v1(data)?,
             4 => settings.read_v4(data)?,
             _ => Err(RLibError::DecodingPortraitSettingUnsupportedVersion(version as usize))?,
         }
@@ -150,7 +174,7 @@ impl Encodeable for PortraitSettings {
         buffer.write_u32(self.version)?;
 
         match self.version {
-            //1 => self.write_v1(buffer)?,
+            1 => self.write_v1(buffer)?,
             4 => self.write_v4(buffer)?,
             _ => unimplemented!()
         }

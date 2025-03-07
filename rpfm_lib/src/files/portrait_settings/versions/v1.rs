@@ -34,27 +34,24 @@ impl PortraitSettings {
                 theta: data.read_f32()?,
                 phi: data.read_f32()?,
                 fov: data.read_f32()?,
-                distance_1: 0.0,
-                distance_body: 0,
+                ..Default::default()
             };
 
-            let count = data.read_u32()?;
             let mut variants = vec![];
-            for _ in 0..count {
+            for _ in 0..data.read_u32()? {
                 variants.push(Variant {
-                    id: data.read_sized_string_u8()?,
+                    filename: data.read_sized_string_u8()?,
                     file_diffuse: data.read_sized_string_u8()?,
                     file_mask_1: data.read_sized_string_u8()?,
                     file_mask_2: data.read_sized_string_u8()?,
                     file_mask_3: data.read_sized_string_u8()?,
+                    season: data.read_sized_string_u8()?,
+                    level: data.read_i32()?,
+                    age: data.read_i32()?,
+                    politician: data.read_bool()?,
+                    faction_leader: data.read_bool()?,
                 });
             }
-
-            // None then 0
-            dbg!(data.read_sized_string_u8()?);
-            dbg!(data.read_f32()?);
-            dbg!(data.read_f32()?);
-            dbg!(data.read_u16()?);
 
             self.entries.push(Entry {
                 id,
@@ -76,29 +73,19 @@ impl PortraitSettings {
             buffer.write_f32(entry.camera_settings_head.theta)?;
             buffer.write_f32(entry.camera_settings_head.phi)?;
             buffer.write_f32(entry.camera_settings_head.fov)?;
-            buffer.write_f32(entry.camera_settings_head.distance_1)?;
-            buffer.write_u16(entry.camera_settings_head.distance_body)?;
-
-            match &entry.camera_settings_body {
-                Some(camera) => {
-                    buffer.write_bool(true)?;
-                    buffer.write_f32(camera.distance)?;
-                    buffer.write_f32(camera.theta)?;
-                    buffer.write_f32(camera.phi)?;
-                    buffer.write_f32(camera.fov)?;
-                    buffer.write_f32(camera.distance_1)?;
-                    buffer.write_u16(camera.distance_body)?;
-                },
-                None => buffer.write_bool(false)?,
-            }
 
             buffer.write_u32(entry.variants.len() as u32)?;
             for variant in &entry.variants {
-                buffer.write_sized_string_u8(&variant.id)?;
+                buffer.write_sized_string_u8(&variant.filename)?;
                 buffer.write_sized_string_u8(&variant.file_diffuse)?;
                 buffer.write_sized_string_u8(&variant.file_mask_1)?;
                 buffer.write_sized_string_u8(&variant.file_mask_2)?;
                 buffer.write_sized_string_u8(&variant.file_mask_3)?;
+                buffer.write_sized_string_u8(&variant.season)?;
+                buffer.write_i32(variant.level)?;
+                buffer.write_i32(variant.age)?;
+                buffer.write_bool(variant.politician)?;
+                buffer.write_bool(variant.faction_leader)?;
             }
         }
 
