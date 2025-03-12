@@ -219,8 +219,8 @@ pub fn new_packed_file_model_safe() -> QBox<QStandardItemModel> {
 }
 
 // This function allow us to create a custom window.
-extern "C" { fn new_q_main_window_custom(are_you_sure: extern fn(*mut QMainWindow, bool) -> bool, is_dark_theme_enabled: bool) -> *mut QMainWindow; }
-pub fn new_q_main_window_custom_safe(are_you_sure: extern fn(*mut QMainWindow, bool) -> bool) -> QBox<QMainWindow> {
+extern "C" { fn new_q_main_window_custom(are_you_sure: extern "C" fn(*mut QMainWindow, bool) -> bool, is_dark_theme_enabled: bool) -> *mut QMainWindow; }
+pub fn new_q_main_window_custom_safe(are_you_sure: extern "C" fn(*mut QMainWindow, bool) -> bool) -> QBox<QMainWindow> {
     let is_dark_theme_enabled = setting_bool("use_dark_theme");
     unsafe { QBox::from_raw(new_q_main_window_custom(are_you_sure, is_dark_theme_enabled)) }
 }
@@ -306,8 +306,8 @@ pub fn toggle_animated_safe(spoiler: &Ptr<QWidget>) {
 //---------------------------------------------------------------------------//
 
 // This function allows you to create a table capable of freezing columns.
-extern "C" { fn new_tableview_frozen(parent: *mut QWidget, generate_tooltip_message: extern fn(*mut QTableView, i32, i32) -> ()) -> *mut QTableView; }
-pub fn new_tableview_frozen_safe(parent: &Ptr<QWidget>, generate_tooltip_message: extern fn(*mut QTableView, i32, i32) -> ()) -> QBox<QTableView> {
+extern "C" { fn new_tableview_frozen(parent: *mut QWidget, generate_tooltip_message: extern "C" fn(*mut QTableView, i32, i32) -> ()) -> *mut QTableView; }
+pub fn new_tableview_frozen_safe(parent: &Ptr<QWidget>, generate_tooltip_message: extern "C" fn(*mut QTableView, i32, i32) -> ()) -> QBox<QTableView> {
     unsafe { QBox::from_raw(new_tableview_frozen(parent.as_mut_raw_ptr(), generate_tooltip_message)) }
 }
 
@@ -694,7 +694,7 @@ pub extern fn anim_paths_by_skeleton_callback(skeleton_name: *mut QString, out: 
 //---------------------------------------------------------------------------//
 
 /// This function allow us to create a dialog when trying to close the main window.
-pub extern fn are_you_sure(main_window: *mut QMainWindow, is_delete_my_mod: bool) -> bool {
+pub extern "C" fn are_you_sure(main_window: *mut QMainWindow, is_delete_my_mod: bool) -> bool {
     let title = qtr("rpfm_title");
     let message = if is_delete_my_mod {
         qtr("delete_mymod_0")
@@ -734,7 +734,7 @@ pub extern fn are_you_sure(main_window: *mut QMainWindow, is_delete_my_mod: bool
     ).exec() == 3 }
 }
 
-pub extern fn generate_tooltip_message(view: *mut QTableView, global_pos_x: i32, global_pos_y: i32) {
+pub extern "C" fn generate_tooltip_message(view: *mut QTableView, global_pos_x: i32, global_pos_y: i32) {
     unsafe {
         let view = view.as_ref().unwrap();
         let global_pos = QPoint::new_2a(global_pos_x, global_pos_y);
