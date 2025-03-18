@@ -276,8 +276,8 @@ impl DB {
 
     /// This function dumps the contents of the provided table into a SQL database.
     #[cfg(feature = "integration_sqlite")]
-    pub fn sql_to_db(&mut self, pool: &Pool<SqliteConnectionManager>) -> Result<()> {
-        self.table.sql_to_db(pool)
+    pub fn sql_to_db(&mut self, pool: &Pool<SqliteConnectionManager>, pack_name: &str, file_name: &str) -> Result<()> {
+        self.table.sql_to_db(pool, pack_name, file_name)
     }
 
     /// This function returns a reference to the entries of this DB table.

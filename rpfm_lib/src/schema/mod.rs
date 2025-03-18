@@ -916,6 +916,9 @@ impl Definition {
     }
 
     /// This function maps a table definition to a `CREATE TABLE` SQL Query.
+    ///
+    /// NOTE: While this function supports creating a table with foreign keys,
+    /// said support is disabled because TW tables are not really foreign key-friendly. Specially in mods.
     #[cfg(feature = "integration_sqlite")]
     pub fn map_to_sql_create_table_string(&self, table_name: &str) -> String {
         let patches = Some(self.patches());
@@ -923,7 +926,7 @@ impl Definition {
         let fields_query = fields_sorted.iter().map(|field| field.map_to_sql_string(patches)).collect::<Vec<_>>().join(",");
 
         let local_keys_join = fields_sorted.iter().filter_map(|field| if field.is_key(patches) { Some(format!("\"{}\"", field.name()))} else { None }).collect::<Vec<_>>().join(",");
-        let local_keys = format!("CONSTRAINT unique_key PRIMARY KEY (\"table_unique_id\", {local_keys_join})");
+        let local_keys = format!("CONSTRAINT unique_key PRIMARY KEY (\"pack_name\", \"file_name\", {local_keys_join})");
         //let foreign_keys = fields_sorted.iter()
         //    .filter_map(|field| field.is_reference(patches).clone().map(|(ref_table, ref_column)| (field.name(), ref_table, ref_column)))
         //    .map(|(loc_name, ref_table, ref_field)| format!("CONSTRAINT fk_{table_name} FOREIGN KEY (\"{loc_name}\") REFERENCES {ref_table}(\"{ref_field}\") ON UPDATE CASCADE ON DELETE CASCADE"))
@@ -932,13 +935,13 @@ impl Definition {
 
         //if foreign_keys.is_empty() {
             if local_keys_join.is_empty() {
-                format!("CREATE TABLE \"{}_v{}\" (\"table_unique_id\" INTEGER DEFAULT 0, {})",
+                format!("CREATE TABLE \"{}_v{}\" (\"pack_name\" STRING NOT NULL, \"file_name\" STRING NOT NULL, \"is_vanilla\" INTEGER DEFAULT 0, {})",
                     table_name.replace('\"', "'"),
                     self.version(),
                     fields_query
                 )
             } else {
-                format!("CREATE TABLE \"{}_v{}\" (\"table_unique_id\" INTEGER DEFAULT 0, {}, {})",
+                format!("CREATE TABLE \"{}_v{}\" (\"pack_name\" STRING NOT NULL, \"file_name\" STRING NOT NULL, \"is_vanilla\" INTEGER DEFAULT 0, {}, {})",
                     table_name.replace('\"', "'"),
                     self.version(),
                     fields_query,
@@ -968,7 +971,7 @@ impl Definition {
     pub fn map_to_sql_insert_into_string(&self) -> String {
         let fields_sorted = self.fields_processed();
         let fields_query = fields_sorted.iter().map(|field| format!("\"{}\"", field.name())).collect::<Vec<_>>().join(",");
-        let fields_query = format!("(\"table_unique_id\", {fields_query})");
+        let fields_query = format!("(\"pack_name\", \"file_name\", \"is_vanilla\", {fields_query})");
 
         fields_query
     }

@@ -53,9 +53,6 @@ pub struct TableInMemory {
 
     #[getset(skip)]
     table_data: Vec<Vec<DecodedData>>,
-
-    #[serde(skip)]
-    #[cfg(feature = "integration_sqlite")]table_unique_id: u64,
 }
 
 //----------------------------------------------------------------//
@@ -73,8 +70,7 @@ impl TableInMemory {
             definition: definition.clone(),
             definition_patch,
             table_name: table_name.to_owned(),
-            table_data,
-            #[cfg(feature = "integration_sqlite")]table_unique_id: rand::random::<u64>(),
+            table_data
         }
     }
 
@@ -93,7 +89,6 @@ impl TableInMemory {
             definition_patch: definition_patch.clone(),
             table_name: table_name.to_owned(),
             table_data,
-            #[cfg(feature = "integration_sqlite")]table_unique_id: rand::random::<u64>(),
         };
 
         Ok(table)
@@ -196,7 +191,7 @@ impl TableInMemory {
 
     /// This function insert the table in memory into a sql database.
     #[cfg(feature = "integration_sqlite")]
-    pub fn db_to_sql(&self, pool: &Pool<SqliteConnectionManager>) -> Result<()> {
+    pub fn db_to_sql(&self, pool: &Pool<SqliteConnectionManager>, pack_name: &str, file_name: &str, is_vanilla_pack: bool) -> Result<()> {
 
         // Try to create the table, in case it doesn't exist yet. Ignore a failure here, as it'll mean the table already exists.
         let params: Vec<String> = vec![];
@@ -215,22 +210,26 @@ impl TableInMemory {
             },
         }
 
-        self.insert_all_to_sql(pool)?;
+        self.insert_all_to_sql(pool, pack_name, file_name, is_vanilla_pack)?;
         Ok(())
     }
 
     #[cfg(feature = "integration_sqlite")]
-    pub fn sql_to_db(&mut self, pool: &Pool<SqliteConnectionManager>) -> Result<()> {
-        self.table_data = self.select_all_from_sql(pool)?;
+    pub fn sql_to_db(&mut self, pool: &Pool<SqliteConnectionManager>, pack_name: &str, file_name: &str) -> Result<()> {
+        self.table_data = self.select_all_from_sql(pool, pack_name, file_name)?;
         Ok(())
     }
 
     /// This function inserts the provided rows of data into a database.
     #[cfg(feature = "integration_sqlite")]
-    fn insert_all_to_sql(&self, pool: &Pool<SqliteConnectionManager>) -> Result<()> {
+    fn insert_all_to_sql(&self, pool: &Pool<SqliteConnectionManager>, pack_name: &str, file_name: &str, is_vanilla_pack: bool) -> Result<()> {
         let mut params = vec![];
         let values = self.table_data.iter().map(|row| {
-            format!("({}, {})", self.table_unique_id, row.iter().map(|field| {
+            format!("(\"{}\", \"{}\", {}, {})",
+                pack_name,
+                file_name,
+                if is_vanilla_pack { "1" } else { "0" },
+                row.iter().map(|field| {
                 match field {
                     DecodedData::Boolean(data) => if *data { "1".to_owned() } else { "0".to_owned() },
                     DecodedData::F32(data) => format!("{data:.4}"),
@@ -258,6 +257,11 @@ impl TableInMemory {
             }).collect::<Vec<_>>().join(","))
         }).collect::<Vec<_>>().join(",");
 
+        // If there are no values, don't bother with the query.
+        if values.is_empty() {
+            return Ok(());
+        }
+
         let query = format!("INSERT OR REPLACE INTO \"{}_v{}\" {} VALUES {}",
             self.table_name().replace('\"', "'"),
             self.definition().version(),
@@ -272,16 +276,17 @@ impl TableInMemory {
 
     /// This function inserts the provided rows of data into a database.
     #[cfg(feature = "integration_sqlite")]
-    fn select_all_from_sql(&self, pool: &Pool<SqliteConnectionManager>) -> Result<Vec<Vec<DecodedData>>> {
+    fn select_all_from_sql(&self, pool: &Pool<SqliteConnectionManager>, pack_name: &str, file_name: &str) -> Result<Vec<Vec<DecodedData>>> {
         let definition = self.definition();
         let fields_processed = definition.fields_processed();
 
         let field_names = fields_processed.iter().map(|field| field.name()).collect::<Vec<&str>>().join(",");
-        let query = format!("SELECT {} FROM \"{}_v{}\" WHERE table_unique_id = {} order by ROWID",
+        let query = format!("SELECT {} FROM \"{}_v{}\" WHERE pack_name = \"{}\" AND file_name = \"{}\" order by ROWID",
             field_names,
             self.table_name().replace('\"', "'"),
             definition.version(),
-            self.table_unique_id()
+            pack_name,
+            file_name
         );
 
         let conn = pool.get()?;
