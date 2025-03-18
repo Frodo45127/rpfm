@@ -85,8 +85,10 @@ pub struct Icons {
     pub text_js: AtomicPtr<QIcon>,
     pub text_css: AtomicPtr<QIcon>,
     pub text_python: AtomicPtr<QIcon>,
+    pub text_sql: AtomicPtr<QIcon>,
     pub text_vmd: AtomicPtr<QIcon>,
     pub text_wsmodel: AtomicPtr<QIcon>,
+    pub text_yaml: AtomicPtr<QIcon>,
 
     pub rigid_model: AtomicPtr<QIcon>,
     pub unit_variant: AtomicPtr<QIcon>,
@@ -142,8 +144,10 @@ impl Icons {
             text_js: atomic_from_cpp_box(Self::load_icon("text_js", "text-javascript")),
             text_css: atomic_from_cpp_box(Self::load_icon("text_css", "text-css")),
             text_python: atomic_from_cpp_box(Self::load_icon("text_python", "text-x-python")),
+            text_sql: atomic_from_cpp_box(Self::load_icon("text_sql", "text-x-sql")),
             text_vmd: atomic_from_cpp_box(Self::load_icon("text-xml", "text-xml")),
             text_wsmodel: atomic_from_cpp_box(Self::load_icon("text_wsmodel", "text-xml")),
+            text_yaml: atomic_from_cpp_box(Self::load_icon("text_yaml", "text-x-scala")),
             rigid_model: atomic_from_cpp_box(Self::load_icon("rigid_model", "application-x-blender")),
             unit_variant: atomic_from_cpp_box(Self::load_icon("unit_variant", "application-vnd.openxmlformats-officedocument.spreadsheetml.sheet")),
             uic: atomic_from_cpp_box(Self::load_icon("uic", "application-x-designer")),
@@ -261,6 +265,8 @@ impl Icons {
                         TextFormat::Css => &self.text_css,
                         TextFormat::Js => &self.text_js,
                         TextFormat::Python => &self.text_python,
+                        TextFormat::Sql => &self.text_sql,
+                        TextFormat::Yaml => &self.text_yaml,
                     }
                 }
 
@@ -371,6 +377,8 @@ impl Icons {
                                     TextFormat::Css => &self.text_css,
                                     TextFormat::Js => &self.text_js,
                                     TextFormat::Python => &self.text_python,
+                                    TextFormat::Sql => &self.text_sql,
+                                    TextFormat::Yaml => &self.text_yaml,
                                 }
                             },
                             None => &self.text_generic,

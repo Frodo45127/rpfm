@@ -78,7 +78,7 @@ const BOM_UTF_8: [u8;3] = [0xEF,0xBB,0xBF];
 const BOM_UTF_16_LE: [u8;2] = [0xFF,0xFE];
 
 /// List of extensions we recognize as `Text` files, with their respective known format.
-pub const EXTENSIONS: [(&str, TextFormat); 55] = [
+pub const EXTENSIONS: [(&str, TextFormat); 58] = [
     (".bat", TextFormat::Bat),
     (".battle_script", TextFormat::Lua),
     (".battle_speech_camera", TextFormat::Plain),
@@ -123,6 +123,7 @@ pub const EXTENSIONS: [(&str, TextFormat); 55] = [
     (".py", TextFormat::Python),
     (".sbs", TextFormat::Xml),
     (".shader", TextFormat::Xml),
+    (".sql", TextFormat::Sql),
     (".tai", TextFormat::Plain),
     (".technique", TextFormat::Xml),
     (".texture_array", TextFormat::Plain),
@@ -133,6 +134,8 @@ pub const EXTENSIONS: [(&str, TextFormat); 55] = [
     (".xml_temp", TextFormat::Xml),
     (".xml.shader", TextFormat::Xml),
     (".xml.material", TextFormat::Xml),
+    (".yml", TextFormat::Yaml),
+    (".yaml", TextFormat::Yaml),
     (".material", TextFormat::Xml),     // This has to be under xml.material
 ];
 
@@ -183,7 +186,9 @@ pub enum TextFormat {
     Markdown,
     Plain,
     Python,
+    Sql,
     Xml,
+    Yaml,
 }
 
 //---------------------------------------------------------------------------//

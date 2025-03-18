@@ -44,6 +44,8 @@ const JSON: &str = "JSON";
 const CSS: &str = "CSS";
 const JS: &str = "Javascript";
 const PYTHON: &str = "Python";
+const SQL: &str = "SQL";
+const YAML: &str = "Yaml";
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -84,6 +86,8 @@ impl PackedFileTextView {
             TextFormat::Css => QString::from_std_str(CSS),
             TextFormat::Js => QString::from_std_str(JS),
             TextFormat::Python => QString::from_std_str(PYTHON),
+            TextFormat::Sql => QString::from_std_str(SQL),
+            TextFormat::Yaml => QString::from_std_str(YAML),
         };
 
         let editor = new_text_editor_safe(&file_view.main_widget().static_upcast());
@@ -126,6 +130,8 @@ impl PackedFileTextView {
             TextFormat::Css => QString::from_std_str(CSS),
             TextFormat::Js => QString::from_std_str(JS),
             TextFormat::Python => QString::from_std_str(PYTHON),
+            TextFormat::Sql => QString::from_std_str(SQL),
+            TextFormat::Yaml => QString::from_std_str(YAML),
         };
 
         let row_number = cursor_row_safe(&self.editor.as_ptr());
