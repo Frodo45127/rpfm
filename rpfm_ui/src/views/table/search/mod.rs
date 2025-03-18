@@ -10,6 +10,7 @@
 
 //! TableView submodule to provide Search & Replace functionality.
 
+use qt_widgets::q_abstract_item_view::ScrollHint;
 use qt_widgets::QComboBox;
 use qt_widgets::QGridLayout;
 use qt_widgets::QLabel;
@@ -239,10 +240,12 @@ impl SearchView {
                         self.next_match_button.set_enabled(false);
                     }
 
+                    let index = matches_in_filter[0].as_ref().unwrap();
                     parent.table_view.selection_model().select_q_model_index_q_flags_selection_flag(
-                        matches_in_filter[0].as_ref().unwrap(),
+                        index,
                         QFlags::from(SelectionFlag::ClearAndSelect)
                     );
+                    parent.table_view().scroll_to_2a(index, ScrollHint::EnsureVisible);
                 }
 
             }
@@ -258,11 +261,13 @@ impl SearchView {
                         else { self.prev_match_button.set_enabled(true); }
                         if *pos as usize >= matches_in_filter.len() - 1 { self.next_match_button.set_enabled(false); }
                         else { self.next_match_button.set_enabled(true); }
+                        let index = matches_in_filter[*pos as usize].as_ref().unwrap();
 
                         parent.table_view.selection_model().select_q_model_index_q_flags_selection_flag(
-                            matches_in_filter[*pos as usize].as_ref().unwrap(),
+                            index,
                             QFlags::from(SelectionFlag::ClearAndSelect)
                         );
+                        parent.table_view().scroll_to_2a(index, ScrollHint::EnsureVisible);
                         self.matches_label.set_text(&QString::from_std_str(format!("{} of {} in current filter ({} in total)", *pos + 1, matches_in_filter.len(), matches_in_model.len())));
                     }
                 }
@@ -283,10 +288,12 @@ impl SearchView {
                         if *pos as usize >= matches_in_filter.len() - 1 { self.next_match_button.set_enabled(false); }
                         else { self.next_match_button.set_enabled(true); }
 
+                        let index = matches_in_filter[*pos as usize].as_ref().unwrap();
                         parent.table_view.selection_model().select_q_model_index_q_flags_selection_flag(
-                            matches_in_filter[*pos as usize].as_ref().unwrap(),
+                            index,
                             QFlags::from(SelectionFlag::ClearAndSelect)
                         );
+                        parent.table_view().scroll_to_2a(index, ScrollHint::EnsureVisible);
                         self.matches_label.set_text(&QString::from_std_str(format!("{} of {} in current filter ({} in total)", *pos + 1, matches_in_filter.len(), matches_in_model.len())));
                     }
                 }
