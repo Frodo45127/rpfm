@@ -680,7 +680,7 @@ pub trait Container {
                     if let Err(_error) = rfile {
 
                         #[cfg(feature = "integration_log")] {
-                            warn!("File with path {} failed to import as TSV. Importing it as binary. Error was: {}", &source_path.to_string_lossy(), _error);
+                            warn!("File with path {} failed to import as TSV. Importing it as binary. If you're using the CLI - did you forget to provide schema with --tsv-as-binary flag? Error was: {}", &source_path.to_string_lossy(), _error);
                         }
 
                         tsv_imported = false;
@@ -759,7 +759,7 @@ pub trait Container {
                         if let Err(_error) = rfile {
 
                             #[cfg(feature = "integration_log")] {
-                                warn!("File with path {} failed to import as TSV. Importing it as binary. Error was: {}", &file_path.to_string_lossy(), _error);
+                                warn!("File with path {} failed to import as TSV. Importing it as binary. If you're using the CLI - did you forget to provide schema with --tsv-as-binary flag? Error was: {}", &file_path.to_string_lossy(), _error);
                             }
 
                             tsv_imported = false;
