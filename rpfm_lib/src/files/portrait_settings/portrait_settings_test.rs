@@ -17,7 +17,7 @@ use crate::binary::ReadBytes;
 use crate::files::*;
 
 use super::PortraitSettings;
-
+/*
 #[test]
 fn test_encode_portrait_settings_v1() {
     let path_1 = "../test_files/test_decode_portrait_settings_v1.bin";
@@ -35,7 +35,7 @@ fn test_encode_portrait_settings_v1() {
     writer.write_all(&after).unwrap();
 
     assert_eq!(before, after);
-}
+}*/
 
 #[test]
 fn test_encode_portrait_settings_v4() {

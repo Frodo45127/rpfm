@@ -156,7 +156,7 @@ impl Decodeable for PortraitSettings {
         settings.version = version;
 
         match version {
-            1 => settings.read_v1(data)?,
+            //1 => settings.read_v1(data)?,
             4 => settings.read_v4(data)?,
             _ => Err(RLibError::DecodingPortraitSettingUnsupportedVersion(version as usize))?,
         }
@@ -174,7 +174,7 @@ impl Encodeable for PortraitSettings {
         buffer.write_u32(self.version)?;
 
         match self.version {
-            1 => self.write_v1(buffer)?,
+            //1 => self.write_v1(buffer)?,
             4 => self.write_v4(buffer)?,
             _ => unimplemented!()
         }
