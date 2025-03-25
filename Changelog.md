@@ -6,6 +6,22 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [4.3.15]
+### Added
+- Implemented backend (lib-only) support for dumping tables to SQL databases.
+- Implemented backend (lib-only) support for cs2.parsed files.
+- Implemented backend (lib-only) support for cs2.collision files.
+- Implemented support for editing .sql files.
+- Implemented support for editing .yml/.yaml files.
+
+### Changed
+- The CLI should now give you a clearer message when failing to import a TSV file (thanks [@bukowa](https://github.com/bukowa)).
+
+### Fixed
+- Fixed loc bruteforcer missing tables in open pack.
+- Fixed unused fields failing to be check on diagnostics.
+- Fixed search not scrolling to match.
+
 ## [4.3.14]
 ### Removed
 - Removed the ability to undo "Import TSV" operations on tables.
@@ -1531,7 +1547,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.3.14...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.3.15...HEAD
+[4.3.15]: https://github.com/Frodo45127/rpfm/compare/v4.3.14...v4.3.15
 [4.3.14]: https://github.com/Frodo45127/rpfm/compare/v4.3.13...v4.3.14
 [4.3.13]: https://github.com/Frodo45127/rpfm/compare/v4.3.12...v4.3.13
 [4.3.12]: https://github.com/Frodo45127/rpfm/compare/v4.3.11...v4.3.12

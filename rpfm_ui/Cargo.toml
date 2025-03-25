@@ -28,8 +28,8 @@ default = []
 [dependencies]
 
 # Internal dependencies.
-rpfm_lib = { path = "../rpfm_lib", version = "4.3.14", features = ["integration_log", "integration_git"] }
-rpfm_extensions = { path = "../rpfm_extensions", version = "4.3.14" }
+rpfm_lib = { path = "../rpfm_lib", version = "4.3.15", features = ["integration_log", "integration_git"] }
+rpfm_extensions = { path = "../rpfm_extensions", version = "4.3.15" }
 rpfm_ui_common = { path = "../rpfm_ui_common" }
 
 # Config dependencies.
