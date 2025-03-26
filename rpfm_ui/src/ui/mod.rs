@@ -223,7 +223,7 @@ impl UI {
 
             if !paths.is_empty() {
                 info!("Directly opening Pack/s {:?}.", paths);
-                if let Err(error) = AppUI::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &paths, "") {
+                if let Err(error) = AppUI::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &paths, "", false) {
                     show_dialog(app_ui.main_window(), error, false);
 
                 } else {

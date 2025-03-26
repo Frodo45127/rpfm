@@ -17,6 +17,7 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     pack_menu_actions->setComponentDisplayName("Pack Menu");
     new_action(pack_menu_actions, "new_pack", "New Pack", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+N"), "project-development-new-template");
     new_action(pack_menu_actions, "open_pack", "Open Pack", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+O"), "project-open");
+    new_action(pack_menu_actions, "open_pack_fix_wh3", "Open Pack With Lowercased Paths", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""), "project-open");
     new_action(pack_menu_actions, "save_pack", "Save Pack", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+S"), "document-save");
     new_action(pack_menu_actions, "save_pack_as", "Save Pack As", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+Shift+S"), "document-save-as");
     new_action(pack_menu_actions, "save_pack_for_release", "Save Pack For Release", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+Shift+Alt+S"), "document-save-as");

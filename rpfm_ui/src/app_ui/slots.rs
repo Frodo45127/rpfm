@@ -95,6 +95,7 @@ pub struct AppUISlots {
     pub packfile_open_menu: QBox<SlotNoArgs>,
     pub packfile_new_packfile: QBox<SlotOfBool>,
     pub packfile_open_packfile: QBox<SlotOfBool>,
+    pub packfile_open_packfile_fix_wh3: QBox<SlotOfBool>,
     pub packfile_save_packfile: QBox<SlotOfBool>,
     pub packfile_save_packfile_as: QBox<SlotOfBool>,
     pub packfile_save_packfile_for_release: QBox<SlotOfBool>,
@@ -289,7 +290,49 @@ impl AppUISlots {
                         }
 
                         // Try to open it, and report it case of error.
-                        if let Err(error) = AppUI::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &paths, "") {
+                        if let Err(error) = AppUI::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &paths, "", false) {
+                            return show_dialog(&app_ui.main_window, error, false);
+                        }
+
+                        if setting_bool("diagnostics_trigger_on_open") {
+                            DiagnosticsUI::check(&app_ui, &diagnostics_ui);
+                        }
+                    }
+                }
+            }
+        ));
+
+        let packfile_open_packfile_fix_wh3 = SlotOfBool::new(&app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            diagnostics_ui,
+            global_search_ui => move |_| {
+
+                // Check first if there has been changes in the PackFile.
+                info!("Triggering `Open PackFile` By Slot?");
+                if AppUI::are_you_sure(&app_ui, false) {
+                    info!("Triggering `Open PackFile` By Slot");
+
+                    // Create the FileDialog to get the PackFile to open and configure it.
+                    let file_dialog = QFileDialog::from_q_widget_q_string(
+                        &app_ui.main_window,
+                        &qtr("open_packfiles"),
+                    );
+                    file_dialog.set_name_filter(&QString::from_std_str("PackFiles (*.pack)"));
+                    file_dialog.set_file_mode(FileMode::ExistingFiles);
+
+                    // Run it and expect a response (1 => Accept, 0 => Cancel).
+                    if file_dialog.exec() == 1 {
+
+                        // Now the fun thing. We have to get all the selected files, and then open them one by one.
+                        // For that we use the same logic as for the "Load All CA PackFiles" feature.
+                        let mut paths = vec![];
+                        for index in 0..file_dialog.selected_files().count_0a() {
+                            paths.push(PathBuf::from(file_dialog.selected_files().at(index).to_std_string()));
+                        }
+
+                        // Try to open it, and report it case of error.
+                        if let Err(error) = AppUI::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &paths, "", true) {
                             return show_dialog(&app_ui.main_window, error, false);
                         }
 
@@ -1961,7 +2004,7 @@ impl AppUISlots {
                 }
 
                 // Try to open it, and report it case of error.
-                if let Err(error) = AppUI::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &paths, "") {
+                if let Err(error) = AppUI::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &paths, "", false) {
                     return show_dialog(&app_ui.main_window, error, false);
                 }
 
@@ -1985,6 +2028,7 @@ impl AppUISlots {
             packfile_open_menu,
             packfile_new_packfile,
             packfile_open_packfile,
+            packfile_open_packfile_fix_wh3,
             packfile_save_packfile,
             packfile_save_packfile_as,
             packfile_save_packfile_for_release,

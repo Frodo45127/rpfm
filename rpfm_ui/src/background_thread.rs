@@ -119,8 +119,8 @@ pub fn background_loop() {
             }
 
             // In case we want to "Open one or more PackFiles"...
-            Command::OpenPackFiles(paths) => {
-                match Pack::read_and_merge(&paths, setting_bool("use_lazy_loading"), false, false) {
+            Command::OpenPackFiles(paths, force_lowercased_names) => {
+                match Pack::read_and_merge(&paths, setting_bool("use_lazy_loading"), false, false, force_lowercased_names) {
                     Ok(pack) => {
                         pack_file_decoded = pack;
 
@@ -128,6 +128,7 @@ pub fn background_loop() {
                         if let Some(ref schema) = *SCHEMA.read().unwrap() {
                             let mut decode_extra_data = DecodeableExtraData::default();
                             decode_extra_data.set_schema(Some(schema));
+
                             let extra_data = Some(decode_extra_data);
 
                             let mut files = pack_file_decoded.files_by_type_mut(&[FileType::DB, FileType::Loc]);
@@ -146,7 +147,7 @@ pub fn background_loop() {
             Command::OpenPackExtra(path) => {
                 match pack_files_decoded_extra.get(&path) {
                     Some(pack) => CentralCommand::send_back(&sender, Response::ContainerInfo(ContainerInfo::from(pack))),
-                    None => match Pack::read_and_merge(&[path.to_path_buf()], true, false, false) {
+                    None => match Pack::read_and_merge(&[path.to_path_buf()], true, false, false, false) {
                          Ok(pack) => {
                             CentralCommand::send_back(&sender, Response::ContainerInfo(ContainerInfo::from(&pack)));
                             pack_files_decoded_extra.insert(path.to_path_buf(), pack);

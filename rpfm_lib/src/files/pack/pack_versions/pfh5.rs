@@ -99,11 +99,36 @@ impl Pack {
             self.compress |= is_compressed;
 
             // Get the file's path. If it's encrypted, decrypt it first.
-            let path = if self.header.bitmask.contains(PFHFlags::HAS_ENCRYPTED_INDEX) {
+            let mut path = if self.header.bitmask.contains(PFHFlags::HAS_ENCRYPTED_INDEX) {
                 buffer_mem.decrypt_string(size as u8)?
             } else {
                 buffer_mem.read_string_u8_0terminated()?
             }.replace('\\', "/");
+
+            if extra_data.force_lowercase_wh3 {
+                let mut path_split = path.split("/").map(|x| x.to_owned()).collect::<Vec<_>>();
+                if path_split.len() > 1 {
+                    let start = path_split[0].to_lowercase();
+                    if start == "db" || start == "script" {
+                        if let Some(last) = path_split.last_mut() {
+                            *last = last.to_lowercase();
+                        }
+                    }
+
+                    if let Some(last) = path_split.last_mut() {
+                        let last_lower = last.to_lowercase();
+                        if last_lower.ends_with(".loc") {
+                            *last = last_lower;
+                        } else if start == "ui" {
+                            if last_lower.ends_with(".png") {
+                                *last = last_lower;
+                            }
+                        }
+                    }
+                }
+
+                path = path_split.join("/");
+            }
 
             // Build the File as a LazyLoaded file by default.
             let file = RFile::new_from_container(self, size as u64, is_compressed, files_are_encrypted, data_pos, timestamp, &path)?;

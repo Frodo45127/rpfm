@@ -96,7 +96,7 @@ pub enum Command {
     GetPackFileExtraDataForTreeView(PathBuf),
 
     /// This command is used to open one or more `PackFiles`. It requires the paths of the `PackFiles`.
-    OpenPackFiles(Vec<PathBuf>),
+    OpenPackFiles(Vec<PathBuf>, bool),
 
     /// This command is used to open an extra `PackFile`. It requires the path of the `PackFile`.
     OpenPackExtra(PathBuf),

@@ -1644,5 +1644,10 @@ missing_loc_data_file_detected_explanation = The files generated using the "Gene
 
     You do not need to use that workflow specifically, but this warning will remember you that you should delete the auto-generated loc files before publishing this mod.
 
-label_uppercase_script_or_table_file_name = Script or table name contains uppercase characters
-uppercase_script_or_table_filename_explanation = In Warhammer 3 6.1 patch, scripts and table names containing uppercases crash the game. Rename them so their file name only contains lowercase characters.
+label_uppercase_script_or_table_file_name = Possible CTD due to uppercase characters in file name
+uppercase_script_or_table_filename_explanation = In Warhammer 3 6.1 patch, certain files like scripts, tables, locs, and some pngs can cause crashes if their names contain uppercased characters.
+    Rename them so their file name only contains lowercase characters.
+
+    An alternative is to open the pack using the "Open Pack With Lowercased Paths" option in the Pack menu, then saving said pack. That should automatically fix the issue.
+
+open_packfile_fix_wh3 = Open Pack With Lowercased Paths
