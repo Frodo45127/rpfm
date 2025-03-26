@@ -160,7 +160,7 @@ pub enum TableType {
     NormalTable(TableInMemory),
 
     /// This one is for the translator view.
-    #[cfg(feature = "enable_tools")] TranslatorTable(Table),
+    #[cfg(feature = "enable_tools")] TranslatorTable(TableInMemory),
 }
 
 /// Enum to know what operation was done while editing tables, so we can revert them with undo.

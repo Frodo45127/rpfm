@@ -39,6 +39,7 @@ use anyhow::Result;
 use getset::*;
 use itertools::Itertools;
 use rayon::prelude::*;
+use rpfm_lib::files::table::local::TableInMemory;
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -323,7 +324,7 @@ impl Tool {
         table_name: &str,
         key_names: &[&str],
         linked_table: Option<(String, String)>,
-    ) -> Result<Option<Table>> {
+    ) -> Result<Option<TableInMemory>> {
 
         // Prepare all the different name variations we need.
         let table_name_end_underscore = format!("{}_", table_name);
