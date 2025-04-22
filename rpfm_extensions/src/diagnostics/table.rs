@@ -126,7 +126,7 @@ impl DiagnosticReport for TableDiagnosticReport {
             TableDiagnosticReportType::OutdatedTable => DiagnosticLevel::Error,
             TableDiagnosticReportType::InvalidReference(_,_) => DiagnosticLevel::Error,
             TableDiagnosticReportType::EmptyRow => DiagnosticLevel::Error,
-            TableDiagnosticReportType::EmptyKeyField(_) => DiagnosticLevel::Warning,
+            TableDiagnosticReportType::EmptyKeyField(_) => DiagnosticLevel::Error,
             TableDiagnosticReportType::EmptyKeyFields => DiagnosticLevel::Warning,
             TableDiagnosticReportType::DuplicatedCombinedKeys(_) => DiagnosticLevel::Error,
             TableDiagnosticReportType::NoReferenceTableFound(_) => DiagnosticLevel::Info,
