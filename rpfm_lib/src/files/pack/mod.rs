@@ -703,14 +703,18 @@ impl Pack {
             Ordering::Equal
         });
 
-        packs.iter_mut()
-            .filter(|pack| {
-                if let PFHFileType::Mod = pack.header.pfh_file_type {
-                    !ignore_mods
-                } else { true }
-            })
-            .for_each(|pack| {
-                pack_new.files_mut().extend(pack.files().clone())
+        packs.iter()
+            .chunk_by(|pack| pack.header.pfh_file_type)
+            .into_iter()
+            .for_each(|(pfh_type, packs)| {
+                if pfh_type != PFHFileType::Mod || (pfh_type == PFHFileType::Mod && !ignore_mods) {
+                    let mut packs = packs.collect::<Vec<_>>();
+                    packs.reverse();
+                    packs.iter()
+                        .for_each(|pack| {
+                        pack_new.files_mut().extend(pack.files().clone())
+                    });
+                }
             });
 
         // Fix the dependencies of the merged pack.
@@ -763,9 +767,17 @@ impl Pack {
             pack_new.set_pfh_file_type(pfh_types[0]);
         }
 
-        packs.iter().for_each(|pack| {
-            pack_new.files_mut().extend(pack.files().clone())
-        });
+        packs.iter()
+            .chunk_by(|pack| pack.header.pfh_file_type)
+            .into_iter()
+            .for_each(|(_, packs)| {
+                let mut packs = packs.collect::<Vec<_>>();
+                packs.reverse();
+                packs.iter()
+                    .for_each(|pack| {
+                    pack_new.files_mut().extend(pack.files().clone())
+                });
+            });
 
         // Fix the dependencies of the merged pack.
         let pack_names = packs.iter().map(|pack| pack.disk_file_name()).collect::<Vec<_>>();
