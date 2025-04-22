@@ -125,7 +125,7 @@ impl DiagnosticReport for TableDiagnosticReport {
         match self.report_type {
             TableDiagnosticReportType::OutdatedTable => DiagnosticLevel::Error,
             TableDiagnosticReportType::InvalidReference(_,_) => DiagnosticLevel::Error,
-            TableDiagnosticReportType::EmptyRow => DiagnosticLevel::Error,
+            TableDiagnosticReportType::EmptyRow => DiagnosticLevel::Warning,
             TableDiagnosticReportType::EmptyKeyField(_) => DiagnosticLevel::Error,
             TableDiagnosticReportType::EmptyKeyFields => DiagnosticLevel::Warning,
             TableDiagnosticReportType::DuplicatedCombinedKeys(_) => DiagnosticLevel::Error,
@@ -276,6 +276,7 @@ impl TableDiagnostic {
             let mut columns_with_reference_table_and_no_column = vec![];
             let mut keys: HashMap<String, Vec<(i32, i32)>> = HashMap::with_capacity(table_data.len());
             let mut duplicated_combined_keys_already_marked = vec![];
+            let default_row = table.new_row();
 
             // Columns we can try to check for paths.
             let mut ignore_path_columns = vec![];
@@ -288,7 +289,6 @@ impl TableDiagnostic {
             }
 
             for (row, cells) in table_data.iter().enumerate() {
-                let mut row_is_empty = true;
                 let mut row_keys_are_empty = true;
                 let mut row_keys: BTreeMap<i32, Cow<str>> = BTreeMap::new();
                 for (column, field) in fields_processed.iter().enumerate() {
@@ -418,11 +418,6 @@ impl TableDiagnostic {
                         }
                     }
 
-                    // Check for empty keys/rows.
-                    if row_is_empty && (!cell_data.is_empty() && cell_data != "false") {
-                        row_is_empty = false;
-                    }
-
                     if row_keys_are_empty && field.is_key(patches) && (!cell_data.is_empty() && cell_data != "false") {
                         row_keys_are_empty = false;
                     }
@@ -442,7 +437,7 @@ impl TableDiagnostic {
                     }
                 }
 
-                if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, None, Some("EmptyRow"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && row_is_empty {
+                if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, None, Some("EmptyRow"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && cells == &default_row {
                     let result = TableDiagnosticReport::new(TableDiagnosticReportType::EmptyRow, &[(row as i32, -1)], &fields_processed);
                     diagnostic.results_mut().push(result);
                 }
