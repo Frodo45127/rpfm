@@ -13,13 +13,13 @@
 use std::io::{BufReader, BufWriter, Write};
 use std::fs::File;
 
-use cs2_collision::Cs2Collision;
-use cs2_parsed::Transform4x4;
+//use cs2_collision::Cs2Collision;
+//use cs2_parsed::Transform4x4;
 
 use crate::binary::ReadBytes;
-use crate::files::{*, bmd::common::Matrix};
+use crate::files::*;
 
-use super::{Cs2Parsed, FileRef};
+use super::Cs2Parsed;
 
 #[test]
 fn test_encode_cs2_parsed() {
