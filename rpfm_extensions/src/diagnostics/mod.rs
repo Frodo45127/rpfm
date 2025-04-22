@@ -349,7 +349,7 @@ impl Diagnostics {
             self.results_mut().push(diagnostics);
         }
 
-        if let Some(diagnostics) = PackDiagnostic::check(pack, game_info) {
+        if let Some(diagnostics) = PackDiagnostic::check(pack) {
             self.results_mut().push(diagnostics);
         }
 

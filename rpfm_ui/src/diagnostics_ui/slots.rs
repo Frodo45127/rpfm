@@ -141,8 +141,7 @@ impl DiagnosticsUISlots {
                     "DependenciesCacheOutdated",
                     "DependenciesCacheCouldNotBeLoaded",
                     "IncorrectGamePath",
-                    "InvalidPackName",
-                    "UpperCaseScriptOrTableFileName"
+                    "InvalidPackName"
                 ];
 
                 let can_be_ignored = selection.iter().all(|index| !non_ignorable_fields.contains(&&*index.model().index_2a(index.row(), 5).data_0a().to_string().to_std_string()));
@@ -435,7 +434,6 @@ impl DiagnosticsUISlots {
                 let _blocker_34 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_snd_file_path_not_found.static_upcast::<QObject>());
                 let _blocker_35 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_lua_invalid_key.static_upcast::<QObject>());
                 let _blocker_36 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_missing_loc_data_file_detected.static_upcast::<QObject>());
-                let _blocker_37 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_uppercase_script_or_table_file_name.static_upcast::<QObject>());
 
                 if toggled {
                     diagnostics_ui.checkbox_outdated_table.set_checked(true);
@@ -475,7 +473,6 @@ impl DiagnosticsUISlots {
                     diagnostics_ui.checkbox_snd_file_path_not_found.set_checked(true);
                     diagnostics_ui.checkbox_lua_invalid_key.set_checked(true);
                     diagnostics_ui.checkbox_missing_loc_data_file_detected.set_checked(true);
-                    diagnostics_ui.checkbox_uppercase_script_or_table_file_name.set_checked(true);
                 }
 
                 DiagnosticsUI::filter(&app_ui, &diagnostics_ui);
