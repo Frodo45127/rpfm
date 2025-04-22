@@ -351,8 +351,6 @@ pub struct DecodeableExtraData<'a> {
     /// If the decoder should return incomplete data on failure (only for tables).
     return_incomplete: bool,
 
-    force_lowercase_wh3: bool,
-
     /// Schema for the decoder to use. Mainly for tables.
     schema: Option<&'a Schema>,
 

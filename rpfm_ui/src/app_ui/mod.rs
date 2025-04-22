@@ -172,7 +172,6 @@ pub struct AppUI {
     //-------------------------------------------------------------------------------//
     packfile_new_packfile: QPtr<QAction>,
     packfile_open_packfile: QPtr<QAction>,
-    packfile_open_packfile_fix_wh3: QPtr<QAction>,
     packfile_save_packfile: QPtr<QAction>,
     packfile_save_packfile_as: QPtr<QAction>,
     packfile_save_packfile_for_release: QPtr<QAction>,
@@ -514,7 +513,6 @@ impl AppUI {
         // Populate the `PackFile` menu.
         let packfile_new_packfile = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "new_pack", "new_packfile", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let packfile_open_packfile = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "open_pack", "open_packfile", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let packfile_open_packfile_fix_wh3 = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "open_pack_fix_wh3", "open_packfile_fix_wh3", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let packfile_save_packfile = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "save_pack", "save_packfile", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let packfile_save_packfile_as = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "save_pack_as", "save_packfile_as", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let packfile_save_packfile_for_release = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "save_pack_for_release", "save_packfile_for_release", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
@@ -852,7 +850,6 @@ impl AppUI {
             // Menus.
             packfile_new_packfile,
             packfile_open_packfile,
-            packfile_open_packfile_fix_wh3,
             packfile_save_packfile,
             packfile_save_packfile_as,
             packfile_save_packfile_for_release,
@@ -1313,7 +1310,6 @@ impl AppUI {
         global_search_ui: &Rc<GlobalSearchUI>,
         pack_file_paths: &[PathBuf],
         game_folder: &str,
-        force_lowercased_names: bool
     ) -> Result<()> {
 
         // Destroy whatever it's in the PackedFile's view, to avoid data corruption. We don't care about this result.
@@ -1321,7 +1317,7 @@ impl AppUI {
 
         // Tell the Background Thread to create a new PackFile with the data of one or more from the disk.
         app_ui.toggle_main_window(false);
-        let receiver = CENTRAL_COMMAND.send_background(Command::OpenPackFiles(pack_file_paths.to_vec(), force_lowercased_names));
+        let receiver = CENTRAL_COMMAND.send_background(Command::OpenPackFiles(pack_file_paths.to_vec()));
 
         // If it's only one packfile, store it in the recent file list.
         if pack_file_paths.len() == 1 {
@@ -1948,7 +1944,7 @@ impl AppUI {
                         diagnostics_ui,
                         path => move |_| {
                         if Self::are_you_sure(&app_ui, false) {
-                            if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path.to_path_buf()], "", false) {
+                            if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path.to_path_buf()], "") {
                                 return show_dialog(&app_ui.main_window, error, false);
                             }
 
@@ -1988,7 +1984,7 @@ impl AppUI {
                     diagnostics_ui,
                     path => move |_| {
                     if Self::are_you_sure(&app_ui, false) {
-                        if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path.to_path_buf()], "", false) {
+                        if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path.to_path_buf()], "") {
                             return show_dialog(&app_ui.main_window, error, false);
                         }
 
@@ -2027,7 +2023,7 @@ impl AppUI {
                     diagnostics_ui,
                     path => move |_| {
                     if Self::are_you_sure(&app_ui, false) {
-                        if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path.to_path_buf()], "", false) {
+                        if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path.to_path_buf()], "") {
                             return show_dialog(&app_ui.main_window, error, false);
                         }
 
@@ -2066,7 +2062,7 @@ impl AppUI {
                     diagnostics_ui,
                     path => move |_| {
                     if Self::are_you_sure(&app_ui, false) {
-                        if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path.to_path_buf()], "", false) {
+                        if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path.to_path_buf()], "") {
                             return show_dialog(&app_ui.main_window, error, false);
                         }
 
@@ -2113,7 +2109,7 @@ impl AppUI {
                                         diagnostics_ui,
                                         path => move |_| {
                                         if Self::are_you_sure(&app_ui, false) {
-                                            if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path.to_path_buf()], "", false) {
+                                            if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path.to_path_buf()], "") {
                                                 return show_dialog(&app_ui.main_window, error, false);
                                             }
 
@@ -2229,7 +2225,7 @@ impl AppUI {
                                         diagnostics_ui,
                                         game_folder_name => move |_| {
                                         if Self::are_you_sure(&app_ui, false) {
-                                            if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[pack_file.to_path_buf()], &game_folder_name, false) {
+                                            if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[pack_file.to_path_buf()], &game_folder_name) {
                                                 return show_dialog(&app_ui.main_window, error, false);
                                             }
 

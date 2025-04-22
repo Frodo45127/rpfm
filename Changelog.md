@@ -13,11 +13,9 @@ If you're looking for the changes included in the latest beta (against the lates
 - Implemented backend (lib-only) support for cs2.collision files.
 - Implemented support for editing .sql files.
 - Implemented support for editing .yml/.yaml files.
-- Implemented "Open Pack With Lowercased Paths" feature, to mass-fix crashes due to filenames containing uppercased characters.
 
 ### Changed
 - The CLI should now give you a clearer message when failing to import a TSV file (thanks [@bukowa](https://github.com/bukowa)).
-- Dropped Windows 7 support.
 
 ### Fixed
 - Fixed loc bruteforcer missing tables in open pack.

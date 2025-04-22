@@ -99,7 +99,7 @@ impl PackDiagnostic {
         if game_info.key() == KEY_WARHAMMER_3 {
             diagnostic.results_mut().extend_from_slice(&mut pack.paths()
                 .par_iter()
-                .filter(|(x, _)| x.starts_with("db/") || x.starts_with("script/") || x.ends_with(".loc") || (x.starts_with("ui/") && x.ends_with(".png")))
+                .filter(|(x, _)| x.starts_with("db/") || x.starts_with("script/"))
                 .map(|(_, x)| x.to_owned())
                 .flatten()
                 .filter_map(|x| {

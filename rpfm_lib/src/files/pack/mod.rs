@@ -644,7 +644,7 @@ impl Pack {
     /// This needs a [GameInfo] to get the Packs from, and a game path to search the Packs on.
     pub fn read_and_merge_ca_packs(game: &GameInfo, game_path: &Path) -> Result<Self> {
         let paths = game.ca_packs_paths(game_path)?;
-        let mut pack = Self::read_and_merge(&paths, true, true, false, false)?;
+        let mut pack = Self::read_and_merge(&paths, true, true, false)?;
 
         // Make sure it's not mod type.
         pack.header_mut().set_pfh_file_type(PFHFileType::Release);
@@ -654,14 +654,13 @@ impl Pack {
     /// Convenience function to open multiple Packs as one, taking care of overwriting files when needed.
     ///
     /// If this function receives only one path, it works as a normal read_from_disk function. If it receives none, an error will be returned.
-    pub fn read_and_merge(pack_paths: &[PathBuf], lazy_load: bool, ignore_mods: bool, keep_order: bool, force_lowercase_wh3: bool) -> Result<Self> {
+    pub fn read_and_merge(pack_paths: &[PathBuf], lazy_load: bool, ignore_mods: bool, keep_order: bool) -> Result<Self> {
         if pack_paths.is_empty() {
             return Err(RLibError::NoPacksProvided);
         }
 
         let mut extra_data = DecodeableExtraData {
             lazy_load,
-            force_lowercase_wh3,
             ..Default::default()
         };
 
