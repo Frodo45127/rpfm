@@ -1573,8 +1573,9 @@ impl AppUISlots {
 
                                                 for row in 0..table.table_model().row_count_0a() {
                                                     let item = table.table_model().item_2a(row, column as i32);
-                                                    if let Some(lookup) = column_data.get(&item.text().to_std_string()) {
-                                                        item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(lookup)), ITEM_SUB_DATA);
+                                                    match column_data.get(&item.text().to_std_string()) {
+                                                        Some(lookup) => item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(lookup)), ITEM_SUB_DATA),
+                                                        None => item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str("")), ITEM_SUB_DATA),
                                                     }
                                                 }
                                             }

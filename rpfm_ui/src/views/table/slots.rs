@@ -206,8 +206,9 @@ impl TableViewSlots {
                             if setting_bool("enable_lookups") {
                                 let dependency_data = view.dependency_data.read().unwrap();
                                 if let Some(column_data) = dependency_data.get(&item.column()) {
-                                    if let Some(lookup) = column_data.data().get(&item.text().to_std_string()) {
-                                        item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(lookup)), ITEM_SUB_DATA);
+                                    match column_data.data().get(&item.text().to_std_string()) {
+                                        Some(lookup) => item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(lookup)), ITEM_SUB_DATA),
+                                        None => item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str("")), ITEM_SUB_DATA),
                                     }
                                 }
 
