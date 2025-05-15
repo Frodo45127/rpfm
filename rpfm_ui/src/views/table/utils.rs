@@ -543,6 +543,9 @@ pub unsafe fn load_data(
                                     if let Some(vanilla_field_column) = vanilla_processed_fields.iter().position(|x| x.name() == column.name()) {
                                         match vanilla_db.data()[*row as usize].get(vanilla_field_column) {
                                             Some(value) => {
+                                                item.set_data_2a(ref_from_atomic(&QVARIANT_TRUE), ITEM_HAS_VANILLA_VALUE);
+                                                item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(value.data_to_string())), ITEM_VANILLA_VALUE);
+
                                                 if value.data_to_string() != field.data_to_string() {
                                                     item.set_data_2a(ref_from_atomic(&QVARIANT_TRUE), ITEM_IS_MODIFIED_VS_VANILLA);
                                                 } else {

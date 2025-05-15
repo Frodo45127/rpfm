@@ -66,7 +66,7 @@ use rpfm_ui_common::locale::{qtr, tr};
 use crate::settings_ui::backend::*;
 #[cfg(feature = "support_model_renderer")] use crate::GAME_SELECTED;
 use crate::UI_STATE;
-use crate::views::table::ITEM_SOURCE_VALUE;
+use crate::views::table::{ITEM_HAS_VANILLA_VALUE, ITEM_VANILLA_VALUE, ITEM_SOURCE_VALUE};
 
 //---------------------------------------------------------------------------//
 // Custom delegates stuff.
@@ -768,9 +768,21 @@ pub extern "C" fn generate_tooltip_message(view: *mut QTableView, global_pos_x: 
                     // Store the original tooltip elsewere so we can re-access it.
                     let mut tooltip_string = String::new();
                     let source_value = item.data_1a(ITEM_SOURCE_VALUE);
+                    let has_vanilla_value = item.data_1a(ITEM_HAS_VANILLA_VALUE);
+                    let vanilla_value = item.data_1a(ITEM_VANILLA_VALUE);
 
                     // Put toghether the message.
+                    if !has_vanilla_value.is_null() &&
+                        !vanilla_value.is_null() &&
+                        has_vanilla_value.to_bool() {
+                        tooltip_string.push_str(&tr("vanilla_data").replacen("{}", &vanilla_value.to_string().to_std_string(), 1));
+                    }
+
                     if !source_value.is_null() {
+                        if !tooltip_string.is_empty() {
+                            tooltip_string.push_str("<br/>");
+                        }
+
                         tooltip_string.push_str(&tr("original_data").replacen("{}", &source_value.to_string().to_std_string(), 1));
 
                         let icon_data = model_index.data_1a(50);

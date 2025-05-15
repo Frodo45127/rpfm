@@ -616,7 +616,8 @@ rename_move_instructions = <p>It's easy peasy:</p>
 
 update_table_success = Table updated from version '{"{"}{"}"}' to version '{"{"}{"}"}'.
 no_errors_detected = No errors detected.
-original_data = Original Data: '{"{"}{"}"}'
+original_data = Original Value: '{"{"}{"}"}'
+vanilla_data = Vanilla/Parent Value: '{"{"}{"}"}'
 column_tooltip_1 = This column is a reference to:
 column_tooltip_2 = And many more. Exactly, {"{"}{"}"} more. Too many to show them here.
 column_tooltip_3 = Fields that reference this column:
@@ -1622,7 +1623,7 @@ translation_download_error = Error while trying to download the latest mod trans
 
 reload_renderer = Reload 3D Renderer
 settings_enable_renderer = Enable 3D Renderer
-context_menu_revert_value = Revert Values
+context_menu_revert_value = Revert Values to Vanilla
 
 settings_enable_diff_markers = Enable Diff Markers
 
