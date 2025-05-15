@@ -117,6 +117,48 @@
             </property>
            </widget>
           </item>
+          <item row="4" column="0">
+           <widget class="QLabel" name="head_distance_label">
+            <property name="text">
+             <string>TextLabel</string>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="0">
+           <widget class="QLabel" name="head_pitch_label">
+            <property name="text">
+             <string>TextLabel</string>
+            </property>
+           </widget>
+          </item>
+          <item row="7" column="0">
+           <widget class="QLabel" name="head_fov_label">
+            <property name="text">
+             <string>TextLabel</string>
+            </property>
+           </widget>
+          </item>
+          <item row="5" column="0">
+           <widget class="QLabel" name="head_theta_label">
+            <property name="text">
+             <string>TextLabel</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QDoubleSpinBox" name="head_yaw_spinbox">
+            <property name="maximum">
+             <double>1000.000000000000000</double>
+            </property>
+           </widget>
+          </item>
+          <item row="8" column="0">
+           <widget class="QLabel" name="head_skeleton_node_label">
+            <property name="text">
+             <string>TextLabel</string>
+            </property>
+           </widget>
+          </item>
           <item row="0" column="1">
            <widget class="QDoubleSpinBox" name="head_z_spinbox">
             <property name="maximum">
@@ -124,22 +166,18 @@
             </property>
            </widget>
           </item>
-          <item row="3" column="1">
-           <widget class="QDoubleSpinBox" name="head_pitch_spinbox">
-            <property name="maximum">
-             <double>1000.000000000000000</double>
-            </property>
-           </widget>
-          </item>
-          <item row="4" column="1">
+          <item row="7" column="1">
            <widget class="QDoubleSpinBox" name="head_fov_spinbox">
             <property name="maximum">
              <double>1000.000000000000000</double>
             </property>
            </widget>
           </item>
-          <item row="2" column="1">
-           <widget class="QDoubleSpinBox" name="head_yaw_spinbox">
+          <item row="8" column="1">
+           <widget class="KLineEdit" name="head_skeleton_node_line_edit"/>
+          </item>
+          <item row="3" column="1">
+           <widget class="QDoubleSpinBox" name="head_pitch_spinbox">
             <property name="maximum">
              <double>1000.000000000000000</double>
             </property>
@@ -166,29 +204,21 @@
             </property>
            </widget>
           </item>
-          <item row="3" column="0">
-           <widget class="QLabel" name="head_pitch_label">
+          <item row="6" column="0">
+           <widget class="QLabel" name="head_phi_label">
             <property name="text">
              <string>TextLabel</string>
             </property>
            </widget>
           </item>
-          <item row="4" column="0">
-           <widget class="QLabel" name="head_fov_label">
-            <property name="text">
-             <string>TextLabel</string>
-            </property>
-           </widget>
-          </item>
-          <item row="5" column="0">
-           <widget class="QLabel" name="head_skeleton_node_label">
-            <property name="text">
-             <string>TextLabel</string>
-            </property>
-           </widget>
+          <item row="4" column="1">
+           <widget class="QDoubleSpinBox" name="head_distance_spinbox"/>
           </item>
           <item row="5" column="1">
-           <widget class="KLineEdit" name="head_skeleton_node_line_edit"/>
+           <widget class="QDoubleSpinBox" name="head_theta_spinbox"/>
+          </item>
+          <item row="6" column="1">
+           <widget class="QDoubleSpinBox" name="head_phi_spinbox"/>
           </item>
          </layout>
         </widget>
@@ -232,52 +262,6 @@
              <property name="spacing">
               <number>2</number>
              </property>
-             <item row="1" column="1" colspan="2">
-              <widget class="QWidget" name="widget_3" native="true">
-               <layout class="QGridLayout" name="gridLayout_12">
-                <item row="0" column="0">
-                 <widget class="QLabel" name="file_diffuse_label">
-                  <property name="text">
-                   <string>TextLabel</string>
-                  </property>
-                 </widget>
-                </item>
-                <item row="0" column="1">
-                 <widget class="KLineEdit" name="file_diffuse_line_edit"/>
-                </item>
-                <item row="1" column="0">
-                 <widget class="QLabel" name="file_mask_1_label">
-                  <property name="text">
-                   <string>TextLabel</string>
-                  </property>
-                 </widget>
-                </item>
-                <item row="1" column="1">
-                 <widget class="KLineEdit" name="file_mask_1_line_edit"/>
-                </item>
-                <item row="2" column="0">
-                 <widget class="QLabel" name="file_mask_2_label">
-                  <property name="text">
-                   <string>TextLabel</string>
-                  </property>
-                 </widget>
-                </item>
-                <item row="2" column="1">
-                 <widget class="KLineEdit" name="file_mask_2_line_edit"/>
-                </item>
-                <item row="3" column="0">
-                 <widget class="QLabel" name="file_mask_3_label">
-                  <property name="text">
-                   <string>TextLabel</string>
-                  </property>
-                 </widget>
-                </item>
-                <item row="3" column="1">
-                 <widget class="KLineEdit" name="file_mask_3_line_edit"/>
-                </item>
-               </layout>
-              </widget>
-             </item>
              <item row="0" column="1" colspan="2">
               <widget class="QWidget" name="widget_4" native="true">
                <layout class="QGridLayout" name="gridLayout_13" columnstretch="0,1,1,1,1,0">
@@ -399,6 +383,110 @@
                    </item>
                   </layout>
                  </widget>
+                </item>
+               </layout>
+              </widget>
+             </item>
+             <item row="1" column="1" colspan="2">
+              <widget class="QWidget" name="widget_3" native="true">
+               <layout class="QGridLayout" name="gridLayout_12" columnstretch="0,0,1,0,1">
+                <item row="2" column="0">
+                 <widget class="QLabel" name="file_mask_2_label">
+                  <property name="text">
+                   <string>TextLabel</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="3" column="0">
+                 <widget class="QLabel" name="file_mask_3_label">
+                  <property name="text">
+                   <string>TextLabel</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="7" column="2">
+                 <widget class="QCheckBox" name="politician_checkbox">
+                  <property name="text">
+                   <string/>
+                  </property>
+                 </widget>
+                </item>
+                <item row="0" column="0">
+                 <widget class="QLabel" name="file_diffuse_label">
+                  <property name="text">
+                   <string>TextLabel</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="6" column="0">
+                 <widget class="QLabel" name="age_label">
+                  <property name="text">
+                   <string>TextLabel</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="4" column="0">
+                 <widget class="QLabel" name="season_label">
+                  <property name="text">
+                   <string>TextLabel</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="5" column="0">
+                 <widget class="QLabel" name="level_label">
+                  <property name="text">
+                   <string>TextLabel</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="7" column="3">
+                 <widget class="QLabel" name="faction_leader_label">
+                  <property name="text">
+                   <string>TextLabel</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="1" column="0">
+                 <widget class="QLabel" name="file_mask_1_label">
+                  <property name="text">
+                   <string>TextLabel</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="7" column="0">
+                 <widget class="QLabel" name="politician_label">
+                  <property name="text">
+                   <string>TextLabel</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="7" column="4">
+                 <widget class="QCheckBox" name="faction_leader_checkbox">
+                  <property name="text">
+                   <string>CheckBox</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="6" column="2" colspan="3">
+                 <widget class="QSpinBox" name="age_spinbox"/>
+                </item>
+                <item row="5" column="2" colspan="3">
+                 <widget class="QSpinBox" name="level_spinbox"/>
+                </item>
+                <item row="4" column="2" colspan="3">
+                 <widget class="KLineEdit" name="season_line_edit"/>
+                </item>
+                <item row="3" column="2" colspan="3">
+                 <widget class="KLineEdit" name="file_mask_3_line_edit"/>
+                </item>
+                <item row="2" column="2" colspan="3">
+                 <widget class="KLineEdit" name="file_mask_2_line_edit"/>
+                </item>
+                <item row="1" column="2" colspan="3">
+                 <widget class="KLineEdit" name="file_mask_1_line_edit"/>
+                </item>
+                <item row="0" column="2" colspan="3">
+                 <widget class="KLineEdit" name="file_diffuse_line_edit"/>
                 </item>
                </layout>
               </widget>

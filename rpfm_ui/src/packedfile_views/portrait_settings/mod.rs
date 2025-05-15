@@ -11,6 +11,7 @@
 //! Module with the code to manage a Portrait Settings View.
 
 use qt_widgets::QAction;
+use qt_widgets::QCheckBox;
 use qt_widgets::QDialog;
 use qt_widgets::QDialogButtonBox;
 use qt_widgets::q_dialog_button_box::StandardButton;
@@ -21,6 +22,7 @@ use qt_widgets::QLabel;
 use qt_widgets::QLineEdit;
 use qt_widgets::QListView;
 use qt_widgets::QMenu;
+use qt_widgets::QSpinBox;
 use qt_widgets::QWidget;
 
 use qt_gui::QPixmap;
@@ -99,10 +101,22 @@ pub struct PortraitSettingsView {
     main_list_model: QBox<QStandardItemModel>,
     main_filter_line_edit: QPtr<QLineEdit>,
 
+    head_z_label: QPtr<QLabel>,
+    head_y_label: QPtr<QLabel>,
+    head_yaw_label: QPtr<QLabel>,
+    head_pitch_label: QPtr<QLabel>,
+    head_distance_label: QPtr<QLabel>,
+    head_theta_label: QPtr<QLabel>,
+    head_phi_label: QPtr<QLabel>,
+    head_skeleton_node_label: QPtr<QLabel>,
+
     head_z_spinbox: QPtr<QDoubleSpinBox>,
     head_y_spinbox: QPtr<QDoubleSpinBox>,
     head_yaw_spinbox: QPtr<QDoubleSpinBox>,
     head_pitch_spinbox: QPtr<QDoubleSpinBox>,
+    head_distance_spinbox: QPtr<QDoubleSpinBox>,
+    head_theta_spinbox: QPtr<QDoubleSpinBox>,
+    head_phi_spinbox: QPtr<QDoubleSpinBox>,
     head_fov_spinbox: QPtr<QDoubleSpinBox>,
     head_skeleton_node_line_edit: QPtr<QLineEdit>,
 
@@ -118,10 +132,22 @@ pub struct PortraitSettingsView {
     variants_list_filter: QBox<QSortFilterProxyModel>,
     variants_list_model: QBox<QStandardItemModel>,
     variants_filter_line_edit: QPtr<QLineEdit>,
+
+    season_label: QPtr<QLabel>,
+    level_label: QPtr<QLabel>,
+    age_label: QPtr<QLabel>,
+    politician_label: QPtr<QLabel>,
+    faction_leader_label: QPtr<QLabel>,
+
     file_diffuse_line_edit: QPtr<QLineEdit>,
     file_mask_1_line_edit: QPtr<QLineEdit>,
     file_mask_2_line_edit: QPtr<QLineEdit>,
     file_mask_3_line_edit: QPtr<QLineEdit>,
+    season_line_edit: QPtr<QLineEdit>,
+    level_spinbox: QPtr<QSpinBox>,
+    age_spinbox: QPtr<QSpinBox>,
+    politician_checkbox: QPtr<QCheckBox>,
+    faction_leader_checkbox: QPtr<QCheckBox>,
 
     diffuse_groupbox: QPtr<QGroupBox>,
     mask_1_groupbox: QPtr<QGroupBox>,
@@ -202,12 +228,18 @@ impl PortraitSettingsView {
         let head_y_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "head_y_label")?;
         let head_yaw_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "head_yaw_label")?;
         let head_pitch_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "head_pitch_label")?;
+        let head_distance_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "head_distance_label")?;
+        let head_theta_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "head_theta_label")?;
+        let head_phi_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "head_phi_label")?;
         let head_fov_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "head_fov_label")?;
         let head_skeleton_node_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "head_skeleton_node_label")?;
         head_z_label.set_text(&qtr("portrait_settings_head_z"));
         head_y_label.set_text(&qtr("portrait_settings_head_y"));
         head_yaw_label.set_text(&qtr("portrait_settings_head_yaw"));
         head_pitch_label.set_text(&qtr("portrait_settings_head_pitch"));
+        head_distance_label.set_text(&qtr("portrait_settings_head_distance"));
+        head_theta_label.set_text(&qtr("portrait_settings_head_theta"));
+        head_phi_label.set_text(&qtr("portrait_settings_head_phi"));
         head_fov_label.set_text(&qtr("portrait_settings_head_fov"));
         head_skeleton_node_label.set_text(&qtr("portrait_settings_head_skeleton_node"));
 
@@ -215,6 +247,9 @@ impl PortraitSettingsView {
         let head_y_spinbox: QPtr<QDoubleSpinBox> = find_widget(&main_widget.static_upcast(), "head_y_spinbox")?;
         let head_yaw_spinbox: QPtr<QDoubleSpinBox> = find_widget(&main_widget.static_upcast(), "head_yaw_spinbox")?;
         let head_pitch_spinbox: QPtr<QDoubleSpinBox> = find_widget(&main_widget.static_upcast(), "head_pitch_spinbox")?;
+        let head_distance_spinbox: QPtr<QDoubleSpinBox> = find_widget(&main_widget.static_upcast(), "head_distance_spinbox")?;
+        let head_theta_spinbox: QPtr<QDoubleSpinBox> = find_widget(&main_widget.static_upcast(), "head_theta_spinbox")?;
+        let head_phi_spinbox: QPtr<QDoubleSpinBox> = find_widget(&main_widget.static_upcast(), "head_phi_spinbox")?;
         let head_fov_spinbox: QPtr<QDoubleSpinBox> = find_widget(&main_widget.static_upcast(), "head_fov_spinbox")?;
         let head_skeleton_node_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "head_skeleton_node_line_edit")?;
 
@@ -248,15 +283,30 @@ impl PortraitSettingsView {
         let file_mask_1_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "file_mask_1_label")?;
         let file_mask_2_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "file_mask_2_label")?;
         let file_mask_3_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "file_mask_3_label")?;
+        let season_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "season_label")?;
+        let level_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "level_label")?;
+        let age_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "age_label")?;
+        let politician_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "politician_label")?;
+        let faction_leader_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "faction_leader_label")?;
         file_diffuse_label.set_text(&qtr("portrait_settings_file_diffuse_label"));
         file_mask_1_label.set_text(&qtr("portrait_settings_file_mask_1_label"));
         file_mask_2_label.set_text(&qtr("portrait_settings_file_mask_2_label"));
         file_mask_3_label.set_text(&qtr("portrait_settings_file_mask_3_label"));
+        season_label.set_text(&qtr("portrait_settings_season_label"));
+        level_label.set_text(&qtr("portrait_settings_level_label"));
+        age_label.set_text(&qtr("portrait_settings_age_label"));
+        politician_label.set_text(&qtr("portrait_settings_politician_label"));
+        faction_leader_label.set_text(&qtr("portrait_settings_faction_leader_label"));
 
         let file_diffuse_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "file_diffuse_line_edit")?;
         let file_mask_1_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "file_mask_1_line_edit")?;
         let file_mask_2_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "file_mask_2_line_edit")?;
         let file_mask_3_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "file_mask_3_line_edit")?;
+        let season_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "season_line_edit")?;
+        let level_spinbox: QPtr<QSpinBox> = find_widget(&main_widget.static_upcast(), "level_spinbox")?;
+        let age_spinbox: QPtr<QSpinBox> = find_widget(&main_widget.static_upcast(), "age_spinbox")?;
+        let politician_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "politician_checkbox")?;
+        let faction_leader_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "faction_leader_checkbox")?;
 
         // Placeholders.
         let diffuse_label_placeholder: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "diffuse_label")?;
@@ -351,10 +401,22 @@ impl PortraitSettingsView {
             detailed_view_widget,
             body_camera_settings_groupbox,
 
+            head_z_label,
+            head_y_label,
+            head_yaw_label,
+            head_pitch_label,
+            head_distance_label,
+            head_theta_label,
+            head_phi_label,
+            head_skeleton_node_label,
+
             head_z_spinbox,
             head_y_spinbox,
             head_yaw_spinbox,
             head_pitch_spinbox,
+            head_distance_spinbox,
+            head_theta_spinbox,
+            head_phi_spinbox,
             head_fov_spinbox,
             head_skeleton_node_line_edit,
 
@@ -370,10 +432,22 @@ impl PortraitSettingsView {
             variants_list_filter,
             variants_list_model,
             variants_filter_line_edit,
+
+            season_label,
+            level_label,
+            age_label,
+            politician_label,
+            faction_leader_label,
+
             file_diffuse_line_edit,
             file_mask_1_line_edit,
             file_mask_2_line_edit,
             file_mask_3_line_edit,
+            season_line_edit,
+            level_spinbox,
+            age_spinbox,
+            politician_checkbox,
+            faction_leader_checkbox,
 
             diffuse_groupbox,
             mask_1_groupbox,
@@ -425,6 +499,9 @@ impl PortraitSettingsView {
         self.head_y_spinbox.clear();
         self.head_yaw_spinbox.clear();
         self.head_pitch_spinbox.clear();
+        self.head_distance_spinbox.clear();
+        self.head_theta_spinbox.clear();
+        self.head_phi_spinbox.clear();
         self.head_fov_spinbox.clear();
         self.head_skeleton_node_line_edit.clear();
 
@@ -448,6 +525,11 @@ impl PortraitSettingsView {
         self.file_mask_1_line_edit.clear();
         self.file_mask_2_line_edit.clear();
         self.file_mask_3_line_edit.clear();
+        self.season_line_edit.clear();
+        self.level_spinbox.clear();
+        self.age_spinbox.clear();
+        self.politician_checkbox.set_checked(false);
+        self.faction_leader_checkbox.set_checked(false);
 
         set_pixmap_on_resizable_label_safe(&self.diffuse_icon_label.as_ptr(), &QPixmap::new().into_ptr());
         set_pixmap_on_resizable_label_safe(&self.mask_1_icon_label.as_ptr(), &QPixmap::new().into_ptr());
@@ -485,6 +567,84 @@ impl PortraitSettingsView {
         data
     }
 
+    /// This function updates the view to only show fields relevant for our file version.
+    pub unsafe fn prepare_view(&self) {
+
+        // First unhide all the items that may be hidden from a previous execution.
+        self.head_z_label().set_visible(true);
+        self.head_y_label().set_visible(true);
+        self.head_pitch_label().set_visible(true);
+        self.head_yaw_label().set_visible(true);
+        self.head_distance_label().set_visible(true);
+        self.head_theta_label().set_visible(true);
+        self.head_phi_label().set_visible(true);
+        self.head_skeleton_node_label().set_visible(true);
+
+        self.head_z_spinbox().set_visible(true);
+        self.head_y_spinbox().set_visible(true);
+        self.head_pitch_spinbox().set_visible(true);
+        self.head_yaw_spinbox().set_visible(true);
+        self.head_distance_spinbox().set_visible(true);
+        self.head_theta_spinbox().set_visible(true);
+        self.head_phi_spinbox().set_visible(true);
+        self.head_skeleton_node_line_edit().set_visible(true);
+
+        self.body_camera_settings_groupbox().set_visible(true);
+
+        self.season_label().set_visible(true);
+        self.level_label().set_visible(true);
+        self.age_label().set_visible(true);
+        self.politician_label().set_visible(true);
+        self.faction_leader_label().set_visible(true);
+
+        self.season_line_edit().set_visible(true);
+        self.level_spinbox().set_visible(true);
+        self.age_spinbox().set_visible(true);
+        self.politician_checkbox().set_visible(true);
+        self.faction_leader_checkbox().set_visible(true);
+
+        // Then hide only the ones not used for our version.
+        match self.version {
+            4 => {
+                self.head_distance_label().set_visible(false);
+                self.head_theta_label().set_visible(false);
+                self.head_phi_label().set_visible(false);
+
+                self.head_distance_spinbox().set_visible(false);
+                self.head_theta_spinbox().set_visible(false);
+                self.head_phi_spinbox().set_visible(false);
+
+                self.season_label().set_visible(false);
+                self.level_label().set_visible(false);
+                self.age_label().set_visible(false);
+                self.politician_label().set_visible(false);
+                self.faction_leader_label().set_visible(false);
+
+                self.season_line_edit().set_visible(false);
+                self.level_spinbox().set_visible(false);
+                self.age_spinbox().set_visible(false);
+                self.politician_checkbox().set_visible(false);
+                self.faction_leader_checkbox().set_visible(false);
+            },
+            1 => {
+                self.head_z_label().set_visible(false);
+                self.head_y_label().set_visible(false);
+                self.head_pitch_label().set_visible(false);
+                self.head_yaw_label().set_visible(false);
+                self.head_skeleton_node_label().set_visible(false);
+
+                self.head_z_spinbox().set_visible(false);
+                self.head_y_spinbox().set_visible(false);
+                self.head_pitch_spinbox().set_visible(false);
+                self.head_yaw_spinbox().set_visible(false);
+                self.head_skeleton_node_line_edit().set_visible(false);
+
+                self.body_camera_settings_groupbox().set_visible(false);
+            }
+            _ => {},
+        }
+    }
+
     /// Function to reload the data of the view without having to delete the view itself.
     pub unsafe fn reload_view(&self, data: &mut PortraitSettings) -> Result<()> {
 
@@ -496,6 +656,7 @@ impl PortraitSettingsView {
     /// This function loads the data into the view, so it can be accessed in the UI.
     unsafe fn load_data(&self, data: &mut PortraitSettings) -> Result<()> {
         self.main_list_model.clear();
+        self.prepare_view();
 
         // Get them sorted so we have them in order for the UI.
         data.entries_mut().sort_by(|a, b| a.id().cmp(b.id()));
@@ -522,6 +683,9 @@ impl PortraitSettingsView {
         self.head_y_spinbox.set_value(*data.camera_settings_head().y() as f64);
         self.head_yaw_spinbox.set_value(*data.camera_settings_head().yaw() as f64);
         self.head_pitch_spinbox.set_value(*data.camera_settings_head().pitch() as f64);
+        self.head_distance_spinbox.set_value(*data.camera_settings_head().distance() as f64);
+        self.head_theta_spinbox.set_value(*data.camera_settings_head().theta() as f64);
+        self.head_phi_spinbox.set_value(*data.camera_settings_head().phi() as f64);
         self.head_fov_spinbox.set_value(*data.camera_settings_head().fov() as f64);
         self.head_skeleton_node_line_edit.set_text(&QString::from_std_str(data.camera_settings_head().skeleton_node()));
 
@@ -549,7 +713,7 @@ impl PortraitSettingsView {
         }
 
         self.variants_list_model.clear();
-        self.variants_widget.set_enabled(false);
+        self.clear_variants_view();
 
         // Disable these on load so they cannot be trigger with no selection.
         self.variants_list_clone.set_enabled(false);
@@ -561,26 +725,6 @@ impl PortraitSettingsView {
             item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&variant).unwrap())), DATA);
             self.variants_list_model.append_row_q_standard_item(item);
         }
-
-        self.file_diffuse_line_edit.clear();
-        self.file_mask_1_line_edit.clear();
-        self.file_mask_2_line_edit.clear();
-        self.file_mask_3_line_edit.clear();
-
-        set_pixmap_on_resizable_label_safe(&self.diffuse_icon_label.as_ptr(), &QPixmap::new().into_ptr());
-        set_pixmap_on_resizable_label_safe(&self.mask_1_icon_label.as_ptr(), &QPixmap::new().into_ptr());
-        set_pixmap_on_resizable_label_safe(&self.mask_2_icon_label.as_ptr(), &QPixmap::new().into_ptr());
-        set_pixmap_on_resizable_label_safe(&self.mask_3_icon_label.as_ptr(), &QPixmap::new().into_ptr());
-
-        self.diffuse_groupbox.set_visible(false);
-        self.mask_1_groupbox.set_visible(false);
-        self.mask_2_groupbox.set_visible(false);
-        self.mask_3_groupbox.set_visible(false);
-
-        set_pixmap_on_resizable_label_safe(&self.diffuse_label.as_ptr(), &QPixmap::new().into_ptr());
-        set_pixmap_on_resizable_label_safe(&self.mask_1_label.as_ptr(), &QPixmap::new().into_ptr());
-        set_pixmap_on_resizable_label_safe(&self.mask_2_label.as_ptr(), &QPixmap::new().into_ptr());
-        set_pixmap_on_resizable_label_safe(&self.mask_3_label.as_ptr(), &QPixmap::new().into_ptr());
     }
 
     /// This function loads the data of a variant into the variant detailed view.
@@ -598,16 +742,31 @@ impl PortraitSettingsView {
         let blocker_file_mask_1 = QSignalBlocker::from_q_object(self.file_mask_1_line_edit.static_upcast::<QObject>());
         let blocker_file_mask_2 = QSignalBlocker::from_q_object(self.file_mask_2_line_edit.static_upcast::<QObject>());
         let blocker_file_mask_3 = QSignalBlocker::from_q_object(self.file_mask_3_line_edit.static_upcast::<QObject>());
+        let blocker_season_line_edit = QSignalBlocker::from_q_object(self.file_mask_3_line_edit.static_upcast::<QObject>());
+        let blocker_level_spinbox = QSignalBlocker::from_q_object(self.file_mask_3_line_edit.static_upcast::<QObject>());
+        let blocker_age_spinbox = QSignalBlocker::from_q_object(self.file_mask_3_line_edit.static_upcast::<QObject>());
+        let blocker_politician_checkbox = QSignalBlocker::from_q_object(self.file_mask_3_line_edit.static_upcast::<QObject>());
+        let blocker_faction_leader_checkbox = QSignalBlocker::from_q_object(self.file_mask_3_line_edit.static_upcast::<QObject>());
 
         self.file_diffuse_line_edit.set_text(&QString::from_std_str(data.file_diffuse()));
         self.file_mask_1_line_edit.set_text(&QString::from_std_str(data.file_mask_1()));
         self.file_mask_2_line_edit.set_text(&QString::from_std_str(data.file_mask_2()));
         self.file_mask_3_line_edit.set_text(&QString::from_std_str(data.file_mask_3()));
+        self.season_line_edit.set_text(&QString::from_std_str(data.season()));
+        self.level_spinbox.set_value(*data.level());
+        self.age_spinbox.set_value(*data.age());
+        self.politician_checkbox.set_checked(*data.politician());
+        self.faction_leader_checkbox.set_checked(*data.faction_leader());
 
         blocker_file_diffuse.unblock();
         blocker_file_mask_1.unblock();
         blocker_file_mask_2.unblock();
         blocker_file_mask_3.unblock();
+        blocker_season_line_edit.unblock();
+        blocker_level_spinbox.unblock();
+        blocker_age_spinbox.unblock();
+        blocker_politician_checkbox.unblock();
+        blocker_faction_leader_checkbox.unblock();
 
         self.load_variant_images(data.file_diffuse(), data.file_mask_1(), data.file_mask_2(), data.file_mask_3());
     }
@@ -714,6 +873,9 @@ impl PortraitSettingsView {
         data.camera_settings_head_mut().set_y(self.head_y_spinbox.value() as f32);
         data.camera_settings_head_mut().set_yaw(self.head_yaw_spinbox.value() as f32);
         data.camera_settings_head_mut().set_pitch(self.head_pitch_spinbox.value() as f32);
+        data.camera_settings_head_mut().set_distance(self.head_distance_spinbox.value() as f32);
+        data.camera_settings_head_mut().set_theta(self.head_theta_spinbox.value() as f32);
+        data.camera_settings_head_mut().set_phi(self.head_phi_spinbox.value() as f32);
         data.camera_settings_head_mut().set_fov(self.head_fov_spinbox.value() as f32);
         data.camera_settings_head_mut().set_skeleton_node(self.head_skeleton_node_line_edit.text().to_std_string());
 
@@ -755,6 +917,11 @@ impl PortraitSettingsView {
         data.set_file_mask_1(self.file_mask_1_line_edit.text().to_std_string());
         data.set_file_mask_2(self.file_mask_2_line_edit.text().to_std_string());
         data.set_file_mask_3(self.file_mask_3_line_edit.text().to_std_string());
+        data.set_season(self.season_line_edit.text().to_std_string());
+        data.set_level(self.level_spinbox.value());
+        data.set_age(self.age_spinbox.value());
+        data.set_politician(self.politician_checkbox.is_checked());
+        data.set_faction_leader(self.faction_leader_checkbox.is_checked());
 
         self.variants_list_model.item_from_index(index).set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&data).unwrap())), DATA);
     }

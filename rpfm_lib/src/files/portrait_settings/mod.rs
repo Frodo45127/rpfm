@@ -108,7 +108,7 @@ pub struct CameraSetting {
 }
 
 /// This represents a generic variant of a Portrait.
-#[derive(PartialEq, Eq, Clone, Debug, Default, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Variant {
 
@@ -156,7 +156,7 @@ impl Decodeable for PortraitSettings {
         settings.version = version;
 
         match version {
-            //1 => settings.read_v1(data)?,
+            1 => settings.read_v1(data)?,
             4 => settings.read_v4(data)?,
             _ => Err(RLibError::DecodingPortraitSettingUnsupportedVersion(version as usize))?,
         }
@@ -174,7 +174,7 @@ impl Encodeable for PortraitSettings {
         buffer.write_u32(self.version)?;
 
         match self.version {
-            //1 => self.write_v1(buffer)?,
+            1 => self.write_v1(buffer)?,
             4 => self.write_v4(buffer)?,
             _ => unimplemented!()
         }
@@ -192,5 +192,22 @@ impl PortraitSettings {
 
     pub fn to_json(&self) -> Result<String> {
         serde_json::to_string_pretty(&self).map_err(From::from)
+    }
+}
+
+impl Default for Variant {
+    fn default() -> Self {
+        Self {
+            filename: Default::default(),
+            file_diffuse: Default::default(),
+            file_mask_1: Default::default(),
+            file_mask_2: Default::default(),
+            file_mask_3: Default::default(),
+            season: "none".to_owned(),
+            level: Default::default(),
+            age: Default::default(),
+            politician: Default::default(),
+            faction_leader: Default::default(),
+        }
     }
 }
