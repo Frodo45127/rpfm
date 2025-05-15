@@ -2466,8 +2466,9 @@ impl TableView {
     ) {
 
         // Block the events so this doesn't take ages. Also, this means we do weird things here for performance.
-        let blocker = QSignalBlocker::from_q_object(&self.table_model);
-        let blocker_undo = QSignalBlocker::from_q_object(&self.undo_model);
+        self.table_model.block_signals(true);
+        self.undo_model.block_signals(true);
+
         let mut changed_cells = 0;
 
         for (real_cell, text) in real_cells {
@@ -2583,8 +2584,8 @@ impl TableView {
             }
         }
 
-        blocker.unblock();
-        blocker_undo.unblock();
+        self.table_model.block_signals(false);
+        self.undo_model.block_signals(false);
 
         let deleted_rows = if !rows_to_delete.is_empty() {
             utils::delete_rows(&self.table_model_ptr(), rows_to_delete)
@@ -2725,8 +2726,6 @@ impl TableView {
                         let paths_join = column_data.0.replace('%', &cell_data[start_offset..]).to_lowercase();
                         let paths_split = paths_join.split(';');
 
-                        self.table_model.block_signals(true);
-
                         let mut found = false;
                         for path in paths_split {
                             if let Some(icon) = column_data.1.get(path) {
@@ -2745,8 +2744,6 @@ impl TableView {
 
                         // For tooltips, we just nuke all the catched pngs. It's simpler than trying to go one by one and finding the ones that need updating.
                         item.set_data_2a(&QVariant::new(), ITEM_ICON_CACHE);
-
-                        self.table_model.block_signals(false);
                     }
                 }
             }
@@ -2795,59 +2792,56 @@ impl TableView {
             .map(|x| self.table_model.index_2a(row, *x as i32).data_1a(2).to_string().to_std_string())
             .join("");
 
-        let vanilla_data = {
-            let mut data = None;
-            for (vanilla_table, hashes) in &*vanilla_data {
-                match hashes.get(&keys_joined) {
-                    Some(vanilla_row) => {
-                        let vanilla_data = vanilla_table.data();
-                        let vanilla_definition = vanilla_table.definition();
-                        data = vanilla_data.get(*vanilla_row as usize).map(|x| (vanilla_definition, x.to_owned()));
-                        break;
-                    },
-                    None => continue,
+        let mut found = false;
+        for (vanilla_table, hashes) in &*vanilla_data {
+            if let Some(vanilla_row) = hashes.get(&keys_joined) {
+                let vanilla_data = vanilla_table.data();
+                let vanilla_definition = vanilla_table.definition();
+                let vanilla_processed_fields = vanilla_definition.fields_processed();
+
+                if let Some(vanilla_row_data) = vanilla_data.get(*vanilla_row as usize) {
+                    for (column, field) in fields_processed.iter().enumerate() {
+                        let local_data = get_field_from_view(&self.table_model.static_upcast(), field, row, column as i32);
+
+                        let item = self.table_model.item_2a(row, column as i32);
+                        if !item.is_null() {
+                            match vanilla_processed_fields.iter().position(|x| x.name() == field.name()) {
+                                Some(vanilla_field_column) => {
+
+                                    // Make sure to check the column, because we may be getting a different definition of our own here.
+                                    match vanilla_row_data.get(vanilla_field_column) {
+                                        Some(vanilla_data) => {
+                                            item.set_data_2a(ref_from_atomic(&QVARIANT_TRUE), ITEM_HAS_VANILLA_VALUE);
+                                            item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(vanilla_data.data_to_string())), ITEM_VANILLA_VALUE);
+
+                                            if vanilla_data != &local_data {
+                                                item.set_data_2a(ref_from_atomic(&QVARIANT_TRUE), ITEM_IS_MODIFIED_VS_VANILLA);
+                                            } else {
+                                                item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_MODIFIED_VS_VANILLA);
+                                            }
+                                        },
+
+                                        None => item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_MODIFIED_VS_VANILLA),
+                                    }
+                                }
+
+                                // If the field is not in the vanilla table, mark it as not modified.
+                                None => item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_MODIFIED_VS_VANILLA),
+                            }
+
+                            found = true;
+                        }
+                    }
                 }
             }
 
-            data
-        };
-
-        if let Some((vanilla_definition, vanilla_row_data)) = vanilla_data {
-            for (column, field) in fields_processed.iter().enumerate() {
-                let local_data = get_field_from_view(&self.table_model.static_upcast(), field, row, column as i32);
-                let vanilla_processed_fields = vanilla_definition.fields_processed();
-
-                let item = self.table_model.item_2a(row, column as i32);
-                if !item.is_null() {
-                    match vanilla_processed_fields.iter().position(|x| x.name() == field.name()) {
-                        Some(vanilla_field_column) => {
-
-                            // Make sure to check the column, because we may be getting a different definition of our own here.
-                            match vanilla_row_data.get(vanilla_field_column) {
-                                Some(vanilla_data) => {
-                                    item.set_data_2a(ref_from_atomic(&QVARIANT_TRUE), ITEM_HAS_VANILLA_VALUE);
-                                    item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(vanilla_data.data_to_string())), ITEM_VANILLA_VALUE);
-
-                                    if vanilla_data != &local_data {
-                                        item.set_data_2a(ref_from_atomic(&QVARIANT_TRUE), ITEM_IS_MODIFIED_VS_VANILLA);
-                                    } else {
-                                        item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_MODIFIED_VS_VANILLA);
-                                    }
-                                },
-
-                                None => item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_MODIFIED_VS_VANILLA),
-                            }
-                        }
-
-                        // If the field is not in the vanilla table, mark it as not modified.
-                        None => item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_MODIFIED_VS_VANILLA),
-                    }
-                }
+            if found {
+                break;
             }
         }
 
         // If we don't have vanilla data, mark all cells as not having vanilla data.
-        else {
+        if !found {
             for column in 0..fields_processed.len() {
                 let item = self.table_model.item_2a(row, column as i32);
                 if !item.is_null() {
