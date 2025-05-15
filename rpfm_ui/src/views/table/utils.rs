@@ -519,7 +519,7 @@ pub unsafe fn load_data(
                             if let Some(icon) = column_data.1.get(path) {
                                 let icon = ref_from_atomic(icon);
                                 item.set_icon(icon);
-                                item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(path)), 52);
+                                item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(path)), ITEM_ICON_PATH);
                                 break;
                             }
                         }

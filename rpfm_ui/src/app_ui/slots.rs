@@ -25,6 +25,7 @@ use qt_widgets::SlotOfQStringList;
 use qt_gui::QCursor;
 use qt_gui::QDesktopServices;
 use qt_gui::QFont;
+use qt_gui::QIcon;
 
 use qt_core::QBox;
 use qt_core::{SlotNoArgs, SlotOfBool, SlotOfInt};
@@ -76,7 +77,7 @@ use crate::{ui_state::OperationalMode, UI_STATE};
 use crate::utils::*;
 use crate::VERSION;
 use crate::VERSION_SUBTITLE;
-use crate::views::table::{ITEM_SUB_DATA, utils::{get_reference_data, get_table_from_view, request_backend_files, setup_item_delegates}};
+use crate::views::table::{*, utils::{get_reference_data, get_table_from_view, request_backend_files, setup_item_delegates}};
 
 #[allow(dead_code)] const TOOLS_NOT_ENABLED_ERROR: &str = "Tools not enabled at compile time.";
 
@@ -1604,17 +1605,24 @@ impl AppUISlots {
                                                         let paths_join = column_data.0.replace('%', &cell_data[start_offset..]).to_lowercase();
                                                         let paths_split = paths_join.split(';');
 
+                                                        let mut found = false;
                                                         for path in paths_split {
                                                             if let Some(icon) = column_data.1.get(path) {
                                                                 let icon = ref_from_atomic(icon);
                                                                 item.set_icon(icon);
-                                                                item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(path)), 52);
-
-                                                                // For tooltips, we just nuke all the catched pngs. It's simpler than trying to go one by one and finding the ones that need updating.
-                                                                item.set_data_2a(&QVariant::new(), 50);
+                                                                item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(path)), ITEM_ICON_PATH);
+                                                                found = true;
                                                                 break;
                                                             }
                                                         }
+
+                                                        if !found {
+                                                            item.set_icon(&QIcon::new());
+                                                            item.set_data_2a(&QVariant::new(), ITEM_ICON_PATH);
+                                                        }
+
+                                                        // For tooltips, we just nuke all the catched pngs. It's simpler than trying to go one by one and finding the ones that need updating.
+                                                        item.set_data_2a(&QVariant::new(), ITEM_ICON_CACHE);
                                                     }
                                                 }
                                             }

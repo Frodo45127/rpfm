@@ -265,16 +265,25 @@ impl TableViewSlots {
 
                                         let paths_join = column_data.0.replace('%', &cell_data[start_offset..]).to_lowercase();
                                         let paths_split = paths_join.split(';');
+
+                                        let mut found = false;
                                         for path in paths_split {
                                             if let Some(icon) = column_data.1.get(path) {
                                                 let icon = ref_from_atomic(icon);
                                                 item.set_icon(icon);
-                                                item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(path)), 52);
-
-                                                // Nuke any cached png from the tooltips.
-                                                item.set_data_2a(&QVariant::new(), 50);
+                                                item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(path)), ITEM_ICON_PATH);
+                                                found = true;
+                                                break;
                                             }
                                         }
+
+                                        if !found {
+                                            item.set_icon(&QIcon::new());
+                                            item.set_data_2a(&QVariant::new(), ITEM_ICON_PATH);
+                                        }
+
+                                        // For tooltips, we just nuke all the catched pngs. It's simpler than trying to go one by one and finding the ones that need updating.
+                                        item.set_data_2a(&QVariant::new(), ITEM_ICON_CACHE);
                                     }
                                 }
                             }

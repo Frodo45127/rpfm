@@ -66,7 +66,7 @@ use rpfm_ui_common::locale::{qtr, tr};
 use crate::settings_ui::backend::*;
 #[cfg(feature = "support_model_renderer")] use crate::GAME_SELECTED;
 use crate::UI_STATE;
-use crate::views::table::{ITEM_HAS_VANILLA_VALUE, ITEM_VANILLA_VALUE, ITEM_SOURCE_VALUE};
+use crate::views::table::{ITEM_HAS_VANILLA_VALUE, ITEM_ICON_CACHE, ITEM_ICON_PATH, ITEM_VANILLA_VALUE, ITEM_SOURCE_VALUE};
 
 //---------------------------------------------------------------------------//
 // Custom delegates stuff.
@@ -755,14 +755,14 @@ pub extern "C" fn generate_tooltip_message(view: *mut QTableView, global_pos_x: 
                     // Only generate the icon base64 if we don't have one generated and the item has an icon.
                     //
                     // Further updates of this data need to be done through a dataChanged signal.
-                    if model_index.data_1a(50).is_null() && !item.icon().is_null() {
+                    if model_index.data_1a(ITEM_ICON_CACHE).is_null() && !item.icon().is_null() {
                         let icon = item.icon();
                         let image = icon.pixmap_q_size(icon.available_sizes_0a().at(0)).to_image();
                         let bytes = QByteArray::new();
                         let buffer = QBuffer::from_q_byte_array(&bytes);
 
                         image.save_q_io_device_char(&buffer, QString::from_std_str("PNG").to_latin1().data());
-                        item.set_data_2a(&QVariant::from_q_string(&QString::from_q_byte_array(&bytes.to_base64_0a())), 50);
+                        item.set_data_2a(&QVariant::from_q_string(&QString::from_q_byte_array(&bytes.to_base64_0a())), ITEM_ICON_CACHE);
                     }
 
                     // Store the original tooltip elsewere so we can re-access it.
@@ -785,8 +785,8 @@ pub extern "C" fn generate_tooltip_message(view: *mut QTableView, global_pos_x: 
 
                         tooltip_string.push_str(&tr("original_data").replacen("{}", &source_value.to_string().to_std_string(), 1));
 
-                        let icon_data = model_index.data_1a(50);
-                        let image_path = item.data_1a(52);
+                        let icon_data = model_index.data_1a(ITEM_ICON_CACHE);
+                        let image_path = item.data_1a(ITEM_ICON_PATH);
                         if !image_path.is_null() && !icon_data.is_null() {
                             tooltip_string.push_str(&format!("<br/>Image path: {}<br/><img src=\"data:image/png;base64, {}\"/>", image_path.to_string().to_std_string(), icon_data.to_string().to_std_string()));
 

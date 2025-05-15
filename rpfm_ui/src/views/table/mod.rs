@@ -34,6 +34,7 @@ use qt_widgets::QSpinBox;
 use qt_widgets::QWidget;
 
 use qt_gui::QGuiApplication;
+use qt_gui::QIcon;
 use qt_gui::QListOfQStandardItem;
 use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;
@@ -138,6 +139,8 @@ pub static ITEM_IS_SEQUENCE: i32 = 35;
 pub static ITEM_SEQUENCE_DATA: i32 = 36;
 
 pub static ITEM_SUB_DATA: i32 = 40;
+pub static ITEM_ICON_CACHE: i32 = 50;
+pub static ITEM_ICON_PATH: i32 = 52;
 
 const PATCH_COLUMN_VIEW_DEBUG: &str = "rpfm_ui/ui_templates/new_schema_patch_dialog.ui";
 const PATCH_COLUMN_VIEW_RELEASE: &str = "ui/new_schema_patch_dialog.ui";
@@ -2721,22 +2724,29 @@ impl TableView {
 
                         let paths_join = column_data.0.replace('%', &cell_data[start_offset..]).to_lowercase();
                         let paths_split = paths_join.split(';');
+
+                        self.table_model.block_signals(true);
+
+                        let mut found = false;
                         for path in paths_split {
                             if let Some(icon) = column_data.1.get(path) {
                                 let icon = ref_from_atomic(icon);
-
-                                self.table_model.block_signals(true);
-
                                 item.set_icon(icon);
-                                item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(path)), 52);
-
-                                // Nuke any cached png from the tooltips.
-                                item.set_data_2a(&QVariant::new(), 50);
-
-                                self.table_model.block_signals(false);
+                                item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(path)), ITEM_ICON_PATH);
+                                found = true;
                                 break;
                             }
                         }
+
+                        if !found {
+                            item.set_icon(&QIcon::new());
+                            item.set_data_2a(&QVariant::new(), ITEM_ICON_PATH);
+                        }
+
+                        // For tooltips, we just nuke all the catched pngs. It's simpler than trying to go one by one and finding the ones that need updating.
+                        item.set_data_2a(&QVariant::new(), ITEM_ICON_CACHE);
+
+                        self.table_model.block_signals(false);
                     }
                 }
             }
