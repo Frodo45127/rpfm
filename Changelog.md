@@ -6,21 +6,32 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
-## [4.3.15]
+## [4.4.0]
 ### Added
 - Implemented backend (lib-only) support for dumping tables to SQL databases.
 - Implemented backend (lib-only) support for cs2.parsed files.
 - Implemented backend (lib-only) support for cs2.collision files.
 - Implemented support for editing .sql files.
 - Implemented support for editing .yml/.yaml files.
+- Implemented support for V1 (from WH2, may also be in older games) Portrait Setting files.
+- Implemented "Open Pack with Lowercased Paths" feature.
 
 ### Changed
 - The CLI should now give you a clearer message when failing to import a TSV file (thanks [@bukowa](https://github.com/bukowa)).
+- The "Empty Key" diagnostic has been promoted from Warning to Error, as it has proven to cause crashes.
+- The "Empty Row" diagnostic has been demoted to warning.
+- Default lines (lines with all cells containing their default values) are now counted as "Empty Rows" in the diagnostics.
+- Windows 7 support has been dropped. If you need to use RPFM in Windows 7, use RPFM 4.3.14 and do not update it.
+- Improved performance on some table editing operations. Note that RPFM may still hang for a bit when doing large operations, like pasting 20k cells, but it should only take a few seconds instead of minutes.
 
 ### Fixed
 - Fixed loc bruteforcer missing tables in open pack.
 - Fixed unused fields failing to be check on diagnostics.
 - Fixed search not scrolling to match.
+- Fixed a few instances of the diff vanilla marker not being updated correctly after changes to a key cell.
+- Fixed a CTD when undoing a key cell.
+- Fixed table lookups not clearing when the new value of a cell doesn't have a lookup.
+- Fixed table icons not clearing when the new value of a cell doesn't point to an icon.
 
 ## [4.3.14]
 ### Removed
@@ -1547,8 +1558,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.3.15...HEAD
-[4.3.15]: https://github.com/Frodo45127/rpfm/compare/v4.3.14...v4.3.15
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.4.0...HEAD
+[4.4.0]: https://github.com/Frodo45127/rpfm/compare/v4.3.14...v4.4.0
 [4.3.14]: https://github.com/Frodo45127/rpfm/compare/v4.3.13...v4.3.14
 [4.3.13]: https://github.com/Frodo45127/rpfm/compare/v4.3.12...v4.3.13
 [4.3.12]: https://github.com/Frodo45127/rpfm/compare/v4.3.11...v4.3.12
