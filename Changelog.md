@@ -6,6 +6,10 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [4.4.1]
+### Fixed
+- Fixed Tools, Rigid Editor and DDS Viewer not working.
+
 ## [4.4.0]
 ### Added
 - Implemented backend (lib-only) support for dumping tables to SQL databases.
@@ -1558,7 +1562,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.4.0...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.4.1...HEAD
+[4.4.1]: https://github.com/Frodo45127/rpfm/compare/v4.4.1...v4.4.1
 [4.4.0]: https://github.com/Frodo45127/rpfm/compare/v4.3.14...v4.4.0
 [4.3.14]: https://github.com/Frodo45127/rpfm/compare/v4.3.13...v4.3.14
 [4.3.13]: https://github.com/Frodo45127/rpfm/compare/v4.3.12...v4.3.13
