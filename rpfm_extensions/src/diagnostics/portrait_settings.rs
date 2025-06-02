@@ -30,6 +30,7 @@ use crate::diagnostics::*;
 #[getset(get = "pub", get_mut = "pub")]
 pub struct PortraitSettingsDiagnostic {
     path: String,
+    pack: String,
     results: Vec<PortraitSettingsDiagnosticReport>
 }
 
@@ -104,9 +105,10 @@ impl Display for PortraitSettingsDiagnosticReportType {
 }
 
 impl PortraitSettingsDiagnostic {
-    pub fn new(path: &str) -> Self {
+    pub fn new(path: &str, pack: &str) -> Self {
         Self {
             path: path.to_owned(),
+            pack: pack.to_owned(),
             results: vec![],
         }
     }
@@ -124,7 +126,7 @@ impl PortraitSettingsDiagnostic {
         local_path_list: &HashMap<String, Vec<String>>,
     ) -> Option<DiagnosticType> {
         if let Ok(RFileDecoded::PortraitSettings(portrait_settings)) = file.decoded() {
-            let mut diagnostic = Self::new(file.path_in_container_raw());
+            let mut diagnostic = Self::new(file.path_in_container_raw(), file.container_name().as_deref().unwrap_or_else(|| ""));
             if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, None, Some("DatacoredPortraitSettings"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && dependencies.file_exists(file.path_in_container_raw(), true, false, false)  {
                 let result = PortraitSettingsDiagnosticReport::new(PortraitSettingsDiagnosticReportType::DatacoredPortraitSettings);
                 diagnostic.results_mut().push(result);

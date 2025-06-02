@@ -30,6 +30,7 @@ use crate::diagnostics::*;
 #[getset(get = "pub", get_mut = "pub")]
 pub struct AnimFragmentBattleDiagnostic {
     path: String,
+    pack: String,
     results: Vec<AnimFragmentBattleDiagnosticReport>
 }
 
@@ -96,9 +97,10 @@ impl Display for AnimFragmentBattleDiagnosticReportType {
 }
 
 impl AnimFragmentBattleDiagnostic {
-    pub fn new(path: &str) -> Self {
+    pub fn new(path: &str, pack: &str) -> Self {
         Self {
             path: path.to_owned(),
+            pack: pack.to_owned(),
             results: vec![],
         }
     }
@@ -114,7 +116,7 @@ impl AnimFragmentBattleDiagnostic {
         local_path_list: &HashMap<String, Vec<String>>,
     ) ->Option<DiagnosticType> {
         if let Ok(RFileDecoded::AnimFragmentBattle(fragment)) = file.decoded() {
-            let mut diagnostic = AnimFragmentBattleDiagnostic::new(file.path_in_container_raw());
+            let mut diagnostic = AnimFragmentBattleDiagnostic::new(file.path_in_container_raw(), file.container_name().as_deref().unwrap_or_else(|| ""));
 
             if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, None, Some("LocomotionGraphPathNotFound"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && !fragment.locomotion_graph().is_empty() {
                 let path = fragment.locomotion_graph().replace('\\', "/");

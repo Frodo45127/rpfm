@@ -31,6 +31,7 @@ use crate::diagnostics::*;
 #[getset(get = "pub", get_mut = "pub")]
 pub struct TextDiagnostic {
     path: String,
+    pack: String,
     results: Vec<TextDiagnosticReport>
 }
 
@@ -81,9 +82,10 @@ impl Display for TextDiagnosticReportType {
 }
 
 impl TextDiagnostic {
-    pub fn new(path: &str) -> Self {
+    pub fn new(path: &str, pack: &str) -> Self {
         Self {
             path: path.to_owned(),
+            pack: pack.to_owned(),
             results: vec![],
         }
     }
@@ -101,7 +103,7 @@ impl TextDiagnostic {
 
 
         if let Ok(RFileDecoded::Text(text)) = file.decoded() {
-            let mut diagnostic = Self::new(file.path_in_container_raw());
+            let mut diagnostic = Self::new(file.path_in_container_raw(), file.container_name().as_deref().unwrap_or_else(|| ""));
 
             let text = text.contents();
             let mut start_pos = 0;

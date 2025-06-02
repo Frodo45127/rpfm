@@ -29,6 +29,7 @@ use crate::diagnostics::*;
 #[getset(get = "pub", get_mut = "pub")]
 pub struct TableDiagnostic {
     path: String,
+    pack: String,
     results: Vec<TableDiagnosticReport>
 }
 
@@ -172,9 +173,10 @@ impl Display for TableDiagnosticReportType {
 
 
 impl TableDiagnostic {
-    pub fn new(path: &str) -> Self {
+    pub fn new(path: &str, pack: &str) -> Self {
         Self {
             path: path.to_owned(),
+            pack: pack.to_owned(),
             results: vec![],
         }
     }
@@ -213,7 +215,7 @@ impl TableDiagnostic {
         check_ak_only_refs: bool,
     ) ->Option<DiagnosticType> {
         if let Ok(RFileDecoded::DB(table)) = file.decoded() {
-            let mut diagnostic = TableDiagnostic::new(file.path_in_container_raw());
+            let mut diagnostic = TableDiagnostic::new(file.path_in_container_raw(), file.container_name().as_deref().unwrap_or_else(|| ""));
 
             // Before anything else, check if the table is outdated.
             if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, None, Some("OutdatedTable"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && Self::is_table_outdated(table.table_name(), *table.definition().version(), dependencies) {
@@ -512,7 +514,7 @@ impl TableDiagnostic {
         ignored_diagnostics_for_fields: &HashMap<String, Vec<String>>,
     ) ->Option<DiagnosticType> {
         if let Ok(RFileDecoded::Loc(table)) = file.decoded() {
-            let mut diagnostic = TableDiagnostic::new(file.path_in_container_raw());
+            let mut diagnostic = TableDiagnostic::new(file.path_in_container_raw(), file.container_name().as_deref().unwrap_or_else(|| ""));
 
             // Check all the columns with reference data.
             let mut keys: HashMap<String, Vec<(i32, i32)>> = HashMap::new();
