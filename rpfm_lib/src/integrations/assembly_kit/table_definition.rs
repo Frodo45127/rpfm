@@ -377,7 +377,10 @@ impl RawDefinition {
             .collect::<Vec<&str>>();
 
         self.fields.iter()
-            .filter(|x| test_row.fields.iter().find(|y| x.name == y.field_name).unwrap().state.is_none())
+            .filter(|x| match test_row.fields.iter().find(|y| x.name == y.field_name) {
+                Some(y) => y.state.is_none(),
+                None => false,
+            })
             .filter(|x| !localisable_fields_names.contains(&&*x.name))
             .map(From::from)
             .collect::<Vec<Field>>()

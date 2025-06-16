@@ -1340,7 +1340,7 @@ impl PackedFileDecoderView {
         let raw_definition_paths = get_raw_definition_paths(&raw_db_path, raw_db_version)?;
         let raw_definition = RawDefinition::read(raw_definition_paths.iter().find(|x| {
             format!("{}_tables", x.file_stem().unwrap().to_str().unwrap().split_at(5).1) == self.table_name
-        }).unwrap(), raw_db_version).unwrap();
+        }).unwrap(), raw_db_version)?;
 
         let raw_table = RawTable::read(&raw_definition, &raw_db_path, raw_db_version)?;
         let imported_table = raw_table.to_db(None)?;
