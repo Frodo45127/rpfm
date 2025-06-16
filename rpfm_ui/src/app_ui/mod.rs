@@ -332,10 +332,12 @@ pub struct AppUI {
     // Napoleon's actions.
     special_stuff_nap_generate_dependencies_cache: QPtr<QAction>,
     special_stuff_nap_optimize_packfile: QPtr<QAction>,
+    special_stuff_nap_build_starpos: QPtr<QAction>,
 
     // Empire's actions.
     special_stuff_emp_generate_dependencies_cache: QPtr<QAction>,
     special_stuff_emp_optimize_packfile: QPtr<QAction>,
+    special_stuff_emp_build_starpos: QPtr<QAction>,
 
     // Common operations.
     special_stuff_rescue_packfile: QPtr<QAction>,
@@ -794,8 +796,10 @@ impl AppUI {
         let special_stuff_sho2_build_starpos = add_action_to_menu(&menu_shogun_2, shortcuts.as_ref(), "special_stuff_menu", "build_starpos", "special_stuff_build_starpos", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_nap_generate_dependencies_cache = add_action_to_menu(&menu_napoleon, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_nap_optimize_packfile = add_action_to_menu(&menu_napoleon, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
+        let special_stuff_nap_build_starpos = add_action_to_menu(&menu_napoleon, shortcuts.as_ref(), "special_stuff_menu", "build_starpos", "special_stuff_build_starpos", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_emp_generate_dependencies_cache = add_action_to_menu(&menu_empire, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let special_stuff_emp_optimize_packfile = add_action_to_menu(&menu_empire, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
+        let special_stuff_emp_build_starpos = add_action_to_menu(&menu_empire, shortcuts.as_ref(), "special_stuff_menu", "build_starpos", "special_stuff_build_starpos", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
 
         menu_bar_special_stuff.insert_separator(&special_stuff_rescue_packfile);
 
@@ -1025,10 +1029,12 @@ impl AppUI {
             // Napoleon's actions.
             special_stuff_nap_generate_dependencies_cache,
             special_stuff_nap_optimize_packfile,
+            special_stuff_nap_build_starpos,
 
             // Empire's actions.
             special_stuff_emp_generate_dependencies_cache,
             special_stuff_emp_optimize_packfile,
+            special_stuff_emp_build_starpos,
 
             // Common operations.
             special_stuff_rescue_packfile,
@@ -1774,9 +1780,11 @@ impl AppUI {
                 },
                 KEY_NAPOLEON => {
                     app_ui.special_stuff_nap_optimize_packfile.set_enabled(true);
+                    app_ui.special_stuff_nap_build_starpos.set_enabled(true);
                 },
                 KEY_EMPIRE => {
                     app_ui.special_stuff_emp_optimize_packfile.set_enabled(true);
+                    app_ui.special_stuff_emp_build_starpos.set_enabled(true);
                 },
                 _ => {},
             }
@@ -1851,10 +1859,12 @@ impl AppUI {
             // Disable Napoleon actions...
             app_ui.special_stuff_nap_optimize_packfile.set_enabled(false);
             app_ui.special_stuff_nap_generate_dependencies_cache.set_enabled(false);
+            app_ui.special_stuff_nap_build_starpos.set_enabled(false);
 
             // Disable Empire actions...
             app_ui.special_stuff_emp_optimize_packfile.set_enabled(false);
             app_ui.special_stuff_emp_generate_dependencies_cache.set_enabled(false);
+            app_ui.special_stuff_emp_build_starpos.set_enabled(false);
         }
 
         // The assembly kit thing should only be available for Rome 2 and later games.

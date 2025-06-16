@@ -1578,6 +1578,7 @@ build_starpos_instructions = <p>Instructions:</p>
         <li>Thrones of Britannia.</li>
         <li>Attila.</li>
         <li>Rome 2.</li>
+        <li>Shogun 2.</li>
     </ul>
     <p>If it's not on this list, it has not been tested and may work... or not, so report any issue you see if you use it. If it says "partially, it means I did some limited testing on it and it works, but may still contain bugs, so if you use it and something doesn't work, report it.</p>
 

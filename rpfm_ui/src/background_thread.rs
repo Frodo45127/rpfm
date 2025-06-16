@@ -67,6 +67,18 @@ use crate::utils::initialize_encodeable_extra_data;
 #[allow(dead_code)] const VICTORY_OBJECTIVES_FILE_NAME: &str = "db/victory_objectives.txt";
 #[allow(dead_code)] const VICTORY_OBJECTIVES_EXTRACTED_FILE_NAME: &str = "victory_objectives.txt";
 
+const GAMES_NEEDING_VICTORY_OBJECTIVES: [&str; 9] = [
+    KEY_PHARAOH_DYNASTIES,
+    KEY_PHARAOH,
+    KEY_TROY,
+    KEY_THREE_KINGDOMS,
+    KEY_WARHAMMER_2,
+    KEY_WARHAMMER,
+    KEY_THRONES_OF_BRITANNIA,
+    KEY_ATTILA,
+    KEY_ROME_2
+];
+
 /// This is the background loop that's going to be executed in a parallel thread to the UI. No UI or "Unsafe" stuff here.
 ///
 /// All communication between this and the UI thread is done use the `CENTRAL_COMMAND` static.
@@ -2278,7 +2290,11 @@ pub fn background_loop() {
             }
 
             Command::BuildStarposCheckVictoryConditions => {
-                if GAME_SELECTED.read().unwrap().key() == KEY_WARHAMMER_3 || pack_file_decoded.file(VICTORY_OBJECTIVES_FILE_NAME, false).is_some() {
+                let game = GAME_SELECTED.read().unwrap();
+                if !GAMES_NEEDING_VICTORY_OBJECTIVES.contains(&game.key()) || (
+                        GAMES_NEEDING_VICTORY_OBJECTIVES.contains(&game.key()) &&
+                        pack_file_decoded.file(VICTORY_OBJECTIVES_FILE_NAME, false).is_some()
+                    ) {
                     CentralCommand::send_back(&sender, Response::Success);
                 } else {
                     CentralCommand::send_back(&sender, Response::Error(anyhow!("Missing \"db/victory_objectives.txt\" file. Processing the startpos without this file will result in issues in campaign. Add the file to the pack and try again.")));
@@ -2488,7 +2504,7 @@ quit_after_campaign_processing;",
     }
 
     // We need to extract the victory_objectives.txt file to "data/campaign_id/". Warhammer 3 doesn't use this file.
-    if game.key() != KEY_WARHAMMER_3 {
+    if GAMES_NEEDING_VICTORY_OBJECTIVES.contains(&game.key()) {
         let mut game_campaign_path = game_data_path.to_path_buf();
         game_campaign_path.push(campaign_id);
         DirBuilder::new().recursive(true).create(&game_campaign_path)?;
@@ -2532,9 +2548,7 @@ quit_after_campaign_processing;",
     // Only needed from Warhammer 1 onwards, and in Rome 2 due to how is generated there.
     if game.key() != KEY_THRONES_OF_BRITANNIA &&
         game.key() != KEY_ATTILA &&
-        game.key() != KEY_SHOGUN_2 &&
-        game.key() != KEY_NAPOLEON &&
-        game.key() != KEY_EMPIRE {
+        game.key() != KEY_SHOGUN_2 {
 
         let sub_start_pos_suffix = if sub_start_pos.is_empty() {
             String::new()
@@ -2740,14 +2754,9 @@ fn build_starpos_post(dependencies: &Dependencies, pack_file: &mut Pack, campaig
     }
 
     let game_data_path = game.data_path(&game_path)?;
-    let asskit_path = setting_path(&(game.key().to_owned() + "_assembly_kit"));
-
-    if !asskit_path.is_dir() {
-        return Err(anyhow!("Assembly Kit path incorrect. Fix it in the settings and try again."));
-    }
 
     // Warhammer 3 doesn't use this folder.
-    if game.key() != KEY_WARHAMMER_3 {
+    if GAMES_NEEDING_VICTORY_OBJECTIVES.contains(&game.key()) {
 
         // We need to delete the "data/campaign_id/" folder.
         let mut game_campaign_path = game_data_path.to_path_buf();
@@ -2801,10 +2810,20 @@ fn build_starpos_post(dependencies: &Dependencies, pack_file: &mut Pack, campaig
         KEY_ATTILA => vec![config_path.join(format!("maps/campaigns/{}/startpos.esf", campaign_id))],
 
         // Rome 2 outputs the startpos in the assembly kit folder.
-        KEY_ROME_2 => vec![asskit_path.join(format!("working_data/campaigns/{}/startpos.esf", campaign_id))],
-        KEY_SHOGUN_2 => return Err(anyhow!("Unsupported... yet. If you want to test support for this game, let me know.")),
-        KEY_NAPOLEON => return Err(anyhow!("Unsupported... yet. If you want to test support for this game, let me know.")),
-        KEY_EMPIRE => return Err(anyhow!("Unsupported... yet. If you want to test support for this game, let me know.")),
+        KEY_ROME_2 => {
+            let asskit_path = setting_path(&(game.key().to_owned() + "_assembly_kit"));
+            if !asskit_path.is_dir() {
+                return Err(anyhow!("Assembly Kit path incorrect. Fix it in the settings and try again."));
+            }
+
+            vec![asskit_path.join(format!("working_data/campaigns/{}/startpos.esf", campaign_id))]
+        },
+
+        // Shogun 2 outputs to data, but unlike modern names, vanilla startpos are packed, so there's no rist of overwrite.
+        // We still need to clean it up later though. Napoleon and Empire override vanilla files, so those are backed.
+        KEY_SHOGUN_2 |
+        KEY_NAPOLEON |
+        KEY_EMPIRE => vec![game_data_path.join(format!("campaigns/{}/startpos.esf", campaign_id))],
         _ => return Err(anyhow!("How the fuck did you trigger this?")),
     };
 
@@ -2840,16 +2859,14 @@ fn build_starpos_post(dependencies: &Dependencies, pack_file: &mut Pack, campaig
 
     // Restore the old starpos if there was one, and delete the new one if it has already been added.
     //
-    // Only needed from Warhammer 1 onwards, and for Rome 2. Other games generate the startpos outside that folder.
+    // Only needed from Warhammer 1 onwards, and for Rome 2, Napoleon and Empire. Other games generate the startpos outside that folder.
     //
     // 3K uses 2 startpos, so we need to restore them both.
     if game.key() != KEY_THRONES_OF_BRITANNIA &&
         game.key() != KEY_ATTILA &&
-        game.key() != KEY_SHOGUN_2 &&
-        game.key() != KEY_NAPOLEON &&
-        game.key() != KEY_EMPIRE {
+        game.key() != KEY_SHOGUN_2 {
 
-        for starpos_path in starpos_paths {
+        for starpos_path in &starpos_paths {
             let file_name = starpos_path.file_name().unwrap().to_string_lossy().to_string();
             let file_name_bak = file_name + ".bak";
 
@@ -2859,6 +2876,15 @@ fn build_starpos_post(dependencies: &Dependencies, pack_file: &mut Pack, campaig
             if starpos_path_bak.is_file() {
                 std::fs::copy(&starpos_path_bak, &starpos_path)?;
                 std::fs::remove_file(starpos_path_bak)?;
+            }
+        }
+    }
+
+    // In Shogun 2, we need to cleanup the generated file as to not interfere with the packed one.
+    if game.key() == KEY_SHOGUN_2 {
+        for starpos_path in &starpos_paths {
+            if starpos_path.is_file() {
+                std::fs::remove_file(starpos_path)?;
             }
         }
     }
@@ -2880,9 +2906,6 @@ fn build_starpos_post(dependencies: &Dependencies, pack_file: &mut Pack, campaig
                 KEY_THRONES_OF_BRITANNIA |
                 KEY_ATTILA => config_path.join(format!("maps/campaign_maps/{}/hlp_data.esf", map_name)),
                 KEY_ROME_2 => game_data_path.join(format!("campaign_maps/{}/hlp_data.esf", map_name)),
-                KEY_SHOGUN_2 => return Err(anyhow!("Unsupported... yet. If you want to test support for this game, let me know.")),
-                KEY_NAPOLEON => return Err(anyhow!("Unsupported... yet. If you want to test support for this game, let me know.")),
-                KEY_EMPIRE => return Err(anyhow!("Unsupported... yet. If you want to test support for this game, let me know.")),
                 _ => return Err(anyhow!("How the fuck did you trigger this?")),
             };
 
@@ -2905,10 +2928,7 @@ fn build_starpos_post(dependencies: &Dependencies, pack_file: &mut Pack, campaig
 
             // Only needed from Warhammer 1 onwards, and in Rome 2. Other games generate the hlp file outside that folder.
             if game.key() != KEY_THRONES_OF_BRITANNIA &&
-                game.key() != KEY_ATTILA &&
-                game.key() != KEY_SHOGUN_2 &&
-                game.key() != KEY_NAPOLEON &&
-                game.key() != KEY_EMPIRE {
+                game.key() != KEY_ATTILA {
 
                 let hlp_path_bak = game_data_path.join(format!("campaign_maps/{}/hlp_data.esf.bak", map_name));
 
@@ -2921,10 +2941,7 @@ fn build_starpos_post(dependencies: &Dependencies, pack_file: &mut Pack, campaig
             // The spd file was introduced in Warhammer 1. Don't expect it on older games.
             if game.key() != KEY_THRONES_OF_BRITANNIA &&
                 game.key() != KEY_ATTILA &&
-                game.key() != KEY_ROME_2 &&
-                game.key() != KEY_SHOGUN_2 &&
-                game.key() != KEY_NAPOLEON &&
-                game.key() != KEY_EMPIRE {
+                game.key() != KEY_ROME_2 {
 
                 let spd_path = game_data_path.join(format!("campaign_maps/{}/spd_data.esf", map_name));
                 let spd_path_pack = format!("campaign_maps/{}/spd_data.esf", map_name);
