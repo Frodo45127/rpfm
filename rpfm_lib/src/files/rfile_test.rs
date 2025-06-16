@@ -25,8 +25,11 @@ fn test_encode_rfile() {
     let data_len = reader.len().unwrap();
     let before = reader.read_slice(data_len as usize, true).unwrap();
 
+    let games = SupportedGames::default();
+    let game = games.game(KEY_WARHAMMER_3).unwrap();
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.lazy_load = true;
+    decodeable_extra_data.game_info = Some(game);
     decodeable_extra_data.file_name = Some("test_decode_rfile.pack");
 
     let mut rfile = RFile::new_from_file(path_1).unwrap();
@@ -39,7 +42,7 @@ fn test_encode_rfile() {
                 file.decode(&Some(decodeable_extra_data.clone()), true, true).unwrap();
             }
 
-            let mut encodeable_extra_data = EncodeableExtraData::default();
+            let mut encodeable_extra_data = EncodeableExtraData::new_from_game_info(game);
             encodeable_extra_data.test_mode = true;
 
             let mut after = vec![];

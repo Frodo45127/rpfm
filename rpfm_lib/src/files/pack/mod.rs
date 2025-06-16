@@ -25,7 +25,7 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 use crate::binary::{ReadBytes, WriteBytes};
-use crate::compression::Compressible;
+use crate::compression::{Compressible, CompressionFormat};
 use crate::error::{RLibError, Result};
 use crate::files::{Container, ContainerPath, Decodeable, DecodeableExtraData, Encodeable, EncodeableExtraData, FileType, Loc, RFile, RFileDecoded, table::DecodedData};
 use crate::games::{GameInfo, pfh_file_type::PFHFileType, pfh_version::PFHVersion};
@@ -71,6 +71,8 @@ pub const RESERVED_RFILE_NAMES: [&str; 3] = [RESERVED_NAME_EXTRA_PACKFILE, RESER
 const AUTHORING_TOOL_CA: &str = "CA_TOOL";
 const AUTHORING_TOOL_RPFM: &str = "RPFM";
 const AUTHORING_TOOL_SIZE: u32 = 8;
+
+pub const SETTING_KEY_CF: &str = "compression_format";
 
 bitflags! {
 
@@ -151,7 +153,8 @@ pub struct Pack {
     /// Timestamp from the moment this Pack was open. To check if the file was edited on disk while we had it open.
     local_timestamp: u64,
 
-    /// If the files in this Pack should be compressed.
+    /// If the files in this Pack should be compressed. Compression format is set in the Pack Settings.
+    #[getset(skip)]
     compress: bool,
 
     /// Header data of this Pack.
@@ -470,6 +473,12 @@ impl Pack {
     fn read<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
         let extra_data = extra_data.as_ref().ok_or(RLibError::DecodingMissingExtraData)?;
 
+        // GameInfo is required now, to properly support per-game particularities.
+        let game_info = match extra_data.game_info {
+            Some(game_info) => game_info,
+            None => return Err(RLibError::GameInfoMissingFromDecodingFunction),
+        };
+
         // If we're reading from a file on disk, we require a valid path.
         // If we're reading from a file on memory, we don't need a valid path.
         let disk_file_path = match extra_data.disk_file_path {
@@ -565,6 +574,18 @@ impl Pack {
             pack.paths_cache_generate();
         }
 
+        // Once we're done reading files, we have to initialize the compression format.
+        // The reason we do this here is because the pack only contains if the files are compressed or not, not which format is used.
+        // To support multiple formats, we have to make sure we save the last-used format in the the pack settings.
+        // If no format has been saved but the files are compressed, we default to the more modern one supported by the game.
+        let preferred_cf = game_info.compression_formats_supported().first().cloned().unwrap_or_default();
+        let current_cf_str = pack.settings().setting_string(SETTING_KEY_CF).cloned().unwrap_or_default();
+        let current_cf = CompressionFormat::from(&*current_cf_str);
+
+        if pack.compress && current_cf == CompressionFormat::None {
+            pack.settings_mut().set_setting_string(SETTING_KEY_CF, preferred_cf.to_string().as_str());
+        }
+
         // If at this point we have not reached the end of the Pack, there is something wrong with it.
         // NOTE: Arena Packs have extra data at the end. If we detect one of those Packs, take that into account.
         //if pack.header.pfh_version == PFHVersion::PFH5 && pack.header.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) {
@@ -644,7 +665,7 @@ impl Pack {
     /// This needs a [GameInfo] to get the Packs from, and a game path to search the Packs on.
     pub fn read_and_merge_ca_packs(game: &GameInfo, game_path: &Path) -> Result<Self> {
         let paths = game.ca_packs_paths(game_path)?;
-        let mut pack = Self::read_and_merge(&paths, true, true, false)?;
+        let mut pack = Self::read_and_merge(&paths, game, true, true, false)?;
 
         // Make sure it's not mod type.
         pack.header_mut().set_pfh_file_type(PFHFileType::Release);
@@ -654,13 +675,14 @@ impl Pack {
     /// Convenience function to open multiple Packs as one, taking care of overwriting files when needed.
     ///
     /// If this function receives only one path, it works as a normal read_from_disk function. If it receives none, an error will be returned.
-    pub fn read_and_merge(pack_paths: &[PathBuf], lazy_load: bool, ignore_mods: bool, keep_order: bool) -> Result<Self> {
+    pub fn read_and_merge(pack_paths: &[PathBuf], game: &GameInfo, lazy_load: bool, ignore_mods: bool, keep_order: bool) -> Result<Self> {
         if pack_paths.is_empty() {
             return Err(RLibError::NoPacksProvided);
         }
 
         let mut extra_data = DecodeableExtraData {
             lazy_load,
+            game_info: Some(game),
             ..Default::default()
         };
 
@@ -876,6 +898,12 @@ impl Pack {
         Ok(())
     }*/
 
+    /// This function returns the compression format of the Pack.
+    pub fn compression_format(&self) -> CompressionFormat {
+        let cf = self.settings().setting_string(SETTING_KEY_CF).map(|x| x.to_owned());
+        CompressionFormat::from(cf.unwrap_or_default().as_str())
+    }
+
     /// This function sets the current Pack PFH Version to the provided one.
     pub fn set_pfh_version(&mut self, version: PFHVersion) {
         self.header.set_pfh_version(version);
@@ -914,6 +942,22 @@ impl Pack {
     /// This function sets the Extra Subheader Data of the Pack.
     pub fn set_extra_subheader_data(&mut self, extra_subheader_data: &[u8]) {
         self.header.set_extra_subheader_data(extra_subheader_data.to_vec());
+    }
+
+    /// This function sets the compression format the pack should use.
+    ///
+    /// Returns the new compression format.
+    /// Support for each format varies depending on the game.
+    pub fn set_compression_format(&mut self, cf: CompressionFormat, game_info: &GameInfo) -> CompressionFormat {
+        if cf == CompressionFormat::None || !game_info.compression_formats_supported().contains(&cf) {
+            self.compress = false;
+            self.settings_mut().set_setting_string(SETTING_KEY_CF, CompressionFormat::None.to_string().as_str());
+            CompressionFormat::None
+        } else {
+            self.compress = true;
+            self.settings_mut().set_setting_string(SETTING_KEY_CF, cf.to_string().as_str());
+            cf
+        }
     }
 
     //-----------------------------------------------------------------------//
@@ -1325,6 +1369,7 @@ impl Default for PackSettings {
         settings.settings_text_mut().insert("import_files_to_ignore".to_owned(), "".to_owned());
         settings.settings_bool_mut().insert("disable_autosaves".to_owned(), false);
         settings.settings_bool_mut().insert("do_not_generate_existing_locs".to_owned(), false);
+        settings.settings_string_mut().insert(SETTING_KEY_CF.to_owned(), "None".to_owned());
         settings
     }
 }

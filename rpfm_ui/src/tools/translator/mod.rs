@@ -477,7 +477,7 @@ impl ToolTranslator {
                 paths.push(PathBuf::from(file_dialog.selected_files().at(index).to_std_string()));
             }
 
-            let mut pack = Pack::read_and_merge(&paths, true, false, false)?;
+            let mut pack = Pack::read_and_merge(&paths, &GAME_SELECTED.read().unwrap().clone(), true, false, false)?;
             {
                 let mut locs = pack.files_by_type_mut(&[FileType::Loc]);
                 locs.par_iter_mut().for_each(|file| {

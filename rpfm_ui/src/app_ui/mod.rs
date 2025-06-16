@@ -73,6 +73,7 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::{atomic::Ordering, RwLock};
 
+use rpfm_lib::compression::CompressionFormat;
 use rpfm_lib::files::{animpack, ContainerPath, FileType, loc, text, pack::*, portrait_settings, text::TextFormat};
 use rpfm_lib::games::{pfh_file_type::*, pfh_version::*, supported_games::*};
 use rpfm_lib::integrations::log::*;
@@ -187,6 +188,7 @@ pub struct AppUI {
     packfile_quit: QPtr<QAction>,
 
     // "Change PackFile Type" submenu.
+    change_packfile_type_group: QBox<QActionGroup>,
     change_packfile_type_boot: QPtr<QAction>,
     change_packfile_type_release: QPtr<QAction>,
     change_packfile_type_patch: QPtr<QAction>,
@@ -198,11 +200,12 @@ pub struct AppUI {
     change_packfile_type_index_is_encrypted: QPtr<QAction>,
     change_packfile_type_data_is_encrypted: QPtr<QAction>,
 
-    // Action to enable/disable compression on PackFiles. Only for PFH5+ PackFiles.
-    change_packfile_type_data_is_compressed: QPtr<QAction>,
-
-    // Action Group for the submenu.
-    change_packfile_type_group: QBox<QActionGroup>,
+    // Compression Format submenu.
+    compression_format_group: QBox<QActionGroup>,
+    compression_format_none: QPtr<QAction>,
+    compression_format_lzma1: QPtr<QAction>,
+    compression_format_lz4: QPtr<QAction>,
+    compression_format_zstd: QPtr<QAction>,
 
     //-------------------------------------------------------------------------------//
     // `MyMod` menu.
@@ -525,6 +528,7 @@ impl AppUI {
         let packfile_open_from_data = QMenu::from_q_string_q_widget(&qtr("open_from_data"), &menu_bar_packfile);
         let packfile_open_from_autosave = QMenu::from_q_string_q_widget(&qtr("open_from_autosave"), &menu_bar_packfile);
         let packfile_change_packfile_type = QMenu::from_q_string_q_widget(&qtr("change_packfile_type"), &menu_bar_packfile);
+        let packfile_compression_format = QMenu::from_q_string_q_widget(&qtr("compression_format"), &menu_bar_packfile);
 
         let packfile_load_all_ca_packfiles = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "load_all_ca_packs", "load_all_ca_packfiles", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let packfile_settings = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "settings", "settings", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
@@ -540,6 +544,7 @@ impl AppUI {
         menu_bar_packfile.insert_separator(packfile_open_recent.menu_action());
         menu_bar_packfile.insert_separator(&packfile_settings);
         menu_bar_packfile.insert_menu(&packfile_settings, &packfile_change_packfile_type);
+        menu_bar_packfile.insert_menu(&packfile_settings, &packfile_compression_format);
         menu_bar_packfile.insert_separator(&packfile_settings);
 
         // `Change PackFile Type` submenu.
@@ -552,7 +557,6 @@ impl AppUI {
         let change_packfile_type_index_includes_timestamp = packfile_change_packfile_type.add_action_q_string(&qtr("change_packfile_type_index_includes_timestamp"));
         let change_packfile_type_index_is_encrypted = packfile_change_packfile_type.add_action_q_string(&qtr("change_packfile_type_index_is_encrypted"));
         let change_packfile_type_data_is_encrypted = packfile_change_packfile_type.add_action_q_string(&qtr("change_packfile_type_data_is_encrypted"));
-        let change_packfile_type_data_is_compressed = packfile_change_packfile_type.add_action_q_string(&qtr("change_packfile_type_data_is_compressed"));
 
         let change_packfile_type_group = QActionGroup::new(&packfile_change_packfile_type);
 
@@ -573,16 +577,28 @@ impl AppUI {
         change_packfile_type_index_includes_timestamp.set_checkable(true);
         change_packfile_type_index_is_encrypted.set_checkable(true);
         change_packfile_type_header_is_extended.set_checkable(true);
-        change_packfile_type_data_is_compressed.set_checkable(true);
 
         change_packfile_type_data_is_encrypted.set_enabled(false);
         change_packfile_type_index_is_encrypted.set_enabled(false);
         change_packfile_type_header_is_extended.set_enabled(false);
-        change_packfile_type_data_is_compressed.set_enabled(false);
 
         // Put separators in the SubMenu.
         packfile_change_packfile_type.insert_separator(&change_packfile_type_header_is_extended);
-        packfile_change_packfile_type.insert_separator(&change_packfile_type_data_is_compressed);
+
+        // Same for the compression submenu.
+        let compression_format_none = packfile_compression_format.add_action_q_string(&qtr("compression_format_none"));
+        let compression_format_lzma1 = packfile_compression_format.add_action_q_string(&qtr("compression_format_lzma1"));
+        let compression_format_lz4 = packfile_compression_format.add_action_q_string(&qtr("compression_format_lz4"));
+        let compression_format_zstd = packfile_compression_format.add_action_q_string(&qtr("compression_format_zstd"));
+        let compression_format_group = QActionGroup::new(&packfile_compression_format);
+        compression_format_group.add_action_q_action(&compression_format_none);
+        compression_format_group.add_action_q_action(&compression_format_lzma1);
+        compression_format_group.add_action_q_action(&compression_format_lz4);
+        compression_format_group.add_action_q_action(&compression_format_zstd);
+        compression_format_none.set_checkable(true);
+        compression_format_lzma1.set_checkable(true);
+        compression_format_lz4.set_checkable(true);
+        compression_format_zstd.set_checkable(true);
 
         //-----------------------------------------------//
         // `MyMod` Menu.
@@ -865,6 +881,7 @@ impl AppUI {
             packfile_quit,
 
             // "Change PackFile Type" submenu.
+            change_packfile_type_group,
             change_packfile_type_boot,
             change_packfile_type_release,
             change_packfile_type_patch,
@@ -876,11 +893,12 @@ impl AppUI {
             change_packfile_type_index_is_encrypted,
             change_packfile_type_data_is_encrypted,
 
-            // Action for the PackFile compression.
-            change_packfile_type_data_is_compressed,
-
-            // Action Group for the submenu.
-            change_packfile_type_group,
+            // Compression Format submenu.
+            compression_format_group,
+            compression_format_none,
+            compression_format_lzma1,
+            compression_format_lz4,
+            compression_format_zstd,
 
             //-------------------------------------------------------------------------------//
             // `MyMod` menu.
@@ -1370,8 +1388,15 @@ impl AppUI {
                 app_ui.change_packfile_type_index_is_encrypted.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_ENCRYPTED_INDEX));
                 app_ui.change_packfile_type_header_is_extended.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_EXTENDED_HEADER));
 
-                // Set the compression level correctly, because otherwise we may fuckup some files.
-                app_ui.change_packfile_type_data_is_compressed.set_checked(*ui_data.compress());
+                // Set the compression format correctly, because otherwise we may fuckup some files.
+                app_ui.compression_format_group.block_signals(true);
+                match ui_data.compress() {
+                    CompressionFormat::None => app_ui.compression_format_none.set_checked(true),
+                    CompressionFormat::Lzma1 => app_ui.compression_format_lzma1.set_checked(true),
+                    CompressionFormat::Lz4 => app_ui.compression_format_lz4.set_checked(true),
+                    CompressionFormat::Zstd => app_ui.compression_format_zstd.set_checked(true),
+                }
+                app_ui.compression_format_group.block_signals(false);
 
                 // Update the TreeView.
                 let mut build_data = BuildData::new();
@@ -1637,8 +1662,8 @@ impl AppUI {
     pub unsafe fn enable_packfile_actions(app_ui: &Rc<Self>, pack_path: &Path, enable: bool) {
 
         // If the game is Arena, no matter what we're doing, these ones ALWAYS have to be disabled.
-        let game_selected = GAME_SELECTED.read().unwrap().key();
-        if game_selected == KEY_ARENA {
+        let game_selected = GAME_SELECTED.read().unwrap().clone();
+        if game_selected.key() == KEY_ARENA {
 
             // Disable the actions that allow to create and save PackFiles.
             app_ui.packfile_new_packfile.set_enabled(false);
@@ -1692,21 +1717,21 @@ impl AppUI {
 
         // If we are enabling...
         if enable {
+            app_ui.compression_format_lzma1.set_enabled(game_selected.compression_formats_supported().contains(&CompressionFormat::Lzma1));
+            app_ui.compression_format_lz4.set_enabled(game_selected.compression_formats_supported().contains(&CompressionFormat::Lz4));
+            app_ui.compression_format_zstd.set_enabled(game_selected.compression_formats_supported().contains(&CompressionFormat::Zstd));
 
             // Check the Game Selected and enable the actions corresponding to out game.
-            match game_selected {
+            match game_selected.key() {
                 KEY_PHARAOH_DYNASTIES => {
-                    app_ui.change_packfile_type_data_is_compressed.set_enabled(true);
                     app_ui.special_stuff_ph_dyn_optimize_packfile.set_enabled(true);
                     app_ui.special_stuff_ph_dyn_build_starpos.set_enabled(true);
                 },
                 KEY_PHARAOH => {
-                    app_ui.change_packfile_type_data_is_compressed.set_enabled(true);
                     app_ui.special_stuff_ph_optimize_packfile.set_enabled(true);
                     app_ui.special_stuff_ph_build_starpos.set_enabled(true);
                 },
                 KEY_WARHAMMER_3 => {
-                    app_ui.change_packfile_type_data_is_compressed.set_enabled(true);
                     app_ui.special_stuff_wh3_optimize_packfile.set_enabled(true);
                     app_ui.special_stuff_wh3_live_export.set_enabled(true);
                     app_ui.special_stuff_wh3_pack_map.set_enabled(true);
@@ -1714,53 +1739,43 @@ impl AppUI {
                     app_ui.special_stuff_wh3_update_anim_ids.set_enabled(true);
                 },
                 KEY_TROY => {
-                    app_ui.change_packfile_type_data_is_compressed.set_enabled(true);
                     app_ui.special_stuff_troy_optimize_packfile.set_enabled(true);
                     app_ui.special_stuff_troy_build_starpos.set_enabled(true);
                 },
                 KEY_THREE_KINGDOMS => {
-                    app_ui.change_packfile_type_data_is_compressed.set_enabled(true);
                     app_ui.special_stuff_three_k_optimize_packfile.set_enabled(true);
                     app_ui.special_stuff_three_k_build_starpos.set_enabled(true);
                 },
                 KEY_WARHAMMER_2 => {
-                    app_ui.change_packfile_type_data_is_compressed.set_enabled(true);
                     app_ui.special_stuff_wh2_patch_siege_ai.set_enabled(true);
                     app_ui.special_stuff_wh2_optimize_packfile.set_enabled(true);
                     app_ui.special_stuff_wh2_build_starpos.set_enabled(true);
                 },
                 KEY_WARHAMMER => {
-                    app_ui.change_packfile_type_data_is_compressed.set_enabled(false);
                     app_ui.special_stuff_wh_patch_siege_ai.set_enabled(true);
                     app_ui.special_stuff_wh_optimize_packfile.set_enabled(true);
                     app_ui.special_stuff_wh_build_starpos.set_enabled(true);
                 },
                 KEY_THRONES_OF_BRITANNIA => {
-                    app_ui.change_packfile_type_data_is_compressed.set_enabled(false);
                     app_ui.special_stuff_tob_optimize_packfile.set_enabled(true);
                     app_ui.special_stuff_tob_build_starpos.set_enabled(true);
                 },
                 KEY_ATTILA => {
-                    app_ui.change_packfile_type_data_is_compressed.set_enabled(false);
                     app_ui.special_stuff_att_optimize_packfile.set_enabled(true);
                     app_ui.special_stuff_att_build_starpos.set_enabled(true);
                 },
                 KEY_ROME_2 => {
-                    app_ui.change_packfile_type_data_is_compressed.set_enabled(false);
                     app_ui.special_stuff_rom2_optimize_packfile.set_enabled(true);
                     app_ui.special_stuff_rom2_build_starpos.set_enabled(true);
                 },
                 KEY_SHOGUN_2 => {
-                    app_ui.change_packfile_type_data_is_compressed.set_enabled(false);
                     app_ui.special_stuff_sho2_optimize_packfile.set_enabled(true);
                     app_ui.special_stuff_sho2_build_starpos.set_enabled(true);
                 },
                 KEY_NAPOLEON => {
-                    app_ui.change_packfile_type_data_is_compressed.set_enabled(false);
                     app_ui.special_stuff_nap_optimize_packfile.set_enabled(true);
                 },
                 KEY_EMPIRE => {
-                    app_ui.change_packfile_type_data_is_compressed.set_enabled(false);
                     app_ui.special_stuff_emp_optimize_packfile.set_enabled(true);
                 },
                 _ => {},
@@ -1769,9 +1784,9 @@ impl AppUI {
 
         // If we are disabling...
         else {
-
-            // Universal Actions.
-            app_ui.change_packfile_type_data_is_compressed.set_enabled(false);
+            app_ui.compression_format_lzma1.set_enabled(false);
+            app_ui.compression_format_lz4.set_enabled(false);
+            app_ui.compression_format_zstd.set_enabled(false);
 
             // Disable Pharaoh Dynasties actions.
             app_ui.special_stuff_ph_dyn_optimize_packfile.set_enabled(false);
@@ -1844,7 +1859,7 @@ impl AppUI {
 
         // The assembly kit thing should only be available for Rome 2 and later games.
         // And dependencies generation should be enabled for the current game.
-        match game_selected {
+        match game_selected.key() {
             KEY_PHARAOH_DYNASTIES => {
                 app_ui.game_selected_open_game_assembly_kit_folder.set_enabled(true);
                 app_ui.special_stuff_ph_dyn_generate_dependencies_cache.set_enabled(true);
@@ -3969,8 +3984,25 @@ impl AppUI {
             // Disable the main window if it's not yet disabled so we can avoid certain issues.
             app_ui.toggle_main_window(false);
 
-            // Send the command to the background thread to set the new `Game Selected`.
+            // Send the command to the background thread to set the new `Game Selected`. We expect two responses:
+            // - New compression format.
+            // - Success.
             receiver = CENTRAL_COMMAND.send_background(Command::SetGameSelected(new_game_selected, rebuild_dependencies));
+            let response = CentralCommand::recv(&receiver);
+            match response {
+                Response::CompressionFormat(cf) => {
+                    app_ui.compression_format_group.block_signals(true);
+                    match cf {
+                        CompressionFormat::None => app_ui.compression_format_none.set_checked(true),
+                        CompressionFormat::Lzma1 => app_ui.compression_format_lzma1.set_checked(true),
+                        CompressionFormat::Lz4 => app_ui.compression_format_lz4.set_checked(true),
+                        CompressionFormat::Zstd => app_ui.compression_format_zstd.set_checked(true),
+                    }
+                    app_ui.compression_format_group.block_signals(false);
+                },
+                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+            }
+
             let response = CentralCommand::recv(&receiver);
             match response {
                 Response::Success => {}
@@ -4102,7 +4134,7 @@ impl AppUI {
         app_ui.change_packfile_type_header_is_extended.set_checked(false);
 
         // We also disable compression by default.
-        app_ui.change_packfile_type_data_is_compressed.set_checked(false);
+        app_ui.compression_format_none.set_checked(true);
 
         // Update the TreeView.
         let mut build_data = BuildData::new();

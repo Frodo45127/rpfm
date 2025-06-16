@@ -21,10 +21,13 @@ fn test_decode_pfh6() {
     let path = "../test_files/PFH6_test.pack";
     let mut reader = BufReader::new(File::open(path).unwrap());
 
+    let games = SupportedGames::default();
+    let game = games.game(KEY_TROY).unwrap();
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.disk_file_path = Some(path);
     decodeable_extra_data.data_size = reader.len().unwrap();
     decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
+    decodeable_extra_data.game_info = Some(game);
 
     let pack = Pack::decode(&mut reader, &Some(decodeable_extra_data));
     assert!(pack.is_ok());
@@ -35,10 +38,13 @@ fn test_decode_pfh5() {
     let path = "../test_files/PFH5_test.pack";
     let mut reader = BufReader::new(File::open(path).unwrap());
 
+    let games = SupportedGames::default();
+    let game = games.game(KEY_WARHAMMER_3).unwrap();
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.disk_file_path = Some(path);
     decodeable_extra_data.data_size = reader.len().unwrap();
     decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
+    decodeable_extra_data.game_info = Some(game);
 
     let pack = Pack::decode(&mut reader, &Some(decodeable_extra_data));
     assert!(pack.is_ok());
@@ -49,10 +55,13 @@ fn test_decode_pfh4() {
     let path = "../test_files/PFH4_test.pack";
     let mut reader = BufReader::new(File::open(path).unwrap());
 
+    let games = SupportedGames::default();
+    let game = games.game(KEY_ROME_2).unwrap();
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.disk_file_path = Some(path);
     decodeable_extra_data.data_size = reader.len().unwrap();
     decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
+    decodeable_extra_data.game_info = Some(game);
 
     let pack = Pack::decode(&mut reader, &Some(decodeable_extra_data));
     assert!(pack.is_ok());
@@ -63,10 +72,13 @@ fn test_decode_pfh3() {
     let path = "../test_files/PFH3_test.pack";
     let mut reader = BufReader::new(File::open(path).unwrap());
 
+    let games = SupportedGames::default();
+    let game = games.game(KEY_SHOGUN_2).unwrap();
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.disk_file_path = Some(path);
     decodeable_extra_data.data_size = reader.len().unwrap();
     decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
+    decodeable_extra_data.game_info = Some(game);
 
     let pack = Pack::decode(&mut reader, &Some(decodeable_extra_data));
     assert!(pack.is_ok());
@@ -77,10 +89,13 @@ fn test_decode_pfh2() {
     let path = "../test_files/PFH2_test.pack";
     let mut reader = BufReader::new(File::open(path).unwrap());
 
+    let games = SupportedGames::default();
+    let game = games.game(KEY_SHOGUN_2).unwrap();
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.disk_file_path = Some(path);
     decodeable_extra_data.data_size = reader.len().unwrap();
     decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
+    decodeable_extra_data.game_info = Some(game);
 
     let pack = Pack::decode(&mut reader, &Some(decodeable_extra_data));
     assert!(pack.is_ok());
@@ -91,10 +106,13 @@ fn test_decode_pfh0() {
     let path = "../test_files/PFH0_test.pack";
     let mut reader = BufReader::new(File::open(path).unwrap());
 
+    let games = SupportedGames::default();
+    let game = games.game(KEY_EMPIRE).unwrap();
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.disk_file_path = Some(path);
     decodeable_extra_data.data_size = reader.len().unwrap();
     decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
+    decodeable_extra_data.game_info = Some(game);
 
     let pack = Pack::decode(&mut reader, &Some(decodeable_extra_data));
     assert!(pack.is_ok());
@@ -106,15 +124,18 @@ fn test_encode_pfh6() {
     let path_2 = "../test_files/PFH6_test_encode.pack";
     let mut reader = BufReader::new(File::open(path_1).unwrap());
 
+    let games = SupportedGames::default();
+    let game = games.game(KEY_TROY).unwrap();
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.disk_file_path = Some(path_1);
     decodeable_extra_data.data_size = reader.len().unwrap();
     decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
+    decodeable_extra_data.game_info = Some(game);
 
     let mut pack = Pack::decode(&mut reader, &Some(decodeable_extra_data)).unwrap();
     let mut file = BufWriter::new(File::create(path_2).unwrap());
 
-    let mut encodeable_extra_data = EncodeableExtraData::default();
+    let mut encodeable_extra_data = EncodeableExtraData::new_from_game_info(game);
     encodeable_extra_data.test_mode = true;
     pack.encode(&mut file, &Some(encodeable_extra_data)).unwrap();
 
@@ -135,15 +156,18 @@ fn test_encode_pfh5() {
     let path_2 = "../test_files/PFH5_test_encode.pack";
     let mut reader = BufReader::new(File::open(path_1).unwrap());
 
+    let games = SupportedGames::default();
+    let game = games.game(KEY_WARHAMMER_2).unwrap();
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.disk_file_path = Some(path_1);
     decodeable_extra_data.data_size = reader.len().unwrap();
     decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
+    decodeable_extra_data.game_info = Some(game);
 
     let mut pack = Pack::decode(&mut reader, &Some(decodeable_extra_data)).unwrap();
     let mut file = BufWriter::new(File::create(path_2).unwrap());
 
-    let mut encodeable_extra_data = EncodeableExtraData::default();
+    let mut encodeable_extra_data = EncodeableExtraData::new_from_game_info(game);
     encodeable_extra_data.test_mode = true;
     pack.encode(&mut file, &Some(encodeable_extra_data)).unwrap();
 
@@ -164,15 +188,18 @@ fn test_encode_pfh4() {
     let path_2 = "../test_files/PFH4_test_encode.pack";
     let mut reader = BufReader::new(File::open(path_1).unwrap());
 
+    let games = SupportedGames::default();
+    let game = games.game(KEY_ROME_2).unwrap();
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.disk_file_path = Some(path_1);
     decodeable_extra_data.data_size = reader.len().unwrap();
     decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
+    decodeable_extra_data.game_info = Some(game);
 
     let mut pack = Pack::decode(&mut reader, &Some(decodeable_extra_data)).unwrap();
     let mut file = BufWriter::new(File::create(path_2).unwrap());
 
-    let mut encodeable_extra_data = EncodeableExtraData::default();
+    let mut encodeable_extra_data = EncodeableExtraData::new_from_game_info(game);
     encodeable_extra_data.test_mode = true;
     pack.encode(&mut file, &Some(encodeable_extra_data)).unwrap();
 
@@ -193,15 +220,18 @@ fn test_encode_pfh3() {
     let path_2 = "../test_files/PFH3_test_encode.pack";
     let mut reader = BufReader::new(File::open(path_1).unwrap());
 
+    let games = SupportedGames::default();
+    let game = games.game(KEY_SHOGUN_2).unwrap();
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.disk_file_path = Some(path_1);
     decodeable_extra_data.data_size = reader.len().unwrap();
     decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
+    decodeable_extra_data.game_info = Some(game);
 
     let mut pack = Pack::decode(&mut reader, &Some(decodeable_extra_data)).unwrap();
     let mut file = BufWriter::new(File::create(path_2).unwrap());
 
-    let mut encodeable_extra_data = EncodeableExtraData::default();
+    let mut encodeable_extra_data = EncodeableExtraData::new_from_game_info(game);
     encodeable_extra_data.test_mode = true;
     pack.encode(&mut file, &Some(encodeable_extra_data)).unwrap();
 
@@ -223,15 +253,18 @@ fn test_encode_pfh2() {
     let path_2 = "../test_files/PFH2_test_encode.pack";
     let mut reader = BufReader::new(File::open(path_1).unwrap());
 
+    let games = SupportedGames::default();
+    let game = games.game(KEY_SHOGUN_2).unwrap();
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.disk_file_path = Some(path_1);
     decodeable_extra_data.data_size = reader.len().unwrap();
     decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
+    decodeable_extra_data.game_info = Some(game);
 
     let mut pack = Pack::decode(&mut reader, &Some(decodeable_extra_data)).unwrap();
     let mut file = BufWriter::new(File::create(path_2).unwrap());
 
-    let mut encodeable_extra_data = EncodeableExtraData::default();
+    let mut encodeable_extra_data = EncodeableExtraData::new_from_game_info(game);
     encodeable_extra_data.test_mode = true;
     pack.encode(&mut file, &Some(encodeable_extra_data)).unwrap();
 
@@ -253,15 +286,18 @@ fn test_encode_pfh0() {
     let path_2 = "../test_files/PFH0_test_encode.pack";
     let mut reader = BufReader::new(File::open(path_1).unwrap());
 
+    let games = SupportedGames::default();
+    let game = games.game(KEY_EMPIRE).unwrap();
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.disk_file_path = Some(path_1);
     decodeable_extra_data.data_size = reader.len().unwrap();
     decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
+    decodeable_extra_data.game_info = Some(game);
 
     let mut pack = Pack::decode(&mut reader, &Some(decodeable_extra_data)).unwrap();
     let mut file = BufWriter::new(File::create(path_2).unwrap());
 
-    let mut encodeable_extra_data = EncodeableExtraData::default();
+    let mut encodeable_extra_data = EncodeableExtraData::new_from_game_info(game);
     encodeable_extra_data.test_mode = true;
     pack.encode(&mut file, &Some(encodeable_extra_data)).unwrap();
 

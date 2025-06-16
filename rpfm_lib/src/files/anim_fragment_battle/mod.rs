@@ -311,7 +311,7 @@ impl Decodeable for AnimFragmentBattle {
 
     fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
         let extra_data = extra_data.as_ref().ok_or(RLibError::DecodingMissingExtraData)?;
-        let game_key = extra_data.game_key.ok_or_else(|| RLibError::DecodingMissingExtraDataField("game_key".to_owned()))?;
+        let game_info = extra_data.game_info.ok_or_else(|| RLibError::DecodingMissingExtraDataField("game_info".to_owned()))?;
 
         let version = data.read_u32()?;
 
@@ -319,7 +319,7 @@ impl Decodeable for AnimFragmentBattle {
         fragment.version = version;
 
         match version {
-            2 => match game_key {
+            2 => match game_info.key() {
                 KEY_WARHAMMER_2 | KEY_TROY | KEY_PHARAOH | KEY_PHARAOH_DYNASTIES => fragment.read_v2_wh2(data)?,
                 KEY_THREE_KINGDOMS => fragment.read_v2_3k(data)?,
                 _ => Err(RLibError::DecodingMatchedCombatUnsupportedVersion(fragment.version as usize))?,
@@ -339,12 +339,12 @@ impl Encodeable for AnimFragmentBattle {
 
     fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         let extra_data = extra_data.as_ref().ok_or(RLibError::DecodingMissingExtraData)?;
-        let game_key = extra_data.game_key.ok_or_else(|| RLibError::DecodingMissingExtraDataField("game_key".to_owned()))?;
+        let game_info = extra_data.game_info.ok_or_else(|| RLibError::DecodingMissingExtraDataField("game_info".to_owned()))?;
 
         buffer.write_u32(self.version)?;
 
         match self.version {
-            2 => match game_key {
+            2 => match game_info.key() {
                 KEY_WARHAMMER_2 | KEY_TROY | KEY_PHARAOH | KEY_PHARAOH_DYNASTIES => self.write_v2_wh2(buffer)?,
                 KEY_THREE_KINGDOMS => self.write_v2_3k(buffer)?,
                 _ => Err(RLibError::DecodingMatchedCombatUnsupportedVersion(self.version as usize))?,

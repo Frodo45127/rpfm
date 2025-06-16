@@ -94,10 +94,10 @@ use std::io::{BufReader, Cursor, Read, Seek, SeekFrom, BufWriter, Write};
 use std::path::{Path, PathBuf};
 
 use crate::binary::{ReadBytes, WriteBytes};
-use crate::compression::Decompressible;
+use crate::compression::{CompressionFormat, Decompressible};
 use crate::encryption::Decryptable;
 use crate::error::{Result, RLibError};
-use crate::games::{GameInfo, pfh_version::PFHVersion};
+use crate::games::{GameInfo, pfh_version::PFHVersion, supported_games::*};
 use crate::{REGEX_DB, REGEX_PORTRAIT_SETTINGS};
 use crate::schema::{Schema, Definition};
 use crate::utils::*;
@@ -119,7 +119,7 @@ use self::hlsl_compiled::HlslCompiled;
 use self::image::Image;
 use self::loc::Loc;
 use self::matched_combat::MatchedCombat;
-use self::pack::{Pack, RESERVED_NAME_SETTINGS, RESERVED_NAME_NOTES};
+use self::pack::{Pack, RESERVED_NAME_SETTINGS, RESERVED_NAME_NOTES, RESERVED_NAME_DEPENDENCIES_MANAGER, RESERVED_NAME_DEPENDENCIES_MANAGER_V2};
 use self::portrait_settings::PortraitSettings;
 use self::rigidmodel::RigidModel;
 use self::sound_bank::SoundBank;
@@ -378,8 +378,8 @@ pub struct DecodeableExtraData<'a> {
     // General-purpouse config data //
     //------------------------------//
 
-    /// Key of the game.
-    game_key: Option<&'a str>,
+    /// Full info of the game we're going to decode the file from.
+    game_info: Option<&'a GameInfo>,
 
     /// Name of the file we're trying to decode.
     file_name: Option<&'a str>,
@@ -418,8 +418,11 @@ pub struct EncodeableExtraData<'a> {
     // Optional config data  //
     //-----------------------//
 
-    /// Key of the game.
-    game_key: Option<&'a str>,
+    /// Full info of the game we're trying to encode to.
+    game_info: Option<&'a GameInfo>,
+
+    /// The format we're trying to compress to, if we're compressing the files.
+    compression_format: CompressionFormat
 }
 
 //---------------------------------------------------------------------------//
@@ -1884,8 +1887,26 @@ impl RFile {
     }
 
     /// This function returns if the RFile can be compressed or not.
-    pub fn is_compressible(&self) -> bool {
-        !matches!(self.file_type, FileType::DB | FileType::Loc) && self.file_name() != Some(RESERVED_NAME_SETTINGS) && self.file_name() != Some(RESERVED_NAME_NOTES)
+    pub fn is_compressible(&self, game_info: &GameInfo) -> bool {
+
+        // These files are needed in plain text for this lib to read them.
+        self.file_name() != Some(RESERVED_NAME_DEPENDENCIES_MANAGER_V2) &&
+        self.file_name() != Some(RESERVED_NAME_DEPENDENCIES_MANAGER) &&
+        self.file_name() != Some(RESERVED_NAME_SETTINGS) &&
+        self.file_name() != Some(RESERVED_NAME_NOTES) &&
+
+        // These files either do not benefit from compression, or may cause overhead due to decompression.
+        !matches!(self.file_type, FileType::Audio | FileType::RigidModel | FileType::Video) &&
+
+        // We can only compress files if the game supports them. And only in WH3 (and newer games?) is the table compression bug fixed.
+        !game_info.compression_formats_supported().is_empty() && (
+            !matches!(self.file_type, FileType::DB | FileType::Loc) &&
+            game_info.key() != KEY_PHARAOH_DYNASTIES &&
+            game_info.key() != KEY_PHARAOH &&
+            game_info.key() != KEY_TROY &&
+            game_info.key() != KEY_THREE_KINGDOMS &&
+            game_info.key() != KEY_WARHAMMER_2
+        )
     }
 
     /// This function guesses the [`FileType`] of the provided RFile and stores it on it for later queries.
@@ -2525,7 +2546,7 @@ impl<'a> EncodeableExtraData<'a> {
     /// This functions generates an EncodeableExtraData for a specific game.
     pub fn new_from_game_info(game_info: &'a GameInfo) -> Self {
         let mut extra_data = Self::default();
-        extra_data.set_game_key(Some(game_info.key()));
+        extra_data.set_game_info(Some(game_info));
         extra_data.set_table_has_guid(*game_info.db_tables_have_guid());
         extra_data
     }

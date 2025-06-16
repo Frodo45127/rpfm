@@ -15,7 +15,6 @@ use std::fs::File;
 
 use crate::binary::ReadBytes;
 use crate::files::*;
-use crate::games::supported_games::*;
 
 use super::GroupFormations;
 
@@ -53,16 +52,17 @@ fn test_encode_group_formation_rome_2() {
     let path_2 = "../test_files/test_encode_group_formations_rom2.bin";
     let mut reader = BufReader::new(File::open(path_1).unwrap());
 
-    let mut extra_data = DecodeableExtraData::default();
-    extra_data.game_key = Some(KEY_ROME_2);
+    let games = SupportedGames::default();
+    let game = games.game(KEY_ROME_2).unwrap();
 
+    let mut extra_data = DecodeableExtraData::default();
+    extra_data.game_info = Some(game);
 
     let data_len = reader.len().unwrap();
     let before = reader.read_slice(data_len as usize, true).unwrap();
     let mut data = GroupFormations::decode(&mut reader, &Some(extra_data)).unwrap();
 
-    let mut extra_data = EncodeableExtraData::default();
-    extra_data.game_key = Some(KEY_ROME_2);
+    let extra_data = EncodeableExtraData::new_from_game_info(game);
 
     let mut after = vec![];
     data.encode(&mut after, &Some(extra_data)).unwrap();
@@ -80,16 +80,17 @@ fn test_encode_group_formation_shogun_2() {
     let path_2 = "../test_files/test_encode_group_formations_sho2.bin";
     let mut reader = BufReader::new(File::open(path_1).unwrap());
 
-    let mut extra_data = DecodeableExtraData::default();
-    extra_data.game_key = Some(KEY_SHOGUN_2);
+    let games = SupportedGames::default();
+    let game = games.game(KEY_SHOGUN_2).unwrap();
 
+    let mut extra_data = DecodeableExtraData::default();
+    extra_data.game_info = Some(game);
 
     let data_len = reader.len().unwrap();
     let before = reader.read_slice(data_len as usize, true).unwrap();
     let mut data = GroupFormations::decode(&mut reader, &Some(extra_data)).unwrap();
 
-    let mut extra_data = EncodeableExtraData::default();
-    extra_data.game_key = Some(KEY_SHOGUN_2);
+    let extra_data = EncodeableExtraData::new_from_game_info(game);
 
     let mut after = vec![];
     data.encode(&mut after, &Some(extra_data)).unwrap();

@@ -16,6 +16,7 @@ use serde_derive::{Serialize, Deserialize};
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{RLibError, Result};
 use crate::files::{DecodeableExtraData, Decodeable, EncodeableExtraData, Encodeable};
+use crate::games::supported_games::{KEY_THREE_KINGDOMS, KEY_WARHAMMER_3};
 use crate::utils::check_size_mismatch;
 
 /// Matched combat files go under these folders.
@@ -120,15 +121,15 @@ impl Decodeable for MatchedCombat {
 
     fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
         let extra_data = extra_data.as_ref().ok_or(RLibError::DecodingMissingExtraData)?;
-        let game_key = extra_data.game_key.ok_or_else(|| RLibError::DecodingMissingExtraDataField("game_key".to_owned()))?;
+        let game_info = extra_data.game_info.ok_or_else(|| RLibError::DecodingMissingExtraDataField("game_info".to_owned()))?;
 
         let mut matched = Self::default();
         matched.version = data.read_u32()?;
 
         match matched.version {
-            1 => match game_key {
-                "warhammer_3" => matched.read_v1_wh3(data)?,
-                "three_kingdoms" => matched.read_v1_3k(data)?,
+            1 => match game_info.key() {
+                KEY_WARHAMMER_3 => matched.read_v1_wh3(data)?,
+                KEY_THREE_KINGDOMS => matched.read_v1_3k(data)?,
                 _ => Err(RLibError::DecodingMatchedCombatUnsupportedVersion(matched.version as usize))?,
             }
             3 => matched.read_v3(data)?,
@@ -146,14 +147,14 @@ impl Encodeable for MatchedCombat {
 
     fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         let extra_data = extra_data.as_ref().ok_or(RLibError::EncodingMissingExtraData)?;
-        let game_key = extra_data.game_key.ok_or_else(|| RLibError::DecodingMissingExtraDataField("game_key".to_owned()))?;
+        let game_info = extra_data.game_info.ok_or_else(|| RLibError::DecodingMissingExtraDataField("game_info".to_owned()))?;
 
         buffer.write_u32(self.version)?;
 
         match self.version {
-            1 => match game_key {
-                "warhammer_3" => self.write_v1_wh3(buffer)?,
-                "three_kingdoms" => self.write_v1_3k(buffer)?,
+            1 => match game_info.key() {
+                KEY_WARHAMMER_3 => self.write_v1_wh3(buffer)?,
+                KEY_THREE_KINGDOMS => self.write_v1_3k(buffer)?,
                 _ => Err(RLibError::DecodingMatchedCombatUnsupportedVersion(self.version as usize))?,
             }
             3 => self.write_v3(buffer)?,

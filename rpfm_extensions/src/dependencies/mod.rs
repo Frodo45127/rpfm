@@ -789,7 +789,7 @@ impl Dependencies {
         let content_packs_paths = game_info.content_packs_paths(game_path);
         let mut loaded_packfiles = vec![];
 
-        parent_pack_names.iter().for_each(|pack_name| self.load_parent_pack(pack_name, &mut loaded_packfiles, &data_packs_paths, &secondary_packs_paths, &content_packs_paths));
+        parent_pack_names.iter().for_each(|pack_name| self.load_parent_pack(pack_name, &mut loaded_packfiles, &data_packs_paths, &secondary_packs_paths, &content_packs_paths, game_info));
 
         Ok(())
     }
@@ -803,15 +803,16 @@ impl Dependencies {
         data_paths: &[PathBuf],
         secondary_paths: &Option<Vec<PathBuf>>,
         content_paths: &Option<Vec<PathBuf>>,
+        game_info: &GameInfo
     ) {
         // Do not process Packs twice.
         if !already_loaded.contains(&pack_name.to_owned()) {
 
             // First check in /data. If we have packs there, do not bother checking for external Packs.
             if let Some(path) = data_paths.iter().find(|x| x.file_name().unwrap().to_string_lossy() == pack_name) {
-                if let Ok(pack) = Pack::read_and_merge(&[path.to_path_buf()], true, false, false) {
+                if let Ok(pack) = Pack::read_and_merge(&[path.to_path_buf()], game_info, true, false, false) {
                     already_loaded.push(pack_name.to_owned());
-                    pack.dependencies().iter().for_each(|(_, pack_name)| self.load_parent_pack(pack_name, already_loaded, data_paths, secondary_paths, content_paths));
+                    pack.dependencies().iter().for_each(|(_, pack_name)| self.load_parent_pack(pack_name, already_loaded, data_paths, secondary_paths, content_paths, game_info));
                     self.parent_files.extend(pack.files().clone());
 
                     return;
@@ -821,9 +822,9 @@ impl Dependencies {
             // Then check in /secondary. If we have packs there, do not bother checking for content Packs.
             if let Some(ref paths) = secondary_paths {
                 if let Some(path) = paths.iter().find(|x| x.file_name().unwrap().to_string_lossy() == pack_name) {
-                    if let Ok(pack) = Pack::read_and_merge(&[path.to_path_buf()], true, false, false) {
+                    if let Ok(pack) = Pack::read_and_merge(&[path.to_path_buf()], game_info, true, false, false) {
                         already_loaded.push(pack_name.to_owned());
-                        pack.dependencies().iter().for_each(|(_, pack_name)| self.load_parent_pack(pack_name, already_loaded, data_paths, secondary_paths, content_paths));
+                        pack.dependencies().iter().for_each(|(_, pack_name)| self.load_parent_pack(pack_name, already_loaded, data_paths, secondary_paths, content_paths, game_info));
                         self.parent_files.extend(pack.files().clone());
 
                         return;
@@ -834,9 +835,9 @@ impl Dependencies {
             // If nothing else works, check in content.
             if let Some(ref paths) = content_paths {
                 if let Some(path) = paths.iter().find(|x| x.file_name().unwrap().to_string_lossy() == pack_name) {
-                    if let Ok(pack) = Pack::read_and_merge(&[path.to_path_buf()], true, false, false) {
+                    if let Ok(pack) = Pack::read_and_merge(&[path.to_path_buf()], game_info, true, false, false) {
                         already_loaded.push(pack_name.to_owned());
-                        pack.dependencies().iter().for_each(|(_, pack_name)| self.load_parent_pack(pack_name, already_loaded, data_paths, secondary_paths, content_paths));
+                        pack.dependencies().iter().for_each(|(_, pack_name)| self.load_parent_pack(pack_name, already_loaded, data_paths, secondary_paths, content_paths, game_info));
                         self.parent_files.extend(pack.files().clone());
                     }
                 }

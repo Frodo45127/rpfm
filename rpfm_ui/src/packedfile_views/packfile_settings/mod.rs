@@ -31,7 +31,7 @@ use std::collections::BTreeMap;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use rpfm_lib::files::pack::PackSettings;
+use rpfm_lib::files::pack::{PackSettings, SETTING_KEY_CF};
 
 use rpfm_ui_common::locale::qtr;
 
@@ -107,17 +107,19 @@ impl PackFileSettingsView {
         }
 
         for (key, setting) in settings.settings_string() {
-            let label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{key}_label")), pack_file_view.main_widget());
-            let description_label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{key}_description_label")), pack_file_view.main_widget());
-            let edit = QLineEdit::from_q_string_q_widget(&QString::from_std_str(setting), pack_file_view.main_widget());
+            if key != SETTING_KEY_CF {
+                let label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{key}_label")), pack_file_view.main_widget());
+                let description_label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{key}_description_label")), pack_file_view.main_widget());
+                let edit = QLineEdit::from_q_string_q_widget(&QString::from_std_str(setting), pack_file_view.main_widget());
 
-            layout.add_widget_5a(&label, row, 0, 1, 1);
-            layout.add_widget_5a(&description_label, row + 1, 0, 1, 1);
-            layout.add_widget_5a(&edit, row, 1, 2, 1);
-            layout.set_row_stretch(row + 1, 100);
+                layout.add_widget_5a(&label, row, 0, 1, 1);
+                layout.add_widget_5a(&description_label, row + 1, 0, 1, 1);
+                layout.add_widget_5a(&edit, row, 1, 2, 1);
+                layout.set_row_stretch(row + 1, 100);
 
-            settings_text_single_line.insert(key.to_owned(), edit);
-            row += 2;
+                settings_text_single_line.insert(key.to_owned(), edit);
+                row += 2;
+            }
         }
 
         for (key, setting) in settings.settings_bool() {

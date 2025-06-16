@@ -13,7 +13,6 @@ use std::fs::File;
 
 use crate::binary::ReadBytes;
 use crate::files::*;
-use crate::games::supported_games::{KEY_EMPIRE, KEY_SHOGUN_2};
 
 use super::SoundEvents;
 
@@ -23,15 +22,17 @@ fn test_encode_sound_events_empire() {
     let path_2 = "../test_files/test_encode_sound_events_emp";
     let mut reader = BufReader::new(File::open(path_1).unwrap());
 
+    let games = SupportedGames::default();
+    let game = games.game(KEY_EMPIRE).unwrap();
     let mut extra_data = DecodeableExtraData::default();
-    extra_data.game_key = Some(KEY_EMPIRE);
+    extra_data.game_info = Some(game);
 
     let data_len = reader.len().unwrap();
     let before = reader.read_slice(data_len as usize, true).unwrap();
     let mut data = SoundEvents::decode(&mut reader, &Some(extra_data)).unwrap();
 
-    let mut extra_data = EncodeableExtraData::default();
-    extra_data.game_key = Some(KEY_EMPIRE);
+    let extra_data = EncodeableExtraData::new_from_game_info(game);
+
     let mut after = vec![];
     data.encode(&mut after, &Some(extra_data)).unwrap();
 
@@ -71,15 +72,17 @@ fn test_encode_sound_events_shogun_2() {
     let path_2 = "../test_files/test_encode_sound_events_sho2";
     let mut reader = BufReader::new(File::open(path_1).unwrap());
 
+    let games = SupportedGames::default();
+    let game = games.game(KEY_SHOGUN_2).unwrap();
     let mut extra_data = DecodeableExtraData::default();
-    extra_data.game_key = Some(KEY_SHOGUN_2);
+    extra_data.game_info = Some(game);
 
     let data_len = reader.len().unwrap();
     let before = reader.read_slice(data_len as usize, true).unwrap();
     let mut data = SoundEvents::decode(&mut reader, &Some(extra_data)).unwrap();
 
-    let mut extra_data = EncodeableExtraData::default();
-    extra_data.game_key = Some(KEY_SHOGUN_2);
+    let extra_data = EncodeableExtraData::new_from_game_info(game);
+
     let mut after = vec![];
     data.encode(&mut after, &Some(extra_data)).unwrap();
 

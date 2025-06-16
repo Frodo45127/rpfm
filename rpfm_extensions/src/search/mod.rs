@@ -292,9 +292,8 @@ impl GlobalSearch {
         let case_sensitive = self.case_sensitive;
         let search_on = self.search_on().clone();
 
-        let game_key = self.game_key.to_owned();
         let mut extra_data = DecodeableExtraData::default();
-        extra_data.set_game_key(Some(&game_key));
+        extra_data.set_game_info(Some(&game_info));
         let extra_data = Some(extra_data);
 
         match self.source {
@@ -412,9 +411,8 @@ impl GlobalSearch {
         // Make sure we can actually do the replacements.
         self.replace_possible(matches)?;
 
-        let game_key = self.game_key.to_owned();
         let mut extra_data = DecodeableExtraData::default();
-        extra_data.set_game_key(Some(&game_key));
+        extra_data.set_game_info(Some(&game_info));
         let extra_data = Some(extra_data);
 
         // If we want to use regex and the pattern is invalid, use normal pattern instead of Regex.

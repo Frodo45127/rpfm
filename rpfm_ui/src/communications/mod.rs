@@ -28,6 +28,7 @@ use rpfm_extensions::diagnostics::Diagnostics;
 use rpfm_extensions::search::{GlobalSearch, MatchHolder};
 #[cfg(feature = "enable_tools")] use rpfm_extensions::translator::PackTranslation;
 
+use rpfm_lib::compression::CompressionFormat;
 use rpfm_lib::files::{anim_fragment_battle::AnimFragmentBattle, anims_table::AnimsTable, atlas::Atlas, audio::Audio, bmd::Bmd, ContainerPath, video::SupportedFormats, db::DB, esf::ESF, group_formations::GroupFormations, image::Image, loc::Loc, matched_combat::MatchedCombat, pack::PackSettings, RFile, RFileDecoded, portrait_settings::PortraitSettings, text::Text, uic::UIC, unit_variant::UnitVariant};
 #[cfg(any(feature = "support_rigidmodel", feature = "support_model_renderer"))] use rpfm_lib::files::rigidmodel::RigidModel;
 use rpfm_lib::games::pfh_file_type::PFHFileType;
@@ -134,7 +135,7 @@ pub enum Command {
     ChangeIndexIncludesTimestamp(bool),
 
     /// This command is used when we want to change the `Data is Compressed` flag in the currently open `PackFile`
-    ChangeDataIsCompressed(bool),
+    ChangeCompressionFormat(CompressionFormat),
 
     /// This command is used when we want to know the current path of our currently open `PackFile`.
     GetPackFilePath,
@@ -522,7 +523,8 @@ pub enum Response {
     StringVecPathBuf(String, Vec<PathBuf>),
     #[cfg(feature = "enable_tools")] PackTranslation(PackTranslation),
     VecRFile(Vec<RFile>),
-    VecBoolString(Vec<(bool, String)>)
+    VecBoolString(Vec<(bool, String)>),
+    CompressionFormat(CompressionFormat)
 }
 
 //-------------------------------------------------------------------------------//

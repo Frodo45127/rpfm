@@ -44,6 +44,7 @@ use std::fs::{copy, remove_file, remove_dir_all};
 use std::path::PathBuf;
 use std::rc::Rc;
 
+use rpfm_lib::compression::CompressionFormat;
 use rpfm_lib::files::{ContainerPath, pack::RESERVED_NAME_NOTES, table::Table};
 use rpfm_lib::games::{pfh_file_type::PFHFileType, supported_games::*};
 use rpfm_lib::integrations::log::*;
@@ -104,7 +105,7 @@ pub struct AppUISlots {
     pub packfile_load_all_ca_packfiles: QBox<SlotOfBool>,
     pub packfile_change_packfile_type: QBox<SlotOfBool>,
     pub packfile_index_includes_timestamp: QBox<SlotOfBool>,
-    pub packfile_data_is_compressed: QBox<SlotOfBool>,
+    pub packfile_change_compression_format: QBox<SlotOfBool>,
     pub packfile_settings: QBox<SlotOfBool>,
     pub packfile_quit: QBox<SlotOfBool>,
 
@@ -492,7 +493,14 @@ impl AppUISlots {
                         app_ui.change_packfile_type_header_is_extended.set_checked(false);
 
                         // Set the compression level correctly, because otherwise we may fuckup some files.
-                        app_ui.change_packfile_type_data_is_compressed.set_checked(*ui_data.compress());
+                        app_ui.compression_format_group.block_signals(true);
+                        match ui_data.compress() {
+                            CompressionFormat::None => app_ui.compression_format_none.set_checked(true),
+                            CompressionFormat::Lzma1 => app_ui.compression_format_lzma1.set_checked(true),
+                            CompressionFormat::Lz4 => app_ui.compression_format_lz4.set_checked(true),
+                            CompressionFormat::Zstd => app_ui.compression_format_zstd.set_checked(true),
+                        }
+                        app_ui.compression_format_group.block_signals(false);
 
                         // Update the TreeView.
                         let mut build_data = BuildData::new();
@@ -568,11 +576,25 @@ impl AppUISlots {
         ));
 
         // What happens when we enable/disable compression on the current PackFile.
-        let packfile_data_is_compressed = SlotOfBool::new(&app_ui.main_window, clone!(
+        let packfile_change_compression_format = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui =>  move |_| {
-                let state = app_ui.change_packfile_type_data_is_compressed.is_checked();
-                let _ = CENTRAL_COMMAND.send_background(Command::ChangeDataIsCompressed(state));
+                let compression_format = CompressionFormat::from(app_ui.compression_format_group.checked_action().text().remove_q_string(&QString::from_std_str("&")).to_std_string().as_str());
+                let receiver = CENTRAL_COMMAND.send_background(Command::ChangeCompressionFormat(compression_format));
+                let response = CENTRAL_COMMAND.recv_try(&receiver);
+                match response {
+                    Response::CompressionFormat(cf) => {
+                        app_ui.compression_format_group.block_signals(true);
+                        match cf {
+                            CompressionFormat::None => app_ui.compression_format_none.set_checked(true),
+                            CompressionFormat::Lzma1 => app_ui.compression_format_lzma1.set_checked(true),
+                            CompressionFormat::Lz4 => app_ui.compression_format_lz4.set_checked(true),
+                            CompressionFormat::Zstd => app_ui.compression_format_zstd.set_checked(true),
+                        }
+                        app_ui.compression_format_group.block_signals(false);
+                    },
+                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                }
                 UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
             }
         ));
@@ -760,7 +782,7 @@ impl AppUISlots {
                                                     app_ui.change_packfile_type_index_includes_timestamp.set_checked(false);
                                                     app_ui.change_packfile_type_index_is_encrypted.set_checked(false);
                                                     app_ui.change_packfile_type_header_is_extended.set_checked(false);
-                                                    app_ui.change_packfile_type_data_is_compressed.set_checked(false);
+                                                    app_ui.compression_format_none.set_checked(true);
 
                                                     AppUI::enable_packfile_actions(&app_ui, &PathBuf::from(pack_file_info.file_path()), true);
 
@@ -2002,7 +2024,7 @@ impl AppUISlots {
             packfile_load_all_ca_packfiles,
             packfile_change_packfile_type,
             packfile_index_includes_timestamp,
-            packfile_data_is_compressed,
+            packfile_change_compression_format,
             packfile_settings,
             packfile_quit,
 

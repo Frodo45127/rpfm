@@ -188,7 +188,7 @@ impl Diagnostics {
         {
             // Extra data to decode animfragmentbattle files.
             let mut extra_data = DecodeableExtraData::default();
-            extra_data.set_game_key(Some(game_info.key()));
+            extra_data.set_game_info(Some(game_info));
             let extra_data = Some(extra_data);
 
             pack.files_by_type_mut(&[FileType::AnimFragmentBattle, FileType::Text, FileType::PortraitSettings])

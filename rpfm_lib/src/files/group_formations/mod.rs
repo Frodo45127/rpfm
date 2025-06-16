@@ -207,12 +207,12 @@ impl Decodeable for GroupFormations {
 
     fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
         let extra_data = extra_data.as_ref().ok_or(RLibError::DecodingMissingExtraData)?;
-        let game_key = extra_data.game_key.ok_or_else(|| RLibError::DecodingMissingExtraDataField("game_key".to_owned()))?;
+        let game_info = extra_data.game_info.ok_or_else(|| RLibError::DecodingMissingExtraDataField("game_info".to_owned()))?;
 
         let mut decoded = Self::default();
         let data_len = data.len()?;
 
-        match game_key {
+        match game_info.key() {
             //KEY_WARHAMMER_3 |
             //KEY_TROY |
             //KEY_THREE_KINGDOMS => decoded.decode_3k(data)?,
@@ -224,7 +224,7 @@ impl Decodeable for GroupFormations {
             KEY_SHOGUN_2 => decoded.decode_sho_2(data)?,
             //KEY_NAPOLEON |
             //KEY_EMPIRE => data.read_sized_string_u16()?,
-            _ => return Err(RLibError::DecodingUnsupportedGameSelected(game_key.to_string())),
+            _ => return Err(RLibError::DecodingUnsupportedGameSelected(game_info.key().to_string())),
         }
 
         check_size_mismatch(data.stream_position()? as usize, data_len as usize)?;
@@ -237,9 +237,9 @@ impl Encodeable for GroupFormations {
 
     fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         let extra_data = extra_data.as_ref().ok_or(RLibError::EncodingMissingExtraData)?;
-        let game_key = extra_data.game_key.ok_or_else(|| RLibError::DecodingMissingExtraDataField("game_key".to_owned()))?;
+        let game_info = extra_data.game_info.ok_or_else(|| RLibError::DecodingMissingExtraDataField("game_info".to_owned()))?;
 
-        match game_key {
+        match game_info.key() {
             //KEY_WARHAMMER_3 |
             //KEY_TROY |
             //KEY_THREE_KINGDOMS => self.encode_3k(buffer)?,
@@ -251,7 +251,7 @@ impl Encodeable for GroupFormations {
             KEY_SHOGUN_2 => self.encode_sho_2(buffer)?,
             //KEY_NAPOLEON |
             //KEY_EMPIRE => buffer.write_sized_string_u16(formation.name())?,
-            _ => return Err(RLibError::DecodingUnsupportedGameSelected(game_key.to_string())),
+            _ => return Err(RLibError::DecodingUnsupportedGameSelected(game_info.key().to_string())),
         };
 
         Ok(())

@@ -23,7 +23,7 @@ use rpfm_extensions::diagnostics::Diagnostics;
 
 use rpfm_lib::binary::ReadBytes;
 use rpfm_lib::files::{ContainerPath, Container, Decodeable, DecodeableExtraData, Encodeable, EncodeableExtraData, FileType, pack::Pack};
-use rpfm_lib::games::pfh_file_type::PFHFileType;
+use rpfm_lib::games::{pfh_file_type::PFHFileType, supported_games::*};
 use rpfm_lib::integrations::log::*;
 use rpfm_lib::schema::Schema;
 use rpfm_lib::utils::last_modified_time_from_file;
@@ -53,8 +53,11 @@ pub fn set_pack_type(config: &Config, pack_path: &Path, pfh_file_type: PFHFileTy
     pack.preload()?;
     pack.set_pfh_file_type(pfh_file_type);
 
+    let games = SupportedGames::default();
+    let encodeable_extra_data = EncodeableExtraData::new_from_game_info(games.game(config.game.clone().unwrap().key()).unwrap());
+
     let mut writer = BufWriter::new(File::create(pack_path)?);
-    pack.encode(&mut writer, &None)?;
+    pack.encode(&mut writer, &Some(encodeable_extra_data))?;
 
     if config.verbose {
         info!("Changed PFH Type to {}.", pfh_file_type);
@@ -98,7 +101,11 @@ pub fn create(config: &Config, path: &Path) -> Result<()> {
         Some(game) => {
             let mut file = BufWriter::new(File::create(path)?);
             let mut pack = Pack::new_with_version(game.pfh_version_by_file_type(PFHFileType::Mod));
-            pack.encode(&mut file, &None)?;
+
+            let games = SupportedGames::default();
+            let encodeable_extra_data = EncodeableExtraData::new_from_game_info(games.game(game.key()).unwrap());
+
+            pack.encode(&mut file, &Some(encodeable_extra_data))?;
             Ok(())
         }
         None => Err(anyhow!("No Game provided.")),
@@ -151,8 +158,11 @@ pub fn add(config: &Config, schema_path: &Option<PathBuf>, pack_path: &Path, fil
 
     pack.preload()?;
 
+    let games = SupportedGames::default();
+    let encodeable_extra_data = EncodeableExtraData::new_from_game_info(games.game(config.game.clone().unwrap().key()).unwrap());
+
     let mut writer = BufWriter::new(File::create(pack_path)?);
-    pack.encode(&mut writer, &None)?;
+    pack.encode(&mut writer, &Some(encodeable_extra_data))?;
 
     if config.verbose {
         info!("Files/folders added.");
@@ -192,8 +202,11 @@ pub fn delete(config: &Config, pack_path: &Path, file_path: &[String], folder_pa
 
     pack.preload()?;
 
+    let games = SupportedGames::default();
+    let encodeable_extra_data = EncodeableExtraData::new_from_game_info(games.game(config.game.clone().unwrap().key()).unwrap());
+
     let mut writer = BufWriter::new(File::create(pack_path)?);
-    pack.encode(&mut writer, &None)?;
+    pack.encode(&mut writer, &Some(encodeable_extra_data))?;
 
     if config.verbose {
         info!("Files/folders deleted.");
@@ -273,7 +286,7 @@ pub fn diagnose(config: &Config, game_path: &Path, pak_path: &Path, schema_path:
 
     // Load both, the schema and the Packs to memory.
     let schema = Schema::load(schema_path, None)?;
-    let mut pack = Pack::read_and_merge(pack_paths, true, false, true)?;
+    let mut pack = Pack::read_and_merge(pack_paths, config.game.as_ref().unwrap(), true, false, true)?;
 
     // Prepare the table's extra data,
     let mut extra_data = DecodeableExtraData::default();
@@ -336,7 +349,7 @@ pub fn merge(config: &Config, save_pack_path: &Path, source_pack_paths: &[PathBu
 
     match &config.game {
         Some(game) => {
-            let mut pack = Pack::read_and_merge(source_pack_paths, true, false, true)?;
+            let mut pack = Pack::read_and_merge(source_pack_paths, config.game.as_ref().unwrap(), true, false, true)?;
             pack.save(Some(save_pack_path), game, &None)?;
             Ok(())
         }
@@ -352,7 +365,7 @@ pub fn add_dependency(config: &Config, pack_path: &Path, dependency: &str) -> Re
 
     match &config.game {
         Some(game) => {
-            let mut pack = Pack::read_and_merge(&[pack_path.to_path_buf()], true, false, true)?;
+            let mut pack = Pack::read_and_merge(&[pack_path.to_path_buf()], config.game.as_ref().unwrap(), true, false, true)?;
             pack.dependencies_mut().push((true, dependency.to_owned()));
             pack.save(None, game, &None)?;
             Ok(())
@@ -369,7 +382,7 @@ pub fn remove_dependency(config: &Config, pack_path: &Path, dependency: &str) ->
 
     match &config.game {
         Some(game) => {
-            let mut pack = Pack::read_and_merge(&[pack_path.to_path_buf()], true, false, true)?;
+            let mut pack = Pack::read_and_merge(&[pack_path.to_path_buf()], config.game.as_ref().unwrap(), true, false, true)?;
             if let Some(pos) = pack.dependencies().iter().map(|(_, x)| x).position(|x| x == dependency) {
                 pack.dependencies_mut().remove(pos);
             }
@@ -388,7 +401,7 @@ pub fn remove_all_dependencies(config: &Config, pack_path: &Path) -> Result<()> 
 
     match &config.game {
         Some(game) => {
-            let mut pack = Pack::read_and_merge(&[pack_path.to_path_buf()], true, false, true)?;
+            let mut pack = Pack::read_and_merge(&[pack_path.to_path_buf()], config.game.as_ref().unwrap(), true, false, true)?;
             pack.dependencies_mut().clear();
             pack.save(None, game, &None)?;
             Ok(())

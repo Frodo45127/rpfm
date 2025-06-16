@@ -18,6 +18,7 @@ use getset::Getters;
 use rpfm_extensions::dependencies::Dependencies;
 use rpfm_extensions::search::{GlobalSearch, SearchSource};
 
+use rpfm_lib::compression::CompressionFormat;
 use rpfm_lib::games::{*, pfh_file_type::PFHFileType, pfh_version::PFHVersion};
 use rpfm_lib::files::{animpack::*, Container, ContainerPath, db::*, FileType, pack::*, RFile, video::*};
 
@@ -49,8 +50,8 @@ pub struct ContainerInfo {
     /// The bitmasks applied to the PackFile.
     bitmask: PFHFlags,
 
-    /// If the container needs to be compress on save.
-    compress: bool,
+    /// If the container needs to be compress on save. None for no compression.
+    compress: CompressionFormat,
 
     /// The timestamp of the last time the PackFile was saved.
     timestamp: u64,
@@ -151,7 +152,7 @@ impl From<&Pack> for ContainerInfo {
             pfh_file_type: *pack.header().pfh_file_type(),
             bitmask: *pack.header().bitmask(),
             timestamp: *pack.header().internal_timestamp(),
-            compress: *pack.compress(),
+            compress: pack.compression_format(),
         }
     }
 }

@@ -1652,3 +1652,9 @@ missing_loc_data_file_detected_explanation = The files generated using the "Gene
         - Modder publish/updates the mod.
 
     You do not need to use that workflow specifically, but this warning will remember you that you should delete the auto-generated loc files before publishing this mod.
+
+compression_format = Compression Format
+compression_format_none = None
+compression_format_lzma1 = Lzma1
+compression_format_lz4 = Lz4
+compression_format_zstd = Zstd

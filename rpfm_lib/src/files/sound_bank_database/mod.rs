@@ -311,15 +311,15 @@ impl Decodeable for SoundBankDatabase {
 
     fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
         let extra_data = extra_data.as_ref().ok_or(RLibError::DecodingMissingExtraData)?;
-        let game_key = extra_data.game_key.ok_or_else(|| RLibError::DecodingMissingExtraDataField("game_key".to_owned()))?;
+        let game_info = extra_data.game_info.ok_or_else(|| RLibError::DecodingMissingExtraDataField("game_info".to_owned()))?;
 
         let mut sound_bank = Self::default();
 
-        match game_key {
+        match game_info.key() {
             KEY_SHOGUN_2 => sound_bank.read_sho2(data)?,
             //KEY_NAPOLEON => {},
             //KEY_EMPIRE => sound_bank.read_emp(data)?,
-            _ => return Err(RLibError::DecodingSoundPackedUnsupportedGame(game_key.to_string())),
+            _ => return Err(RLibError::DecodingSoundPackedUnsupportedGame(game_info.key().to_string())),
         }
 
         // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt.
@@ -333,13 +333,13 @@ impl Encodeable for SoundBankDatabase {
 
     fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         let extra_data = extra_data.as_ref().ok_or(RLibError::EncodingMissingExtraData)?;
-        let game_key = extra_data.game_key.ok_or_else(|| RLibError::DecodingMissingExtraDataField("game_key".to_owned()))?;
+        let game_info = extra_data.game_info.ok_or_else(|| RLibError::DecodingMissingExtraDataField("game_info".to_owned()))?;
 
-        match game_key {
+        match game_info.key() {
             KEY_SHOGUN_2 => self.write_sho2(buffer),
             //KEY_NAPOLEON => {},
             //KEY_EMPIRE => self.write_emp(buffer),
-            _ => Err(RLibError::EncodingSoundPackedUnsupportedGame(game_key.to_string())),
+            _ => Err(RLibError::EncodingSoundPackedUnsupportedGame(game_info.key().to_string())),
         }
     }
 }

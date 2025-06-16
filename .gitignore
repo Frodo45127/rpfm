@@ -56,6 +56,15 @@
 /test_files/test_compression_compressed.bmd
 /test_files/test_compression_decompressed.bmd
 /test_files/test_compression_recompressed.bmd
+/test_files/test_compression_compressed_lzma1.bmd
+/test_files/test_compression_decompressed_lzma1.bmd
+/test_files/test_compression_recompressed_lzma1.bmd
+/test_files/test_compression_compressed_lz4.bmd
+/test_files/test_compression_decompressed_lz4.bmd
+/test_files/test_compression_recompressed_lz4.bmd
+/test_files/test_compression_compressed_zstd.bmd
+/test_files/test_compression_decompressed_zstd.bmd
+/test_files/test_compression_recompressed_zstd.bmd
 /test_files/fastbin/test_encode.hlsl_compiled
 /test_files/test_encode.dat
 /test_files/test_encode_group_formations_3k.bin

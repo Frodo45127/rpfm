@@ -45,7 +45,6 @@ pub unsafe fn set_tips(app_ui: &Rc<AppUI>) {
     app_ui.change_packfile_type_index_includes_timestamp.set_status_tip(&qtr("tt_change_packfile_type_index_includes_timestamp"));
     app_ui.change_packfile_type_index_is_encrypted.set_status_tip(&qtr("tt_change_packfile_type_index_is_encrypted"));
     app_ui.change_packfile_type_header_is_extended.set_status_tip(&qtr("tt_change_packfile_type_header_is_extended"));
-    app_ui.change_packfile_type_data_is_compressed.set_status_tip(&qtr("tt_change_packfile_type_data_is_compressed"));
 
     //-----------------------------------------------//
     // `MyMod` menu tips.

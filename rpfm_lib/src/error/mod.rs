@@ -388,6 +388,12 @@ pub enum RLibError {
     #[error("No translation could be found.")]
     TranslatorCouldNotLoadTranslation,
 
+    #[error("GameInfo has not been provided to the pack-reading function when reading the pack.")]
+    GameInfoMissingFromDecodingFunction,
+
+    #[error("GameInfo has not been provided to the pack-saving function when saving the pack.")]
+    GameInfoMissingFromEncodingFunction,
+
     /// Represents all other cases of `std::io::Error`.
     #[error(transparent)]
     IOError(#[from] std::io::Error),
@@ -453,4 +459,7 @@ pub enum RLibError {
     #[cfg(feature = "integration_log")]
     #[error(transparent)]
     LogError(#[from] log::SetLoggerError),
+
+    #[error(transparent)]
+    Lz4Error(#[from] lz4_flex::frame::Error),
 }

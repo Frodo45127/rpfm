@@ -22,6 +22,7 @@ use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 
+use crate::compression::CompressionFormat;
 use crate::error::{RLibError, Result};
 use crate::utils::*;
 
@@ -130,7 +131,10 @@ pub struct GameInfo {
 
     /// Internal cache to speedup operations related with the install type.
     #[getset(skip)]
-    install_type_cache: Arc<RwLock<HashMap<PathBuf, InstallType>>>
+    install_type_cache: Arc<RwLock<HashMap<PathBuf, InstallType>>>,
+
+    /// List of compression formats supported by the game, sorted from newer to older.
+    compression_formats_supported: Vec<CompressionFormat>
 }
 
 /// This enum holds the info about each game approach at naming db tables.

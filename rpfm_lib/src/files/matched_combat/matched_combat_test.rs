@@ -24,15 +24,17 @@ fn test_encode_matched_combat_v1_trigger_3k() {
     let path_2 = "../test_files/test_encode_matched_combat_3k_trigger.bin";
     let mut reader = BufReader::new(File::open(path_1).unwrap());
 
+    let games = SupportedGames::default();
+    let game = games.game(KEY_THREE_KINGDOMS).unwrap();
+
     let mut extra_data = DecodeableExtraData::default();
-    extra_data.game_key = Some("three_kingdoms");
+    extra_data.game_info = Some(game);
 
     let data_len = reader.len().unwrap();
     let before = reader.read_slice(data_len as usize, true).unwrap();
     let mut data = MatchedCombat::decode(&mut reader, &Some(extra_data)).unwrap();
 
-    let mut extra_data = EncodeableExtraData::default();
-    extra_data.game_key = Some("three_kingdoms");
+    let extra_data = EncodeableExtraData::new_from_game_info(game);
 
     let mut after = vec![];
     data.encode(&mut after, &Some(extra_data)).unwrap();
@@ -49,15 +51,17 @@ fn test_encode_matched_combat_v1_matched_wh3() {
     let path_2 = "../test_files/test_encode_matched_combat_wh3.bin";
     let mut reader = BufReader::new(File::open(path_1).unwrap());
 
+    let games = SupportedGames::default();
+    let game = games.game(KEY_WARHAMMER_3).unwrap();
+
     let mut extra_data = DecodeableExtraData::default();
-    extra_data.game_key = Some("warhammer_3");
+    extra_data.game_info = Some(game);
 
     let data_len = reader.len().unwrap();
     let before = reader.read_slice(data_len as usize, true).unwrap();
     let mut data = MatchedCombat::decode(&mut reader, &Some(extra_data)).unwrap();
 
-    let mut extra_data = EncodeableExtraData::default();
-    extra_data.game_key = Some("warhammer_3");
+    let extra_data = EncodeableExtraData::new_from_game_info(game);
 
     let mut after = vec![];
     data.encode(&mut after, &Some(extra_data)).unwrap();
@@ -74,15 +78,17 @@ fn test_encode_matched_combat_v3_matched_3k() {
     let path_2 = "../test_files/test_encode_matched_combat_3k_matched.bin";
     let mut reader = BufReader::new(File::open(path_1).unwrap());
 
+    let games = SupportedGames::default();
+    let game = games.game(KEY_THREE_KINGDOMS).unwrap();
+
     let mut extra_data = DecodeableExtraData::default();
-    extra_data.game_key = Some("three_kingdoms");
+    extra_data.game_info = Some(game);
 
     let data_len = reader.len().unwrap();
     let before = reader.read_slice(data_len as usize, true).unwrap();
     let mut data = MatchedCombat::decode(&mut reader, &Some(extra_data)).unwrap();
 
-    let mut extra_data = EncodeableExtraData::default();
-    extra_data.game_key = Some("three_kingdoms");
+    let extra_data = EncodeableExtraData::new_from_game_info(game);
 
     let mut after = vec![];
     data.encode(&mut after, &Some(extra_data)).unwrap();

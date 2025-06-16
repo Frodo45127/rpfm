@@ -17,6 +17,7 @@ use std::cmp::Ordering;
 use std::io::{BufReader, Cursor};
 
 use crate::binary::{ReadBytes, WriteBytes};
+use crate::compression::CompressionFormat;
 use crate::encryption::Decryptable;
 use crate::error::{RLibError, Result};
 use crate::files::{pack::*, RFile};
@@ -125,10 +126,16 @@ impl Pack {
 
     /// This function writes a `Pack` of version 6 into the provided buffer.
     pub(crate) fn write_pfh6<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
-        let (test_mode, nullify_dates) = if let Some(extra_data) = extra_data {
-            (extra_data.test_mode, extra_data.nullify_dates)
+        let (test_mode, nullify_dates, game_info, compression_format) = if let Some(extra_data) = extra_data {
+            (extra_data.test_mode, extra_data.nullify_dates, extra_data.game_info, extra_data.compression_format)
         } else {
-            (false, false)
+            (false, false, None, CompressionFormat::None)
+        };
+
+        // GameInfo is required now, to properly support per-game particularities.
+        let game_info = match game_info {
+            Some(game_info) => game_info,
+            None => return Err(RLibError::GameInfoMissingFromEncodingFunction),
         };
 
         // We need our files sorted before trying to write them. But we don't want to duplicate
@@ -145,8 +152,8 @@ impl Pack {
                 let mut data = file.encode(extra_data, false, false, true)?.unwrap();
 
                 let mut has_been_compressed = false;
-                if self.compress && file.is_compressible() {
-                    if let Ok(data_compressed) = data.compress() {
+                if self.compress && file.is_compressible(game_info) && compression_format != CompressionFormat::None {
+                    if let Ok(data_compressed) = data.compress(compression_format) {
                         data = data_compressed;
                         has_been_compressed = true;
                     }

@@ -38,6 +38,7 @@ use rpfm_extensions::optimizer::OptimizableContainer;
 #[cfg(feature = "enable_tools")] use rpfm_extensions::translator::PackTranslation;
 
 use rpfm_lib::binary::WriteBytes;
+use rpfm_lib::compression::CompressionFormat;
 use rpfm_lib::files::{animpack::AnimPack, Container, ContainerPath, db::DB, DecodeableExtraData, FileType, loc::Loc, pack::*, portrait_settings::PortraitSettings, RFile, RFileDecoded, table::Table, text::*};
 use rpfm_lib::games::{GameInfo, LUA_REPO, LUA_BRANCH, LUA_REMOTE, OLD_AK_REPO, OLD_AK_BRANCH, OLD_AK_REMOTE, pfh_file_type::PFHFileType, supported_games::*, VanillaDBTableNameLogic};
 #[cfg(feature = "enable_tools")] use rpfm_lib::games::{TRANSLATIONS_REPO, TRANSLATIONS_BRANCH, TRANSLATIONS_REMOTE};
@@ -120,7 +121,8 @@ pub fn background_loop() {
 
             // In case we want to "Open one or more PackFiles"...
             Command::OpenPackFiles(paths) => {
-                match Pack::read_and_merge(&paths, setting_bool("use_lazy_loading"), false, false) {
+                let game_selected = GAME_SELECTED.read().unwrap().clone();
+                match Pack::read_and_merge(&paths, &game_selected, setting_bool("use_lazy_loading"), false, false) {
                     Ok(pack) => {
                         pack_file_decoded = pack;
 
@@ -144,9 +146,10 @@ pub fn background_loop() {
 
             // In case we want to "Open an Extra PackFile" (for "Add from PackFile")...
             Command::OpenPackExtra(path) => {
+                let game_selected = GAME_SELECTED.read().unwrap().clone();
                 match pack_files_decoded_extra.get(&path) {
                     Some(pack) => CentralCommand::send_back(&sender, Response::ContainerInfo(ContainerInfo::from(pack))),
-                    None => match Pack::read_and_merge(&[path.to_path_buf()], true, false, false) {
+                    None => match Pack::read_and_merge(&[path.to_path_buf()], &game_selected, true, false, false) {
                          Ok(pack) => {
                             CentralCommand::send_back(&sender, Response::ContainerInfo(ContainerInfo::from(&pack)));
                             pack_files_decoded_extra.insert(path.to_path_buf(), pack);
@@ -184,7 +187,7 @@ pub fn background_loop() {
             // In case we want to "Save a PackFile"...
             Command::SavePackFile => {
                 let game_selected = GAME_SELECTED.read().unwrap();
-                let extra_data = Some(initialize_encodeable_extra_data(&game_selected));
+                let extra_data = Some(initialize_encodeable_extra_data(&game_selected, pack_file_decoded.compression_format()));
 
                 let pack_type = *pack_file_decoded.header().pfh_file_type();
                 if !setting_bool("allow_editing_of_ca_packfiles") && pack_type != PFHFileType::Mod && pack_type != PFHFileType::Movie {
@@ -201,7 +204,7 @@ pub fn background_loop() {
             // In case we want to "Save a PackFile As"...
             Command::SavePackFileAs(path) => {
                 let game_selected = GAME_SELECTED.read().unwrap();
-                let extra_data = Some(initialize_encodeable_extra_data(&game_selected));
+                let extra_data = Some(initialize_encodeable_extra_data(&game_selected, pack_file_decoded.compression_format()));
 
                 let pack_type = *pack_file_decoded.header().pfh_file_type();
                 if !setting_bool("allow_editing_of_ca_packfiles") && pack_type != PFHFileType::Mod && pack_type != PFHFileType::Movie {
@@ -220,7 +223,7 @@ pub fn background_loop() {
                 pack_file_decoded.clean_undecoded();
 
                 let game_selected = GAME_SELECTED.read().unwrap();
-                let extra_data = Some(initialize_encodeable_extra_data(&game_selected));
+                let extra_data = Some(initialize_encodeable_extra_data(&game_selected, pack_file_decoded.compression_format()));
                 match pack_file_decoded.save(Some(&path), &game_selected, &extra_data) {
                     Ok(_) => CentralCommand::send_back(&sender, Response::ContainerInfo(From::from(&pack_file_decoded))),
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(anyhow!("Error while trying to save the currently open PackFile: {}", error))),
@@ -285,6 +288,18 @@ pub fn background_loop() {
                 *GAME_SELECTED.write().unwrap() = SUPPORTED_GAMES.game(&game_selected).unwrap();
                 let game = GAME_SELECTED.read().unwrap();
 
+                // We need to make sure the compression format is valid for our game.
+                let current_cf = pack_file_decoded.compression_format();
+                if current_cf != CompressionFormat::None && !game.compression_formats_supported().contains(&current_cf) {
+                    if let Some(new_cf) = game.compression_formats_supported().first() {
+                        pack_file_decoded.set_compression_format(*new_cf, &game);
+                    } else {
+                        pack_file_decoded.set_compression_format(CompressionFormat::None, &game);
+                    }
+                }
+
+                CentralCommand::send_back(&sender, Response::CompressionFormat(pack_file_decoded.compression_format()));
+
                 // Optimisation: If we know we need to rebuild the whole dependencies, load them in another thread
                 // while we load the schema. That way we can speed-up the entire game-switching process.
                 //
@@ -293,7 +308,7 @@ pub fn background_loop() {
                 //
                 // Branch 1: dependencies rebuilt.
                 if rebuild_dependencies {
-                info!("Branch 1.");
+                    info!("Branch 1.");
                     let pack_dependencies = pack_file_decoded.dependencies().iter().map(|x| x.1.clone()).collect::<Vec<_>>();
                     let handle = thread::spawn(move || {
                         let game_selected = GAME_SELECTED.read().unwrap();
@@ -320,7 +335,7 @@ pub fn background_loop() {
 
                 // Branch 2: no dependecies rebuild.
                 else {
-                info!("Branch 2.");
+                    info!("Branch 2.");
 
                     // Load the new schemas.
                     load_schemas(&sender, &mut pack_file_decoded, &game);
@@ -492,7 +507,10 @@ pub fn background_loop() {
             },
 
             // In case we want to compress/decompress the PackedFiles of the currently open PackFile...
-            Command::ChangeDataIsCompressed(state) => { pack_file_decoded.set_compress(state); },
+            Command::ChangeCompressionFormat(cf) => {
+                let gs = GAME_SELECTED.read().unwrap().clone();
+                CentralCommand::send_back(&sender, Response::CompressionFormat(pack_file_decoded.set_compression_format(cf, &gs)));
+            },
 
             // In case we want to get the path of the currently open `PackFile`.
             Command::GetPackFilePath => CentralCommand::send_back(&sender, Response::PathBuf(PathBuf::from(pack_file_decoded.disk_file_path()))),
@@ -881,7 +899,7 @@ pub fn background_loop() {
                 let schema = if extract_tables_to_tsv { &*schema } else { &None };
                 let mut errors = 0;
 
-                let extra_data = Some(initialize_encodeable_extra_data(&GAME_SELECTED.read().unwrap()));
+                let extra_data = Some(initialize_encodeable_extra_data(&GAME_SELECTED.read().unwrap(), pack_file_decoded.compression_format()));
                 let mut extracted_paths = vec![];
 
                 // Pack extraction.
@@ -1134,8 +1152,9 @@ pub fn background_loop() {
 
             // In case we want to clean the cache of one or more PackedFiles...
             Command::CleanCache(paths) => {
+                let cf = pack_file_decoded.compression_format();
                 let mut files = pack_file_decoded.files_by_paths_mut(&paths, false);
-                let extra_data = Some(initialize_encodeable_extra_data(&GAME_SELECTED.read().unwrap()));
+                let extra_data = Some(initialize_encodeable_extra_data(&GAME_SELECTED.read().unwrap(), cf));
 
                 files.iter_mut().for_each(|file| {
                     let _ = file.encode(&extra_data, true, true, false);
@@ -1219,7 +1238,7 @@ pub fn background_loop() {
                 match data_source {
                     DataSource::PackFile => {
                         let folder = temp_dir().join(format!("rpfm_{}", pack_file_decoded.disk_file_name()));
-                        let extra_data = Some(initialize_encodeable_extra_data(&GAME_SELECTED.read().unwrap()));
+                        let extra_data = Some(initialize_encodeable_extra_data(&GAME_SELECTED.read().unwrap(), pack_file_decoded.compression_format()));
 
                         match pack_file_decoded.extract(path.clone(), &folder, true, &SCHEMA.read().unwrap(), false, setting_bool("tables_use_old_column_order_for_tsv"), &extra_data, true) {
                             Ok(extracted_path) => {
@@ -1253,8 +1272,9 @@ pub fn background_loop() {
                                 let patches_path = table_patches_path().unwrap().join(game.schema_file_name());
 
                                 // Encode the decoded tables with the old schema, then re-decode them with the new one.
+                                let cf = pack_file_decoded.compression_format();
                                 let mut tables = pack_file_decoded.files_by_type_mut(&[FileType::DB]);
-                                let extra_data = Some(initialize_encodeable_extra_data(&GAME_SELECTED.read().unwrap()));
+                                let extra_data = Some(initialize_encodeable_extra_data(&GAME_SELECTED.read().unwrap(), cf));
 
                                 tables.par_iter_mut().for_each(|x| { let _ = x.encode(&extra_data, true, true, false); });
 
@@ -1345,7 +1365,7 @@ pub fn background_loop() {
                     let date = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
                     let new_name = format!("{date}.pack");
                     let new_path = folder.join(new_name);
-                    let extra_data = Some(initialize_encodeable_extra_data(&game_selected));
+                    let extra_data = Some(initialize_encodeable_extra_data(&game_selected, pack_file_decoded.compression_format()));
                     let _ = pack_file_decoded.clone().save(Some(&new_path), &game_selected, &extra_data);
 
                     // If we have more than the limit, delete the older one.
@@ -1681,6 +1701,7 @@ pub fn background_loop() {
             Command::GetSourceDataFromLocKey(loc_key) => CentralCommand::send_back(&sender, Response::OptionStringStringVecString(dependencies.read().unwrap().loc_key_source(&loc_key))),
             Command::GetPackFileName => CentralCommand::send_back(&sender, Response::String(pack_file_decoded.disk_file_name())),
             Command::GetPackedFileRawData(path) => {
+                let cf = pack_file_decoded.compression_format();
                 match pack_file_decoded.files_mut().get_mut(&path) {
                     Some(ref mut rfile) => {
 
@@ -1693,7 +1714,7 @@ pub fn background_loop() {
                                 //
                                 // NOTE: This fucks up the table decoder if the table was badly decoded.
                                 Err(_) =>  {
-                                    let extra_data = Some(initialize_encodeable_extra_data(&GAME_SELECTED.read().unwrap()));
+                                    let extra_data = Some(initialize_encodeable_extra_data(&GAME_SELECTED.read().unwrap(), cf));
                                     match rfile.encode(&extra_data, false, false, true) {
                                         Ok(data) => CentralCommand::send_back(&sender, Response::VecU8(data.unwrap())),
                                         Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
@@ -2341,9 +2362,9 @@ fn update_anim_ids(pack_file: &mut Pack, starting_id: i32, offset: i32) -> Resul
     }
 
     // First, do a pass over sparse files.
-    let game_key = GAME_SELECTED.read().unwrap().key();
+    let game_info = GAME_SELECTED.read().unwrap().clone();
     let mut extra_data = DecodeableExtraData::default();
-    extra_data.set_game_key(Some(game_key));
+    extra_data.set_game_info(Some(&game_info));
     let extra_data = Some(extra_data);
 
     let mut files = pack_file.files_by_type_mut(&[FileType::AnimFragmentBattle]);
@@ -2971,7 +2992,7 @@ fn live_export(pack: &mut Pack) -> Result<()> {
         return Err(anyhow!("No files to export."));
     }
 
-    let extra_data = Some(initialize_encodeable_extra_data(&GAME_SELECTED.read().unwrap()));
+    let extra_data = Some(initialize_encodeable_extra_data(&GAME_SELECTED.read().unwrap(), pack.compression_format()));
     let game_path = setting_path(GAME_SELECTED.read().unwrap().key());
     let data_path = GAME_SELECTED.read().unwrap().data_path(&game_path)?;
 
@@ -3017,10 +3038,11 @@ fn live_export(pack: &mut Pack) -> Result<()> {
 
 /// Function to simplify logic for changing game selected.
 fn load_schemas(sender: &Sender<Response>, pack: &mut Pack, game: &GameInfo) {
+    let cf = pack.compression_format();
 
     // Before loading the schema, make sure we don't have tables with definitions from the current schema.
     let mut files = pack.files_by_type_mut(&[FileType::DB]);
-    let extra_data = Some(initialize_encodeable_extra_data(game));
+    let extra_data = Some(initialize_encodeable_extra_data(game, cf));
 
     files.par_iter_mut().for_each(|file| {
         let _ = file.encode(&extra_data, true, true, false);
@@ -3145,8 +3167,8 @@ fn decode_and_send_file(file: &mut RFile, sender: &Sender<Response>) {
     let schema = SCHEMA.read().unwrap();
     extra_data.set_schema(schema.as_ref());
 
-    let game_key = GAME_SELECTED.read().unwrap().key();
-    extra_data.set_game_key(Some(game_key));
+    let game_info = GAME_SELECTED.read().unwrap().clone();
+    extra_data.set_game_info(Some(&game_info));
 
     // Do not attempt to decode these.
     let mut ignored_file_types = vec![
