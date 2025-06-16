@@ -11,9 +11,10 @@
 //! Module with the logic and documentation for the CAAB ESF files.
 
 use std::collections::BTreeMap;
-use std::io::SeekFrom;
+use std::io::{Cursor, SeekFrom, Write};
 
 use crate::binary::{ReadBytes, WriteBytes};
+use crate::compression::{Compressible, CompressionFormat, Decompressible};
 use crate::error::{RLibError, Result};
 
 use super::*;
@@ -82,24 +83,127 @@ impl ESF {
             return Err(RLibError::DecodingMismatchSizeError(record_names_offset as usize, curr_pos as usize));
         }
 
-        let esf = Self{
+        let mut esf = Self{
             signature,
             unknown_1,
             creation_date,
             root_node,
         };
 
-        // Code for debugging decoding/encoding errors outside of RPFM.
-        // Re-encodes the decoded file and saves it to disk.
-        //use std::io::Write;
-        //let mut x = std::fs::File::create("encoded_starpos.esf")?;
-        //x.write_all(&esf.save())?;
+        // Once we're done with the nodes, we need to check if the last children of the root node contains a compressed record.
+        // If so, that record will contain an entire ESF which we need to decode, and then replace ours with that one.
+        //
+        // The reason for this is, I guess, optimization. Some ESF files, specially the startpos ones, may have specific nodes that are enormous.
+        // By keeping a compressed copy of the startpos, the game can read all the other nodes without loading the big ones to memory. But it's just a guess.
+        if let NodeType::Record(ref mut node) = esf.root_node {
+            if let Some(child) = node.children_mut().get_mut(0) {
+                if let Some(NodeType::Record(cnode)) = child.last_mut() {
+                    if cnode.name == COMPRESSED_DATA_TAG {
+                        let mut dec_data = vec![];
+                        if let Some(NodeType::U8Array(data)) = cnode.children()[0].get(0) {
+                            if let Some(NodeType::Record(hnode)) = cnode.children()[0].get(1) {
+                                if hnode.name == COMPRESSED_DATA_INFO_TAG {
+                                    if let Some(NodeType::U32(len)) = hnode.children()[0].get(0) {
+                                        if let Some(NodeType::U8Array(magic_number)) = hnode.children()[0].get(1) {
+
+                                            let mut mdata = vec![];
+                                            mdata.write_u32(*len.value())?;
+                                            mdata.write_all(&magic_number)?;
+                                            mdata.write_all(data)?;
+
+                                            dec_data = mdata.as_slice().decompress()?;
+
+                                            //let path_1 = "../test_files/test_decode_esf_caab.esf_decompressed";
+                                            //let mut writer = std::io::BufWriter::new(std::fs::File::create(path_1).unwrap());
+                                            //writer.write_all(&dec_data).unwrap();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if !dec_data.is_empty() {
+                            let mut dec_datac = Cursor::new(dec_data.clone());
+                            let new_esf = ESF::decode(&mut dec_datac, &None)?;
+                            esf = new_esf;
+                        }
+                    }
+                }
+            }
+        }
 
         Ok(esf)
     }
 
     /// This function takes a `ESF` of type CAAB and encodes it to `Vec<u8>`.
-    pub(crate) fn save_caab<W: WriteBytes>(&self, buffer: &mut W) -> Result<()> {
+    pub(crate) fn save_caab<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+        let mut extra_data = extra_data.clone().unwrap_or_default();
+        let disable_compression = extra_data.disable_compression;
+
+        let backup = self.clone();
+        let mut revert_compression = false;
+        let mut index = None;
+
+        // If we have a known compressed node, encode the esf, compress it, then replace said node with the compressed esf.
+        // Note that the operation alters the self, so we need to restore it at the end of this function in order to keep it usable.
+        if !disable_compression {
+            if let NodeType::Record(ref root_node) = self.root_node {
+                for (i1, parent) in root_node.children().iter().enumerate() {
+                    for (i2, child) in parent.iter().enumerate() {
+                        if let NodeType::Record(ref cnode) = child {
+                            if COMPRESSED_TAGS.contains(&&*cnode.name)  {
+                                index = Some((i1, i2));
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if let Some((i1, i2)) = index {
+                let mut ncdata = vec![];
+
+                extra_data.disable_compression = true;
+                self.encode(&mut ncdata, &Some(extra_data))?;
+                revert_compression = true;
+
+                let mut fdata = ncdata.compress(CompressionFormat::Lzma1)?;
+                let cdata = fdata.split_off(9);
+                let mut hdata = Cursor::new(fdata);
+
+                let hnode = RecordNode {
+                    record_flags: RecordNodeFlags::IS_RECORD_NODE,
+                    version: 0,
+                    name: COMPRESSED_DATA_INFO_TAG.to_owned(),
+                    children: vec![vec![
+                        NodeType::U32(U32Node {
+                            value: hdata.read_i32()? as u32,
+                            optimized: false,
+                        }),
+                        NodeType::U8Array(hdata.read_slice(5, false)?),
+                    ]],
+                };
+
+                let cnode = RecordNode {
+                    record_flags: RecordNodeFlags::IS_RECORD_NODE,
+                    version: 0,
+                    name: COMPRESSED_DATA_TAG.to_owned(),
+                    children: vec![vec![
+                        NodeType::U8Array(cdata),
+                        NodeType::Record(hnode),
+                    ]],
+                };
+
+                // Replace the full node with the compressed one.
+                if let NodeType::Record(ref mut root_node) = self.root_node {
+                    if let Some(parent) = root_node.children_mut().get_mut(i1) {
+                        if let Some(child) = parent.get_mut(i2) {
+                            *child = NodeType::Record(cnode);
+                        }
+                    }
+                }
+            }
+        }
 
         // Encode the header info, except the offsets, because those are calculated later.
         buffer.write_all(SIGNATURE_CAAB)?;
@@ -143,6 +247,10 @@ impl ESF {
         buffer.write_u32((12 + nodes_data.len() + 4) as u32)?;
         buffer.write_all(&nodes_data)?;
         buffer.write_all(&strings_data)?;
+
+        if revert_compression {
+            *self = backup;
+        }
 
         Ok(())
     }
@@ -364,7 +472,7 @@ impl ESF {
                 //------------------------------------------------//
                 UNKNOWN_21 => NodeType::Unknown21(data.read_u32()?),
                 UNKNOWN_23 => NodeType::Unknown23(data.read_u8()?),
-                //UNKNOWN_24 =>{},
+                UNKNOWN_24 => NodeType::Unknown24(data.read_u16()?),
                 UNKNOWN_25 => NodeType::Unknown25(data.read_u32()?),
 
                 // Very weird type.
@@ -890,7 +998,11 @@ impl ESF {
                 buffer.write_u8(UNKNOWN_23)?;
                 buffer.write_u8(*value)?;
             },
-            //NodeType::Unknown_24(bool),
+            NodeType::Unknown24(value) => {
+                buffer.write_u8(UNKNOWN_24)?;
+                buffer.write_u16(*value)?;
+
+            },
             NodeType::Unknown25(value) => {
                 buffer.write_u8(UNKNOWN_25)?;
                 buffer.write_u32(*value)?;
@@ -933,10 +1045,7 @@ impl ESF {
                     if let Some(max_value) = value.value().iter().max() {
                         if let Some(min_value) = value.value().iter().min() {
                             let max_value = std::cmp::max(min_value.abs(), max_value.abs());
-
-                            if max_value == 0 {
-                                buffer.write_u8(I32_ZERO_ARRAY)?;
-                            } else if max_value <= i8::MAX as i32 {
+                            if max_value <= i8::MAX as i32 {
                                 buffer.write_u8(I32_BYTE_ARRAY)?;
                                 value.value().iter().try_for_each(|x| list.write_i8(*x as i8))?;
                             } else if max_value <= i16::MAX as i32 {
@@ -985,9 +1094,7 @@ impl ESF {
                 let mut list = vec![];
                 if *value.optimized() {
                     if let Some(max_value) = value.value().iter().max() {
-                        if *max_value == 0 {
-                            buffer.write_u8(U32_ZERO_ARRAY)?;
-                        } else if max_value < &0xFF {
+                        if max_value < &0xFF {
                             buffer.write_u8(U32_BYTE_ARRAY)?;
                             value.value().iter().for_each(|x| list.push(*x as u8));
                         } else if max_value < &0xFFFF {
@@ -1184,79 +1291,5 @@ impl ESF {
             _ => {}
         }
     }
-
-    /*
-    fn decompress_compressed_data(data: &[u8], uncompressed_size: Option<&u32>, properties: &[u8]) -> Result<Vec<u8>> {
-        use xz2::read::XzDecoder;
-        use xz2::write::XzEncoder;
-        use xz2::stream::Stream;
-        use xz2::stream::LzmaOptions;
-        use xz2::stream::Action;
-        use std::io::{BufReader, Read, SeekFrom};
-
-
-
-            //int lc = properties[0] % 9;
-            //int remainder = properties[0] / 9;
-            //int lp = remainder % 5;
-            //int pb = remainder / 5;
-            //if (pb > Base.kNumPosStatesBitsMax)
-            //    throw new InvalidParamException();
-            //UInt32 dictionarySize = 0;
-            //for (int i = 0; i < 4; i++)
-            //    dictionarySize += ((UInt32)(properties[1 + i])) << (i * 8);
-            //SetDictionarySize(dictionarySize);
-            //SetLiteralProperties(lp, lc);
-            //SetPosBitsProperties(pb);
-
-
-        if properties.len() != 5 {
-            return Err(ErrorKind::PackedFileDataCouldNotBeDecompressed.into());
-        }
-
-        let lc = properties[0] % 9;
-        let remainder = properties[0] / 9;
-        let lp = remainder % 5;
-        let pb = remainder / 5;
-
-        let mut dictionary_size: u32 = 0;
-        for (index, property) in properties[1..].iter().enumerate() {
-            dictionary_size += (*property as u32) << (index * 8);
-        }
-
-        let mut lzma_options = LzmaOptions::new_preset(6).unwrap();
-        lzma_options.dict_size(dictionary_size);
-        lzma_options.position_bits(pb as u32);
-        lzma_options.literal_position_bits(lp as u32);
-        lzma_options.literal_context_bits(lc as u32);
-
-        let mut output = vec![];
-        let mut encoder_stream = Stream::new_lzma_encoder(&lzma_options).unwrap();
-        {
-            let mut encoder = XzEncoder::new_stream(&mut output, encoder_stream);
-            let _ = encoder.write(&[]);
-        }
-        dbg!(&output);
-
-
-        let mut stream = Stream::new_lzma_decoder(u64::MAX).map_err(|_| Error::from(ErrorKind::PackedFileDataCouldNotBeDecompressed))?;
-
-        dbg!(&output);
-        output.extend_from_slice(data);
-
-                use std::io::Write;
-        let mut x = std::fs::File::create("compressed_esf_data.lzma")?;
-        x.write_all(&output)?;
-        let mut encoder = XzDecoder::new_stream(&*output, stream);
-        let mut compressed_data = match uncompressed_size {
-            Some(size) => Vec::with_capacity(*size as usize),
-            None => vec![],
-        };
-
-        match encoder.read_to_end(&mut compressed_data) {
-            Ok(_) => Ok(compressed_data),
-            Err(_) => Err(ErrorKind::PackedFileDataCouldNotBeDecompressed.into())
-        }
-    }*/
 }
 

@@ -30,7 +30,9 @@ fn test_encode_esf_caab() {
     writer.write_all(&after).unwrap();
 
     let mut reader_2 = BufReader::new(File::open(path_2).unwrap());
-    let data_2 = ESF::decode(&mut reader_2, &None).unwrap();
+    let mut data_2 = ESF::decode(&mut reader_2, &None).unwrap();
+    let mut after = vec![];
+    data_2.encode(&mut after, &None).unwrap();
 
     // We have to compare the decoded files due to weird padding issues in cauleb128-encoded fields.
     assert_eq!(data, data_2);

@@ -29,6 +29,7 @@ use qt_core::QPtr;
 use qt_core::QRegExp;
 use qt_core::QSortFilterProxyModel;
 use qt_core::QTimer;
+use qt_core::q_item_selection_model::SelectionFlag;
 
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
@@ -79,8 +80,6 @@ pub struct PackedFileESFView {
     filter_case_sensitive_button: QPtr<QToolButton>,
     filter_timer_delayed_updates: QBox<QTimer>,
 
-    node_data_panel: QBox<QWidget>,
-
     detailed_view: Arc<RwLock<ESFDetailedView>>,
 
     _path: Arc<RwLock<String>>,
@@ -125,7 +124,7 @@ impl PackedFileESFView {
         tree_view.set_header_hidden(true);
         tree_view.set_animated(true);
         tree_view.set_uniform_row_heights(true);
-        tree_view.set_selection_mode(SelectionMode::ExtendedSelection);
+        tree_view.set_selection_mode(SelectionMode::SingleSelection);
         tree_view.set_context_menu_policy(ContextMenuPolicy::CustomContextMenu);
         tree_view.set_expands_on_double_click(true);
         tree_view.header().set_stretch_last_section(false);
@@ -157,9 +156,7 @@ impl PackedFileESFView {
             filter_case_sensitive_button,
             filter_timer_delayed_updates,
 
-            node_data_panel,
-
-            detailed_view: Arc::new(RwLock::new(ESFDetailedView::default())),
+            detailed_view: Arc::new(RwLock::new(ESFDetailedView::new(node_data_panel))),
 
             _path: file_view.path_raw()
         });
@@ -192,7 +189,7 @@ impl PackedFileESFView {
     pub unsafe fn save_view(&self) -> ESF {
 
         // First, save the currently open node.
-        self.detailed_view.read().unwrap().save_to_tree_node(&self.tree_view);
+        self.tree_view.selection_model().select_q_item_selection_q_flags_selection_flag(&self.tree_view.selection_model().selection(), SelectionFlag::Toggle.into());
 
         // Then, generate an ESF struct from the tree data.
         self.tree_view.get_esf_from_view(true)

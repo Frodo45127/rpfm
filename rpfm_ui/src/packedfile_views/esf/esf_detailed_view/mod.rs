@@ -22,24 +22,23 @@ use qt_widgets::QSpinBox;
 use qt_widgets::QTreeView;
 use qt_widgets::QWidget;
 
-use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;
 
 use qt_core::QBox;
+use qt_core::QModelIndex;
 use qt_core::QPtr;
 use qt_core::QString;
 use qt_core::QSortFilterProxyModel;
 use qt_core::QVariant;
 
-use cpp_core::Ptr;
-use rpfm_lib::files::esf::{Coordinates2DNode, Coordinates3DNode};
+use cpp_core::Ref;
 
 use std::collections::BTreeMap;
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 use std::vec;
 
-use rpfm_lib::files::{esf::NodeType, table::{*, local::*}};
+use rpfm_lib::files::{esf::*, table::{*, local::*}};
 use rpfm_lib::schema::*;
 
 use crate::app_ui::AppUI;
@@ -59,8 +58,8 @@ use crate::views::table::{*, utils::*};
 
 /// This struct contains the detailed view of an ESF Tree Node.
 pub struct ESFDetailedView {
-    path: Arc<RwLock<Vec<String>>>,
     data_types: Vec<DataType>,
+    node_data_panel: QBox<QWidget>,
 }
 
 /// DataTypes supported by the detailed view.
@@ -85,6 +84,7 @@ enum DataType {
 
     Unknown21(QBox<QSpinBox>),
     Unknown23(QBox<QSpinBox>),
+    Unknown24(QBox<QSpinBox>),
     Unknown25(QBox<QSpinBox>),
     Unknown26(Arc<TableView>),
 
@@ -110,89 +110,79 @@ enum DataType {
 //                             Implementations
 //-------------------------------------------------------------------------------//
 
-/// Default implementation of `ESFDetailedView`.
-impl Default for ESFDetailedView {
-    fn default() -> Self {
-        Self {
-            path: Arc::new(RwLock::new(vec![])),
-            data_types: vec![],
-        }
-    }
-}
-
 /// Implementation of `ESFDetailedView`.
 impl ESFDetailedView {
 
+    pub unsafe fn new(node_data_panel: QBox<QWidget>) -> Self {
+        Self {
+            data_types: vec![],
+            node_data_panel,
+        }
+    }
+
     /// This function loads the provided subnodes to the detailed TreeView, saving and removing those who were before.
-    pub unsafe fn load_subnodes_to_details_view(
+    pub unsafe fn load_to_detailed_view(
         &mut self,
+        tree_view: &QPtr<QTreeView>,
+        index: Ref<QModelIndex>,
         app_ui: &Rc<AppUI>,
         global_search_ui: &Rc<GlobalSearchUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         diagnostics_ui: &Rc<DiagnosticsUI>,
         dependencies_ui: &Rc<DependenciesUI>,
         references_ui: &Rc<ReferencesUI>,
-        parent_widget: &QBox<QWidget>,
-        tree_view: &QPtr<QTreeView>,
-        nodes: &[NodeType],
-        item: Ptr<QStandardItem>
     ) {
-        let layout: QPtr<QGridLayout> = parent_widget.layout().static_downcast();
-
-        // Save the current data to its node before loading new data.
-        self.save_to_tree_node(tree_view);
-        while !layout.item_at(0).is_null() {
-            let widget = layout.take_at(0).widget();
-            widget.delete_later();
-        }
-
-        // Reset the detailed view's data.
-        self.data_types.clear();
-
+        let parent_widget = &self.node_data_panel;
+        let layout: QPtr<QGridLayout> = self.node_data_panel.layout().static_downcast();
         let filter: QPtr<QSortFilterProxyModel> = tree_view.model().static_downcast();
         let model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
-        let item_path = <QPtr<QTreeView> as ESFTree>::get_path_from_item(item, &model);
+        let item = model.item_from_index(index);
 
-        *self.path.write().unwrap() = item_path;
+        // Nodes can error out if the item has no nodes.
+        let nodes = <QPtr<QTreeView> as ESFTree>::get_child_nodes_from_item(&item);
+        let nodes: Vec<NodeType> = match serde_json::from_str(&nodes) {
+            Ok(nodes) => nodes,
+            Err(_) => return,
+        };
 
         for (row, node) in nodes.iter().enumerate() {
             match node {
                 NodeType::Invalid => unimplemented!(),
                 NodeType::Bool(value) => {
-                    let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
+                    // let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QCheckBox::from_q_widget(parent_widget);
                     widget.set_checked(*value.value());
-                    layout.add_widget_5a(&label, row as i32, 0, 1, 1);
+                    // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
                     self.data_types.push(DataType::Boolean(widget));
                 },
                 NodeType::I8(value) => {
-                    let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
+                    // let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QSpinBox::new_1a(parent_widget);
                     widget.set_maximum(i8::MAX.into());
                     widget.set_minimum(i8::MIN.into());
                     widget.set_value(*value as i32);
-                    layout.add_widget_5a(&label, row as i32, 0, 1, 1);
+                    // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
                     self.data_types.push(DataType::I8(widget));
                 },
                 NodeType::I16(value) => {
-                    let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
+                    // let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QSpinBox::new_1a(parent_widget);
                     widget.set_maximum(i16::MAX.into());
                     widget.set_minimum(i16::MIN.into());
                     widget.set_value(*value as i32);
-                    layout.add_widget_5a(&label, row as i32, 0, 1, 1);
+                    // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
                     self.data_types.push(DataType::I16(widget));
                 },
                 NodeType::I32(value) => {
-                    let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
+                    // let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QSpinBox::new_1a(parent_widget);
-                    layout.add_widget_5a(&label, row as i32, 0, 1, 1);
+                    // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     widget.set_maximum(i32::MAX);
                     widget.set_minimum(i32::MIN);
                     widget.set_value(*value.value());
@@ -201,88 +191,88 @@ impl ESFDetailedView {
                     self.data_types.push(DataType::I32(widget));
                 },
                 NodeType::I64(value) => {
-                    let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
+                    // let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = new_q_spinbox_i64_safe(&parent_widget.static_upcast());
                     set_max_q_spinbox_i64_safe(&widget, i64::MAX);
                     set_min_q_spinbox_i64_safe(&widget, i64::MIN);
                     set_value_q_spinbox_i64_safe(&widget, *value);
-                    layout.add_widget_5a(&label, row as i32, 0, 1, 1);
+                    // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
                     self.data_types.push(DataType::I64(widget));
                 },
                 NodeType::U8(value) => {
-                    let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
+                    // let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QSpinBox::new_1a(parent_widget);
                     widget.set_maximum(u8::MAX.into());
                     widget.set_minimum(0);
                     widget.set_value(*value as i32);
-                    layout.add_widget_5a(&label, row as i32, 0, 1, 1);
+                    // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
                     self.data_types.push(DataType::U8(widget));
                 },
                 NodeType::U16(value) => {
-                    let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
+                    // let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QSpinBox::new_1a(parent_widget);
                     widget.set_maximum(u16::MAX.into());
                     widget.set_minimum(0);
                     widget.set_value(*value as i32);
-                    layout.add_widget_5a(&label, row as i32, 0, 1, 1);
+                    // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
                     self.data_types.push(DataType::U16(widget));
                 },
                 NodeType::U32(value) => {
-                    let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
+                    // let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = new_q_spinbox_i64_safe(&parent_widget.static_upcast());
                     set_max_q_spinbox_i64_safe(&widget, u32::MAX.into());
                     set_min_q_spinbox_i64_safe(&widget, 0);
                     set_value_q_spinbox_i64_safe(&widget, *value.value() as i64);
 
-                    layout.add_widget_5a(&label, row as i32, 0, 1, 1);
+                    // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
                     self.data_types.push(DataType::U32(widget));
                 },
                 NodeType::U64(value) => {
-                    let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
+                    // let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = new_q_spinbox_i64_safe(&parent_widget.static_upcast());
                     set_max_q_spinbox_i64_safe(&widget, i64::MAX);
                     set_min_q_spinbox_i64_safe(&widget, i64::MIN);
                     set_value_q_spinbox_i64_safe(&widget, *value as i64);
 
-                    layout.add_widget_5a(&label, row as i32, 0, 1, 1);
+                    // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
                     self.data_types.push(DataType::U64(widget));
                 },
                 NodeType::F32(value) => {
-                    let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
+                    // let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QDoubleSpinBox::new_1a(parent_widget);
                     widget.set_decimals(4);
                     widget.set_maximum(f32::MAX.into());
                     widget.set_minimum(f32::MIN.into());
                     widget.set_value(*value.value() as f64);
-                    layout.add_widget_5a(&label, row as i32, 0, 1, 1);
+                    // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
                     self.data_types.push(DataType::F32(widget));
                 },
                 NodeType::F64(value) => {
-                    let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
+                    // let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QDoubleSpinBox::new_1a(parent_widget);
                     widget.set_decimals(4);
                     widget.set_maximum(f64::MAX);
                     widget.set_minimum(f64::MIN);
                     widget.set_value(*value);
-                    layout.add_widget_5a(&label, row as i32, 0, 1, 1);
+                    // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
                     self.data_types.push(DataType::F64(widget));
                 },
                 NodeType::Coord2d(value) => {
-                    let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
+                    // let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QWidget::new_1a(parent_widget);
                     let widget_layout = create_grid_layout(widget.static_upcast());
 
@@ -305,13 +295,13 @@ impl ESFDetailedView {
                     widget_layout.add_widget_5a(&x_spinbox, 0, 1, 1, 1);
                     widget_layout.add_widget_5a(&y_spinbox, 1, 1, 1, 1);
 
-                    layout.add_widget_5a(&label, row as i32, 0, 1, 1);
+                    // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
                     self.data_types.push(DataType::Coord2d((x_spinbox, y_spinbox)));
                 },
                 NodeType::Coord3d(value) => {
-                    let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
+                    // let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QWidget::new_1a(parent_widget);
                     let widget_layout = create_grid_layout(widget.static_upcast());
 
@@ -342,40 +332,40 @@ impl ESFDetailedView {
                     widget_layout.add_widget_5a(&y_spinbox, 1, 1, 1, 1);
                     widget_layout.add_widget_5a(&z_spinbox, 2, 1, 1, 1);
 
-                    layout.add_widget_5a(&label, row as i32, 0, 1, 1);
+                    // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
                     self.data_types.push(DataType::Coord3d((x_spinbox, y_spinbox, z_spinbox)));
                 },
                 NodeType::Utf16(value) => {
-                    let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
+                    // let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QLineEdit::from_q_widget(parent_widget);
                     widget.set_text(&QString::from_std_str(value));
-                    layout.add_widget_5a(&label, row as i32, 0, 1, 1);
+                    // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
                     self.data_types.push(DataType::UTF16(widget));
                 },
                 NodeType::Ascii(value) => {
-                    let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
+                    // let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QLineEdit::from_q_widget(parent_widget);
                     widget.set_text(&QString::from_std_str(value));
-                    layout.add_widget_5a(&label, row as i32, 0, 1, 1);
+                    // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
                     self.data_types.push(DataType::UTF8(widget));
                 },
                 NodeType::Angle(value) => {
-                    let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
+                    // let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QSpinBox::new_1a(parent_widget);
                     widget.set_value(*value as i32);
-                    layout.add_widget_5a(&label, row as i32, 0, 1, 1);
+                    // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
                     self.data_types.push(DataType::Angle(widget));
                 },
                 NodeType::Unknown21(value) => {
-                    let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
+                    // let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QSpinBox::new_1a(parent_widget);
 
                     // Wrong representation, but allow us to not lose the data.
@@ -383,25 +373,39 @@ impl ESFDetailedView {
                     widget.set_minimum(i32::MIN);
 
                     widget.set_value(*value as i32);
-                    layout.add_widget_5a(&label, row as i32, 0, 1, 1);
+                    // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
                     self.data_types.push(DataType::Unknown21(widget));
                 },
                 NodeType::Unknown23(value) => {
-                    let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
+                    // let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QSpinBox::new_1a(parent_widget);
                     widget.set_maximum(u8::MAX.into());
                     widget.set_minimum(0);
 
                     widget.set_value(*value as i32);
-                    layout.add_widget_5a(&label, row as i32, 0, 1, 1);
+                    // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
                     self.data_types.push(DataType::Unknown23(widget));
                 },
+                NodeType::Unknown24(value) => {
+                    // let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
+                    let widget = QSpinBox::new_1a(parent_widget);
+
+                    // Wrong representation, but allow us to not lose the data.
+                    widget.set_maximum(i16::MAX.into());
+                    widget.set_minimum(i16::MIN.into());
+
+                    widget.set_value(*value as i32);
+                    // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
+                    layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
+
+                    self.data_types.push(DataType::Unknown24(widget));
+                },
                 NodeType::Unknown25(value) => {
-                    let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
+                    // let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QSpinBox::new_1a(parent_widget);
 
                     // Wrong representation, but allow us to not lose the data.
@@ -409,13 +413,13 @@ impl ESFDetailedView {
                     widget.set_minimum(i32::MIN);
 
                     widget.set_value(*value as i32);
-                    layout.add_widget_5a(&label, row as i32, 0, 1, 1);
+                    // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
                     self.data_types.push(DataType::Unknown25(widget));
                 },
                 NodeType::Unknown26(values) => {
-                    let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
+                    // let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QWidget::new_1a(parent_widget);
                     let _ = create_grid_layout(widget.static_upcast());
 
@@ -430,13 +434,13 @@ impl ESFDetailedView {
                     let table_data = TableType::NormalTable(table);
                     let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
 
-                    layout.add_widget_5a(&label, row as i32, 0, 1, 1);
+                    // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
                     self.data_types.push(DataType::Unknown26(table_view));
                 },
                 NodeType::BoolArray(values) => {
-                    let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
+                    // let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QWidget::new_1a(parent_widget);
                     let _ = create_grid_layout(widget.static_upcast());
 
@@ -451,13 +455,13 @@ impl ESFDetailedView {
                     let table_data = TableType::NormalTable(table);
                     let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
 
-                    layout.add_widget_5a(&label, row as i32, 0, 1, 1);
+                    // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
                     self.data_types.push(DataType::BoolArray(table_view));
                 },
                 NodeType::I8Array(values) => {
-                    let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
+                    // let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QWidget::new_1a(parent_widget);
                     let _ = create_grid_layout(widget.static_upcast());
 
@@ -472,13 +476,13 @@ impl ESFDetailedView {
                     let table_data = TableType::NormalTable(table);
                     let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
 
-                    layout.add_widget_5a(&label, row as i32, 0, 1, 1);
+                    // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
                     self.data_types.push(DataType::I8Array(table_view));
                 },
                 NodeType::I16Array(values) => {
-                    let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
+                    // let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QWidget::new_1a(parent_widget);
                     let _ = create_grid_layout(widget.static_upcast());
 
@@ -493,13 +497,13 @@ impl ESFDetailedView {
                     let table_data = TableType::NormalTable(table);
                     let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
 
-                    layout.add_widget_5a(&label, row as i32, 0, 1, 1);
+                    // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
                     self.data_types.push(DataType::I16Array(table_view));
                 },
                 NodeType::I32Array(values) => {
-                    let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
+                    // let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QWidget::new_1a(parent_widget);
                     let _ = create_grid_layout(widget.static_upcast());
 
@@ -514,13 +518,13 @@ impl ESFDetailedView {
                     let table_data = TableType::NormalTable(table);
                     let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
 
-                    layout.add_widget_5a(&label, row as i32, 0, 1, 1);
+                    // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
                     self.data_types.push(DataType::I32Array((table_view, *values.optimized())));
                 },
                 NodeType::I64Array(values) => {
-                    let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
+                    // let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QWidget::new_1a(parent_widget);
                     let _ = create_grid_layout(widget.static_upcast());
 
@@ -535,13 +539,13 @@ impl ESFDetailedView {
                     let table_data = TableType::NormalTable(table);
                     let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
 
-                    layout.add_widget_5a(&label, row as i32, 0, 1, 1);
+                    // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
                     self.data_types.push(DataType::I64Array(table_view));
                 },
                 NodeType::U8Array(values) => {
-                    let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
+                    // let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QWidget::new_1a(parent_widget);
                     let _ = create_grid_layout(widget.static_upcast());
 
@@ -556,13 +560,13 @@ impl ESFDetailedView {
                     let table_data = TableType::NormalTable(table);
                     let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
 
-                    layout.add_widget_5a(&label, row as i32, 0, 1, 1);
+                    // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
                     self.data_types.push(DataType::U8Array(table_view));
                 },
                 NodeType::U16Array(values) => {
-                    let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
+                    // let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QWidget::new_1a(parent_widget);
                     let _ = create_grid_layout(widget.static_upcast());
 
@@ -577,13 +581,13 @@ impl ESFDetailedView {
                     let table_data = TableType::NormalTable(table);
                     let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
 
-                    layout.add_widget_5a(&label, row as i32, 0, 1, 1);
+                    // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
                     self.data_types.push(DataType::U16Array(table_view));
                 },
                 NodeType::U32Array(values) => {
-                    let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
+                    // let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QWidget::new_1a(parent_widget);
                     let _ = create_grid_layout(widget.static_upcast());
 
@@ -598,13 +602,13 @@ impl ESFDetailedView {
                     let table_data = TableType::NormalTable(table);
                     let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
 
-                    layout.add_widget_5a(&label, row as i32, 0, 1, 1);
+                    // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
                     self.data_types.push(DataType::U32Array((table_view, *values.optimized())));
                 },
                 NodeType::U64Array(values) => {
-                    let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
+                    // let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QWidget::new_1a(parent_widget);
                     let _ = create_grid_layout(widget.static_upcast());
 
@@ -619,13 +623,13 @@ impl ESFDetailedView {
                     let table_data = TableType::NormalTable(table);
                     let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
 
-                    layout.add_widget_5a(&label, row as i32, 0, 1, 1);
+                    // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
                     self.data_types.push(DataType::U64Array(table_view));
                 },
                 NodeType::F32Array(values) => {
-                    let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
+                    // let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QWidget::new_1a(parent_widget);
                     let _ = create_grid_layout(widget.static_upcast());
 
@@ -640,13 +644,13 @@ impl ESFDetailedView {
                     let table_data = TableType::NormalTable(table);
                     let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
 
-                    layout.add_widget_5a(&label, row as i32, 0, 1, 1);
+                    // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
                     self.data_types.push(DataType::F32Array(table_view));
                 },
                 NodeType::F64Array(values) => {
-                    let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
+                    // let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QWidget::new_1a(parent_widget);
                     let _ = create_grid_layout(widget.static_upcast());
 
@@ -661,13 +665,13 @@ impl ESFDetailedView {
                     let table_data = TableType::NormalTable(table);
                     let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
 
-                    layout.add_widget_5a(&label, row as i32, 0, 1, 1);
+                    // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
                     self.data_types.push(DataType::F64Array(table_view));
                 },
                 NodeType::Coord2dArray(values) => {
-                    let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
+                    // let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QWidget::new_1a(parent_widget);
                     let _ = create_grid_layout(widget.static_upcast());
 
@@ -684,13 +688,13 @@ impl ESFDetailedView {
                     let table_data = TableType::NormalTable(table);
                     let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
 
-                    layout.add_widget_5a(&label, row as i32, 0, 1, 1);
+                    // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
                     self.data_types.push(DataType::Coord2dArray(table_view));
                 },
                 NodeType::Coord3dArray(values) => {
-                    let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
+                    // let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QWidget::new_1a(parent_widget);
                     let _ = create_grid_layout(widget.static_upcast());
 
@@ -709,13 +713,13 @@ impl ESFDetailedView {
                     let table_data = TableType::NormalTable(table);
                     let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
 
-                    layout.add_widget_5a(&label, row as i32, 0, 1, 1);
+                    // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
                     self.data_types.push(DataType::Coord3dArray(table_view));
                 },
                 NodeType::Utf16Array(values) => {
-                    let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
+                    // let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QWidget::new_1a(parent_widget);
                     let _ = create_grid_layout(widget.static_upcast());
 
@@ -730,13 +734,13 @@ impl ESFDetailedView {
                     let table_data = TableType::NormalTable(table);
                     let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
 
-                    layout.add_widget_5a(&label, row as i32, 0, 1, 1);
+                    // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
                     self.data_types.push(DataType::Utf16Array(table_view));
                 },
                 NodeType::AsciiArray(values) => {
-                    let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
+                    // let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QWidget::new_1a(parent_widget);
                     let _ = create_grid_layout(widget.static_upcast());
 
@@ -751,13 +755,13 @@ impl ESFDetailedView {
                     let table_data = TableType::NormalTable(table);
                     let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
 
-                    layout.add_widget_5a(&label, row as i32, 0, 1, 1);
+                    // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
                     self.data_types.push(DataType::AsciiArray(table_view));
                 },
                 NodeType::AngleArray(values) => {
-                    let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
+                    // let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QWidget::new_1a(parent_widget);
                     let _ = create_grid_layout(widget.static_upcast());
 
@@ -772,7 +776,7 @@ impl ESFDetailedView {
                     let table_data = TableType::NormalTable(table);
                     let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
 
-                    layout.add_widget_5a(&label, row as i32, 0, 1, 1);
+                    // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
                     self.data_types.push(DataType::AngleArray(table_view));
@@ -785,245 +789,256 @@ impl ESFDetailedView {
     }
 
     /// This function saves the subnodes of a detailed view into their item in the TreeView.
-    pub unsafe fn save_to_tree_node(&self, tree_view: &QPtr<QTreeView>) {
-        if !self.path.read().unwrap().is_empty() {
-            let filter: QPtr<QSortFilterProxyModel> = tree_view.model().static_downcast();
-            let model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
-            let item = <QPtr<QTreeView> as ESFTree>::get_item_from_path(&self.path.read().unwrap(), &model);
-            let data = <QPtr<QTreeView> as ESFTree>::get_child_nodes_from_item(&item);
+    pub unsafe fn save_from_detailed_view(&mut self, tree_view: &QPtr<QTreeView>, index: Ref<QModelIndex>) {
+        let filter: QPtr<QSortFilterProxyModel> = tree_view.model().static_downcast();
+        let model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
+        let item = model.item_from_index(index);
+        let data = <QPtr<QTreeView> as ESFTree>::get_child_nodes_from_item(&item);
 
-            if !data.is_empty() {
-                let mut nodes: Vec<NodeType> = serde_json::from_str(&data).unwrap();
-                let mut index = 0;
-                for node in &mut nodes {
-                    match node {
-                        NodeType::Invalid => unimplemented!(),
-                        NodeType::Bool(value) => if let DataType::Boolean(widget) = &self.data_types[index] {
-                            *value.value_mut() = widget.is_checked();
-                            index += 1;
-                        },
-                        NodeType::I8(value) => if let DataType::I8(widget) = &self.data_types[index] {
-                            *value = widget.value() as i8;
-                            index += 1;
-                        },
-                        NodeType::I16(value) => if let DataType::I16(widget) = &self.data_types[index] {
-                            *value = widget.value() as i16;
-                            index += 1;
-                        },
-                        NodeType::I32(value) => if let DataType::I32(widget) = &self.data_types[index] {
-                            *value.value_mut() = widget.value();
-                            index += 1;
-                        },
-                        NodeType::I64(value) => if let DataType::I64(widget) = &self.data_types[index] {
-                            *value = value_q_spinbox_i64_safe(widget);
-                            index += 1;
-                        },
-                        NodeType::U8(value) => if let DataType::U8(widget) = &self.data_types[index] {
-                            *value = widget.value() as u8;
-                            index += 1;
-                        },
-                        NodeType::U16(value) => if let DataType::U16(widget) = &self.data_types[index] {
-                            *value = widget.value() as u16;
-                            index += 1;
-                        },
-                        NodeType::U32(value) => if let DataType::U32(widget) = &self.data_types[index] {
-                            *value.value_mut() = value_q_spinbox_i64_safe(widget) as u32;
-                            index += 1;
-                        },
-                        NodeType::U64(value) => if let DataType::U64(widget) = &self.data_types[index] {
-                            *value = value_q_spinbox_i64_safe(widget) as u64;
-                            index += 1;
-                        },
-                        NodeType::F32(value) => if let DataType::F32(widget) = &self.data_types[index] {
-                            *value.value_mut() = widget.value() as f32;
-                            index += 1;
-                        },
-                        NodeType::F64(value) => if let DataType::F64(widget) = &self.data_types[index] {
-                            *value = widget.value();
-                            index += 1;
-                        },
-                        NodeType::Coord2d(value) => if let DataType::Coord2d((x, y)) = &self.data_types[index] {
-                            *value.x_mut() = x.value() as f32;
-                            *value.y_mut() = y.value() as f32;
-                            index += 1;
-                        },
-                        NodeType::Coord3d(value) => if let DataType::Coord3d((x, y, z)) = &self.data_types[index] {
-                            *value.x_mut() = x.value() as f32;
-                            *value.y_mut() = y.value() as f32;
-                            *value.z_mut() = z.value() as f32;
-                            index += 1;
-                        },
-                        NodeType::Utf16(value) => if let DataType::UTF16(widget) = &self.data_types[index] {
-                            *value = widget.text().to_std_string();
-                            index += 1;
-                        },
-                        NodeType::Ascii(value) => if let DataType::UTF8(widget) = &self.data_types[index] {
-                            *value = widget.text().to_std_string();
-                            index += 1;
-                        },
-                        NodeType::Angle(value) => if let DataType::Angle(widget) = &self.data_types[index] {
-                            *value = widget.value() as i16;
-                            index += 1;
-                        },
-                        NodeType::Unknown21(value) => if let DataType::Unknown21(widget) = &self.data_types[index] {
-                            *value = widget.value() as u32;
-                            index += 1;
-                        },
-                        NodeType::Unknown23(value) => if let DataType::Unknown23(widget) = &self.data_types[index] {
-                            *value = widget.value() as u8;
-                            index += 1;
-                        },
-                        NodeType::Unknown25(value) => if let DataType::Unknown25(widget) = &self.data_types[index] {
-                            *value = widget.value() as u32;
-                            index += 1;
-                        },
-                        NodeType::Unknown26(values) => if let DataType::Unknown26(table_view) = &self.data_types[index] {
-                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
-                            let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
-                            let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
-                            *values = data.data().iter().filter_map(|x| if let DecodedData::I32(value) = &x[0] { Some(*value as u8) } else { None }).collect();
-                            index += 1;
-                        },
-                        NodeType::BoolArray(values) => if let DataType::BoolArray(table_view) = &self.data_types[index] {
-                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
-                            let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
-                            let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
-                            *values = data.data().iter().filter_map(|x| if let DecodedData::Boolean(value) = &x[0] { Some(*value) } else { None }).collect();
-                            index += 1;
-                        },
-                        NodeType::I8Array(values) => if let DataType::I8Array(table_view) = &self.data_types[index] {
-                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
-                            let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
-                            let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
-                            *values = data.data().iter().filter_map(|x| if let DecodedData::I16(value) = &x[0] { Some(*value as i8) } else { None }).collect();
-                            index += 1;
-                        },
-                        NodeType::I16Array(values) => if let DataType::I16Array(table_view) = &self.data_types[index] {
-                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
-                            let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
-                            let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
-                            *values = data.data().iter().filter_map(|x| if let DecodedData::I16(value) = &x[0] { Some(*value) } else { None }).collect();
-                            index += 1;
-                        },
-                        NodeType::I32Array(values) => if let DataType::I32Array((table_view, _)) = &self.data_types[index] {
-                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
-                            let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
-                            let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
-                            *values.value_mut() = data.data().iter().filter_map(|x| if let DecodedData::I32(value) = &x[0] { Some(*value) } else { None }).collect();
-                            index += 1;
-                        },
-                        NodeType::I64Array(values) => if let DataType::I64Array(table_view) = &self.data_types[index] {
-                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
-                            let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
-                            let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
-                            *values = data.data().iter().filter_map(|x| if let DecodedData::I64(value) = &x[0] { Some(*value) } else { None }).collect();
-                            index += 1;
-                        },
-                        NodeType::U8Array(values) => if let DataType::U8Array(table_view) = &self.data_types[index] {
-                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
-                            let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
-                            let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
-                            *values = data.data().iter().filter_map(|x| if let DecodedData::I16(value) = &x[0] { Some(*value as u8) } else { None }).collect();
-                            index += 1;
-                        },
-                        NodeType::U16Array(values) => if let DataType::U16Array(table_view) = &self.data_types[index] {
-                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
-                            let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
-                            let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
-                            *values = data.data().iter().filter_map(|x| if let DecodedData::I16(value) = &x[0] { Some(*value as u16) } else { None }).collect();
-                            index += 1;
-                        },
-                        NodeType::U32Array(values) => if let DataType::U32Array((table_view, _)) = &self.data_types[index] {
-                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
-                            let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
-                            let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
-                            *values.value_mut() = data.data().iter().filter_map(|x| if let DecodedData::I32(value) = &x[0] { Some(*value as u32) } else { None }).collect();
-                            index += 1;
-                        },
-                        NodeType::U64Array(values) => if let DataType::U64Array(table_view) = &self.data_types[index] {
-                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
-                            let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
-                            let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
-                            *values = data.data().iter().filter_map(|x| if let DecodedData::I64(value) = &x[0] { Some(*value as u64) } else { None }).collect();
-                            index += 1;
-                        },
-                        NodeType::F32Array(values) => if let DataType::F32Array(table_view) = &self.data_types[index] {
-                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
-                            let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
-                            let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
-                            *values = data.data().iter().filter_map(|x| if let DecodedData::F32(value) = &x[0] { Some(*value) } else { None }).collect();
-                            index += 1;
-                        },
-                        NodeType::F64Array(values) => if let DataType::F64Array(table_view) = &self.data_types[index] {
-                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
-                            let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
-                            let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
-                            *values = data.data().iter().filter_map(|x| if let DecodedData::F32(value) = &x[0] { Some(*value as f64) } else { None }).collect();
-                            index += 1;
-                        },
-                        NodeType::Coord2dArray(values) => if let DataType::Coord2dArray(table_view) = &self.data_types[index] {
-                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
-                            let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
-                            let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
-                            *values = data.data().iter().filter_map(|row|
-                                if let DecodedData::F32(x) = &row[0] {
-                                    if let DecodedData::F32(y) = &row[1] {
-                                        let mut coords = Coordinates2DNode::default();
+        if !data.is_empty() {
+            let mut nodes: Vec<NodeType> = serde_json::from_str(&data).unwrap();
+            let mut index = 0;
+            for node in &mut nodes {
+                match node {
+                    NodeType::Invalid => unimplemented!(),
+                    NodeType::Bool(value) => if let DataType::Boolean(widget) = &self.data_types[index] {
+                        *value.value_mut() = widget.is_checked();
+                        index += 1;
+                    },
+                    NodeType::I8(value) => if let DataType::I8(widget) = &self.data_types[index] {
+                        *value = widget.value() as i8;
+                        index += 1;
+                    },
+                    NodeType::I16(value) => if let DataType::I16(widget) = &self.data_types[index] {
+                        *value = widget.value() as i16;
+                        index += 1;
+                    },
+                    NodeType::I32(value) => if let DataType::I32(widget) = &self.data_types[index] {
+                        *value.value_mut() = widget.value();
+                        index += 1;
+                    },
+                    NodeType::I64(value) => if let DataType::I64(widget) = &self.data_types[index] {
+                        *value = value_q_spinbox_i64_safe(widget);
+                        index += 1;
+                    },
+                    NodeType::U8(value) => if let DataType::U8(widget) = &self.data_types[index] {
+                        *value = widget.value() as u8;
+                        index += 1;
+                    },
+                    NodeType::U16(value) => if let DataType::U16(widget) = &self.data_types[index] {
+                        *value = widget.value() as u16;
+                        index += 1;
+                    },
+                    NodeType::U32(value) => if let DataType::U32(widget) = &self.data_types[index] {
+                        *value.value_mut() = value_q_spinbox_i64_safe(widget) as u32;
+                        index += 1;
+                    },
+                    NodeType::U64(value) => if let DataType::U64(widget) = &self.data_types[index] {
+                        *value = value_q_spinbox_i64_safe(widget) as u64;
+                        index += 1;
+                    },
+                    NodeType::F32(value) => if let DataType::F32(widget) = &self.data_types[index] {
+                        *value.value_mut() = widget.value() as f32;
+                        index += 1;
+                    },
+                    NodeType::F64(value) => if let DataType::F64(widget) = &self.data_types[index] {
+                        *value = widget.value();
+                        index += 1;
+                    },
+                    NodeType::Coord2d(value) => if let DataType::Coord2d((x, y)) = &self.data_types[index] {
+                        *value.x_mut() = x.value() as f32;
+                        *value.y_mut() = y.value() as f32;
+                        index += 1;
+                    },
+                    NodeType::Coord3d(value) => if let DataType::Coord3d((x, y, z)) = &self.data_types[index] {
+                        *value.x_mut() = x.value() as f32;
+                        *value.y_mut() = y.value() as f32;
+                        *value.z_mut() = z.value() as f32;
+                        index += 1;
+                    },
+                    NodeType::Utf16(value) => if let DataType::UTF16(widget) = &self.data_types[index] {
+                        *value = widget.text().to_std_string();
+                        index += 1;
+                    },
+                    NodeType::Ascii(value) => if let DataType::UTF8(widget) = &self.data_types[index] {
+                        *value = widget.text().to_std_string();
+                        index += 1;
+                    },
+                    NodeType::Angle(value) => if let DataType::Angle(widget) = &self.data_types[index] {
+                        *value = widget.value() as i16;
+                        index += 1;
+                    },
+                    NodeType::Unknown21(value) => if let DataType::Unknown21(widget) = &self.data_types[index] {
+                        *value = widget.value() as u32;
+                        index += 1;
+                    },
+                    NodeType::Unknown23(value) => if let DataType::Unknown23(widget) = &self.data_types[index] {
+                        *value = widget.value() as u8;
+                        index += 1;
+                    },
+                    NodeType::Unknown24(value) => if let DataType::Unknown24(widget) = &self.data_types[index] {
+                        *value = widget.value() as u16;
+                        index += 1;
+                    },
+                    NodeType::Unknown25(value) => if let DataType::Unknown25(widget) = &self.data_types[index] {
+                        *value = widget.value() as u32;
+                        index += 1;
+                    },
+                    NodeType::Unknown26(values) => if let DataType::Unknown26(table_view) = &self.data_types[index] {
+                        let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
+                        let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
+                        let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
+                        *values = data.data().iter().filter_map(|x| if let DecodedData::I32(value) = &x[0] { Some(*value as u8) } else { None }).collect();
+                        index += 1;
+                    },
+                    NodeType::BoolArray(values) => if let DataType::BoolArray(table_view) = &self.data_types[index] {
+                        let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
+                        let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
+                        let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
+                        *values = data.data().iter().filter_map(|x| if let DecodedData::Boolean(value) = &x[0] { Some(*value) } else { None }).collect();
+                        index += 1;
+                    },
+                    NodeType::I8Array(values) => if let DataType::I8Array(table_view) = &self.data_types[index] {
+                        let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
+                        let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
+                        let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
+                        *values = data.data().iter().filter_map(|x| if let DecodedData::I16(value) = &x[0] { Some(*value as i8) } else { None }).collect();
+                        index += 1;
+                    },
+                    NodeType::I16Array(values) => if let DataType::I16Array(table_view) = &self.data_types[index] {
+                        let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
+                        let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
+                        let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
+                        *values = data.data().iter().filter_map(|x| if let DecodedData::I16(value) = &x[0] { Some(*value) } else { None }).collect();
+                        index += 1;
+                    },
+                    NodeType::I32Array(values) => if let DataType::I32Array((table_view, _)) = &self.data_types[index] {
+                        let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
+                        let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
+                        let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
+                        *values.value_mut() = data.data().iter().filter_map(|x| if let DecodedData::I32(value) = &x[0] { Some(*value) } else { None }).collect();
+                        index += 1;
+                    },
+                    NodeType::I64Array(values) => if let DataType::I64Array(table_view) = &self.data_types[index] {
+                        let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
+                        let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
+                        let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
+                        *values = data.data().iter().filter_map(|x| if let DecodedData::I64(value) = &x[0] { Some(*value) } else { None }).collect();
+                        index += 1;
+                    },
+                    NodeType::U8Array(values) => if let DataType::U8Array(table_view) = &self.data_types[index] {
+                        let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
+                        let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
+                        let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
+                        *values = data.data().iter().filter_map(|x| if let DecodedData::I16(value) = &x[0] { Some(*value as u8) } else { None }).collect();
+                        index += 1;
+                    },
+                    NodeType::U16Array(values) => if let DataType::U16Array(table_view) = &self.data_types[index] {
+                        let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
+                        let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
+                        let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
+                        *values = data.data().iter().filter_map(|x| if let DecodedData::I16(value) = &x[0] { Some(*value as u16) } else { None }).collect();
+                        index += 1;
+                    },
+                    NodeType::U32Array(values) => if let DataType::U32Array((table_view, _)) = &self.data_types[index] {
+                        let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
+                        let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
+                        let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
+                        *values.value_mut() = data.data().iter().filter_map(|x| if let DecodedData::I32(value) = &x[0] { Some(*value as u32) } else { None }).collect();
+                        index += 1;
+                    },
+                    NodeType::U64Array(values) => if let DataType::U64Array(table_view) = &self.data_types[index] {
+                        let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
+                        let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
+                        let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
+                        *values = data.data().iter().filter_map(|x| if let DecodedData::I64(value) = &x[0] { Some(*value as u64) } else { None }).collect();
+                        index += 1;
+                    },
+                    NodeType::F32Array(values) => if let DataType::F32Array(table_view) = &self.data_types[index] {
+                        let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
+                        let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
+                        let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
+                        *values = data.data().iter().filter_map(|x| if let DecodedData::F32(value) = &x[0] { Some(*value) } else { None }).collect();
+                        index += 1;
+                    },
+                    NodeType::F64Array(values) => if let DataType::F64Array(table_view) = &self.data_types[index] {
+                        let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
+                        let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
+                        let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
+                        *values = data.data().iter().filter_map(|x| if let DecodedData::F32(value) = &x[0] { Some(*value as f64) } else { None }).collect();
+                        index += 1;
+                    },
+                    NodeType::Coord2dArray(values) => if let DataType::Coord2dArray(table_view) = &self.data_types[index] {
+                        let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
+                        let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
+                        let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
+                        *values = data.data().iter().filter_map(|row|
+                            if let DecodedData::F32(x) = &row[0] {
+                                if let DecodedData::F32(y) = &row[1] {
+                                    let mut coords = Coordinates2DNode::default();
+                                    *coords.x_mut() = *x;
+                                    *coords.y_mut() = *y;
+                                    Some(coords)
+                                } else { None }
+                            } else { None }).collect();
+                        index += 1;
+                    },
+                    NodeType::Coord3dArray(values) => if let DataType::Coord3dArray(table_view) = &self.data_types[index] {
+                        let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
+                        let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
+                        let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
+                        *values = data.data().iter().filter_map(|row|
+                            if let DecodedData::F32(x) = &row[0] {
+                                if let DecodedData::F32(y) = &row[1] {
+                                    if let DecodedData::F32(z) = &row[2] {
+                                        let mut coords = Coordinates3DNode::default();
                                         *coords.x_mut() = *x;
                                         *coords.y_mut() = *y;
+                                        *coords.z_mut() = *z;
                                         Some(coords)
                                     } else { None }
-                                } else { None }).collect();
-                            index += 1;
-                        },
-                        NodeType::Coord3dArray(values) => if let DataType::Coord3dArray(table_view) = &self.data_types[index] {
-                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
-                            let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
-                            let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
-                            *values = data.data().iter().filter_map(|row|
-                                if let DecodedData::F32(x) = &row[0] {
-                                    if let DecodedData::F32(y) = &row[1] {
-                                        if let DecodedData::F32(z) = &row[2] {
-                                            let mut coords = Coordinates3DNode::default();
-                                            *coords.x_mut() = *x;
-                                            *coords.y_mut() = *y;
-                                            *coords.z_mut() = *z;
-                                            Some(coords)
-                                        } else { None }
-                                    } else { None }
-                                } else { None }).collect();
-                            index += 1;
-                        },
-                        NodeType::Utf16Array(values) => if let DataType::Utf16Array(table_view) = &self.data_types[index] {
-                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
-                            let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
-                            let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
-                            *values = data.data().iter().filter_map(|x| if let DecodedData::StringU8(value) = &x[0] { Some(value.to_owned()) } else { None }).collect();
-                            index += 1;
-                        },
-                        NodeType::AsciiArray(values) => if let DataType::AsciiArray(table_view) = &self.data_types[index] {
-                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
-                            let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
-                            let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
-                            *values = data.data().iter().filter_map(|x| if let DecodedData::StringU8(value) = &x[0] { Some(value.to_owned()) } else { None }).collect();
-                            index += 1;
-                        },
+                                } else { None }
+                            } else { None }).collect();
+                        index += 1;
+                    },
+                    NodeType::Utf16Array(values) => if let DataType::Utf16Array(table_view) = &self.data_types[index] {
+                        let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
+                        let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
+                        let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
+                        *values = data.data().iter().filter_map(|x| if let DecodedData::StringU8(value) = &x[0] { Some(value.to_owned()) } else { None }).collect();
+                        index += 1;
+                    },
+                    NodeType::AsciiArray(values) => if let DataType::AsciiArray(table_view) = &self.data_types[index] {
+                        let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
+                        let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
+                        let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
+                        *values = data.data().iter().filter_map(|x| if let DecodedData::StringU8(value) = &x[0] { Some(value.to_owned()) } else { None }).collect();
+                        index += 1;
+                    },
 
-                        NodeType::AngleArray(values) => if let DataType::AngleArray(table_view) = &self.data_types[index] {
-                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
-                            let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
-                            let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
-                            *values = data.data().iter().filter_map(|x| if let DecodedData::I16(value) = &x[0] { Some(*value) } else { None }).collect();
-                            index += 1;
-                        },
+                    NodeType::AngleArray(values) => if let DataType::AngleArray(table_view) = &self.data_types[index] {
+                        let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
+                        let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
+                        let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
+                        *values = data.data().iter().filter_map(|x| if let DecodedData::I16(value) = &x[0] { Some(*value) } else { None }).collect();
+                        index += 1;
+                    },
 
-                        // Skip record nodes.
-                        NodeType::Record(_) => continue,
-                    }
+                    // Skip record nodes.
+                    NodeType::Record(_) => continue,
                 }
-
-                item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&nodes).unwrap())), 42);
             }
+
+            item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&nodes).unwrap())), 42);
         }
+
+        // Remove the layout items.
+        let layout: QPtr<QGridLayout> = self.node_data_panel.layout().static_downcast();
+        while !layout.item_at(0).is_null() {
+            let widget = layout.take_at(0).widget();
+            widget.delete_later();
+        }
+
+        self.data_types.clear();
     }
 }

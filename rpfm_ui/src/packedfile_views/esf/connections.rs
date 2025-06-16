@@ -31,5 +31,5 @@ pub unsafe fn set_connections(ui: &Arc<PackedFileESFView>, slots: &PackedFileESF
     ui.filter_case_sensitive_button.toggled().connect(&slots.filter_change_case_sensitive);
     ui.filter_line_edit.text_changed().connect(&slots.filter_check_regex);
 
-     ui.tree_view.selection_model().selection_changed().connect(&slots.open_node);
+    ui.tree_view.selection_model().selection_changed().connect(&slots.open_node);
 }

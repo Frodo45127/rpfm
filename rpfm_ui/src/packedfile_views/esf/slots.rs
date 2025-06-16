@@ -12,18 +12,14 @@
 Module with the slots for ESF Views.
 !*/
 
-use qt_widgets::QTreeView;
-
 use qt_core::QBox;
-use qt_core::QPtr;
 use qt_core::SlotNoArgs;
 use qt_core::SlotOfQString;
 use qt_core::SlotOfBool;
+use qt_core::SlotOfQItemSelectionQItemSelection;
 
 use std::rc::Rc;
 use std::sync::Arc;
-
-use rpfm_lib::files::esf::NodeType;
 
 use rpfm_ui_common::clone;
 
@@ -31,7 +27,7 @@ use crate::app_ui::AppUI;
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
-use crate::packedfile_views::esf::{esftree::ESFTree, PackedFileESFView};
+use crate::packedfile_views::esf::PackedFileESFView;
 use crate::packedfile_views::PackFileContentsUI;
 use crate::references_ui::ReferencesUI;
 use crate::utils::check_regex;
@@ -48,7 +44,7 @@ pub struct PackedFileESFViewSlots {
     pub filter_change_case_sensitive: QBox<SlotOfBool>,
     pub filter_check_regex: QBox<SlotOfQString>,
 
-    pub open_node: QBox<SlotNoArgs>,
+    pub open_node: QBox<SlotOfQItemSelectionQItemSelection>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -102,21 +98,36 @@ impl PackedFileESFViewSlots {
         ));
 
         // Slot to change the format of the video to CAMV.
-        let open_node = SlotNoArgs::new(&view.tree_view, clone!(
+        let open_node = SlotOfQItemSelectionQItemSelection::new(&view.tree_view, clone!(
             app_ui,
             global_search_ui,
             pack_file_contents_ui,
             diagnostics_ui,
             dependencies_ui,
             references_ui,
-            view => move || {
-                let items = view.tree_view.get_items_from_selection(true);
-                if items.len() == 1 {
-                    let data = <QPtr<QTreeView> as ESFTree>::get_child_nodes_from_item(&items[0]);
-                    if !data.is_empty() {
-                        let nodes: Vec<NodeType> = serde_json::from_str(&data).unwrap();
-                        view.detailed_view.write().unwrap().load_subnodes_to_details_view(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, &dependencies_ui, &references_ui, &view.node_data_panel, &view.tree_view, &nodes, items[0]);
-                    }
+            view => move |after, before| {
+
+                // Save the previous data if needed.
+                if before.count_0a() == 1 {
+                    let filter_index = before.take_at(0).indexes().take_at(0);
+                    let index = view.tree_filter.map_to_source(filter_index.as_ref());
+                    view.detailed_view.write().unwrap().save_from_detailed_view(&view.tree_view, index.as_ref());
+                }
+
+                // Load the new data.
+                if after.count_0a() == 1 {
+                    let filter_index = after.take_at(0).indexes().take_at(0);
+                    let index = view.tree_filter.map_to_source(filter_index.as_ref());
+                    view.detailed_view.write().unwrap().load_to_detailed_view(
+                        &view.tree_view,
+                        index.as_ref(),
+                        &app_ui,
+                        &global_search_ui,
+                        &pack_file_contents_ui,
+                        &diagnostics_ui,
+                        &dependencies_ui,
+                        &references_ui
+                    );
                 }
             }
         ));

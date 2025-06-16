@@ -422,7 +422,10 @@ pub struct EncodeableExtraData<'a> {
     game_info: Option<&'a GameInfo>,
 
     /// The format we're trying to compress to, if we're compressing the files.
-    compression_format: CompressionFormat
+    compression_format: CompressionFormat,
+
+    /// For recursive encodings in ESF due to compression.
+    disable_compression: bool
 }
 
 //---------------------------------------------------------------------------//

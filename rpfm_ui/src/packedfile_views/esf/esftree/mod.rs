@@ -23,7 +23,6 @@ use qt_gui::QListOfQStandardItem;
 
 use qt_core::ItemFlag;
 use qt_core::QFlags;
-use qt_core::QModelIndex;
 use qt_core::QPtr;
 use qt_core::QSortFilterProxyModel;
 use qt_core::QString;
@@ -31,7 +30,6 @@ use qt_core::QVariant;
 
 use cpp_core::CppBox;
 use cpp_core::Ptr;
-use cpp_core::Ref;
 
 use rpfm_lib::files::esf::{ESF, NodeType, RecordNodeFlags};
 
@@ -50,23 +48,11 @@ const RECORD_NODE_NAME: i32 = 43;
 /// may not be suitable for all purposes.
 pub(crate) trait ESFTree {
 
-    /// This function gives you the items selected in the provided `TreeView`.
-    unsafe fn get_items_from_selection(&self, has_filter: bool) -> Vec<Ptr<QStandardItem>>;
-
     /// This function generates an ESF file from the contents of the `TreeView`.
     unsafe fn get_esf_from_view(&self, has_filter: bool) -> ESF;
 
     /// This function gives you the data contained within a CHILD_NODES variant of the provided item.
     unsafe fn get_child_nodes_from_item(item: &QStandardItem) -> String;
-
-    /// This function is used to get the path of a specific Item in a StandardItemModel.
-    unsafe fn get_path_from_item(item: Ptr<QStandardItem>, model: &QPtr<QStandardItemModel>) -> Vec<String>;
-
-    /// This function is used to get the path of a specific ModelIndex in a StandardItemModel.
-    unsafe fn get_path_from_index(index: Ref<QModelIndex>, model: &QPtr<QStandardItemModel>) -> Vec<String>;
-
-    /// This function gives you the item corresponding to an specific path.
-    unsafe fn get_item_from_path(path: &[String], model: &QPtr<QStandardItemModel>) -> Ptr<QStandardItem>;
 
     /// This function takes care of EVERY operation that manipulates the provided TreeView.
     /// It does one thing or another, depending on the operation we provide it.
@@ -88,98 +74,8 @@ pub enum ESFTreeViewOperation {
 /// Implementation of `ESFTree` for `QPtr<QTreeView>`.
 impl ESFTree for QPtr<QTreeView> {
 
-    unsafe fn get_items_from_selection(&self, has_filter: bool) -> Vec<Ptr<QStandardItem>> {
-        let filter: Option<QPtr<QSortFilterProxyModel>> = if has_filter { Some(self.model().static_downcast()) } else { None };
-        let model: QPtr<QStandardItemModel> = if let Some(ref filter) = filter { filter.source_model().static_downcast() } else { self.model().static_downcast()};
-
-        let indexes_visual = self.selection_model().selection().indexes();
-        let mut indexes_visual = (0..indexes_visual.count_0a()).rev().map(|x| indexes_visual.take_at(x)).collect::<Vec<CppBox<QModelIndex>>>();
-        indexes_visual.reverse();
-        let indexes_real = if let Some(filter) = filter {
-            indexes_visual.iter().map(|x| filter.map_to_source(x.as_ref())).collect::<Vec<CppBox<QModelIndex>>>()
-        } else {
-            indexes_visual
-        };
-
-        indexes_real.iter().map(|x| model.item_from_index(x.as_ref())).collect()
-    }
-
     unsafe fn get_child_nodes_from_item(item: &QStandardItem) -> String {
         item.data_1a(CHILD_NODES).to_string().to_std_string()
-    }
-
-    unsafe fn get_path_from_item(item: Ptr<QStandardItem>, model: &QPtr<QStandardItemModel>) -> Vec<String> {
-        let index = item.index();
-        Self::get_path_from_index(index.as_ref(), model)
-    }
-
-    unsafe fn get_path_from_index(index: Ref<QModelIndex>, model: &QPtr<QStandardItemModel>) -> Vec<String> {
-
-        // The logic is simple: we loop from item to parent until we reach the top.
-        let mut path = vec![];
-        let mut index = index;
-        let mut parent;
-
-        // Loop until we reach the root index.
-        loop {
-            let text = model.data_2a(index, RECORD_NODE_NAME).to_string().to_std_string();
-            parent = index.parent();
-
-            // If the parent is valid, it's the new item. Otherwise, we stop without adding it (we don't want the PackFile's name in).
-            if parent.is_valid() {
-                path.push(text);
-                index = parent.as_ref();
-            } else { break; }
-        }
-
-        // Reverse it, as we want it from arent to children.
-        path.reverse();
-        path
-    }
-
-    unsafe fn get_item_from_path(path: &[String], model: &QPtr<QStandardItemModel>) -> Ptr<QStandardItem> {
-
-        // Get it another time, this time to use it to hold the current item.
-        let mut item = model.item_1a(0);
-        let mut index = 0;
-        let path_deep = path.len();
-        loop {
-
-            // If we reached the folder of the item...
-            let children_count = item.row_count();
-            if index == (path_deep - 1) {
-                for row in 0..children_count {
-                    let child = item.child_1a(row);
-                    let text = child.text().to_std_string();
-                    if text == path[index] {
-                        item = child;
-                        break;
-                    }
-                }
-                break;
-            }
-
-            // If we are not still in the folder of the file...
-            else {
-
-                // Get the amount of children of the current item and goe through them until we find our folder.
-                let mut not_found = true;
-                for row in 0..children_count {
-                    let child = item.child_1a(row);
-                    let text = child.text().to_std_string();
-                    if text == path[index] {
-                        item = child;
-                        index += 1;
-                        not_found = false;
-                        break;
-                    }
-                }
-
-                // If the child was not found, stop and return the parent.
-                if not_found { break; }
-            }
-        }
-        item
     }
 
     unsafe fn update_treeview(&self, has_filter: bool, operation: ESFTreeViewOperation) {

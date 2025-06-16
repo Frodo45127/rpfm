@@ -124,6 +124,7 @@ const I32_16BIT_ARRAY: u8 = 0x5b;
 const I32_24BIT_ARRAY: u8 = 0x5c;
 const F32_ZERO_ARRAY: u8 = 0x5d;  // makes no sense
 
+const COMPRESSED_TAGS: [&str; 1] = ["CAMPAIGN_ENV"];
 const COMPRESSED_DATA_TAG: &str = "COMPRESSED_DATA";
 const COMPRESSED_DATA_INFO_TAG: &str = "COMPRESSED_DATA_INFO";
 
@@ -207,7 +208,7 @@ pub enum NodeType {
     // Unknown Types
     Unknown21(u32),
     Unknown23(u8),
-    //Unknown24(u32),
+    Unknown24(u16),
     Unknown25(u32),
     Unknown26(Vec<u8>),
 
@@ -423,9 +424,9 @@ impl Decodeable for ESF {
 
 impl Encodeable for ESF {
 
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         match self.signature {
-            ESFSignature::CAAB => self.save_caab(buffer),
+            ESFSignature::CAAB => self.save_caab(buffer, extra_data),
             _ => Err(RLibError::EncodingESFUnsupportedSignature(self.signature.to_string())),
         }
     }
