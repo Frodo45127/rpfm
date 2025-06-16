@@ -4280,6 +4280,11 @@ impl AppUI {
             process_hlp_spd_data_label.set_text(&qtr("process_hlp_data"));
         }
 
+        // HLP files seem to be available only since Rome 2.
+        if *game.raw_db_version() < 2 {
+            process_hlp_spd_data_checkbox.set_enabled(false);
+        }
+
         let receiver = CENTRAL_COMMAND.send_background(Command::BuildStarposGetCampaingIds);
         let response = CENTRAL_COMMAND.recv_try(&receiver);
         match response {
