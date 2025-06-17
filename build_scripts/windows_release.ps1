@@ -143,7 +143,7 @@ Remove-Item -fo I:\deploy\rpfm-release-assets\icons\breeze-icons.rcc
 Remove-Item -fo I:\deploy\rpfm-release-assets\icons\breeze-icons-dark.rcc
 
 Set-Location I:\deploy
-7z a rpfm-$RPFM_VERSION-x86_64-pc-windows-msvc.zip .\rpfm-release-assets\**
+7z a rpfm-v$RPFM_VERSION-x86_64-pc-windows-msvc.zip .\rpfm-release-assets\**
 
 # Move back to the original folder.
 Set-Location $RPFM_PATH
