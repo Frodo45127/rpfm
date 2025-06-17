@@ -188,39 +188,22 @@ impl Decompressible for &[u8] {
         let mut src = Cursor::new(self);
         let first_preamble = src.read_u32()?;
         let second_preamble = src.read_u32()?;
-        let mut first_preamble_is_size = false;
 
-        let format = if first_preamble == MAGIC_NUMBER_ZSTD {
+        let format = if second_preamble == MAGIC_NUMBER_ZSTD {
             CompressionFormat::Zstd
-        } else if first_preamble == MAGIC_NUMBER_LZ4 {
+        } else if second_preamble == MAGIC_NUMBER_LZ4 {
             CompressionFormat::Lz4
-        } else if MAGIC_NUMBERS_LZMA.contains(&first_preamble) {
+        } else if MAGIC_NUMBERS_LZMA.contains(&second_preamble) {
             CompressionFormat::Lzma1
-        } else {
+        }
 
-            // If we haven't found the format yet, assume the first 4 bytes are the uncompressed size of the file,
-            // and check the next 4 bytes. This is how CA files are usually compressed. The other checks are for standard files.
-            first_preamble_is_size = true;
-            if second_preamble == MAGIC_NUMBER_ZSTD {
-                CompressionFormat::Zstd
-            } else if second_preamble == MAGIC_NUMBER_LZ4 {
-                CompressionFormat::Lz4
-            } else if MAGIC_NUMBERS_LZMA.contains(&second_preamble) {
-                CompressionFormat::Lzma1
-            }
-
-            // Special case files marked as compressed but not being compressed. This allows fixing them so they're readable again.
-            else {
-                CompressionFormat::None
-            }
+        // Special case files marked as compressed but not being compressed. This allows fixing them so they're readable again.
+        else {
+            CompressionFormat::None
         };
 
         // Fix the starting position of the file before processing it.
-        if first_preamble_is_size {
-            src.seek_relative(-4)?;
-        } else {
-            src.rewind()?;
-        }
+        src.seek_relative(-4)?;
 
         match format {
             CompressionFormat::None => Ok(self.to_vec()),
