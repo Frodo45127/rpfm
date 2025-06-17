@@ -6,6 +6,24 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [4.4.2]
+### Addded
+- Implemented support for Lz4 and Zstd compressed files.
+- Implemented support for reading ESF compressed sections.
+- Implemented support for building startpos for Shogun 2.
+
+### Changed
+- Refactored compression system to support multiple compression formats.
+- Added source pack to the diagonstic results, to support multi-pack diagnostics (lib-only).
+- Windows release process moved to PS script.
+- Refactored ESF editor.
+
+### Fixed
+- Fixed CTD when importing a definition that doesn't exist in the AK.
+- Fixed rare CTD when using the decoder.
+- Fixed multiple corruption bugs in the ESF editor.
+- Fixed the HLP and SPD checkbox being available for games that don't use them in the Build Startpos tool.
+
 ## [4.4.1]
 ### Fixed
 - Fixed Tools, Rigid Editor and DDS Viewer not working.
@@ -1562,8 +1580,9 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.4.1...HEAD
-[4.4.1]: https://github.com/Frodo45127/rpfm/compare/v4.4.1...v4.4.1
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.4.2...HEAD
+[4.4.2]: https://github.com/Frodo45127/rpfm/compare/v4.4.1...v4.4.2
+[4.4.1]: https://github.com/Frodo45127/rpfm/compare/v4.4.0...v4.4.1
 [4.4.0]: https://github.com/Frodo45127/rpfm/compare/v4.3.14...v4.4.0
 [4.3.14]: https://github.com/Frodo45127/rpfm/compare/v4.3.13...v4.3.14
 [4.3.13]: https://github.com/Frodo45127/rpfm/compare/v4.3.12...v4.3.13
