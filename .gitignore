@@ -41,10 +41,10 @@
 /test_files/test_encode_matched_combat_3k_trigger.bin
 /test_files/test_encode_esf_caab.esf
 /test_files/test_encode_uic_138.xml
-/test_files/test_encode_V20.cs2.collision
-/test_files/test_encode_V21.cs2.collision
-/test_files/test_encode_V21.cs2.parsed
-/test_files/test_encode_V20_3k.cs2.parsed
+/test_files/test_encode_v20.cs2.collision
+/test_files/test_encode_v21.cs2.collision
+/test_files/test_encode_v21.cs2.parsed
+/test_files/test_encode_v20_3k.cs2.parsed
 /test_files/test_encode_wall.cs2.parsed
 /test_files/test_encode_wall_corner.cs2.parsed
 /test_files/fastbin/encode_*
