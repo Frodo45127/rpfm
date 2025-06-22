@@ -120,8 +120,12 @@ impl PackDiagnostic {
         }
 
         let invalid_file_names = pack.paths().par_iter()
-            .filter(|(path, _)| path.contains(INVALID_CHARACTERS_WINDOWS))
-            .map(|(path, _)| path)
+            .map(|(path, real_paths)| (path, path.split("/"), real_paths))
+            .filter(|(_, split, _)| split.clone()
+                .last()
+                .unwrap_or_default()
+                .contains(INVALID_CHARACTERS_WINDOWS))
+            .filter_map(|(_, _, real_paths)| real_paths.first())
             .collect::<Vec<_>>();
 
         for path in invalid_file_names {
