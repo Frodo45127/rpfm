@@ -19,6 +19,18 @@ use rpfm_lib::files::pack::Pack;
 
 use crate::diagnostics::*;
 
+const INVALID_CHARACTERS_WINDOWS: [char; 9] = [
+    '<',
+    '>',
+    ':',
+    '"',
+    '/',
+    '\\',
+    '|',
+    '?',
+    '*',
+];
+
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
@@ -40,6 +52,7 @@ pub struct PackDiagnosticReport {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PackDiagnosticReportType {
     InvalidPackName(String),
+    InvalidFileName(String, String),
     MissingLocDataFileDetected(String)
 }
 
@@ -59,6 +72,7 @@ impl DiagnosticReport for PackDiagnosticReport {
     fn message(&self) -> String {
         match &self.report_type {
             PackDiagnosticReportType::InvalidPackName(pack_name) => format!("Invalid Pack name: {pack_name}"),
+            PackDiagnosticReportType::InvalidFileName(pack_name, file_name) => format!("Invalid file name ({file_name}) in pack: {pack_name}"),
             PackDiagnosticReportType::MissingLocDataFileDetected(pack_name) => format!("Missing Loc Data file in Pack: {pack_name}"),
         }
     }
@@ -66,6 +80,7 @@ impl DiagnosticReport for PackDiagnosticReport {
     fn level(&self) -> DiagnosticLevel {
         match self.report_type {
             PackDiagnosticReportType::InvalidPackName(_) => DiagnosticLevel::Error,
+            PackDiagnosticReportType::InvalidFileName(_,_) => DiagnosticLevel::Error,
             PackDiagnosticReportType::MissingLocDataFileDetected(_) => DiagnosticLevel::Warning,
         }
     }
@@ -75,6 +90,7 @@ impl Display for PackDiagnosticReportType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         Display::fmt(match self {
             Self::InvalidPackName(_) => "InvalidPackFileName",
+            Self::InvalidFileName(_,_) => "InvalidFileName",
             Self::MissingLocDataFileDetected(_) => "MissingLocDataFileDetected",
         }, f)
     }
@@ -88,7 +104,7 @@ impl PackDiagnostic {
 
         let name = pack.disk_file_name();
         if name.contains(' ') {
-            let result = PackDiagnosticReport::new(PackDiagnosticReportType::InvalidPackName(name));
+            let result = PackDiagnosticReport::new(PackDiagnosticReportType::InvalidPackName(name.to_string()));
             diagnostic.results_mut().push(result);
         }
 
@@ -100,6 +116,16 @@ impl PackDiagnostic {
 
         if pack.paths().contains_key(&new) {
             let result = PackDiagnosticReport::new(PackDiagnosticReportType::MissingLocDataFileDetected(new));
+            diagnostic.results_mut().push(result);
+        }
+
+        let invalid_file_names = pack.paths().par_iter()
+            .filter(|(path, _)| path.contains(INVALID_CHARACTERS_WINDOWS))
+            .map(|(path, _)| path)
+            .collect::<Vec<_>>();
+
+        for path in invalid_file_names {
+            let result = PackDiagnosticReport::new(PackDiagnosticReportType::InvalidFileName(name.to_string(), path.to_string()));
             diagnostic.results_mut().push(result);
         }
 

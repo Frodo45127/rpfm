@@ -1659,3 +1659,6 @@ compression_format_none = None
 compression_format_lzma1 = Lzma1
 compression_format_lz4 = Lz4
 compression_format_zstd = Zstd
+
+label_invalid_file_name = Invalid file name
+invalid_file_name_explanation = Windows doesn't allow certain symbols in filenames. Specifically, none of these symbols are allowed: <, >, :, ", /, \, |, ? and *. If your folder/file name contains these symbols, rename them.
