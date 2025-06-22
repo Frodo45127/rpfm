@@ -61,10 +61,10 @@ pub(crate) trait ESFTree {
 
 /// This enum has the different possible operations we can do in a `TreeView`.
 #[derive(Clone, Debug)]
-pub enum ESFTreeViewOperation {
+pub enum ESFTreeViewOperation<'a> {
 
     /// Build the entire `TreeView` from the provided ESF data.
-    Build(ESF),
+    Build(&'a ESF),
 }
 
 //-------------------------------------------------------------------------------//

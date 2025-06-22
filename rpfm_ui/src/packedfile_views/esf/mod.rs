@@ -161,7 +161,7 @@ impl PackedFileESFView {
             _path: file_view.path_raw()
         });
 
-        view.tree_view.update_treeview(true, ESFTreeViewOperation::Build(data));
+        view.tree_view.update_treeview(true, ESFTreeViewOperation::Build(&data));
 
         let slots = PackedFileESFViewSlots::new(
             &view,
@@ -182,7 +182,7 @@ impl PackedFileESFView {
 
     /// This function tries to reload the current view with the provided data.
     pub unsafe fn reload_view(&self, data: &ESF) {
-        self.tree_view.update_treeview(true, ESFTreeViewOperation::Build(data.clone()));
+        self.tree_view.update_treeview(true, ESFTreeViewOperation::Build(&data));
     }
 
     /// This function saves the current view to an ESF struct.
