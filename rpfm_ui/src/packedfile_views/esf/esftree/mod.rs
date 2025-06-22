@@ -103,9 +103,9 @@ impl ESFTree for QPtr<QTreeView> {
                     state_item.set_selectable(false);
 
                     let esf_data_no_node: ESF = esf_data.clone_without_root_node();
-                    big_parent.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string_pretty(&esf_data_no_node).unwrap())), ESF_DATA);
-                    big_parent.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string_pretty(&root_node.clone_without_children()).unwrap())), CHILDLESS_NODE);
-                    big_parent.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string_pretty(&node.children()[0].iter().map(|x| x.clone_without_children()).collect::<Vec<NodeType>>()).unwrap())), CHILD_NODES);
+                    big_parent.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&esf_data_no_node).unwrap())), ESF_DATA);
+                    big_parent.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&root_node.clone_without_children()).unwrap())), CHILDLESS_NODE);
+                    big_parent.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&node.children()[0].iter().map(|x| x.clone_without_children()).collect::<Vec<NodeType>>()).unwrap())), CHILD_NODES);
                     big_parent.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(node.name())), RECORD_NODE_NAME);
 
                     let flags = ItemFlag::from(state_item.flags().to_int() & ItemFlag::ItemIsSelectable.to_int());
@@ -183,7 +183,7 @@ unsafe fn load_node_to_view(parent: &CppBox<QStandardItem>, child: &NodeType, bl
                 }
 
                 // Store the group's data.
-                node_group_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string_pretty(&node_group.iter().map(|x| x.clone_without_children()).collect::<Vec<NodeType>>()).unwrap())), CHILD_NODES);
+                node_group_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&node_group.iter().map(|x| x.clone_without_children()).collect::<Vec<NodeType>>()).unwrap())), CHILD_NODES);
                 node_group_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&node_group_name)), RECORD_NODE_NAME);
 
                 let qlist = QListOfQStandardItem::new();
@@ -194,7 +194,7 @@ unsafe fn load_node_to_view(parent: &CppBox<QStandardItem>, child: &NodeType, bl
             }
 
             // Set the child's data, and add the child to the TreeView.
-            child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string_pretty(&child.clone_without_children()).unwrap())), CHILDLESS_NODE);
+            child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&child.clone_without_children()).unwrap())), CHILDLESS_NODE);
             child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(node.name())), RECORD_NODE_NAME);
         }
 
@@ -209,8 +209,8 @@ unsafe fn load_node_to_view(parent: &CppBox<QStandardItem>, child: &NodeType, bl
             }
 
             // Once done, store its data and it's values.
-            child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string_pretty(&child.clone_without_children()).unwrap())), CHILDLESS_NODE);
-            child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string_pretty(&node.children()[0].iter().map(|x| x.clone_without_children()).collect::<Vec<NodeType>>()).unwrap())), CHILD_NODES);
+            child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&child.clone_without_children()).unwrap())), CHILDLESS_NODE);
+            child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&node.children()[0].iter().map(|x| x.clone_without_children()).collect::<Vec<NodeType>>()).unwrap())), CHILD_NODES);
             child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(node.name())), RECORD_NODE_NAME);
         }
 
