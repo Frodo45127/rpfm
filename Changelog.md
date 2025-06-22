@@ -6,6 +6,20 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [4.4.4]
+### Added
+- Implemented "Invalid file name" diagnostic, to detect files with invalid characters (according to Windows) in their names.
+
+### Changed
+- Updated minimal rust version to 1.80.
+- ESF editor is a bit more memory-friendly (still eats ram like crazy though).
+
+### Fixed
+- Fixed LZMA decompression failing in random files (like 3K's startpos).
+- Fixed table filter UI obscuring group names with 2 digits.
+- Fixed CLI not opening packs.
+
+
 ## [4.4.3]
 ### Fixed
 - Fixed compression error when reading a very, VERY specific file from ui2.pack in Warhammer 3.
