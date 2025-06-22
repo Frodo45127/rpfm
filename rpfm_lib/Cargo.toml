@@ -73,9 +73,9 @@ pelite = "^0.10"
 rayon = "^1.3"
 
 # Compression support.
-xz2 = "^0.1"
 lz4_flex = "^0"
 zstd = "^0"
+lzma-rs = "^0"
 
 # Fractions support
 fraction = "^0.15"

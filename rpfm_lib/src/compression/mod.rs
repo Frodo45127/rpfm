@@ -20,13 +20,11 @@
 //! * Compressed files are **only supported on PFH5 Packs** (Since Total War: Warhammer 2).
 
 use lz4_flex::frame::{FrameDecoder, FrameEncoder};
+use lzma_rs::{lzma_compress, lzma_decompress};
 use serde_derive::{Serialize, Deserialize};
-use xz2::bufread::XzEncoder;
-use xz2::{read::XzDecoder, stream::Stream};
-use xz2::stream::LzmaOptions;
 
 use std::fmt::Display;
-use std::io::{Cursor, Read, Seek, SeekFrom, Write};
+use std::io::{Cursor, Read, Seek, Write};
 
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{RLibError, Result};
@@ -136,10 +134,8 @@ impl Compressible for [u8] {
                 dst.write_i32(self.len() as i32)?;
 
                 let mut compressed_data = vec![];
-                let options = LzmaOptions::new_preset(3).map_err(|_| RLibError::DataCannotBeCompressed)?;
-                let stream = Stream::new_lzma_encoder(&options).map_err(|_| RLibError::DataCannotBeCompressed)?;
-                let mut encoder = XzEncoder::new_stream(self, stream);
-                encoder.read_to_end(&mut compressed_data)?;
+                let mut src = Cursor::new(self);
+                lzma_compress(&mut src, &mut compressed_data).unwrap();
 
                 if compressed_data.len() < 13 {
                     return Err(RLibError::DataCannotBeCompressed);
@@ -186,14 +182,14 @@ impl Decompressible for &[u8] {
 
         // We use the magic numbers to know in what format are the files compressed.
         let mut src = Cursor::new(self);
-        let first_preamble = src.read_u32()?;
-        let second_preamble = src.read_u32()?;
+        let u_size = src.read_u32()?;
+        let magic_number = src.read_u32()?;
 
-        let format = if second_preamble == MAGIC_NUMBER_ZSTD {
+        let format = if magic_number == MAGIC_NUMBER_ZSTD {
             CompressionFormat::Zstd
-        } else if second_preamble == MAGIC_NUMBER_LZ4 {
+        } else if magic_number == MAGIC_NUMBER_LZ4 {
             CompressionFormat::Lz4
-        } else if MAGIC_NUMBERS_LZMA.contains(&second_preamble) {
+        } else if MAGIC_NUMBERS_LZMA.contains(&magic_number) {
             CompressionFormat::Lzma1
         }
 
@@ -214,52 +210,45 @@ impl Decompressible for &[u8] {
                     return Err(RLibError::DataCannotBeDecompressed);
                 }
 
-                // Unlike other formats, in this one we need to inject the uncompressed size in the file header. Otherwise Xz won't read it.
+                // Unlike other formats, in this one we need to inject the uncompressed size in the file header. Otherwise it won't be a valid lzma file.
                 let mut fixed_data: Vec<u8> = Vec::with_capacity(self.len() + 4);
                 fixed_data.extend_from_slice(&src.read_slice(5, false)?);
-                fixed_data.write_u32(first_preamble)?;
-                fixed_data.extend_from_slice(&[0; 4]);
+                fixed_data.write_u64(u_size as u64)?;
                 src.read_to_end(&mut fixed_data)?;
 
                 // Vanilla compressed files are LZMA Alone (or legacy) level 3 compressed files, reproducible by compressing them
                 // with default settings with 7-Zip. This should do the trick to get them decoded.
-                let stream = Stream::new_lzma_decoder(u64::MAX).map_err(|_| RLibError::DataCannotBeDecompressed)?;
-                let mut encoder = XzDecoder::new_stream(&*fixed_data, stream);
-                let mut dst = Vec::with_capacity(first_preamble as usize);
-                let result = encoder.read_to_end(&mut dst);
+                let mut dst = Vec::with_capacity(u_size as usize);
+                let mut reader = Cursor::new(fixed_data);
+                let result = lzma_decompress(&mut reader, &mut dst);
 
                 // Ok, history lesson. That method breaks sometimes due to difference in program's behavior when reading LZMA1 files with uncompressed size set.
-                // If that fails, we try passing a unknown size.
-                match result {
-                    Ok(_) => Ok(dst),
-                    Err(_) => {
-                        fixed_data = Vec::with_capacity(self.len() + 4);
-                        src.seek(SeekFrom::Start(4))?;
+                // If that fails, we try passing a unknown size (u64::MAX) instead. This usually deals with the errors.
+                if result.is_err() {
+                    src.set_position(4);
 
-                        // Same process, but using a special unknown size instead.
-                        fixed_data.extend_from_slice(&src.read_slice(5, false)?);
-                        fixed_data.extend_from_slice(&[0xFF; 8]);
-                        src.read_to_end(&mut fixed_data)?;
+                    let mut fixed_data = Vec::with_capacity(self.len() + 4);
+                    fixed_data.extend_from_slice(&src.read_slice(5, false)?);
+                    fixed_data.write_u64(u64::MAX)?;
+                    src.read_to_end(&mut fixed_data)?;
 
-                        // Vanilla compressed files are LZMA Alone (or legacy) level 3 compressed files, reproducible by compressing them
-                        // with default settings with 7-Zip. This should do the trick to get them decoded.
-                        let stream = Stream::new_lzma_decoder(u64::MAX).map_err(|_| RLibError::DataCannotBeDecompressed)?;
-                        let mut encoder = XzDecoder::new_stream(&*fixed_data, stream);
-                        dst = Vec::with_capacity(first_preamble as usize);
-                        encoder.read_to_end(&mut dst)?;
+                    let mut dst = Vec::with_capacity(u_size as usize);
+                    let mut reader = Cursor::new(fixed_data);
+                    lzma_decompress(&mut reader, &mut dst)?;
 
-                        Ok(dst)
-                    }
+                    Ok(dst)
+                } else {
+                    Ok(dst)
                 }
             },
             CompressionFormat::Lz4 => {
-                let mut dst = Vec::with_capacity(first_preamble as usize);
+                let mut dst = Vec::with_capacity(u_size as usize);
                 let mut reader = FrameDecoder::new(src);
                 std::io::copy(&mut reader, &mut dst)?;
                 Ok(dst)
             },
             CompressionFormat::Zstd => {
-                let mut dst = Vec::with_capacity(first_preamble as usize);
+                let mut dst = Vec::with_capacity(u_size as usize);
                 zstd::stream::copy_decode(src, &mut dst)?;
                 Ok(dst)
             },

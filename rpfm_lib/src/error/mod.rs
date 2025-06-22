@@ -462,4 +462,7 @@ pub enum RLibError {
 
     #[error(transparent)]
     Lz4Error(#[from] lz4_flex::frame::Error),
+
+    #[error(transparent)]
+    LzmaError(#[from] lzma_rs::error::Error),
 }
