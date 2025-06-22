@@ -214,7 +214,7 @@ pub enum NodeType {
 
     // Primitive Arrays
     BoolArray(Vec<bool>),
-    I8Array(Vec<i8>),
+    I8Array(Vec<u8>),
     I16Array(Vec<i16>),
     I32Array(VecI32Node),
     I64Array(Vec<i64>),
@@ -231,7 +231,7 @@ pub enum NodeType {
     AngleArray(Vec<i16>),
 
     // Record nodes
-    Record(RecordNode),
+    Record(Box<RecordNode>),
 }
 
 /// Node containing a bool value, and if the node should be optimized or not.
@@ -347,7 +347,7 @@ impl NodeType {
                 new_node.set_record_flags(*node.record_flags());
                 new_node.set_version(*node.version());
 
-                Self::Record(new_node)
+                Self::Record(Box::new(new_node))
             }
 
             _ => self.clone()

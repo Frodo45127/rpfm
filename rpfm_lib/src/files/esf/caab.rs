@@ -190,7 +190,7 @@ impl ESF {
                     name: COMPRESSED_DATA_TAG.to_owned(),
                     children: vec![vec![
                         NodeType::U8Array(cdata),
-                        NodeType::Record(hnode),
+                        NodeType::Record(Box::new(hnode)),
                     ]],
                 };
 
@@ -198,7 +198,7 @@ impl ESF {
                 if let NodeType::Record(ref mut root_node) = self.root_node {
                     if let Some(parent) = root_node.children_mut().get_mut(i1) {
                         if let Some(child) = parent.get_mut(i2) {
-                            *child = NodeType::Record(cnode);
+                            *child = NodeType::Record(Box::new(cnode));
                         }
                     }
                 }
@@ -342,7 +342,7 @@ impl ESF {
                 children,
             };
 
-            NodeType::Record(node_data)
+            NodeType::Record(Box::new(node_data))
         }
 
         // If its not a record node, get the type from the type byte and decode it.
@@ -511,13 +511,9 @@ impl ESF {
                 },
 
                 I8_ARRAY => {
-                    let mut node_data = vec![];
                     let size = data.read_cauleb128()?;
-                    let end_offset = data.stream_position()? + size as u64;
+                    let node_data = data.read_slice(size as usize, false)?;
 
-                    while data.stream_position()? < end_offset {
-                        node_data.push(data.read_i8()?)
-                    }
                     NodeType::I8Array(node_data)
                 },
 
@@ -1027,7 +1023,7 @@ impl ESF {
                 buffer.write_u8(I8_ARRAY)?;
 
                 let mut list = vec![];
-                value.iter().try_for_each(|x| list.write_i8(*x))?;
+                value.iter().try_for_each(|x| list.write_i8(*x as i8))?;
                 buffer.write_cauleb128(list.len() as u32, 0)?;
                 buffer.write_all(&list)?;
             },

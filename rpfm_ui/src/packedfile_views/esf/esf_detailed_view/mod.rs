@@ -902,7 +902,7 @@ impl ESFDetailedView {
                         let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
                         let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
                         let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
-                        *values = data.data().iter().filter_map(|x| if let DecodedData::I16(value) = &x[0] { Some(*value as i8) } else { None }).collect();
+                        *values = data.data().iter().filter_map(|x| if let DecodedData::I16(value) = &x[0] { Some(*value as u8) } else { None }).collect();
                         index += 1;
                     },
                     NodeType::I16Array(values) => if let DataType::I16Array(table_view) = &self.data_types[index] {
