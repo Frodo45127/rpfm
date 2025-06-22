@@ -6,6 +6,10 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [4.4.5]
+### Fixed
+- Fixed incorrect check in "Invalid file name" diagnostic.
+
 ## [4.4.4]
 ### Added
 - Implemented "Invalid file name" diagnostic, to detect files with invalid characters (according to Windows) in their names.
@@ -1599,7 +1603,9 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.4.3...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.4.5...HEAD
+[4.4.5]: https://github.com/Frodo45127/rpfm/compare/v4.4.4...v4.4.5
+[4.4.4]: https://github.com/Frodo45127/rpfm/compare/v4.4.3...v4.4.4
 [4.4.3]: https://github.com/Frodo45127/rpfm/compare/v4.4.2...v4.4.3
 [4.4.2]: https://github.com/Frodo45127/rpfm/compare/v4.4.1...v4.4.2
 [4.4.1]: https://github.com/Frodo45127/rpfm/compare/v4.4.0...v4.4.1
