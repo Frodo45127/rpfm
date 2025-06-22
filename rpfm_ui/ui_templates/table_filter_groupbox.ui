@@ -41,8 +41,7 @@
       <string>...</string>
      </property>
      <property name="icon">
-      <iconset theme="list-remove">
-       <normaloff>.</normaloff>.</iconset>
+      <iconset theme="list-remove"/>
      </property>
      <property name="iconSize">
       <size>
@@ -61,8 +60,7 @@
       <string/>
      </property>
      <property name="icon">
-      <iconset theme="markasblank">
-       <normaloff>.</normaloff>.</iconset>
+      <iconset theme="markasblank"/>
      </property>
      <property name="iconSize">
       <size>
@@ -98,8 +96,7 @@
       <string/>
      </property>
      <property name="icon">
-      <iconset theme="format-text-uppercase">
-       <normaloff>.</normaloff>.</iconset>
+      <iconset theme="format-text-uppercase"/>
      </property>
      <property name="iconSize">
       <size>
@@ -120,6 +117,12 @@
        <verstretch>0</verstretch>
       </sizepolicy>
      </property>
+     <property name="minimumSize">
+      <size>
+       <width>80</width>
+       <height>0</height>
+      </size>
+     </property>
     </widget>
    </item>
    <item row="2" column="3">
@@ -128,8 +131,7 @@
       <string>...</string>
      </property>
      <property name="icon">
-      <iconset theme="nextfuzzyuntrans">
-       <normaloff>.</normaloff>.</iconset>
+      <iconset theme="nextfuzzyuntrans"/>
      </property>
      <property name="iconSize">
       <size>
@@ -158,8 +160,7 @@
       <string/>
      </property>
      <property name="icon">
-      <iconset theme="list-add">
-       <normaloff>.</normaloff>.</iconset>
+      <iconset theme="list-add"/>
      </property>
      <property name="iconSize">
       <size>
