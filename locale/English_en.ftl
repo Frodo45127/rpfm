@@ -1041,6 +1041,7 @@ optimize_packfile_are_you_sure = <h3>Are you sure you want to optimize this Pack
             <li><b>Remove empty LOC files.</b></li>
             <li><b>Remove useless xml on map packs</b>, which are a byproduct of how bob exports map packs.</li>
             <li><b>Remove useless xml on prefabs</b>, which are a byproduct of how bob exports prefabs.</li>
+            <li><b>Remove useless agf and model_statistics files</b>, which are a byproduct of how bob exports models.</li>
         </ul>
         So again, are you sure you want to do it?
     </p>

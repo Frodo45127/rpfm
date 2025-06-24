@@ -136,7 +136,15 @@ impl OptimizableContainer for Pack {
                     }
 
                     FileType::Text => {
-                        if !path.is_empty() && (
+
+                        // agf and model_statistics are debug files outputed by bob in older games.
+                        if path.ends_with(".agf") || path.ends_with(".model_statistics") {
+                            if let Ok(Some(RFileDecoded::Text(_))) = rfile.decode(&None, false, true) {
+                                return Some(path);
+                            }
+                        }
+
+                        else if !path.is_empty() && (
                                 path.starts_with("prefabs/") ||
                                 path.starts_with("terrain/battles/") ||
                                 path.starts_with("terrain/tiles/battle/")

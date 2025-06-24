@@ -23,6 +23,7 @@
 //! | ------------------------ | ---------- | ------------------------------------------- |
 //! | Extension                | Language   | Description                                 |
 //! | ------------------------ | ---------- | ------------------------------------------- |
+//! | `.agf`                   | `Plain`    |                                             |
 //! | `.battle_speech_camera`  | `Plain`    | Camera settings file for battle speeches.   |
 //! | `.benchmark`             | `Xml`      | Benchmark settings.                         |
 //! | `.bob`                   | `Plain`    | BoB settings file.                          |
@@ -48,6 +49,7 @@
 //! | `.lua`                   | `Lua`      | LUA Script file.                            |
 //! | `.material`              | `Xml`      |                                             |
 //! | `.md`                    | `Markdown` | Markdown files, for readmes.                |
+//! | `.model_statistics`      | `Xml`      |                 |
 //! | `.tai`                   | `Plain`    |                                             |
 //! | `.technique`             | `Xml`      |                                             |
 //! | `.texture_array`         | `Plain`    | List of Campaign Map textures.              |
@@ -78,7 +80,8 @@ const BOM_UTF_8: [u8;3] = [0xEF,0xBB,0xBF];
 const BOM_UTF_16_LE: [u8;2] = [0xFF,0xFE];
 
 /// List of extensions we recognize as `Text` files, with their respective known format.
-pub const EXTENSIONS: [(&str, TextFormat); 58] = [
+pub const EXTENSIONS: [(&str, TextFormat); 60] = [
+    (".agf", TextFormat::Plain),
     (".bat", TextFormat::Bat),
     (".battle_script", TextFormat::Lua),
     (".battle_speech_camera", TextFormat::Plain),
@@ -119,6 +122,7 @@ pub const EXTENSIONS: [(&str, TextFormat); 58] = [
     (".lighting", TextFormat::Xml),
     (".lua", TextFormat::Lua),
     (".md", TextFormat::Markdown),
+    (".model_statistics", TextFormat::Xml),
     (".mvscene", TextFormat::Xml),
     (".py", TextFormat::Python),
     (".sbs", TextFormat::Xml),
