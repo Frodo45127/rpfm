@@ -284,9 +284,12 @@ impl Diagnostics {
             dependencies.generate_local_db_references(schema, pack, &table_names);
         }
 
-        // Caches for Portrait Settings diagnostics.
+        // Caches for Portrait Settings diagnostics. There are some alt lookups for tables with differently named columns between games.
         let art_set_ids = dependencies.db_values_from_table_name_and_column_name(Some(pack), "campaign_character_arts_tables", "art_set_id", true, true);
-        let variant_filenames = dependencies.db_values_from_table_name_and_column_name(Some(pack), "variants_tables", "variant_filename", true, true);
+        let mut variant_filenames = dependencies.db_values_from_table_name_and_column_name(Some(pack), "variants_tables", "variant_filename", true, true);
+        if variant_filenames.is_empty() {
+            variant_filenames = dependencies.db_values_from_table_name_and_column_name(Some(pack), "variants_tables", "variant_name", true, true);
+        }
 
         // Process the files in batches.
         self.results.append(&mut files_split.par_iter().filter_map(|(_, files)| {
