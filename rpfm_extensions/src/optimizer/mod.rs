@@ -13,8 +13,7 @@
 use std::collections::{HashMap, HashSet};
 
 use rpfm_lib::error::{RLibError, Result};
-use rpfm_lib::files::portrait_settings::PortraitSettings;
-use rpfm_lib::files::{Container, ContainerPath, db::DB, FileType, loc::Loc, pack::Pack, RFileDecoded, table::DecodedData, text::TextFormat};
+use rpfm_lib::files::{Container, ContainerPath, db::DB, FileType, loc::Loc, pack::Pack, portrait_settings::PortraitSettings, RFileDecoded, table::DecodedData, text::TextFormat};
 use rpfm_lib::schema::Schema;
 
 use crate::dependencies::Dependencies;
