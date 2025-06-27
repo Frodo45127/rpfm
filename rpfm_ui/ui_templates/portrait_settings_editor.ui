@@ -463,7 +463,7 @@
                 <item row="7" column="4">
                  <widget class="QCheckBox" name="faction_leader_checkbox">
                   <property name="text">
-                   <string>CheckBox</string>
+                   <string/>
                   </property>
                  </widget>
                 </item>
