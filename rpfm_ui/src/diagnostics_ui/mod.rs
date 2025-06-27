@@ -393,6 +393,10 @@ impl DiagnosticsUI {
         sidebar_grid.add_widget_1a(&checkbox_missing_loc_data_file_detected);
         sidebar_grid.add_widget_1a(&checkbox_invalid_file_name);
 
+        // Disable this, as it's giving a useless message in some games.
+        checkbox_datacored_portrait_settings.set_checked(false);
+        checkbox_datacored_portrait_settings.set_visible(false);
+
         Ok(Self {
 
             //-------------------------------------------------------------------------------//

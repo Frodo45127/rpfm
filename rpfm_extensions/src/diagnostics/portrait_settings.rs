@@ -80,12 +80,12 @@ impl DiagnosticReport for PortraitSettingsDiagnosticReport {
     fn level(&self) -> DiagnosticLevel {
         match self.report_type {
             PortraitSettingsDiagnosticReportType::DatacoredPortraitSettings => DiagnosticLevel::Warning,
-            PortraitSettingsDiagnosticReportType::InvalidArtSetId(_) => DiagnosticLevel::Error,
-            PortraitSettingsDiagnosticReportType::InvalidVariantFilename(_, _) => DiagnosticLevel::Error,
-            PortraitSettingsDiagnosticReportType::FileDiffuseNotFoundForVariant(_, _, _) => DiagnosticLevel::Error,
-            PortraitSettingsDiagnosticReportType::FileMask1NotFoundForVariant(_, _, _) => DiagnosticLevel::Error,
-            PortraitSettingsDiagnosticReportType::FileMask2NotFoundForVariant(_, _, _) => DiagnosticLevel::Error,
-            PortraitSettingsDiagnosticReportType::FileMask3NotFoundForVariant(_, _, _) => DiagnosticLevel::Error,
+            PortraitSettingsDiagnosticReportType::InvalidArtSetId(_) => DiagnosticLevel::Warning,
+            PortraitSettingsDiagnosticReportType::InvalidVariantFilename(_, _) => DiagnosticLevel::Warning,
+            PortraitSettingsDiagnosticReportType::FileDiffuseNotFoundForVariant(_, _, _) => DiagnosticLevel::Warning,
+            PortraitSettingsDiagnosticReportType::FileMask1NotFoundForVariant(_, _, _) => DiagnosticLevel::Warning,
+            PortraitSettingsDiagnosticReportType::FileMask2NotFoundForVariant(_, _, _) => DiagnosticLevel::Warning,
+            PortraitSettingsDiagnosticReportType::FileMask3NotFoundForVariant(_, _, _) => DiagnosticLevel::Warning,
         }
     }
 }
@@ -127,10 +127,12 @@ impl PortraitSettingsDiagnostic {
     ) -> Option<DiagnosticType> {
         if let Ok(RFileDecoded::PortraitSettings(portrait_settings)) = file.decoded() {
             let mut diagnostic = Self::new(file.path_in_container_raw(), file.container_name().as_deref().unwrap_or_else(|| ""));
-            if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, None, Some("DatacoredPortraitSettings"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && dependencies.file_exists(file.path_in_container_raw(), true, false, false)  {
+
+            // Disabled, as some games seem to only load their portrait_settings files named as portrait_settings.bin.
+            /*if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, None, Some("DatacoredPortraitSettings"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && dependencies.file_exists(file.path_in_container_raw(), true, false, false)  {
                 let result = PortraitSettingsDiagnosticReport::new(PortraitSettingsDiagnosticReportType::DatacoredPortraitSettings);
                 diagnostic.results_mut().push(result);
-            }
+            }*/
 
             for entry in portrait_settings.entries() {
                 if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, None, Some("InvalidArtSetId"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && art_set_ids.get(entry.id()).is_none()  {
