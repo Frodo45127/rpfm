@@ -76,7 +76,7 @@ const VIEW_RELEASE: &str = "ui/portrait_settings_editor.ui";
 const NAME_VIEW_DEBUG: &str = "rpfm_ui/ui_templates/portrait_settings_name_dialog.ui";
 const NAME_VIEW_RELEASE: &str = "ui/portrait_settings_name_dialog.ui";
 
-const DATA: i32 = 20;
+pub const DATA: i32 = 20;
 
 mod connections;
 mod slots;

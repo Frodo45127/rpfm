@@ -13,6 +13,7 @@
 use std::collections::{HashMap, HashSet};
 
 use rpfm_lib::error::{RLibError, Result};
+use rpfm_lib::files::portrait_settings::PortraitSettings;
 use rpfm_lib::files::{Container, ContainerPath, db::DB, FileType, loc::Loc, pack::Pack, RFileDecoded, table::DecodedData, text::TextFormat};
 use rpfm_lib::schema::Schema;
 
@@ -28,7 +29,7 @@ pub trait Optimizable {
     /// This function optimizes the provided struct to reduce its size and improve compatibility.
     ///
     /// It returns if the struct has been left in an state where it can be safetly deleted.
-    fn optimize(&mut self, dependencies: &mut Dependencies) -> bool;
+    fn optimize(&mut self, dependencies: &mut Dependencies, container: Option<&mut Pack>) -> bool;
 }
 
 /// This trait marks a [Container] as an `Optimizable` container, meaning it can be cleaned up to reduce size and improve compatibility.
@@ -55,9 +56,15 @@ impl OptimizableContainer for Pack {
     ///     - Removal of ITM (Identical To Master) entries.
     ///     - Removal of ITNR (Identical To New Row) entries.
     ///     - Removal of empty tables.
-    /// - XML files:
+    /// - Text files:
     ///     - Removal of XML files in map folders (extra files resulting of Terry export process).
     ///     - Removal of XML files in prefabs folder (extra files resulting of Terry export process).
+    ///     - Removal of .agf files (byproduct of bob exporting models).
+    ///     - Removal of .model_statistics files (byproduct of bob exporting models).
+    /// - Portrait Settings files:
+    ///     - Removal of variants not present in the variants table (unused data).
+    ///     - Removal of art sets not present in the campaign_character_arts table (unused data).
+    ///     - Removal of empty Portrait Settings files.
     ///
     /// NOTE: due to a consequence of the optimization, all tables are also sorted by their first key.
     ///
@@ -72,6 +79,7 @@ impl OptimizableContainer for Pack {
 
         // Cache the pack paths for the text file checks.
         let pack_paths = self.paths().keys().map(|x| x.to_owned()).collect::<HashSet<String>>();
+        let mut self_copy = self.clone();
 
         // List of files to optimize.
         let mut files_to_optimize = match paths_to_optimize {
@@ -116,7 +124,7 @@ impl OptimizableContainer for Pack {
                         // as those are probably intended to overwrite vanilla files, not to be optimized.
                         if optimize_datacored_tables || !dependencies.file_exists(&path, true, true, true) {
                             if let Ok(RFileDecoded::DB(db)) = rfile.decoded_mut() {
-                                if db.optimize(dependencies) {
+                                if db.optimize(dependencies, Some(&mut self_copy)) {
                                     return Some(path);
                                 }
                             }
@@ -128,7 +136,7 @@ impl OptimizableContainer for Pack {
                         // Same as with tables, don't optimize them if they're overwriting.
                         if optimize_datacored_tables || !dependencies.file_exists(&path, true, true, true) {
                             if let Ok(RFileDecoded::Loc(loc)) = rfile.decoded_mut() {
-                                if loc.optimize(dependencies) {
+                                if loc.optimize(dependencies, Some(&mut self_copy)) {
                                     return Some(path);
                                 }
                             }
@@ -171,6 +179,17 @@ impl OptimizableContainer for Pack {
                         }
                     }
 
+                    FileType::PortraitSettings => {
+
+                        // In portrait settings file we look to cleanup variants and art sets that are not referenced by the game tables.
+                        // Meaning they are not used by the game.
+                        if let Ok(RFileDecoded::PortraitSettings(ps)) = rfile.decoded_mut() {
+                            if ps.optimize(dependencies, Some(&mut self_copy)) {
+                                return Some(path);
+                            }
+                        }
+                    }
+
                     // Ignore the rest.
                     _ => {}
                 }
@@ -198,7 +217,7 @@ impl Optimizable for DB {
     /// - Removal of ITNR (Identical To New Row) entries.
     ///
     /// It returns if the DB is empty, meaning it can be safetly deleted.
-    fn optimize(&mut self, dependencies: &mut Dependencies) -> bool {
+    fn optimize(&mut self, dependencies: &mut Dependencies, _container: Option<&mut Pack>) -> bool {
 
         // Get a manipulable copy of all the entries, so we can optimize it.
         let mut entries = self.data().to_vec();
@@ -280,7 +299,7 @@ impl Optimizable for Loc {
     /// - Removal of ITNR (Identical To New Row) entries.
     ///
     /// It returns if the Loc is empty, meaning it can be safetly deleted.
-    fn optimize(&mut self, dependencies: &mut Dependencies) -> bool {
+    fn optimize(&mut self, dependencies: &mut Dependencies, _container: Option<&mut Pack>) -> bool {
 
         // Get a manipulable copy of all the entries, so we can optimize it.
         let mut entries = self.data().to_vec();
@@ -324,5 +343,45 @@ impl Optimizable for Loc {
             }
             Err(_) => false,
         }
+    }
+}
+
+impl Optimizable for PortraitSettings {
+
+    /// This function optimizes the provided [PortraitSettings] file in order to make it smaller.
+    ///
+    /// Specifically, it performs the following optimizations:
+    ///
+    /// - Removal of variants not present in the variants table (unused data).
+    /// - Removal of art sets not present in the campaign_character_arts table (unused data).
+    ///
+    /// It returns if the PortraitSettings is empty, meaning it can be safetly deleted.
+    fn optimize(&mut self, dependencies: &mut Dependencies, container: Option<&mut Pack>) -> bool {
+
+        // Get a manipulable copy of all the entries, so we can optimize it.
+        let mut entries = self.entries().to_vec();
+
+        // Get the list of art set ids and variant filenames to check against.
+        let art_set_ids = dependencies.db_values_from_table_name_and_column_name(container.as_deref(), "campaign_character_arts_tables", "art_set_id", true, true);
+        let mut variant_filenames = dependencies.db_values_from_table_name_and_column_name(container.as_deref(), "variants_tables", "variant_filename", true, true);
+        if variant_filenames.is_empty() {
+            variant_filenames = dependencies.db_values_from_table_name_and_column_name(container.as_deref(), "variants_tables", "variant_name", true, true);
+        }
+
+        // Do not do anything if we don't have ids and variants.
+        if art_set_ids.is_empty() || variant_filenames.is_empty() {
+            return false;
+        }
+
+        entries.retain_mut(|entry| {
+            entry.variants_mut().retain(|variant| {
+                variant_filenames.contains(variant.filename())
+            });
+
+            art_set_ids.contains(entry.id())
+        });
+
+        self.set_entries(entries);
+        self.entries().is_empty()
     }
 }

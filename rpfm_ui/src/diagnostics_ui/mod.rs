@@ -53,7 +53,7 @@ use std::rc::Rc;
 
 use rpfm_extensions::diagnostics::{*, anim_fragment_battle::*, config::*, dependency::*, pack::*, portrait_settings::*, table::*, text::*};
 
-use rpfm_lib::files::ContainerPath;
+use rpfm_lib::files::{ContainerPath, portrait_settings::Variant};
 use rpfm_lib::games::supported_games::*;
 use rpfm_lib::integrations::log::info;
 
@@ -748,11 +748,11 @@ impl DiagnosticsUI {
                                 let data_affected_string = match result.report_type() {
                                     PortraitSettingsDiagnosticReportType::DatacoredPortraitSettings => String::new(),
                                     PortraitSettingsDiagnosticReportType::InvalidArtSetId(art_set_id) => art_set_id.to_owned(),
-                                    PortraitSettingsDiagnosticReportType::InvalidVariantFilename(art_set_id, variant_filename) => art_set_id.to_owned() + "|" + variant_filename,
-                                    PortraitSettingsDiagnosticReportType::FileDiffuseNotFoundForVariant(art_set_id, variant_filename, _) => art_set_id.to_owned() + "|" + variant_filename,
-                                    PortraitSettingsDiagnosticReportType::FileMask1NotFoundForVariant(art_set_id, variant_filename, _) => art_set_id.to_owned() + "|" + variant_filename,
-                                    PortraitSettingsDiagnosticReportType::FileMask2NotFoundForVariant(art_set_id, variant_filename, _) => art_set_id.to_owned() + "|" + variant_filename,
-                                    PortraitSettingsDiagnosticReportType::FileMask3NotFoundForVariant(art_set_id, variant_filename, _) => art_set_id.to_owned() + "|" + variant_filename,
+                                    PortraitSettingsDiagnosticReportType::InvalidVariantFilename(art_set_id, variant_filename, politician, faction_leader) => art_set_id.to_owned() + "|" + variant_filename + "|" + &politician.to_string() + "|" + &faction_leader.to_string(),
+                                    PortraitSettingsDiagnosticReportType::FileDiffuseNotFoundForVariant(art_set_id, variant_filename, politician, faction_leader, _) => art_set_id.to_owned() + "|" + variant_filename + "|" + &politician.to_string() + "|" + &faction_leader.to_string(),
+                                    PortraitSettingsDiagnosticReportType::FileMask1NotFoundForVariant(art_set_id, variant_filename, politician, faction_leader, _) => art_set_id.to_owned() + "|" + variant_filename + "|" + &politician.to_string() + "|" + &faction_leader.to_string(),
+                                    PortraitSettingsDiagnosticReportType::FileMask2NotFoundForVariant(art_set_id, variant_filename, politician, faction_leader, _) => art_set_id.to_owned() + "|" + variant_filename + "|" + &politician.to_string() + "|" + &faction_leader.to_string(),
+                                    PortraitSettingsDiagnosticReportType::FileMask3NotFoundForVariant(art_set_id, variant_filename, politician, faction_leader, _) => art_set_id.to_owned() + "|" + variant_filename + "|" + &politician.to_string() + "|" + &faction_leader.to_string(),
                                 };
 
                                 data_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(data_affected_string)), 2);
@@ -1108,40 +1108,48 @@ impl DiagnosticsUI {
                             // If we also have a variant name, select it.
                             if art_set_id_found {
                                 if let Some(variant_filename) = data.get(1) {
+                                    let politician = data.get(2).map(|x| x.parse::<bool>().ok()).flatten().unwrap_or_default();
+                                    let faction_leader = data.get(3).map(|x| x.parse::<bool>().ok()).flatten().unwrap_or_default();
+
                                     let q_string = QString::from_std_str(variant_filename);
                                     for row in 0..view.variants_list_model().row_count_0a() {
                                         let list_model_index = view.variants_list_model().index_2a(row, 0);
                                         if view.variants_list_model().data_1a(&list_model_index).to_string().compare_q_string(&q_string) == 0 {
-                                            let list_model_index_filtered = view.variants_list_filter().map_from_source(&list_model_index);
-                                            if list_model_index_filtered.is_valid() {
-                                                view.variants_list_view().set_focus_0a();
-                                                view.variants_list_view().set_current_index(list_model_index_filtered.as_ref());
-                                                view.variants_list_view().scroll_to_2a(list_model_index_filtered.as_ref(), ScrollHint::EnsureVisible);
-                                                view.variants_list_view().selection_model().select_q_model_index_q_flags_selection_flag(list_model_index_filtered.as_ref(), QFlags::from(SelectionFlag::SelectCurrent));
 
-                                                // We need to check the report type to see if we have to select a line edit.
-                                                let report_type = model.item_2a(model_index.row(), 5).text().to_std_string();
-                                                match &*report_type {
-                                                    "FileDiffuseNotFoundForVariant" => {
-                                                        view.file_diffuse_line_edit().select_all();
-                                                        view.file_diffuse_line_edit().set_focus_0a();
-                                                    },
-                                                    "FileMask1NotFoundForVariant" => {
-                                                        view.file_mask_1_line_edit().select_all();
-                                                        view.file_mask_1_line_edit().set_focus_0a();
-                                                    },
-                                                    "FileMask2NotFoundForVariant" => {
-                                                        view.file_mask_2_line_edit().select_all();
-                                                        view.file_mask_2_line_edit().set_focus_0a();
-                                                    },
-                                                    "FileMask3NotFoundForVariant" => {
-                                                        view.file_mask_3_line_edit().select_all();
-                                                        view.file_mask_3_line_edit().set_focus_0a();
+                                            let data: Variant = serde_json::from_str(&list_model_index.data_1a(crate::packedfile_views::portrait_settings::DATA).to_string().to_std_string()).unwrap();
+                                            if *data.politician() == politician && *data.faction_leader() == faction_leader {
+
+                                                let list_model_index_filtered = view.variants_list_filter().map_from_source(&list_model_index);
+                                                if list_model_index_filtered.is_valid() {
+                                                    view.variants_list_view().set_focus_0a();
+                                                    view.variants_list_view().set_current_index(list_model_index_filtered.as_ref());
+                                                    view.variants_list_view().scroll_to_2a(list_model_index_filtered.as_ref(), ScrollHint::EnsureVisible);
+                                                    view.variants_list_view().selection_model().select_q_model_index_q_flags_selection_flag(list_model_index_filtered.as_ref(), QFlags::from(SelectionFlag::SelectCurrent));
+
+                                                    // We need to check the report type to see if we have to select a line edit.
+                                                    let report_type = model.item_2a(model_index.row(), 5).text().to_std_string();
+                                                    match &*report_type {
+                                                        "FileDiffuseNotFoundForVariant" => {
+                                                            view.file_diffuse_line_edit().select_all();
+                                                            view.file_diffuse_line_edit().set_focus_0a();
+                                                        },
+                                                        "FileMask1NotFoundForVariant" => {
+                                                            view.file_mask_1_line_edit().select_all();
+                                                            view.file_mask_1_line_edit().set_focus_0a();
+                                                        },
+                                                        "FileMask2NotFoundForVariant" => {
+                                                            view.file_mask_2_line_edit().select_all();
+                                                            view.file_mask_2_line_edit().set_focus_0a();
+                                                        },
+                                                        "FileMask3NotFoundForVariant" => {
+                                                            view.file_mask_3_line_edit().select_all();
+                                                            view.file_mask_3_line_edit().set_focus_0a();
+                                                        }
+                                                        _ => {},
                                                     }
-                                                    _ => {},
-                                                }
 
-                                                break;
+                                                    break;
+                                                }
                                             }
                                         }
                                     }
@@ -1620,19 +1628,19 @@ impl DiagnosticsUI {
             diagnostic_type_pattern.push_str(&format!("{}|", PortraitSettingsDiagnosticReportType::InvalidArtSetId(String::new())));
         }
         if diagnostics_ui.checkbox_invalid_variant_filename.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", PortraitSettingsDiagnosticReportType::InvalidVariantFilename(String::new(), String::new())));
+            diagnostic_type_pattern.push_str(&format!("{}|", PortraitSettingsDiagnosticReportType::InvalidVariantFilename(String::new(), String::new(), false, false)));
         }
         if diagnostics_ui.checkbox_file_diffuse_not_found_for_variant.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", PortraitSettingsDiagnosticReportType::FileDiffuseNotFoundForVariant(String::new(), String::new(), String::new())));
+            diagnostic_type_pattern.push_str(&format!("{}|", PortraitSettingsDiagnosticReportType::FileDiffuseNotFoundForVariant(String::new(), String::new(), false, false, String::new())));
         }
         if diagnostics_ui.checkbox_file_mask_1_not_found_for_variant.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", PortraitSettingsDiagnosticReportType::FileMask1NotFoundForVariant(String::new(), String::new(), String::new())));
+            diagnostic_type_pattern.push_str(&format!("{}|", PortraitSettingsDiagnosticReportType::FileMask1NotFoundForVariant(String::new(), String::new(), false, false, String::new())));
         }
         if diagnostics_ui.checkbox_file_mask_2_not_found_for_variant.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", PortraitSettingsDiagnosticReportType::FileMask2NotFoundForVariant(String::new(), String::new(), String::new())));
+            diagnostic_type_pattern.push_str(&format!("{}|", PortraitSettingsDiagnosticReportType::FileMask2NotFoundForVariant(String::new(), String::new(), false, false, String::new())));
         }
         if diagnostics_ui.checkbox_file_mask_3_not_found_for_variant.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", PortraitSettingsDiagnosticReportType::FileMask3NotFoundForVariant(String::new(), String::new(), String::new())));
+            diagnostic_type_pattern.push_str(&format!("{}|", PortraitSettingsDiagnosticReportType::FileMask3NotFoundForVariant(String::new(), String::new(), false, false, String::new())));
         }
 
         if diagnostics_ui.checkbox_loocomotion_graph_path_not_found.is_checked() {
@@ -1867,11 +1875,11 @@ impl DiagnosticsUI {
         let tool_tip = match report_type {
             PortraitSettingsDiagnosticReportType::DatacoredPortraitSettings => qtr("datacored_portrait_settings_explanation"),
             PortraitSettingsDiagnosticReportType::InvalidArtSetId(_) => qtr("invalid_art_set_id_explanation"),
-            PortraitSettingsDiagnosticReportType::InvalidVariantFilename(_, _) => qtr("invalid_variant_filename_explanation"),
-            PortraitSettingsDiagnosticReportType::FileDiffuseNotFoundForVariant(_, _, _) => qtr("file_diffuse_not_found_for_variant_explanation"),
-            PortraitSettingsDiagnosticReportType::FileMask1NotFoundForVariant(_, _, _) => qtr("file_mask_1_not_found_for_variant_explanation"),
-            PortraitSettingsDiagnosticReportType::FileMask2NotFoundForVariant(_, _, _) => qtr("file_mask_2_not_found_for_variant_explanation"),
-            PortraitSettingsDiagnosticReportType::FileMask3NotFoundForVariant(_, _, _) => qtr("file_mask_3_not_found_for_variant_explanation"),
+            PortraitSettingsDiagnosticReportType::InvalidVariantFilename(_, _, _, _) => qtr("invalid_variant_filename_explanation"),
+            PortraitSettingsDiagnosticReportType::FileDiffuseNotFoundForVariant(_, _, _, _, _) => qtr("file_diffuse_not_found_for_variant_explanation"),
+            PortraitSettingsDiagnosticReportType::FileMask1NotFoundForVariant(_, _, _, _, _) => qtr("file_mask_1_not_found_for_variant_explanation"),
+            PortraitSettingsDiagnosticReportType::FileMask2NotFoundForVariant(_, _, _, _, _) => qtr("file_mask_2_not_found_for_variant_explanation"),
+            PortraitSettingsDiagnosticReportType::FileMask3NotFoundForVariant(_, _, _, _, _) => qtr("file_mask_3_not_found_for_variant_explanation"),
         };
 
         for item in items {
@@ -1971,20 +1979,20 @@ impl DiagnosticsUI {
             diagnostics_ignored.push(PortraitSettingsDiagnosticReportType::InvalidArtSetId(String::new()).to_string());
         }
         if !self.checkbox_invalid_variant_filename.is_checked() {
-            diagnostics_ignored.push(PortraitSettingsDiagnosticReportType::InvalidVariantFilename(String::new(), String::new()).to_string());
+            diagnostics_ignored.push(PortraitSettingsDiagnosticReportType::InvalidVariantFilename(String::new(), String::new(), false, false).to_string());
         }
         if !self.checkbox_file_diffuse_not_found_for_variant.is_checked() {
-            diagnostics_ignored.push(PortraitSettingsDiagnosticReportType::FileDiffuseNotFoundForVariant(String::new(), String::new(), String::new()).to_string());
+            diagnostics_ignored.push(PortraitSettingsDiagnosticReportType::FileDiffuseNotFoundForVariant(String::new(), String::new(), false, false, String::new()).to_string());
         }
 
         if !self.checkbox_file_mask_1_not_found_for_variant.is_checked() {
-            diagnostics_ignored.push(PortraitSettingsDiagnosticReportType::FileMask1NotFoundForVariant(String::new(), String::new(), String::new()).to_string());
+            diagnostics_ignored.push(PortraitSettingsDiagnosticReportType::FileMask1NotFoundForVariant(String::new(), String::new(), false, false, String::new()).to_string());
         }
         if !self.checkbox_file_mask_2_not_found_for_variant.is_checked() {
-            diagnostics_ignored.push(PortraitSettingsDiagnosticReportType::FileMask2NotFoundForVariant(String::new(), String::new(), String::new()).to_string());
+            diagnostics_ignored.push(PortraitSettingsDiagnosticReportType::FileMask2NotFoundForVariant(String::new(), String::new(), false, false, String::new()).to_string());
         }
         if !self.checkbox_file_mask_3_not_found_for_variant.is_checked() {
-            diagnostics_ignored.push(PortraitSettingsDiagnosticReportType::FileMask3NotFoundForVariant(String::new(), String::new(), String::new()).to_string());
+            diagnostics_ignored.push(PortraitSettingsDiagnosticReportType::FileMask3NotFoundForVariant(String::new(), String::new(), false, false, String::new()).to_string());
         }
 
         if !self.checkbox_loocomotion_graph_path_not_found.is_checked() {

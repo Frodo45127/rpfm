@@ -1042,6 +1042,8 @@ optimize_packfile_are_you_sure = <h3>Are you sure you want to optimize this Pack
             <li><b>Remove useless xml on map packs</b>, which are a byproduct of how bob exports map packs.</li>
             <li><b>Remove useless xml on prefabs</b>, which are a byproduct of how bob exports prefabs.</li>
             <li><b>Remove useless agf and model_statistics files</b>, which are a byproduct of how bob exports models.</li>
+            <li><b>Remove unused/invalid variants and art sets from portrait settings files.</b></li>
+            <li><b>Remove empty Portrait Settings files</b> (only the .bin files, .xml files are kept just in case you use selfie).</li>
         </ul>
         So again, are you sure you want to do it?
     </p>

@@ -45,11 +45,11 @@ pub struct PortraitSettingsDiagnosticReport {
 pub enum PortraitSettingsDiagnosticReportType {
     DatacoredPortraitSettings,
     InvalidArtSetId(String),
-    InvalidVariantFilename(String, String),
-    FileDiffuseNotFoundForVariant(String, String, String),
-    FileMask1NotFoundForVariant(String, String, String),
-    FileMask2NotFoundForVariant(String, String, String),
-    FileMask3NotFoundForVariant(String, String, String),
+    InvalidVariantFilename(String, String, bool, bool),
+    FileDiffuseNotFoundForVariant(String, String, bool, bool, String),
+    FileMask1NotFoundForVariant(String, String, bool, bool, String),
+    FileMask2NotFoundForVariant(String, String, bool, bool, String),
+    FileMask3NotFoundForVariant(String, String, bool, bool, String),
 }
 
 //-------------------------------------------------------------------------------//
@@ -69,11 +69,11 @@ impl DiagnosticReport for PortraitSettingsDiagnosticReport {
         match &self.report_type {
             PortraitSettingsDiagnosticReportType::DatacoredPortraitSettings => "Datacored Portrait Settings file.".to_string(),
             PortraitSettingsDiagnosticReportType::InvalidArtSetId(art_set_id) => format!("Invalid Art Set Id '{art_set_id}' in Portrait Settings file."),
-            PortraitSettingsDiagnosticReportType::InvalidVariantFilename(art_set_id, variant_filename) => format!("Invalid Variant Filename '{variant_filename}' for Art Set Id '{art_set_id}'. "),
-            PortraitSettingsDiagnosticReportType::FileDiffuseNotFoundForVariant(art_set_id, variant_filename, path) => format!("File not found for Art Set Id '{art_set_id}', Variant Filename '{variant_filename}', File Diffuse '{path}'."),
-            PortraitSettingsDiagnosticReportType::FileMask1NotFoundForVariant(art_set_id, variant_filename, path) => format!("File not found for Art Set Id '{art_set_id}', Variant Filename '{variant_filename}', File Mask 1 '{path}'."),
-            PortraitSettingsDiagnosticReportType::FileMask2NotFoundForVariant(art_set_id, variant_filename, path) => format!("File not found for Art Set Id '{art_set_id}', Variant Filename '{variant_filename}', File Mask 2 '{path}'."),
-            PortraitSettingsDiagnosticReportType::FileMask3NotFoundForVariant(art_set_id, variant_filename, path) => format!("File not found for Art Set Id '{art_set_id}', Variant Filename '{variant_filename}', File Mask 3 '{path}'."),
+            PortraitSettingsDiagnosticReportType::InvalidVariantFilename(art_set_id, variant_filename, _, _) => format!("Invalid Variant Filename '{variant_filename}' for Art Set Id '{art_set_id}'. "),
+            PortraitSettingsDiagnosticReportType::FileDiffuseNotFoundForVariant(art_set_id, variant_filename, _, _, path) => format!("File not found for Art Set Id '{art_set_id}', Variant Filename '{variant_filename}', File Diffuse '{path}'."),
+            PortraitSettingsDiagnosticReportType::FileMask1NotFoundForVariant(art_set_id, variant_filename, _, _, path) => format!("File not found for Art Set Id '{art_set_id}', Variant Filename '{variant_filename}', File Mask 1 '{path}'."),
+            PortraitSettingsDiagnosticReportType::FileMask2NotFoundForVariant(art_set_id, variant_filename, _, _, path) => format!("File not found for Art Set Id '{art_set_id}', Variant Filename '{variant_filename}', File Mask 2 '{path}'."),
+            PortraitSettingsDiagnosticReportType::FileMask3NotFoundForVariant(art_set_id, variant_filename, _, _, path) => format!("File not found for Art Set Id '{art_set_id}', Variant Filename '{variant_filename}', File Mask 3 '{path}'."),
         }
     }
 
@@ -81,11 +81,11 @@ impl DiagnosticReport for PortraitSettingsDiagnosticReport {
         match self.report_type {
             PortraitSettingsDiagnosticReportType::DatacoredPortraitSettings => DiagnosticLevel::Warning,
             PortraitSettingsDiagnosticReportType::InvalidArtSetId(_) => DiagnosticLevel::Warning,
-            PortraitSettingsDiagnosticReportType::InvalidVariantFilename(_, _) => DiagnosticLevel::Warning,
-            PortraitSettingsDiagnosticReportType::FileDiffuseNotFoundForVariant(_, _, _) => DiagnosticLevel::Warning,
-            PortraitSettingsDiagnosticReportType::FileMask1NotFoundForVariant(_, _, _) => DiagnosticLevel::Warning,
-            PortraitSettingsDiagnosticReportType::FileMask2NotFoundForVariant(_, _, _) => DiagnosticLevel::Warning,
-            PortraitSettingsDiagnosticReportType::FileMask3NotFoundForVariant(_, _, _) => DiagnosticLevel::Warning,
+            PortraitSettingsDiagnosticReportType::InvalidVariantFilename(_, _, _, _) => DiagnosticLevel::Warning,
+            PortraitSettingsDiagnosticReportType::FileDiffuseNotFoundForVariant(_, _, _, _, _) => DiagnosticLevel::Warning,
+            PortraitSettingsDiagnosticReportType::FileMask1NotFoundForVariant(_, _, _, _, _) => DiagnosticLevel::Warning,
+            PortraitSettingsDiagnosticReportType::FileMask2NotFoundForVariant(_, _, _, _, _) => DiagnosticLevel::Warning,
+            PortraitSettingsDiagnosticReportType::FileMask3NotFoundForVariant(_, _, _, _, _) => DiagnosticLevel::Warning,
         }
     }
 }
@@ -95,11 +95,11 @@ impl Display for PortraitSettingsDiagnosticReportType {
         Display::fmt(match self {
             Self::DatacoredPortraitSettings => "DatacoredPortraitSettings",
             Self::InvalidArtSetId(_) => "InvalidArtSetId",
-            Self::InvalidVariantFilename(_, _) => "InvalidVariantFilename",
-            Self::FileDiffuseNotFoundForVariant(_, _, _) => "FileDiffuseNotFoundForVariant",
-            Self::FileMask1NotFoundForVariant(_, _, _) => "FileMask1NotFoundForVariant",
-            Self::FileMask2NotFoundForVariant(_, _, _) => "FileMask2NotFoundForVariant",
-            Self::FileMask3NotFoundForVariant(_, _, _) => "FileMask3NotFoundForVariant",
+            Self::InvalidVariantFilename(_, _, _, _) => "InvalidVariantFilename",
+            Self::FileDiffuseNotFoundForVariant(_, _, _, _, _) => "FileDiffuseNotFoundForVariant",
+            Self::FileMask1NotFoundForVariant(_, _, _, _, _) => "FileMask1NotFoundForVariant",
+            Self::FileMask2NotFoundForVariant(_, _, _, _, _) => "FileMask2NotFoundForVariant",
+            Self::FileMask3NotFoundForVariant(_, _, _, _, _) => "FileMask3NotFoundForVariant",
         }, f)
     }
 }
@@ -142,7 +142,7 @@ impl PortraitSettingsDiagnostic {
 
                 for variant in entry.variants() {
                     if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, None, Some("InvalidVariantFilename"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && variant_filenames.get(variant.filename()).is_none()  {
-                        let result = PortraitSettingsDiagnosticReport::new(PortraitSettingsDiagnosticReportType::InvalidVariantFilename(entry.id().to_owned(), variant.filename().to_owned()));
+                        let result = PortraitSettingsDiagnosticReport::new(PortraitSettingsDiagnosticReportType::InvalidVariantFilename(entry.id().to_owned(), variant.filename().to_owned(), *variant.politician(), *variant.faction_leader()));
                         diagnostic.results_mut().push(result);
                     }
 
@@ -151,7 +151,7 @@ impl PortraitSettingsDiagnostic {
                             local_path_list.get(&variant.file_diffuse().to_lowercase()).is_none() &&
                             !dependencies.file_exists(variant.file_diffuse(), true, true, true)
                         ) && !variant.file_diffuse().is_empty() {
-                        let result = PortraitSettingsDiagnosticReport::new(PortraitSettingsDiagnosticReportType::FileDiffuseNotFoundForVariant(entry.id().to_owned(), variant.filename().to_owned(), variant.file_diffuse().to_owned()));
+                        let result = PortraitSettingsDiagnosticReport::new(PortraitSettingsDiagnosticReportType::FileDiffuseNotFoundForVariant(entry.id().to_owned(), variant.filename().to_owned(), *variant.politician(), *variant.faction_leader(), variant.file_diffuse().to_owned()));
                         diagnostic.results_mut().push(result);
                     }
 
@@ -160,7 +160,7 @@ impl PortraitSettingsDiagnostic {
                             local_path_list.get(&variant.file_mask_1().to_lowercase()).is_none() &&
                             !dependencies.file_exists(variant.file_mask_1(), true, true, true)
                         ) && !variant.file_mask_1().is_empty() {
-                        let result = PortraitSettingsDiagnosticReport::new(PortraitSettingsDiagnosticReportType::FileMask1NotFoundForVariant(entry.id().to_owned(), variant.filename().to_owned(), variant.file_mask_1().to_owned()));
+                        let result = PortraitSettingsDiagnosticReport::new(PortraitSettingsDiagnosticReportType::FileMask1NotFoundForVariant(entry.id().to_owned(), variant.filename().to_owned(), *variant.politician(), *variant.faction_leader(), variant.file_mask_1().to_owned()));
                         diagnostic.results_mut().push(result);
                     }
 
@@ -169,7 +169,7 @@ impl PortraitSettingsDiagnostic {
                             local_path_list.get(&variant.file_mask_2().to_lowercase()).is_none() &&
                             !dependencies.file_exists(variant.file_mask_2(), true, true, true)
                         ) && !variant.file_mask_2().is_empty() {
-                        let result = PortraitSettingsDiagnosticReport::new(PortraitSettingsDiagnosticReportType::FileMask2NotFoundForVariant(entry.id().to_owned(), variant.filename().to_owned(), variant.file_mask_2().to_owned()));
+                        let result = PortraitSettingsDiagnosticReport::new(PortraitSettingsDiagnosticReportType::FileMask2NotFoundForVariant(entry.id().to_owned(), variant.filename().to_owned(), *variant.politician(), *variant.faction_leader(), variant.file_mask_2().to_owned()));
                         diagnostic.results_mut().push(result);
                     }
 
@@ -178,7 +178,7 @@ impl PortraitSettingsDiagnostic {
                             local_path_list.get(&variant.file_mask_3().to_lowercase()).is_none() &&
                             !dependencies.file_exists(variant.file_mask_3(), true, true, true)
                         ) && !variant.file_mask_3().is_empty() {
-                        let result = PortraitSettingsDiagnosticReport::new(PortraitSettingsDiagnosticReportType::FileMask3NotFoundForVariant(entry.id().to_owned(), variant.filename().to_owned(), variant.file_mask_3().to_owned()));
+                        let result = PortraitSettingsDiagnosticReport::new(PortraitSettingsDiagnosticReportType::FileMask3NotFoundForVariant(entry.id().to_owned(), variant.filename().to_owned(), *variant.politician(), *variant.faction_leader(), variant.file_mask_3().to_owned()));
                         diagnostic.results_mut().push(result);
                     }
                 }
