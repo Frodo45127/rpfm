@@ -729,7 +729,7 @@ impl Pack {
             .chunk_by(|pack| pack.header.pfh_file_type)
             .into_iter()
             .for_each(|(pfh_type, packs)| {
-                if pfh_type != PFHFileType::Mod || (pfh_type == PFHFileType::Mod && !ignore_mods) {
+                if pfh_type != PFHFileType::Mod || !ignore_mods {
                     let mut packs = packs.collect::<Vec<_>>();
                     packs.reverse();
                     packs.iter()
@@ -754,8 +754,9 @@ impl Pack {
         dependencies.retain(|x| set.insert(x.clone()));
         pack_new.set_dependencies(dependencies);
 
-        // Fix the pack version.
+        // Fix the pack version and header.
         pack_new.set_pfh_file_type(packs[0].pfh_file_type());
+        pack_new.set_pfh_version(game.pfh_version_by_file_type(pack_new.pfh_file_type()));
 
         // Generate the path list.
         pack_new.paths_cache_generate();
@@ -765,7 +766,8 @@ impl Pack {
 
     /// Convenience function to merge open Packs as one, taking care of overwriting files when needed.
     ///
-    /// Packs are merged in the order they are provided. If you need to use a custom order, sort them before merging.
+    /// Packs are merged in the order they are provided. If you need to use a custom order,
+    /// sort them before merging, or use the `read_and_merge` function instead.
     ///
     /// Internal files are left in the state they were before. If you need them loaded, do it after this.
     pub fn merge(packs: &[Self]) -> Result<Self> {
@@ -810,9 +812,15 @@ impl Pack {
                 .cloned()
                 .collect::<Vec<_>>())
             .collect::<Vec<_>>();
-        dependencies.sort();
-        dependencies.dedup();
+
+        // Dedup the dependencies while preserving the order.
+        let mut set = HashSet::new();
+        dependencies.retain(|x| set.insert(x.clone()));
         pack_new.set_dependencies(dependencies);
+
+        // Fix the pack version and header.
+        pack_new.set_pfh_file_type(packs[0].pfh_file_type());
+        pack_new.set_pfh_version(packs[0].pfh_version());
 
         // Generate the path list.
         pack_new.paths_cache_generate();
