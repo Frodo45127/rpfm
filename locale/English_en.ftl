@@ -893,7 +893,7 @@ empty_key_fields_explanation =  Tables may have one or more "key" columns that h
     Empty key fields can cause problems, ranging from effects not working to crashes. It's strongly advised to fix them.
 
 duplicated_combined_keys_explanation = Tables may have one or more "key" columns that have (usually) to be unique in the entire table. This error means you have two rows with the same key.
-    Empty key fields can cause problems, ranging from effects not working to crashes. It's strongly advised to remove one of them.
+    Duplicated entries means only one will load, causing possible issues where you edit the value of one of them, and the other one overwrites it, rendering your change non-working.
 
     If this triggers due to a false positive, go to your PackFile, right-click it, and click on "Open/Open PackFile Settings".
     Then, add the table/field is giving the false positive to the "PackedFiles to Ignore on Diagnostics Check" list and save the PackFile.
