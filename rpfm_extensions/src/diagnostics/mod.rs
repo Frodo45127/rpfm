@@ -32,7 +32,7 @@ use rpfm_lib::files::{ContainerPath, Container, DecodeableExtraData, FileType, p
 use rpfm_lib::games::{GameInfo, VanillaDBTableNameLogic};
 use rpfm_lib::schema::{FieldType, Schema};
 
-use crate::dependencies::{Dependencies, TableReferences};
+use crate::dependencies::Dependencies;
 use crate::REGEX_INVALID_ESCAPES;
 
 use self::anim_fragment_battle::*;
@@ -293,57 +293,64 @@ impl Diagnostics {
 
         // Process the files in batches.
         self.results.append(&mut files_split.par_iter().filter_map(|(_, files)| {
-
             let mut diagnostics = Vec::with_capacity(files.len());
-            let mut table_references = HashMap::new();
 
-            for file in files {
-                let (ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) = Self::ignore_data_for_file(file, &files_to_ignore)?;
+            // Ignore empty groups, which should never happen, but just in case.
+            if let Some(file_type) = files.first().map(|x| x.file_type()) {
 
-                let diagnostic = match file.file_type() {
-                    FileType::AnimFragmentBattle => AnimFragmentBattleDiagnostic::check(
-                        file,
-                        dependencies,
-                        &self.diagnostics_ignored,
-                        &ignored_fields,
-                        &ignored_diagnostics,
-                        &ignored_diagnostics_for_fields,
-                        local_file_path_list,
-                    ),
+                // DB groups are processed as a group, not per file, so we are able to detect duplicated lines between files.
+                // Same for locs.
+                match file_type {
                     FileType::DB => {
-
-                        // Get the dependency data for tables once per batch.
-                        // That way we can speed up this a lot.
-                        let file_decoded = file.decoded().ok()?;
-                        if table_references.is_empty() {
-                            if let RFileDecoded::DB(table) = file_decoded {
-                                table_references = dependencies.db_reference_data(schema, pack, table.table_name(), table.definition(), &loc_data);
-                            }
-                        }
-
-                        TableDiagnostic::check_db(
-                            file,
+                        diagnostics.extend_from_slice(&TableDiagnostic::check_db(
+                            files,
                             dependencies,
                             &self.diagnostics_ignored,
-                            &ignored_fields,
-                            &ignored_diagnostics,
-                            &ignored_diagnostics_for_fields,
                             game_info,
                             local_file_path_list,
-                            &table_references,
                             check_ak_only_refs,
-                        )
+                            &files_to_ignore,
+                            &pack,
+                            schema,
+                            &loc_data
+                        ));
                     },
-                    FileType::Loc => TableDiagnostic::check_loc(file, &self.diagnostics_ignored, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields),
-                    FileType::Text => TextDiagnostic::check(file, pack, dependencies, &self.diagnostics_ignored, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields),
-                    FileType::PortraitSettings => PortraitSettingsDiagnostic::check(file, &art_set_ids, &variant_filenames, dependencies, &self.diagnostics_ignored, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields, local_file_path_list),
-                    _ => None,
-                };
+                    FileType::Loc => {
+                        diagnostics.extend_from_slice(&TableDiagnostic::check_loc(
+                            files,
+                            &self.diagnostics_ignored,
+                            &files_to_ignore,
+                        ));
+                    }
+                    _ => {
+                        for file in files {
+                            let (ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) = Self::ignore_data_for_file(file, &files_to_ignore)?;
 
-                if let Some(diagnostic) = diagnostic {
-                    diagnostics.push(diagnostic);
+                            let diagnostic = match file.file_type() {
+                                FileType::AnimFragmentBattle => AnimFragmentBattleDiagnostic::check(
+                                    file,
+                                    dependencies,
+                                    &self.diagnostics_ignored,
+                                    &ignored_fields,
+                                    &ignored_diagnostics,
+                                    &ignored_diagnostics_for_fields,
+                                    local_file_path_list,
+                                ),
+
+                                FileType::Text => TextDiagnostic::check(file, pack, dependencies, &self.diagnostics_ignored, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields),
+                                FileType::PortraitSettings => PortraitSettingsDiagnostic::check(file, &art_set_ids, &variant_filenames, dependencies, &self.diagnostics_ignored, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields, local_file_path_list),
+                                _ => None,
+                            };
+
+                            if let Some(diagnostic) = diagnostic {
+                                diagnostics.push(diagnostic);
+                            }
+                        }
+                    }
                 }
             }
+
+
 
             Some(diagnostics)
         }).flatten().collect());
