@@ -895,8 +895,7 @@ empty_key_fields_explanation =  Tables may have one or more "key" columns that h
 duplicated_combined_keys_explanation = Tables may have one or more "key" columns that have (usually) to be unique in the entire table. This error means you have two rows with the same key.
     Duplicated entries means only one will load, causing possible issues where you edit the value of one of them, and the other one overwrites it, rendering your change non-working.
 
-    If this triggers due to a false positive, go to your PackFile, right-click it, and click on "Open/Open PackFile Settings".
-    Then, add the table/field is giving the false positive to the "PackedFiles to Ignore on Diagnostics Check" list and save the PackFile.
+    If this triggers due to a false positive, right-click this diagnostic and ignore it so it doesn't pop up again in this situation.
 
 no_reference_table_found_explanation = Some table columns reference another table's columns. This means a column was found that referenced a table that RPFM couldn't find.
     This is either an issue with the schema, or just a table reference CA forgot to update.
