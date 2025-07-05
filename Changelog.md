@@ -6,6 +6,30 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [4.5.0]
+### Added
+- Implemented support for editing .agf and .model_statistics text files.
+- Implemented support for removing .agf and .model_statistics text files when using the optimizer.
+- Implemented support for removing unused art sets and variants from Portrait Settings files when using the optimizer.
+- Implemented support for cross-file duplicate key/row diagnostics for DBs and Locs.
+- Implemented support for lua diagnostics in a lot more kinds of variables.
+
+### Changed
+- Demoted all Portrait Settings related diagnostics to warnings.
+- Refactored DB and Loc diagnostics to improve their performance.
+- Updated documentation to include information about lua diagnostics.
+
+### Removed
+- Removed "Portrait Settings file datacored" diagnostic (not really useful).
+
+### Fixed
+- Fixed placeholder "Checkbox" text in the Portrait Settings editor.
+- Fixed false positives when diagnosing Portrait Settings files caused by differents in column names in the variants tables between games.
+- Fixed double-clicking Portrait Setting diagnostics not opening the right variant when it has multiple with the same name.
+- Fixed merged packs not having the same format as the source games.
+- Fixed a couple diagnostic tooltips that were either wrong or pointing to outdated info.
+- Fixed translator not autotranslating same-as-vanilla lines.
+
 ## [4.4.5]
 ### Fixed
 - Fixed incorrect check in "Invalid file name" diagnostic.
@@ -1603,7 +1627,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.4.5...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.5.0...HEAD
+[4.5.0]: https://github.com/Frodo45127/rpfm/compare/v4.4.5...v4.5.0
 [4.4.5]: https://github.com/Frodo45127/rpfm/compare/v4.4.4...v4.4.5
 [4.4.4]: https://github.com/Frodo45127/rpfm/compare/v4.4.3...v4.4.4
 [4.4.3]: https://github.com/Frodo45127/rpfm/compare/v4.4.2...v4.4.3
