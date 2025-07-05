@@ -488,6 +488,50 @@ And now, let's begin!</li>
 <li><code>Show more filters</code>: Shows a toggleable list of per-diagnostic filter, for more granular filtering.</li>
 </ul>
 <p>To know more about what each diagnostic means, hover the mouse over them and you'll get an explanation of what it means. Also, double-clicking them will led you to the relevant place where they are being detected.</p>
+<p>Also, something to note: while most diagnostics are automatic (they work without any setup needed), lua diagnostics (diagnostics to check if db keys in script are correct) need some setup by the modder. Specifically, the modder needs to write the following comment in the line above the variable, replacing table_name and column_name with the name of the table and column where that key should be:</p>
+<pre><code class="language-lua">--@db table_name column_name [key=0,value=1]
+</code></pre>
+<p>Here are some examples with all the variable formats supported by these diagnostics:</p>
+<pre><code class="language-lua">--@db battles key
+hb = "chs_wastes_mountain_a_01"
+
+--@db battles key
+hb = { "chs_wastes_mountain_a_01", "chs_wastes_mountain_a_01" }
+
+--@db battles key 0,1 (this checks both, key and value)
+hb = { "chs_wastes_mountain_a_01" = "chs_wastes_mountain_a_01", "chs_wastes_mountain_a_01" = "chs_wastes_mountain_a_01" }
+
+--@db battles key 0 (this checks only the keys)
+hb = { "chs_wastes_mountain_a_01" = "chs_wastes_mountain_a_01", "chs_wastes_mountain_a_01" = "chs_wastes_mountain_a_01" }
+
+--@db battles key 1 (this checks only the values)
+hb = { "chs_wastes_mountain_a_01" = "chs_wastes_mountain_a_01", "chs_wastes_mountain_a_01" = "chs_wastes_mountain_a_01" }
+
+--@db battles key
+hb = {
+    "chs_wastes_mountain_a_01",
+    "chs_wastes_mountain_a_01"
+}
+
+--@db battles key 0,1 (this checks both, key and value)
+hb = {
+    "chs_wastes_mountain_a_01" = "chs_wastes_mountain_a_01",
+    "chs_wastes_mountain_a_01" = "chs_wastes_mountain_a_01"
+}
+
+--@db battles key 0 (this checks only the keys)
+hb = {
+    "chs_wastes_mountain_a_01" = "chs_wastes_mountain_a_01",
+    "chs_wastes_mountain_a_01" = "chs_wastes_mountain_a_01"
+}
+
+--@db battles key 1 (this checks only the values)
+hb = {
+    "chs_wastes_mountain_a_01" = "chs_wastes_mountain_a_01",
+    "chs_wastes_mountain_a_01" = "chs_wastes_mountain_a_01"
+}
+
+</code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="dependencies-panel"><a class="header" href="#dependencies-panel">Dependencies Panel</a></h1>
 <p><img src="./images/dependencies.png" alt="A dependant one?" /></p>
 <p><code>Dependencies</code> panel allows you to quickly access any vanilla/parent file from RPFM, without having to load it to an open PackFile. It also allows you to import them to the currently open PackFile, and extract them to the filesystem. Only works if the dependencies cache has been generated.</p>

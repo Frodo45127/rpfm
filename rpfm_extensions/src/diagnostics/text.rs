@@ -116,7 +116,7 @@ impl TextDiagnostic {
                     let table_data = text[start_pos + pos + 6..start_pos + pos + end_line].split(' ').collect::<Vec<_>>();
 
                     // We expect table name and column.
-                    if table_data.len() == 2 {
+                    if table_data.len() >= 2 {
                         let table_name = if table_data[0].ends_with("_tables") { table_data[0].to_owned() } else { table_data[0].to_owned() + "_tables" };
                         let table_column = if table_data[1].ends_with("\r") {
                             &table_data[1][..table_data[1].len() - 1]
@@ -124,80 +124,223 @@ impl TextDiagnostic {
                             table_data[1]
                         };
 
+                        let index_to_check = if let Some(indexes) = table_data.get(2) {
+                            indexes.split(",")
+                                .filter_map(|x| x.parse::<usize>().ok())
+                                .collect()
+                        } else {
+                            vec![]
+                        };
+
+                        // We need to make sure we only check the next line for the start, or we may end up checking the wrong vars.
+                        let (next_line_start, next_line_end) = match text[start_pos + pos + 6..].find('\n') {
+                            Some(nls) => if text.as_bytes().get(start_pos + pos + 6 + nls + 1).is_some() {
+                                match text[start_pos + pos + 6 + nls + 1..].find('\n') {
+                                    Some(nle) => (start_pos + pos + 6 + nls + 1, start_pos + pos + 6 + nls + 1 + nle),
+                                    None => break,
+                                }
+                            } else {
+                                break;
+                            }
+
+                            None => break,
+                        };
+
+                        // Formats supported:
+                        // - Single line, single value:
+                        //      hb = "key"
+                        //
+                        // - Single line, single table:
+                        //      hb = { "a", "b" }
+                        //
+                        // - Single line, keyed table:
+                        //      hb = { "a" = "b", "c" = "d" }
+                        //
+                        // - Multiple lines, single table:
+                        //      hb = {
+                        //          "a",
+                        //          "b"
+                        //      }
+                        //
+                        // - Multiple lines, keyed table (support for key and value:
+                        //      hb = {
+                        //          "a" = "b"
+                        //          "c" = "d"
+                        //      }
+
                         // Data to search are strings in commas between {}.
-                        if let Some(data_start) = text[start_pos + pos + 6..].find('{') {
-                            if let Some(data_end) = text[start_pos + pos + 6 + data_start..].find('}') {
+                        let (keys, data_start, data_end) = {
+                            let mut vals = (vec![], 0, 0);
 
-                                // +1 to not include the { at the start.
-                                let data_to_search = &text[start_pos + pos + 6 + data_start + 1..start_pos + pos + 6 + data_start + data_end];
-                                let data_split = data_to_search.split('\n')
-                                    .filter_map(|x| {
+                            if let Some(data_start) = text[next_line_start..next_line_end].find('{') {
+                                if let Some(data_end) = text[next_line_start + data_start..].find('}') {
 
-                                        // On each line, we want the data between commas.
-                                        let spl = x.split('\"').collect::<Vec<_>>();
-                                        if spl.len() == 3 {
-                                            Some(spl[1].to_owned())
-                                        } else {
-                                            None
-                                        }
-                                    })
-                                    .collect::<Vec<_>>();
+                                    // +1 to not include the { at the start.
+                                    let data_to_search = &text[next_line_start + data_start + 1..next_line_start + data_start + data_end];
 
-                                let mut not_found = HashMap::new();
+                                    // Multi-line table.
+                                    if data_to_search.contains('\n') || data_to_search.contains('\r') {
 
-                                // Add the files from the dependencies, then the files from the pack, then reverse the list so we process first the pack ones.
-                                if let Ok(mut tables) = dependencies.db_data(&table_name, true, true) {
-                                    tables.append(&mut pack.files_by_path(&ContainerPath::File("db/".to_string() + &table_name + "/"), true));
-                                    tables.reverse();
+                                        // Keyed table.
+                                        if data_to_search.contains('=') {
+                                            let data_split = data_to_search.split('\n')
+                                                .filter_map(|x| {
+                                                    let spl = x.split('=')
+                                                        .map(|y| y.split('\"').collect::<Vec<_>>());
 
-                                    // If there are no tables that match out name, ignore it.
-                                    if tables.is_empty() {
-                                        start_pos = start_pos + pos + 6 + data_start + data_end;
-                                        continue;
-                                    }
-
-                                    for key in &data_split {
-                                        let key_to_check = key.trim();
-
-                                        // Calculate the row, column_start and column_end of the data.
-                                        let start_cursor = line_column_from_string_pos(text, (start_pos + pos + 6 + data_start + 1) as u64);
-                                        let end_cursor = line_column_from_string_pos(text, (start_pos + pos + 6 + data_start + data_end) as u64);
-
-                                        let mut found = false;
-                                        for table in &tables {
-                                            if let Ok(RFileDecoded::DB(table)) = table.decoded() {
-                                                let definition = table.definition();
-                                                if let Some(column) = definition.column_position_by_name(table_column) {
-                                                    for row in table.data().iter() {
-                                                        if row[column].data_to_string() == *key_to_check {
-                                                            found = true;
-                                                            break;
+                                                    let mut keys = vec![];
+                                                    for (i, data) in spl.enumerate() {
+                                                        if index_to_check.contains(&i) && data.len() == 3 {
+                                                            keys.push(data[1].to_owned());
                                                         }
                                                     }
 
-                                                    if found {
-                                                        break;
+                                                    if !keys.is_empty() {
+                                                        Some(keys)
+                                                    } else {
+                                                        None
                                                     }
-                                                }
-                                            }
+                                                })
+                                                .flatten()
+                                                .collect::<Vec<_>>();
+
+                                            vals = (data_split, data_start, data_end)
                                         }
 
-                                        if !found {
-                                            not_found.insert(key_to_check, (start_cursor, end_cursor));
+                                        // Non-keyed/single value table.
+                                        else {
+                                            let data_split = data_to_search.split('\n')
+                                                .filter_map(|x| {
+
+                                                    // On each line, we want the data between commas.
+                                                    let spl = x.split('\"').collect::<Vec<_>>();
+                                                    if spl.len() == 3 {
+                                                        Some(spl[1].to_owned())
+                                                    } else {
+                                                        None
+                                                    }
+                                                })
+                                                .collect::<Vec<_>>();
+
+                                            vals = (data_split, data_start, data_end)
                                         }
                                     }
 
-                                    for (key, (start, end)) in &not_found {
-                                        if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, None, Some("InvalidKey"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields)  {
-                                            let result = TextDiagnosticReport::new(TextDiagnosticReportType::InvalidKey(*start, *end, table_name.to_string(), table_column.to_string(), key.to_string()));
-                                            diagnostic.results_mut().push(result);
+                                    // Single line keyed table.
+                                    else if data_to_search.contains('=') {
+                                        let data_split = data_to_search.split(',')
+                                            .filter_map(|x| {
+                                                let spl = x.split('=')
+                                                    .map(|y| y.split('\"').collect::<Vec<_>>());
+
+                                                let mut keys = vec![];
+                                                for (i, data) in spl.enumerate() {
+                                                    if index_to_check.contains(&i) && data.len() == 3 {
+                                                        keys.push(data[1].to_owned());
+                                                    }
+                                                }
+
+                                                if !keys.is_empty() {
+                                                    Some(keys)
+                                                } else {
+                                                    None
+                                                }
+                                            })
+                                            .flatten()
+                                            .collect::<Vec<_>>();
+
+                                        vals = (data_split, data_start, data_end)
+                                    }
+
+                                    // Single line non-keyed table.
+                                    else {
+                                        let data_split = data_to_search.split(',')
+                                            .filter_map(|x| {
+
+                                                // On each line, we want the data between commas.
+                                                let spl = x.split('\"').collect::<Vec<_>>();
+                                                if spl.len() == 3 {
+                                                    Some(spl[1].to_owned())
+                                                } else {
+                                                    None
+                                                }
+                                            })
+                                            .collect::<Vec<_>>();
+
+                                        vals = (data_split, data_start, data_end)
+                                    }
+                                }
+                            }
+
+                            // No { means it's single line, single value.
+                            else if let Some(data_start) = text[next_line_start..next_line_end].find('\"') {
+                                // +1 to skip the starting comma.
+                                if text.as_bytes().get(next_line_start + data_start + 1).is_some() {
+                                    if let Some(data_end) = text[next_line_start + data_start + 1..].find('\"') {
+                                       if text.as_bytes().get(next_line_start + data_start + 1 + data_end).is_some() {
+                                            let data_to_search = &text[next_line_start + data_start + 1..next_line_start + data_start + 1 + data_end];
+                                            vals = (vec![data_to_search.to_string()], data_start, data_end)
+                                        }
+                                    }
+                                }
+                            }
+
+                            vals
+                        };
+
+                        let mut not_found = HashMap::new();
+
+                        // Add the files from the dependencies, then the files from the pack, then reverse the list so we process first the pack ones.
+                        if let Ok(mut tables) = dependencies.db_data(&table_name, true, true) {
+                            tables.append(&mut pack.files_by_path(&ContainerPath::File("db/".to_string() + &table_name + "/"), true));
+                            tables.reverse();
+
+                            // If there are no tables that match out name, ignore it.
+                            if tables.is_empty() {
+                                start_pos = next_line_start + data_start + data_end;
+                                continue;
+                            }
+
+                            for key in &keys {
+                                let key_to_check = key.trim();
+
+                                // Calculate the row, column_start and column_end of the data.
+                                let start_cursor = line_column_from_string_pos(text, (next_line_start + data_start + 1) as u64);
+                                let end_cursor = line_column_from_string_pos(text, (next_line_start + data_start + 1 + data_end) as u64);
+
+                                let mut found = false;
+                                for table in &tables {
+                                    if let Ok(RFileDecoded::DB(table)) = table.decoded() {
+                                        let definition = table.definition();
+                                        if let Some(column) = definition.column_position_by_name(table_column) {
+                                            for row in table.data().iter() {
+                                                if row[column].data_to_string() == *key_to_check {
+                                                    found = true;
+                                                    break;
+                                                }
+                                            }
+
+                                            if found {
+                                                break;
+                                            }
                                         }
                                     }
                                 }
 
-                                start_pos = start_pos + pos + 6 + data_start + data_end;
+                                if !found {
+                                    not_found.insert(key_to_check, (start_cursor, end_cursor));
+                                }
+                            }
+
+                            for (key, (start, end)) in &not_found {
+                                if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, None, Some("InvalidKey"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields)  {
+                                    let result = TextDiagnosticReport::new(TextDiagnosticReportType::InvalidKey(*start, *end, table_name.to_string(), table_column.to_string(), key.to_string()));
+                                    diagnostic.results_mut().push(result);
+                                }
                             }
                         }
+
+                        start_pos = next_line_start + data_start + data_end;
                     }
                 }
             }
