@@ -472,7 +472,7 @@ impl TableDiagnostic {
                                     }
 
                                     // Check for non-empty cells with reference data, but the data in the cell is not in the reference data list.
-                                    else if !cell_data.is_empty() && !ref_data.data().contains_key(&*cell_data) && (!*ref_data.referenced_table_is_ak_only() || check_ak_only_refs) {
+                                    else if !ref_data.data().is_empty() && !cell_data.is_empty() && !ref_data.data().contains_key(&*cell_data) && (!*ref_data.referenced_table_is_ak_only() || check_ak_only_refs) {
 
                                         // Numeric cells with 0 are "empty" references and should not be checked.
                                         let is_number = *field.field_type() == FieldType::I32 || *field.field_type() == FieldType::I64 || *field.field_type() == FieldType::OptionalI32 || *field.field_type() == FieldType::OptionalI64;
