@@ -6,6 +6,11 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [4.5.1]
+### Fixed
+- Fixed false positives in diagnostics when triggering a diagnostic check with a cache that doesn't have assembly kit data on it.
+- Fixed vanilla_fixes_XX files not being read correctly when using the translator.
+
 ## [4.5.0]
 ### Added
 - Implemented support for editing .agf and .model_statistics text files.
