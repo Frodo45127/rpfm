@@ -2233,6 +2233,7 @@ pub fn background_loop() {
                 match translations_local_path() {
                     Ok(local_path) => {
                         let mut base_english = HashMap::new();
+                        let mut base_local_fixes = HashMap::new();
 
                         match translations_remote_path() {
                             Ok(remote_path) => {
@@ -2248,16 +2249,17 @@ pub fn background_loop() {
                                             let _ = fixes_loc.guess_file_type();
 
                                             if let Ok(RFileDecoded::Loc(fixes_loc)) = fixes_loc.decoded() {
-                                                base_english.extend(fixes_loc.data().iter().map(|x| (x[0].data_to_string().to_string(), x[1].data_to_string().to_string())).collect::<Vec<_>>());
+                                                base_local_fixes.extend(fixes_loc.data().iter().map(|x| (x[0].data_to_string().to_string(), x[1].data_to_string().to_string())).collect::<Vec<_>>());
                                             }
                                         }
 
                                         base_english.extend(vanilla_loc.data().iter().map(|x| (x[0].data_to_string().to_string(), x[1].data_to_string().to_string())).collect::<Vec<_>>());
                                     }
                                 }
+
                                 let dependencies = dependencies.read().unwrap();
                                 let paths = vec![local_path, remote_path];
-                                match PackTranslation::new(&*paths, &pack_file_decoded, game_key, &language, &dependencies, &base_english) {
+                                match PackTranslation::new(&*paths, &pack_file_decoded, game_key, &language, &dependencies, &base_english, &base_local_fixes) {
                                     Ok(tr) => CentralCommand::send_back(&sender, Response::PackTranslation(tr)),
                                     Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                                 }

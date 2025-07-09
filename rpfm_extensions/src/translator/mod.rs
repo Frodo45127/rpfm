@@ -73,7 +73,7 @@ pub struct Translation {
 
 impl PackTranslation {
 
-    pub fn new(paths: &[PathBuf], pack: &Pack, game_key: &str, language: &str, dependencies: &Dependencies, base_english: &HashMap<String, String>) -> Result<Self> {
+    pub fn new(paths: &[PathBuf], pack: &Pack, game_key: &str, language: &str, dependencies: &Dependencies, base_english: &HashMap<String, String>, base_local_fixes: &HashMap<String, String>) -> Result<Self> {
         let mut translations = Self::load(paths, &pack.disk_file_name(), game_key, language).unwrap_or_else(|_| {
             let mut tr = Self::default();
             tr.language = language.to_owned();
@@ -143,7 +143,10 @@ impl PackTranslation {
                 // NOTE: This is really a patch for packs not using optimizing pass, because the optimizer actually removes these entries.
                 else if let Some(vanilla_data) = base_english.get(tr_key) {
                     if tr.value_original() == vanilla_data {
-                        if let Some(vanilla_data) = base_local.get(tr_key) {
+                        if let Some(vanilla_data) = base_local_fixes.get(tr_key) {
+                            tr.value_translated = vanilla_data.to_owned();
+                            tr.needs_retranslation = false;
+                        } else if let Some(vanilla_data) = base_local.get(tr_key) {
                             tr.value_translated = vanilla_data.to_owned();
                             tr.needs_retranslation = false;
                         }
@@ -152,7 +155,10 @@ impl PackTranslation {
 
                 // If the value is equal to another value in the english translation (but with a different key), just copy the same translation that one uses.
                 else if let Some((key, _)) = base_english.iter().find(|(_, value)| *value == tr.value_original()) {
-                    if let Some(value_tr) = base_local.get(key) {
+                    if let Some(value_tr) = base_local_fixes.get(key) {
+                        tr.value_translated = value_tr.to_owned();
+                        tr.needs_retranslation = false;
+                    } else if let Some(value_tr) = base_local.get(key) {
                         tr.value_translated = value_tr.to_owned();
                         tr.needs_retranslation = false;
                     }
