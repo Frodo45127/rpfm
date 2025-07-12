@@ -651,6 +651,7 @@ impl Pack {
         // Remove again the reserved Files.
         self.remove(&ContainerPath::File(RESERVED_NAME_NOTES.to_owned()));
         self.remove(&ContainerPath::File(RESERVED_NAME_SETTINGS.to_owned()));
+        self.remove(&ContainerPath::File(RESERVED_NAME_DEPENDENCIES_MANAGER_V2.to_owned()));
 
         // If nothing has failed, return success.
         Ok(())
