@@ -1891,6 +1891,7 @@ impl RFile {
 
     /// This function returns if the RFile can be compressed or not.
     pub fn is_compressible(&self, game_info: &GameInfo) -> bool {
+        !game_info.compression_formats_supported().is_empty() &&
 
         // These files are needed in plain text for this lib to read them.
         self.file_name() != Some(RESERVED_NAME_DEPENDENCIES_MANAGER_V2) &&
@@ -1902,13 +1903,14 @@ impl RFile {
         !matches!(self.file_type, FileType::Audio | FileType::RigidModel | FileType::Video) &&
 
         // We can only compress files if the game supports them. And only in WH3 (and newer games?) is the table compression bug fixed.
-        !game_info.compression_formats_supported().is_empty() && (
-            !matches!(self.file_type, FileType::DB | FileType::Loc) &&
-            game_info.key() != KEY_PHARAOH_DYNASTIES &&
-            game_info.key() != KEY_PHARAOH &&
-            game_info.key() != KEY_TROY &&
-            game_info.key() != KEY_THREE_KINGDOMS &&
-            game_info.key() != KEY_WARHAMMER_2
+        (
+            !matches!(self.file_type, FileType::DB | FileType::Loc) || (
+                game_info.key() != KEY_PHARAOH_DYNASTIES &&
+                game_info.key() != KEY_PHARAOH &&
+                game_info.key() != KEY_TROY &&
+                game_info.key() != KEY_THREE_KINGDOMS &&
+                game_info.key() != KEY_WARHAMMER_2
+            )
         )
     }
 
