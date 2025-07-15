@@ -99,6 +99,8 @@ pub struct ToolTranslator {
     google_translate_radio_button: QPtr<QRadioButton>,
     copy_source_radio_button: QPtr<QRadioButton>,
 
+    edit_all_same_values_radio_button: QPtr<QRadioButton>,
+
     action_move_up: QPtr<QAction>,
     action_move_down: QPtr<QAction>,
     action_copy_from_source: QPtr<QAction>,
@@ -159,12 +161,25 @@ impl ToolTranslator {
         copy_source_radio_button.set_text(&qtr("behavior_copy_source"));
         empty_radio_button.set_text(&qtr("behavior_empty"));
 
-        let behavior_group = QButtonGroup::new_1a(behavior_groupbox);
+        let behavior_group = QButtonGroup::new_1a(&behavior_groupbox);
         behavior_group.add_button_1a(&google_translate_radio_button);
         behavior_group.add_button_1a(&copy_source_radio_button);
         behavior_group.add_button_1a(&empty_radio_button);
         behavior_group.set_exclusive(true);
         google_translate_radio_button.set_checked(true);
+
+        let behavior_edit_label: QPtr<QLabel> = tool.find_widget("behavior_edit_label")?;
+        let edit_all_same_values_radio_button: QPtr<QRadioButton> = tool.find_widget("edit_all_same_values_radio")?;
+        let edit_only_this_value_radio_button: QPtr<QRadioButton> = tool.find_widget("edit_only_this_value_radio")?;
+        behavior_edit_label.set_text(&qtr("behavior_edit_info"));
+        edit_all_same_values_radio_button.set_text(&qtr("behavior_edit_all_same_values"));
+        edit_only_this_value_radio_button.set_text(&qtr("behavior_edit_only_this_value"));
+
+        let behavior_edit_group = QButtonGroup::new_1a(&behavior_groupbox);
+        behavior_edit_group.add_button_1a(&edit_all_same_values_radio_button);
+        behavior_edit_group.add_button_1a(&edit_only_this_value_radio_button);
+        behavior_edit_group.set_exclusive(true);
+        edit_all_same_values_radio_button.set_checked(true);
 
         // For language, we try to get it from the game folder. If we can't, we fallback to whatever local files we have.
         let game = GAME_SELECTED.read().unwrap().clone();
@@ -306,6 +321,7 @@ impl ToolTranslator {
             language_combobox,
             google_translate_radio_button,
             copy_source_radio_button,
+            edit_all_same_values_radio_button,
             action_move_up,
             action_move_down,
             action_copy_from_source,
@@ -420,7 +436,7 @@ impl ToolTranslator {
                     if current_row != row {
                         let needs_retranslation_item = self.table.table_model().item_2a(row, 1);
                         let needs_retranslation = needs_retranslation_item.check_state() == CheckState::Checked;
-                        if needs_retranslation {
+                        if needs_retranslation || self.edit_all_same_values_radio_button().is_checked() {
                             let og_value_item = self.table.table_model().item_2a(row, 3);
                             if og_value_item.data_1a(2).to_string().compare_q_string(&original_value_item_qstr) == 0 {
                                 let translated_value_item = self.table.table_model().item_2a(row, 4);

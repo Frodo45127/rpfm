@@ -1668,6 +1668,10 @@ behavior_google_translate = Auto-translate with Google Translate (bad quality)
 behavior_copy_source = Copy source value
 behavior_empty = Empty translated value
 
+behavior_edit_info = Behavior when you save the current line:
+behavior_edit_all_same_values = Replicate edit in pre-translated lines
+behavior_edit_only_this_value = Only edit the current line
+
 label_invalid_file_name = Invalid file name
 invalid_file_name_explanation = Windows doesn't allow certain symbols in filenames. Specifically, none of these symbols are allowed: <, >, :, ", /, \, |, ? and *. If your folder/file name contains these symbols, rename them.
 
