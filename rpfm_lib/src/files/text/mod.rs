@@ -46,10 +46,11 @@
 //! | `.kfp`                   | `Xml`      | Battle Prop file.                           |
 //! | `.kfcs`                  | `Xml`      | Battle Composite Scene file.                |
 //! | `.lighting`              | `Xml`      |                                             |
+//! | `.log`                   | `Plain`    | Generic log file.                           |
 //! | `.lua`                   | `Lua`      | LUA Script file.                            |
 //! | `.material`              | `Xml`      |                                             |
 //! | `.md`                    | `Markdown` | Markdown files, for readmes.                |
-//! | `.model_statistics`      | `Xml`      |                 |
+//! | `.model_statistics`      | `Xml`      |                                             |
 //! | `.tai`                   | `Plain`    |                                             |
 //! | `.technique`             | `Xml`      |                                             |
 //! | `.texture_array`         | `Plain`    | List of Campaign Map textures.              |
@@ -61,6 +62,9 @@
 //! | `.xml`                   | `Xml`      | Normal XML file.                            |
 //! | `.xml.shader`            | `Xml`      | Shader setup metadata.                      |
 //! | `.xml.material`          | `Xml`      |                                             |
+//! | `.xt`                    | `Plain`    | Txt, but with a typo?                       |
+//! | `.yaml`                  | `Yaml`     | Yaml file.                                  |
+//! | `.yml`                   | `Yaml`     | Yaml file.                                  |
 
 use getset::*;
 use serde_derive::{Serialize, Deserialize};
@@ -80,7 +84,7 @@ const BOM_UTF_8: [u8;3] = [0xEF,0xBB,0xBF];
 const BOM_UTF_16_LE: [u8;2] = [0xFF,0xFE];
 
 /// List of extensions we recognize as `Text` files, with their respective known format.
-pub const EXTENSIONS: [(&str, TextFormat); 60] = [
+pub const EXTENSIONS: [(&str, TextFormat); 62] = [
     (".agf", TextFormat::Plain),
     (".bat", TextFormat::Bat),
     (".battle_script", TextFormat::Lua),
@@ -120,6 +124,7 @@ pub const EXTENSIONS: [(&str, TextFormat); 60] = [
     (".ktr", TextFormat::Xml),
     (".ktr_temp", TextFormat::Xml),
     (".lighting", TextFormat::Xml),
+    (".log", TextFormat::Plain),
     (".lua", TextFormat::Lua),
     (".md", TextFormat::Markdown),
     (".model_statistics", TextFormat::Xml),
@@ -138,6 +143,7 @@ pub const EXTENSIONS: [(&str, TextFormat); 60] = [
     (".xml_temp", TextFormat::Xml),
     (".xml.shader", TextFormat::Xml),
     (".xml.material", TextFormat::Xml),
+    (".xt", TextFormat::Plain),
     (".yml", TextFormat::Yaml),
     (".yaml", TextFormat::Yaml),
     (".material", TextFormat::Xml),     // This has to be under xml.material
