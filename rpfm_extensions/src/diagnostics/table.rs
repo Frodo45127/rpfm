@@ -146,7 +146,7 @@ impl DiagnosticReport for TableDiagnosticReport {
             TableDiagnosticReportType::EmptyRow => DiagnosticLevel::Warning,
             TableDiagnosticReportType::EmptyKeyField(_) => DiagnosticLevel::Error,
             TableDiagnosticReportType::EmptyKeyFields => DiagnosticLevel::Warning,
-            TableDiagnosticReportType::DuplicatedCombinedKeys(_) => DiagnosticLevel::Error,
+            TableDiagnosticReportType::DuplicatedCombinedKeys(_) => DiagnosticLevel::Warning,
             TableDiagnosticReportType::NoReferenceTableFound(_) => DiagnosticLevel::Info,
             TableDiagnosticReportType::NoReferenceTableNorColumnFoundPak(_) => DiagnosticLevel::Info,
             TableDiagnosticReportType::NoReferenceTableNorColumnFoundNoPak(_) => DiagnosticLevel::Warning,
