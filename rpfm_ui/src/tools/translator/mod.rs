@@ -9,9 +9,11 @@
 //---------------------------------------------------------------------------//
 
 use qt_widgets::QAction;
+use qt_widgets::QButtonGroup;
 use qt_widgets::QFileDialog;
 use qt_widgets::q_file_dialog::FileMode;
 use qt_widgets::QGroupBox;
+use qt_widgets::QRadioButton;
 use qt_widgets::QToolButton;
 use qt_widgets::q_abstract_item_view::{SelectionBehavior, SelectionMode};
 use qt_widgets::QGridLayout;
@@ -94,6 +96,9 @@ pub struct ToolTranslator {
 
     language_combobox: QPtr<QComboBox>,
 
+    google_translate_radio_button: QPtr<QRadioButton>,
+    copy_source_radio_button: QPtr<QRadioButton>,
+
     action_move_up: QPtr<QAction>,
     action_move_down: QPtr<QAction>,
     action_copy_from_source: QPtr<QAction>,
@@ -142,6 +147,24 @@ impl ToolTranslator {
         let language_label: QPtr<QLabel> = tool.find_widget("language_label")?;
         let language_combobox: QPtr<QComboBox> = tool.find_widget("language_combobox")?;
         language_label.set_text(&qtr("translator_language"));
+
+        let behavior_groupbox: QPtr<QGroupBox> = tool.find_widget("behavior_groupbox")?;
+        let behavior_label: QPtr<QLabel> = tool.find_widget("behavior_label")?;
+        let google_translate_radio_button: QPtr<QRadioButton> = tool.find_widget("google_translate_radio")?;
+        let copy_source_radio_button: QPtr<QRadioButton> = tool.find_widget("copy_source_radio")?;
+        let empty_radio_button: QPtr<QRadioButton> = tool.find_widget("empty_radio")?;
+        behavior_groupbox.set_title(&qtr("behavior_title"));
+        behavior_label.set_text(&qtr("behavior_info"));
+        google_translate_radio_button.set_text(&qtr("behavior_google_translate"));
+        copy_source_radio_button.set_text(&qtr("behavior_copy_source"));
+        empty_radio_button.set_text(&qtr("behavior_empty"));
+
+        let behavior_group = QButtonGroup::new_1a(behavior_groupbox);
+        behavior_group.add_button_1a(&google_translate_radio_button);
+        behavior_group.add_button_1a(&copy_source_radio_button);
+        behavior_group.add_button_1a(&empty_radio_button);
+        behavior_group.set_exclusive(true);
+        google_translate_radio_button.set_checked(true);
 
         // For language, we try to get it from the game folder. If we can't, we fallback to whatever local files we have.
         let game = GAME_SELECTED.read().unwrap().clone();
@@ -275,12 +298,14 @@ impl ToolTranslator {
         let translated_value_textedit: QPtr<QTextEdit> = tool.find_widget("translated_value_textedit")?;
 
         // Build the view itself.
-        let view = Rc::new(Self{
+        let view = Rc::new(Self {
             tool,
             pack_tr: Arc::new(data),
             table,
             current_row: Arc::new(RwLock::new(None)),
             language_combobox,
+            google_translate_radio_button,
+            copy_source_radio_button,
             action_move_up,
             action_move_down,
             action_copy_from_source,
@@ -360,11 +385,16 @@ impl ToolTranslator {
         // Update the row in edition.
         *self.current_row.write().unwrap() = Some(index.row());
 
-        // If the value needs a retrasnlation ask google for one.
-        if needs_retranslation {
-            let language = self.map_language_to_google();
-            if let Ok(tr) = Self::ask_google(&original_value_item.text().to_std_string(), &language) {
-                self.translated_value_textedit.set_text(&QString::from_std_str(tr));
+        // If the value needs a retrasnlation decide what to do depending on the behavior group.
+        // Only do it if the text is empty. If there's a previous translation, keep it so it can be fixed.
+        if needs_retranslation && self.translated_value_textedit().to_plain_text().is_empty() {
+            if self.google_translate_radio_button().is_checked() {
+                let language = self.map_language_to_google();
+                if let Ok(tr) = Self::ask_google(&original_value_item.text().to_std_string(), &language) {
+                    self.translated_value_textedit.set_text(&QString::from_std_str(tr));
+                }
+            } else if self.copy_source_radio_button().is_checked() {
+                self.translated_value_textedit.set_text(&self.original_value_textedit().to_plain_text());
             }
         }
     }
@@ -431,7 +461,10 @@ impl ToolTranslator {
     #[tokio::main]
     async fn ask_google(string: &str, language: &str) -> Result<String> {
         if !string.trim().is_empty() {
-            let string = string.replace("\\\n", "\n");
+            let string = string
+                .replace("\\\n", "\n")
+                .replace("&", "\\&");
+
             Self::translate(&string, language).await
                 .map(|string|
                     string
