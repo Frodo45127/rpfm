@@ -13,26 +13,38 @@
   <property name="windowTitle">
    <string>Form</string>
   </property>
-  <layout class="QGridLayout" name="gridLayout">
+  <layout class="QGridLayout" name="gridLayout" columnstretch="0,0,0,1">
    <item row="0" column="0">
+    <widget class="QLabel" name="warning_label">
+     <property name="text">
+      <string>TextLabel</string>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="1">
     <widget class="QToolButton" name="play_button">
      <property name="text">
       <string>...</string>
      </property>
      <property name="icon">
-      <iconset theme="media-playback-start-symbolic"/>
+      <iconset theme="media-playback-start-symbolic">
+       <normaloff>.</normaloff>.</iconset>
      </property>
     </widget>
    </item>
-   <item row="0" column="1">
+   <item row="0" column="2">
     <widget class="QToolButton" name="stop_button">
      <property name="text">
       <string>...</string>
      </property>
      <property name="icon">
-      <iconset theme="media-playback-stop-symbolic"/>
+      <iconset theme="media-playback-stop-symbolic">
+       <normaloff>.</normaloff>.</iconset>
      </property>
     </widget>
+   </item>
+   <item row="0" column="3">
+    <widget class="QWidget" name="widget" native="true"/>
    </item>
   </layout>
  </widget>

@@ -11,17 +11,19 @@
 //! Module with all the code for managing audio views.
 
 use qt_widgets::QGridLayout;
+use qt_widgets::QLabel;
 use qt_widgets::QToolButton;
 
 use qt_core::QPtr;
 
 use anyhow::Result;
 use getset::Getters;
-use rodio::{OutputStream, Sink};
+use rodio::{OutputStreamBuilder, Sink};
 
 use std::sync::{Arc, RwLock};
 
 use rpfm_lib::files::{audio::Audio, FileType};
+use rpfm_ui_common::locale::qtr;
 
 use crate::packedfile_views::{FileView, View, ViewType};
 use crate::utils::{find_widget, load_template};
@@ -44,8 +46,7 @@ pub struct FileAudioView {
 
     data: Arc<RwLock<Vec<u8>>>,
     sink: Arc<RwLock<Sink>>,
-    _stream: rodio::OutputStream,
-    handle: rodio::OutputStreamHandle,
+    stream: rodio::OutputStream,
 }
 
 //-------------------------------------------------------------------------------//
@@ -66,13 +67,16 @@ impl FileAudioView {
         let layout: QPtr<QGridLayout> = file_view.main_widget().layout().static_downcast();
         layout.add_widget_5a(&main_widget, 0, 0, 1, 1);
 
+        let warning_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "warning_label")?;
+        warning_label.set_text(&qtr("audio_wem_warning_label"));
+
         let play_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "play_button")?;
         let stop_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "stop_button")?;
 
         let data = Arc::new(RwLock::new(data.data().to_vec()));
 
-        let (_stream, handle) = OutputStream::try_default()?;
-        let sink = Sink::try_new(&handle)?;
+        let stream = OutputStreamBuilder::open_default_stream()?;
+        let sink = Sink::connect_new(stream.mixer());
 
         let view = Arc::new(Self {
             play_button,
@@ -80,8 +84,7 @@ impl FileAudioView {
 
             data,
             sink: Arc::new(RwLock::new(sink)),
-            _stream,
-            handle
+            stream,
         });
 
         let slots = slots::AudioSlots::new(&view);

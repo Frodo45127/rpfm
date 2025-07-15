@@ -73,7 +73,7 @@ meval = "^0.2"
 float_eq = "^1"
 
 # Audio playback support.
-rodio = "^0.20"
+rodio = "^0"
 
 # Improved multi-thread Support.
 crossbeam = "^0.8" # Maybe replace it with flume?

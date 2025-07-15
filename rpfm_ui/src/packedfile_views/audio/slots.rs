@@ -49,14 +49,12 @@ impl AudioSlots {
 
                 // We replace the sink because "stop" means "stop forever with no way to restart it".
                 // This also drops any previous sink, avoiding repeated sounds.
-                if let Ok(sink) = Sink::try_new(view.handle()) {
-                    *view.sink().write().unwrap() = sink;
+                *view.sink().write().unwrap() = Sink::connect_new(view.stream().mixer());
 
-                    let cursor = Cursor::new(view.data().read().unwrap().to_vec());
-                    if let Ok(decoder) = Decoder::new(cursor) {
-                        view.sink().read().unwrap().append(decoder);
-                        view.sink().read().unwrap().play();
-                    }
+                let cursor = Cursor::new(view.data().read().unwrap().to_vec());
+                if let Ok(decoder) = Decoder::new(cursor) {
+                    view.sink().read().unwrap().append(decoder);
+                    view.sink().read().unwrap().play();
                 }
             }
         ));
