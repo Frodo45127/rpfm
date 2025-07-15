@@ -413,6 +413,7 @@ impl ToolTranslator {
 
                 // If there's any other translation which uses the same value, automatically translate it.
                 let original_value_item = self.table.table_model().item_2a(current_row, 3);
+                let original_value_item_qstr = original_value_item.data_1a(2).to_string();
                 for row in 0..self.table.table_model().row_count_0a() {
 
                     // Do not apply it to the item we just edited.
@@ -421,7 +422,7 @@ impl ToolTranslator {
                         let needs_retranslation = needs_retranslation_item.check_state() == CheckState::Checked;
                         if needs_retranslation {
                             let og_value_item = self.table.table_model().item_2a(row, 3);
-                            if og_value_item.data_1a(2).to_string().to_std_string() == original_value_item.data_1a(2).to_string().to_std_string() {
+                            if og_value_item.data_1a(2).to_string().compare_q_string(&original_value_item_qstr) == 0 {
                                 let translated_value_item = self.table.table_model().item_2a(row, 4);
                                 translated_value_item.set_text(&QString::from_std_str(&new_value));
 
