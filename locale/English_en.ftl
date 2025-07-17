@@ -1664,6 +1664,7 @@ compression_format_zstd = Zstd
 
 behavior_title = Auto-translation behavior
 behavior_info = Behavior when you select a new line:
+behavior_chatgpt = Auto-translate with ChatGPT (needs api key)
 behavior_google_translate = Auto-translate with Google Translate (bad quality)
 behavior_copy_source = Copy source value
 behavior_empty = Empty translated value
@@ -1705,3 +1706,8 @@ optimizer_optimize_datacored_tables = <b>Tables (NOT RECOMMENDED):</b> Optimize 
 optimizer_remove_unused_art_sets = <b>Portrait Settings:</b> Remove unused Art Sets
 optimizer_remove_unused_variants = <b>Portrait Settings:</b> Remove unused Variants
 optimizer_remove_empty_masks = <b>Portrait Settings:</b> Remove empty masks
+
+context = Context
+settings_ai_title = AI Settings
+settings_ai_openai_api_key = OpenAI API Key:
+tt_ai_openai_api_key_tip = OpenAI API Key. You must get one from OpenAI's website.

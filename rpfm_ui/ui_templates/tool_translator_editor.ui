@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1604</width>
+    <width>1779</width>
     <height>990</height>
    </rect>
   </property>
@@ -52,11 +52,30 @@
         <number>2</number>
        </property>
        <item row="0" column="0">
-        <widget class="QTableView" name="table_view"/>
+        <widget class="QTableView" name="table_view">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="MinimumExpanding" vsizetype="Expanding">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="minimumSize">
+          <size>
+           <width>600</width>
+           <height>0</height>
+          </size>
+         </property>
+        </widget>
        </item>
       </layout>
      </widget>
      <widget class="QWidget" name="widget" native="true">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
       <layout class="QGridLayout" name="gridLayout_2" rowstretch="0,0,0,0">
        <property name="leftMargin">
         <number>2</number>
@@ -162,9 +181,26 @@
              </item>
              <item row="0" column="0">
               <widget class="QWidget" name="widget_2" native="true">
-               <layout class="QGridLayout" name="gridLayout_9" rowstretch="0,0,0,0,0,1">
+               <layout class="QGridLayout" name="gridLayout_9" rowstretch="0,0,0,0,0,0,1" columnstretch="0,1,0">
+                <item row="6" column="0">
+                 <widget class="QWidget" name="widget_4" native="true"/>
+                </item>
+                <item row="1" column="0">
+                 <widget class="QRadioButton" name="chatgpt_radio">
+                  <property name="text">
+                   <string>RadioButton</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="5" column="0">
+                 <widget class="QRadioButton" name="empty_radio">
+                  <property name="text">
+                   <string>RadioButton</string>
+                  </property>
+                 </widget>
+                </item>
                 <item row="2" column="0">
-                 <widget class="QRadioButton" name="copy_source_radio">
+                 <widget class="QRadioButton" name="google_translate_radio">
                   <property name="text">
                    <string>RadioButton</string>
                   </property>
@@ -177,22 +213,29 @@
                   </property>
                  </widget>
                 </item>
-                <item row="4" column="0">
-                 <widget class="QRadioButton" name="empty_radio">
+                <item row="3" column="0">
+                 <widget class="QRadioButton" name="copy_source_radio">
                   <property name="text">
                    <string>RadioButton</string>
                   </property>
                  </widget>
                 </item>
-                <item row="1" column="0">
-                 <widget class="QRadioButton" name="google_translate_radio">
-                  <property name="text">
-                   <string>RadioButton</string>
+                <item row="1" column="1">
+                 <widget class="KLineEdit" name="context_line_edit">
+                  <property name="minimumSize">
+                   <size>
+                    <width>200</width>
+                    <height>0</height>
+                   </size>
                   </property>
                  </widget>
                 </item>
-                <item row="5" column="0">
-                 <widget class="QWidget" name="widget_4" native="true"/>
+                <item row="0" column="1">
+                 <widget class="QLabel" name="context_label">
+                  <property name="text">
+                   <string>TextLabel</string>
+                  </property>
+                 </widget>
                 </item>
                </layout>
               </widget>
@@ -368,6 +411,11 @@
    <class>KComboBox</class>
    <extends>QComboBox</extends>
    <header>kcombobox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>KLineEdit</class>
+   <extends>QLineEdit</extends>
+   <header>klineedit.h</header>
   </customwidget>
   <customwidget>
    <class>KMessageWidget</class>

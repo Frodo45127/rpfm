@@ -204,6 +204,12 @@ pub struct SettingsUI {
     diagnostics_diagnostics_trigger_on_table_edit_checkbox: QBox<QCheckBox>,
 
     //-------------------------------------------------------------------------------//
+    // `AI` section of the `Settings` dialog.
+    //-------------------------------------------------------------------------------//
+    ai_openai_api_key_label: QBox<QLabel>,
+    ai_openai_api_key_line_edit: QBox<QLineEdit>,
+
+    //-------------------------------------------------------------------------------//
     // `ButtonBox` section of the `Settings` dialog.
     //-------------------------------------------------------------------------------//
     button_box_restore_default_button: QPtr<QPushButton>,
@@ -764,6 +770,23 @@ impl SettingsUI {
         warning_grid.add_widget_5a(&warning_message, 0, 0, 1, 1);
         settings_grid.add_widget_5a(&warning_frame, 3, 1, 1, 1);
 
+        //-------------------------------------------------------------------------------//
+        // `AI` section of the `Settings` dialog.
+        //-------------------------------------------------------------------------------//
+        let ai_frame = QGroupBox::from_q_string_q_widget(&qtr("settings_ai_title"), &dialog);
+        let ai_grid = create_grid_layout(ai_frame.static_upcast());
+        ai_grid.set_contents_margins_4a(4, 0, 4, 0);
+        ai_grid.set_spacing(4);
+        ai_grid.set_row_stretch(80, 10);
+
+        let ai_openai_api_key_label = QLabel::from_q_string_q_widget(&qtr("settings_ai_openai_api_key"), &ai_frame);
+        let ai_openai_api_key_line_edit = QLineEdit::from_q_widget(&ai_frame);
+
+        ai_grid.add_widget_5a(&ai_openai_api_key_label, 0, 0, 1, 1);
+        ai_grid.add_widget_5a(&ai_openai_api_key_line_edit, 0, 1, 1, 1);
+
+        settings_grid.add_widget_5a(&ai_frame, 4, 0, 1, 3);
+
         //-----------------------------------------------//
         // `ButtonBox` Button Box.
         //-----------------------------------------------//
@@ -910,6 +933,12 @@ impl SettingsUI {
             diagnostics_diagnostics_trigger_on_table_edit_checkbox,
 
             //-------------------------------------------------------------------------------//
+            // `AI` section of the `Settings` dialog.
+            //-------------------------------------------------------------------------------//
+            ai_openai_api_key_label,
+            ai_openai_api_key_line_edit,
+
+            //-------------------------------------------------------------------------------//
             // `ButtonBox` section of the `Settings` dialog.
             //-------------------------------------------------------------------------------//
             button_box_restore_default_button,
@@ -1054,6 +1083,9 @@ impl SettingsUI {
         self.diagnostics_diagnostics_trigger_on_open_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "diagnostics_trigger_on_open"));
         self.diagnostics_diagnostics_trigger_on_table_edit_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "diagnostics_trigger_on_table_edit"));
 
+        // Load the AI-related stuff
+        self.ai_openai_api_key_line_edit.set_text(&QString::from_std_str(setting_string_from_q_setting(&q_settings, "ai_openai_api_key")));
+
         Ok(())
     }
 
@@ -1151,6 +1183,9 @@ impl SettingsUI {
         // Get the Diagnostics Settings.
         set_setting_bool_to_q_setting(&q_settings, "diagnostics_trigger_on_open", self.diagnostics_diagnostics_trigger_on_open_checkbox.is_checked());
         set_setting_bool_to_q_setting(&q_settings, "diagnostics_trigger_on_table_edit", self.diagnostics_diagnostics_trigger_on_table_edit_checkbox.is_checked());
+
+        // Get the AI Settings.
+        set_setting_string_to_q_setting(&q_settings, "ai_openai_api_key", &self.ai_openai_api_key_line_edit.text().to_std_string());
 
         // Save the settings.
         q_settings.sync();

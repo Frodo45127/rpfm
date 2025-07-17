@@ -132,4 +132,12 @@ pub unsafe fn set_tips(settings_ui: &Rc<SettingsUI>) {
     settings_ui.diagnostics_diagnostics_trigger_on_open_checkbox.set_tool_tip(&diagnostics_trigger_diagnostics_on_open_tip);
     settings_ui.diagnostics_diagnostics_trigger_on_table_edit_label.set_tool_tip(&diagnostics_trigger_diagnostics_on_table_edit_tip);
     settings_ui.diagnostics_diagnostics_trigger_on_table_edit_checkbox.set_tool_tip(&diagnostics_trigger_diagnostics_on_table_edit_tip);
+
+    //-----------------------------------------------//
+    // `AI` tips.
+    //-----------------------------------------------//
+    let ai_openai_api_key_tip = qtr("tt_ai_openai_api_key_tip");
+
+    settings_ui.ai_openai_api_key_label.set_tool_tip(&ai_openai_api_key_tip);
+    settings_ui.ai_openai_api_key_line_edit.set_tool_tip(&ai_openai_api_key_tip);
 }

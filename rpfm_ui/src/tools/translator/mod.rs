@@ -29,6 +29,8 @@ use cpp_core::CppDeletable;
 use cpp_core::Ref;
 
 use anyhow::anyhow;
+use chat_gpt_lib_rs::api_resources::{completions::{create_completion, CreateCompletionRequest, PromptInput}, models::Model};
+use chat_gpt_lib_rs::OpenAIClient;
 use getset::*;
 use serde_json::Value;
 
@@ -96,9 +98,11 @@ pub struct ToolTranslator {
 
     language_combobox: QPtr<QComboBox>,
 
+    chatgpt_radio_button: QPtr<QRadioButton>,
     google_translate_radio_button: QPtr<QRadioButton>,
     copy_source_radio_button: QPtr<QRadioButton>,
 
+    context_line_edit: QPtr<QLineEdit>,
     edit_all_same_values_radio_button: QPtr<QRadioButton>,
 
     action_move_up: QPtr<QAction>,
@@ -152,21 +156,33 @@ impl ToolTranslator {
 
         let behavior_groupbox: QPtr<QGroupBox> = tool.find_widget("behavior_groupbox")?;
         let behavior_label: QPtr<QLabel> = tool.find_widget("behavior_label")?;
+        let context_label: QPtr<QLabel> = tool.find_widget("context_label")?;
+        let context_line_edit: QPtr<QLineEdit> = tool.find_widget("context_line_edit")?;
+        let chatgpt_radio_button: QPtr<QRadioButton> = tool.find_widget("chatgpt_radio")?;
         let google_translate_radio_button: QPtr<QRadioButton> = tool.find_widget("google_translate_radio")?;
         let copy_source_radio_button: QPtr<QRadioButton> = tool.find_widget("copy_source_radio")?;
         let empty_radio_button: QPtr<QRadioButton> = tool.find_widget("empty_radio")?;
+        context_label.set_text(&qtr("context"));
         behavior_groupbox.set_title(&qtr("behavior_title"));
         behavior_label.set_text(&qtr("behavior_info"));
+        chatgpt_radio_button.set_text(&qtr("behavior_chatgpt"));
         google_translate_radio_button.set_text(&qtr("behavior_google_translate"));
         copy_source_radio_button.set_text(&qtr("behavior_copy_source"));
         empty_radio_button.set_text(&qtr("behavior_empty"));
 
         let behavior_group = QButtonGroup::new_1a(&behavior_groupbox);
+        behavior_group.add_button_1a(&chatgpt_radio_button);
         behavior_group.add_button_1a(&google_translate_radio_button);
         behavior_group.add_button_1a(&copy_source_radio_button);
         behavior_group.add_button_1a(&empty_radio_button);
         behavior_group.set_exclusive(true);
         google_translate_radio_button.set_checked(true);
+
+        // Only allow AI translation if we have a key in settings. Ignore keys in env.
+        if setting_string("ai_openai_api_key").is_empty() {
+            chatgpt_radio_button.set_enabled(false);
+            context_line_edit.set_enabled(false);
+        }
 
         let behavior_edit_label: QPtr<QLabel> = tool.find_widget("behavior_edit_label")?;
         let edit_all_same_values_radio_button: QPtr<QRadioButton> = tool.find_widget("edit_all_same_values_radio")?;
@@ -319,6 +335,8 @@ impl ToolTranslator {
             table,
             current_row: Arc::new(RwLock::new(None)),
             language_combobox,
+            context_line_edit,
+            chatgpt_radio_button,
             google_translate_radio_button,
             copy_source_radio_button,
             edit_all_same_values_radio_button,
@@ -404,9 +422,17 @@ impl ToolTranslator {
         // If the value needs a retrasnlation decide what to do depending on the behavior group.
         // Only do it if the text is empty. If there's a previous translation, keep it so it can be fixed.
         if needs_retranslation && self.translated_value_textedit().to_plain_text().is_empty() {
-            if self.google_translate_radio_button().is_checked() {
+            if self.chatgpt_radio_button().is_checked() {
+                let language = self.map_language_to_natural();
+                let context = self.context_line_edit().text().to_std_string();
+                let result = Self::ask_chat_gpt(&original_value_item.text().to_std_string(), &language, &context);
+                if let Ok(tr) = result {
+                    self.translated_value_textedit.set_text(&QString::from_std_str(tr));
+                }
+            } else if self.google_translate_radio_button().is_checked() {
                 let language = self.map_language_to_google();
-                if let Ok(tr) = Self::ask_google(&original_value_item.text().to_std_string(), &language) {
+                let result = Self::ask_google(&original_value_item.text().to_std_string(), &language);
+                if let Ok(tr) = result {
                     self.translated_value_textedit.set_text(&QString::from_std_str(tr));
                 }
             } else if self.copy_source_radio_button().is_checked() {
@@ -475,6 +501,26 @@ impl ToolTranslator {
         }
     }
 
+    unsafe fn map_language_to_natural(&self) -> String {
+        let lang = self.language_combobox().current_text().to_std_string().to_lowercase();
+        match &*lang {
+            BRAZILIAN => "Portuguese".to_owned(),
+            SIMPLIFIED_CHINESE => "Simplified Chinese".to_owned(),
+            CZECH => "Czech".to_owned(),
+            ENGLISH => "English".to_owned(),
+            FRENCH => "French".to_owned(),
+            GERMAN => "German".to_owned(),
+            ITALIAN => "Italian".to_owned(),
+            KOREAN => "Korean".to_owned(),
+            POLISH => "Polish".to_owned(),
+            RUSSIAN => "Russian".to_owned(),
+            SPANISH => "Spanish".to_owned(),
+            TURKISH => "Turkish".to_owned(),
+            TRADITIONAL_CHINESE => "Traditional Chinese".to_owned(),
+            _ => "English".to_owned(),
+        }
+    }
+
     #[tokio::main]
     async fn ask_google(string: &str, language: &str) -> Result<String> {
         if !string.trim().is_empty() {
@@ -492,6 +538,50 @@ impl ToolTranslator {
         } else {
             Ok(String::new())
         }
+    }
+
+    #[tokio::main]
+    async fn ask_chat_gpt(string: &str, language: &str, context: &str) -> Result<String> {
+
+        // Get the API key from the settings. If no API key is provided, it will use the OPENAI_API_KEY env variable.
+        let api_key = {
+            let key = setting_string("ai_openai_api_key");
+            if key.is_empty() {
+                None
+            } else {
+                Some(key)
+            }
+        };
+        let client = OpenAIClient::new(api_key)?;
+
+        // Prepare a request to generate a text completion.
+        let mut prompt = format!("Translate the sentence after #### to {language}, keeping the translation as close to the original in tone and style as you can.");
+        if !context.is_empty() {
+            prompt.push_str(&format!(" For context, use the following info: {context}. #### "));
+        }
+        prompt.push_str(&string.replace("\\\n", "\n"));
+
+        // According to OpenAI's docs, tokens is more or less 3/4 of a word. We don't have a way to easily count words, so we do a generous approximation.
+        // Then we duplicate it taking into account the completion tokens.
+        let max_tokens = Some((prompt.len() / 4) as u32 * 2u32);
+        let request = CreateCompletionRequest {
+            model: Model::Gpt3_5TurboInstruct,
+            prompt: Some(PromptInput::String(prompt)),
+            max_tokens,
+            temperature: Some(0.2),
+            ..Default::default()
+        };
+
+        // Responses sometimes start with jumplines, and we need them clean.
+        let response = create_completion(&client, &request).await?;
+        let mut response_text = response.choices.first().map(|x| x.text.clone()).unwrap_or_default();
+        if response_text.starts_with("\n\n") {
+            response_text = response_text[2..].to_owned();
+        } else if response_text.starts_with("\n") {
+            response_text = response_text[1..].to_owned();
+        }
+
+        Ok(response_text)
     }
 
     pub async fn translate(text: &str, to: &str) -> Result<String, Box<dyn std::error::Error>> {
