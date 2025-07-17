@@ -101,7 +101,6 @@ pub struct SettingsUI {
     extra_network_check_updates_on_start_label: QBox<QLabel>,
     extra_network_check_schema_updates_on_start_label: QBox<QLabel>,
     extra_packfile_allow_editing_of_ca_packfiles_label: QBox<QLabel>,
-    extra_packfile_optimize_not_renamed_packedfiles_label: QBox<QLabel>,
     extra_packfile_use_lazy_loading_label: QBox<QLabel>,
     extra_packfile_disable_uuid_regeneration_on_db_tables_label: QBox<QLabel>,
     extra_packfile_disable_file_previews_label: QBox<QLabel>,
@@ -124,7 +123,6 @@ pub struct SettingsUI {
     extra_network_check_lua_autogen_updates_on_start_checkbox: QBox<QCheckBox>,
     extra_network_check_old_ak_updates_on_start_checkbox: QBox<QCheckBox>,
     extra_packfile_allow_editing_of_ca_packfiles_checkbox: QBox<QCheckBox>,
-    extra_packfile_optimize_not_renamed_packedfiles_checkbox: QBox<QCheckBox>,
     extra_packfile_use_lazy_loading_checkbox: QBox<QCheckBox>,
     extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox: QBox<QCheckBox>,
     extra_packfile_disable_file_previews_checkbox: QBox<QCheckBox>,
@@ -419,9 +417,6 @@ impl SettingsUI {
         let extra_packfile_allow_editing_of_ca_packfiles_label = QLabel::from_q_string_q_widget(&qtr("settings_allow_editing_of_ca_packfiles"), &general_frame);
         let extra_packfile_allow_editing_of_ca_packfiles_checkbox = QCheckBox::from_q_widget(&general_frame);
 
-        let extra_packfile_optimize_not_renamed_packedfiles_label = QLabel::from_q_string_q_widget(&qtr("settings_optimize_not_renamed_packedfiles"), &general_frame);
-        let extra_packfile_optimize_not_renamed_packedfiles_checkbox = QCheckBox::from_q_widget(&general_frame);
-
         let extra_packfile_disable_file_previews_label = QLabel::from_q_string_q_widget(&qtr("settings_disable_file_previews"), &general_frame);
         let extra_packfile_disable_file_previews_checkbox = QCheckBox::from_q_widget(&general_frame);
 
@@ -487,9 +482,6 @@ impl SettingsUI {
 
         general_grid.add_widget_5a(&extra_packfile_allow_editing_of_ca_packfiles_label, 10, 0, 1, 1);
         general_grid.add_widget_5a(&extra_packfile_allow_editing_of_ca_packfiles_checkbox, 10, 1, 1, 1);
-
-        general_grid.add_widget_5a(&extra_packfile_optimize_not_renamed_packedfiles_label, 11, 0, 1, 1);
-        general_grid.add_widget_5a(&extra_packfile_optimize_not_renamed_packedfiles_checkbox, 11, 1, 1, 1);
 
         general_grid.add_widget_5a(&extra_packfile_disable_file_previews_label, 12, 0, 1, 1);
         general_grid.add_widget_5a(&extra_packfile_disable_file_previews_checkbox, 12, 1, 1, 1);
@@ -817,7 +809,6 @@ impl SettingsUI {
             extra_network_check_updates_on_start_label,
             extra_network_check_schema_updates_on_start_label,
             extra_packfile_allow_editing_of_ca_packfiles_label,
-            extra_packfile_optimize_not_renamed_packedfiles_label,
             extra_packfile_use_lazy_loading_label,
             extra_packfile_disable_uuid_regeneration_on_db_tables_label,
             extra_packfile_disable_file_previews_label,
@@ -840,7 +831,6 @@ impl SettingsUI {
             extra_network_check_lua_autogen_updates_on_start_checkbox,
             extra_network_check_old_ak_updates_on_start_checkbox,
             extra_packfile_allow_editing_of_ca_packfiles_checkbox,
-            extra_packfile_optimize_not_renamed_packedfiles_checkbox,
             extra_packfile_use_lazy_loading_checkbox,
             extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox,
             extra_packfile_disable_file_previews_checkbox,
@@ -993,7 +983,6 @@ impl SettingsUI {
         self.extra_network_check_lua_autogen_updates_on_start_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "check_lua_autogen_updates_on_start"));
         self.extra_network_check_old_ak_updates_on_start_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "check_old_ak_updates_on_start"));
         self.extra_packfile_allow_editing_of_ca_packfiles_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "allow_editing_of_ca_packfiles"));
-        self.extra_packfile_optimize_not_renamed_packedfiles_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "optimize_not_renamed_packedfiles"));
         self.extra_packfile_use_lazy_loading_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "use_lazy_loading"));
         self.extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "disable_uuid_regeneration_on_db_tables"));
         self.extra_packfile_disable_file_previews_checkbox.set_checked(setting_bool_from_q_setting(&q_settings, "disable_file_previews"));
@@ -1114,7 +1103,6 @@ impl SettingsUI {
         set_setting_bool_to_q_setting(&q_settings, "check_lua_autogen_updates_on_start", self.extra_network_check_lua_autogen_updates_on_start_checkbox.is_checked());
         set_setting_bool_to_q_setting(&q_settings, "check_old_ak_updates_on_start", self.extra_network_check_old_ak_updates_on_start_checkbox.is_checked());
         set_setting_bool_to_q_setting(&q_settings, "allow_editing_of_ca_packfiles", self.extra_packfile_allow_editing_of_ca_packfiles_checkbox.is_checked());
-        set_setting_bool_to_q_setting(&q_settings, "optimize_not_renamed_packedfiles", self.extra_packfile_optimize_not_renamed_packedfiles_checkbox.is_checked());
         set_setting_bool_to_q_setting(&q_settings, "use_lazy_loading", self.extra_packfile_use_lazy_loading_checkbox.is_checked());
         set_setting_bool_to_q_setting(&q_settings, "disable_uuid_regeneration_on_db_tables", self.extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox.is_checked());
         set_setting_bool_to_q_setting(&q_settings, "disable_file_previews", self.extra_packfile_disable_file_previews_checkbox.is_checked());

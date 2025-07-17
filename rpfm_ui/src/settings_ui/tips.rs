@@ -78,7 +78,6 @@ pub unsafe fn set_tips(settings_ui: &Rc<SettingsUI>) {
     let extra_network_check_updates_on_start_tip = qtr("tt_extra_network_check_updates_on_start_tip");
     let extra_network_check_schema_updates_on_start_tip = qtr("tt_extra_network_check_schema_updates_on_start_tip");
     let extra_packfile_allow_editing_of_ca_packfiles_tip = qtr("tt_extra_packfile_allow_editing_of_ca_packfiles_tip");
-    let extra_packfile_optimize_not_renamed_packedfiles_tip = qtr("tt_extra_packfile_optimize_not_renamed_packedfiles_tip");
     let extra_packfile_use_lazy_loading_tip = qtr("tt_extra_packfile_use_lazy_loading_tip");
     let extra_disable_uuid_regeneration_on_db_tables_label_tip = qtr("tt_extra_disable_uuid_regeneration_on_db_tables_label_tip");
     let extra_packfile_disable_file_previews_tip = qtr("tt_settings_disable_file_previews_tip");
@@ -92,8 +91,6 @@ pub unsafe fn set_tips(settings_ui: &Rc<SettingsUI>) {
     settings_ui.extra_network_check_schema_updates_on_start_checkbox.set_tool_tip(&extra_network_check_schema_updates_on_start_tip);
     settings_ui.extra_packfile_allow_editing_of_ca_packfiles_label.set_tool_tip(&extra_packfile_allow_editing_of_ca_packfiles_tip);
     settings_ui.extra_packfile_allow_editing_of_ca_packfiles_checkbox.set_tool_tip(&extra_packfile_allow_editing_of_ca_packfiles_tip);
-    settings_ui.extra_packfile_optimize_not_renamed_packedfiles_label.set_tool_tip(&extra_packfile_optimize_not_renamed_packedfiles_tip);
-    settings_ui.extra_packfile_optimize_not_renamed_packedfiles_checkbox.set_tool_tip(&extra_packfile_optimize_not_renamed_packedfiles_tip);
     settings_ui.extra_packfile_use_lazy_loading_label.set_tool_tip(&extra_packfile_use_lazy_loading_tip);
     settings_ui.extra_packfile_use_lazy_loading_checkbox.set_tool_tip(&extra_packfile_use_lazy_loading_tip);
     settings_ui.extra_packfile_disable_uuid_regeneration_on_db_tables_label.set_tool_tip(&extra_disable_uuid_regeneration_on_db_tables_label_tip);

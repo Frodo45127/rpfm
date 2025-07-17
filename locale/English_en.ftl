@@ -1676,3 +1676,32 @@ label_invalid_file_name = Invalid file name
 invalid_file_name_explanation = Windows doesn't allow certain symbols in filenames. Specifically, none of these symbols are allowed: <, >, :, ", /, \, |, ? and *. If your folder/file name contains these symbols, rename them.
 
 audio_wem_warning_label = <p><b style="color:red;">WARNING: .wem files are not yet supported by the audio player.</b></p>
+
+optimizer_instructions_label = <h3>Are you sure you want to optimize this PackFile?</h3>
+    <p>
+        For those who don't know it, what this does is:
+        <ul>
+            <li><b>Remove duplicated entries on DB tables</b> (unless the table is datacoring).</li>
+            <li><b>Remove duplicated entries on LOC tables</b> (unless the table is datacoring).</li>
+            <li><b>Remove rows unchanged from default row on DB tables</b> (unless the table is datacoring).</li>
+            <li><b>Remove rows unchanged from default row on LOC tables</b> (unless the table is datacoring).</li>
+            <li><b>Remove DB table entries unchanged from the vanilla or parent files</b> (unless the table is datacoring).</li>
+            <li><b>Remove LOC entries unchanged from the vanilla or parent files</b> (unless the table is datacoring).</li>
+            <li><b>Remove empty DB tables.</b></li>
+            <li><b>Remove empty LOC files.</b></li>
+            <li><b>Remove useless xml on map packs</b>, which are a byproduct of how bob exports map packs.</li>
+            <li><b>Remove useless xml on prefabs</b>, which are a byproduct of how bob exports prefabs.</li>
+            <li><b>Remove useless agf and model_statistics files</b>, which are a byproduct of how bob exports models.</li>
+            <li><b>OPTIONAL: Remove unused/invalid variants and art sets from portrait settings files.</b></li>
+            <li><b>OPTIONAL: Remove empty masks from portrait settings variants.</b></li>
+            <li><b>Remove empty Portrait Settings files</b> (only the .bin files, .xml files are kept just in case you use selfie).</li>
+        </ul>
+        You sure you want to do it?
+    </p>
+
+optimizer_title = Optimizer
+optimizer_options_title = Options
+optimizer_optimize_datacored_tables = <b>Tables (NOT RECOMMENDED):</b> Optimize datacored tables
+optimizer_remove_unused_art_sets = <b>Portrait Settings:</b> Remove unused Art Sets
+optimizer_remove_unused_variants = <b>Portrait Settings:</b> Remove unused Variants
+optimizer_remove_empty_masks = <b>Portrait Settings:</b> Remove empty masks

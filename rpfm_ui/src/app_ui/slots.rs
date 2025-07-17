@@ -1094,35 +1094,19 @@ impl AppUISlots {
             app_ui,
             pack_file_contents_ui,
             global_search_ui => move |_| {
+                info!("Triggering `Optimize PackFile` By Slot");
 
-                if AppUI::are_you_sure_edition(&app_ui, "optimize_packfile_are_you_sure") {
-                    info!("Triggering `Optimize PackFile` By Slot");
+                // If there is no problem, ere we go.
+                app_ui.toggle_main_window(false);
 
-                    // If there is no problem, ere we go.
-                    app_ui.toggle_main_window(false);
-
-                    if let Err(error) = AppUI::purge_them_all(&app_ui, &pack_file_contents_ui, true) {
-                        return show_dialog(&app_ui.main_window, error, false);
-                    }
-
-                    GlobalSearchUI::clear(&global_search_ui);
-
-                    let receiver = CENTRAL_COMMAND.send_background(Command::OptimizePackFile);
-                    let response = CENTRAL_COMMAND.recv_try(&receiver);
-                    match response {
-                        Response::HashSetString(response) => {
-                            let response = response.iter().map(|x| ContainerPath::File(x.to_owned())).collect::<Vec<ContainerPath>>();
-
-                            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Delete(response, true), DataSource::PackFile);
-                            show_dialog(&app_ui.main_window, tr("optimize_packfile_success"), true);
-                        }
-                        Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
-                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-                    }
-
-                    // Re-enable the Main Window.
-                    app_ui.toggle_main_window(true);
+                match AppUI::optimizer_dialog(&app_ui, &pack_file_contents_ui, &global_search_ui) {
+                    Ok(Some(_)) => show_dialog(&app_ui.main_window, tr("optimize_packfile_success"), true),
+                    Ok(None) => {},
+                    Err(error) => show_dialog(&app_ui.main_window, error, false),
                 }
+
+                // Re-enable the Main Window.
+                app_ui.toggle_main_window(true);
             }
         ));
 

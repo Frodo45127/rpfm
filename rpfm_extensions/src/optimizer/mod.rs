@@ -10,6 +10,8 @@
 
 //! This module contains the [Optimizable] and [OptimizableContainer] trait.
 
+use serde::{Deserialize, Serialize};
+
 use std::collections::{HashMap, HashSet};
 
 use rpfm_lib::error::{RLibError, Result};
@@ -17,6 +19,8 @@ use rpfm_lib::files::{Container, ContainerPath, db::DB, FileType, loc::Loc, pack
 use rpfm_lib::schema::Schema;
 
 use crate::dependencies::Dependencies;
+
+const EMPTY_MASK_PATH_END: &str = "empty_mask.png";
 
 //-------------------------------------------------------------------------------//
 //                             Trait definitions
@@ -28,7 +32,7 @@ pub trait Optimizable {
     /// This function optimizes the provided struct to reduce its size and improve compatibility.
     ///
     /// It returns if the struct has been left in an state where it can be safetly deleted.
-    fn optimize(&mut self, dependencies: &mut Dependencies, container: Option<&mut Pack>) -> bool;
+    fn optimize(&mut self, dependencies: &mut Dependencies, container: Option<&mut Pack>, options: &OptimizerOptions) -> bool;
 }
 
 /// This trait marks a [Container] as an `Optimizable` container, meaning it can be cleaned up to reduce size and improve compatibility.
@@ -37,9 +41,71 @@ pub trait OptimizableContainer: Container {
     /// This function optimizes the provided [Container] to reduce its size and improve compatibility.
     ///
     /// It returns the list of files that has been safetly deleted during the optimization process.
-    fn optimize(&mut self, paths_to_optimize: Option<Vec<ContainerPath>>, dependencies: &mut Dependencies, schema: &Schema, optimize_datacored_tables: bool) -> Result<HashSet<String>>;
+    fn optimize(&mut self,
+        paths_to_optimize: Option<Vec<ContainerPath>>,
+        dependencies: &mut Dependencies,
+        schema: &Schema,
+        options: &OptimizerOptions,
+    ) -> Result<HashSet<String>>;
 }
 
+/// Struct containing the configurable options for the optimizer.
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+pub struct OptimizerOptions {
+
+    /// Allow the optimizer to optimize datacored tables. THIS IS NOT RECOMMENDED, as datacored tables usually are they way they are for a reason.
+    optimize_datacored_tables: bool,
+
+    /// Allow the optimizer to remove unused art sets in Portrait Settings files.
+    ///
+    /// Only use this after you have confirmed the unused art sets are actually unused and not caused by a typo.
+    remove_unused_art_sets: bool,
+
+    /// Allow the optimizer to remove unused variants from art sets in Portrait Settings files.
+    ///
+    /// Only use this after you have confirmed the unused variants are actually unused and not caused by a typo.
+    remove_unused_variants: bool,
+
+    /// Allow the optimizer to remove empty masks in Portrait Settings file, reducing their side.
+    ///
+    /// Ingame there's no difference between an empty mask and an invalid one, so it's better to remove them to reduce their size.
+    remove_empty_masks: bool,
+}
+
+impl OptimizerOptions {
+
+    /// Allow the optimizer to optimize datacored tables.
+    ///
+    /// THIS IS NOT RECOMMENDED, as datacored tables usually are they way they are for a reason.
+    pub fn set_optimize_datacored_tables(&mut self, enable: bool) -> &mut Self {
+        self.optimize_datacored_tables = enable;
+        self
+    }
+
+    /// Allow the optimizer to remove unused art sets in Portrait Settings files.
+    ///
+    /// Only use this after you have confirmed the unused art sets are actually unused and not caused by a typo.
+    pub fn set_remove_unused_art_sets(&mut self, enable: bool) -> &mut Self {
+        self.remove_unused_art_sets = enable;
+        self
+    }
+
+    /// Allow the optimizer to remove unused variants from art sets in Portrait Settings files.
+    ///
+    /// Only use this after you have confirmed the unused variants are actually unused and not caused by a typo.
+    pub fn set_remove_unused_variants(&mut self, enable: bool) -> &mut Self {
+        self.remove_unused_variants = enable;
+        self
+    }
+
+    /// Allow the optimizer to remove empty masks in Portrait Settings file, reducing their side.
+    ///
+    /// Ingame there's no difference between an empty mask and an invalid one, so it's better to remove them to reduce their size.
+    pub fn set_remove_empty_masks(&mut self, enable: bool) -> &mut Self {
+        self.remove_empty_masks = enable;
+        self
+    }
+}
 //-------------------------------------------------------------------------------//
 //                           Trait implementations
 //-------------------------------------------------------------------------------//
@@ -63,13 +129,19 @@ impl OptimizableContainer for Pack {
     /// - Portrait Settings files:
     ///     - Removal of variants not present in the variants table (unused data).
     ///     - Removal of art sets not present in the campaign_character_arts table (unused data).
+    ///     - Removal of empty masks.
     ///     - Removal of empty Portrait Settings files.
     ///
     /// NOTE: due to a consequence of the optimization, all tables are also sorted by their first key.
     ///
     /// Not yet working:
     /// - Remove files identical to Parent/Vanilla files (if is identical to vanilla, but a parent mod overwrites it, it ignores it).
-    fn optimize(&mut self, paths_to_optimize: Option<Vec<ContainerPath>>, dependencies: &mut Dependencies, _schema: &Schema, optimize_datacored_tables: bool) -> Result<HashSet<String>> {
+    fn optimize(&mut self,
+        paths_to_optimize: Option<Vec<ContainerPath>>,
+        dependencies: &mut Dependencies,
+        _schema: &Schema,
+        options: &OptimizerOptions
+    ) -> Result<HashSet<String>> {
 
         // We can only optimize if we have vanilla data available.
         if !dependencies.is_vanilla_data_loaded(false) {
@@ -121,9 +193,9 @@ impl OptimizableContainer for Pack {
 
                         // Unless we specifically wanted to, ignore the same-name-as-vanilla-or-parent files,
                         // as those are probably intended to overwrite vanilla files, not to be optimized.
-                        if optimize_datacored_tables || !dependencies.file_exists(&path, true, true, true) {
+                        if options.optimize_datacored_tables || !dependencies.file_exists(&path, true, true, true) {
                             if let Ok(RFileDecoded::DB(db)) = rfile.decoded_mut() {
-                                if db.optimize(dependencies, Some(&mut self_copy)) {
+                                if db.optimize(dependencies, Some(&mut self_copy), options) {
                                     return Some(path);
                                 }
                             }
@@ -133,9 +205,9 @@ impl OptimizableContainer for Pack {
                     FileType::Loc => {
 
                         // Same as with tables, don't optimize them if they're overwriting.
-                        if optimize_datacored_tables || !dependencies.file_exists(&path, true, true, true) {
+                        if options.optimize_datacored_tables || !dependencies.file_exists(&path, true, true, true) {
                             if let Ok(RFileDecoded::Loc(loc)) = rfile.decoded_mut() {
-                                if loc.optimize(dependencies, Some(&mut self_copy)) {
+                                if loc.optimize(dependencies, Some(&mut self_copy), options) {
                                     return Some(path);
                                 }
                             }
@@ -183,7 +255,7 @@ impl OptimizableContainer for Pack {
                         // In portrait settings file we look to cleanup variants and art sets that are not referenced by the game tables.
                         // Meaning they are not used by the game.
                         if let Ok(RFileDecoded::PortraitSettings(ps)) = rfile.decoded_mut() {
-                            if ps.optimize(dependencies, Some(&mut self_copy)) {
+                            if ps.optimize(dependencies, Some(&mut self_copy), options) {
                                 return Some(path);
                             }
                         }
@@ -216,7 +288,7 @@ impl Optimizable for DB {
     /// - Removal of ITNR (Identical To New Row) entries.
     ///
     /// It returns if the DB is empty, meaning it can be safetly deleted.
-    fn optimize(&mut self, dependencies: &mut Dependencies, _container: Option<&mut Pack>) -> bool {
+    fn optimize(&mut self, dependencies: &mut Dependencies, _container: Option<&mut Pack>, _options: &OptimizerOptions) -> bool {
 
         // Get a manipulable copy of all the entries, so we can optimize it.
         let mut entries = self.data().to_vec();
@@ -298,7 +370,7 @@ impl Optimizable for Loc {
     /// - Removal of ITNR (Identical To New Row) entries.
     ///
     /// It returns if the Loc is empty, meaning it can be safetly deleted.
-    fn optimize(&mut self, dependencies: &mut Dependencies, _container: Option<&mut Pack>) -> bool {
+    fn optimize(&mut self, dependencies: &mut Dependencies, _container: Option<&mut Pack>, _options: &OptimizerOptions) -> bool {
 
         // Get a manipulable copy of all the entries, so we can optimize it.
         let mut entries = self.data().to_vec();
@@ -355,7 +427,7 @@ impl Optimizable for PortraitSettings {
     /// - Removal of art sets not present in the campaign_character_arts table (unused data).
     ///
     /// It returns if the PortraitSettings is empty, meaning it can be safetly deleted.
-    fn optimize(&mut self, dependencies: &mut Dependencies, container: Option<&mut Pack>) -> bool {
+    fn optimize(&mut self, dependencies: &mut Dependencies, container: Option<&mut Pack>, options: &OptimizerOptions) -> bool {
 
         // Get a manipulable copy of all the entries, so we can optimize it.
         let mut entries = self.entries().to_vec();
@@ -373,11 +445,31 @@ impl Optimizable for PortraitSettings {
         }
 
         entries.retain_mut(|entry| {
-            entry.variants_mut().retain(|variant| {
-                variant_filenames.contains(variant.filename())
+            entry.variants_mut().retain_mut(|variant| {
+                if options.remove_empty_masks {
+                    if variant.file_mask_1().ends_with(EMPTY_MASK_PATH_END) {
+                        variant.file_mask_1_mut().clear();
+                    }
+                    if variant.file_mask_2().ends_with(EMPTY_MASK_PATH_END) {
+                        variant.file_mask_2_mut().clear();
+                    }
+                    if variant.file_mask_3().ends_with(EMPTY_MASK_PATH_END) {
+                        variant.file_mask_3_mut().clear();
+                    }
+                }
+
+                if options.remove_unused_variants {
+                    variant_filenames.contains(variant.filename())
+                } else {
+                    true
+                }
             });
 
-            art_set_ids.contains(entry.id())
+            if options.remove_unused_art_sets {
+                art_set_ids.contains(entry.id())
+            } else {
+                true
+            }
         });
 
         self.set_entries(entries);

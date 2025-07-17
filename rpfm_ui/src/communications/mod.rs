@@ -25,6 +25,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use rpfm_extensions::dependencies::TableReferences;
 use rpfm_extensions::diagnostics::Diagnostics;
+use rpfm_extensions::optimizer::OptimizerOptions;
 use rpfm_extensions::search::{GlobalSearch, MatchHolder};
 #[cfg(feature = "enable_tools")] use rpfm_extensions::translator::PackTranslation;
 
@@ -126,7 +127,7 @@ pub enum Command {
     UpdateCurrentSchemaFromAssKit,
 
     /// This command is used when we want to trigger an optimization pass over the currently open `PackFile`.
-    OptimizePackFile,
+    OptimizePackFile(OptimizerOptions),
 
     /// This command is used to patch the SiegeAI of a Siege Map for warhammer games.
     PatchSiegeAI,

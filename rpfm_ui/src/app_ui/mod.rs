@@ -79,6 +79,8 @@ use rpfm_lib::games::{pfh_file_type::*, pfh_version::*, supported_games::*};
 use rpfm_lib::integrations::log::*;
 use rpfm_lib::utils::*;
 
+use rpfm_extensions::optimizer::OptimizerOptions;
+
 use rpfm_ui_common::ASSETS_PATH;
 use rpfm_ui_common::clone;
 use rpfm_ui_common::FULL_DATE_FORMAT;
@@ -129,6 +131,9 @@ const BUILD_STARPOS_VIEW_RELEASE: &str = "ui/build_starpos_view.ui";
 
 const UPDATE_ANIM_IDS_VIEW_DEBUG: &str = "rpfm_ui/ui_templates/update_anim_ids_dialog.ui";
 const UPDATE_ANIM_IDS_VIEW_RELEASE: &str = "ui/update_anim_ids_dialog.ui";
+
+const OPTIMIZER_VIEW_DEBUG: &str = "rpfm_ui/ui_templates/optimizer_dialog.ui";
+const OPTIMIZER_VIEW_RELEASE: &str = "ui/optimizer_dialog.ui";
 
 pub mod connections;
 pub mod slots;
@@ -1569,7 +1574,13 @@ impl AppUI {
         if optimize {
             let _ = AppUI::purge_them_all(app_ui, pack_file_contents_ui, true);
 
-            let receiver = CENTRAL_COMMAND.send_background(Command::OptimizePackFile);
+            let mut options = OptimizerOptions::default();
+            options.set_optimize_datacored_tables(setting_bool("optimize_not_renamed_packedfiles"));
+            options.set_remove_unused_art_sets(setting_bool("remove_unused_art_sets"));
+            options.set_remove_unused_variants(setting_bool("remove_unused_variants"));
+            options.set_remove_empty_masks(setting_bool("remove_empty_masks"));
+
+            let receiver = CENTRAL_COMMAND.send_background(Command::OptimizePackFile(options));
             let response = CENTRAL_COMMAND.recv_try(&receiver);
             match response {
                 Response::HashSetString(response) => {
@@ -3845,6 +3856,81 @@ impl AppUI {
                 Ok(None)
             }
         } else { Ok(None) }
+    }
+
+    unsafe fn optimizer_dialog(
+        app_ui: &Rc<Self>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        global_search_ui: &Rc<GlobalSearchUI>
+    ) -> Result<Option<()>> {
+
+        // Load the UI Template.
+        let template_path = if cfg!(debug_assertions) { OPTIMIZER_VIEW_DEBUG } else { OPTIMIZER_VIEW_RELEASE };
+        let main_widget = load_template(app_ui.main_window(), template_path)?;
+        let dialog = main_widget.static_downcast::<QDialog>();
+        dialog.set_window_title(&qtr("optimizer_title"));
+
+        // Create and configure the dialog.
+        let instructions_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "instructions_label")?;
+        let options_groupbox: QPtr<QGroupBox> = find_widget(&main_widget.static_upcast(), "options_groupbox")?;
+        let optimize_datacored_tables: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "optimize_datacored_tables_checkbox")?;
+        let remove_unused_art_sets: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "remove_unused_art_sets_checkbox")?;
+        let remove_unused_variants: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "remove_unused_variants_checkbox")?;
+        let remove_empty_masks: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "remove_empty_masks_checkbox")?;
+        let optimize_datacored_tables_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "optimize_datacored_tables_label")?;
+        let remove_unused_art_sets_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "remove_unused_art_sets_label")?;
+        let remove_unused_variants_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "remove_unused_variants_label")?;
+        let remove_empty_masks_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "remove_empty_masks_label")?;
+        let button_box: QPtr<QDialogButtonBox> = find_widget(&main_widget.static_upcast(), "button_box")?;
+        options_groupbox.set_title(&qtr("optimizer_options_title"));
+        instructions_label.set_text(&qtr("optimizer_instructions_label"));
+        optimize_datacored_tables_label.set_text(&qtr("optimizer_optimize_datacored_tables"));
+        remove_unused_art_sets_label.set_text(&qtr("optimizer_remove_unused_art_sets"));
+        remove_unused_variants_label.set_text(&qtr("optimizer_remove_unused_variants"));
+        remove_empty_masks_label.set_text(&qtr("optimizer_remove_empty_masks"));
+
+        optimize_datacored_tables.set_checked(setting_bool("optimize_not_renamed_packedfiles"));
+        remove_unused_art_sets.set_checked(setting_bool("remove_unused_art_sets"));
+        remove_unused_variants.set_checked(setting_bool("remove_unused_variants"));
+        remove_empty_masks.set_checked(setting_bool("remove_empty_masks"));
+
+        button_box.button(StandardButton::Ok).released().connect(dialog.slot_accept());
+
+        if dialog.exec() == 1 {
+            set_setting_bool("optimize_not_renamed_packedfiles", optimize_datacored_tables.is_checked());
+            set_setting_bool("remove_unused_art_sets", remove_unused_art_sets.is_checked());
+            set_setting_bool("remove_unused_variants", remove_unused_variants.is_checked());
+            set_setting_bool("remove_empty_masks", remove_empty_masks.is_checked());
+
+            AppUI::purge_them_all(&app_ui, &pack_file_contents_ui, true)?;
+            GlobalSearchUI::clear(&global_search_ui);
+
+            let mut options = OptimizerOptions::default();
+            options.set_optimize_datacored_tables(optimize_datacored_tables.is_checked());
+            options.set_remove_unused_art_sets(remove_unused_art_sets.is_checked());
+            options.set_remove_unused_variants(remove_unused_variants.is_checked());
+            options.set_remove_empty_masks(remove_empty_masks.is_checked());
+
+            let receiver = CENTRAL_COMMAND.send_background(Command::OptimizePackFile(options));
+            let response = CENTRAL_COMMAND.recv_try(&receiver);
+            match response {
+                Response::HashSetString(response) => {
+                    let response = response.iter().map(|x| ContainerPath::File(x.to_owned())).collect::<Vec<ContainerPath>>();
+
+                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Delete(response, true), DataSource::PackFile);
+                    Ok(Some(()))
+                }
+                Response::Error(error) => Err(error),
+                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+            }
+        } else {
+            set_setting_bool("optimize_not_renamed_packedfiles", optimize_datacored_tables.is_checked());
+            set_setting_bool("remove_unused_art_sets", remove_unused_art_sets.is_checked());
+            set_setting_bool("remove_unused_variants", remove_unused_variants.is_checked());
+            set_setting_bool("remove_empty_masks", remove_empty_masks.is_checked());
+
+            Ok(None)
+        }
     }
 
     /// Update the FileView names, to ensure we have no collisions.
