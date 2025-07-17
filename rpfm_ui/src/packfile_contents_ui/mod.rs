@@ -411,7 +411,7 @@ impl PackFileContentsUI {
 
             // If we only have one selected item, put its path in the line edit.
             Ordering::Equal => if !move_checkbox.is_checked() {
-                rewrite_sequence_line_edit.set_text(&QString::from_std_str(selected_items[0].path_raw().split('/').last().unwrap()));
+                rewrite_sequence_line_edit.set_text(&QString::from_std_str(selected_items[0].path_raw().split('/').next_back().unwrap()));
             } else {
                 rewrite_sequence_line_edit.set_text(&QString::from_std_str(selected_items[0].path_raw()));
             }

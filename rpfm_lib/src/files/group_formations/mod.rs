@@ -8,7 +8,7 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/// NOTE: This file type is not versioned. Meaning we have logic for each game supported in different files.
+//! NOTE: This file type is not versioned. Meaning we have logic for each game supported in different files.
 
 use bitflags::bitflags;
 use getset::*;

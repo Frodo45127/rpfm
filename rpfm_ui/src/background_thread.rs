@@ -2154,7 +2154,7 @@ pub fn background_loop() {
                         // Sublime support.
                         if sublime_support {
                             let mut sublime_config_path = mymod_path.to_owned();
-                            sublime_config_path.push(format!("{}.sublime-project", mod_name));
+                            sublime_config_path.push(format!("{mod_name}.sublime-project"));
                             if let Ok(file) = File::create(sublime_config_path) {
                                 let mut file = BufWriter::new(file);
                                 let _ = file.write_all("
@@ -2266,12 +2266,12 @@ pub fn background_loop() {
 
                                 let dependencies = dependencies.read().unwrap();
                                 let paths = vec![local_path, remote_path];
-                                match PackTranslation::new(&*paths, &pack_file_decoded, game_key, &language, &dependencies, &base_english, &base_local_fixes) {
+                                match PackTranslation::new(&paths, &pack_file_decoded, game_key, &language, &dependencies, &base_english, &base_local_fixes) {
                                     Ok(tr) => CentralCommand::send_back(&sender, Response::PackTranslation(tr)),
                                     Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                                 }
                             }
-                            Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                         }
                     },
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
@@ -2493,11 +2493,10 @@ fn build_starpos(dependencies: &Dependencies, pack_file: &mut Pack, campaign_id:
     let mut user_script_contents = if game.key() == KEY_ATTILA || game.key() == KEY_THRONES_OF_BRITANNIA { extra_folders.to_owned() } else { String::new() };
 
     user_script_contents.push_str(&format!("
-mod {};
-process_campaign_startpos {} {};
-{}
-quit_after_campaign_processing;",
-        pack_name, campaign_id, sub_start_pos, process_hlp_spd_data_string
+mod {pack_name};
+process_campaign_startpos {campaign_id} {sub_start_pos};
+{process_hlp_spd_data_string}
+quit_after_campaign_processing;"
     ));
 
     // Games may fail to launch if we don't have this path created, which is done the first time we start the game.
@@ -2561,12 +2560,12 @@ quit_after_campaign_processing;",
         let sub_start_pos_suffix = if sub_start_pos.is_empty() {
             String::new()
         } else {
-            format!("_{}", sub_start_pos)
+            format!("_{sub_start_pos}")
         };
 
-        let starpos_path = game_data_path.join(format!("campaigns/{}/startpos{}.esf", campaign_id, sub_start_pos_suffix));
+        let starpos_path = game_data_path.join(format!("campaigns/{campaign_id}/startpos{sub_start_pos_suffix}.esf"));
         if starpos_path.is_file() {
-            let starpos_path_bak = game_data_path.join(format!("campaigns/{}/startpos{}.esf.bak", campaign_id, sub_start_pos_suffix));
+            let starpos_path_bak = game_data_path.join(format!("campaigns/{campaign_id}/startpos{sub_start_pos_suffix}.esf.bak"));
             std::fs::copy(&starpos_path, starpos_path_bak)?;
             std::fs::remove_file(starpos_path)?;
         }
@@ -2588,14 +2587,14 @@ quit_after_campaign_processing;",
                 KEY_THREE_KINGDOMS |
                 KEY_WARHAMMER_2 |
                 KEY_WARHAMMER => {
-                    let hlp_folder_path = game_data_path.join(format!("campaign_maps/{}", map_name));
+                    let hlp_folder_path = game_data_path.join(format!("campaign_maps/{map_name}"));
                     if !hlp_folder_path.is_dir() {
                         DirBuilder::new().recursive(true).create(&hlp_folder_path)?;
                     }
 
-                    let hlp_path = game_data_path.join(format!("campaign_maps/{}/hlp_data.esf", map_name));
+                    let hlp_path = game_data_path.join(format!("campaign_maps/{map_name}/hlp_data.esf"));
                     if hlp_path.is_file() {
-                        let hlp_path_bak = game_data_path.join(format!("campaign_maps/{}/hlp_data.esf.bak", map_name));
+                        let hlp_path_bak = game_data_path.join(format!("campaign_maps/{map_name}/hlp_data.esf.bak"));
                         std::fs::copy(&hlp_path, hlp_path_bak)?;
                         std::fs::remove_file(hlp_path)?;
                     }
@@ -2610,7 +2609,7 @@ quit_after_campaign_processing;",
                 // Keep in mind this thread is kept alive for as long as the program runs unless it's intentionally stopped. So remember to stop it.
                 KEY_THRONES_OF_BRITANNIA |
                 KEY_ATTILA => {
-                    let folder_path = config_path.join(format!("maps/campaign_maps/{}", map_name));
+                    let folder_path = config_path.join(format!("maps/campaign_maps/{map_name}"));
 
                     let (sender, receiver) = unbounded::<bool>();
                     let join = thread::spawn(move || {
@@ -2638,14 +2637,14 @@ quit_after_campaign_processing;",
                 // So we need to first, ensure the config folder is created (it may not exists, but it's not deleted mid-process like in Attile)
                 // and it's empty, and then backup the hlp file, if exists, from /data.
                 KEY_ROME_2 => {
-                    let hlp_folder = game_data_path.join(format!("campaign_maps/{}/", map_name));
+                    let hlp_folder = game_data_path.join(format!("campaign_maps/{map_name}/"));
                     if hlp_folder.is_dir() {
                         let _ = DirBuilder::new().recursive(true).create(&hlp_folder);
                     }
 
                     let hlp_path = hlp_folder.join("hlp_data.esf");
                     if hlp_path.is_file() {
-                        let hlp_path_bak = game_data_path.join(format!("campaign_maps/{}/hlp_data.esf.bak", map_name));
+                        let hlp_path_bak = game_data_path.join(format!("campaign_maps/{map_name}/hlp_data.esf.bak"));
                         std::fs::copy(&hlp_path, hlp_path_bak)?;
                         std::fs::remove_file(hlp_path)?;
                     }
@@ -2665,9 +2664,9 @@ quit_after_campaign_processing;",
                 game.key() != KEY_NAPOLEON &&
                 game.key() != KEY_EMPIRE {
 
-                let spd_path = game_data_path.join(format!("campaign_maps/{}/spd_data.esf", map_name));
+                let spd_path = game_data_path.join(format!("campaign_maps/{map_name}/spd_data.esf"));
                 if spd_path.is_file() {
-                    let spd_path_bak = game_data_path.join(format!("campaign_maps/{}/spd_data.esf.bak", map_name));
+                    let spd_path_bak = game_data_path.join(format!("campaign_maps/{map_name}/spd_data.esf.bak"));
                     std::fs::copy(&spd_path, spd_path_bak)?;
                     std::fs::remove_file(spd_path)?;
                 }
@@ -2804,18 +2803,18 @@ fn build_starpos_post(dependencies: &Dependencies, pack_file: &mut Pack, campaig
         KEY_WARHAMMER_2 |
         KEY_WARHAMMER => {
             if sub_start_pos.is_empty() {
-                vec![game_data_path.join(format!("campaigns/{}/startpos.esf", campaign_id))]
+                vec![game_data_path.join(format!("campaigns/{campaign_id}/startpos.esf"))]
             } else {
                 let mut paths = vec![];
                 for sub in sub_start_pos {
-                    paths.push(game_data_path.join(format!("campaigns/{}/startpos_{}.esf", campaign_id, sub)));
+                    paths.push(game_data_path.join(format!("campaigns/{campaign_id}/startpos_{sub}.esf")));
 
                 }
                 paths
             }
         }
         KEY_THRONES_OF_BRITANNIA |
-        KEY_ATTILA => vec![config_path.join(format!("maps/campaigns/{}/startpos.esf", campaign_id))],
+        KEY_ATTILA => vec![config_path.join(format!("maps/campaigns/{campaign_id}/startpos.esf"))],
 
         // Rome 2 outputs the startpos in the assembly kit folder.
         KEY_ROME_2 => {
@@ -2824,14 +2823,14 @@ fn build_starpos_post(dependencies: &Dependencies, pack_file: &mut Pack, campaig
                 return Err(anyhow!("Assembly Kit path incorrect. Fix it in the settings and try again."));
             }
 
-            vec![asskit_path.join(format!("working_data/campaigns/{}/startpos.esf", campaign_id))]
+            vec![asskit_path.join(format!("working_data/campaigns/{campaign_id}/startpos.esf"))]
         },
 
         // Shogun 2 outputs to data, but unlike modern names, vanilla startpos are packed, so there's no rist of overwrite.
         // We still need to clean it up later though. Napoleon and Empire override vanilla files, so those are backed.
         KEY_SHOGUN_2 |
         KEY_NAPOLEON |
-        KEY_EMPIRE => vec![game_data_path.join(format!("campaigns/{}/startpos.esf", campaign_id))],
+        KEY_EMPIRE => vec![game_data_path.join(format!("campaigns/{campaign_id}/startpos.esf"))],
         _ => return Err(anyhow!("How the fuck did you trigger this?")),
     };
 
@@ -2840,7 +2839,7 @@ fn build_starpos_post(dependencies: &Dependencies, pack_file: &mut Pack, campaig
     } else {
         let mut paths = vec![];
         for sub in sub_start_pos {
-            paths.push(format!("campaigns/{}/startpos_{}.esf", campaign_id, sub));
+            paths.push(format!("campaigns/{campaign_id}/startpos_{sub}.esf"));
         }
         paths
     };
@@ -2882,7 +2881,7 @@ fn build_starpos_post(dependencies: &Dependencies, pack_file: &mut Pack, campaig
             starpos_path_bak.set_file_name(file_name_bak);
 
             if starpos_path_bak.is_file() {
-                std::fs::copy(&starpos_path_bak, &starpos_path)?;
+                std::fs::copy(&starpos_path_bak, starpos_path)?;
                 std::fs::remove_file(starpos_path_bak)?;
             }
         }
@@ -2910,14 +2909,14 @@ fn build_starpos_post(dependencies: &Dependencies, pack_file: &mut Pack, campaig
                 KEY_TROY |
                 KEY_THREE_KINGDOMS |
                 KEY_WARHAMMER_2 |
-                KEY_WARHAMMER => game_data_path.join(format!("campaign_maps/{}/hlp_data.esf", map_name)),
+                KEY_WARHAMMER => game_data_path.join(format!("campaign_maps/{map_name}/hlp_data.esf")),
                 KEY_THRONES_OF_BRITANNIA |
-                KEY_ATTILA => config_path.join(format!("maps/campaign_maps/{}/hlp_data.esf", map_name)),
-                KEY_ROME_2 => game_data_path.join(format!("campaign_maps/{}/hlp_data.esf", map_name)),
+                KEY_ATTILA => config_path.join(format!("maps/campaign_maps/{map_name}/hlp_data.esf")),
+                KEY_ROME_2 => game_data_path.join(format!("campaign_maps/{map_name}/hlp_data.esf")),
                 _ => return Err(anyhow!("How the fuck did you trigger this?")),
             };
 
-            let hlp_path_pack = format!("campaign_maps/{}/hlp_data.esf", map_name);
+            let hlp_path_pack = format!("campaign_maps/{map_name}/hlp_data.esf");
 
             if !cleanup_mode {
 
@@ -2938,7 +2937,7 @@ fn build_starpos_post(dependencies: &Dependencies, pack_file: &mut Pack, campaig
             if game.key() != KEY_THRONES_OF_BRITANNIA &&
                 game.key() != KEY_ATTILA {
 
-                let hlp_path_bak = game_data_path.join(format!("campaign_maps/{}/hlp_data.esf.bak", map_name));
+                let hlp_path_bak = game_data_path.join(format!("campaign_maps/{map_name}/hlp_data.esf.bak"));
 
                 if hlp_path_bak.is_file() {
                     std::fs::copy(&hlp_path_bak, hlp_path)?;
@@ -2951,8 +2950,8 @@ fn build_starpos_post(dependencies: &Dependencies, pack_file: &mut Pack, campaig
                 game.key() != KEY_ATTILA &&
                 game.key() != KEY_ROME_2 {
 
-                let spd_path = game_data_path.join(format!("campaign_maps/{}/spd_data.esf", map_name));
-                let spd_path_pack = format!("campaign_maps/{}/spd_data.esf", map_name);
+                let spd_path = game_data_path.join(format!("campaign_maps/{map_name}/spd_data.esf"));
+                let spd_path_pack = format!("campaign_maps/{map_name}/spd_data.esf");
 
                 if !cleanup_mode {
 
@@ -2969,7 +2968,7 @@ fn build_starpos_post(dependencies: &Dependencies, pack_file: &mut Pack, campaig
                     }
                 }
 
-                let spd_path_bak = game_data_path.join(format!("campaign_maps/{}/spd_data.esf.bak", map_name));
+                let spd_path_bak = game_data_path.join(format!("campaign_maps/{map_name}/spd_data.esf.bak"));
                 if spd_path_bak.is_file() {
                     std::fs::copy(&spd_path_bak, spd_path)?;
                     std::fs::remove_file(spd_path_bak)?;
@@ -2987,7 +2986,7 @@ fn build_starpos_post(dependencies: &Dependencies, pack_file: &mut Pack, campaig
     }
 
     for sub_failed in &sub_startpos_failed {
-        error.push_str(&format!("<li>\"{}\" Startpos file failed to generate.</li>", sub_failed));
+        error.push_str(&format!("<li>\"{sub_failed}\" Startpos file failed to generate.</li>"));
     }
 
     if hlp_failed {
@@ -3125,8 +3124,8 @@ fn add_tile_maps_and_tiles(pack: &mut Pack, dependencies: &mut Dependencies, sch
             });
 
             let file_name = format!("{}_{}.bin", subpath.replace('/', "_"), tile.file_name().unwrap().to_string_lossy());
-            tile_database.push(format!("_tile_database/TILES/{}", file_name));
-            let tile_database_path = format!("terrain/tiles/battle/_tile_database/TILES/{}", file_name);
+            tile_database.push(format!("_tile_database/TILES/{file_name}"));
+            let tile_database_path = format!("terrain/tiles/battle/_tile_database/TILES/{file_name}");
 
             added_paths.push(pack.insert_file(&tile_database, &tile_database_path, &None)?.unwrap());
         }

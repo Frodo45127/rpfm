@@ -236,7 +236,7 @@ pub fn update_schema_from_raw_files(
     unfound_fields.sort();
     unfound_fields.retain(|table| !game_info.ak_lost_fields().contains(table));
 
-    #[cfg(feature = "integration_log")] info!("Update from raw: fields still not found :{:#?}", unfound_fields);
+    #[cfg(feature = "integration_log")] info!("Update from raw: fields still not found :{unfound_fields:#?}");
 
     schema.save(schema_path)?;
 

@@ -238,9 +238,9 @@ impl TableDiagnostic {
         }
 
         // Get the dependency data for tables once per batch. That way we can speed up this a lot.
-        let file = files.first().map(|x| x.decoded().ok()).flatten();
+        let file = files.first().and_then(|x| x.decoded().ok());
         let dependency_data = if let Some(RFileDecoded::DB(table)) = file {
-            dependencies.db_reference_data(schema, pack, table.table_name(), table.definition(), &loc_data)
+            dependencies.db_reference_data(schema, pack, table.table_name(), table.definition(), loc_data)
         } else {
             return diagnostics
         };
@@ -249,7 +249,7 @@ impl TableDiagnostic {
         // then do the real loop, having the data of all files available for checking diagnostics.
         let mut table_infos = vec![];
         for file in files {
-            let (ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) = Diagnostics::ignore_data_for_file(file, &files_to_ignore).unwrap_or_default();
+            let (ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) = Diagnostics::ignore_data_for_file(file, files_to_ignore).unwrap_or_default();
             if let Ok(RFileDecoded::DB(table)) = file.decoded() {
                 let fields_processed = table.definition().fields_processed();
                 let patches = Some(table.definition().patches());
@@ -257,7 +257,7 @@ impl TableDiagnostic {
 
                 table_infos.push(TableInfo {
                     path: file.path_in_container_raw(),
-                    container_name: file.container_name().as_deref().unwrap_or_else(|| ""),
+                    container_name: file.container_name().as_deref().unwrap_or(""),
                     key_amount: fields_processed.iter().filter(|field| field.is_key(patches)).count(),
                     fields_processed,
                     patches,
@@ -280,7 +280,7 @@ impl TableDiagnostic {
 
         for (index, (table, file)) in dec_files.iter().enumerate() {
             if let Some(table_info) = table_infos.get(index) {
-                let mut diagnostic = TableDiagnostic::new(file.path_in_container_raw(), file.container_name().as_deref().unwrap_or_else(|| ""));
+                let mut diagnostic = TableDiagnostic::new(file.path_in_container_raw(), file.container_name().as_deref().unwrap_or(""));
 
                 // Before anything else, check if the table is outdated.
                 if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, None, Some("OutdatedTable"), &table_info.ignored_fields, &table_info.ignored_diagnostics, &table_info.ignored_diagnostics_for_fields) && Self::is_table_outdated(table.table_name(), *table.definition().version(), dependencies) {
@@ -528,7 +528,7 @@ impl TableDiagnostic {
                         diagnostic.results_mut().push(result);
                     }
 
-                    let keys = row_keys.values().map(|x| *x).collect::<Vec<_>>();
+                    let keys = row_keys.values().copied().collect::<Vec<_>>();
                     let values = (row_keys.keys().map(|column| (row as i32, *column)).collect::<Vec<(i32, i32)>>(), index);
                     match global_keys.get_mut(&keys) {
                         Some(val) => val.push(values),
@@ -565,7 +565,7 @@ impl TableDiagnostic {
                                             TableDiagnosticReportType::DuplicatedCombinedKeys(
                                                 key.iter().map(|x| x.data_to_string()).join("| |")
                                             ),
-                                            &pos,
+                                            pos,
                                             &table_info.fields_processed
                                         )
                                     )
@@ -577,7 +577,7 @@ impl TableDiagnostic {
                                             TableDiagnosticReportType::DuplicatedCombinedKeys(
                                                 key.iter().map(|x| x.data_to_string()).join("| |")
                                             ),
-                                            &pos,
+                                            pos,
                                             &table_info.fields_processed
                                         )
                                     );
@@ -606,7 +606,7 @@ impl TableDiagnostic {
         // then do the real loop, having the data of all files available for checking diagnostics.
         let mut table_infos = vec![];
         for file in files {
-            let (ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) = Diagnostics::ignore_data_for_file(file, &files_to_ignore).unwrap_or_default();
+            let (ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) = Diagnostics::ignore_data_for_file(file, files_to_ignore).unwrap_or_default();
             if let Ok(RFileDecoded::Loc(table)) = file.decoded() {
                 let fields_processed = table.definition().fields_processed();
                 let patches = Some(table.definition().patches());
@@ -614,7 +614,7 @@ impl TableDiagnostic {
 
                 table_infos.push(TableInfo {
                     path: file.path_in_container_raw(),
-                    container_name: file.container_name().as_deref().unwrap_or_else(|| ""),
+                    container_name: file.container_name().as_deref().unwrap_or(""),
                     key_amount: fields_processed.iter().filter(|field| field.is_key(patches)).count(),
                     fields_processed,
                     patches,
@@ -638,7 +638,7 @@ impl TableDiagnostic {
 
         for (index, (table, file)) in dec_files.iter().enumerate() {
             if let Some(table_info) = table_infos.get(index) {
-                let mut diagnostic = TableDiagnostic::new(file.path_in_container_raw(), file.container_name().as_deref().unwrap_or_else(|| ""));
+                let mut diagnostic = TableDiagnostic::new(file.path_in_container_raw(), file.container_name().as_deref().unwrap_or(""));
                 let fields = table.definition().fields_processed();
                 let field_key_name = fields[0].name();
                 let field_text_name = fields[1].name();

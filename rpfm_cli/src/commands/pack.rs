@@ -37,7 +37,7 @@ use crate::config::Config;
 /// This function changes the Pack Type of the provided Pack.
 pub fn set_pack_type(config: &Config, pack_path: &Path, pfh_file_type: PFHFileType) -> Result<()> {
     if config.verbose {
-        info!("Changing PFH Type for Pack at {}.", pack_path.to_string_lossy().to_string());
+        info!("Changing PFH Type for Pack at {}.", pack_path.to_string_lossy());
     }
 
     let pack_path_str = pack_path.to_string_lossy().to_string();
@@ -61,7 +61,7 @@ pub fn set_pack_type(config: &Config, pack_path: &Path, pfh_file_type: PFHFileTy
     pack.encode(&mut writer, &Some(encodeable_extra_data))?;
 
     if config.verbose {
-        info!("Changed PFH Type to {}.", pfh_file_type);
+        info!("Changed PFH Type to {pfh_file_type}.");
     }
 
     Ok(())
@@ -96,7 +96,7 @@ pub fn list(config: &Config, path: &Path) -> Result<()> {
 /// This function creates a new empty Pack with the provided path.
 pub fn create(config: &Config, path: &Path) -> Result<()> {
     if config.verbose {
-        info!("Creating new empty Mod Pack at {}.", path.to_string_lossy().to_string());
+        info!("Creating new empty Mod Pack at {}.", path.to_string_lossy());
     }
 
     match &config.game {
@@ -117,7 +117,7 @@ pub fn create(config: &Config, path: &Path) -> Result<()> {
 /// This function adds the provided files/folders to the provided Pack.
 pub fn add(config: &Config, schema_path: &Option<PathBuf>, pack_path: &Path, file_path: &[(PathBuf, String)], folder_path: &[(PathBuf, String)]) -> Result<()> {
     if config.verbose {
-        info!("Adding files/folders to a Pack at {}.", pack_path.to_string_lossy().to_string());
+        info!("Adding files/folders to a Pack at {}.", pack_path.to_string_lossy());
         info!("Tsv to Binary is: {}.", schema_path.is_some());
     }
 
@@ -145,7 +145,7 @@ pub fn add(config: &Config, schema_path: &Option<PathBuf>, pack_path: &Path, fil
 
     for (folder_path, container_path) in folder_path {
         if config.verbose {
-            info!("Adding folder: {}", container_path);
+            info!("Adding folder: {container_path}");
         }
 
         pack.insert_folder(folder_path, container_path, &None, &schema, false)?;
@@ -153,7 +153,7 @@ pub fn add(config: &Config, schema_path: &Option<PathBuf>, pack_path: &Path, fil
 
     for (file_path, container_path) in file_path {
         if config.verbose {
-            info!("Adding file: {}", container_path);
+            info!("Adding file: {container_path}");
         }
 
         pack.insert_file(file_path, container_path, &schema)?;
@@ -177,7 +177,7 @@ pub fn add(config: &Config, schema_path: &Option<PathBuf>, pack_path: &Path, fil
 /// This function deletes the provided files/folders from the provided Pack.
 pub fn delete(config: &Config, pack_path: &Path, file_path: &[String], folder_path: &[String]) -> Result<()> {
     if config.verbose {
-        info!("Delete files/folders from a Pack at {}.", pack_path.to_string_lossy().to_string());
+        info!("Delete files/folders from a Pack at {}.", pack_path.to_string_lossy());
     }
 
     let pack_path_str = pack_path.to_string_lossy().to_string();
@@ -222,7 +222,7 @@ pub fn delete(config: &Config, pack_path: &Path, file_path: &[String], folder_pa
 /// This function extracts the provided files/folders from the provided Pack, keeping their folder structure.
 pub fn extract(config: &Config, schema_path: &Option<PathBuf>, pack_path: &Path, file_path: &[(String, PathBuf)], folder_path: &[(String, PathBuf)]) -> Result<()> {
     if config.verbose {
-        info!("Extracting files/folders from a Pack at {}.", pack_path.to_string_lossy().to_string());
+        info!("Extracting files/folders from a Pack at {}.", pack_path.to_string_lossy());
         info!("Tables as Tsv is: {}.", schema_path.is_some());
     }
 
@@ -256,7 +256,7 @@ pub fn extract(config: &Config, schema_path: &Option<PathBuf>, pack_path: &Path,
 
     for (container_path, folder_path) in folder_path {
         if config.verbose {
-            info!("Extracting folder: {}", container_path);
+            info!("Extracting folder: {container_path}");
         }
 
         let container_path = ContainerPath::Folder(container_path.to_owned());
@@ -265,7 +265,7 @@ pub fn extract(config: &Config, schema_path: &Option<PathBuf>, pack_path: &Path,
 
     for (container_path, file_path) in file_path {
         if config.verbose {
-            info!("Extracting file: {}", container_path);
+            info!("Extracting file: {container_path}");
         }
 
         let container_path = ContainerPath::File(container_path.to_owned());
@@ -285,7 +285,7 @@ pub fn diagnose(config: &Config, game_path: &Path, pak_path: &Path, schema_path:
     if config.verbose {
         info!("Diagnosing problems in the following Packs:");
         for pack_path in pack_paths {
-            info!(" - {}", pack_path.to_string_lossy().to_string());
+            info!(" - {}", pack_path.to_string_lossy());
         }
     }
 
@@ -325,7 +325,7 @@ pub fn diagnose(config: &Config, game_path: &Path, pak_path: &Path, schema_path:
             if config.verbose {
                 info!("Diagnosed problems in the following Packs:");
                 for pack_path in pack_paths {
-                    info!(" - {}", pack_path.to_string_lossy().to_string());
+                    info!(" - {}", pack_path.to_string_lossy());
                 }
                 println!("Verbose mode detected. Marking beginning: ----------------------------");
             }
@@ -345,10 +345,10 @@ pub fn diagnose(config: &Config, game_path: &Path, pak_path: &Path, schema_path:
 /// This function merges the provided Packs into a new one, and saves it to the provided save path.
 pub fn merge(config: &Config, save_pack_path: &Path, source_pack_paths: &[PathBuf]) -> Result<()> {
     if config.verbose {
-        info!("Creating new Merged Mod Pack at {}.", save_pack_path.to_string_lossy().to_string());
+        info!("Creating new Merged Mod Pack at {}.", save_pack_path.to_string_lossy());
         info!("Packs ready to be merged:");
         for source_pack_path in source_pack_paths {
-            info!(" - {}", source_pack_path.to_string_lossy().to_string());
+            info!(" - {}", source_pack_path.to_string_lossy());
         }
     }
 

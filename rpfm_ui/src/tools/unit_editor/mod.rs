@@ -908,7 +908,7 @@ impl ToolUnitEditor {
                     text.set_contents(value.to_string());
                     text.set_format(TextFormat::Xml);
 
-                    let path = format!("{}{}.{}", VARIANT_MESH_PATH, file_name, VARIANT_MESH_EXTENSION);
+                    let path = format!("{VARIANT_MESH_PATH}{file_name}.{VARIANT_MESH_EXTENSION}");
                     let packed_file = RFile::new_from_decoded(&RFileDecoded::Text(text), 0, &path);
                     Some(packed_file)
                 })

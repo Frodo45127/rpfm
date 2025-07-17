@@ -689,7 +689,7 @@ impl GameInfo {
                     };
 
                     #[cfg(feature = "integration_log")] {
-                        info!("Language file found, using {} language.", language);
+                        info!("Language file found, using {language} language.");
                     }
 
                     Ok(Some(language))

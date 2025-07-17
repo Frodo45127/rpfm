@@ -103,7 +103,7 @@ impl TextDiagnostic {
 
 
         if let Ok(RFileDecoded::Text(text)) = file.decoded() {
-            let mut diagnostic = Self::new(file.path_in_container_raw(), file.container_name().as_deref().unwrap_or_else(|| ""));
+            let mut diagnostic = Self::new(file.path_in_container_raw(), file.container_name().as_deref().unwrap_or(""));
 
             let text = text.contents();
             let mut start_pos = 0;

@@ -300,7 +300,7 @@ impl ToolFactionPainter {
         for (key, data) in processed_data.iter_mut().sorted_by_key(|x| x.0) {
             let item = QStandardItem::from_q_string(&QString::from_std_str(
                 match data.get("screen_name") {
-                    Some(screen_name) => format!("{} - {}", screen_name, key),
+                    Some(screen_name) => format!("{screen_name} - {key}"),
                     None => key.to_string(),
                 })).into_ptr();
             item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(data).unwrap())), FACTION_DATA);
@@ -492,13 +492,13 @@ impl ToolFactionPainter {
         let data: HashMap<String, String> = serde_json::from_str(&index.data_1a(FACTION_DATA).to_string().to_std_string()).unwrap();
 
         if let Some(banner_primary) = data.get("banner_initial_primary") {
-            set_color_safe(&self.banner_colour_primary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{}", banner_primary))).as_ptr());
+            set_color_safe(&self.banner_colour_primary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{banner_primary}"))).as_ptr());
         }
         if let Some(banner_secondary) = data.get("banner_initial_secondary") {
-            set_color_safe(&self.banner_colour_secondary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{}", banner_secondary))).as_ptr());
+            set_color_safe(&self.banner_colour_secondary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{banner_secondary}"))).as_ptr());
         }
         if let Some(banner_tertiary) = data.get("banner_initial_tertiary") {
-            set_color_safe(&self.banner_colour_tertiary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{}", banner_tertiary))).as_ptr());
+            set_color_safe(&self.banner_colour_tertiary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{banner_tertiary}"))).as_ptr());
         }
     }
 
@@ -511,13 +511,13 @@ impl ToolFactionPainter {
         let data: HashMap<String, String> = serde_json::from_str(&index.data_1a(FACTION_DATA).to_string().to_std_string()).unwrap();
 
         if let Some(banner_primary) = data.get("banner_vanilla_primary") {
-            set_color_safe(&self.banner_colour_primary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{}", banner_primary))).as_ptr());
+            set_color_safe(&self.banner_colour_primary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{banner_primary}"))).as_ptr());
         }
         if let Some(banner_secondary) = data.get("banner_vanilla_secondary") {
-            set_color_safe(&self.banner_colour_secondary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{}", banner_secondary))).as_ptr());
+            set_color_safe(&self.banner_colour_secondary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{banner_secondary}"))).as_ptr());
         }
         if let Some(banner_tertiary) = data.get("banner_vanilla_tertiary") {
-            set_color_safe(&self.banner_colour_tertiary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{}", banner_tertiary))).as_ptr());
+            set_color_safe(&self.banner_colour_tertiary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{banner_tertiary}"))).as_ptr());
         }
     }
 
@@ -527,13 +527,13 @@ impl ToolFactionPainter {
         let data: HashMap<String, String> = serde_json::from_str(&index.data_1a(FACTION_DATA).to_string().to_std_string()).unwrap();
 
         if let Some(uniform_primary) = data.get("uniform_initial_primary") {
-            set_color_safe(&self.uniform_colour_primary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{}", uniform_primary))).as_ptr());
+            set_color_safe(&self.uniform_colour_primary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{uniform_primary}"))).as_ptr());
         }
         if let Some(uniform_secondary) = data.get("uniform_initial_secondary") {
-            set_color_safe(&self.uniform_colour_secondary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{}", uniform_secondary))).as_ptr());
+            set_color_safe(&self.uniform_colour_secondary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{uniform_secondary}"))).as_ptr());
         }
         if let Some(uniform_tertiary) = data.get("uniform_initial_tertiary") {
-            set_color_safe(&self.uniform_colour_tertiary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{}", uniform_tertiary))).as_ptr());
+            set_color_safe(&self.uniform_colour_tertiary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{uniform_tertiary}"))).as_ptr());
         }
     }
 
@@ -546,13 +546,13 @@ impl ToolFactionPainter {
         let data: HashMap<String, String> = serde_json::from_str(&index.data_1a(FACTION_DATA).to_string().to_std_string()).unwrap();
 
         if let Some(uniform_primary) = data.get("uniform_vanilla_primary") {
-            set_color_safe(&self.uniform_colour_primary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{}", uniform_primary))).as_ptr());
+            set_color_safe(&self.uniform_colour_primary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{uniform_primary}"))).as_ptr());
         }
         if let Some(uniform_secondary) = data.get("uniform_vanilla_secondary") {
-            set_color_safe(&self.uniform_colour_secondary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{}", uniform_secondary))).as_ptr());
+            set_color_safe(&self.uniform_colour_secondary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{uniform_secondary}"))).as_ptr());
         }
         if let Some(uniform_tertiary) = data.get("uniform_vanilla_tertiary") {
-            set_color_safe(&self.uniform_colour_tertiary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{}", uniform_tertiary))).as_ptr());
+            set_color_safe(&self.uniform_colour_tertiary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{uniform_tertiary}"))).as_ptr());
         }
     }
 
@@ -750,7 +750,7 @@ impl ToolFactionPainter {
                     let table_data = table.data();
 
                     processed_data.iter_mut().for_each(|(key, values)| {
-                        let key = format!("{}{}", base_name, key);
+                        let key = format!("{base_name}{key}");
                         let screen_name = table_data.iter().find_map(|row| {
                             if row[0].data_to_string() == key {
                                 Some(row[1].data_to_string())
@@ -781,7 +781,7 @@ impl ToolFactionPainter {
         let row_key = GAME_SELECTED.read().unwrap().tool_var("faction_painter_banner_row_key").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_banner_row_key".to_owned()))?;
 
         for (path, packed_file) in data.iter_mut() {
-            if path.to_lowercase().starts_with(&format!("db/{}/", table_name)) {
+            if path.to_lowercase().starts_with(&format!("db/{table_name}/")) {
 
                 if let Ok(RFileDecoded::DB(table)) = packed_file.decoded() {
 
@@ -865,7 +865,7 @@ impl ToolFactionPainter {
         let row_key = GAME_SELECTED.read().unwrap().tool_var("faction_painter_uniform_row_key").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_uniform_row_key".to_owned()))?;
 
         for (path, packed_file) in data.iter_mut() {
-            if path.to_lowercase().starts_with(&format!("db/{}/", table_name)) {
+            if path.to_lowercase().starts_with(&format!("db/{table_name}/")) {
 
                 if let Ok(RFileDecoded::DB(table)) = packed_file.decoded() {
 

@@ -270,7 +270,7 @@ fn main() {
                 exit_code
             }
             Err(error) => {
-                error!("{}", error);
+                error!("{error}");
 
                 // Close and rejoin the threads on exit, so we don't leave a rogue thread running.
                 CENTRAL_COMMAND.send_background(Command::Exit);

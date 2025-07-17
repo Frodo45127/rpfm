@@ -82,7 +82,7 @@ pub fn ref_from_atomic_ref<T: Sized>(ptr: &AtomicPtr<T>) -> Ref<T> {
 /// This functions logs the provided message to the status bar, so it can be seen by the user.
 pub fn log_to_status_bar<T: Display>(status_bar: QPtr<QStatusBar>, text: T) {
     unsafe { status_bar.show_message_2a(&QString::from_std_str(text.to_string()), 5000); }
-    info!("{}", text);
+    info!("{text}");
 }
 
 /// This function creates a modal dialog, for showing successes or errors.

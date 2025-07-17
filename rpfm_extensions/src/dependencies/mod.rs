@@ -2183,7 +2183,7 @@ impl Dependencies {
         // Dedup this list, because if the game had multiple table files, we'll get duplicated fields.
         fields_still_not_found.sort();
         fields_still_not_found.dedup();
-        info!("Bruteforce: fields still not found :{:#?}", fields_still_not_found);
+        info!("Bruteforce: fields still not found :{fields_still_not_found:#?}");
 
         // Once everything is done, run a check on the loc keys to see if any of them still doesn't match any table/field combo.
         // This will fail if called on cache generation. Only execute it when updating the schema.
@@ -2191,7 +2191,7 @@ impl Dependencies {
             for key in loc_table.keys().sorted() {
                 match self.loc_key_source(key) {
                     Some((_, _, _)) => {},
-                    None => info!("-- Bruteforce: cannot find source for loc key {}.", key),
+                    None => info!("-- Bruteforce: cannot find source for loc key {key}."),
                 }
             }
         }
@@ -2643,7 +2643,7 @@ impl Dependencies {
                 // If our field is a reference, do recursive checks to find out all the lookup data of a specific field.
                 if let Some((ref_table_name, ref_column)) = field.is_reference(Some(&schema_patches)) {
                     for lookup_data_old in &lookup_data_old {
-                        let lookup_string = format!("{}#{}#{}", ref_table_name, ref_column, lookup_data_old);
+                        let lookup_string = format!("{ref_table_name}#{ref_column}#{lookup_data_old}");
                         self.add_recursive_lookups(schema, &schema_patches, lookup_data_old, &mut lookup_data, &lookup_string, &ref_table_name);
                     }
                 }
@@ -2687,7 +2687,7 @@ impl Dependencies {
                         if let Some((ref_table_name, ref_column)) = field.is_reference(Some(schema_patches)) {
                             if let Some(lookups) = field.lookup(Some(schema_patches)) {
                                 for lookup in &lookups {
-                                    let lookup_string = format!("{}:{}#{}#{}", lookup_string, ref_table_name, ref_column, lookup);
+                                    let lookup_string = format!("{lookup_string}:{ref_table_name}#{ref_column}#{lookup}");
 
                                     self.add_recursive_lookups(schema, schema_patches, lookup, lookup_data, &lookup_string, &ref_table_name);
                                 }

@@ -116,7 +116,7 @@ fn main() {
     match result {
         Ok(_) => exit(0),
         Err(error) => {
-            error!("{}", error);
+            error!("{error}");
             exit(1)
         },
     }

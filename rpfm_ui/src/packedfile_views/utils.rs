@@ -29,7 +29,7 @@ use crate::UI_STATE;
 
 /// This function sets the `is_modified` state of the open PackFile, setting also the visual state of the provided PackedFile in the process.
 pub unsafe fn set_modified(is_modified: bool, path: &str, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
-    info!("Set Modified called for path: {}", path);
+    info!("Set Modified called for path: {path}");
     let path = if path.is_empty() || path == RESERVED_NAME_DEPENDENCIES_MANAGER || path == RESERVED_NAME_DEPENDENCIES_MANAGER_V2 || path == RESERVED_NAME_NOTES { ContainerPath::Folder(String::new()) } else { ContainerPath::File(path.to_owned()) };
     if is_modified {
         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Modify(vec![path; 1]), DataSource::PackFile);

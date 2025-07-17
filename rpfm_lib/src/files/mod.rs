@@ -1098,12 +1098,12 @@ pub trait Container {
                             self.paths_cache_mut().remove(&path_lower);
                         }
                     },
-                    #[cfg(feature = "integration_log")]None => { warn!("remove_path received a valid path, but we don't have casing equivalence for it. This is a bug. {}, {}", path_lower, path); },
-                    #[cfg(not(feature = "integration_log"))]None => { dbg!("remove_path received a valid path, but we don't have casing equivalence for it. This is a bug. {}, {}", path_lower, path); },
+                    #[cfg(feature = "integration_log")]None => { warn!("remove_path received a valid path, but we don't have casing equivalence for it. This is a bug. {path_lower}, {path}"); },
+                    #[cfg(not(feature = "integration_log"))]None => { dbg!("remove_path received a valid path, but we don't have casing equivalence for it. This is a bug. {path_lower}, {path}"); },
                 }
             }
-            #[cfg(feature = "integration_log")] None => { warn!("remove_path received an invalid path. This is a bug. {}, {}", path_lower, path); },
-            #[cfg(not(feature = "integration_log"))]None => { dbg!("remove_path received an invalid path. This is a bug. {}, {}", path_lower, path); },
+            #[cfg(feature = "integration_log")] None => { warn!("remove_path received an invalid path. This is a bug. {path_lower}, {path}"); },
+            #[cfg(not(feature = "integration_log"))]None => { dbg!("remove_path received an invalid path. This is a bug. {path_lower}, {path}"); },
         }
     }
 
@@ -1849,7 +1849,7 @@ impl RFile {
 
     /// This function returns the file name if this RFile, if it has one.
     pub fn file_name(&self) -> Option<&str> {
-        self.path_in_container_raw().split('/').last()
+        self.path_in_container_raw().split('/').next_back()
     }
 
     /// This function returns the file name of the container this RFile originates from, if any.
@@ -2295,7 +2295,7 @@ impl ContainerPath {
 
     /// This function returns the last item of the provided [ContainerPath], if any.
     pub fn name(&self) -> Option<&str> {
-        self.path_raw().split('/').last()
+        self.path_raw().split('/').next_back()
     }
 
     /// This function the *table_name* of this file (the folder that contains this file) if this file is a DB table.

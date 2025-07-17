@@ -82,8 +82,7 @@ impl ToLayer for PrefabInstanceList {
             let prefab_key = prefab_name_split.first().unwrap();
 
             layer.push_str(&format!("
-            <ECPrefab key=\"{}\" use_culture_mask=\"false\" valid_ids=\"1\"/>",
-                prefab_key,
+            <ECPrefab key=\"{prefab_key}\" use_culture_mask=\"false\" valid_ids=\"1\"/>",
             ));
 
             let rotation_matrix = prefab.transform().rotation_matrix();

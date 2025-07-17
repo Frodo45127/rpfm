@@ -589,7 +589,7 @@ impl SubToolVariantUnitEditor {
 
         // The variant needs to be pulled up from the dependencies cache on load.
         if let Some(variant) = variant {
-            let variant_path = format!("{}{}.{}", VARIANT_MESH_PATH, variant, VARIANT_MESH_EXTENSION);
+            let variant_path = format!("{VARIANT_MESH_PATH}{variant}.{VARIANT_MESH_EXTENSION}");
             let variant_paths = vec![
                 ContainerPath::File(variant_path.to_owned()),
             ];
@@ -711,7 +711,7 @@ impl SubToolVariantUnitEditor {
                 if key.ends_with("_definition") {
                     (key.to_owned(), value.to_owned())
                 } else {
-                    (format!("{}|{}", key, item_name), value.to_owned())
+                    (format!("{key}|{item_name}"), value.to_owned())
                 }
             }).collect::<HashMap<String, String>>();
             new_entries.extend(mapped_entry);
@@ -804,7 +804,7 @@ impl SubToolVariantUnitEditor {
     /// Function to load the `Add Faction` dialog.
     pub unsafe fn load_add_faction_dialog(&self) -> Result<()> {
         self.new_faction_button_box.button(q_dialog_button_box::StandardButton::Ok).set_enabled(false);
-        self.new_faction_name_combobox.set_model(&self.unit_variants_colours_faction_combobox.model());
+        self.new_faction_name_combobox.set_model(self.unit_variants_colours_faction_combobox.model());
 
         let dialog: QPtr<QDialog> = self.new_faction_widget.static_downcast();
         if dialog.exec() == 1 {
@@ -884,7 +884,7 @@ impl SubToolVariantUnitEditor {
         self.new_faction_button_box.button(q_dialog_button_box::StandardButton::Ok).set_enabled(false);
 
         // Trick: get the model from another faction combo, and reuse it here.
-        self.new_faction_name_combobox.set_model(&self.unit_variants_colours_faction_combobox.model());
+        self.new_faction_name_combobox.set_model(self.unit_variants_colours_faction_combobox.model());
         self.new_faction_name_combobox.set_current_text(&source_faction_name);
 
         let dialog: QPtr<QDialog> = self.new_faction_widget.static_downcast();

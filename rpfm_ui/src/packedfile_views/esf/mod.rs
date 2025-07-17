@@ -182,7 +182,7 @@ impl PackedFileESFView {
 
     /// This function tries to reload the current view with the provided data.
     pub unsafe fn reload_view(&self, data: &ESF) {
-        self.tree_view.update_treeview(true, ESFTreeViewOperation::Build(&data));
+        self.tree_view.update_treeview(true, ESFTreeViewOperation::Build(data));
     }
 
     /// This function saves the current view to an ESF struct.

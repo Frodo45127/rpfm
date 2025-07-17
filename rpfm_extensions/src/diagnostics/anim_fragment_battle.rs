@@ -116,7 +116,7 @@ impl AnimFragmentBattleDiagnostic {
         local_path_list: &HashMap<String, Vec<String>>,
     ) ->Option<DiagnosticType> {
         if let Ok(RFileDecoded::AnimFragmentBattle(fragment)) = file.decoded() {
-            let mut diagnostic = AnimFragmentBattleDiagnostic::new(file.path_in_container_raw(), file.container_name().as_deref().unwrap_or_else(|| ""));
+            let mut diagnostic = AnimFragmentBattleDiagnostic::new(file.path_in_container_raw(), file.container_name().as_deref().unwrap_or(""));
 
             if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, None, Some("LocomotionGraphPathNotFound"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && !fragment.locomotion_graph().is_empty() {
                 let path = fragment.locomotion_graph().replace('\\', "/");

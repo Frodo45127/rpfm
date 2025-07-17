@@ -250,7 +250,7 @@ impl Tool {
             }
 
             Response::Error(error) => return Err(error),
-            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response)
+            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}")
         }
 
         // Reload the paths edited by the tool whose views are open.
@@ -327,14 +327,14 @@ impl Tool {
     ) -> Result<Option<TableInMemory>> {
 
         // Prepare all the different name variations we need.
-        let table_name_end_underscore = format!("{}_", table_name);
-        let table_name_end_tables = format!("{}_tables", table_name);
-        let definition_key = format!("{}_definition", table_name);
-        let linked_key_name = linked_table.map(|(table, column)| format!("{}_{}", table, column));
+        let table_name_end_underscore = format!("{table_name}_");
+        let table_name_end_tables = format!("{table_name}_tables");
+        let definition_key = format!("{table_name}_definition");
+        let linked_key_name = linked_table.map(|(table, column)| format!("{table}_{column}"));
 
         let mut table_to_return = None;
         for (path, packed_file) in data.iter_mut() {
-            if path.to_lowercase().starts_with(&format!("db/{}/", table_name_end_tables)) {
+            if path.to_lowercase().starts_with(&format!("db/{table_name_end_tables}/")) {
                 if let Ok(RFileDecoded::DB(table)) = packed_file.decoded() {
 
                     // If we have only one key, we expect one line per table.
@@ -469,8 +469,8 @@ impl Tool {
     unsafe fn save_table_data(&self, data: &[HashMap<String, String>], table_name: &str, file_name: &str, keys: &[&str]) -> Result<RFile> {
 
         // Prepare all the different name variations we need.
-        let table_name_end_tables = format!("{}_tables", table_name);
-        let definition_key = format!("{}_definition", table_name);
+        let table_name_end_tables = format!("{table_name}_tables");
+        let definition_key = format!("{table_name}_definition");
 
         // Get the table definition from its first entry, if there is one.
         if let Some(first) = data.first() {
@@ -507,7 +507,7 @@ impl Tool {
                             // If not found, it may be a 1-many relation. Look for keys beginning with it.
                             None => {
                                 let mut rows = vec![];
-                                let row_key_name_with_bar = format!("{}|", row_key_name);
+                                let row_key_name_with_bar = format!("{row_key_name}|");
                                 let keys = row_data.iter().filter_map(|(key, _)|
 
                                     // We need to get the subkey from the key, not from the value!!!
@@ -549,7 +549,7 @@ impl Tool {
                     .collect::<Vec<Vec<DecodedData>>>();
 
                 table.set_data(&table_data)?;
-                let path = format!("db/{}/{}", table_name_end_tables, file_name);
+                let path = format!("db/{table_name_end_tables}/{file_name}");
                 Ok(RFile::new_from_decoded(&RFileDecoded::DB(table), 0, &path))
             } else { Err(ToolsError::Impossibru.into()) }
         } else { Err(ToolsError::Impossibru.into()) }
@@ -583,7 +583,7 @@ impl Tool {
 
                         for (partial_key, full_key) in loc_keys {
                             if let Some(value) = table.get(&full_key) {
-                                values.insert(format!("loc_{}", partial_key), value.to_owned());
+                                values.insert(format!("loc_{partial_key}"), value.to_owned());
                             }
                         }
                     }
@@ -631,7 +631,7 @@ impl Tool {
             .collect::<Vec<Vec<DecodedData>>>();
 
         table.set_data(&table_data)?;
-        let path = format!("text/db/{}.loc", file_name);
+        let path = format!("text/db/{file_name}.loc");
         Ok(RFile::new_from_decoded(&RFileDecoded::Loc(table), 0, &path))
     }
 
@@ -671,180 +671,175 @@ impl Tool {
         let mut load_field_errors = vec![];
 
         // Try to get the table's definition.
-        let definition_name = format!("{}_definition", table_name);
-        match data.get(&definition_name) {
-            Some(definition) => {
-                let definition: Definition = serde_json::from_str(definition).unwrap();
-                let patches = Some(definition.patches());
-                definition.fields_processed()
-                    .iter()
-                    .filter(|field| !fields_to_ignore.contains(&field.name()))
-                    .for_each(|field| {
+        let definition_name = format!("{table_name}_definition");
+        if let Some(definition) = data.get(&definition_name) {
+            let definition: Definition = serde_json::from_str(definition).unwrap();
+            let patches = Some(definition.patches());
+            definition.fields_processed()
+                .iter()
+                .filter(|field| !fields_to_ignore.contains(&field.name()))
+                .for_each(|field| {
 
-                        // First, load the field's label. If it uses a custom one, set it after this function.
-                        let label_name = format!("{}_{}_label", table_name, field.name());
-                        let label_widget: Result<QPtr<QLabel>> = self.find_widget(&label_name);
-                        match label_widget {
-                            Ok(label) => {
-                                label.set_text(&QString::from_std_str(clean_column_names(field.name())));
-                                label.set_visible(true);
-                            },
-                            Err(_) => load_field_errors.push(label_name),
-                        };
+                    // First, load the field's label. If it uses a custom one, set it after this function.
+                    let label_name = format!("{}_{}_label", table_name, field.name());
+                    let label_widget: Result<QPtr<QLabel>> = self.find_widget(&label_name);
+                    match label_widget {
+                        Ok(label) => {
+                            label.set_text(&QString::from_std_str(clean_column_names(field.name())));
+                            label.set_visible(true);
+                        },
+                        Err(_) => load_field_errors.push(label_name),
+                    };
 
-                        // If field is reference, always search for a combobox.
-                        match field.is_reference(patches) {
-                            Some(_) => {
-                                let widget_name = format!("{}_{}_combobox", table_name, field.name());
-                                let widget: Result<QPtr<QComboBox>> = self.find_widget(&widget_name);
-                                match widget {
-                                    Ok(widget) => {
-                                        widget.set_visible(true);
+                    // If field is reference, always search for a combobox.
+                    match field.is_reference(patches) {
+                        Some(_) => {
+                            let widget_name = format!("{}_{}_combobox", table_name, field.name());
+                            let widget: Result<QPtr<QComboBox>> = self.find_widget(&widget_name);
+                            match widget {
+                                Ok(widget) => {
+                                    widget.set_visible(true);
 
-                                        // Check if we have data for the widget. If not, fill it with default data
-                                        let field_key_name = format!("{}_{}", table_name, field.name());
-                                        match data.get(&field_key_name) {
-                                            Some(data) => widget.set_current_text(&QString::from_std_str(data)),
-                                            None => {
-                                                if let Some(default_value) = field.default_value(patches) {
-                                                    widget.set_current_text(&QString::from_std_str(default_value));
-                                                }
+                                    // Check if we have data for the widget. If not, fill it with default data
+                                    let field_key_name = format!("{}_{}", table_name, field.name());
+                                    match data.get(&field_key_name) {
+                                        Some(data) => widget.set_current_text(&QString::from_std_str(data)),
+                                        None => {
+                                            if let Some(default_value) = field.default_value(patches) {
+                                                widget.set_current_text(&QString::from_std_str(default_value));
                                             }
                                         }
                                     }
-                                    Err(_) => load_field_errors.push(widget_name),
-                                };
-                            }
-                            None => {
+                                }
+                                Err(_) => load_field_errors.push(widget_name),
+                            };
+                        }
+                        None => {
 
-                                // Next, setup the data in the widget's depending on the type of the data.
-                                match field.field_type() {
-                                    FieldType::Boolean => {
-                                        let widget_name = format!("{}_{}_checkbox", table_name, field.name());
-                                        let widget: Result<QPtr<QCheckBox>> = self.find_widget(&widget_name);
-                                        match widget {
-                                            Ok(widget) => {
-                                                widget.set_visible(true);
+                            // Next, setup the data in the widget's depending on the type of the data.
+                            match field.field_type() {
+                                FieldType::Boolean => {
+                                    let widget_name = format!("{}_{}_checkbox", table_name, field.name());
+                                    let widget: Result<QPtr<QCheckBox>> = self.find_widget(&widget_name);
+                                    match widget {
+                                        Ok(widget) => {
+                                            widget.set_visible(true);
 
-                                                // Check if we have data for the widget. If not, fill it with default data
-                                                let field_key_name = format!("{}_{}", table_name, field.name());
-                                                match data.get(&field_key_name) {
-                                                    Some(data) => {
-                                                        if let Ok(value) = data.parse::<bool>() {
+                                            // Check if we have data for the widget. If not, fill it with default data
+                                            let field_key_name = format!("{}_{}", table_name, field.name());
+                                            match data.get(&field_key_name) {
+                                                Some(data) => {
+                                                    if let Ok(value) = data.parse::<bool>() {
+                                                        widget.set_checked(value);
+                                                    }
+                                                },
+                                                None => {
+                                                    if let Some(default_value) = field.default_value(patches) {
+                                                        if let Ok(value) = default_value.parse::<bool>() {
                                                             widget.set_checked(value);
                                                         }
-                                                    },
-                                                    None => {
-                                                        if let Some(default_value) = field.default_value(patches) {
-                                                            if let Ok(value) = default_value.parse::<bool>() {
-                                                                widget.set_checked(value);
-                                                            }
-                                                        }
                                                     }
                                                 }
                                             }
-                                            Err(_) => load_field_errors.push(widget_name),
-                                        };
-                                    },
-                                    FieldType::I16 |
-                                    FieldType::I32 |
-                                    FieldType::I64 => {
-                                        let widget_name = format!("{}_{}_spinbox", table_name, field.name());
-                                        let widget: Result<QPtr<QSpinBox>> = self.find_widget(&widget_name);
-                                        match widget {
-                                            Ok(widget) => {
-                                                widget.set_visible(true);
+                                        }
+                                        Err(_) => load_field_errors.push(widget_name),
+                                    };
+                                },
+                                FieldType::I16 |
+                                FieldType::I32 |
+                                FieldType::I64 => {
+                                    let widget_name = format!("{}_{}_spinbox", table_name, field.name());
+                                    let widget: Result<QPtr<QSpinBox>> = self.find_widget(&widget_name);
+                                    match widget {
+                                        Ok(widget) => {
+                                            widget.set_visible(true);
 
-                                                // Set max and mins here, to make sure we can fit whatever data we have.
-                                                widget.set_minimum(i32::MIN);
-                                                widget.set_maximum(i32::MAX);
+                                            // Set max and mins here, to make sure we can fit whatever data we have.
+                                            widget.set_minimum(i32::MIN);
+                                            widget.set_maximum(i32::MAX);
 
-                                                // Check if we have data for the widget. If not, fill it with default data
-                                                let field_key_name = format!("{}_{}", table_name, field.name());
-                                                match data.get(&field_key_name) {
-                                                    Some(data) => {
-                                                        if let Ok(value) = data.parse::<i32>() {
+                                            // Check if we have data for the widget. If not, fill it with default data
+                                            let field_key_name = format!("{}_{}", table_name, field.name());
+                                            match data.get(&field_key_name) {
+                                                Some(data) => {
+                                                    if let Ok(value) = data.parse::<i32>() {
+                                                        widget.set_value(value);
+                                                    }
+                                                },
+                                                None => {
+                                                    if let Some(default_value) = field.default_value(patches) {
+                                                        if let Ok(value) = default_value.parse::<i32>() {
                                                             widget.set_value(value);
                                                         }
-                                                    },
-                                                    None => {
-                                                        if let Some(default_value) = field.default_value(patches) {
-                                                            if let Ok(value) = default_value.parse::<i32>() {
-                                                                widget.set_value(value);
-                                                            }
-                                                        }
                                                     }
                                                 }
                                             }
-                                            Err(_) => load_field_errors.push(widget_name),
-                                        };
-                                    },
-                                    FieldType::F32 => {
-                                        let widget_name = format!("{}_{}_double_spinbox", table_name, field.name());
-                                        let widget: Result<QPtr<QDoubleSpinBox>> = self.find_widget(&widget_name);
-                                        match widget {
-                                            Ok(widget) => {
-                                                widget.set_visible(true);
+                                        }
+                                        Err(_) => load_field_errors.push(widget_name),
+                                    };
+                                },
+                                FieldType::F32 => {
+                                    let widget_name = format!("{}_{}_double_spinbox", table_name, field.name());
+                                    let widget: Result<QPtr<QDoubleSpinBox>> = self.find_widget(&widget_name);
+                                    match widget {
+                                        Ok(widget) => {
+                                            widget.set_visible(true);
 
-                                                // Set max and mins here, to make sure we can fit whatever data we have.
-                                                widget.set_minimum(f32::MIN as f64);
-                                                widget.set_maximum(f32::MAX as f64);
+                                            // Set max and mins here, to make sure we can fit whatever data we have.
+                                            widget.set_minimum(f32::MIN as f64);
+                                            widget.set_maximum(f32::MAX as f64);
 
-                                                // Check if we have data for the widget. If not, fill it with default data
-                                                let field_key_name = format!("{}_{}", table_name, field.name());
-                                                match data.get(&field_key_name) {
-                                                    Some(data) => {
-                                                        if let Ok(value) = data.parse::<f64>() {
+                                            // Check if we have data for the widget. If not, fill it with default data
+                                            let field_key_name = format!("{}_{}", table_name, field.name());
+                                            match data.get(&field_key_name) {
+                                                Some(data) => {
+                                                    if let Ok(value) = data.parse::<f64>() {
+                                                        widget.set_value(value);
+                                                    }
+                                                },
+                                                None => {
+                                                    if let Some(default_value) = field.default_value(patches) {
+                                                        if let Ok(value) = default_value.parse::<f64>() {
                                                             widget.set_value(value);
                                                         }
-                                                    },
-                                                    None => {
-                                                        if let Some(default_value) = field.default_value(patches) {
-                                                            if let Ok(value) = default_value.parse::<f64>() {
-                                                                widget.set_value(value);
-                                                            }
-                                                        }
                                                     }
                                                 }
                                             }
-                                            Err(_) => load_field_errors.push(widget_name),
-                                        };
-                                    },
-                                    FieldType::StringU8 |
-                                    FieldType::StringU16 |
-                                    FieldType::OptionalStringU8 |
-                                    FieldType::OptionalStringU16 => {
-                                        let widget_name = format!("{}_{}_line_edit", table_name, field.name());
-                                        let widget: Result<QPtr<QLineEdit>> = self.find_widget(&widget_name);
-                                        match widget {
-                                            Ok(widget) => {
-                                                widget.set_visible(true);
+                                        }
+                                        Err(_) => load_field_errors.push(widget_name),
+                                    };
+                                },
+                                FieldType::StringU8 |
+                                FieldType::StringU16 |
+                                FieldType::OptionalStringU8 |
+                                FieldType::OptionalStringU16 => {
+                                    let widget_name = format!("{}_{}_line_edit", table_name, field.name());
+                                    let widget: Result<QPtr<QLineEdit>> = self.find_widget(&widget_name);
+                                    match widget {
+                                        Ok(widget) => {
+                                            widget.set_visible(true);
 
-                                                // Check if we have data for the widget. If not, fill it with default data
-                                                let field_key_name = format!("{}_{}", table_name, field.name());
-                                                match data.get(&field_key_name) {
-                                                    Some(data) => widget.set_text(&QString::from_std_str(data)),
-                                                    None => {
-                                                        if let Some(default_value) = field.default_value(patches) {
-                                                            widget.set_text(&QString::from_std_str(default_value));
-                                                        }
+                                            // Check if we have data for the widget. If not, fill it with default data
+                                            let field_key_name = format!("{}_{}", table_name, field.name());
+                                            match data.get(&field_key_name) {
+                                                Some(data) => widget.set_text(&QString::from_std_str(data)),
+                                                None => {
+                                                    if let Some(default_value) = field.default_value(patches) {
+                                                        widget.set_text(&QString::from_std_str(default_value));
                                                     }
                                                 }
                                             }
-                                            Err(_) => load_field_errors.push(widget_name),
-                                        };
-                                    },
-                                    _ => unimplemented!()
-                                }
+                                        }
+                                        Err(_) => load_field_errors.push(widget_name),
+                                    };
+                                },
+                                _ => unimplemented!()
                             }
                         }
-
                     }
-                );
-            }
 
-            // If we fail to find a definition... tbd.
-            None => {}
+                }
+            );
         }
 
         if !load_field_errors.is_empty() {
@@ -940,7 +935,7 @@ impl Tool {
         let mut failed = false;
 
         let colour = match processed_data.get(field_name) {
-            Some(colour) => format!("#{}", colour),
+            Some(colour) => format!("#{colour}"),
             None => {
                 failed = true;
                 "#000000".to_string()
@@ -1040,92 +1035,87 @@ impl Tool {
         let mut load_field_errors = vec![];
 
         // Try to get the table's definition.
-        let definition_name = format!("{}_definition", table_name);
-        match data.get(&definition_name) {
-            Some(definition) => {
-                let definition: Definition = serde_json::from_str(definition).unwrap();
-                let patches = Some(definition.patches());
-                definition.fields_processed()
-                    .iter()
-                    .filter(|field| !fields_to_ignore.contains(&field.name()))
-                    .for_each(|field| {
+        let definition_name = format!("{table_name}_definition");
+        if let Some(definition) = data.get(&definition_name) {
+            let definition: Definition = serde_json::from_str(definition).unwrap();
+            let patches = Some(definition.patches());
+            definition.fields_processed()
+                .iter()
+                .filter(|field| !fields_to_ignore.contains(&field.name()))
+                .for_each(|field| {
 
-                        // If field is reference, we use a combobox.
-                        match field.is_reference(patches) {
-                            Some(_) => {
-                                let widget_name = format!("{}_{}_combobox", table_name, field.name());
-                                let widget: Result<QPtr<QComboBox>> = self.find_widget(&widget_name);
-                                match widget {
-                                    Ok(widget) => {
-                                        let field_key_name = format!("{}_{}", table_name, field.name());
-                                        data.insert(field_key_name, widget.current_text().to_std_string());
-                                    }
-                                    Err(_) => load_field_errors.push(widget_name),
-                                };
-                            }
-                            None => {
-
-                                // Next, find the widget and get its data.
-                                match field.field_type() {
-                                    FieldType::Boolean => {
-                                        let widget_name = format!("{}_{}_checkbox", table_name, field.name());
-                                        let widget: Result<QPtr<QCheckBox>> = self.find_widget(&widget_name);
-                                        match widget {
-                                            Ok(widget) => {
-                                                let field_key_name = format!("{}_{}", table_name, field.name());
-                                                data.insert(field_key_name, widget.is_checked().to_string());
-                                            }
-                                            Err(_) => load_field_errors.push(widget_name),
-                                        };
-                                    },
-                                    FieldType::I16 |
-                                    FieldType::I32 |
-                                    FieldType::I64 => {
-                                        let widget_name = format!("{}_{}_spinbox", table_name, field.name());
-                                        let widget: Result<QPtr<QSpinBox>> = self.find_widget(&widget_name);
-                                        match widget {
-                                            Ok(widget) => {
-                                                let field_key_name = format!("{}_{}", table_name, field.name());
-                                                data.insert(field_key_name, widget.value().to_string());
-                                            }
-                                            Err(_) => load_field_errors.push(widget_name),
-                                        };
-                                    },
-                                    FieldType::F32 => {
-                                        let widget_name = format!("{}_{}_double_spinbox", table_name, field.name());
-                                        let widget: Result<QPtr<QDoubleSpinBox>> = self.find_widget(&widget_name);
-                                        match widget {
-                                            Ok(widget) => {
-                                                let field_key_name = format!("{}_{}", table_name, field.name());
-                                                data.insert(field_key_name, widget.value().to_string());
-                                            }
-                                            Err(_) => load_field_errors.push(widget_name),
-                                        };
-                                    },
-                                    FieldType::StringU8 |
-                                    FieldType::StringU16 |
-                                    FieldType::OptionalStringU8 |
-                                    FieldType::OptionalStringU16 => {
-                                        let widget_name = format!("{}_{}_line_edit", table_name, field.name());
-                                        let widget: Result<QPtr<QLineEdit>> = self.find_widget(&widget_name);
-                                        match widget {
-                                            Ok(widget) => {
-                                                let field_key_name = format!("{}_{}", table_name, field.name());
-                                                data.insert(field_key_name, widget.text().to_std_string());
-                                            }
-                                            Err(_) => load_field_errors.push(widget_name),
-                                        };
-                                    },
-                                    _ => unimplemented!()
+                    // If field is reference, we use a combobox.
+                    match field.is_reference(patches) {
+                        Some(_) => {
+                            let widget_name = format!("{}_{}_combobox", table_name, field.name());
+                            let widget: Result<QPtr<QComboBox>> = self.find_widget(&widget_name);
+                            match widget {
+                                Ok(widget) => {
+                                    let field_key_name = format!("{}_{}", table_name, field.name());
+                                    data.insert(field_key_name, widget.current_text().to_std_string());
                                 }
+                                Err(_) => load_field_errors.push(widget_name),
+                            };
+                        }
+                        None => {
+
+                            // Next, find the widget and get its data.
+                            match field.field_type() {
+                                FieldType::Boolean => {
+                                    let widget_name = format!("{}_{}_checkbox", table_name, field.name());
+                                    let widget: Result<QPtr<QCheckBox>> = self.find_widget(&widget_name);
+                                    match widget {
+                                        Ok(widget) => {
+                                            let field_key_name = format!("{}_{}", table_name, field.name());
+                                            data.insert(field_key_name, widget.is_checked().to_string());
+                                        }
+                                        Err(_) => load_field_errors.push(widget_name),
+                                    };
+                                },
+                                FieldType::I16 |
+                                FieldType::I32 |
+                                FieldType::I64 => {
+                                    let widget_name = format!("{}_{}_spinbox", table_name, field.name());
+                                    let widget: Result<QPtr<QSpinBox>> = self.find_widget(&widget_name);
+                                    match widget {
+                                        Ok(widget) => {
+                                            let field_key_name = format!("{}_{}", table_name, field.name());
+                                            data.insert(field_key_name, widget.value().to_string());
+                                        }
+                                        Err(_) => load_field_errors.push(widget_name),
+                                    };
+                                },
+                                FieldType::F32 => {
+                                    let widget_name = format!("{}_{}_double_spinbox", table_name, field.name());
+                                    let widget: Result<QPtr<QDoubleSpinBox>> = self.find_widget(&widget_name);
+                                    match widget {
+                                        Ok(widget) => {
+                                            let field_key_name = format!("{}_{}", table_name, field.name());
+                                            data.insert(field_key_name, widget.value().to_string());
+                                        }
+                                        Err(_) => load_field_errors.push(widget_name),
+                                    };
+                                },
+                                FieldType::StringU8 |
+                                FieldType::StringU16 |
+                                FieldType::OptionalStringU8 |
+                                FieldType::OptionalStringU16 => {
+                                    let widget_name = format!("{}_{}_line_edit", table_name, field.name());
+                                    let widget: Result<QPtr<QLineEdit>> = self.find_widget(&widget_name);
+                                    match widget {
+                                        Ok(widget) => {
+                                            let field_key_name = format!("{}_{}", table_name, field.name());
+                                            data.insert(field_key_name, widget.text().to_std_string());
+                                        }
+                                        Err(_) => load_field_errors.push(widget_name),
+                                    };
+                                },
+                                _ => unimplemented!()
                             }
                         }
                     }
-                );
-            }
-
-            // If we fail to find a definition... tbd.
-            None => {}
+                }
+            );
         }
 
         if !load_field_errors.is_empty() {
@@ -1186,12 +1176,12 @@ impl Tool {
 
                     // Try to get its source data and, if found, replace ours.
                     if let Some((table_name_source, field_name_source)) = field.is_reference(patches) {
-                        let full_name_source = format!("{}_{}", table_name_source, field_name_source);
+                        let full_name_source = format!("{table_name_source}_{field_name_source}");
 
                         // If our entry is a 1-many table relation, we need to update all the relations.
                         if let Some(source_key) = data.get(&full_name_source).cloned() {
                             let full_name_reference = format!("{}_{}", table_name, field.name());
-                            let full_name_reference_with_bar = format!("{}|", full_name_reference);
+                            let full_name_reference_with_bar = format!("{full_name_reference}|");
                             data.iter_mut().for_each(|(key, value)| {
                                 if key == &full_name_reference || key.starts_with(&full_name_reference_with_bar) {
                                     *value = source_key.to_owned();

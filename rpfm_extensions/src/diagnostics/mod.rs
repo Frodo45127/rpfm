@@ -310,7 +310,7 @@ impl Diagnostics {
                             local_file_path_list,
                             check_ak_only_refs,
                             &files_to_ignore,
-                            &pack,
+                            pack,
                             schema,
                             &loc_data
                         ));

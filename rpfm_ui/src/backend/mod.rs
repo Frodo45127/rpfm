@@ -142,7 +142,7 @@ impl From<&Pack> for ContainerInfo {
         let file_name = if pack.disk_file_path().is_empty() {
             "new_file.pack"
         } else {
-            pack.disk_file_path().split('/').last().unwrap_or("unknown.pack")
+            pack.disk_file_path().split('/').next_back().unwrap_or("unknown.pack")
         };
 
         Self {
@@ -163,7 +163,7 @@ impl From<&Pack> for ContainerInfo {
 impl From<&AnimPack> for ContainerInfo {
     fn from(animpack: &AnimPack) -> Self {
         Self {
-            file_name: animpack.disk_file_path().split('/').last().unwrap_or("unknown.animpack").to_string(),
+            file_name: animpack.disk_file_path().split('/').next_back().unwrap_or("unknown.animpack").to_string(),
             file_path: animpack.disk_file_path().to_string(),
             ..Default::default()
         }
@@ -216,7 +216,7 @@ impl From<&Dependencies> for DependenciesInfo {
     fn from(dependencies: &Dependencies) -> Self {
         let table_name_logic = GAME_SELECTED.read().unwrap().vanilla_db_table_name_logic();
 
-        let asskit_tables = dependencies.asskit_only_db_tables().iter().map(|(_, table)| {
+        let asskit_tables = dependencies.asskit_only_db_tables().values().map(|table| {
             let table_name = match table_name_logic {
                 VanillaDBTableNameLogic::DefaultName(ref name) => name,
                 VanillaDBTableNameLogic::FolderName => table.table_name(),

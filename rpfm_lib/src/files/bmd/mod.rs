@@ -220,8 +220,8 @@ impl Bmd {
         // We need to generate two files:
         // - .terry: The project file with just one layer.
         // - .layer: The layer file with the contents of the bmd and bmd_vegetation.
-        let terry_path = output_path.join(format!("{}.terry", name));
-        let layer_path = output_path.join(format!("{}.187abf10b8b9a13.layer", name));
+        let terry_path = output_path.join(format!("{name}.terry"));
+        let layer_path = output_path.join(format!("{name}.187abf10b8b9a13.layer"));
 
         let terry_data = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
 <project version=\"27\" id=\"187abf10b7296f5\">
@@ -307,14 +307,12 @@ impl Bmd {
 
             for (key, values) in &assoc_logical {
                 layer_data.push_str(&format!("
-            <from id=\"{}\">",
-                    key
+            <from id=\"{key}\">"
                 ));
 
                 for value in values {
                     layer_data.push_str(&format!("
-                <to id=\"{}\"/>",
-                        value
+                <to id=\"{value}\"/>"
                     ));
                 }
 
@@ -336,14 +334,12 @@ impl Bmd {
 
             for (key, values) in &assoc_transform {
                 layer_data.push_str(&format!("
-            <from id=\"{}\">",
-                    key
+            <from id=\"{key}\">"
                 ));
 
                 for value in values {
                     layer_data.push_str(&format!("
-                <to id=\"{}\"/>",
-                        value
+                <to id=\"{value}\"/>"
                     ));
                 }
 

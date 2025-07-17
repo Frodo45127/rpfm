@@ -27,7 +27,7 @@ use crate::config::Config;
 /// This function generates a dependencies cache for the game_path provided and saves it to a file.
 pub fn generate(config: &Config, pak_path: &Path, game_path: &Path, schema_path: &Path, assembly_kit_path: &Option<PathBuf>) -> Result<()> {
     if config.verbose {
-        info!("Generating dependencies at the following path: {}.", pak_path.to_string_lossy().to_string());
+        info!("Generating dependencies at the following path: {}.", pak_path.to_string_lossy());
     }
 
     match &config.game {
@@ -38,7 +38,7 @@ pub fn generate(config: &Config, pak_path: &Path, game_path: &Path, schema_path:
             dependencies.save(pak_path)?;
 
             if config.verbose {
-                info!("Dependencies generated at path {}.", pak_path.to_string_lossy().to_string());
+                info!("Dependencies generated at path {}.", pak_path.to_string_lossy());
             }
 
             Ok(())

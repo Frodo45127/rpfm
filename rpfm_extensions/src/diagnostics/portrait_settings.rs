@@ -126,7 +126,7 @@ impl PortraitSettingsDiagnostic {
         local_path_list: &HashMap<String, Vec<String>>,
     ) -> Option<DiagnosticType> {
         if let Ok(RFileDecoded::PortraitSettings(portrait_settings)) = file.decoded() {
-            let mut diagnostic = Self::new(file.path_in_container_raw(), file.container_name().as_deref().unwrap_or_else(|| ""));
+            let mut diagnostic = Self::new(file.path_in_container_raw(), file.container_name().as_deref().unwrap_or(""));
 
             // Disabled, as some games seem to only load their portrait_settings files named as portrait_settings.bin.
             /*if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, None, Some("DatacoredPortraitSettings"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && dependencies.file_exists(file.path_in_container_raw(), true, false, false)  {

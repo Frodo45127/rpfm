@@ -524,7 +524,7 @@ impl From<&RawDefinitionV0> for RawDefinition {
 
         // Second element has the fields.
         if let Some(elements) = value.xsd_element.get(1) {
-            definition.name = elements.name.clone().map(|x| format!("{}.xml", x));
+            definition.name = elements.name.clone().map(|x| format!("{x}.xml"));
 
             // Try to get the indexes to check what do we need to mark as key.
             let primary_keys = if let Some(ref ann) = elements.xsd_annotation {

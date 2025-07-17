@@ -101,7 +101,7 @@ impl ToLayer for BattlefieldBuildingList {
                                 })
                         )
                     ) {
-                    Some(id) => format!("{:x}", id),
+                    Some(id) => format!("{id:x}"),
                     None => String::new()
                 }
             ));

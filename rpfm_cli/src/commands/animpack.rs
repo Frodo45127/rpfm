@@ -55,7 +55,7 @@ pub fn list(config: &Config, path: &Path) -> Result<()> {
 /// This function creates a new empty AnimPack with the provided path.
 pub fn create(config: &Config, path: &Path) -> Result<()> {
     if config.verbose {
-        info!("Creating new empty AnimPack at {}.", path.to_string_lossy().to_string());
+        info!("Creating new empty AnimPack at {}.", path.to_string_lossy());
     }
 
     let mut file = BufWriter::new(File::create(path)?);
@@ -66,7 +66,7 @@ pub fn create(config: &Config, path: &Path) -> Result<()> {
 /// This function adds the provided files/folders to the provided AnimPack.
 pub fn add(config: &Config, pack_path: &Path, file_path: &[(PathBuf, String)], folder_path: &[(PathBuf, String)]) -> Result<()> {
     if config.verbose {
-        info!("Adding files/folders to a AnimPack at {}.", pack_path.to_string_lossy().to_string());
+        info!("Adding files/folders to a AnimPack at {}.", pack_path.to_string_lossy());
     }
 
     let pack_path_str = pack_path.to_string_lossy().to_string();
@@ -81,7 +81,7 @@ pub fn add(config: &Config, pack_path: &Path, file_path: &[(PathBuf, String)], f
 
     for (folder_path, container_path) in folder_path {
         if config.verbose {
-            info!("Adding folder: {}", container_path);
+            info!("Adding folder: {container_path}");
         }
 
         pack.insert_folder(folder_path, container_path, &None, &None, false)?;
@@ -89,7 +89,7 @@ pub fn add(config: &Config, pack_path: &Path, file_path: &[(PathBuf, String)], f
 
     for (file_path, container_path) in file_path {
         if config.verbose {
-            info!("Adding file: {}", container_path);
+            info!("Adding file: {container_path}");
         }
 
         pack.insert_file(file_path, container_path, &None)?;
@@ -110,7 +110,7 @@ pub fn add(config: &Config, pack_path: &Path, file_path: &[(PathBuf, String)], f
 /// This function deletes the provided files/folders from the provided AnimPack.
 pub fn delete(config: &Config, pack_path: &Path, file_path: &[String], folder_path: &[String]) -> Result<()> {
     if config.verbose {
-        info!("Delete files/folders from a AnimPack at {}.", pack_path.to_string_lossy().to_string());
+        info!("Delete files/folders from a AnimPack at {}.", pack_path.to_string_lossy());
     }
 
     let pack_path_str = pack_path.to_string_lossy().to_string();
@@ -150,7 +150,7 @@ pub fn delete(config: &Config, pack_path: &Path, file_path: &[String], folder_pa
 /// This function extracts the provided files/folders from the provided AnimPack, keeping their folder structure.
 pub fn extract(config: &Config, pack_path: &Path, file_path: &[(String, PathBuf)], folder_path: &[(String, PathBuf)]) -> Result<()> {
     if config.verbose {
-        info!("Extracting files/folders from a AnimPack at {}.", pack_path.to_string_lossy().to_string());
+        info!("Extracting files/folders from a AnimPack at {}.", pack_path.to_string_lossy());
     }
 
     let pack_path_str = pack_path.to_string_lossy().to_string();
@@ -171,7 +171,7 @@ pub fn extract(config: &Config, pack_path: &Path, file_path: &[(String, PathBuf)
 
     for (container_path, folder_path) in folder_path {
         if config.verbose {
-            info!("Extracting folder: {}", container_path);
+            info!("Extracting folder: {container_path}");
         }
 
         let container_path = ContainerPath::Folder(container_path.to_owned());
@@ -180,7 +180,7 @@ pub fn extract(config: &Config, pack_path: &Path, file_path: &[(String, PathBuf)
 
     for (container_path, file_path) in file_path {
         if config.verbose {
-            info!("Extracting file: {}", container_path);
+            info!("Extracting file: {container_path}");
         }
 
         let container_path = ContainerPath::File(container_path.to_owned());

@@ -100,15 +100,15 @@ impl ESF {
                 if let Some(NodeType::Record(cnode)) = child.last_mut() {
                     if cnode.name == COMPRESSED_DATA_TAG {
                         let mut dec_data = vec![];
-                        if let Some(NodeType::U8Array(data)) = cnode.children()[0].get(0) {
+                        if let Some(NodeType::U8Array(data)) = cnode.children()[0].first() {
                             if let Some(NodeType::Record(hnode)) = cnode.children()[0].get(1) {
                                 if hnode.name == COMPRESSED_DATA_INFO_TAG {
-                                    if let Some(NodeType::U32(len)) = hnode.children()[0].get(0) {
+                                    if let Some(NodeType::U32(len)) = hnode.children()[0].first() {
                                         if let Some(NodeType::U8Array(magic_number)) = hnode.children()[0].get(1) {
 
                                             let mut mdata = vec![];
                                             mdata.write_u32(*len.value())?;
-                                            mdata.write_all(&magic_number)?;
+                                            mdata.write_all(magic_number)?;
                                             mdata.write_all(data)?;
 
                                             dec_data = mdata.as_slice().decompress()?;

@@ -1108,8 +1108,8 @@ impl DiagnosticsUI {
                             // If we also have a variant name, select it.
                             if art_set_id_found {
                                 if let Some(variant_filename) = data.get(1) {
-                                    let politician = data.get(2).map(|x| x.parse::<bool>().ok()).flatten().unwrap_or_default();
-                                    let faction_leader = data.get(3).map(|x| x.parse::<bool>().ok()).flatten().unwrap_or_default();
+                                    let politician = data.get(2).and_then(|x| x.parse::<bool>().ok()).unwrap_or_default();
+                                    let faction_leader = data.get(3).and_then(|x| x.parse::<bool>().ok()).unwrap_or_default();
 
                                     let q_string = QString::from_std_str(variant_filename);
                                     for row in 0..view.variants_list_model().row_count_0a() {
@@ -1781,9 +1781,9 @@ impl DiagnosticsUI {
                     .count(),
             }).sum::<usize>();
 
-        diagnostics_ui.diagnostics_button_info.set_text(&QString::from_std_str(format!("({})", info)));
-        diagnostics_ui.diagnostics_button_warning.set_text(&QString::from_std_str(format!("({})", warning)));
-        diagnostics_ui.diagnostics_button_error.set_text(&QString::from_std_str(format!("({})", error)));
+        diagnostics_ui.diagnostics_button_info.set_text(&QString::from_std_str(format!("({info})")));
+        diagnostics_ui.diagnostics_button_warning.set_text(&QString::from_std_str(format!("({warning})")));
+        diagnostics_ui.diagnostics_button_error.set_text(&QString::from_std_str(format!("({error})")));
     }
 
     pub unsafe fn set_tooltips_anim_fragment(items: &[&CppBox<QStandardItem>], report_type: &AnimFragmentBattleDiagnosticReportType) {

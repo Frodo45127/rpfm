@@ -293,7 +293,7 @@ impl GlobalSearch {
         let search_on = self.search_on().clone();
 
         let mut extra_data = DecodeableExtraData::default();
-        extra_data.set_game_info(Some(&game_info));
+        extra_data.set_game_info(Some(game_info));
         let extra_data = Some(extra_data);
 
         match self.source {
@@ -412,7 +412,7 @@ impl GlobalSearch {
         self.replace_possible(matches)?;
 
         let mut extra_data = DecodeableExtraData::default();
-        extra_data.set_game_info(Some(&game_info));
+        extra_data.set_game_info(Some(game_info));
         let extra_data = Some(extra_data);
 
         // If we want to use regex and the pattern is invalid, use normal pattern instead of Regex.

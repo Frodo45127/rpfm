@@ -205,9 +205,7 @@ pub fn draggable_file_tree_view_drop_signal(widget: QPtr<QWidget>) -> Signal<(*c
     unsafe {
         Signal::new(
             ::cpp_core::Ref::from_raw(widget.as_raw_ptr()).expect("attempted to construct a null Ref"),
-            ::std::ffi::CStr::from_bytes_with_nul_unchecked(
-                b"2itemDrop(QModelIndex const &,int)\0",
-            ),
+            c"2itemDrop(QModelIndex const &,int)",
         )
     }
 }
@@ -229,9 +227,7 @@ pub fn main_window_drop_pack_signal(widget: QPtr<QWidget>) -> Signal<(*const ::q
     unsafe {
         Signal::new(
             ::cpp_core::Ref::from_raw(widget.as_raw_ptr()).expect("attempted to construct a null Ref"),
-            ::std::ffi::CStr::from_bytes_with_nul_unchecked(
-                b"2openPack(QStringList const &)\0",
-            ),
+            c"2openPack(QStringList const &)",
         )
     }
 }

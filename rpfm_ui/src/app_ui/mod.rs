@@ -3706,7 +3706,7 @@ impl AppUI {
             item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(tile_map.to_string_lossy())), 20);
             item.set_editable(false);
 
-            let receiver = CENTRAL_COMMAND.send_background(Command::FolderExists(format!("terrain/battles/{}", tile_map_name)));
+            let receiver = CENTRAL_COMMAND.send_background(Command::FolderExists(format!("terrain/battles/{tile_map_name}")));
             let response = CENTRAL_COMMAND.recv_try(&receiver);
             match response {
                 Response::Bool(exists) => if exists {
@@ -3731,7 +3731,7 @@ impl AppUI {
                 item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(tile.to_string_lossy())), 20);
                 item.set_editable(false);
 
-                let receiver = CENTRAL_COMMAND.send_background(Command::FolderExists(format!("terrain/tiles/battle/{}", tile_name)));
+                let receiver = CENTRAL_COMMAND.send_background(Command::FolderExists(format!("terrain/tiles/battle/{tile_name}")));
                 let response = CENTRAL_COMMAND.recv_try(&receiver);
                 match response {
                     Response::Bool(exists) => if exists {
@@ -3902,8 +3902,8 @@ impl AppUI {
             set_setting_bool("remove_unused_variants", remove_unused_variants.is_checked());
             set_setting_bool("remove_empty_masks", remove_empty_masks.is_checked());
 
-            AppUI::purge_them_all(&app_ui, &pack_file_contents_ui, true)?;
-            GlobalSearchUI::clear(&global_search_ui);
+            AppUI::purge_them_all(app_ui, pack_file_contents_ui, true)?;
+            GlobalSearchUI::clear(global_search_ui);
 
             let mut options = OptimizerOptions::default();
             options.set_optimize_datacored_tables(optimize_datacored_tables.is_checked());

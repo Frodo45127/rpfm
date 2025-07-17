@@ -814,7 +814,7 @@ impl TableView {
                 DirBuilder::new().recursive(true).create(&profiles_path)?;
             }
 
-            let profiles_file_name = format!("table_view_profiles_{}.json", table_name);
+            let profiles_file_name = format!("table_view_profiles_{table_name}.json");
             let path = profiles_path.join(profiles_file_name);
             if path.is_file() {
                 let mut file = BufReader::new(File::open(path)?);
@@ -880,7 +880,7 @@ impl TableView {
                 DirBuilder::new().recursive(true).create(&profiles_path)?;
             }
 
-            let profiles_file_name = format!("table_view_profiles_{}.json", table_name);
+            let profiles_file_name = format!("table_view_profiles_{table_name}.json");
             let path = profiles_path.join(profiles_file_name);
             let mut file = BufWriter::new(File::create(path)?);
             file.write_all(serde_json::to_string_pretty(&profiles_data)?.as_bytes())?;

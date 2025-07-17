@@ -223,7 +223,7 @@ impl PackTranslation {
     }
 
     fn load_json(path: &Path, pack_name: &str, game_key: &str, language: &str) -> Result<Self> {
-        let path = path.join(format!("{}/{}/{}.json", game_key, pack_name, language));
+        let path = path.join(format!("{game_key}/{pack_name}/{language}.json"));
         let mut file = BufReader::new(File::open(path)?);
         let mut data = Vec::with_capacity(file.get_ref().metadata()?.len() as usize);
         file.read_to_end(&mut data)?;
