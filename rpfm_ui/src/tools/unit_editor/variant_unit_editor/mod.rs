@@ -128,7 +128,6 @@ pub struct SubToolVariantUnitEditor {
     unit_variants_colours_list_model: QBox<QStandardItemModel>,
 
     unit_variants_unit_card_preview_label: QPtr<QLabel>,
-    unit_variants_unit_card_label: QPtr<QLabel>,
     unit_variants_unit_card_combobox: QPtr<QComboBox>,
 
     unit_variants_colours_faction_combobox: QPtr<QComboBox>,
@@ -139,7 +138,6 @@ pub struct SubToolVariantUnitEditor {
     unit_variants_colours_secondary_colour_combobox: QPtr<QComboBox>,
     unit_variants_colours_tertiary_colour_combobox: QPtr<QComboBox>,
 
-    variants_mesh_editor_main_widget: QPtr<QWidget>,
     variants_mesh_editor: QBox<QWidget>,
     variants_variant_filename_combobox: QPtr<QComboBox>,
 
@@ -202,7 +200,6 @@ impl SubToolVariantUnitEditor {
 
         // Icon stuff.
         let unit_variants_unit_card_preview_label: QPtr<QLabel> = Tool::find_widget_no_tool(&tool.main_widget().static_upcast(),"unit_variants_unit_card_preview_label")?;
-        let unit_variants_unit_card_label: QPtr<QLabel> = Tool::find_widget_no_tool(&tool.main_widget().static_upcast(),"unit_variants_unit_card_label")?;
         let unit_variants_unit_card_combobox: QPtr<QComboBox> = Tool::find_widget_no_tool(&tool.main_widget().static_upcast(),"unit_variants_unit_card_combobox")?;
 
         let unit_variants_colours_faction_combobox: QPtr<QComboBox> = tool.find_widget("unit_variants_colours_faction_combobox")?;
@@ -275,7 +272,6 @@ impl SubToolVariantUnitEditor {
             unit_variants_colours_list_model,
 
             unit_variants_unit_card_preview_label,
-            unit_variants_unit_card_label,
             unit_variants_unit_card_combobox,
 
             unit_variants_colours_faction_combobox,
@@ -286,7 +282,6 @@ impl SubToolVariantUnitEditor {
             unit_variants_colours_secondary_colour_combobox,
             unit_variants_colours_tertiary_colour_combobox,
 
-            variants_mesh_editor_main_widget,
             variants_mesh_editor,
             variants_variant_filename_combobox,
 
