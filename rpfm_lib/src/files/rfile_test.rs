@@ -27,19 +27,22 @@ fn test_encode_rfile() {
 
     let games = SupportedGames::default();
     let game = games.game(KEY_WARHAMMER_3).unwrap();
-    let mut decodeable_extra_data = DecodeableExtraData::default();
-    decodeable_extra_data.lazy_load = true;
-    decodeable_extra_data.game_info = Some(game);
-    decodeable_extra_data.file_name = Some("test_decode_rfile.pack");
+    let mut dec_extra_data = DecodeableExtraData::default();
+    dec_extra_data.lazy_load = true;
+    dec_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
+    dec_extra_data.game_info = Some(game);
+
+    let mut pack_dec_extra_data = dec_extra_data.clone();
+    pack_dec_extra_data.disk_file_path = Some(path_1);
 
     let mut rfile = RFile::new_from_file(path_1).unwrap();
     rfile.file_type = FileType::Pack;
-    let mut decoded = rfile.decode(&Some(decodeable_extra_data.clone()), false, true).unwrap().unwrap();
+    let mut decoded = rfile.decode(&Some(pack_dec_extra_data.clone()), false, true).unwrap().unwrap();
 
     match decoded {
         RFileDecoded::Pack(ref mut pack) => {
             for file in pack.files_mut().values_mut() {
-                file.decode(&Some(decodeable_extra_data.clone()), true, true).unwrap();
+                file.decode(&Some(dec_extra_data.clone()), true, true).unwrap();
             }
 
             let mut encodeable_extra_data = EncodeableExtraData::new_from_game_info(game);
@@ -55,5 +58,4 @@ fn test_encode_rfile() {
         }
         _ => panic!("Incorrect file type"),
     }
-
 }
