@@ -6,6 +6,27 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [4.5.2]
+### Added
+- Implemented selectable behaviors when loading a line for translation in the Translator.
+- Implemented selectable behaviors when saving a translation in the Translator.
+- Implemented edition support for .log and .xt files.
+- The optimizer now has some of its features toggleable.
+- Implemented new "Remove empty masks" optimization, which removes PortraitSettings masks that point to `empty_mask.png`, reducing the PortraitSettings file size.
+- Implemented support for automatically translate lines in the Translator with ChatGPT, though you must provide your own OpenAI API key with some budget in the settings in order to be able to use it.
+
+### Changed
+- Duplicated combined keys error has been demoted to warning.
+- Small optimizations for the translator when dealing with large loc data sets.
+- `Optimize datacored tables` setting has been moved to the optimizer options.
+
+### Fixed
+- Fixed dependencies v2 reserved file showing up in the UI sometimes due to an incorrect cleanup.
+- Fixed dbs and locs not being marked as compressable in situations where they can be compressed.
+- Fixed .wem files not being marked as audio, which was causing them to be compressed when they shouldn't.
+- Fixed test testing test files incorrectly.
+- Fixed error when reading compressed animpacks directly from the pack.``
+
 ## [4.5.1]
 ### Fixed
 - Fixed false positives in diagnostics when triggering a diagnostic check with a cache that doesn't have assembly kit data on it.
@@ -1632,7 +1653,9 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.5.0...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.5.2...HEAD
+[4.5.2]: https://github.com/Frodo45127/rpfm/compare/v4.5.1...v4.5.2
+[4.5.1]: https://github.com/Frodo45127/rpfm/compare/v4.5.0...v4.5.1
 [4.5.0]: https://github.com/Frodo45127/rpfm/compare/v4.4.5...v4.5.0
 [4.4.5]: https://github.com/Frodo45127/rpfm/compare/v4.4.4...v4.4.5
 [4.4.4]: https://github.com/Frodo45127/rpfm/compare/v4.4.3...v4.4.4
