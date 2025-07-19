@@ -292,7 +292,7 @@ impl TextDiagnostic {
 
                         // Add the files from the dependencies, then the files from the pack, then reverse the list so we process first the pack ones.
                         if let Ok(mut tables) = dependencies.db_data(&table_name, true, true) {
-                            tables.append(&mut pack.files_by_path(&ContainerPath::File("db/".to_string() + &table_name + "/"), true));
+                            tables.append(&mut pack.files_by_path(&ContainerPath::Folder("db/".to_string() + &table_name + "/"), true));
                             tables.reverse();
 
                             // If there are no tables that match out name, ignore it.
