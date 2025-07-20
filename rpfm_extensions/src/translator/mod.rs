@@ -81,6 +81,15 @@ impl PackTranslation {
             tr
         });
 
+        // If the pack has dependencies, we have to try to load their translations too, then patch the live dependencies with them.
+        // Otherwise, we'll have a situation where data is compared and imported from the wrong language.
+        let mut parent_tr = vec![];
+        for (_, pack_name) in pack.dependencies() {
+            if let Ok(ptr) = Self::load(paths, pack_name, game_key, language) {
+                parent_tr.push(ptr);
+            }
+        }
+
         // Once we got the previous translation loaded, get the files to translate from the Pack, updating our translation.
         let mut locs = pack.files_by_type(&[FileType::Loc]);
         let merged_loc = Self::sort_and_merge_locs_for_translation(&mut locs)?;
@@ -127,8 +136,20 @@ impl PackTranslation {
             }
         }
 
-        // Lastly, we do an auto-translation pass.
+        // Lastly, we do an auto-translation pass. We have two copies of base local: one normal and one patched with parent translations.
+        // This is needed because the base localisation data doesn't have the translation data for parent mods included.
         let base_local = dependencies.localisation_data();
+        let mut base_local_tr = base_local.clone();
+        for ptr in parent_tr {
+            for (key, val) in ptr.translations() {
+                if !*val.needs_retranslation() && !val.value_translated().is_empty() {
+                    if let Some(ptr_val) = base_local_tr.get_mut(key) {
+                        *ptr_val = val.value_translated().to_string();
+                    }
+                }
+            }
+        }
+
         for (tr_key, tr) in translations.translations_mut() {
             if !tr.removed {
 
@@ -146,21 +167,25 @@ impl PackTranslation {
                         if let Some(vanilla_data) = base_local_fixes.get(tr_key) {
                             tr.value_translated = vanilla_data.to_owned();
                             tr.needs_retranslation = false;
-                        } else if let Some(vanilla_data) = base_local.get(tr_key) {
+                        } else if let Some(vanilla_data) = base_local_tr.get(tr_key) {
                             tr.value_translated = vanilla_data.to_owned();
                             tr.needs_retranslation = false;
                         }
                     }
                 }
 
-                // If the value is equal to another value in the english translation (but with a different key), just copy the same translation that one uses.
+                // If the value is equal to another value in the english translation (but with a different key), we may be able to reuse it.
+                //
+                // Note that this is prone to give wrong translations as it doesn't have any context, so we only do it for lines that are not yet translated.
                 else if let Some((key, _)) = base_english.iter().find(|(_, value)| *value == tr.value_original()) {
-                    if let Some(value_tr) = base_local_fixes.get(key) {
-                        tr.value_translated = value_tr.to_owned();
-                        tr.needs_retranslation = false;
-                    } else if let Some(value_tr) = base_local.get(key) {
-                        tr.value_translated = value_tr.to_owned();
-                        tr.needs_retranslation = false;
+                    if tr.value_translated().trim().is_empty() {
+                        if let Some(value_tr) = base_local_fixes.get(key) {
+                            tr.value_translated = value_tr.to_owned();
+                            tr.needs_retranslation = false;
+                        } else if let Some(value_tr) = base_local_tr.get(key) {
+                            tr.value_translated = value_tr.to_owned();
+                            tr.needs_retranslation = false;
+                        }
                     }
                 }
             }
