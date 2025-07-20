@@ -10,6 +10,7 @@
 
 use getset::{Getters, MutGetters, Setters};
 use itertools::Itertools;
+use rayon::prelude::*;
 use serde::{Serialize as SerdeSerialize, Serializer};
 use serde_derive::{Serialize, Deserialize};
 
@@ -93,20 +94,16 @@ impl PackTranslation {
         // Once we got the previous translation loaded, get the files to translate from the Pack, updating our translation.
         let mut locs = pack.files_by_type(&[FileType::Loc]);
         let merged_loc = Self::sort_and_merge_locs_for_translation(&mut locs)?;
+        let merged_loc_data = merged_loc.data();
+        let merged_loc_hash = merged_loc_data
+            .par_iter()
+            .map(|x| (x[0].data_to_string(), x[1].data_to_string()))
+            .collect::<HashMap<_,_>>();
 
         // Once we have the clean list of loc entries we have in our Pack, we need to update the translation with it.
         // First we do a pass to mark all removed translations as such. This is separated from the rest because this pass is way slower than the rest.
         for (tr_key, tr) in translations.translations_mut() {
-            let mut found = false;
-            for row in merged_loc.data().iter() {
-                let key = row[0].data_to_string();
-                if tr_key == &key {
-                    found = true;
-                    break;
-                }
-            }
-
-            tr.removed = !found;
+            tr.removed = !merged_loc_hash.contains_key(&**tr_key);
         }
 
         // Next, we update the translations data with the loc data of the merged loc.
@@ -138,8 +135,7 @@ impl PackTranslation {
 
         // Lastly, we do an auto-translation pass. We have two copies of base local: one normal and one patched with parent translations.
         // This is needed because the base localisation data doesn't have the translation data for parent mods included.
-        let base_local = dependencies.localisation_data();
-        let mut base_local_tr = base_local.clone();
+        let mut base_local_tr = dependencies.localisation_data().clone();
         for ptr in parent_tr {
             for (key, val) in ptr.translations() {
                 if !*val.needs_retranslation() && !val.value_translated().is_empty() {
@@ -150,7 +146,7 @@ impl PackTranslation {
             }
         }
 
-        for (tr_key, tr) in translations.translations_mut() {
+        translations.translations_mut().par_iter_mut().for_each(|(tr_key, tr)| {
             if !tr.removed {
 
                 // Mark empty lines as translated.
@@ -177,8 +173,8 @@ impl PackTranslation {
                 // If the value is equal to another value in the english translation (but with a different key), we may be able to reuse it.
                 //
                 // Note that this is prone to give wrong translations as it doesn't have any context, so we only do it for lines that are not yet translated.
-                else if let Some((key, _)) = base_english.iter().find(|(_, value)| *value == tr.value_original()) {
-                    if tr.value_translated().trim().is_empty() {
+                else if tr.value_translated().trim().is_empty() {
+                    if let Some((key, _)) = base_english.iter().find(|(_, value)| *value == tr.value_original()) {
                         if let Some(value_tr) = base_local_fixes.get(key) {
                             tr.value_translated = value_tr.to_owned();
                             tr.needs_retranslation = false;
@@ -189,7 +185,7 @@ impl PackTranslation {
                     }
                 }
             }
-        }
+        });
 
         Ok(translations)
     }
