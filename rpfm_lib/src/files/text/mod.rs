@@ -34,6 +34,7 @@
 //! | `.csv`                   | `Plain`    | Normal CSV file.                            |
 //! | `.css`                   | `Css`      | Normal CSS file.                            |
 //! | `.environment`           | `Xml`      |                                             |
+//! | `.glsl`                  | `Cpp`      | GLSL shader source file.                    |
 //! | `.htm`                   | `Html`     | Normal HTML file.                           |
 //! | `.html`                  | `Html`     | Normal HTML file.                           |
 //! | `.inl`                   | `Cpp`      |                                             |
@@ -84,7 +85,7 @@ const BOM_UTF_8: [u8;3] = [0xEF,0xBB,0xBF];
 const BOM_UTF_16_LE: [u8;2] = [0xFF,0xFE];
 
 /// List of extensions we recognize as `Text` files, with their respective known format.
-pub const EXTENSIONS: [(&str, TextFormat); 62] = [
+pub const EXTENSIONS: [(&str, TextFormat); 63] = [
     (".agf", TextFormat::Plain),
     (".bat", TextFormat::Bat),
     (".battle_script", TextFormat::Lua),
@@ -104,6 +105,7 @@ pub const EXTENSIONS: [(&str, TextFormat); 62] = [
     (".fbx", TextFormat::Plain),
     (".fx", TextFormat::Cpp),
     (".fx_fragment", TextFormat::Cpp),
+    (".glsl", TextFormat::Cpp),
     (".h", TextFormat::Cpp),
     (".hlsl", TextFormat::Hlsl),
     (".htm", TextFormat::Html),
