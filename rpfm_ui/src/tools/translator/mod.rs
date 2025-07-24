@@ -421,8 +421,16 @@ impl ToolTranslator {
         let translated_value_item = self.table.table_model().item_2a(index.row(), 4);
         let needs_retranslation = self.table.table_model().item_2a(index.row(), 1).check_state() == CheckState::Checked;
 
-        self.original_value_textedit.set_text(&original_value_item.text());
-        self.translated_value_textedit.set_text(&translated_value_item.text());
+        let mut source_text = original_value_item.text().to_std_string();
+        source_text = source_text.replace("||", "\n||\n");
+        source_text = source_text.replace("\\\\n", "\n");
+
+        let mut translated_text = translated_value_item.text().to_std_string();
+        translated_text = translated_text.replace("||", "\n||\n");
+        translated_text = translated_text.replace("\\\\n", "\n");
+
+        self.original_value_textedit.set_text(&QString::from_std_str(&source_text));
+        self.translated_value_textedit.set_text(&QString::from_std_str(&translated_text));
 
         // Update the row in edition.
         *self.current_row.write().unwrap() = Some(index.row());
@@ -433,13 +441,13 @@ impl ToolTranslator {
             if self.chatgpt_radio_button().is_checked() {
                 let language = self.map_language_to_natural();
                 let context = self.context_line_edit().text().to_std_string();
-                let result = Self::ask_chat_gpt(&original_value_item.text().to_std_string(), &language, &context);
+                let result = Self::ask_chat_gpt(&source_text, &language, &context);
                 if let Ok(tr) = result {
                     self.translated_value_textedit.set_text(&QString::from_std_str(tr));
                 }
             } else if self.google_translate_radio_button().is_checked() {
                 let language = self.map_language_to_google();
-                let result = Self::ask_google(&original_value_item.text().to_std_string(), &language);
+                let result = Self::ask_google(&source_text, &language);
                 if let Ok(tr) = result {
                     self.translated_value_textedit.set_text(&QString::from_std_str(tr));
                 }
@@ -456,7 +464,7 @@ impl ToolTranslator {
 
             let old_value_item = self.table.table_model().item_2a(current_row, 4);
             let old_value = old_value_item.text().to_std_string();
-            let new_value = self.translated_value_textedit.to_plain_text().to_std_string();
+            let mut new_value = self.translated_value_textedit.to_plain_text().to_std_string();
 
             // If we have a new translation, save it and remove the "needs_retranslation" flag.
             if !new_value.is_empty() && new_value != old_value {
@@ -474,6 +482,10 @@ impl ToolTranslator {
                             let og_value_item = self.table.table_model().item_2a(row, 3);
                             if og_value_item.data_1a(2).to_string().compare_q_string(&original_value_item_qstr) == 0 {
                                 let translated_value_item = self.table.table_model().item_2a(row, 4);
+
+                                new_value = new_value.replace("\n||\n", "||");
+                                new_value = new_value.replace("\n", "\\\\n");
+
                                 translated_value_item.set_text(&QString::from_std_str(&new_value));
 
                                 // Unmark it from retranslations.
