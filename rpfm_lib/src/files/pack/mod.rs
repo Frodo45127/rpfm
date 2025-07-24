@@ -1104,7 +1104,12 @@ impl Pack {
         // We only need to change stuff inside the map folder, so we only check the maps in that folder.
         for file in self.files_by_path_mut(&ContainerPath::Folder(TERRY_MAP_PATH.to_owned()), true) {
             let path = file.path_in_container_raw();
-            let name = &path[path.rfind('/').unwrap_or(0)..];
+            let idx = path.rfind('/').unwrap_or(0);
+            let name = if path.get(idx + 1..).is_some() {
+                &path[idx + 1..]
+            } else {
+                continue
+            };
 
             // The files we need to process are `bmd_data.bin` and all the `catchment_` files the map has.
             if name == DEFAULT_BMD_DATA || (name.starts_with("catchment_") && name.ends_with(".bin")) {
