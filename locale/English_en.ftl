@@ -1711,3 +1711,6 @@ context = Context
 settings_ai_title = AI Settings
 settings_ai_openai_api_key = OpenAI API Key:
 tt_ai_openai_api_key_tip = OpenAI API Key. You must get one from OpenAI's website.
+
+translator_translate_with_chatgpt = Translate with ChatGPT
+translator_translate_with_google = Translate with Google Translate

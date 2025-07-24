@@ -112,6 +112,8 @@ pub struct ToolTranslator {
 
     move_selection_up: QPtr<QToolButton>,
     move_selection_down: QPtr<QToolButton>,
+    translate_with_chatgpt: QPtr<QToolButton>,
+    translate_with_google: QPtr<QToolButton>,
     copy_from_source: QPtr<QToolButton>,
     import_from_translated_pack: QPtr<QToolButton>,
 
@@ -313,10 +315,14 @@ impl ToolTranslator {
 
         let move_selection_up: QPtr<QToolButton> = tool.find_widget("move_selection_up")?;
         let move_selection_down: QPtr<QToolButton> = tool.find_widget("move_selection_down")?;
+        let translate_with_chatgpt: QPtr<QToolButton> = tool.find_widget("translate_with_chatgpt")?;
+        let translate_with_google: QPtr<QToolButton> = tool.find_widget("translate_with_google")?;
         let copy_from_source: QPtr<QToolButton> = tool.find_widget("copy_from_source")?;
         let import_from_translated_pack: QPtr<QToolButton> = tool.find_widget("import_from_translated_pack")?;
         move_selection_up.set_tool_tip(&qtr("translator_move_selection_up"));
         move_selection_down.set_tool_tip(&qtr("translator_move_selection_down"));
+        translate_with_chatgpt.set_tool_tip(&qtr("translator_translate_with_chatgpt"));
+        translate_with_google.set_tool_tip(&qtr("translator_translate_with_google"));
         copy_from_source.set_tool_tip(&qtr("translator_copy_from_source"));
         import_from_translated_pack.set_tool_tip(&qtr("translator_import_from_translated_pack"));
 
@@ -346,6 +352,8 @@ impl ToolTranslator {
             action_import_from_translated_pack,
             move_selection_up,
             move_selection_down,
+            translate_with_chatgpt,
+            translate_with_google,
             copy_from_source,
             import_from_translated_pack,
             original_value_textedit,

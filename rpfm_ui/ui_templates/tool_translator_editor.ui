@@ -181,7 +181,7 @@
              </item>
              <item row="0" column="0">
               <widget class="QWidget" name="widget_2" native="true">
-               <layout class="QGridLayout" name="gridLayout_9" rowstretch="0,0,0,0,0,0,1" columnstretch="0,1,0">
+               <layout class="QGridLayout" name="gridLayout_9" rowstretch="0,0,0,0,0,0,1" columnstretch="0,1">
                 <item row="6" column="0">
                  <widget class="QWidget" name="widget_4" native="true"/>
                 </item>
@@ -269,7 +269,7 @@
           </property>
           <item row="0" column="0">
            <widget class="QWidget" name="aliexpress_toolbar" native="true">
-            <layout class="QGridLayout" name="gridLayout_7" rowstretch="0,0,0,0">
+            <layout class="QGridLayout" name="gridLayout_7" rowstretch="0,0,0,0,0,0,0,0,0,0">
              <property name="leftMargin">
               <number>2</number>
              </property>
@@ -285,8 +285,36 @@
              <property name="spacing">
               <number>2</number>
              </property>
-             <item row="0" column="0">
-              <widget class="QToolButton" name="move_selection_up">
+             <item row="4" column="0">
+              <widget class="QToolButton" name="translate_with_google">
+               <property name="minimumSize">
+                <size>
+                 <width>30</width>
+                 <height>30</height>
+                </size>
+               </property>
+               <property name="text">
+                <string>GO</string>
+               </property>
+               <property name="iconSize">
+                <size>
+                 <width>22</width>
+                 <height>22</height>
+                </size>
+               </property>
+              </widget>
+             </item>
+             <item row="9" column="0">
+              <widget class="QWidget" name="widget_6" native="true"/>
+             </item>
+             <item row="1" column="0">
+              <widget class="QToolButton" name="move_selection_down">
+               <property name="minimumSize">
+                <size>
+                 <width>30</width>
+                 <height>30</height>
+                </size>
+               </property>
                <property name="text">
                 <string>...</string>
                </property>
@@ -297,12 +325,18 @@
                 </size>
                </property>
                <property name="arrowType">
-                <enum>Qt::UpArrow</enum>
+                <enum>Qt::DownArrow</enum>
                </property>
               </widget>
              </item>
-             <item row="3" column="0">
+             <item row="7" column="0">
               <widget class="QToolButton" name="import_from_translated_pack">
+               <property name="minimumSize">
+                <size>
+                 <width>30</width>
+                 <height>30</height>
+                </size>
+               </property>
                <property name="text">
                 <string/>
                </property>
@@ -318,24 +352,14 @@
                </property>
               </widget>
              </item>
-             <item row="1" column="0">
-              <widget class="QToolButton" name="move_selection_down">
-               <property name="text">
-                <string>...</string>
-               </property>
-               <property name="iconSize">
+             <item row="5" column="0">
+              <widget class="QToolButton" name="copy_from_source">
+               <property name="minimumSize">
                 <size>
-                 <width>22</width>
-                 <height>22</height>
+                 <width>30</width>
+                 <height>30</height>
                 </size>
                </property>
-               <property name="arrowType">
-                <enum>Qt::DownArrow</enum>
-               </property>
-              </widget>
-             </item>
-             <item row="2" column="0">
-              <widget class="QToolButton" name="copy_from_source">
                <property name="text">
                 <string/>
                </property>
@@ -348,6 +372,61 @@
                  <width>22</width>
                  <height>22</height>
                 </size>
+               </property>
+              </widget>
+             </item>
+             <item row="3" column="0">
+              <widget class="QToolButton" name="translate_with_chatgpt">
+               <property name="minimumSize">
+                <size>
+                 <width>30</width>
+                 <height>30</height>
+                </size>
+               </property>
+               <property name="text">
+                <string>GP</string>
+               </property>
+               <property name="iconSize">
+                <size>
+                 <width>22</width>
+                 <height>22</height>
+                </size>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="0">
+              <widget class="QToolButton" name="move_selection_up">
+               <property name="minimumSize">
+                <size>
+                 <width>30</width>
+                 <height>30</height>
+                </size>
+               </property>
+               <property name="text">
+                <string>...</string>
+               </property>
+               <property name="iconSize">
+                <size>
+                 <width>22</width>
+                 <height>22</height>
+                </size>
+               </property>
+               <property name="arrowType">
+                <enum>Qt::UpArrow</enum>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="0">
+              <widget class="Line" name="line">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+              </widget>
+             </item>
+             <item row="6" column="0">
+              <widget class="Line" name="line_2">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
                </property>
               </widget>
              </item>
