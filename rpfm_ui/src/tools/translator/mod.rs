@@ -564,6 +564,7 @@ impl ToolTranslator {
 
         // Prepare a request to generate a text completion.
         let mut prompt = format!("Translate the sentence after #### to {language}, keeping the translation as close to the original in tone and style as you can.");
+        prompt.push_str(" Preserve the following parts of the text in the translation: any text delimited with '[[' and ']]', '||', jumplines and tabulations. ");
         if !context.is_empty() {
             prompt.push_str(&format!(" For context, use the following info: {context}. #### "));
         }
