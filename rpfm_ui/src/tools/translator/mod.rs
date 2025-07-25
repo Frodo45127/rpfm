@@ -85,8 +85,8 @@ const TOOL_SUPPORTED_GAMES: [&str; 13] = [
 ];
 
 const REGEX_COLOR: LazyCell<Regex> = LazyCell::new(|| Regex::new(r"\[\[col:(.*?)]](.*?)\[\[/col]]").unwrap());
-const REGEX_RGBA: LazyCell<Regex> = LazyCell::new(|| Regex::new(r"\[\[rgba:(.*?):(.*?):(.*?):(.*?)]](.*?)\[\[/rgba]]").unwrap());
-const REGEX_RGB: LazyCell<Regex> = LazyCell::new(|| Regex::new(r"\[\[rgba:(.*?):(.*?):(.*?)]](.*?)\[\[/rgba]]").unwrap());
+const REGEX_RGBA: LazyCell<Regex> = LazyCell::new(|| Regex::new(r"\[\[rgba:(\d+?):(\d+?):(\d+?):(\d+?)]]([^\[\]].*?)\[\[/rgba([0-9:]*?)]]").unwrap());
+const REGEX_RGB: LazyCell<Regex> = LazyCell::new(|| Regex::new(r"\[\[rgba:(\d+?):(\d+?):(\d+?)]]([^\[\]].*?)\[\[/rgba([0-9:]*?)]]").unwrap());
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
