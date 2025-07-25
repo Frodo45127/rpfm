@@ -102,6 +102,7 @@ pub struct ToolTranslator {
     // Row being edited. We don't trust the selection as it may be bugged/not work.
     current_row: Arc<RwLock<Option<i32>>>,
 
+    colors: HashMap<String, String>,
     language_combobox: QPtr<QComboBox>,
 
     chatgpt_radio_button: QPtr<QRadioButton>,
@@ -241,6 +242,40 @@ impl ToolTranslator {
             }
         };
 
+        // Get the list of colours supported by the game. They're in the ui_colours table in the modern games.
+        let mut colors = HashMap::new();
+        let receiver = CENTRAL_COMMAND.send_background(Command::GetRFilesFromAllSources(vec![ContainerPath::Folder("db/ui_colours_tables".to_owned())], false));
+        let response = CentralCommand::recv(&receiver);
+        match response {
+            Response::HashMapDataSourceHashMapStringRFile(mut files) => {
+                let mut files_merge = HashMap::new();
+                if let Some(files) = files.remove(&DataSource::GameFiles) {
+                    files_merge.extend(files);
+                }
+
+                if let Some(files) = files.remove(&DataSource::ParentFiles) {
+                    files_merge.extend(files);
+                }
+
+                if let Some(files) = files.remove(&DataSource::PackFile) {
+                    files_merge.extend(files);
+                }
+
+                for (_, rfile) in files_merge {
+                    if let Ok(RFileDecoded::DB(table)) = rfile.decoded() {
+                        if let Some(key_col) = table.column_position_by_name("key") {
+                            if let Some(col_col) = table.column_position_by_name("unnamed colour group_1") {
+                                for row in table.data().iter() {
+                                    colors.insert(row[key_col].data_to_string().to_string(), row[col_col].data_to_string().to_string());
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+        };
+
         // Check if the repo needs updating, and update it if so.
         let receiver = CENTRAL_COMMAND.send_network(Command::CheckTranslationsUpdates);
         let response_thread = CENTRAL_COMMAND.recv_try(&receiver);
@@ -351,6 +386,7 @@ impl ToolTranslator {
             pack_tr: Arc::new(data),
             table,
             current_row: Arc::new(RwLock::new(None)),
+            colors,
             language_combobox,
             context_line_edit,
             chatgpt_radio_button,
@@ -681,14 +717,20 @@ impl ToolTranslator {
     }
 
     /// Util to format a value into an html string we can use in the translator's UI.
-    fn to_html(str: &str) -> String {
+    fn to_html(&self, str: &str) -> String {
         let mut html = str.to_string();
 
         html = html.replace("||", "<br/>");
         html = html.replace("\n", "<br/>");
         html = html.replace("\\\\t", "\t");
 
-        html = REGEX_COLOR.replace_all(&html, "<span style='color:$1;'>$2</span>").to_string();
+        // In older games there's no colours table, so we use the colour value directly.
+        html = REGEX_COLOR.replace_all(&html, |caps: &Captures| {
+            let color = self.colors().get(&caps[1])
+                .map_or(&caps[1], |v| v);
+
+            format!("<span style='color:#{color};'>{}</span>", &caps[2])
+        }).to_string();
 
         // Limit alpha to 0.25, because otherwise we get invisible text that's visible in the game.
         html = REGEX_RGBA.replace_all(&html, |caps: &Captures| {

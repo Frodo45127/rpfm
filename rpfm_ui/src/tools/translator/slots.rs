@@ -197,7 +197,7 @@ impl ToolTranslatorSlots {
             ui => move || {
                 info!("Triggering 'update_preview_original' for Translator.");
 
-                ui.original_value_html().set_text(&QString::from_std_str(ToolTranslator::to_html(&ui.original_value_textedit().to_plain_text().to_std_string())));
+                ui.original_value_html().set_text(&QString::from_std_str(ui.to_html(&ui.original_value_textedit().to_plain_text().to_std_string())));
             }
         ));
 
@@ -205,7 +205,7 @@ impl ToolTranslatorSlots {
             ui => move || {
                 info!("Triggering 'update_preview_translated' for Translator.");
 
-                ui.translated_value_html().set_text(&QString::from_std_str(ToolTranslator::to_html(&ui.translated_value_textedit().to_plain_text().to_std_string())));
+                ui.translated_value_html().set_text(&QString::from_std_str(ui.to_html(&ui.translated_value_textedit().to_plain_text().to_std_string())));
             }
         ));
 
