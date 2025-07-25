@@ -436,6 +436,13 @@
           <item row="0" column="1">
            <widget class="QTextEdit" name="translated_value_textedit"/>
           </item>
+          <item row="0" column="2">
+           <widget class="KTextEdit" name="translated_value_html">
+            <property name="readOnly">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
          </layout>
         </widget>
        </item>
@@ -461,7 +468,18 @@
            <number>2</number>
           </property>
           <item row="0" column="0">
-           <widget class="QTextEdit" name="original_value_textedit"/>
+           <widget class="QTextEdit" name="original_value_textedit">
+            <property name="readOnly">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="KTextEdit" name="original_value_html">
+            <property name="readOnly">
+             <bool>true</bool>
+            </property>
+           </widget>
           </item>
          </layout>
         </widget>
@@ -495,6 +513,11 @@
    <class>KLineEdit</class>
    <extends>QLineEdit</extends>
    <header>klineedit.h</header>
+  </customwidget>
+  <customwidget>
+   <class>KTextEdit</class>
+   <extends>QTextEdit</extends>
+   <header>ktextedit.h</header>
   </customwidget>
   <customwidget>
    <class>KMessageWidget</class>

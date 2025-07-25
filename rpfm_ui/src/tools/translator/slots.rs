@@ -36,6 +36,8 @@ pub struct ToolTranslatorSlots {
     translate_with_google: QBox<SlotNoArgs>,
     copy_from_source: QBox<SlotNoArgs>,
     import_from_translated_pack: QBox<SlotNoArgs>,
+    update_preview_original: QBox<SlotNoArgs>,
+    update_preview_translated: QBox<SlotNoArgs>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -191,6 +193,22 @@ impl ToolTranslatorSlots {
             }
         ));
 
+        let update_preview_original = SlotNoArgs::new(ui.tool.main_widget(), clone!(
+            ui => move || {
+                info!("Triggering 'update_preview_original' for Translator.");
+
+                ui.original_value_html().set_text(&QString::from_std_str(ToolTranslator::to_html(&ui.original_value_textedit().to_plain_text().to_std_string())));
+            }
+        ));
+
+        let update_preview_translated = SlotNoArgs::new(ui.tool.main_widget(), clone!(
+            ui => move || {
+                info!("Triggering 'update_preview_translated' for Translator.");
+
+                ui.translated_value_html().set_text(&QString::from_std_str(ToolTranslator::to_html(&ui.translated_value_textedit().to_plain_text().to_std_string())));
+            }
+        ));
+
         ToolTranslatorSlots {
             load_data_to_detailed_view,
             move_selection_up,
@@ -199,6 +217,8 @@ impl ToolTranslatorSlots {
             translate_with_google,
             copy_from_source,
             import_from_translated_pack,
+            update_preview_original,
+            update_preview_translated,
         }
     }
 }

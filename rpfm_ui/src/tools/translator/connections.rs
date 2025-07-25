@@ -37,6 +37,9 @@ pub unsafe fn set_connections(ui: &ToolTranslator, slots: &ToolTranslatorSlots) 
     ui.action_copy_from_source().triggered().connect(slots.copy_from_source());
     ui.action_import_from_translated_pack().triggered().connect(slots.import_from_translated_pack());
 
+    ui.original_value_textedit().text_changed().connect(slots.update_preview_original());
+    ui.translated_value_textedit().text_changed().connect(slots.update_preview_translated());
+
     ui.tool.button_box.button(StandardButton::Cancel).released().connect(ui.tool.get_ref_dialog().slot_close());
     ui.tool.button_box.button(StandardButton::Ok).released().connect(ui.tool.get_ref_dialog().slot_accept());
 }

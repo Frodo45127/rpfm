@@ -32,8 +32,10 @@ use anyhow::anyhow;
 use chat_gpt_lib_rs::api_resources::{completions::{create_completion, CreateCompletionRequest, PromptInput}, models::Model};
 use chat_gpt_lib_rs::OpenAIClient;
 use getset::*;
+use regex::{Captures, Regex};
 use serde_json::Value;
 
+use std::cell::LazyCell;
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
@@ -82,6 +84,10 @@ const TOOL_SUPPORTED_GAMES: [&str; 13] = [
     KEY_EMPIRE,
 ];
 
+const REGEX_COLOR: LazyCell<Regex> = LazyCell::new(|| Regex::new(r"\[\[col:(.*?)]](.*?)\[\[/col]]").unwrap());
+const REGEX_RGBA: LazyCell<Regex> = LazyCell::new(|| Regex::new(r"\[\[rgba:(.*?):(.*?):(.*?):(.*?)]](.*?)\[\[/rgba]]").unwrap());
+const REGEX_RGB: LazyCell<Regex> = LazyCell::new(|| Regex::new(r"\[\[rgba:(.*?):(.*?):(.*?)]](.*?)\[\[/rgba]]").unwrap());
+
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
@@ -117,7 +123,9 @@ pub struct ToolTranslator {
     copy_from_source: QPtr<QToolButton>,
     import_from_translated_pack: QPtr<QToolButton>,
 
+    original_value_html: QPtr<QTextEdit>,
     original_value_textedit: QPtr<QTextEdit>,
+    translated_value_html: QPtr<QTextEdit>,
     translated_value_textedit: QPtr<QTextEdit>,
 }
 
@@ -331,7 +339,9 @@ impl ToolTranslator {
         let action_copy_from_source = add_action_to_widget(app_ui.shortcuts().as_ref(), "translator", "copy_from_source", Some(table.table_view().static_upcast()));
         let action_import_from_translated_pack = add_action_to_widget(app_ui.shortcuts().as_ref(), "translator", "import_from_translated_pack", Some(table.table_view().static_upcast()));
 
+        let original_value_html: QPtr<QTextEdit> = tool.find_widget("original_value_html")?;
         let original_value_textedit: QPtr<QTextEdit> = tool.find_widget("original_value_textedit")?;
+        let translated_value_html: QPtr<QTextEdit> = tool.find_widget("translated_value_html")?;
         let translated_value_textedit: QPtr<QTextEdit> = tool.find_widget("translated_value_textedit")?;
 
         // Build the view itself.
@@ -356,7 +366,9 @@ impl ToolTranslator {
             translate_with_google,
             copy_from_source,
             import_from_translated_pack,
+            original_value_html,
             original_value_textedit,
+            translated_value_html,
             translated_value_textedit,
         });
 
@@ -671,5 +683,39 @@ impl ToolTranslator {
         }
 
         Ok(())
+    }
+
+    /// Util to format a value into an html string we can use in the translator's UI.
+    fn to_html(str: &str) -> String {
+        let mut html = str.to_string();
+
+        html = html.replace("||", "<br/>");
+        html = html.replace("\n", "<br/>");
+        html = html.replace("\\\\t", "\t");
+
+        html = REGEX_COLOR.replace_all(&html, "<span style='color:$1;'>$2</span>").to_string();
+
+        // Limit alpha to 0.25, because otherwise we get invisible text that's visible in the game.
+        html = REGEX_RGBA.replace_all(&html, |caps: &Captures| {
+            let limit_alpha = if let Some(val) = caps.get(4) {
+                if let Ok(val) = val.as_str().parse::<f32>() {
+                    val < 0.25
+                } else {
+                    false
+                }
+            } else {
+                false
+            };
+
+            if limit_alpha {
+                format!("<span style='color:rgba({},{},{},0.25);'>{}</span>", &caps[1], &caps[2], &caps[3], &caps[5])
+            } else {
+                format!("<span style='color:rgba({},{},{},{});'>{}</span>", &caps[1], &caps[2], &caps[3], &caps[4], &caps[5])
+            }
+        }).to_string();
+
+        html = REGEX_RGB.replace_all(&html, "<span style='color:rgb($1,$2,$3);'>$4</span>").to_string();
+
+        html
     }
 }
