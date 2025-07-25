@@ -556,17 +556,22 @@ impl ToolTranslator {
     #[tokio::main]
     async fn ask_google(string: &str, language: &str) -> Result<String> {
         if !string.trim().is_empty() {
-            let string = string
-                .replace("\\\n", "\n")
-                .replace("&", "\\&");
+            let string = string.replace("&", "\\&");
 
-            Self::translate(&string, language).await
-                .map(|string|
-                    string
-                        .replace("\n", "\\\n")          // Fix jump lines.
-                        .replace("%20", " ")            // Fix weird spaces.
-                )
-                .map_err(|err| anyhow!(err.to_string()))
+            let url = format!("https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl={language}&dt=t&q={string}");
+            let response = reqwest::get(&url).await?.text().await?;
+            let translated_text: String = if let Some(data) = serde_json::from_str::<Value>(&response)?[0].as_array() {
+                let mut string = String::new();
+                for item in data {
+                    string.push_str(item[0].as_str().unwrap());
+                }
+
+                string.replace("%20", " ")            // Fix weird spaces.
+            } else {
+                return Err(anyhow!("Error retrieving google translation.").into());
+            };
+
+            Ok(translated_text)
         } else {
             Ok(String::new())
         }
@@ -592,7 +597,7 @@ impl ToolTranslator {
         if !context.is_empty() {
             prompt.push_str(&format!(" For context, use the following info: {context}. #### "));
         }
-        prompt.push_str(&string.replace("\\\n", "\n"));
+        prompt.push_str(&string);
 
         // According to OpenAI's docs, tokens is more or less 3/4 of a word. We don't have a way to easily count words, so we do a generous approximation.
         // Then we duplicate it taking into account the completion tokens.
@@ -615,24 +620,6 @@ impl ToolTranslator {
         }
 
         Ok(response_text)
-    }
-
-    pub async fn translate(text: &str, to: &str) -> Result<String, Box<dyn std::error::Error>> {
-        let url = format!("https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl={to}&dt=t&q={text}");
-
-        let response = reqwest::get(&url).await?.text().await?;
-        let translated_text: String = if let Some(data) = serde_json::from_str::<Value>(&response)?[0].as_array() {
-            let mut string = String::new();
-            for item in data {
-                string.push_str(item[0].as_str().unwrap());
-            }
-
-            string
-        } else {
-            return Err(anyhow!("Error retrieving google translation.").into());
-        };
-
-        Ok(translated_text)
     }
 
     pub unsafe fn import_from_another_pack(&self) -> Result<()> {
