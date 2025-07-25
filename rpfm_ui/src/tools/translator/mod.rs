@@ -188,12 +188,6 @@ impl ToolTranslator {
         behavior_group.set_exclusive(true);
         google_translate_radio_button.set_checked(true);
 
-        // Only allow AI translation if we have a key in settings. Ignore keys in env.
-        if setting_string("ai_openai_api_key").is_empty() {
-            chatgpt_radio_button.set_enabled(false);
-            context_line_edit.set_enabled(false);
-        }
-
         let behavior_edit_label: QPtr<QLabel> = tool.find_widget("behavior_edit_label")?;
         let edit_all_same_values_radio_button: QPtr<QRadioButton> = tool.find_widget("edit_all_same_values_radio")?;
         let edit_only_this_value_radio_button: QPtr<QRadioButton> = tool.find_widget("edit_only_this_value_radio")?;
@@ -333,6 +327,13 @@ impl ToolTranslator {
         translate_with_google.set_tool_tip(&qtr("translator_translate_with_google"));
         copy_from_source.set_tool_tip(&qtr("translator_copy_from_source"));
         import_from_translated_pack.set_tool_tip(&qtr("translator_import_from_translated_pack"));
+
+        // Only allow AI translation if we have a key in settings. Ignore keys in env.
+        if setting_string("ai_openai_api_key").is_empty() {
+            chatgpt_radio_button.set_enabled(false);
+            context_line_edit.set_enabled(false);
+            translate_with_chatgpt.set_enabled(false);
+        }
 
         let action_move_up = add_action_to_widget(app_ui.shortcuts().as_ref(), "translator", "move_up", Some(table.table_view().static_upcast()));
         let action_move_down = add_action_to_widget(app_ui.shortcuts().as_ref(), "translator", "move_down", Some(table.table_view().static_upcast()));
