@@ -94,6 +94,7 @@ tempfile = "^3.1"
 zip-extract = "^0.2"
 reqwest = "^0.12"
 
+# Translator libraries
 chat-gpt-lib-rs = "^0"
 
 # Windows resources support.
