@@ -556,7 +556,14 @@ impl ToolTranslator {
     #[tokio::main]
     async fn ask_google(string: &str, language: &str) -> Result<String> {
         if !string.trim().is_empty() {
-            let string = string.replace("&", "\\&");
+            let string = string
+                .replace('\n', "%0A")
+                .replace('"', "%22")
+                .replace("#", "%23")
+                .replace("&", "%26")
+                .replace('\'', "%27")
+                .replace("<", "%3C")
+                .replace(">", "%3E");
 
             let url = format!("https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl={language}&dt=t&q={string}");
             let response = reqwest::get(&url).await?.text().await?;
