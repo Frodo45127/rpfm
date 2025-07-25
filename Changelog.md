@@ -6,6 +6,21 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [4.5.4]
+### Added
+- Implemented support for editing .glsl files.
+- Translator: added buttons to translate with Google and ChatGPT without needing to swap lines.
+- Translator: implemented preview boxes, to show text formatted similarly to how it'll appear ingame (only rgba and col tags supported for now).
+
+### Changes
+- Translator: improved ChatGPT prompt to reduce the amount of times it deletes tags from text.
+- Translator: the translator text fields now properly interpret jumplines and ||, to make it easier to read.
+
+### Fixed
+- Fixed `Patch SiegeAI` feature not being able to patch files due to an offset bug.
+- Fixed the "Original Value" text field in the translator being editable, when it shouldn't.
+- Fixed `Translate with Google Translate` cutting translations when they have certain url-sensitive symbols.
+
 ## [4.5.3]
 ### Changed
 - Reduced opening times of the translator by about 90%.
@@ -1662,7 +1677,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.5.3...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.5.4...HEAD
+[4.5.4]: https://github.com/Frodo45127/rpfm/compare/v4.5.3...v4.5.4
 [4.5.3]: https://github.com/Frodo45127/rpfm/compare/v4.5.2...v4.5.3
 [4.5.2]: https://github.com/Frodo45127/rpfm/compare/v4.5.1...v4.5.2
 [4.5.1]: https://github.com/Frodo45127/rpfm/compare/v4.5.0...v4.5.1
