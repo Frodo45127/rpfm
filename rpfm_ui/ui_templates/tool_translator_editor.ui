@@ -441,6 +441,9 @@
             <property name="readOnly">
              <bool>true</bool>
             </property>
+            <property name="textInteractionFlags">
+             <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByMouse</set>
+            </property>
            </widget>
           </item>
          </layout>
@@ -478,6 +481,9 @@
            <widget class="KTextEdit" name="original_value_html">
             <property name="readOnly">
              <bool>true</bool>
+            </property>
+            <property name="textInteractionFlags">
+             <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByMouse</set>
             </property>
            </widget>
           </item>
