@@ -1968,7 +1968,7 @@ impl DiagnosticsUI {
         if !self.checkbox_invalid_file_name.is_checked() {
             diagnostics_ignored.push(PackDiagnosticReportType::InvalidFileName(String::new(), String::new()).to_string());
         }
-        if !self.checkbox_invalid_packfile_name.is_checked() {
+        if !self.checkbox_missing_loc_data_file_detected.is_checked() {
             diagnostics_ignored.push(PackDiagnosticReportType::MissingLocDataFileDetected(String::new()).to_string());
         }
 
