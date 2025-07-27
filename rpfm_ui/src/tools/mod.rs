@@ -29,9 +29,11 @@ use qt_gui::QColor;
 use qt_gui::q_color::NameFormat;
 
 use qt_core::QBox;
+use qt_core::QFlags;
 use qt_core::QObject;
 use qt_core::QPtr;
 use qt_core::QString;
+use qt_core::WindowType;
 
 use cpp_core::{CastInto, DynamicCast, Ptr, StaticUpcast};
 
@@ -187,6 +189,11 @@ impl Tool {
         // Load the UI Template. All templates must be simple widgets.
         let dialog = new_q_dialog_custom_safe(parent.cast_into(), are_you_sure_dialog);
         let main_widget = crate::utils::load_template(&dialog, template_path)?;
+
+        // Make sure we can maximize the dialog. I'm tired of doing it manually.
+        let mut flags = dialog.window_flags();
+        flags = QFlags::from(flags.to_int() | WindowType::WindowMinMaxButtonsHint.to_int());
+        dialog.set_window_flags(flags);
 
         // Get the common widgets for all tools.
         let message_widget: QPtr<QWidget> = Self::find_widget_no_tool(&main_widget.static_upcast(), "message_widget")?;
