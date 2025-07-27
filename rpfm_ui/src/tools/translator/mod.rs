@@ -799,9 +799,10 @@ impl ToolTranslator {
         // In older games there's no colours table, so we use the colour value directly.
         html = REGEX_COLOR.replace_all(&html, |caps: &Captures| {
             let color = self.colors().get(&caps[1])
-                .map_or(&caps[1], |v| v);
+                .map(|x| format!("#{x}"))
+                .unwrap_or(caps[1].to_string());
 
-            format!("<span style='color:#{color};'>{}</span>", &caps[2])
+            format!("<span style='color:{color};'>{}</span>", &caps[2])
         }).to_string();
 
         // Trs are translation replacers. We just need to replace the string with the value of the tr key.
@@ -813,8 +814,7 @@ impl ToolTranslator {
         }).to_string();*/
 
         html = REGEX_IMG.replace_all(&html, |caps: &Captures| {
-            let path = self.tagged_images().get(&caps[1])
-                .map_or(&caps[1], |v| v);
+            let path = self.tagged_images().get(&caps[1]).cloned().unwrap_or(caps[1].to_string());
 
             // Get the list of tagged images from the dbs.
             let image_data = STANDARD.encode({
