@@ -29,6 +29,7 @@ use cpp_core::CppDeletable;
 use cpp_core::Ref;
 
 use anyhow::anyhow;
+use base64::{Engine, engine::general_purpose::STANDARD};
 use chat_gpt_lib_rs::api_resources::{completions::{create_completion, CreateCompletionRequest, PromptInput}, models::Model};
 use chat_gpt_lib_rs::OpenAIClient;
 use getset::*;
@@ -84,9 +85,43 @@ const TOOL_SUPPORTED_GAMES: [&str; 13] = [
     KEY_EMPIRE,
 ];
 
-const REGEX_COLOR: LazyCell<Regex> = LazyCell::new(|| Regex::new(r"\[\[col:(.*?)]](.*?)\[\[/col]]").unwrap());
-const REGEX_RGBA: LazyCell<Regex> = LazyCell::new(|| Regex::new(r"\[\[rgba:(\d+?):(\d+?):(\d+?):(\d+?)]]([^\[\]].*?)\[\[/rgba([0-9:]*?)]]").unwrap());
-const REGEX_RGB: LazyCell<Regex> = LazyCell::new(|| Regex::new(r"\[\[rgba:(\d+?):(\d+?):(\d+?)]]([^\[\]].*?)\[\[/rgba([0-9:]*?)]]").unwrap());
+const REGEX_COLOR: LazyCell<Regex> = LazyCell::new(|| Regex::new(r"\[\[col:(.*?)]](.*?)\[\[/col(.*?)]]").unwrap());
+const REGEX_RGBA: LazyCell<Regex> = LazyCell::new(|| Regex::new(r"\[\[rgba:(\d+?):(\d+?):(\d+?):(\d+?)]](.*?)\[\[/rgba(.*?)]]").unwrap());
+const REGEX_RGB: LazyCell<Regex> = LazyCell::new(|| Regex::new(r"\[\[rgba:(\d+?):(\d+?):(\d+?)]](.*?)\[\[/rgba(.*?)]]").unwrap());
+const REGEX_IMG: LazyCell<Regex> = LazyCell::new(|| Regex::new(r"\[\[img:(.+?)]](.*?)\[\[/img(.*?)]]").unwrap());
+//const REGEX_TR: LazyCell<Regex> = LazyCell::new(|| Regex::new(r"\{\{tr:(.+?)}}").unwrap());
+
+// These are all kind of internal links for different types of interactions.
+const REGEX_URL: LazyCell<Regex> = LazyCell::new(|| Regex::new(r"\[\[url:(.+?)]](.*?)\[\[/url(.*?)]]").unwrap());
+const REGEX_SL: LazyCell<Regex> = LazyCell::new(|| Regex::new(r"\[\[sl:(.+?)]](.*?)\[\[/sl(.*?)]]").unwrap());
+const REGEX_SL_TOOLTIP: LazyCell<Regex> = LazyCell::new(|| Regex::new(r"\[\[sl_tooltip:(.+?)]](.*?)\[\[/sl_tooltip(.*?)]]").unwrap());
+const REGEX_TOOLTIP: LazyCell<Regex> = LazyCell::new(|| Regex::new(r"\[\[tooltip:(.+?)]](.*?)\[\[/tooltip(.*?)]]").unwrap());
+
+// While QTextDoc doesn't support this full css, we still have it just in case in the future there's a way to use it.
+const CSS_STYLE: &str = "
+.tooltip {
+  position: relative;
+  display: inline-block;
+  border-bottom: 1px dotted black;
+}
+
+.tooltip .tooltiptext {
+  visibility: hidden;
+  width: 120px;
+  background-color: black;
+  color: #fff;
+  text-align: center;
+  border-radius: 6px;
+  padding: 5px 0;
+
+  /* Position the tooltip */
+  position: absolute;
+  z-index: 1;
+}
+
+.tooltip:hover .tooltiptext {
+  visibility: visible;
+}";
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -103,6 +138,7 @@ pub struct ToolTranslator {
     current_row: Arc<RwLock<Option<i32>>>,
 
     colors: HashMap<String, String>,
+    tagged_images: HashMap<String, String>,
     language_combobox: QPtr<QComboBox>,
 
     chatgpt_radio_button: QPtr<QRadioButton>,
@@ -276,6 +312,40 @@ impl ToolTranslator {
             _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
         };
 
+        // Get the list of tagged images from the dbs.
+        let mut tagged_images = HashMap::new();
+        let receiver = CENTRAL_COMMAND.send_background(Command::GetRFilesFromAllSources(vec![ContainerPath::Folder("db/ui_tagged_images_tables".to_owned())], false));
+        let response = CentralCommand::recv(&receiver);
+        match response {
+            Response::HashMapDataSourceHashMapStringRFile(mut files) => {
+                let mut files_merge = HashMap::new();
+                if let Some(files) = files.remove(&DataSource::GameFiles) {
+                    files_merge.extend(files);
+                }
+
+                if let Some(files) = files.remove(&DataSource::ParentFiles) {
+                    files_merge.extend(files);
+                }
+
+                if let Some(files) = files.remove(&DataSource::PackFile) {
+                    files_merge.extend(files);
+                }
+
+                for (_, rfile) in files_merge {
+                    if let Ok(RFileDecoded::DB(table)) = rfile.decoded() {
+                        if let Some(key_col) = table.column_position_by_name("key") {
+                            if let Some(path_col) = table.column_position_by_name("image_path") {
+                                for row in table.data().iter() {
+                                    tagged_images.insert(row[key_col].data_to_string().to_string(), row[path_col].data_to_string().to_string());
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+        };
+
         // Check if the repo needs updating, and update it if so.
         let receiver = CENTRAL_COMMAND.send_network(Command::CheckTranslationsUpdates);
         let response_thread = CENTRAL_COMMAND.recv_try(&receiver);
@@ -379,6 +449,8 @@ impl ToolTranslator {
         let original_value_textedit: QPtr<QTextEdit> = tool.find_widget("original_value_textedit")?;
         let translated_value_html: QPtr<QTextEdit> = tool.find_widget("translated_value_html")?;
         let translated_value_textedit: QPtr<QTextEdit> = tool.find_widget("translated_value_textedit")?;
+        original_value_html.document().set_default_style_sheet(&QString::from_std_str(CSS_STYLE));
+        translated_value_html.document().set_default_style_sheet(&QString::from_std_str(CSS_STYLE));
 
         // Build the view itself.
         let view = Rc::new(Self {
@@ -387,6 +459,7 @@ impl ToolTranslator {
             table,
             current_row: Arc::new(RwLock::new(None)),
             colors,
+            tagged_images,
             language_combobox,
             context_line_edit,
             chatgpt_radio_button,
@@ -478,8 +551,8 @@ impl ToolTranslator {
         translated_text = translated_text.replace("||", "\n||\n");
         translated_text = translated_text.replace("\\\\n", "\n");
 
-        self.original_value_textedit.set_text(&QString::from_std_str(&source_text));
-        self.translated_value_textedit.set_text(&QString::from_std_str(&translated_text));
+        self.original_value_textedit.set_plain_text(&QString::from_std_str(&source_text));
+        self.translated_value_textedit.set_plain_text(&QString::from_std_str(&translated_text));
 
         // Update the row in edition.
         *self.current_row.write().unwrap() = Some(index.row());
@@ -492,16 +565,16 @@ impl ToolTranslator {
                 let context = self.context_line_edit().text().to_std_string();
                 let result = Self::ask_chat_gpt(&source_text, &language, &context);
                 if let Ok(tr) = result {
-                    self.translated_value_textedit.set_text(&QString::from_std_str(tr));
+                    self.translated_value_textedit.set_plain_text(&QString::from_std_str(tr));
                 }
             } else if self.google_translate_radio_button().is_checked() {
                 let language = self.map_language_to_google();
                 let result = Self::ask_google(&source_text, &language);
                 if let Ok(tr) = result {
-                    self.translated_value_textedit.set_text(&QString::from_std_str(tr));
+                    self.translated_value_textedit.set_plain_text(&QString::from_std_str(tr));
                 }
             } else if self.copy_source_radio_button().is_checked() {
-                self.translated_value_textedit.set_text(&self.original_value_textedit().to_plain_text());
+                self.translated_value_textedit.set_plain_text(&self.original_value_textedit().to_plain_text());
             }
         }
     }
@@ -718,11 +791,10 @@ impl ToolTranslator {
 
     /// Util to format a value into an html string we can use in the translator's UI.
     fn to_html(&self, str: &str) -> String {
-        let mut html = str.to_string();
-
-        html = html.replace("||", "<br/>");
-        html = html.replace("\n", "<br/>");
-        html = html.replace("\\\\t", "\t");
+        let mut html = str
+            .replace("||", "<br/>")
+            .replace("\n", "<br/>")
+            .replace("\\\\t", "\t");
 
         // In older games there's no colours table, so we use the colour value directly.
         html = REGEX_COLOR.replace_all(&html, |caps: &Captures| {
@@ -731,6 +803,65 @@ impl ToolTranslator {
 
             format!("<span style='color:#{color};'>{}</span>", &caps[2])
         }).to_string();
+
+        // Trs are translation replacers. We just need to replace the string with the value of the tr key.
+        /*html = REGEX_TR.replace_all(&html, |caps: &Captures| {
+            let color = self.colors().get(&caps[1])
+                .map_or(&caps[1], |v| v);
+
+            format!("<span style='color:#{color};'>{}</span>", &caps[2])
+        }).to_string();*/
+
+        html = REGEX_IMG.replace_all(&html, |caps: &Captures| {
+            let path = self.tagged_images().get(&caps[1])
+                .map_or(&caps[1], |v| v);
+
+            // Get the list of tagged images from the dbs.
+            let image_data = STANDARD.encode({
+                let mut d = vec![];
+                let receiver = CENTRAL_COMMAND.send_background(Command::GetRFilesFromAllSources(vec![ContainerPath::File(path.to_owned())], false));
+                let response = CentralCommand::recv(&receiver);
+                match response {
+                    Response::HashMapDataSourceHashMapStringRFile(mut files) => {
+                        let mut files_merge = HashMap::new();
+                        if let Some(files) = files.remove(&DataSource::GameFiles) {
+                            files_merge.extend(files);
+                        }
+
+                        if let Some(files) = files.remove(&DataSource::ParentFiles) {
+                            files_merge.extend(files);
+                        }
+
+                        if let Some(files) = files.remove(&DataSource::PackFile) {
+                            files_merge.extend(files);
+                        }
+
+                        for (_, mut rfile) in files_merge {
+                            if let Ok(Some(RFileDecoded::Image(data))) = rfile.decode(&None, false, true) {
+                                d = data.data().to_vec();
+                                break;
+                            }
+                        }
+                    },
+                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                };
+
+                d
+            });
+
+            // NOTE: QTextEdit doesn't seem to be able to resize images.
+            format!("<img src='data:image/jpeg;base64,{image_data}'>{}</img>", &caps[2])
+        }).to_string();
+
+        // NOTE: Some of these point to help pages made from lua scripts pointing, mainly the ones used for tooltips.
+        //
+        // We ignore those, as it falls quite out of scope to support them.
+        html = REGEX_URL.replace_all(&html, "<a href='$1'>$2 (link: $1)</a>").to_string();
+        html = REGEX_SL.replace_all(&html, "<a href='$1'>$2 (link: $1)</a>").to_string();
+        html = REGEX_SL_TOOLTIP.replace_all(&html, "<a href='$1'>$2 (link: $1)</a>").to_string();
+
+        // Tooltips don't work in QTextDocument, but we still format it in the usual way, so it looks different.
+        html = REGEX_TOOLTIP.replace_all(&html, "<span class='tooltip'>$2<span class='tooltiptext'>$1</span></span>").to_string();
 
         // Limit alpha to 0.25, because otherwise we get invisible text that's visible in the game.
         html = REGEX_RGBA.replace_all(&html, |caps: &Captures| {
