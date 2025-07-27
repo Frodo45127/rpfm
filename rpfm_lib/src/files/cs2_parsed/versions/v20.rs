@@ -86,7 +86,7 @@ impl Cs2Parsed {
 
                 destruct.bounding_box = Cube::decode(data, &None)?;
 
-                destruct.uk_3 = data.read_i32()?;
+                destruct.cannon_emitters = data.read_i32()?;
 
                 for _ in 0..data.read_u32()? {
                     destruct.projectile_emitters.push(ProjectileEmitter {
@@ -95,7 +95,7 @@ impl Cs2Parsed {
                     });
                 }
 
-                destruct.uk_5 = data.read_i32()?;
+                destruct.docking_points = data.read_i32()?;
 
                 for _ in 0..data.read_u32()? {
                     destruct.soft_collisions.push(SoftCollisions {
@@ -237,7 +237,7 @@ impl Cs2Parsed {
 
                 buffer.write_i32(destruct.uk_2)?;
                 destruct.bounding_box.encode(buffer, &None)?;
-                buffer.write_i32(destruct.uk_3)?;
+                buffer.write_i32(destruct.cannon_emitters)?;
 
                 buffer.write_u32(destruct.projectile_emitters.len() as u32)?;
                 for emitter in &mut destruct.projectile_emitters {
@@ -245,7 +245,7 @@ impl Cs2Parsed {
                     emitter.transform.encode(buffer, &None)?;
                 }
 
-                buffer.write_i32(destruct.uk_5)?;
+                buffer.write_i32(destruct.docking_points)?;
 
                 buffer.write_u32(destruct.soft_collisions.len() as u32)?;
                 for soft_collision in &mut destruct.soft_collisions {

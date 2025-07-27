@@ -19,8 +19,9 @@ use super::*;
 
 impl Cs2Parsed {
 
-    pub fn read_v21<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
-        self.ui_flag.name = data.read_sized_string_u8()?;
+    pub fn read_v11<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
+        self.bounding_box = Cube::decode(data, &None)?;
+        self.ui_flag.name = data.read_sized_string_u16()?;
         self.ui_flag.transform = Transform4x4::decode(data, &None)?;
 
         self.int_1 = data.read_i32()?;
@@ -30,16 +31,20 @@ impl Cs2Parsed {
             let mut piece = Piece::default();
 
             // Tech node.
-            piece.name = data.read_sized_string_u8()?;
-            piece.node_name = data.read_sized_string_u8()?;
+            piece.name = data.read_sized_string_u16()?;
+            piece.node_name = data.read_sized_string_u16()?;
             piece.node_transform = Transform4x4::decode(data, &None)?;
             piece.int_3 = data.read_i32()?;
-            piece.int_4 = data.read_i32()?;
 
             for _ in 0..data.read_u32()? {
                 let mut destruct = Destruct::default();
                 destruct.name = data.read_sized_string_u16()?;
                 destruct.index = data.read_u32()?;
+
+                destruct.collision_3d.read_v11(data)?;
+                destruct.windows = data.read_i32()?;
+                destruct.doors = data.read_i32()?;
+                destruct.gates = data.read_i32()?;
 
                 // Collision outlines?
                 for _ in 0..data.read_u32()? {
@@ -57,7 +62,6 @@ impl Cs2Parsed {
                         line: Outline3d::decode(data, &None)?,
                         line_type: PipeType::try_from(data.read_i32()?)?,
                     });
-
                 }
 
                 // This is the weird orange line in terry?
@@ -84,15 +88,13 @@ impl Cs2Parsed {
                     });
                 }
 
-                destruct.uk_2 = data.read_u8()? as i32;
-
+                destruct.uk_2 = data.read_i32()?;
                 destruct.bounding_box = Cube::decode(data, &None)?;
-
                 destruct.cannon_emitters = data.read_i32()?;
 
                 for _ in 0..data.read_u32()? {
                     destruct.projectile_emitters.push(ProjectileEmitter {
-                        name: data.read_sized_string_u8()?,
+                        name: data.read_sized_string_u16()?,
                         transform: Transform4x4::decode(data, &None)?,
                     });
                 }
@@ -113,8 +115,8 @@ impl Cs2Parsed {
                 // Destructible pillars.
                 for _ in 0..data.read_u32()? {
                     destruct.file_refs.push(FileRef {
-                        key: data.read_sized_string_u8()?,
-                        name: data.read_sized_string_u8()?,
+                        key: data.read_sized_string_u16()?,
+                        name: data.read_sized_string_u16()?,
                         transform: Transform4x4::decode(data, &None)?,
                         uk_1: data.read_i16()?
                     });
@@ -132,47 +134,7 @@ impl Cs2Parsed {
                     });
                 }
 
-                // Docking lines.
-                for _ in 0..data.read_u32()? {
-                    destruct.docking_lines.push(DockingLine {
-                        key: data.read_sized_string_u16()?,
-                        start: Point2d::decode(data, &None)?,
-                        end: Point2d::decode(data, &None)?,
-                        direction: Point2d::decode(data, &None)?,
-                    });
-                }
-
                 destruct.f_1 = data.read_f32()?;
-
-                for _ in 0..data.read_u32()? {
-                    destruct.action_vfx.push(Vfx {
-                        key: data.read_sized_string_u8()?,
-                        matrix_1: Transform4x4::decode(data, &None)?,
-                    });
-                }
-
-                for _ in 0..data.read_u32()? {
-                    destruct.action_vfx_attachments.push(Vfx {
-                        key: data.read_sized_string_u8()?,
-                        matrix_1: Transform4x4::decode(data, &None)?,
-                    });
-                }
-
-                for _ in 0..data.read_u32()? {
-                    let mut vec = vec![];
-                    for _ in 0..data.read_u32()? {
-                        vec.push(data.read_i16()?);
-                    }
-                    destruct.bin_data.push(vec);
-                }
-
-                for _ in 0..data.read_u32()? {
-                    let mut vec = vec![];
-                    for _ in 0..data.read_u32()? {
-                        vec.push(data.read_i16()?);
-                    }
-                    destruct.bin_data_2.push(vec.clone());
-                }
 
                 piece.destructs.push(destruct);
             }
@@ -185,24 +147,29 @@ impl Cs2Parsed {
         Ok(())
     }
 
-    pub fn write_v21<W: WriteBytes>(&mut self, buffer: &mut W) -> Result<()> {
-        buffer.write_sized_string_u8(&self.ui_flag.name)?;
+    pub fn write_v11<W: WriteBytes>(&mut self, buffer: &mut W) -> Result<()> {
+        self.bounding_box.encode(buffer, &None)?;
+        buffer.write_sized_string_u16(&self.ui_flag.name)?;
         self.ui_flag.transform.encode(buffer, &None)?;
 
         buffer.write_i32(self.int_1)?;
         buffer.write_u32(self.pieces.len() as u32)?;
         for piece in &mut self.pieces {
-            buffer.write_sized_string_u8(&piece.name)?;
-            buffer.write_sized_string_u8(&piece.node_name)?;
+            buffer.write_sized_string_u16(&piece.name)?;
+            buffer.write_sized_string_u16(&piece.node_name)?;
 
             piece.node_transform.encode(buffer, &None)?;
 
             buffer.write_i32(piece.int_3)?;
-            buffer.write_i32(piece.int_4)?;
             buffer.write_u32(piece.destructs.len() as u32)?;
             for destruct in &mut piece.destructs {
                 buffer.write_sized_string_u16(&destruct.name)?;
                 buffer.write_u32(destruct.index)?;
+
+                destruct.collision_3d.write_v11(buffer)?;
+                buffer.write_u32(destruct.windows as u32)?;
+                buffer.write_u32(destruct.doors as u32)?;
+                buffer.write_u32(destruct.gates as u32)?;
 
                 buffer.write_u32(destruct.collision_outlines.len() as u32)?;
                 for outline in &mut destruct.collision_outlines {
@@ -238,13 +205,13 @@ impl Cs2Parsed {
                     buffer.write_bool(platform.flag_3)?;
                 }
 
-                buffer.write_u8(destruct.uk_2 as u8)?;
+                buffer.write_i32(destruct.uk_2)?;
                 destruct.bounding_box.encode(buffer, &None)?;
                 buffer.write_i32(destruct.cannon_emitters)?;
 
                 buffer.write_u32(destruct.projectile_emitters.len() as u32)?;
                 for emitter in &mut destruct.projectile_emitters {
-                    buffer.write_sized_string_u8(&emitter.name)?;
+                    buffer.write_sized_string_u16(&emitter.name)?;
                     emitter.transform.encode(buffer, &None)?;
                 }
 
@@ -262,8 +229,8 @@ impl Cs2Parsed {
 
                 buffer.write_u32(destruct.file_refs.len() as u32)?;
                 for file_ref in &mut destruct.file_refs {
-                    buffer.write_sized_string_u8(&file_ref.key)?;
-                    buffer.write_sized_string_u8(&file_ref.name)?;
+                    buffer.write_sized_string_u16(&file_ref.key)?;
+                    buffer.write_sized_string_u16(&file_ref.name)?;
 
                     file_ref.transform.encode(buffer, &None)?;
                     buffer.write_i16(file_ref.uk_1)?;
@@ -279,43 +246,7 @@ impl Cs2Parsed {
                     buffer.write_u32(ef_line.parent_index)?;
                 }
 
-                buffer.write_u32(destruct.docking_lines.len() as u32)?;
-                for docking_line in &mut destruct.docking_lines {
-                    buffer.write_sized_string_u16(&docking_line.key)?;
-                    docking_line.start.encode(buffer, &None)?;
-                    docking_line.end.encode(buffer, &None)?;
-                    docking_line.direction.encode(buffer, &None)?;
-                }
-
                 buffer.write_f32(destruct.f_1)?;
-
-                buffer.write_u32(destruct.action_vfx.len() as u32)?;
-                for vfx in &mut destruct.action_vfx {
-                    buffer.write_sized_string_u8(&vfx.key)?;
-                    vfx.matrix_1.encode(buffer, &None)?;
-                }
-
-                buffer.write_u32(destruct.action_vfx_attachments.len() as u32)?;
-                for vfx in &mut destruct.action_vfx_attachments {
-                    buffer.write_sized_string_u8(&vfx.key)?;
-                    vfx.matrix_1.encode(buffer, &None)?;
-                }
-
-                buffer.write_u32(destruct.bin_data.len() as u32)?;
-                for bin_data in &destruct.bin_data {
-                    buffer.write_u32(bin_data.len() as u32)?;
-                    for bin_data in bin_data {
-                        buffer.write_i16(*bin_data)?;
-                    }
-                }
-
-                buffer.write_u32(destruct.bin_data_2.len() as u32)?;
-                for bin_data in &destruct.bin_data_2 {
-                    buffer.write_u32(bin_data.len() as u32)?;
-                    for bin_data in bin_data {
-                        buffer.write_i16(*bin_data)?;
-                    }
-                }
             }
 
             buffer.write_f32(piece.f_6)?;
@@ -324,4 +255,3 @@ impl Cs2Parsed {
         Ok(())
     }
 }
-

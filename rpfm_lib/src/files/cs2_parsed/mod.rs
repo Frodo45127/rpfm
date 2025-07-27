@@ -13,7 +13,7 @@ use serde_derive::{Serialize, Deserialize};
 
 use crate::error::{Result, RLibError};
 use crate::binary::{ReadBytes, WriteBytes};
-use crate::files::{DecodeableExtraData, Decodeable, EncodeableExtraData, Encodeable};
+use crate::files::{cs2_collision::Collision3d, DecodeableExtraData, Decodeable, EncodeableExtraData, Encodeable};
 use crate::files::bmd::common::*;
 use crate::utils::check_size_mismatch;
 
@@ -104,15 +104,21 @@ pub struct Piece {
 pub struct Destruct {
     name: String,
     index: u32,
+
+    // This one's special. In later games it's defined in its own file, so we reuse that definition.
+    collision_3d: Collision3d,
     collision_outlines: Vec<CollisionOutline>,
+    windows: i32,
+    doors: i32,
+    gates: i32,
     pipes: Vec<Pipe>,
-    orange_thingies: Vec<Vec<OrangeThingy>>,
+    orange_thingies: Vec<Vec<OrangeThingy>>,    // Nogos?
     platforms: Vec<Platform>,
     uk_2: i32,
     bounding_box: Cube,
-    uk_3: i32,
+    cannon_emitters: i32,                              // Cannons
     projectile_emitters: Vec<ProjectileEmitter>,
-    uk_5: i32,
+    docking_points: i32,                              // Docking points?
     soft_collisions: Vec<SoftCollisions>,
     uk_7: i32,
     file_refs: Vec<FileRef>,
@@ -325,6 +331,7 @@ impl Decodeable for Cs2Parsed {
             21 => decoded.read_v21(data)?,
             20 => decoded.read_v20(data)?,
             18 => decoded.read_v18(data)?,
+            11 => decoded.read_v11(data)?,
              _ => return Err(RLibError::DecodingUnsupportedVersion(decoded.version as usize)),
         }
 
@@ -344,6 +351,7 @@ impl Encodeable for Cs2Parsed {
             21 => self.write_v21(buffer)?,
             20 => self.write_v20(buffer)?,
             18 => self.write_v18(buffer)?,
+            11 => self.write_v11(buffer)?,
             _ => unimplemented!()
         }
 
