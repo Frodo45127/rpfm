@@ -485,6 +485,7 @@ impl ToolTranslator {
         // Build the slots and connect them to the view.
         let slots = ToolTranslatorSlots::new(&view);
         connections::set_connections(&view, &slots);
+        view.tool.get_ref_dialog().resize_2a(1800, 800);
 
         // If we hit ok, save the data back to the Pack.
         if view.tool.get_ref_dialog().exec() == 1 {
