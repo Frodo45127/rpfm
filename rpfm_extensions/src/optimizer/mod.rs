@@ -15,7 +15,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
 use rpfm_lib::error::{RLibError, Result};
-use rpfm_lib::files::{Container, ContainerPath, db::DB, FileType, loc::Loc, pack::Pack, portrait_settings::PortraitSettings, RFileDecoded, table::DecodedData, text::TextFormat};
+use rpfm_lib::files::{Container, ContainerPath, db::DB, EncodeableExtraData, FileType, loc::Loc, pack::Pack, portrait_settings::PortraitSettings, RFileDecoded, table::DecodedData, text::TextFormat};
+use rpfm_lib::games::GameInfo;
 use rpfm_lib::schema::Schema;
 
 use crate::dependencies::Dependencies;
@@ -45,6 +46,7 @@ pub trait OptimizableContainer: Container {
         paths_to_optimize: Option<Vec<ContainerPath>>,
         dependencies: &mut Dependencies,
         schema: &Schema,
+        game: &GameInfo,
         options: &OptimizerOptions,
     ) -> Result<HashSet<String>>;
 }
@@ -55,6 +57,9 @@ pub struct OptimizerOptions {
 
     /// Allow the optimizer to optimize datacored tables. THIS IS NOT RECOMMENDED, as datacored tables usually are they way they are for a reason.
     optimize_datacored_tables: bool,
+
+    /// Allow the optimizer to remove files unchanged from vanilla, reducing the pack size.
+    remove_itm_files: bool,
 
     /// Allow the optimizer to remove unused art sets in Portrait Settings files.
     ///
@@ -79,6 +84,12 @@ impl OptimizerOptions {
     /// THIS IS NOT RECOMMENDED, as datacored tables usually are they way they are for a reason.
     pub fn set_optimize_datacored_tables(&mut self, enable: bool) -> &mut Self {
         self.optimize_datacored_tables = enable;
+        self
+    }
+
+    /// Allow the optimizer to remove files unchanged from vanilla, reducing the pack size.
+    pub fn set_remove_itm_files(&mut self, enable: bool) -> &mut Self {
+        self.remove_itm_files = enable;
         self
     }
 
@@ -140,6 +151,7 @@ impl OptimizableContainer for Pack {
         paths_to_optimize: Option<Vec<ContainerPath>>,
         dependencies: &mut Dependencies,
         _schema: &Schema,
+        game: &GameInfo,
         options: &OptimizerOptions
     ) -> Result<HashSet<String>> {
 
@@ -160,26 +172,22 @@ impl OptimizableContainer for Pack {
 
         // List of files to delete.
         let mut files_to_delete: HashSet<String> = HashSet::new();
-        /*
-        // First, do a hash pass over all the files, and mark for removal those that match by path and hash with vanilla/parent ones.
-        let packedfiles_paths = self.get_ref_packed_files_all_paths().iter().map(|x| PathType::File(x.to_vec())).collect::<Vec<PathType>>();
-        let mut dependencies_overwritten_files = dependencies.get_most_relevant_files_by_paths(&packedfiles_paths);
-        files_to_delete.append(&mut dependencies_overwritten_files.iter_mut().filter_map(|dep_packed_file| {
-            if let Some(packed_file) = self.get_ref_mut_packed_file_by_path(dep_packed_file.get_path()) {
-                if let Ok(local_hash) = packed_file.get_hash_from_data() {
-                    if let Ok(dependency_hash) = dep_packed_file.get_hash_from_data() {
-                        if local_hash == dependency_hash {
-                            Some(packed_file.get_path().to_vec())
-                        } else { None }
-                    } else { None }
-                } else { None }
-            } else { None }
-        }).collect());
-        */
 
-        //let mut extra_data = DecodeableExtraData::default();
-        //extra_data.set_schema(Some(schema));
-        //let extra_data = Some(extra_data);
+        // Pass to identify and remove itms.
+        if options.remove_itm_files {
+            let extra_data = Some(EncodeableExtraData::new_from_game_info(game));
+            for rfile in &mut files_to_optimize {
+                if let Ok(dep_file) = dependencies.file_mut(rfile.path_in_container_raw(), true, true) {
+                    if let Ok(local_hash) = rfile.data_hash(&extra_data) {
+                        if let Ok(dependency_hash) = dep_file.data_hash(&extra_data) {
+                            if local_hash == dependency_hash {
+                                files_to_delete.insert(rfile.path_in_container_raw().to_string());
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         // Then, do a second pass, this time over the decodeable files that we can optimize.
         files_to_delete.extend(files_to_optimize.iter_mut().filter_map(|rfile| {

@@ -1682,6 +1682,7 @@ optimizer_instructions_label = <h3>Are you sure you want to optimize this PackFi
     <p>
         For those who don't know it, what this does is:
         <ul>
+            <li><b>OPTIONAL: Remove files which are direct copies without changes from parent/vanilla files.</li>
             <li><b>Remove duplicated entries on DB tables</b> (unless the table is datacoring).</li>
             <li><b>Remove duplicated entries on LOC tables</b> (unless the table is datacoring).</li>
             <li><b>Remove rows unchanged from default row on DB tables</b> (unless the table is datacoring).</li>
@@ -1720,3 +1721,4 @@ label_file_overwrite = File overwriting different parent/vanilla file
 
 file_itm_explanation = This file is identical to a parent or vanilla file. This means id does pretty much nothing but make your pack bigger.
 file_overwrite_explanation = This file is overwriting a parent or vanilla file. Not a problem, just so you know what files are overwriting vanilla assets more easely.
+optimizer_remove_itm = <b>Pack:</b> Remove unchanged files

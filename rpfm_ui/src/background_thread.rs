@@ -34,7 +34,7 @@ use std::time::{Duration, SystemTime};
 
 use rpfm_extensions::dependencies::Dependencies;
 use rpfm_extensions::diagnostics::Diagnostics;
-use rpfm_extensions::optimizer::{OptimizableContainer, OptimizerOptions};
+use rpfm_extensions::optimizer::OptimizableContainer;
 #[cfg(feature = "enable_tools")] use rpfm_extensions::translator::PackTranslation;
 
 use rpfm_lib::binary::WriteBytes;
@@ -491,7 +491,8 @@ pub fn background_loop() {
             // In case we want to optimize our PackFile...
             Command::OptimizePackFile(options) => {
                 if let Some(ref schema) = *SCHEMA.read().unwrap() {
-                    match pack_file_decoded.optimize(None, &mut dependencies.write().unwrap(), schema, &options) {
+                    let game_info = GAME_SELECTED.read().unwrap();
+                    match pack_file_decoded.optimize(None, &mut dependencies.write().unwrap(), schema, &game_info, &options) {
                         Ok(paths_to_delete) => CentralCommand::send_back(&sender, Response::HashSetString(paths_to_delete)),
                         Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                     }
@@ -2010,14 +2011,11 @@ pub fn background_loop() {
                         added_paths.dedup();
 
                         // TODO: DO NOT CALL QT ON BACKEND.
-                        let mut options = OptimizerOptions::default();
-                        options.set_optimize_datacored_tables(setting_bool("optimize_not_renamed_packedfiles"));
-                        options.set_remove_unused_art_sets(setting_bool("remove_unused_art_sets"));
-                        options.set_remove_unused_variants(setting_bool("remove_unused_variants"));
-                        options.set_remove_empty_masks(setting_bool("remove_empty_masks"));
+                        let options = init_optimizer_options();
 
                         // Then, optimize the PackFile. This should remove any non-edited rows/files.
-                        match pack_file_decoded.optimize(None, &mut dependencies.write().unwrap(), schema, &options) {
+                        let game_info = GAME_SELECTED.read().unwrap();
+                        match pack_file_decoded.optimize(None, &mut dependencies.write().unwrap(), schema, &game_info, &options) {
                             Ok(paths_to_delete) => CentralCommand::send_back(&sender, Response::VecContainerPathVecContainerPath(added_paths, paths_to_delete.into_iter()
                                 .map(ContainerPath::File)
                                 .collect())),
@@ -3132,13 +3130,9 @@ fn add_tile_maps_and_tiles(pack: &mut Pack, dependencies: &mut Dependencies, sch
     }
 
     // TODO: DO NOT CALL QT ON BACKEND.
-    let mut options = OptimizerOptions::default();
-    options.set_optimize_datacored_tables(setting_bool("optimize_not_renamed_packedfiles"));
-    options.set_remove_unused_art_sets(setting_bool("remove_unused_art_sets"));
-    options.set_remove_unused_variants(setting_bool("remove_unused_variants"));
-    options.set_remove_empty_masks(setting_bool("remove_empty_masks"));
-
-    let paths_to_delete = pack.optimize(Some(added_paths.clone()), dependencies, schema, &options)?
+    let options = init_optimizer_options();
+    let game_info = GAME_SELECTED.read().unwrap();
+    let paths_to_delete = pack.optimize(Some(added_paths.clone()), dependencies, schema, &game_info, &options)?
         .iter()
         .map(|path| ContainerPath::File(path.to_string()))
         .collect::<Vec<_>>();

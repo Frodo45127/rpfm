@@ -79,8 +79,6 @@ use rpfm_lib::games::{pfh_file_type::*, pfh_version::*, supported_games::*};
 use rpfm_lib::integrations::log::*;
 use rpfm_lib::utils::*;
 
-use rpfm_extensions::optimizer::OptimizerOptions;
-
 use rpfm_ui_common::ASSETS_PATH;
 use rpfm_ui_common::clone;
 use rpfm_ui_common::FULL_DATE_FORMAT;
@@ -1574,12 +1572,7 @@ impl AppUI {
         if optimize {
             let _ = AppUI::purge_them_all(app_ui, pack_file_contents_ui, true);
 
-            let mut options = OptimizerOptions::default();
-            options.set_optimize_datacored_tables(setting_bool("optimize_not_renamed_packedfiles"));
-            options.set_remove_unused_art_sets(setting_bool("remove_unused_art_sets"));
-            options.set_remove_unused_variants(setting_bool("remove_unused_variants"));
-            options.set_remove_empty_masks(setting_bool("remove_empty_masks"));
-
+            let options = init_optimizer_options();
             let receiver = CENTRAL_COMMAND.send_background(Command::OptimizePackFile(options));
             let response = CENTRAL_COMMAND.recv_try(&receiver);
             match response {
@@ -3873,10 +3866,12 @@ impl AppUI {
         // Create and configure the dialog.
         let instructions_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "instructions_label")?;
         let options_groupbox: QPtr<QGroupBox> = find_widget(&main_widget.static_upcast(), "options_groupbox")?;
+        let remove_itm: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "remove_itm_checkbox")?;
         let optimize_datacored_tables: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "optimize_datacored_tables_checkbox")?;
         let remove_unused_art_sets: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "remove_unused_art_sets_checkbox")?;
         let remove_unused_variants: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "remove_unused_variants_checkbox")?;
         let remove_empty_masks: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "remove_empty_masks_checkbox")?;
+        let remove_itm_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "remove_itm_label")?;
         let optimize_datacored_tables_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "optimize_datacored_tables_label")?;
         let remove_unused_art_sets_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "remove_unused_art_sets_label")?;
         let remove_unused_variants_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "remove_unused_variants_label")?;
@@ -3884,11 +3879,13 @@ impl AppUI {
         let button_box: QPtr<QDialogButtonBox> = find_widget(&main_widget.static_upcast(), "button_box")?;
         options_groupbox.set_title(&qtr("optimizer_options_title"));
         instructions_label.set_text(&qtr("optimizer_instructions_label"));
+        remove_itm_label.set_text(&qtr("optimizer_remove_itm"));
         optimize_datacored_tables_label.set_text(&qtr("optimizer_optimize_datacored_tables"));
         remove_unused_art_sets_label.set_text(&qtr("optimizer_remove_unused_art_sets"));
         remove_unused_variants_label.set_text(&qtr("optimizer_remove_unused_variants"));
         remove_empty_masks_label.set_text(&qtr("optimizer_remove_empty_masks"));
 
+        remove_itm.set_checked(setting_bool("optimize_remove_itm"));
         optimize_datacored_tables.set_checked(setting_bool("optimize_not_renamed_packedfiles"));
         remove_unused_art_sets.set_checked(setting_bool("remove_unused_art_sets"));
         remove_unused_variants.set_checked(setting_bool("remove_unused_variants"));
@@ -3897,6 +3894,7 @@ impl AppUI {
         button_box.button(StandardButton::Ok).released().connect(dialog.slot_accept());
 
         if dialog.exec() == 1 {
+            set_setting_bool("optimize_remove_itm", remove_itm.is_checked());
             set_setting_bool("optimize_not_renamed_packedfiles", optimize_datacored_tables.is_checked());
             set_setting_bool("remove_unused_art_sets", remove_unused_art_sets.is_checked());
             set_setting_bool("remove_unused_variants", remove_unused_variants.is_checked());
@@ -3905,12 +3903,7 @@ impl AppUI {
             AppUI::purge_them_all(app_ui, pack_file_contents_ui, true)?;
             GlobalSearchUI::clear(global_search_ui);
 
-            let mut options = OptimizerOptions::default();
-            options.set_optimize_datacored_tables(optimize_datacored_tables.is_checked());
-            options.set_remove_unused_art_sets(remove_unused_art_sets.is_checked());
-            options.set_remove_unused_variants(remove_unused_variants.is_checked());
-            options.set_remove_empty_masks(remove_empty_masks.is_checked());
-
+            let options = init_optimizer_options();
             let receiver = CENTRAL_COMMAND.send_background(Command::OptimizePackFile(options));
             let response = CENTRAL_COMMAND.recv_try(&receiver);
             match response {
@@ -3924,6 +3917,7 @@ impl AppUI {
                 _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
             }
         } else {
+            set_setting_bool("optimize_remove_itm", remove_itm.is_checked());
             set_setting_bool("optimize_not_renamed_packedfiles", optimize_datacored_tables.is_checked());
             set_setting_bool("remove_unused_art_sets", remove_unused_art_sets.is_checked());
             set_setting_bool("remove_unused_variants", remove_unused_variants.is_checked());
