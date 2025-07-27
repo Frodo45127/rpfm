@@ -137,7 +137,10 @@ pub unsafe fn set_tips(settings_ui: &Rc<SettingsUI>) {
     // `AI` tips.
     //-----------------------------------------------//
     let ai_openai_api_key_tip = qtr("tt_ai_openai_api_key_tip");
+    let deepl_api_key_tip = qtr("tt_deel_api_key_tip");
 
     settings_ui.ai_openai_api_key_label.set_tool_tip(&ai_openai_api_key_tip);
     settings_ui.ai_openai_api_key_line_edit.set_tool_tip(&ai_openai_api_key_tip);
+    settings_ui.deepl_api_key_label.set_tool_tip(&deepl_api_key_tip);
+    settings_ui.deepl_api_key_line_edit.set_tool_tip(&deepl_api_key_tip);
 }

@@ -1664,7 +1664,7 @@ compression_format_zstd = Zstd
 
 behavior_title = Auto-translation behavior
 behavior_info = Behavior when you select a new line:
-behavior_chatgpt = Auto-translate with ChatGPT (needs api key)
+behavior_chatgpt = Auto-translate with ChatGPT (needs API Key, mid quality)
 behavior_google_translate = Auto-translate with Google Translate (bad quality)
 behavior_copy_source = Copy source value
 behavior_empty = Empty translated value
@@ -1722,3 +1722,9 @@ label_file_overwrite = File overwriting different parent/vanilla file
 file_itm_explanation = This file is identical to a parent or vanilla file. This means id does pretty much nothing but make your pack bigger.
 file_overwrite_explanation = This file is overwriting a parent or vanilla file. Not a problem, just so you know what files are overwriting vanilla assets more easely.
 optimizer_remove_itm = <b>Pack:</b> Remove unchanged files
+
+behavior_deepl = Auto-translate with DeepL (needs API Key, best quality)
+translator_translate_with_deepl = Translate with Deepl
+
+settings_deepl_api_key = DeepL API Key:
+tt_deepl_api_key_tip = DeepL API Key. You must get it from DeepL. It's free.

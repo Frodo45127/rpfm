@@ -97,6 +97,7 @@ reqwest = "^0.12"
 # Translator libraries
 chat-gpt-lib-rs = "^0"
 base64 = "^0"
+deepl = "^0"
 
 # Windows resources support.
 [target.'cfg(windows)'.build-dependencies]

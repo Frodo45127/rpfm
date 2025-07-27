@@ -32,6 +32,7 @@ pub struct ToolTranslatorSlots {
     load_data_to_detailed_view: QBox<SlotOfQItemSelectionQItemSelection>,
     move_selection_up: QBox<SlotNoArgs>,
     move_selection_down: QBox<SlotNoArgs>,
+    translate_with_deepl: QBox<SlotNoArgs>,
     translate_with_chatgpt: QBox<SlotNoArgs>,
     translate_with_google: QBox<SlotNoArgs>,
     copy_from_source: QBox<SlotNoArgs>,
@@ -135,6 +136,25 @@ impl ToolTranslatorSlots {
             }
         ));
 
+        let translate_with_deepl = SlotNoArgs::new(ui.tool.main_widget(), clone!(
+            ui => move || {
+                info!("Triggering 'translate_with_deepl' for Translator.");
+
+                ui.translated_value_textedit().set_enabled(false);
+                let event_loop = QEventLoop::new_0a();
+                event_loop.process_events_0a();
+
+                let source_text = ui.original_value_textedit().to_plain_text().to_std_string();
+                let language = ui.map_language_to_deepl();
+                let result = ToolTranslator::ask_deepl(&source_text, language);
+                if let Ok(tr) = result {
+                    ui.translated_value_textedit.set_text(&QString::from_std_str(tr));
+                }
+
+                ui.translated_value_textedit().set_enabled(true);
+            }
+        ));
+
         let translate_with_chatgpt = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
                 info!("Triggering 'translate_with_chatgpt' for Translator.");
@@ -145,7 +165,7 @@ impl ToolTranslatorSlots {
 
                 let source_text = ui.original_value_textedit().to_plain_text().to_std_string();
                 let language = ui.map_language_to_natural();
-                let context = ui.context_line_edit().text().to_std_string();
+                let context = ui.context_text_edit().to_plain_text().to_std_string();
                 let result = ToolTranslator::ask_chat_gpt(&source_text, &language, &context);
                 if let Ok(tr) = result {
                     ui.translated_value_textedit.set_text(&QString::from_std_str(tr));
@@ -213,6 +233,7 @@ impl ToolTranslatorSlots {
             load_data_to_detailed_view,
             move_selection_up,
             move_selection_down,
+            translate_with_deepl,
             translate_with_chatgpt,
             translate_with_google,
             copy_from_source,

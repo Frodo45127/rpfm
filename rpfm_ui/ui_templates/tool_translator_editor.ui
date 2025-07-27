@@ -31,10 +31,22 @@
    </property>
    <item row="0" column="0">
     <widget class="QSplitter" name="splitter">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
      <property name="orientation">
       <enum>Qt::Horizontal</enum>
      </property>
      <widget class="QWidget" name="table_view_container" native="true">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
       <layout class="QGridLayout" name="gridLayout">
        <property name="leftMargin">
         <number>2</number>
@@ -71,10 +83,16 @@
      </widget>
      <widget class="QWidget" name="widget" native="true">
       <property name="sizePolicy">
-       <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+       <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
         <horstretch>0</horstretch>
         <verstretch>0</verstretch>
        </sizepolicy>
+      </property>
+      <property name="maximumSize">
+       <size>
+        <width>900</width>
+        <height>16777215</height>
+       </size>
       </property>
       <layout class="QGridLayout" name="gridLayout_2" rowstretch="0,0,0,0">
        <property name="leftMargin">
@@ -95,7 +113,7 @@
        <item row="0" column="0">
         <widget class="QGroupBox" name="info_groupbox">
          <property name="sizePolicy">
-          <sizepolicy hsizetype="Preferred" vsizetype="MinimumExpanding">
+          <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
            <horstretch>0</horstretch>
            <verstretch>0</verstretch>
           </sizepolicy>
@@ -145,12 +163,24 @@
           </item>
           <item row="2" column="0" colspan="2">
            <widget class="QGroupBox" name="behavior_groupbox">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
             <property name="title">
              <string>GroupBox</string>
             </property>
             <layout class="QGridLayout" name="gridLayout_8" columnstretch="0,0">
              <item row="0" column="1">
               <widget class="QWidget" name="widget_3" native="true">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
                <layout class="QGridLayout" name="gridLayout_10" rowstretch="0,0,0,1">
                 <item row="0" column="0">
                  <widget class="QLabel" name="behavior_edit_label">
@@ -181,31 +211,13 @@
              </item>
              <item row="0" column="0">
               <widget class="QWidget" name="widget_2" native="true">
-               <layout class="QGridLayout" name="gridLayout_9" rowstretch="0,0,0,0,0,0,1" columnstretch="0,1">
-                <item row="6" column="0">
-                 <widget class="QWidget" name="widget_4" native="true"/>
-                </item>
-                <item row="1" column="0">
-                 <widget class="QRadioButton" name="chatgpt_radio">
-                  <property name="text">
-                   <string>RadioButton</string>
-                  </property>
-                 </widget>
-                </item>
-                <item row="5" column="0">
-                 <widget class="QRadioButton" name="empty_radio">
-                  <property name="text">
-                   <string>RadioButton</string>
-                  </property>
-                 </widget>
-                </item>
-                <item row="2" column="0">
-                 <widget class="QRadioButton" name="google_translate_radio">
-                  <property name="text">
-                   <string>RadioButton</string>
-                  </property>
-                 </widget>
-                </item>
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <layout class="QGridLayout" name="gridLayout_9" rowstretch="0,0,0,0,0,0,0,1" columnstretch="0,1">
                 <item row="0" column="0">
                  <widget class="QLabel" name="behavior_label">
                   <property name="text">
@@ -213,20 +225,17 @@
                   </property>
                  </widget>
                 </item>
-                <item row="3" column="0">
-                 <widget class="QRadioButton" name="copy_source_radio">
+                <item row="2" column="0">
+                 <widget class="QRadioButton" name="chatgpt_radio">
                   <property name="text">
                    <string>RadioButton</string>
                   </property>
                  </widget>
                 </item>
-                <item row="1" column="1">
-                 <widget class="KLineEdit" name="context_line_edit">
-                  <property name="minimumSize">
-                   <size>
-                    <width>200</width>
-                    <height>0</height>
-                   </size>
+                <item row="3" column="0">
+                 <widget class="QRadioButton" name="google_translate_radio">
+                  <property name="text">
+                   <string>RadioButton</string>
                   </property>
                  </widget>
                 </item>
@@ -234,6 +243,40 @@
                  <widget class="QLabel" name="context_label">
                   <property name="text">
                    <string>TextLabel</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="7" column="0">
+                 <widget class="QWidget" name="widget_4" native="true">
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                 </widget>
+                </item>
+                <item row="4" column="0">
+                 <widget class="QRadioButton" name="copy_source_radio">
+                  <property name="text">
+                   <string>RadioButton</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="1" column="0">
+                 <widget class="QRadioButton" name="deepl_radio">
+                  <property name="text">
+                   <string>RadioButton</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="1" column="1" rowspan="5">
+                 <widget class="KTextEdit" name="context_text_edit"/>
+                </item>
+                <item row="5" column="0">
+                 <widget class="QRadioButton" name="empty_radio">
+                  <property name="text">
+                   <string>RadioButton</string>
                   </property>
                  </widget>
                 </item>
@@ -269,7 +312,7 @@
           </property>
           <item row="0" column="0">
            <widget class="QWidget" name="aliexpress_toolbar" native="true">
-            <layout class="QGridLayout" name="gridLayout_7" rowstretch="0,0,0,0,0,0,0,0,0,0">
+            <layout class="QGridLayout" name="gridLayout_7" rowstretch="0,0,0,0,0,0,0,0,0,0,0">
              <property name="leftMargin">
               <number>2</number>
              </property>
@@ -285,8 +328,8 @@
              <property name="spacing">
               <number>2</number>
              </property>
-             <item row="4" column="0">
-              <widget class="QToolButton" name="translate_with_google">
+             <item row="6" column="0">
+              <widget class="QToolButton" name="copy_from_source">
                <property name="minimumSize">
                 <size>
                  <width>30</width>
@@ -294,7 +337,11 @@
                 </size>
                </property>
                <property name="text">
-                <string>GO</string>
+                <string/>
+               </property>
+               <property name="icon">
+                <iconset theme="edit-copy">
+                 <normaloff>.</normaloff>.</iconset>
                </property>
                <property name="iconSize">
                 <size>
@@ -304,7 +351,63 @@
                </property>
               </widget>
              </item>
-             <item row="9" column="0">
+             <item row="8" column="0">
+              <widget class="QToolButton" name="import_from_translated_pack">
+               <property name="minimumSize">
+                <size>
+                 <width>30</width>
+                 <height>30</height>
+                </size>
+               </property>
+               <property name="text">
+                <string/>
+               </property>
+               <property name="icon">
+                <iconset theme="document-import-ocal">
+                 <normaloff>.</normaloff>.</iconset>
+               </property>
+               <property name="iconSize">
+                <size>
+                 <width>22</width>
+                 <height>22</height>
+                </size>
+               </property>
+              </widget>
+             </item>
+             <item row="4" column="0">
+              <widget class="QToolButton" name="translate_with_chatgpt">
+               <property name="minimumSize">
+                <size>
+                 <width>30</width>
+                 <height>30</height>
+                </size>
+               </property>
+               <property name="text">
+                <string>GP</string>
+               </property>
+               <property name="iconSize">
+                <size>
+                 <width>22</width>
+                 <height>22</height>
+                </size>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="0">
+              <widget class="Line" name="line">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+              </widget>
+             </item>
+             <item row="7" column="0">
+              <widget class="Line" name="line_2">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+              </widget>
+             </item>
+             <item row="10" column="0">
               <widget class="QWidget" name="widget_6" native="true"/>
              </item>
              <item row="1" column="0">
@@ -329,31 +432,8 @@
                </property>
               </widget>
              </item>
-             <item row="7" column="0">
-              <widget class="QToolButton" name="import_from_translated_pack">
-               <property name="minimumSize">
-                <size>
-                 <width>30</width>
-                 <height>30</height>
-                </size>
-               </property>
-               <property name="text">
-                <string/>
-               </property>
-               <property name="icon">
-                <iconset theme="document-import-ocal">
-                 <normaloff>.</normaloff>.</iconset>
-               </property>
-               <property name="iconSize">
-                <size>
-                 <width>22</width>
-                 <height>22</height>
-                </size>
-               </property>
-              </widget>
-             </item>
              <item row="5" column="0">
-              <widget class="QToolButton" name="copy_from_source">
+              <widget class="QToolButton" name="translate_with_google">
                <property name="minimumSize">
                 <size>
                  <width>30</width>
@@ -361,30 +441,7 @@
                 </size>
                </property>
                <property name="text">
-                <string/>
-               </property>
-               <property name="icon">
-                <iconset theme="edit-copy">
-                 <normaloff>.</normaloff>.</iconset>
-               </property>
-               <property name="iconSize">
-                <size>
-                 <width>22</width>
-                 <height>22</height>
-                </size>
-               </property>
-              </widget>
-             </item>
-             <item row="3" column="0">
-              <widget class="QToolButton" name="translate_with_chatgpt">
-               <property name="minimumSize">
-                <size>
-                 <width>30</width>
-                 <height>30</height>
-                </size>
-               </property>
-               <property name="text">
-                <string>GP</string>
+                <string>GO</string>
                </property>
                <property name="iconSize">
                 <size>
@@ -416,17 +473,16 @@
                </property>
               </widget>
              </item>
-             <item row="2" column="0">
-              <widget class="Line" name="line">
-               <property name="orientation">
-                <enum>Qt::Horizontal</enum>
+             <item row="3" column="0">
+              <widget class="QToolButton" name="translate_with_deepl">
+               <property name="minimumSize">
+                <size>
+                 <width>30</width>
+                 <height>30</height>
+                </size>
                </property>
-              </widget>
-             </item>
-             <item row="6" column="0">
-              <widget class="Line" name="line_2">
-               <property name="orientation">
-                <enum>Qt::Horizontal</enum>
+               <property name="text">
+                <string>DE</string>
                </property>
               </widget>
              </item>
@@ -514,11 +570,6 @@
    <class>KComboBox</class>
    <extends>QComboBox</extends>
    <header>kcombobox.h</header>
-  </customwidget>
-  <customwidget>
-   <class>KLineEdit</class>
-   <extends>QLineEdit</extends>
-   <header>klineedit.h</header>
   </customwidget>
   <customwidget>
    <class>KTextEdit</class>

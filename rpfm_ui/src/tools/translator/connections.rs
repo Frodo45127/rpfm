@@ -27,6 +27,7 @@ pub unsafe fn set_connections(ui: &ToolTranslator, slots: &ToolTranslatorSlots) 
 
     ui.move_selection_up().released().connect(slots.move_selection_up());
     ui.move_selection_down().released().connect(slots.move_selection_down());
+    ui.translate_with_deepl().released().connect(slots.translate_with_deepl());
     ui.translate_with_chatgpt().released().connect(slots.translate_with_chatgpt());
     ui.translate_with_google().released().connect(slots.translate_with_google());
     ui.copy_from_source().released().connect(slots.copy_from_source());

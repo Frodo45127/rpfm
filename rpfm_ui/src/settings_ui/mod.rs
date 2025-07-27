@@ -209,6 +209,10 @@ pub struct SettingsUI {
     ai_openai_api_key_label: QBox<QLabel>,
     ai_openai_api_key_line_edit: QBox<QLineEdit>,
 
+    deepl_api_key_label: QBox<QLabel>,
+    deepl_api_key_line_edit: QBox<QLineEdit>,
+
+
     //-------------------------------------------------------------------------------//
     // `ButtonBox` section of the `Settings` dialog.
     //-------------------------------------------------------------------------------//
@@ -782,8 +786,14 @@ impl SettingsUI {
         let ai_openai_api_key_label = QLabel::from_q_string_q_widget(&qtr("settings_ai_openai_api_key"), &ai_frame);
         let ai_openai_api_key_line_edit = QLineEdit::from_q_widget(&ai_frame);
 
+        let deepl_api_key_label = QLabel::from_q_string_q_widget(&qtr("settings_deepl_api_key"), &ai_frame);
+        let deepl_api_key_line_edit = QLineEdit::from_q_widget(&ai_frame);
+
         ai_grid.add_widget_5a(&ai_openai_api_key_label, 0, 0, 1, 1);
         ai_grid.add_widget_5a(&ai_openai_api_key_line_edit, 0, 1, 1, 1);
+
+        ai_grid.add_widget_5a(&deepl_api_key_label, 1, 0, 1, 1);
+        ai_grid.add_widget_5a(&deepl_api_key_line_edit, 1, 1, 1, 1);
 
         settings_grid.add_widget_5a(&ai_frame, 4, 0, 1, 3);
 
@@ -937,6 +947,8 @@ impl SettingsUI {
             //-------------------------------------------------------------------------------//
             ai_openai_api_key_label,
             ai_openai_api_key_line_edit,
+            deepl_api_key_label,
+            deepl_api_key_line_edit,
 
             //-------------------------------------------------------------------------------//
             // `ButtonBox` section of the `Settings` dialog.
@@ -1085,6 +1097,7 @@ impl SettingsUI {
 
         // Load the AI-related stuff
         self.ai_openai_api_key_line_edit.set_text(&QString::from_std_str(setting_string_from_q_setting(&q_settings, "ai_openai_api_key")));
+        self.deepl_api_key_line_edit.set_text(&QString::from_std_str(setting_string_from_q_setting(&q_settings, "deepl_api_key")));
 
         Ok(())
     }
@@ -1186,6 +1199,7 @@ impl SettingsUI {
 
         // Get the AI Settings.
         set_setting_string_to_q_setting(&q_settings, "ai_openai_api_key", &self.ai_openai_api_key_line_edit.text().to_std_string());
+        set_setting_string_to_q_setting(&q_settings, "deepl_api_key", &self.deepl_api_key_line_edit.text().to_std_string());
 
         // Save the settings.
         q_settings.sync();

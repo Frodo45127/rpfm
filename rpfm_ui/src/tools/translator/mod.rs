@@ -32,6 +32,7 @@ use anyhow::anyhow;
 use base64::{Engine, engine::general_purpose::STANDARD};
 use chat_gpt_lib_rs::api_resources::{completions::{create_completion, CreateCompletionRequest, PromptInput}, models::Model};
 use chat_gpt_lib_rs::OpenAIClient;
+use deepl::{DeepLApi, Lang, ModelType, TagHandling};
 use getset::*;
 use regex::{Captures, Regex};
 use serde_json::Value;
@@ -141,11 +142,12 @@ pub struct ToolTranslator {
     tagged_images: HashMap<String, String>,
     language_combobox: QPtr<QComboBox>,
 
+    deepl_radio_button: QPtr<QRadioButton>,
     chatgpt_radio_button: QPtr<QRadioButton>,
     google_translate_radio_button: QPtr<QRadioButton>,
     copy_source_radio_button: QPtr<QRadioButton>,
 
-    context_line_edit: QPtr<QLineEdit>,
+    context_text_edit: QPtr<QTextEdit>,
     edit_all_same_values_radio_button: QPtr<QRadioButton>,
 
     action_move_up: QPtr<QAction>,
@@ -155,6 +157,7 @@ pub struct ToolTranslator {
 
     move_selection_up: QPtr<QToolButton>,
     move_selection_down: QPtr<QToolButton>,
+    translate_with_deepl: QPtr<QToolButton>,
     translate_with_chatgpt: QPtr<QToolButton>,
     translate_with_google: QPtr<QToolButton>,
     copy_from_source: QPtr<QToolButton>,
@@ -204,7 +207,8 @@ impl ToolTranslator {
         let behavior_groupbox: QPtr<QGroupBox> = tool.find_widget("behavior_groupbox")?;
         let behavior_label: QPtr<QLabel> = tool.find_widget("behavior_label")?;
         let context_label: QPtr<QLabel> = tool.find_widget("context_label")?;
-        let context_line_edit: QPtr<QLineEdit> = tool.find_widget("context_line_edit")?;
+        let context_text_edit: QPtr<QTextEdit> = tool.find_widget("context_text_edit")?;
+        let deepl_radio_button: QPtr<QRadioButton> = tool.find_widget("deepl_radio")?;
         let chatgpt_radio_button: QPtr<QRadioButton> = tool.find_widget("chatgpt_radio")?;
         let google_translate_radio_button: QPtr<QRadioButton> = tool.find_widget("google_translate_radio")?;
         let copy_source_radio_button: QPtr<QRadioButton> = tool.find_widget("copy_source_radio")?;
@@ -212,12 +216,14 @@ impl ToolTranslator {
         context_label.set_text(&qtr("context"));
         behavior_groupbox.set_title(&qtr("behavior_title"));
         behavior_label.set_text(&qtr("behavior_info"));
+        deepl_radio_button.set_text(&qtr("behavior_deepl"));
         chatgpt_radio_button.set_text(&qtr("behavior_chatgpt"));
         google_translate_radio_button.set_text(&qtr("behavior_google_translate"));
         copy_source_radio_button.set_text(&qtr("behavior_copy_source"));
         empty_radio_button.set_text(&qtr("behavior_empty"));
 
         let behavior_group = QButtonGroup::new_1a(&behavior_groupbox);
+        behavior_group.add_button_1a(&deepl_radio_button);
         behavior_group.add_button_1a(&chatgpt_radio_button);
         behavior_group.add_button_1a(&google_translate_radio_button);
         behavior_group.add_button_1a(&copy_source_radio_button);
@@ -422,12 +428,14 @@ impl ToolTranslator {
 
         let move_selection_up: QPtr<QToolButton> = tool.find_widget("move_selection_up")?;
         let move_selection_down: QPtr<QToolButton> = tool.find_widget("move_selection_down")?;
+        let translate_with_deepl: QPtr<QToolButton> = tool.find_widget("translate_with_deepl")?;
         let translate_with_chatgpt: QPtr<QToolButton> = tool.find_widget("translate_with_chatgpt")?;
         let translate_with_google: QPtr<QToolButton> = tool.find_widget("translate_with_google")?;
         let copy_from_source: QPtr<QToolButton> = tool.find_widget("copy_from_source")?;
         let import_from_translated_pack: QPtr<QToolButton> = tool.find_widget("import_from_translated_pack")?;
         move_selection_up.set_tool_tip(&qtr("translator_move_selection_up"));
         move_selection_down.set_tool_tip(&qtr("translator_move_selection_down"));
+        translate_with_deepl.set_tool_tip(&qtr("translator_translate_with_deepl"));
         translate_with_chatgpt.set_tool_tip(&qtr("translator_translate_with_chatgpt"));
         translate_with_google.set_tool_tip(&qtr("translator_translate_with_google"));
         copy_from_source.set_tool_tip(&qtr("translator_copy_from_source"));
@@ -436,8 +444,17 @@ impl ToolTranslator {
         // Only allow AI translation if we have a key in settings. Ignore keys in env.
         if setting_string("ai_openai_api_key").is_empty() {
             chatgpt_radio_button.set_enabled(false);
-            context_line_edit.set_enabled(false);
+            context_text_edit.set_enabled(false);
             translate_with_chatgpt.set_enabled(false);
+        } else {
+            chatgpt_radio_button.set_checked(true);
+        }
+
+        if setting_string("deepl_api_key").is_empty() {
+            deepl_radio_button.set_enabled(false);
+            translate_with_deepl.set_enabled(false);
+        } else {
+            deepl_radio_button.set_checked(true);
         }
 
         let action_move_up = add_action_to_widget(app_ui.shortcuts().as_ref(), "translator", "move_up", Some(table.table_view().static_upcast()));
@@ -461,7 +478,8 @@ impl ToolTranslator {
             colors,
             tagged_images,
             language_combobox,
-            context_line_edit,
+            context_text_edit,
+            deepl_radio_button,
             chatgpt_radio_button,
             google_translate_radio_button,
             copy_source_radio_button,
@@ -472,6 +490,7 @@ impl ToolTranslator {
             action_import_from_translated_pack,
             move_selection_up,
             move_selection_down,
+            translate_with_deepl,
             translate_with_chatgpt,
             translate_with_google,
             copy_from_source,
@@ -561,9 +580,15 @@ impl ToolTranslator {
         // If the value needs a retrasnlation decide what to do depending on the behavior group.
         // Only do it if the text is empty. If there's a previous translation, keep it so it can be fixed.
         if needs_retranslation && self.translated_value_textedit().to_plain_text().is_empty() {
-            if self.chatgpt_radio_button().is_checked() {
+            if self.deepl_radio_button().is_checked() {
+                let language = self.map_language_to_deepl();
+                let result = Self::ask_deepl(&source_text, language);
+                if let Ok(tr) = result {
+                    self.translated_value_textedit.set_plain_text(&QString::from_std_str(tr));
+                }
+            } else if self.chatgpt_radio_button().is_checked() {
                 let language = self.map_language_to_natural();
-                let context = self.context_line_edit().text().to_std_string();
+                let context = self.context_text_edit().to_plain_text().to_std_string();
                 let result = Self::ask_chat_gpt(&source_text, &language, &context);
                 if let Ok(tr) = result {
                     self.translated_value_textedit.set_plain_text(&QString::from_std_str(tr));
@@ -664,6 +689,26 @@ impl ToolTranslator {
         }
     }
 
+    unsafe fn map_language_to_deepl(&self) -> Lang {
+        let lang = self.language_combobox().current_text().to_std_string().to_lowercase();
+        match &*lang {
+            BRAZILIAN => Lang::PT_BR,
+            SIMPLIFIED_CHINESE => Lang::ZH_HANS,
+            CZECH => Lang::CS,
+            ENGLISH => Lang::EN_GB,
+            FRENCH => Lang::FR,
+            GERMAN => Lang::DE,
+            ITALIAN => Lang::IT,
+            KOREAN => Lang::KO,
+            POLISH => Lang::PL,
+            RUSSIAN => Lang::RU,
+            SPANISH => Lang::ES,
+            TURKISH => Lang::TR,
+            TRADITIONAL_CHINESE => Lang::ZH_HANT,
+            _ => Lang::EN_GB,
+        }
+    }
+
     #[tokio::main]
     async fn ask_google(string: &str, language: &str) -> Result<String> {
         if !string.trim().is_empty() {
@@ -738,6 +783,45 @@ impl ToolTranslator {
         }
 
         Ok(response_text)
+    }
+
+    #[tokio::main]
+    async fn ask_deepl(string: &str, language: Lang) -> Result<String> {
+        let api_key = setting_string("deepl_api_key");
+        if api_key.is_empty() {
+            return Err(anyhow!("Missing DeepL API Key."))
+        };
+
+        let api = DeepLApi::with(&api_key).new();
+
+        let string = string
+            .replace("[[", "<[[")
+            .replace("<[[/", "</[[")
+            .replace("]]", "]]>");
+
+        let translated = api.translate_text(string, language)
+            .source_lang(Lang::EN)
+            .model_type(ModelType::PreferQualityOptimized)
+            .ignore_tags(vec![
+                "rgba".to_owned(),
+                "col".to_owned(),
+                "img".to_owned(),
+                "url".to_owned(),
+                "sl".to_owned(),
+                "sl_tooltip".to_owned(),
+                "tooltip".to_owned(),
+            ])
+            .tag_handling(TagHandling::Xml)
+            .await?;
+
+        let translated_text = translated.translations.iter()
+            .map(|x| &x.text)
+            .join("\n")
+            .replace("</[[", "<[[/")
+            .replace("<[[", "[[")
+            .replace("]]>", "]]");
+
+        Ok(translated_text)
     }
 
     pub unsafe fn import_from_another_pack(&self) -> Result<()> {
