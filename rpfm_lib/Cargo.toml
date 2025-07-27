@@ -63,6 +63,9 @@ regex = "^1"
 # RNG support.
 rand = "^0.8"
 
+# Checksumming support.
+crc-fast = "^1"
+
 # Git support.
 git2 = { version = "^0.20", optional = true }
 

@@ -80,6 +80,7 @@
 //! [`Video`]: crate::files::video::Video
 
 
+use crc_fast::{checksum, CrcAlgorithm};
 use csv::{QuoteStyle, ReaderBuilder, WriterBuilder};
 use getset::*;
 #[cfg(feature = "integration_log")] use log::warn;
@@ -1577,7 +1578,7 @@ impl RFile {
             RFileInnerData::OnDisk(data) => {
 
                 // Copy the provided extra data (if any), then replace the file-specific stuff.
-                let raw_data = data.read(data.is_compressed, data.is_encrypted)?;
+                let raw_data = data.read()?;
                 let mut extra_data = match extra_data {
                     Some(extra_data) => extra_data.clone(),
                     None => DecodeableExtraData::default(),
@@ -1697,7 +1698,7 @@ impl RFile {
             },
             RFileInnerData::OnDisk(data) => {
                 previously_undecoded = true;
-                data.read(data.is_compressed, data.is_encrypted)?
+                data.read()?
             },
         };
 
@@ -1749,12 +1750,8 @@ impl RFile {
     pub fn load(&mut self) -> Result<()> {
        let loaded = match &self.data {
             RFileInnerData::Decoded(_) |
-            RFileInnerData::Cached(_) => {
-                return Ok(())
-            },
-            RFileInnerData::OnDisk(data) => {
-                data.read(data.is_compressed, data.is_encrypted)?
-            },
+            RFileInnerData::Cached(_) => return Ok(()),
+            RFileInnerData::OnDisk(data) => data.read()?,
         };
 
         // Piece of code to find text files we do not support yet. Needs enabling the content_inspector crate.
@@ -2144,6 +2141,15 @@ impl RFile {
 
         Ok(())
     }
+
+    /// This function returns the data hash of the file.
+    pub fn data_hash(&mut self, extra_data: &Option<EncodeableExtraData>) -> Result<u64> {
+        Ok(match self.data {
+            RFileInnerData::Decoded(_) => checksum(CrcAlgorithm::Crc32Iscsi, &self.encode(extra_data, false, false, true)?.unwrap()),
+            RFileInnerData::Cached(ref data) => checksum(CrcAlgorithm::Crc32Iscsi, data),
+            RFileInnerData::OnDisk(ref on_disk) => checksum(CrcAlgorithm::Crc32Iscsi, &on_disk.read()?),
+        })
+    }
 }
 
 impl OnDisk {
@@ -2151,7 +2157,7 @@ impl OnDisk {
     /// This function tries to read and return the raw data of an RFile.
     ///
     /// This returns the data uncompressed and unencrypted.
-    fn read(&self, decompress: bool, decrypt: Option<PFHVersion>) -> Result<Vec<u8>> {
+    fn read(&self) -> Result<Vec<u8>> {
 
         // Date check, to ensure the source file or container hasn't been modified since we got the indexes to read it.
         let mut file = BufReader::new(File::open(&self.path)?);
@@ -2166,12 +2172,12 @@ impl OnDisk {
         file.read_exact(&mut data)?;
 
         // If the data is encrypted, decrypt it.
-        if decrypt.is_some() {
+        if self.is_encrypted.is_some() {
             data = Cursor::new(data).decrypt()?;
         }
 
         // If the data is compressed. decompress it.
-        if decompress {
+        if self.is_compressed {
             data = data.as_slice().decompress()?;
         }
 

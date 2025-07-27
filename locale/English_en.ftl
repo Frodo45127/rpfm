@@ -1714,3 +1714,9 @@ tt_ai_openai_api_key_tip = OpenAI API Key. You must get one from OpenAI's websit
 
 translator_translate_with_chatgpt = Translate with ChatGPT
 translator_translate_with_google = Translate with Google Translate
+
+label_file_itm = File identical to parent/vanilla file
+label_file_overwrite = File overwriting different parent/vanilla file
+
+file_itm_explanation = This file is identical to a parent or vanilla file. This means id does pretty much nothing but make your pack bigger.
+file_overwrite_explanation = This file is overwriting a parent or vanilla file. Not a problem, just so you know what files are overwriting vanilla assets more easely.
