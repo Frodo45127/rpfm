@@ -450,7 +450,7 @@ pub fn background_loop() {
                                             let _ = update_schema_from_raw_files(schema, &game_selected, &asskit_path, &schema_path, &tables_to_skip, &tables_to_check_split);
 
                                             // This generates the automatic patches in the schema (like ".png are files" kinda patches).
-                                            if dependencies.generate_automatic_patches(schema).is_ok() {
+                                            if dependencies.generate_automatic_patches(schema, &pack_file_decoded).is_ok() {
 
                                                 // Fix for old file relative paths using incorrect separators.
                                                 schema.definitions_mut().par_iter_mut().for_each(|x| {

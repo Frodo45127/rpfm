@@ -2201,11 +2201,21 @@ impl Dependencies {
 
     /// This function generates automatic schema patches based mainly on bruteforcing and some clever logic.
     #[allow(clippy::if_same_then_else)]
-    pub fn generate_automatic_patches(&self, schema: &mut Schema) -> Result<()> {
-        let db_tables = self.db_and_loc_data(true, false, true, false)?
+    pub fn generate_automatic_patches(&self, schema: &mut Schema, pack: &Pack) -> Result<()> {
+        let mut db_tables = self.db_and_loc_data(true, false, true, false)?
             .iter()
             .filter_map(|file| if let Ok(RFileDecoded::DB(table)) = file.decoded() { Some(table) } else { None })
             .collect::<Vec<_>>();
+
+        db_tables.extend_from_slice(&pack.files_by_type(&[FileType::DB])
+            .iter()
+            .filter_map(|x| if let Ok(RFileDecoded::DB(db)) = x.decoded() {
+                Some(db)
+            } else {
+                None
+            })
+            .collect::<Vec<_>>()
+        );
 
         let current_patches = schema.patches_mut();
         let mut new_patches: HashMap<String, DefinitionPatch> = HashMap::new();
