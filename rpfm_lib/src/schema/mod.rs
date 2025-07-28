@@ -762,11 +762,11 @@ impl Definition {
     /// This function returns the list of fields a table contains, after it has been expanded/changed due to the attributes of each field.
     pub fn fields_processed(&self) -> Vec<Field> {
         let mut split_colour_fields: BTreeMap<u8, Field> = BTreeMap::new();
-        let patches = self.patches();
+        let patches = Some(self.patches());
         let mut fields = self.fields().iter()
             .filter_map(|x|
                 if x.is_bitwise() > 1 {
-                    let unused = x.unused(Some(patches));
+                    let unused = x.unused(patches);
                     let mut fields = vec![x.clone(); x.is_bitwise() as usize];
                     fields.iter_mut().enumerate().for_each(|(index, field)| {
                         field.set_name(format!("{}_{}", field.name(), index + 1));
@@ -811,12 +811,12 @@ impl Definition {
                             // Update the default value with the one for this colour.
                             field.set_default_value(default_value);
 
-                            if !field.unused(Some(patches)) {
-                                field.set_unused(x.unused(Some(patches)));
+                            if !field.unused(patches) {
+                                field.set_unused(x.unused(patches));
                             }
                         },
                         None => {
-                            let unused = x.unused(Some(patches));
+                            let unused = x.unused(patches);
                             let colour_split = x.name().rsplitn(2, '_').collect::<Vec<&str>>();
                             let colour_field_name = if colour_split.len() == 2 {
                                 format!("{}{}", colour_split[1].to_lowercase(), MERGE_COLOUR_POST)
@@ -852,6 +852,12 @@ impl Definition {
                     }
 
                     None
+                }
+
+                else if x.is_numeric(patches) {
+                    let mut field = x.clone();
+                    field.set_field_type(FieldType::I32);
+                    Some(vec![field; 1])
                 }
 
                 else {
@@ -1294,6 +1300,18 @@ impl Field {
 
     pub fn is_part_of_colour(&self) -> Option<u8>{
         self.is_part_of_colour
+    }
+
+    pub fn is_numeric(&self, schema_patches: Option<&DefinitionPatch>) -> bool {
+        if let Some(schema_patches) = schema_patches {
+            if let Some(patch) = schema_patches.get(self.name()) {
+                if let Some(is_numeric) = patch.get("is_numeric") {
+                    return is_numeric.parse::<bool>().unwrap_or(false);
+                }
+            }
+        }
+
+        false
     }
 
     /// Getter for the `cannot_be_empty` field.

@@ -665,13 +665,13 @@ pub(crate) fn decode_table<R: ReadBytes>(data: &mut R, definition: &Definition, 
     let mut table = if entry_count < 10_000 { Vec::with_capacity(entry_count as usize) } else { vec![] };
 
     for row in 0..entry_count {
-        table.push(decode_row(data, fields, row, return_incomplete)?);
+        table.push(decode_row(data, fields, row, return_incomplete, &Some(definition.patches()))?);
     }
 
     Ok(table)
 }
 
-fn decode_row<R: ReadBytes>(data: &mut R, fields: &[Field], row: u32, return_incomplete: bool) -> Result<Vec<DecodedData>> {
+fn decode_row<R: ReadBytes>(data: &mut R, fields: &[Field], row: u32, return_incomplete: bool, patches: &Option<&DefinitionPatch>) -> Result<Vec<DecodedData>> {
     let mut split_colours: BTreeMap<u8, HashMap<String, u8>> = BTreeMap::new();
     let mut row_data = Vec::with_capacity(fields.len());
     for (column, field) in fields.iter().enumerate() {
@@ -688,7 +688,7 @@ fn decode_row<R: ReadBytes>(data: &mut R, fields: &[Field], row: u32, return_inc
                 }
             }
         };
-        decode_field_postprocess(&mut row_data, field_data, field, &mut split_colours)
+        decode_field_postprocess(&mut row_data, field_data, field, &mut split_colours, patches)
     }
 
     decode_row_postprocess(&mut row_data, &mut split_colours)?;
@@ -832,7 +832,7 @@ fn decode_row_postprocess(row_data: &mut Vec<DecodedData>, split_colours: &mut B
     Ok(())
 }
 
-fn decode_field_postprocess(row_data: &mut Vec<DecodedData>, data: DecodedData, field: &Field, split_colours: &mut BTreeMap<u8, HashMap<String, u8>>) {
+fn decode_field_postprocess(row_data: &mut Vec<DecodedData>, data: DecodedData, field: &Field, split_colours: &mut BTreeMap<u8, HashMap<String, u8>>, patches: &Option<&DefinitionPatch>) {
 
     // If the field is a bitwise, split it into multiple fields. This is currently limited to integer types.
     if field.is_bitwise() > 1 {
@@ -892,6 +892,21 @@ fn decode_field_postprocess(row_data: &mut Vec<DecodedData>, data: DecodedData, 
                 }
             }
         }
+    }
+
+    // Numeric fields are processed as i32. We need to write them back into their original type here.
+    else if field.is_numeric(*patches) {
+        let data = match data {
+            DecodedData::I64(ref data) |
+            DecodedData::OptionalI64(ref data) => *data as i32,
+            DecodedData::StringU8(ref data) |
+            DecodedData::StringU16(ref data) |
+            DecodedData::OptionalStringU8(ref data) |
+            DecodedData::OptionalStringU16(ref data) => data.parse::<i32>().unwrap(),
+            _ => unimplemented!()
+        };
+
+        row_data.push(DecodedData::I32(data));
     }
 
     else {
@@ -994,6 +1009,27 @@ pub fn encode_table<W: WriteBytes>(entries: &[Vec<DecodedData>], data: &mut W, d
                     FieldType::I32 => data.write_i32(field_data as i32)?,
                     FieldType::I64 => data.write_i64(field_data)?,
                     _ => return Err(RLibError::EncodingTableWrongFieldType(FieldType::from(&row[data_column]).to_string(), field.field_type().to_string()))
+                }
+            }
+
+            // Numeric fields are processed as i32. We need to write them back into their original type here.
+            else if field.is_numeric(*patches) {
+                match &row[data_column] {
+                    DecodedData::I32(field_data) => {
+                        match field.field_type() {
+                            FieldType::I64 => data.write_i64(*field_data as i64)?,
+                            FieldType::OptionalI64 => {
+                                data.write_bool(true)?;
+                                data.write_i64(*field_data as i64)?;
+                            },
+                            FieldType::StringU8 => data.write_sized_string_u8(&field_data.to_string())?,
+                            FieldType::StringU16 => data.write_sized_string_u16(&field_data.to_string())?,
+                            FieldType::OptionalStringU8 => data.write_optional_string_u8(&field_data.to_string())?,
+                            FieldType::OptionalStringU16 => data.write_optional_string_u16(&field_data.to_string())?,
+                            _ => return Err(RLibError::EncodingTableWrongFieldType(field_data.to_string(), field.field_type().to_string())),
+                        }
+                    }
+                    _ => return Err(RLibError::EncodingTableWrongFieldType(FieldType::from(&row[data_column]).to_string(), field.field_type().to_string())),
                 }
             }
 

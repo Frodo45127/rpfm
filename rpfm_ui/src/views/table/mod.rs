@@ -3006,6 +3006,7 @@ impl TableView {
 
         let instructions_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "instructions_label")?;
         let is_key_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "is_key_label")?;
+        let is_numeric_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "is_numeric_label")?;
         let default_value_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "default_value_label")?;
         let is_filename_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "is_filename_label")?;
         let filename_relative_path_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "filename_relative_path_label")?;
@@ -3016,6 +3017,7 @@ impl TableView {
         let description_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "description_label")?;
 
         let is_key_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "is_key_checkbox")?;
+        let is_numeric_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "is_numeric_checkbox")?;
         let default_value_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "default_value_line_edit")?;
         let is_filename_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "is_filename_checkbox")?;
         let filename_relative_path_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "filename_relative_path_line_edit")?;
@@ -3069,6 +3071,7 @@ impl TableView {
         dialog.set_window_title(&qtr("new_column_patch_dialog"));
         instructions_label.set_text(&qtr("column_patch_instructions"));
         is_key_label.set_text(&qtr("is_key"));
+        is_numeric_label.set_text(&qtr("is_numeric"));
         default_value_label.set_text(&qtr("default_value"));
         is_filename_label.set_text(&qtr("is_filename"));
         filename_relative_path_label.set_text(&qtr("filename_relative_path"));
@@ -3102,6 +3105,7 @@ impl TableView {
             lookup_line_edit.set_text(&QString::from_std_str(value.join(";")));
         }
 
+        is_numeric_checkbox.set_checked(field.is_numeric(patches));
         not_empty_checkbox.set_checked(field.cannot_be_empty(patches));
         unused_checkbox.set_checked(field.unused(patches));
         description_text_edit.set_text(&QString::from_std_str(field.description(patches)));
@@ -3141,6 +3145,10 @@ impl TableView {
             let lookup_value_new = lookup_line_edit.text().to_std_string();
             if !lookup_value_new.is_empty() && (lookup_value.is_none() || lookup_value.unwrap().join(";") != lookup_value_new) {
                 column_data.insert("lookup".to_owned(), lookup_line_edit.text().to_std_string());
+            }
+
+            if field.is_numeric(patches) != is_numeric_checkbox.is_checked() {
+                column_data.insert("is_numeric".to_owned(), is_numeric_checkbox.is_checked().to_string());
             }
 
             if field.cannot_be_empty(patches) != not_empty_checkbox.is_checked() {

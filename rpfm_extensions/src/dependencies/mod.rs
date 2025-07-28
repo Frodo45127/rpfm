@@ -2574,6 +2574,43 @@ impl Dependencies {
                                 }
                             }
                         }
+
+                        if (low_name == "key" || low_name == "id") && table.data().par_iter().all(|x| x[column].data_to_string().parse::<i32>().is_ok()) {
+                            let mut patch = HashMap::new();
+                            patch.insert("is_numeric".to_owned(), "true".to_owned());
+
+                            match new_patches.get_mut(table.table_name()) {
+                                Some(patches) => match patches.get_mut(field.name()) {
+                                    Some(patches) => patches.extend(patch),
+                                    None => { patches.insert(field.name().to_owned(), patch); }
+                                },
+                                None => {
+                                    let mut table_patch = HashMap::new();
+                                    table_patch.insert(field.name().to_owned(), patch);
+                                    new_patches.insert(table.table_name().to_string(), table_patch);
+                                }
+                            }
+                        }
+                    }
+                    FieldType::I64 |
+                    FieldType::OptionalI64 => {
+                        let low_name = field.name().to_lowercase();
+                        if (low_name == "key" || low_name == "id") && table.data().par_iter().all(|x| x[column].data_to_string().parse::<i32>().is_ok()) {
+                            let mut patch = HashMap::new();
+                            patch.insert("is_numeric".to_owned(), "true".to_owned());
+
+                            match new_patches.get_mut(table.table_name()) {
+                                Some(patches) => match patches.get_mut(field.name()) {
+                                    Some(patches) => patches.extend(patch),
+                                    None => { patches.insert(field.name().to_owned(), patch); }
+                                },
+                                None => {
+                                    let mut table_patch = HashMap::new();
+                                    table_patch.insert(field.name().to_owned(), patch);
+                                    new_patches.insert(table.table_name().to_string(), table_patch);
+                                }
+                            }
+                        }
                     }
                     _ => continue
                 }

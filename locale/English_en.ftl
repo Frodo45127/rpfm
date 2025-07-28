@@ -1428,6 +1428,7 @@ column_patch_instructions = <p>This allows you to make a patch for the currently
         <li><b>Lookup Columns</b>: List of column names, separated with ";", which will be shown as lookups in each cell. Only works on columns referencing other tables (valid values: columns on the other table or loc columns dependant on the other table), <br/>or on key columnns on single-key tables (valid values: columns on this table or loc columns dependant on this table).</li>
         <li><b>Cannot Be Empty</b>: If empty values should be marked as errors in diagnostics.</li>
         <li><b>Unused</b>: The column is not used in the game selected and can be automatically hidden if set to be hidden in the settings.</li>
+        <li><b>Is Numeric Value</b>: If the column has I64, OptionalI64, or one of the String types, but it's referenced by I32 values (aka any value other than a I32 number will cause problems), it should have this checked. It'll force the column to behave like an I32 column.</li>
         <li><b>Description</b>: Text that can be added to the column description that appears on a tooltip when you hover over the column title.</li>
     </ul>
 
@@ -1728,3 +1729,4 @@ translator_translate_with_deepl = Translate with Deepl
 
 settings_deepl_api_key = DeepL API Key:
 tt_deepl_api_key_tip = DeepL API Key. You must get it from DeepL. It's free.
+is_numeric = Is Numeric Value
