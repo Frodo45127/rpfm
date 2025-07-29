@@ -6,6 +6,28 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [Unreleased]
+### Added
+- Translator: preview panel now is capable of interpret most tags.
+- Translator: preview panel now is capable of correctly interpret db colours.
+- Translator: preview panel now is capable of correctly interpret tagged images.
+- Implemented new "File Identical to Parent/Vanilla" diagnostic.
+- Implemented new "File is Overwriting a Parent/Vanilla file" diagnostic.
+- Implemented new "Remove unchanged files" option in the optimizer.
+- Translator: implemented integration with DeepL (you need to provide your own API key in the settings for it to work).
+
+### Changed
+- All tool dialogs are now maximizable.
+- Translator: the context line is now bigger, to make it easier to input context.
+- AK Only Diagnostics (the ones that tend to trigger false positives) are now enabled by default for start_pos files, as they barely get any diagnostic result if these are not enabled.
+- Keys and IDs that have String or I64 types are now treated as I32, as they're often used in I32 fields and they do not accept numbers bigger than that.
+
+### Fixed
+- Fixed multiple diagnostics filters not working as expected.
+- Fixed source/translated text panels in translator sometimes wrongly interpreting text as xml.
+- Fixed automatic pach generation not using the open pack when looking for tables, causing it to fail to generate patches on ak-only tables.
+- Fixed files added to the pack not getting preloaded, causing missing file errors on save if you delete the source files from disk before you save the pack.
+
 ## [4.5.4]
 ### Added
 - Implemented support for editing .glsl files.
