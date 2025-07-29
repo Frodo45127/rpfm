@@ -709,6 +709,7 @@ pub trait Container {
         }
 
         // Make sure to guess the file type before inserting it.
+        rfile.load()?;
         rfile.guess_file_type()?;
 
         self.insert(rfile)
@@ -788,6 +789,7 @@ pub trait Container {
             }
 
             // Make sure to guess the file type before inserting it.
+            rfile.load()?;
             rfile.guess_file_type()?;
 
             if let Some(path) = self.insert(rfile)? {
