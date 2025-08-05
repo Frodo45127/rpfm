@@ -21,7 +21,7 @@ use crate::error::Result;
 use crate::files::{DecodeableExtraData, Decodeable, EncodeableExtraData, Encodeable};
 
 /// Extension used by audio files.
-pub const EXTENSIONS: [&str; 2] = [".mp3", ".wem"];
+pub const EXTENSIONS: [&str; 3] = [".mp3", ".wem", ".wav"];
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
