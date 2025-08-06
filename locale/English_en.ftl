@@ -1730,3 +1730,9 @@ translator_translate_with_deepl = Translate with Deepl
 settings_deepl_api_key = DeepL API Key:
 tt_deepl_api_key_tip = DeepL API Key. You must get it from DeepL. It's free.
 is_numeric = Is Numeric Value
+
+label_file_duplicated = File duplicated
+file_duplicated_explanation = The game files are case-agnostic. Meaning if you have two files with the same name but one has uppercase characters and the other one has lowercase characters,
+    RPFM will consider them two different files, but the game will see them as the same file and will only load one of them.
+
+    This warning tells you that there are two or more files in your pack that the game will consider the same file, and will only load one of them.

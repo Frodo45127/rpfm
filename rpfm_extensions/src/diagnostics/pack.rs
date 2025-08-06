@@ -56,6 +56,7 @@ pub enum PackDiagnosticReportType {
     MissingLocDataFileDetected(String),
     FileITM(String),
     FileOverwrite(String),
+    FileDuplicated(String),
 }
 
 //-------------------------------------------------------------------------------//
@@ -78,6 +79,7 @@ impl DiagnosticReport for PackDiagnosticReport {
             PackDiagnosticReportType::MissingLocDataFileDetected(pack_name) => format!("Missing Loc Data file in Pack: {pack_name}"),
             PackDiagnosticReportType::FileITM(path) => format!("File identical to parent/vanilla file: {path}"),
             PackDiagnosticReportType::FileOverwrite(path) => format!("File overwriting a parent/vanilla file: {path}"),
+            PackDiagnosticReportType::FileDuplicated(path) => format!("File duplicated: {path}"),
         }
     }
 
@@ -88,6 +90,7 @@ impl DiagnosticReport for PackDiagnosticReport {
             PackDiagnosticReportType::MissingLocDataFileDetected(_) => DiagnosticLevel::Warning,
             PackDiagnosticReportType::FileITM(_) => DiagnosticLevel::Warning,
             PackDiagnosticReportType::FileOverwrite(_) => DiagnosticLevel::Info,
+            PackDiagnosticReportType::FileDuplicated(_) => DiagnosticLevel::Warning,
         }
     }
 }
@@ -100,6 +103,7 @@ impl Display for PackDiagnosticReportType {
             Self::MissingLocDataFileDetected(_) => "MissingLocDataFileDetected",
             Self::FileITM(_) => "FileITM",
             Self::FileOverwrite(_) => "FileOverwrite",
+            Self::FileDuplicated(_) => "FileDuplicated",
         }, f)
     }
 }
@@ -125,6 +129,20 @@ impl PackDiagnostic {
         if pack.paths().contains_key(&new) {
             let result = PackDiagnosticReport::new(PackDiagnosticReportType::MissingLocDataFileDetected(new));
             diagnostic.results_mut().push(result);
+        }
+
+        let results = pack.paths()
+            .values()
+            .filter_map(|x| if x.len() >= 2 {
+                Some(x.iter().map(|x| PackDiagnosticReport::new(PackDiagnosticReportType::FileDuplicated(x.to_string()))).collect::<Vec<_>>())
+            } else {
+                None
+            })
+            .flatten()
+            .collect::<Vec<_>>();
+
+        if !results.is_empty() {
+            diagnostic.results_mut().extend(results);
         }
 
         let invalid_file_names = pack.paths().par_iter()

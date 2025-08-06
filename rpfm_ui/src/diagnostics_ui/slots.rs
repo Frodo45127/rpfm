@@ -437,6 +437,7 @@ impl DiagnosticsUISlots {
                 let _blocker_37 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_invalid_file_name.static_upcast::<QObject>());
                 let _blocker_38 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_file_itm.static_upcast::<QObject>());
                 let _blocker_39 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_file_overwrite.static_upcast::<QObject>());
+                let _blocker_40 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_file_duplicated.static_upcast::<QObject>());
 
                 if toggled {
                     diagnostics_ui.checkbox_outdated_table.set_checked(true);
@@ -479,6 +480,7 @@ impl DiagnosticsUISlots {
                     diagnostics_ui.checkbox_invalid_file_name.set_checked(true);
                     diagnostics_ui.checkbox_file_itm.set_checked(true);
                     diagnostics_ui.checkbox_file_overwrite.set_checked(true);
+                    diagnostics_ui.checkbox_file_duplicated.set_checked(true);
                 }
 
                 DiagnosticsUI::filter(&app_ui, &diagnostics_ui);

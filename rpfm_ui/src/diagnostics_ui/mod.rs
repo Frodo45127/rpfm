@@ -163,6 +163,7 @@ pub struct DiagnosticsUI {
     checkbox_invalid_file_name: QBox<QCheckBox>,
     checkbox_file_itm: QBox<QCheckBox>,
     checkbox_file_overwrite: QBox<QCheckBox>,
+    checkbox_file_duplicated: QBox<QCheckBox>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -316,6 +317,7 @@ impl DiagnosticsUI {
         let checkbox_invalid_file_name = QCheckBox::from_q_string_q_widget(&qtr("label_invalid_file_name"), &sidebar_scroll_area);
         let checkbox_file_itm = QCheckBox::from_q_string_q_widget(&qtr("label_file_itm"), &sidebar_scroll_area);
         let checkbox_file_overwrite = QCheckBox::from_q_string_q_widget(&qtr("label_file_overwrite"), &sidebar_scroll_area);
+        let checkbox_file_duplicated = QCheckBox::from_q_string_q_widget(&qtr("label_file_duplicated"), &sidebar_scroll_area);
 
         checkbox_all.set_checked(false);
         checkbox_outdated_table.set_checked(true);
@@ -358,6 +360,7 @@ impl DiagnosticsUI {
         checkbox_invalid_file_name.set_checked(true);
         checkbox_file_itm.set_checked(true);
         checkbox_file_overwrite.set_checked(true);
+        checkbox_file_duplicated.set_checked(true);
 
         sidebar_grid.add_widget_1a(&checkbox_all);
         sidebar_grid.add_widget_1a(&checkbox_outdated_table);
@@ -400,6 +403,7 @@ impl DiagnosticsUI {
         sidebar_grid.add_widget_1a(&checkbox_invalid_file_name);
         sidebar_grid.add_widget_1a(&checkbox_file_itm);
         sidebar_grid.add_widget_1a(&checkbox_file_overwrite);
+        sidebar_grid.add_widget_1a(&checkbox_file_duplicated);
 
         // Disable this, as it's giving a useless message in some games.
         checkbox_datacored_portrait_settings.set_checked(false);
@@ -480,6 +484,7 @@ impl DiagnosticsUI {
             checkbox_invalid_file_name,
             checkbox_file_itm,
             checkbox_file_overwrite,
+            checkbox_file_duplicated,
         })
     }
 
@@ -715,6 +720,8 @@ impl DiagnosticsUI {
                                 } else if let PackDiagnosticReportType::FileITM(file_path) = result.report_type() {
                                     path.set_text(&QString::from_std_str(file_path));
                                 } else if let PackDiagnosticReportType::FileOverwrite(file_path) = result.report_type() {
+                                    path.set_text(&QString::from_std_str(file_path));
+                                } else if let PackDiagnosticReportType::FileDuplicated(file_path) = result.report_type() {
                                     path.set_text(&QString::from_std_str(file_path));
                                 }
 
@@ -1640,6 +1647,9 @@ impl DiagnosticsUI {
         if diagnostics_ui.checkbox_file_overwrite.is_checked() {
             diagnostic_type_pattern.push_str(&format!("{}|", PackDiagnosticReportType::FileOverwrite(String::new())));
         }
+        if diagnostics_ui.checkbox_file_duplicated.is_checked() {
+            diagnostic_type_pattern.push_str(&format!("{}|", PackDiagnosticReportType::FileDuplicated(String::new())));
+        }
 
         if diagnostics_ui.checkbox_datacored_portrait_settings.is_checked() {
             diagnostic_type_pattern.push_str(&format!("{}|", PortraitSettingsDiagnosticReportType::DatacoredPortraitSettings));
@@ -1886,6 +1896,7 @@ impl DiagnosticsUI {
             PackDiagnosticReportType::MissingLocDataFileDetected(_) => qtr("missing_loc_data_file_detected_explanation"),
             PackDiagnosticReportType::FileITM(_) => qtr("file_itm_explanation"),
             PackDiagnosticReportType::FileOverwrite(_) => qtr("file_overwrite_explanation"),
+            PackDiagnosticReportType::FileDuplicated(_) => qtr("file_duplicated_explanation"),
         };
 
         for item in items {
@@ -1998,6 +2009,9 @@ impl DiagnosticsUI {
         }
         if !self.checkbox_file_overwrite.is_checked() {
             diagnostics_ignored.push(PackDiagnosticReportType::FileOverwrite(String::new()).to_string());
+        }
+        if !self.checkbox_file_duplicated.is_checked() {
+            diagnostics_ignored.push(PackDiagnosticReportType::FileDuplicated(String::new()).to_string());
         }
 
         if !self.checkbox_datacored_portrait_settings.is_checked() {

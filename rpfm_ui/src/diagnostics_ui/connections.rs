@@ -88,4 +88,5 @@ pub unsafe fn set_connections(ui: &DiagnosticsUI, slots: &DiagnosticsUISlots) {
     ui.checkbox_invalid_file_name.toggled().connect(slots.toggle_filters());
     ui.checkbox_file_itm.toggled().connect(slots.toggle_filters());
     ui.checkbox_file_overwrite.toggled().connect(slots.toggle_filters());
+    ui.checkbox_file_duplicated.toggled().connect(slots.toggle_filters());
 }
