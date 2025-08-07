@@ -10,7 +10,6 @@
 
 use qt_core::QBox;
 use qt_core::QEventLoop;
-use qt_core::QItemSelection;
 use qt_core::SlotNoArgs;
 use qt_core::SlotOfQItemSelectionQItemSelection;
 

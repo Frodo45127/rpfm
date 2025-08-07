@@ -27,7 +27,6 @@ use qt_core::QPtr;
 use cpp_core::CppBox;
 use cpp_core::Ptr;
 use cpp_core::Ref;
-use cpp_core::CastFrom;
 
 use rayon::prelude::*;
 use time::OffsetDateTime;
@@ -113,9 +112,6 @@ pub trait PackTree {
     ///
     /// It returns the `ModelIndex` of the final item of the path, or None if it wasn't found or it's hidden by the filter.
     unsafe fn expand_treeview_to_item(&self, path: &str, source: DataSource) -> Option<Ptr<QModelIndex>>;
-
-    /// This function is used to expand an item and all it's children recursively.
-    unsafe fn expand_all_from_item(tree_view: &QTreeView, item: Ptr<QStandardItem>, first_item: bool);
 
     /// This function gives you the items selected in the PackFile Content's TreeView.
     unsafe fn get_items_from_main_treeview_selection(pack_file_contents_ui: &Rc<PackFileContentsUI>) -> Vec<Ptr<QStandardItem>>;
@@ -439,31 +435,6 @@ impl PackTree for QPtr<QTreeView> {
             }
         }
         None
-    }
-
-    unsafe fn expand_all_from_item(tree_view: &QTreeView, item: Ptr<QStandardItem>, first_item: bool) {
-        let filter: QPtr<QSortFilterProxyModel> = tree_view.model().static_downcast();
-        let model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
-
-        // First, expand our item, then expand its children.
-        let model_index = model.index_from_item(item);
-        if first_item {
-            let filtered_index = filter.map_from_source(&model_index);
-            if filtered_index.is_valid() {
-                tree_view.expand(&filtered_index);
-            }
-        }
-        for row in 0..item.row_count() {
-            let child = item.child_1a(row);
-            if child.has_children() {
-                let model_index = model.index_from_item(item);
-                let filtered_index = filter.map_from_source(&model_index);
-                if filtered_index.is_valid() {
-                    tree_view.expand(&filtered_index);
-                    Self::expand_all_from_item(tree_view, Ptr::cast_from(child), false);
-                }
-            }
-        }
     }
 
     unsafe fn get_items_from_main_treeview_selection(pack_file_contents_ui: &Rc<PackFileContentsUI>) -> Vec<Ptr<QStandardItem>> {

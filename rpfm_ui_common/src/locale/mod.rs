@@ -143,7 +143,7 @@ impl Locale {
     }
 
     /// This function returns a read-only guard to the provided `Locale`.
-    pub fn get(&self) -> RwLockReadGuard<FluentBundle<FluentResource>> {
+    pub fn get(&'_ self) -> RwLockReadGuard<'_, FluentBundle<FluentResource>> {
         self.0.read().unwrap()
     }
 }

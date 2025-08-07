@@ -123,7 +123,7 @@ impl Loc {
     }
 
     /// This function returns a reference to the entries of this Loc table.
-    pub fn data(&self) -> Cow<[Vec<DecodedData>]> {
+    pub fn data(&'_ self) -> Cow<'_, [Vec<DecodedData>]> {
         self.table.data()
     }
 

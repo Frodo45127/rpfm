@@ -308,12 +308,12 @@ pub fn last_modified_time_from_files(paths: &[PathBuf]) -> Result<u64> {
 //--------------------------------------------------------//
 
 /// Function to get the version info of a file, courtesy of TES Loot team.
-pub(crate) fn pe_version_info(bytes: &[u8]) -> std::result::Result<VersionInfo, FindError> {
+pub(crate) fn pe_version_info(bytes: &'_ [u8]) -> std::result::Result<VersionInfo<'_>, FindError> {
     pe_resources(bytes)?.version_info()
 }
 
 /// Function to get the resources of a file, courtesy of TES Loot team.
-pub(crate) fn pe_resources(bytes: &[u8]) -> std::result::Result<Resources, pelite::Error> {
+pub(crate) fn pe_resources(bytes: &'_ [u8]) -> std::result::Result<Resources<'_>, pelite::Error> {
     match pe64::PeFile::from_bytes(bytes) {
         Ok(file) => {
             use pelite::pe64::Pe;

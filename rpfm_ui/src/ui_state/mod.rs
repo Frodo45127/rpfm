@@ -110,14 +110,14 @@ impl UIState {
     }
 
     /// This function returns the open packedfiles list with a reading lock.
-    pub fn get_open_packedfiles(&self) -> RwLockReadGuard<Vec<FileView>> {
+    pub fn get_open_packedfiles(&'_ self) -> RwLockReadGuard<'_, Vec<FileView>> {
         self.open_packedfiles.read().unwrap()
     }
 
     /// This function returns the open packedfiles list with a writing lock. This acts kinda like a setter.
     ///
     /// Use this only if you need to perform multiple write operations with this.
-    pub fn set_open_packedfiles(&self) -> RwLockWriteGuard<Vec<FileView>> {
+    pub fn set_open_packedfiles(&'_ self) -> RwLockWriteGuard<'_, Vec<FileView>> {
         loop {
             match self.open_packedfiles.try_write() {
                 Ok(writer) => return writer,

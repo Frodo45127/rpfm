@@ -364,7 +364,7 @@ impl Table for TableInMemory {
         &self.definition_patch
     }
 
-    fn data(&self) -> Cow<[Vec<DecodedData>]> {
+    fn data(&'_ self) -> Cow<'_, [Vec<DecodedData>]> {
         Cow::from(&self.table_data)
     }
 

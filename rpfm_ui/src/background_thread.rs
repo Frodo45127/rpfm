@@ -1973,12 +1973,12 @@ pub fn background_loop() {
                 let mut files: HashMap<DataSource, HashSet<ContainerPath>> = HashMap::new();
                 let dependencies = dependencies.read().unwrap();
 
-                let parent_files = dependencies.files_by_path(&[path.clone()], false, true, true);
+                let parent_files = dependencies.files_by_path(std::slice::from_ref(&path), false, true, true);
                 if !parent_files.is_empty() {
                     files.insert(DataSource::ParentFiles, parent_files.into_keys().map(ContainerPath::File).collect());
                 }
 
-                let game_files = dependencies.files_by_path(&[path.clone()], true, false, true);
+                let game_files = dependencies.files_by_path(std::slice::from_ref(&path), true, false, true);
                 if !game_files.is_empty() {
                     files.insert(DataSource::GameFiles, game_files.into_keys().map(ContainerPath::File).collect());
                 }

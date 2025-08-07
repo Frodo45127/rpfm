@@ -29,7 +29,6 @@ use qt_core::QString;
 
 use cpp_core::CppBox;
 use cpp_core::CppDeletable;
-use cpp_core::Ref;
 
 use anyhow::anyhow;
 use base64::{Engine, engine::general_purpose::STANDARD};
@@ -861,7 +860,7 @@ impl ToolTranslator {
 
                 string.replace("%20", " ")            // Fix weird spaces.
             } else {
-                return Err(anyhow!("Error retrieving google translation.").into());
+                return Err(anyhow!("Error retrieving google translation."));
             };
 
             Ok(translated_text)
@@ -890,7 +889,7 @@ impl ToolTranslator {
         if !context.is_empty() {
             prompt.push_str(&format!(" For context, use the following info: {context}. #### "));
         }
-        prompt.push_str(&string);
+        prompt.push_str(string);
 
         // According to OpenAI's docs, tokens is more or less 3/4 of a word. We don't have a way to easily count words, so we do a generous approximation.
         // Then we duplicate it taking into account the completion tokens.

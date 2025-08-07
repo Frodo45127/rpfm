@@ -23,7 +23,7 @@ support_soundbank = ["rpfm_lib/support_soundbank", "rpfm_ui_common/support_sound
 enable_tools = []
 only_for_the_brave = []
 
-default = []
+default = ["enable_tools"]
 
 [dependencies]
 

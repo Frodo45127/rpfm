@@ -249,7 +249,7 @@ impl FileView {
     }
 
     /// This function returns a reference to the path of this `FileView`.
-    pub fn path_read(&self) -> RwLockReadGuard<String> {
+    pub fn path_read(&'_ self) -> RwLockReadGuard<'_, String> {
         self.path.read().unwrap()
     }
 

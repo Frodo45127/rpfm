@@ -411,7 +411,7 @@ pub unsafe fn reload_theme(app_ui: &AppUI) {
     }
 }
 
-pub fn initialize_encodeable_extra_data(game_info: &GameInfo, cf: CompressionFormat) -> EncodeableExtraData {
+pub fn initialize_encodeable_extra_data(game_info: &'_ GameInfo, cf: CompressionFormat) -> EncodeableExtraData<'_> {
     let mut extra_data = EncodeableExtraData::new_from_game_info(game_info);
     extra_data.set_regenerate_table_guid(!setting_bool("disable_uuid_regeneration_on_db_tables"));
     extra_data.set_compression_format(cf);

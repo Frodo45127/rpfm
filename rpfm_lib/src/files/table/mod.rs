@@ -47,7 +47,7 @@ pub trait Table: Send + Sync {
     fn patches(&self) -> &DefinitionPatch;
 
     /// This function returns the data stored in the table.
-    fn data(&self) -> Cow<[Vec<DecodedData>]>;
+    fn data(&'_ self) -> Cow<'_, [Vec<DecodedData>]>;
 
     /// This function returns a mutable reference to the data of the table.
     ///
@@ -573,7 +573,7 @@ impl DecodedData {
     }
 
     /// This function prints whatever you have in each variants to a String.
-    pub fn data_to_string(&self) -> Cow<str> {
+    pub fn data_to_string(&'_ self) -> Cow<'_, str> {
         match self {
             DecodedData::Boolean(data) => Cow::from(if *data { "true" } else { "false" }),
             DecodedData::F32(data) => Cow::from(format!("{data:.4}")),

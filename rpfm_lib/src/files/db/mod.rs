@@ -270,7 +270,7 @@ impl DB {
     }
 
     /// This function returns a reference to the entries of this DB table.
-    pub fn data(&self) -> Cow<[Vec<DecodedData>]> {
+    pub fn data(&'_ self) -> Cow<'_, [Vec<DecodedData>]> {
         self.table.data()
     }
 

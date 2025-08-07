@@ -1003,19 +1003,19 @@ impl TableView {
     }
 
     /// This function returns a reference to the definition of this table.
-    pub fn table_definition(&self) -> RwLockReadGuard<Definition> {
+    pub fn table_definition(&'_ self) -> RwLockReadGuard<'_, Definition> {
         self.table_definition.read().unwrap()
     }
 
-    pub fn search_view(&self) -> RwLockReadGuard<Option<Arc<SearchView>>> {
+    pub fn search_view(&'_ self) -> RwLockReadGuard<'_, Option<Arc<SearchView>>> {
         self.search_view.read().unwrap()
     }
 
-    pub fn filters(&self) -> RwLockReadGuard<Vec<Arc<FilterView>>> {
+    pub fn filters(&'_ self) -> RwLockReadGuard<'_, Vec<Arc<FilterView>>> {
         self.filters.read().unwrap()
     }
 
-    pub fn filters_mut(&self) -> RwLockWriteGuard<Vec<Arc<FilterView>>> {
+    pub fn filters_mut(&'_ self) -> RwLockWriteGuard<'_, Vec<Arc<FilterView>>> {
         self.filters.write().unwrap()
     }
 

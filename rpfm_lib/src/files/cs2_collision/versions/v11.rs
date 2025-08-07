@@ -8,7 +8,7 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-use std::io::SeekFrom;
+//use std::io::SeekFrom;
 
 use crate::error::Result;
 use crate::binary::{ReadBytes, WriteBytes};
