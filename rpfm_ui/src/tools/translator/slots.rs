@@ -51,29 +51,18 @@ impl ToolTranslatorSlots {
     pub unsafe fn new(ui: &Rc<ToolTranslator>) -> Self {
 
         let load_data_to_detailed_view = SlotOfQItemSelectionQItemSelection::new(ui.tool.main_widget(), clone!(
-            ui => move |after, before| {
+            ui => move |after, _| {
                 info!("Triggering 'load_data_to_detailed_view' for Translator.");
 
-                ui.translated_value_textedit().set_enabled(false);
-                let event_loop = QEventLoop::new_0a();
-                event_loop.process_events_0a();
-
-                // Save the previous data if needed.
-                if before.count_0a() == 1 {
-                    ui.save_from_detailed_view();
-                }
-
-                // Load the new data.
                 if after.count_0a() == 1 {
                     let base_index = after.at(0);
                     let indexes = base_index.indexes();
                     let filter_index = indexes.at(0);
                     let index = ui.table().table_filter().map_to_source(filter_index);
-                    ui.load_to_detailed_view(index.as_ref());
+                    ui.change_selected_row(Some(index), None);
+                } else {
+                    ui.change_selected_row(None, None);
                 }
-
-                ui.table().filters()[0].start_delayed_updates_timer();
-                ui.translated_value_textedit().set_enabled(true);
             }
         ));
 
@@ -81,29 +70,7 @@ impl ToolTranslatorSlots {
             ui => move || {
                 info!("Triggering 'move_selection_up' for Translator.");
 
-                let selection_model = ui.table().table_view().selection_model();
-                let selection = selection_model.selection();
-                let indexes = selection.indexes();
-                if indexes.count_0a() > 0 {
-                    let index = indexes.at(0);
-                    let row = index.row();
-
-                    // Only do something if we're not in the top row.
-                    if row > 0 {
-
-                        // This triggers a load of the editing file.
-                        let new_row = ui.current_row.read().unwrap().unwrap_or(row).checked_sub(1).unwrap_or_default();
-                        let column_count = ui.table().table_model().column_count_0a();
-                        let start_index = ui.table().table_filter().index_2a(new_row, 0);
-                        let end_index = ui.table().table_filter().index_2a(new_row, column_count - 1);
-                        let new_selection = QItemSelection::new_2a(&start_index, &end_index);
-
-                        // This triggers a save of the editing item.
-                        selection_model.select_q_item_selection_q_flags_selection_flag(&selection, SelectionFlag::Toggle.into());
-                        selection_model.clear();
-                        selection_model.select_q_item_selection_q_flags_selection_flag(&new_selection, SelectionFlag::Toggle.into());
-                    }
-                }
+                ui.change_selected_row(None, Some(false));
             }
         ));
 
@@ -111,28 +78,7 @@ impl ToolTranslatorSlots {
             ui => move || {
                 info!("Triggering 'move_selection_down' for Translator.");
 
-                let selection_model = ui.table().table_view().selection_model();
-                let selection = selection_model.selection();
-                let indexes = selection.indexes();
-                if indexes.count_0a() > 0 {
-                    let index = indexes.at(0);
-                    let row = index.row();
-                    let row_count = ui.table().table_filter().row_count_0a();
-                    if row_count > 0 && row < row_count - 1 {
-
-                        // This triggers a load of the editing file.
-                        let new_row = ui.current_row.read().unwrap().unwrap_or(row) + 1;
-                        let column_count = ui.table().table_model().column_count_0a();
-                        let start_index = ui.table().table_filter().index_2a(new_row, 0);
-                        let end_index = ui.table().table_filter().index_2a(new_row, column_count - 1);
-                        let new_selection = QItemSelection::new_2a(&start_index, &end_index);
-
-                        // This triggers a save of the editing item.
-                        selection_model.select_q_item_selection_q_flags_selection_flag(&selection, SelectionFlag::Toggle.into());
-                        selection_model.clear();
-                        selection_model.select_q_item_selection_q_flags_selection_flag(&new_selection, SelectionFlag::Toggle.into());
-                    }
-                }
+                ui.change_selected_row(None, Some(true));
             }
         ));
 

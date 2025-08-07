@@ -1709,6 +1709,7 @@ optimizer_remove_unused_art_sets = <b>Portrait Settings:</b> Remove unused Art S
 optimizer_remove_unused_variants = <b>Portrait Settings:</b> Remove unused Variants
 optimizer_remove_empty_masks = <b>Portrait Settings:</b> Remove empty masks
 
+translator_key = Key:
 context = Context
 settings_ai_title = AI Settings
 settings_ai_openai_api_key = OpenAI API Key:

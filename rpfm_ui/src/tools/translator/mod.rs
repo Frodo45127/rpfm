@@ -20,11 +20,14 @@ use qt_widgets::QGridLayout;
 use qt_widgets::QTableView;
 
 use qt_core::CheckState;
+use qt_core::QEventLoop;
+use qt_core::QItemSelection;
 use qt_core::q_item_selection_model::SelectionFlag;
 use qt_core::QModelIndex;
 use qt_core::QPtr;
 use qt_core::QString;
 
+use cpp_core::CppBox;
 use cpp_core::CppDeletable;
 use cpp_core::Ref;
 
@@ -135,8 +138,8 @@ pub struct ToolTranslator {
     pack_tr: Arc<PackTranslation>,
     table: Arc<TableView>,
 
-    // Row being edited. We don't trust the selection as it may be bugged/not work.
-    current_row: Arc<RwLock<Option<i32>>>,
+    // Item with the key being edited.
+    current_key: Arc<RwLock<Option<CppBox<QModelIndex>>>>,
 
     colors: HashMap<String, String>,
     tagged_images: HashMap<String, String>,
@@ -149,6 +152,8 @@ pub struct ToolTranslator {
 
     context_text_edit: QPtr<QTextEdit>,
     edit_all_same_values_radio_button: QPtr<QRadioButton>,
+
+    key_line_edit: QPtr<QLineEdit>,
 
     action_move_up: QPtr<QAction>,
     action_move_down: QPtr<QAction>,
@@ -414,6 +419,10 @@ impl ToolTranslator {
         //    filter_retranslation.column_combobox().set_current_index(1);
         //    filter_retranslation.use_regex_button().set_checked(false);
         //}
+        let key_label: QPtr<QLabel> = tool.find_widget("key_label")?;
+        let key_line_edit: QPtr<QLineEdit> = tool.find_widget("key_line_edit")?;
+        key_label.set_text(&qtr("translator_key"));
+        key_line_edit.set_enabled(false);
 
         let info_groupbox: QPtr<QGroupBox> = tool.find_widget("info_groupbox")?;
         let original_value_groupbox: QPtr<QGroupBox> = tool.find_widget("original_value_groupbox")?;
@@ -474,7 +483,7 @@ impl ToolTranslator {
             tool,
             pack_tr: Arc::new(data),
             table,
-            current_row: Arc::new(RwLock::new(None)),
+            current_key: Arc::new(RwLock::new(None)),
             colors,
             tagged_images,
             language_combobox,
@@ -484,6 +493,7 @@ impl ToolTranslator {
             google_translate_radio_button,
             copy_source_radio_button,
             edit_all_same_values_radio_button,
+            key_line_edit,
             action_move_up,
             action_move_down,
             action_copy_from_source,
@@ -526,7 +536,7 @@ impl ToolTranslator {
     ) -> Result<()> {
 
         // First, save whatever is currently open in the detailed view.
-        self.table().table_view().selection_model().select_q_item_selection_q_flags_selection_flag(&self.table().table_view().selection_model().selection(), SelectionFlag::Toggle.into());
+        self.change_selected_row(None, None);
 
         // Then save both, the updated translations to disk, and the translated locs to the pack.
         let table = get_table_from_view(&self.table().table_model_ptr().static_upcast(), &self.table().table_definition())?;
@@ -558,10 +568,11 @@ impl ToolTranslator {
     }
 
     /// This function loads the data of a faction into the detailed view.
-    pub unsafe fn load_to_detailed_view(&self, index: Ref<QModelIndex>) {
-        let original_value_item = self.table.table_model().item_2a(index.row(), 3);
-        let translated_value_item = self.table.table_model().item_2a(index.row(), 4);
-        let needs_retranslation = self.table.table_model().item_2a(index.row(), 1).check_state() == CheckState::Checked;
+    pub unsafe fn load_to_detailed_view(&self, index: &CppBox<QModelIndex>) {
+        let key_item = self.table.table_model().item_from_index(index);
+        let original_value_item = self.table.table_model().item_from_index(&index.sibling_at_column(3));
+        let translated_value_item = self.table.table_model().item_from_index(&index.sibling_at_column(4));
+        let needs_retranslation = self.table.table_model().item_from_index(&index.sibling_at_column(1)).check_state() == CheckState::Checked;
 
         let mut source_text = original_value_item.text().to_std_string();
         source_text = source_text.replace("||", "\n||\n");
@@ -571,11 +582,9 @@ impl ToolTranslator {
         translated_text = translated_text.replace("||", "\n||\n");
         translated_text = translated_text.replace("\\\\n", "\n");
 
+        self.key_line_edit.set_text(&key_item.text());
         self.original_value_textedit.set_plain_text(&QString::from_std_str(&source_text));
         self.translated_value_textedit.set_plain_text(&QString::from_std_str(&translated_text));
-
-        // Update the row in edition.
-        *self.current_row.write().unwrap() = Some(index.row());
 
         // If the value needs a retrasnlation decide what to do depending on the behavior group.
         // Only do it if the text is empty. If there's a previous translation, keep it so it can be fixed.
@@ -603,50 +612,171 @@ impl ToolTranslator {
                 self.translated_value_textedit.set_plain_text(&self.original_value_textedit().to_plain_text());
             }
         }
+
+        // Re-enable this, as it's disabled on changing row.
+        self.translated_value_textedit.set_enabled(true);
     }
 
     // Selection is EXTREMELY unreliable. We save to the current row instead.
-    pub unsafe fn save_from_detailed_view(&self) {
-        let current_row = self.current_row.read().unwrap().clone();
-        if let Some(current_row) = current_row {
+    pub unsafe fn save_from_detailed_view(&self, old_key_index: &CppBox<QModelIndex>) {
+        let current_row = old_key_index.row();
 
-            let old_value_item = self.table.table_model().item_2a(current_row, 4);
-            let old_value = old_value_item.text().to_std_string();
-            let mut new_value = self.translated_value_textedit.to_plain_text().to_std_string();
+        let old_value_item = self.table.table_model().item_2a(current_row, 4);
+        let old_value = old_value_item.text().to_std_string();
+        let mut new_value = self.translated_value_textedit.to_plain_text().to_std_string();
 
-            // If we have a new translation, save it and remove the "needs_retranslation" flag.
-            if !new_value.is_empty() && new_value != old_value {
+        // If we have a new translation, save it and remove the "needs_retranslation" flag.
+        if !new_value.is_empty() && new_value != old_value {
 
-                // If there's any other translation which uses the same value, automatically translate it.
-                let original_value_item = self.table.table_model().item_2a(current_row, 3);
-                let original_value_item_qstr = original_value_item.data_1a(2).to_string();
-                for row in 0..self.table.table_model().row_count_0a() {
+            // If there's any other translation which uses the same value, automatically translate it.
+            let original_value_item = self.table.table_model().item_2a(current_row, 3);
+            let original_value_item_qstr = original_value_item.data_1a(2).to_string();
+            for row in 0..self.table.table_model().row_count_0a() {
 
-                    // Do not apply it to the item we just edited.
-                    if current_row != row {
-                        let needs_retranslation_item = self.table.table_model().item_2a(row, 1);
-                        let needs_retranslation = needs_retranslation_item.check_state() == CheckState::Checked;
-                        if needs_retranslation || self.edit_all_same_values_radio_button().is_checked() {
-                            let og_value_item = self.table.table_model().item_2a(row, 3);
-                            if og_value_item.data_1a(2).to_string().compare_q_string(&original_value_item_qstr) == 0 {
-                                let translated_value_item = self.table.table_model().item_2a(row, 4);
+                // Do not apply it to the item we just edited.
+                if current_row != row {
+                    let needs_retranslation_item = self.table.table_model().item_2a(row, 1);
+                    let needs_retranslation = needs_retranslation_item.check_state() == CheckState::Checked;
+                    if needs_retranslation || self.edit_all_same_values_radio_button().is_checked() {
+                        let og_value_item = self.table.table_model().item_2a(row, 3);
+                        if og_value_item.data_1a(2).to_string().compare_q_string(&original_value_item_qstr) == 0 {
+                            let translated_value_item = self.table.table_model().item_2a(row, 4);
 
-                                new_value = new_value.replace("\n||\n", "||");
-                                new_value = new_value.replace("\n", "\\\\n");
+                            new_value = new_value.replace("\n||\n", "||");
+                            new_value = new_value.replace("\n", "\\\\n");
 
-                                translated_value_item.set_text(&QString::from_std_str(&new_value));
+                            translated_value_item.set_text(&QString::from_std_str(&new_value));
 
-                                // Unmark it from retranslations.
-                                needs_retranslation_item.set_check_state(CheckState::Unchecked);
-                            }
+                            // Unmark it from retranslations.
+                            needs_retranslation_item.set_check_state(CheckState::Unchecked);
                         }
                     }
                 }
+            }
 
-                old_value_item.set_text(&QString::from_std_str(&new_value));
-                self.table.table_model().item_2a(current_row, 1).set_check_state(CheckState::Unchecked);
+            old_value_item.set_text(&QString::from_std_str(&new_value));
+            self.table.table_model().item_2a(current_row, 1).set_check_state(CheckState::Unchecked);
+        }
+    }
+
+    unsafe fn change_selected_row(&self, new_index: Option<CppBox<QModelIndex>>, sibling_mode: Option<bool>) {
+        let is_generic_sel_change = new_index.is_some();
+        self.translated_value_textedit().set_enabled(false);
+
+        let event_loop = QEventLoop::new_0a();
+        event_loop.process_events_0a();
+
+        // If we have items in the table, try to figure the next one. If we don't have the current one visible,
+        // default to the first/last item, depending on the direction we're moving.
+        if self.table().table_filter().row_count_0a() > 0 {
+            let mut current_index = self.current_key.write().unwrap();
+            let new_index = if new_index.is_some() {
+                new_index
+            } else if let Some(next) = sibling_mode {
+                match *current_index {
+                    Some(ref index) => {
+                        let current_index_filtered = self.table().table_filter().map_from_source(index);
+                        if current_index_filtered.is_valid() {
+                            let new_row = if next {
+                                current_index_filtered.row() + 1
+                            } else {
+                                current_index_filtered.row() - 1
+                            };
+
+                            let new_index_filtered = current_index_filtered.sibling_at_row(new_row);
+                            if new_index_filtered.is_valid() {
+                                let new_index = self.table().table_filter().map_to_source(&new_index_filtered);
+                                Some(new_index)
+                            } else {
+                                None
+                            }
+                        } else {
+                            let new_index_filtered = if next {
+                                self.table().table_filter().index_2a(0, 0)
+                            } else {
+                                self.table().table_filter().index_2a(self.table().table_filter().row_count_0a() - 1, 0)
+                            };
+
+                            let new_index = self.table().table_filter().map_to_source(&new_index_filtered);
+                            Some(new_index)
+                        }
+                    }
+
+                    None => {
+                        let new_index_filtered = if next {
+                            self.table().table_filter().index_2a(0, 0)
+                        } else {
+                            self.table().table_filter().index_2a(self.table().table_filter().row_count_0a() - 1, 0)
+                        };
+
+                        let new_index = self.table().table_filter().map_to_source(&new_index_filtered);
+                        Some(new_index)
+                    }
+                }
+            } else {
+                None
+            };
+
+            // Handle the selection change.
+            match *current_index {
+                Some(ref current_index) => self.save_from_detailed_view(current_index),
+                None => self.clear_selected_field_data(),
+            }
+
+            match new_index {
+                Some(ref new_index) => self.load_to_detailed_view(new_index),
+                None => self.clear_selected_field_data(),
+            }
+
+            *current_index = new_index;
+
+            // If we're not changing the index due to a selection change, manually move the selected line.
+            if !is_generic_sel_change {
+
+                // Make sure to block the signals before switching the selection, or it'll trigger this twice.
+                self.table().table_view().selection_model().block_signals(true);
+                let sel_model = self.table().table_view().selection_model();
+                sel_model.clear();
+
+                if let Some(ref index) = *current_index {
+                    let filter_index = self.table().table_filter().map_from_source(index);
+                    if filter_index.is_valid() {
+                        let col_count = self.table().table_model().column_count_0a();
+                        let end_index = filter_index.sibling_at_column(col_count - 1);
+                        let new_selection = QItemSelection::new_2a(&filter_index, &end_index);
+
+                        // This triggers a save of the editing item.
+                        sel_model.select_q_item_selection_q_flags_selection_flag(&new_selection, SelectionFlag::Toggle.into());
+                    }
+                }
+
+                self.table().table_view().selection_model().block_signals(false);
+                self.table().table_view().viewport().update();
             }
         }
+
+        // If the table is empty, it means we don't have neither out current item visible, nor the next one.
+        // So we just save the current item (if there is one), and clear the view.
+        else {
+            let mut current_index = self.current_key.write().unwrap();
+            match *current_index {
+                Some(ref current_index) => self.save_from_detailed_view(current_index),
+                None => self.clear_selected_field_data(),
+            }
+
+            *current_index = None;
+        }
+
+        self.table().filters()[0].start_delayed_updates_timer();
+    }
+
+    unsafe fn clear_selected_field_data(&self) {
+        self.key_line_edit.clear();
+        self.original_value_textedit.clear();
+        self.original_value_html.clear();
+        self.translated_value_textedit.clear();
+        self.translated_value_html.clear();
+        self.translated_value_textedit.set_enabled(false);
     }
 
     unsafe fn map_language_to_google(&self) -> String {
