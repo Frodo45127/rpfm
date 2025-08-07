@@ -355,12 +355,15 @@ impl Diagnostics {
             Some(diagnostics)
         }).flatten().collect());
 
-        if let Some(diagnostics) = DependencyDiagnostic::check(pack) {
-            self.results_mut().push(diagnostics);
-        }
+        // These two are global, so do not execute on file-specific runs.
+        if paths_to_check.is_empty() {
+            if let Some(diagnostics) = DependencyDiagnostic::check(pack) {
+                self.results_mut().push(diagnostics);
+            }
 
-        if let Some(diagnostics) = PackDiagnostic::check(pack, dependencies, game_info) {
-            self.results_mut().push(diagnostics);
+            if let Some(diagnostics) = PackDiagnostic::check(pack, dependencies, game_info) {
+                self.results_mut().push(diagnostics);
+            }
         }
 
         self.results_mut().sort_by(|a, b| {
