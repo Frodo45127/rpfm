@@ -647,7 +647,7 @@ impl TableDiagnostic {
                 for (row, cells) in table_info.table_data.iter().enumerate() {
                     let key = cells[0].data_to_string();
                     let data = cells[1].data_to_string();
-                    if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, Some(field_key_name), Some("InvalidLocKey"), &table_info.ignored_fields, &table_info.ignored_diagnostics, &table_info.ignored_diagnostics_for_fields) && !key.is_empty() && (key.contains('\n') || key.contains('\t')) {
+                    if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, Some(field_key_name), Some("InvalidLocKey"), &table_info.ignored_fields, &table_info.ignored_diagnostics, &table_info.ignored_diagnostics_for_fields) && !key.is_empty() && (key.contains('\n') || key.contains('\r') || key.contains('\t')) {
                         let result = TableDiagnosticReport::new(TableDiagnosticReportType::InvalidLocKey, &[(row as i32, 0)], &fields);
                         diagnostic.results_mut().push(result);
                     }
