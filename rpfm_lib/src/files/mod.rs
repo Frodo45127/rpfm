@@ -39,6 +39,7 @@
 //! | [`SoundBank`]         | No                 | No                 |
 //! | [`SoundEvents`]       | No                 | No                 |
 //! | [`Text`]              | Yes                | Yes                |
+//! | [`TileDatabase`]      | Yes                | Yes                |
 //! | [`UIC`]               | No                 | No                 |
 //! | [`UnitVariant`]       | Yes                | Yes                |
 //! | [`Video`]             | Yes                | Yes                |
@@ -74,6 +75,7 @@
 //! [`SoundBank`]: crate::files::sound_bank::SoundBank
 //! [`SoundEvents`]: crate::files::sound_events::SoundEvents
 //! [`Text`]: crate::files::text::Text
+//! [`TileDatabase`]: crate::files::tile_database::TileDatabase
 //! [`UIC`]: crate::files::uic::UIC
 //! [`UnitVariant`]: crate::files::unit_variant::UnitVariant
 //! [`Unknown`]: crate::files::unknown::Unknown
@@ -157,6 +159,7 @@ pub mod sound_bank_database;
 pub mod sound_events;
 pub mod table;
 pub mod text;
+pub mod tile_database;
 pub mod uic;
 pub mod unit_variant;
 pub mod unknown;
