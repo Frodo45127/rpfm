@@ -255,7 +255,7 @@ impl GameInfo {
         // Checks to guess what kind of installation we have.
         let base_path_files = files_from_subdir(game_path, false)?;
         let install_type_by_exe = self.install_data.iter().filter_map(|(install_type, install_data)|
-            if base_path_files.iter().filter_map(|path| if path.is_file() { path.file_name() } else { None }).any(|filename| filename == &**install_data.executable()) {
+            if base_path_files.iter().filter_map(|path| if path.is_file() { path.file_name() } else { None }).any(|filename| filename.to_ascii_lowercase() == &*install_data.executable().to_lowercase()) {
                 Some(install_type)
             } else { None }
         ).collect::<Vec<&InstallType>>();
