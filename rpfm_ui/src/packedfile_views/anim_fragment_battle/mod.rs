@@ -52,6 +52,15 @@ const VIEW_RELEASE: &str = "ui/anim_fragment_battle_view.ui";
 #[derive(Getters)]
 #[getset(get = "pub")]
 pub struct FileAnimFragmentBattleView {
+    subversion_label: QPtr<QLabel>,
+    min_id_label: QPtr<QLabel>,
+    max_id_label: QPtr<QLabel>,
+    table_name_label: QPtr<QLabel>,
+    unmount_table_name_label: QPtr<QLabel>,
+    locomotion_graph_label: QPtr<QLabel>,
+    is_simple_flight_label: QPtr<QLabel>,
+    is_new_cavalry_tech_label: QPtr<QLabel>,
+
     version_spinbox: QPtr<QSpinBox>,
     subversion_spinbox: QPtr<QSpinBox>,
     min_id_spinbox: QPtr<QSpinBox>,
@@ -145,6 +154,15 @@ impl FileAnimFragmentBattleView {
         entries_table_view.delete();
 
         let view = Self {
+            subversion_label,
+            min_id_label,
+            max_id_label,
+            table_name_label,
+            unmount_table_name_label,
+            locomotion_graph_label,
+            is_simple_flight_label,
+            is_new_cavalry_tech_label,
+
             version_spinbox,
             subversion_spinbox,
             min_id_spinbox,
@@ -175,61 +193,7 @@ impl FileAnimFragmentBattleView {
         view.version_spinbox.set_enabled(false);
         view.subversion_spinbox.set_enabled(false);
 
-        // Hide the items not relevant for the current game.
-        let game = GAME_SELECTED.read().unwrap();
-        if game.key() == KEY_WARHAMMER_3 {
-            min_id_label.hide();
-            view.min_id_spinbox.hide();
-
-            max_id_label.hide();
-            view.max_id_spinbox.hide();
-
-            view.table.table_view().hide_column(10);
-            view.table.table_view().hide_column(11);
-            view.table.table_view().hide_column(12);
-            view.table.table_view().hide_column(13);
-            view.table.table_view().hide_column(14);
-            view.table.table_view().hide_column(15);
-            view.table.table_view().hide_column(16);
-
-        } else if game.key() == KEY_WARHAMMER_2 || game.key() == KEY_TROY || game.key() == KEY_PHARAOH || game.key() == KEY_PHARAOH_DYNASTIES {
-            subversion_label.hide();
-            table_name_label.hide();
-            unmount_table_name_label.hide();
-            locomotion_graph_label.hide();
-            is_simple_flight_label.hide();
-            is_new_cavalry_tech_label.hide();
-
-            view.subversion_spinbox.hide();
-            view.table_name_line_edit.hide();
-            view.unmount_table_name_line_edit.hide();
-            view.locomotion_graph_line_edit.hide();
-            view.is_simple_flight_checkbox.hide();
-            view.is_new_cavalry_tech_checkbox.hide();
-
-            view.table.table_view().hide_column(9);
-
-        } else if game.key() == KEY_THREE_KINGDOMS {
-            subversion_label.hide();
-            view.subversion_spinbox.hide();
-
-            min_id_label.hide();
-            view.min_id_spinbox.hide();
-
-            max_id_label.hide();
-            view.max_id_spinbox.hide();
-
-            locomotion_graph_label.hide();
-            view.locomotion_graph_line_edit.hide();
-
-            view.table.table_view().hide_column(10);
-            view.table.table_view().hide_column(11);
-            view.table.table_view().hide_column(12);
-            view.table.table_view().hide_column(13);
-            view.table.table_view().hide_column(14);
-            view.table.table_view().hide_column(15);
-            view.table.table_view().hide_column(16);
-        }
+        view.per_game_visibility();
 
         file_view.view_type = ViewType::Internal(View::AnimFragmentBattle(Arc::new(view)));
         file_view.file_type = FileType::AnimFragmentBattle;
@@ -253,6 +217,8 @@ impl FileAnimFragmentBattleView {
 
         self.table.reload_view(TableType::AnimFragmentBattle(data.to_table()?));
 
+        self.per_game_visibility();
+
         Ok(())
     }
 
@@ -274,5 +240,72 @@ impl FileAnimFragmentBattleView {
         data.set_entries(AnimFragmentBattle::from_table(&table)?);
 
         Ok(data)
+    }
+
+    pub unsafe fn per_game_visibility(&self) {
+        self.subversion_label.show();
+        self.min_id_label.show();
+        self.max_id_label.show();
+        self.table_name_label.show();
+        self.unmount_table_name_label.show();
+        self.locomotion_graph_label.show();
+        self.is_simple_flight_label.show();
+        self.is_new_cavalry_tech_label.show();
+
+        // Hide the items not relevant for the current game.
+        let game = GAME_SELECTED.read().unwrap();
+        if game.key() == KEY_WARHAMMER_3 {
+            self.min_id_label.hide();
+            self.min_id_spinbox.hide();
+
+            self.max_id_label.hide();
+            self.max_id_spinbox.hide();
+
+            self.table.table_view().hide_column(10);
+            self.table.table_view().hide_column(11);
+            self.table.table_view().hide_column(12);
+            self.table.table_view().hide_column(13);
+            self.table.table_view().hide_column(14);
+            self.table.table_view().hide_column(15);
+            self.table.table_view().hide_column(16);
+
+        } else if game.key() == KEY_WARHAMMER_2 || game.key() == KEY_TROY || game.key() == KEY_PHARAOH || game.key() == KEY_PHARAOH_DYNASTIES {
+            self.subversion_label.hide();
+            self.table_name_label.hide();
+            self.unmount_table_name_label.hide();
+            self.locomotion_graph_label.hide();
+            self.is_simple_flight_label.hide();
+            self.is_new_cavalry_tech_label.hide();
+
+            self.subversion_spinbox.hide();
+            self.table_name_line_edit.hide();
+            self.unmount_table_name_line_edit.hide();
+            self.locomotion_graph_line_edit.hide();
+            self.is_simple_flight_checkbox.hide();
+            self.is_new_cavalry_tech_checkbox.hide();
+
+            self.table.table_view().hide_column(9);
+
+        } else if game.key() == KEY_THREE_KINGDOMS {
+            self.subversion_label.hide();
+            self.subversion_spinbox.hide();
+
+            self.min_id_label.hide();
+            self.min_id_spinbox.hide();
+
+            self.max_id_label.hide();
+            self.max_id_spinbox.hide();
+
+            self.locomotion_graph_label.hide();
+            self.locomotion_graph_line_edit.hide();
+
+            self.table.table_view().hide_column(10);
+            self.table.table_view().hide_column(11);
+            self.table.table_view().hide_column(12);
+            self.table.table_view().hide_column(13);
+            self.table.table_view().hide_column(14);
+            self.table.table_view().hide_column(15);
+            self.table.table_view().hide_column(16);
+        }
     }
 }
