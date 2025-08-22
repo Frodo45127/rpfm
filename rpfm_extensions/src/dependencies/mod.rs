@@ -1187,6 +1187,68 @@ impl Dependencies {
         Ok(cache)
     }
 
+    /// This function returns the vanilla/parent db tables from the cache, according to the params you pass it,
+    /// applying to them any datacore from the provided Pack.
+    ///
+    /// It returns them in the order the game will load them.
+    ///
+    /// NOTE: table_name is expected to be the table's folder name, with "_tables" at the end.
+    pub fn db_data_datacored<'a>(&'a self, table_name: &str, pack: &'a Pack, include_vanilla: bool, include_parent: bool) -> Result<Vec<&'a RFile>> {
+        let mut cache = vec![];
+
+        if include_vanilla {
+            if let Some(vanilla_loose_tables) = self.vanilla_loose_tables.get(table_name) {
+                let mut vanilla_loose_tables = vanilla_loose_tables.to_vec();
+                vanilla_loose_tables.sort();
+
+                for path in &vanilla_loose_tables {
+                    if let Some(file) = self.vanilla_loose_files.get(path) {
+                        cache.push(file);
+                    }
+                }
+            }
+
+            if let Some(vanilla_tables) = self.vanilla_tables.get(table_name) {
+                let mut vanilla_tables = vanilla_tables.to_vec();
+                vanilla_tables.sort();
+
+                for path in &vanilla_tables {
+                    if let Some(file) = self.vanilla_files.get(path) {
+                        cache.push(file);
+                    }
+                }
+            }
+        }
+
+        if include_parent {
+            if let Some(parent_tables) = self.parent_tables.get(table_name) {
+                let mut parent_tables = parent_tables.to_vec();
+                parent_tables.sort();
+
+                for path in &parent_tables {
+                    if let Some(file) = self.parent_files.get(path) {
+                        cache.push(file);
+                    }
+                }
+            }
+        }
+
+        let paths = cache.iter()
+            .map(|x| x.path_in_container())
+            .collect::<Vec<_>>();
+
+        for pack_file in pack.files_by_paths(&paths, true) {
+            for cache_file in &mut cache {
+                if cache_file.path_in_container() == pack_file.path_in_container() {
+                    *cache_file = pack_file;
+                    break;
+                }
+            }
+        }
+
+        Ok(cache)
+    }
+
     /// This function returns the vanilla/parent DB and Loc tables from the cache, according to the params you pass it.
     ///
     /// It returns them in the order the game will load them.

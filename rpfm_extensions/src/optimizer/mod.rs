@@ -296,12 +296,16 @@ impl Optimizable for DB {
     /// - Removal of ITNR (Identical To New Row) entries.
     ///
     /// It returns if the DB is empty, meaning it can be safetly deleted.
-    fn optimize(&mut self, dependencies: &mut Dependencies, _container: Option<&mut Pack>, _options: &OptimizerOptions) -> bool {
+    fn optimize(&mut self, dependencies: &mut Dependencies, container: Option<&mut Pack>, _options: &OptimizerOptions) -> bool {
+        let container = match container {
+            Some(container) => container,
+            None => return false,
+        };
 
         // Get a manipulable copy of all the entries, so we can optimize it.
         let mut entries = self.data().to_vec();
 
-        match dependencies.db_data(self.table_name(), true, true) {
+        match dependencies.db_data_datacored(self.table_name(), container, true, true) {
             Ok(mut vanilla_tables) => {
 
                 // First, merge all vanilla and parent db fragments into a single HashSet.
