@@ -53,6 +53,9 @@ pub struct TableInMemory {
 
     #[getset(skip)]
     table_data: Vec<Vec<DecodedData>>,
+
+    /// Flag to detect tables whose data has been altered while decoding (for example, numeric fields with invalid data on them).
+    altered: bool,
 }
 
 //----------------------------------------------------------------//
@@ -70,7 +73,8 @@ impl TableInMemory {
             definition: definition.clone(),
             definition_patch,
             table_name: table_name.to_owned(),
-            table_data
+            table_data,
+            altered: false,
         }
     }
 
@@ -83,12 +87,14 @@ impl TableInMemory {
         table_name: &str,
     ) -> Result<Self> {
 
-        let table_data = decode_table(data, definition, entry_count, return_incomplete)?;
+        let mut altered = false;
+        let table_data = decode_table(data, definition, entry_count, return_incomplete, &mut altered)?;
         let table = Self {
             definition: definition.clone(),
             definition_patch: definition_patch.clone(),
             table_name: table_name.to_owned(),
             table_data,
+            altered
         };
 
         Ok(table)

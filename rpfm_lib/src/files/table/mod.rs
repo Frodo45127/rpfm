@@ -652,7 +652,7 @@ fn unescape_special_chars(data: &str) -> String {
 // Decoding and encoding functions for tables.
 //----------------------------------------------------------------//
 
-pub(crate) fn decode_table<R: ReadBytes>(data: &mut R, definition: &Definition, entry_count: Option<u32>, return_incomplete: bool) -> Result<Vec<Vec<DecodedData>>> {
+pub(crate) fn decode_table<R: ReadBytes>(data: &mut R, definition: &Definition, entry_count: Option<u32>, return_incomplete: bool, altered_flag: &mut bool) -> Result<Vec<Vec<DecodedData>>> {
 
     // If we received an entry count, it's the root table. If not, it's a nested one.
     let entry_count = match entry_count {
@@ -665,20 +665,20 @@ pub(crate) fn decode_table<R: ReadBytes>(data: &mut R, definition: &Definition, 
     let mut table = if entry_count < 10_000 { Vec::with_capacity(entry_count as usize) } else { vec![] };
 
     for row in 0..entry_count {
-        table.push(decode_row(data, fields, row, return_incomplete, &Some(definition.patches()))?);
+        table.push(decode_row(data, fields, row, return_incomplete, &Some(definition.patches()), altered_flag)?);
     }
 
     Ok(table)
 }
 
-fn decode_row<R: ReadBytes>(data: &mut R, fields: &[Field], row: u32, return_incomplete: bool, patches: &Option<&DefinitionPatch>) -> Result<Vec<DecodedData>> {
+fn decode_row<R: ReadBytes>(data: &mut R, fields: &[Field], row: u32, return_incomplete: bool, patches: &Option<&DefinitionPatch>, altered_flag: &mut bool) -> Result<Vec<DecodedData>> {
     let mut split_colours: BTreeMap<u8, HashMap<String, u8>> = BTreeMap::new();
     let mut row_data = Vec::with_capacity(fields.len());
     for (column, field) in fields.iter().enumerate() {
 
         // Decode the field, then apply any postprocess operation we need.
         let column = column as u32;
-        let field_data = match decode_field(data, field, row, column) {
+        let field_data = match decode_field(data, field, row, column, altered_flag) {
             Ok(data) => data,
             Err(error) => {
                 if return_incomplete {
@@ -688,7 +688,7 @@ fn decode_row<R: ReadBytes>(data: &mut R, fields: &[Field], row: u32, return_inc
                 }
             }
         };
-        decode_field_postprocess(&mut row_data, field_data, field, &mut split_colours, patches)
+        decode_field_postprocess(&mut row_data, field_data, field, &mut split_colours, patches, altered_flag)
     }
 
     decode_row_postprocess(&mut row_data, &mut split_colours)?;
@@ -696,7 +696,7 @@ fn decode_row<R: ReadBytes>(data: &mut R, fields: &[Field], row: u32, return_inc
     Ok(row_data)
 }
 
-fn decode_field<R: ReadBytes>(data: &mut R, field: &Field, row: u32, column: u32) -> Result<DecodedData> {
+fn decode_field<R: ReadBytes>(data: &mut R, field: &Field, row: u32, column: u32, altered_flag: &mut bool) -> Result<DecodedData> {
     match field.field_type() {
         FieldType::Boolean => {
             data.read_bool()
@@ -768,7 +768,7 @@ fn decode_field<R: ReadBytes>(data: &mut R, field: &Field, row: u32, column: u32
         FieldType::SequenceU16(definition) => {
             let start = data.stream_position()?;
             let entry_count = data.read_u16()?;
-            match decode_table(data, definition, Some(entry_count as u32), false) {
+            match decode_table(data, definition, Some(entry_count as u32), false, altered_flag) {
                 Ok(_) => {
                     let end = data.stream_position()? - start;
                     data.seek(SeekFrom::Start(start))?;
@@ -782,7 +782,7 @@ fn decode_field<R: ReadBytes>(data: &mut R, field: &Field, row: u32, column: u32
         FieldType::SequenceU32(definition) => {
             let start = data.stream_position()?;
             let entry_count = data.read_u32()?;
-            match decode_table(data, definition, Some(entry_count), false) {
+            match decode_table(data, definition, Some(entry_count), false, altered_flag) {
                 Ok(_) => {
                     let end = data.stream_position()? - start;
                     data.seek(SeekFrom::Start(start))?;
@@ -832,7 +832,7 @@ fn decode_row_postprocess(row_data: &mut Vec<DecodedData>, split_colours: &mut B
     Ok(())
 }
 
-fn decode_field_postprocess(row_data: &mut Vec<DecodedData>, data: DecodedData, field: &Field, split_colours: &mut BTreeMap<u8, HashMap<String, u8>>, patches: &Option<&DefinitionPatch>) {
+fn decode_field_postprocess(row_data: &mut Vec<DecodedData>, data: DecodedData, field: &Field, split_colours: &mut BTreeMap<u8, HashMap<String, u8>>, patches: &Option<&DefinitionPatch>, altered_flag: &mut bool) {
 
     // If the field is a bitwise, split it into multiple fields. This is currently limited to integer types.
     if field.is_bitwise() > 1 {
@@ -902,7 +902,18 @@ fn decode_field_postprocess(row_data: &mut Vec<DecodedData>, data: DecodedData, 
             DecodedData::StringU8(ref data) |
             DecodedData::StringU16(ref data) |
             DecodedData::OptionalStringU8(ref data) |
-            DecodedData::OptionalStringU16(ref data) => data.parse::<i32>().unwrap(),
+            DecodedData::OptionalStringU16(ref data) => match data.parse::<i32>() {
+                Ok(data) => data,
+                Err(_) => {
+
+                    // For what I could see, this happens when loading a table that has invalid data on the key field,
+                    // which can happen accidentally when loading tables not intended for the game the definition is for,
+                    // or regularly on tables with incorrectly inputted data. In those cases, we turn the value to -1
+                    // and flag the table so it's know this has happened.
+                    *altered_flag |= true;
+                    -1
+                }
+            },
             _ => unimplemented!()
         };
 

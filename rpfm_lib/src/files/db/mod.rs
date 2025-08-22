@@ -111,6 +111,7 @@ impl Decodeable for DB {
         // Try to decode the table.
         let len = data.len()?;
         let table = if version == 0 {
+            let mut altered = false;
             let index_reset = data.stream_position()?;
 
             // For version 0 tables, get all definitions between 0 and -99, and get the first one that works.
@@ -120,7 +121,7 @@ impl Decodeable for DB {
                 // First, reset the index in case it was changed in a previous iteration.
                 // Then, check if the definition works.
                 data.seek(SeekFrom::Start(index_reset))?;
-                let db = decode_table(data, definition, Some(entry_count), return_incomplete);
+                let db = decode_table(data, definition, Some(entry_count), return_incomplete, &mut altered);
                 if db.is_ok() && data.stream_position()? == len {
                     working_definition = Ok(definition);
                     break;
@@ -581,6 +582,10 @@ impl DB {
     /// This function imports a TSV file into a decoded table.
     pub fn tsv_export(&self, writer: &mut Writer<File>, table_path: &str, keys_first: bool) -> Result<()> {
         self.table.tsv_export(writer, table_path, keys_first)
+    }
+
+    pub fn altered(&self) -> bool {
+        *self.table.altered()
     }
 }
 
