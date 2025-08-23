@@ -82,6 +82,26 @@ const VIEW_DEBUG: &str = "rpfm_ui/ui_templates/diagnostics_dock_widget.ui";
 const VIEW_RELEASE: &str = "ui/diagnostics_dock_widget.ui";
 
 //-------------------------------------------------------------------------------//
+//                                  Macros
+//-------------------------------------------------------------------------------//
+
+macro_rules! diag_pattern {
+    ($ui:ident, $pat:ident, $check:ident, $variant:expr) => (
+        if $ui.$check.is_checked() {
+            $pat.push_str(&format!("{}|", $variant));
+        }
+    );
+}
+
+macro_rules! diag_ignored {
+    ($self:ident, $ign:ident, $check:ident, $variant:expr) => (
+        if !$self.$check.is_checked() {
+            $ign.push($variant.to_string());
+        }
+    );
+}
+
+//-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
@@ -1559,136 +1579,53 @@ impl DiagnosticsUI {
         // Checks for the diagnostic type filter.
         let mut diagnostic_type_pattern = String::new();
 
-        if diagnostics_ui.checkbox_outdated_table.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::OutdatedTable));
-        }
-        if diagnostics_ui.checkbox_invalid_reference.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::InvalidReference(String::new(), String::new())));
-        }
-        if diagnostics_ui.checkbox_empty_row.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::EmptyRow));
-        }
-        if diagnostics_ui.checkbox_empty_key_field.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::EmptyKeyField(String::new())));
-        }
-        if diagnostics_ui.checkbox_empty_key_fields.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::EmptyKeyFields));
-        }
-        if diagnostics_ui.checkbox_duplicated_combined_keys.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::DuplicatedCombinedKeys(String::new())));
-        }
-        if diagnostics_ui.checkbox_no_reference_table_found.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::NoReferenceTableFound(String::new())));
-        }
-        if diagnostics_ui.checkbox_no_reference_table_nor_column_found_pak.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::NoReferenceTableNorColumnFoundPak(String::new())));
-        }
-        if diagnostics_ui.checkbox_no_reference_table_nor_column_found_no_pak.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::NoReferenceTableNorColumnFoundNoPak(String::new())));
-        }
-        if diagnostics_ui.checkbox_invalid_escape.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::InvalidEscape));
-        }
-        if diagnostics_ui.checkbox_duplicated_row.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::DuplicatedRow(String::new())));
-        }
-        if diagnostics_ui.checkbox_invalid_loc_key.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::InvalidLocKey));
-        }
-        if diagnostics_ui.checkbox_table_name_ends_in_number.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::TableNameEndsInNumber));
-        }
-        if diagnostics_ui.checkbox_table_name_has_space.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::TableNameHasSpace));
-        }
-        if diagnostics_ui.checkbox_table_is_datacoring.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::TableIsDataCoring));
-        }
-        if diagnostics_ui.checkbox_field_with_path_not_found.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::FieldWithPathNotFound(vec![])));
-        }
-        if diagnostics_ui.checkbox_banned_table.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::BannedTable));
-        }
-        if diagnostics_ui.checkbox_value_cannot_be_empty.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::ValueCannotBeEmpty(String::new())));
-        }
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_outdated_table, TableDiagnosticReportType::OutdatedTable);
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_invalid_reference, TableDiagnosticReportType::InvalidReference(String::new(), String::new()));
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_empty_row, TableDiagnosticReportType::EmptyRow);
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_empty_key_field, TableDiagnosticReportType::EmptyKeyField(String::new()));
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_empty_key_fields, TableDiagnosticReportType::EmptyKeyFields);
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_duplicated_combined_keys, TableDiagnosticReportType::DuplicatedCombinedKeys(String::new()));
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_no_reference_table_found, TableDiagnosticReportType::NoReferenceTableFound(String::new()));
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_no_reference_table_nor_column_found_pak, TableDiagnosticReportType::NoReferenceTableNorColumnFoundPak(String::new()));
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_no_reference_table_nor_column_found_no_pak, TableDiagnosticReportType::NoReferenceTableNorColumnFoundNoPak(String::new()));
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_invalid_escape, TableDiagnosticReportType::InvalidEscape);
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_duplicated_row, TableDiagnosticReportType::DuplicatedRow(String::new()));
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_invalid_loc_key, TableDiagnosticReportType::InvalidLocKey);
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_table_name_ends_in_number, TableDiagnosticReportType::TableNameEndsInNumber);
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_table_name_has_space, TableDiagnosticReportType::TableNameHasSpace);
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_table_is_datacoring, TableDiagnosticReportType::TableIsDataCoring);
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_field_with_path_not_found, TableDiagnosticReportType::FieldWithPathNotFound(vec![]));
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_banned_table, TableDiagnosticReportType::BannedTable);
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_value_cannot_be_empty, TableDiagnosticReportType::ValueCannotBeEmpty(String::new()));
 
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_invalid_dependency_packfile, DependencyDiagnosticReportType::InvalidDependencyPackName(String::new()));
 
-        if diagnostics_ui.checkbox_invalid_dependency_packfile.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", DependencyDiagnosticReportType::InvalidDependencyPackName(String::new())));
-        }
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_dependencies_cache_not_generated, ConfigDiagnosticReportType::DependenciesCacheNotGenerated);
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_dependencies_cache_outdated, ConfigDiagnosticReportType::DependenciesCacheOutdated);
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_dependencies_cache_could_not_be_loaded, ConfigDiagnosticReportType::DependenciesCacheCouldNotBeLoaded(String::new()));
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_incorrect_game_path, ConfigDiagnosticReportType::IncorrectGamePath);
 
-        if diagnostics_ui.checkbox_dependencies_cache_not_generated.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", ConfigDiagnosticReportType::DependenciesCacheNotGenerated));
-        }
-        if diagnostics_ui.checkbox_dependencies_cache_outdated.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", ConfigDiagnosticReportType::DependenciesCacheOutdated));
-        }
-        if diagnostics_ui.checkbox_dependencies_cache_could_not_be_loaded.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", ConfigDiagnosticReportType::DependenciesCacheCouldNotBeLoaded("".to_owned())));
-        }
-        if diagnostics_ui.checkbox_incorrect_game_path.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", ConfigDiagnosticReportType::IncorrectGamePath));
-        }
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_invalid_packfile_name, PackDiagnosticReportType::InvalidPackName(String::new()));
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_invalid_file_name, PackDiagnosticReportType::InvalidFileName(String::new(), String::new()));
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_missing_loc_data_file_detected, PackDiagnosticReportType::MissingLocDataFileDetected(String::new()));
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_file_itm, PackDiagnosticReportType::FileITM(String::new()));
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_file_overwrite, PackDiagnosticReportType::FileOverwrite(String::new()));
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_file_duplicated, PackDiagnosticReportType::FileDuplicated(String::new()));
 
-        if diagnostics_ui.checkbox_invalid_packfile_name.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", PackDiagnosticReportType::InvalidPackName(String::new())));
-        }
-        if diagnostics_ui.checkbox_invalid_file_name.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", PackDiagnosticReportType::InvalidFileName(String::new(), String::new())));
-        }
-        if diagnostics_ui.checkbox_invalid_packfile_name.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", PackDiagnosticReportType::MissingLocDataFileDetected(String::new())));
-        }
-        if diagnostics_ui.checkbox_file_itm.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", PackDiagnosticReportType::FileITM(String::new())));
-        }
-        if diagnostics_ui.checkbox_file_overwrite.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", PackDiagnosticReportType::FileOverwrite(String::new())));
-        }
-        if diagnostics_ui.checkbox_file_duplicated.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", PackDiagnosticReportType::FileDuplicated(String::new())));
-        }
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_datacored_portrait_settings, PortraitSettingsDiagnosticReportType::DatacoredPortraitSettings);
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_invalid_art_set_id, PortraitSettingsDiagnosticReportType::InvalidArtSetId(String::new()));
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_invalid_variant_filename, PortraitSettingsDiagnosticReportType::InvalidVariantFilename(String::new(), String::new(), false, false));
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_file_diffuse_not_found_for_variant, PortraitSettingsDiagnosticReportType::FileDiffuseNotFoundForVariant(String::new(), String::new(), false, false, String::new()));
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_file_mask_1_not_found_for_variant, PortraitSettingsDiagnosticReportType::FileMask1NotFoundForVariant(String::new(), String::new(), false, false, String::new()));
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_file_mask_2_not_found_for_variant, PortraitSettingsDiagnosticReportType::FileMask2NotFoundForVariant(String::new(), String::new(), false, false, String::new()));
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_file_mask_3_not_found_for_variant, PortraitSettingsDiagnosticReportType::FileMask3NotFoundForVariant(String::new(), String::new(), false, false, String::new()));
 
-        if diagnostics_ui.checkbox_datacored_portrait_settings.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", PortraitSettingsDiagnosticReportType::DatacoredPortraitSettings));
-        }
-        if diagnostics_ui.checkbox_invalid_art_set_id.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", PortraitSettingsDiagnosticReportType::InvalidArtSetId(String::new())));
-        }
-        if diagnostics_ui.checkbox_invalid_variant_filename.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", PortraitSettingsDiagnosticReportType::InvalidVariantFilename(String::new(), String::new(), false, false)));
-        }
-        if diagnostics_ui.checkbox_file_diffuse_not_found_for_variant.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", PortraitSettingsDiagnosticReportType::FileDiffuseNotFoundForVariant(String::new(), String::new(), false, false, String::new())));
-        }
-        if diagnostics_ui.checkbox_file_mask_1_not_found_for_variant.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", PortraitSettingsDiagnosticReportType::FileMask1NotFoundForVariant(String::new(), String::new(), false, false, String::new())));
-        }
-        if diagnostics_ui.checkbox_file_mask_2_not_found_for_variant.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", PortraitSettingsDiagnosticReportType::FileMask2NotFoundForVariant(String::new(), String::new(), false, false, String::new())));
-        }
-        if diagnostics_ui.checkbox_file_mask_3_not_found_for_variant.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", PortraitSettingsDiagnosticReportType::FileMask3NotFoundForVariant(String::new(), String::new(), false, false, String::new())));
-        }
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_loocomotion_graph_path_not_found, AnimFragmentBattleDiagnosticReportType::LocomotionGraphPathNotFound(String::new()));
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_file_path_not_found, AnimFragmentBattleDiagnosticReportType::FilePathNotFound(String::new()));
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_meta_file_path_not_found, AnimFragmentBattleDiagnosticReportType::MetaFilePathNotFound(String::new()));
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_snd_file_path_not_found, AnimFragmentBattleDiagnosticReportType::SndFilePathNotFound(String::new()));
 
-        if diagnostics_ui.checkbox_loocomotion_graph_path_not_found.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", AnimFragmentBattleDiagnosticReportType::LocomotionGraphPathNotFound(String::new())));
-        }
-        if diagnostics_ui.checkbox_file_path_not_found.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", AnimFragmentBattleDiagnosticReportType::FilePathNotFound(String::new())));
-        }
-        if diagnostics_ui.checkbox_meta_file_path_not_found.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", AnimFragmentBattleDiagnosticReportType::MetaFilePathNotFound(String::new())));
-        }
-        if diagnostics_ui.checkbox_snd_file_path_not_found.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", AnimFragmentBattleDiagnosticReportType::SndFilePathNotFound(String::new())));
-        }
-
-        if diagnostics_ui.checkbox_lua_invalid_key.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", TextDiagnosticReportType::InvalidKey((0,0), (0,0), String::new(), String::new(), String::new())));
-        }
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_lua_invalid_key, TextDiagnosticReportType::InvalidKey((0,0), (0,0), String::new(), String::new(), String::new()));
 
         diagnostic_type_pattern.pop();
 
@@ -1921,138 +1858,55 @@ impl DiagnosticsUI {
     }
 
     unsafe fn diagnostics_ignored(&self) -> Vec<String> {
-
         let mut diagnostics_ignored = vec![];
-        if !self.checkbox_outdated_table.is_checked() {
-            diagnostics_ignored.push(TableDiagnosticReportType::OutdatedTable.to_string());
-        }
-        if !self.checkbox_invalid_reference.is_checked() {
-            diagnostics_ignored.push(TableDiagnosticReportType::InvalidReference(String::new(), String::new()).to_string());
-        }
-        if !self.checkbox_empty_row.is_checked() {
-            diagnostics_ignored.push(TableDiagnosticReportType::EmptyRow.to_string());
-        }
-        if !self.checkbox_empty_key_field.is_checked() {
-            diagnostics_ignored.push(TableDiagnosticReportType::EmptyKeyField(String::new()).to_string());
-        }
-        if !self.checkbox_empty_key_fields.is_checked() {
-            diagnostics_ignored.push(TableDiagnosticReportType::EmptyKeyFields.to_string());
-        }
-        if !self.checkbox_duplicated_combined_keys.is_checked() {
-            diagnostics_ignored.push(TableDiagnosticReportType::DuplicatedCombinedKeys(String::new()).to_string());
-        }
-        if !self.checkbox_no_reference_table_found.is_checked() {
-            diagnostics_ignored.push(TableDiagnosticReportType::NoReferenceTableFound(String::new()).to_string());
-        }
-        if !self.checkbox_no_reference_table_nor_column_found_pak.is_checked() {
-            diagnostics_ignored.push(TableDiagnosticReportType::NoReferenceTableNorColumnFoundPak(String::new()).to_string());
-        }
-        if !self.checkbox_no_reference_table_nor_column_found_no_pak.is_checked() {
-            diagnostics_ignored.push(TableDiagnosticReportType::NoReferenceTableNorColumnFoundNoPak(String::new()).to_string());
-        }
-        if !self.checkbox_invalid_escape.is_checked() {
-            diagnostics_ignored.push(TableDiagnosticReportType::InvalidEscape.to_string());
-        }
-        if !self.checkbox_duplicated_row.is_checked() {
-            diagnostics_ignored.push(TableDiagnosticReportType::DuplicatedRow(String::new()).to_string());
-        }
-        if !self.checkbox_invalid_loc_key.is_checked() {
-            diagnostics_ignored.push(TableDiagnosticReportType::InvalidLocKey.to_string());
-        }
-        if !self.checkbox_table_name_ends_in_number.is_checked() {
-            diagnostics_ignored.push(TableDiagnosticReportType::TableNameEndsInNumber.to_string());
-        }
-        if !self.checkbox_table_name_has_space.is_checked() {
-            diagnostics_ignored.push(TableDiagnosticReportType::TableNameHasSpace.to_string());
-        }
-        if !self.checkbox_table_is_datacoring.is_checked() {
-            diagnostics_ignored.push(TableDiagnosticReportType::TableIsDataCoring.to_string());
-        }
-        if !self.checkbox_field_with_path_not_found.is_checked() {
-            diagnostics_ignored.push(TableDiagnosticReportType::FieldWithPathNotFound(vec![]).to_string());
-        }
-        if !self.checkbox_banned_table.is_checked() {
-            diagnostics_ignored.push(TableDiagnosticReportType::BannedTable.to_string());
-        }
-        if !self.checkbox_value_cannot_be_empty.is_checked() {
-            diagnostics_ignored.push(TableDiagnosticReportType::ValueCannotBeEmpty(String::new()).to_string());
-        }
 
-        if !self.checkbox_invalid_dependency_packfile.is_checked() {
-            diagnostics_ignored.push(DependencyDiagnosticReportType::InvalidDependencyPackName(String::new()).to_string());
-        }
+        diag_ignored!(self, diagnostics_ignored, checkbox_outdated_table, TableDiagnosticReportType::OutdatedTable);
+        diag_ignored!(self, diagnostics_ignored, checkbox_invalid_reference, TableDiagnosticReportType::InvalidReference(String::new(), String::new()));
+        diag_ignored!(self, diagnostics_ignored, checkbox_empty_row, TableDiagnosticReportType::EmptyRow);
+        diag_ignored!(self, diagnostics_ignored, checkbox_empty_key_field, TableDiagnosticReportType::EmptyKeyField(String::new()));
+        diag_ignored!(self, diagnostics_ignored, checkbox_empty_key_fields, TableDiagnosticReportType::EmptyKeyFields);
+        diag_ignored!(self, diagnostics_ignored, checkbox_duplicated_combined_keys, TableDiagnosticReportType::DuplicatedCombinedKeys(String::new()));
+        diag_ignored!(self, diagnostics_ignored, checkbox_no_reference_table_found, TableDiagnosticReportType::NoReferenceTableFound(String::new()));
+        diag_ignored!(self, diagnostics_ignored, checkbox_no_reference_table_nor_column_found_pak, TableDiagnosticReportType::NoReferenceTableNorColumnFoundPak(String::new()));
+        diag_ignored!(self, diagnostics_ignored, checkbox_no_reference_table_nor_column_found_no_pak, TableDiagnosticReportType::NoReferenceTableNorColumnFoundNoPak(String::new()));
+        diag_ignored!(self, diagnostics_ignored, checkbox_invalid_escape, TableDiagnosticReportType::InvalidEscape);
+        diag_ignored!(self, diagnostics_ignored, checkbox_duplicated_row, TableDiagnosticReportType::DuplicatedRow(String::new()));
+        diag_ignored!(self, diagnostics_ignored, checkbox_invalid_loc_key, TableDiagnosticReportType::InvalidLocKey);
+        diag_ignored!(self, diagnostics_ignored, checkbox_table_name_ends_in_number, TableDiagnosticReportType::TableNameEndsInNumber);
+        diag_ignored!(self, diagnostics_ignored, checkbox_table_name_has_space, TableDiagnosticReportType::TableNameHasSpace);
+        diag_ignored!(self, diagnostics_ignored, checkbox_table_is_datacoring, TableDiagnosticReportType::TableIsDataCoring);
+        diag_ignored!(self, diagnostics_ignored, checkbox_field_with_path_not_found, TableDiagnosticReportType::FieldWithPathNotFound(vec![]));
+        diag_ignored!(self, diagnostics_ignored, checkbox_banned_table, TableDiagnosticReportType::BannedTable);
+        diag_ignored!(self, diagnostics_ignored, checkbox_value_cannot_be_empty, TableDiagnosticReportType::ValueCannotBeEmpty(String::new()));
 
-        if !self.checkbox_dependencies_cache_not_generated.is_checked() {
-            diagnostics_ignored.push(ConfigDiagnosticReportType::DependenciesCacheNotGenerated.to_string());
-        }
-        if !self.checkbox_dependencies_cache_outdated.is_checked() {
-            diagnostics_ignored.push(ConfigDiagnosticReportType::DependenciesCacheOutdated.to_string());
-        }
-        if !self.checkbox_dependencies_cache_could_not_be_loaded.is_checked() {
-            diagnostics_ignored.push(ConfigDiagnosticReportType::DependenciesCacheCouldNotBeLoaded(String::new()).to_string());
-        }
-        if !self.checkbox_incorrect_game_path.is_checked() {
-            diagnostics_ignored.push(ConfigDiagnosticReportType::IncorrectGamePath.to_string());
-        }
+        diag_ignored!(self, diagnostics_ignored, checkbox_invalid_dependency_packfile, DependencyDiagnosticReportType::InvalidDependencyPackName(String::new()));
 
-        if !self.checkbox_invalid_packfile_name.is_checked() {
-            diagnostics_ignored.push(PackDiagnosticReportType::InvalidPackName(String::new()).to_string());
-        }
-        if !self.checkbox_invalid_file_name.is_checked() {
-            diagnostics_ignored.push(PackDiagnosticReportType::InvalidFileName(String::new(), String::new()).to_string());
-        }
-        if !self.checkbox_missing_loc_data_file_detected.is_checked() {
-            diagnostics_ignored.push(PackDiagnosticReportType::MissingLocDataFileDetected(String::new()).to_string());
-        }
-        if !self.checkbox_file_itm.is_checked() {
-            diagnostics_ignored.push(PackDiagnosticReportType::FileITM(String::new()).to_string());
-        }
-        if !self.checkbox_file_overwrite.is_checked() {
-            diagnostics_ignored.push(PackDiagnosticReportType::FileOverwrite(String::new()).to_string());
-        }
-        if !self.checkbox_file_duplicated.is_checked() {
-            diagnostics_ignored.push(PackDiagnosticReportType::FileDuplicated(String::new()).to_string());
-        }
+        diag_ignored!(self, diagnostics_ignored, checkbox_dependencies_cache_not_generated, ConfigDiagnosticReportType::DependenciesCacheNotGenerated);
+        diag_ignored!(self, diagnostics_ignored, checkbox_dependencies_cache_outdated, ConfigDiagnosticReportType::DependenciesCacheOutdated);
+        diag_ignored!(self, diagnostics_ignored, checkbox_dependencies_cache_could_not_be_loaded, ConfigDiagnosticReportType::DependenciesCacheCouldNotBeLoaded(String::new()));
+        diag_ignored!(self, diagnostics_ignored, checkbox_incorrect_game_path, ConfigDiagnosticReportType::IncorrectGamePath);
 
-        if !self.checkbox_datacored_portrait_settings.is_checked() {
-            diagnostics_ignored.push(PortraitSettingsDiagnosticReportType::DatacoredPortraitSettings.to_string());
-        }
-        if !self.checkbox_invalid_art_set_id.is_checked() {
-            diagnostics_ignored.push(PortraitSettingsDiagnosticReportType::InvalidArtSetId(String::new()).to_string());
-        }
-        if !self.checkbox_invalid_variant_filename.is_checked() {
-            diagnostics_ignored.push(PortraitSettingsDiagnosticReportType::InvalidVariantFilename(String::new(), String::new(), false, false).to_string());
-        }
-        if !self.checkbox_file_diffuse_not_found_for_variant.is_checked() {
-            diagnostics_ignored.push(PortraitSettingsDiagnosticReportType::FileDiffuseNotFoundForVariant(String::new(), String::new(), false, false, String::new()).to_string());
-        }
+        diag_ignored!(self, diagnostics_ignored, checkbox_invalid_packfile_name, PackDiagnosticReportType::InvalidPackName(String::new()));
+        diag_ignored!(self, diagnostics_ignored, checkbox_invalid_file_name, PackDiagnosticReportType::InvalidFileName(String::new(), String::new()));
+        diag_ignored!(self, diagnostics_ignored, checkbox_missing_loc_data_file_detected, PackDiagnosticReportType::MissingLocDataFileDetected(String::new()));
+        diag_ignored!(self, diagnostics_ignored, checkbox_file_itm, PackDiagnosticReportType::FileITM(String::new()));
+        diag_ignored!(self, diagnostics_ignored, checkbox_file_overwrite, PackDiagnosticReportType::FileOverwrite(String::new()));
+        diag_ignored!(self, diagnostics_ignored, checkbox_file_duplicated, PackDiagnosticReportType::FileDuplicated(String::new()));
 
-        if !self.checkbox_file_mask_1_not_found_for_variant.is_checked() {
-            diagnostics_ignored.push(PortraitSettingsDiagnosticReportType::FileMask1NotFoundForVariant(String::new(), String::new(), false, false, String::new()).to_string());
-        }
-        if !self.checkbox_file_mask_2_not_found_for_variant.is_checked() {
-            diagnostics_ignored.push(PortraitSettingsDiagnosticReportType::FileMask2NotFoundForVariant(String::new(), String::new(), false, false, String::new()).to_string());
-        }
-        if !self.checkbox_file_mask_3_not_found_for_variant.is_checked() {
-            diagnostics_ignored.push(PortraitSettingsDiagnosticReportType::FileMask3NotFoundForVariant(String::new(), String::new(), false, false, String::new()).to_string());
-        }
+        diag_ignored!(self, diagnostics_ignored, checkbox_datacored_portrait_settings, PortraitSettingsDiagnosticReportType::DatacoredPortraitSettings);
+        diag_ignored!(self, diagnostics_ignored, checkbox_invalid_art_set_id, PortraitSettingsDiagnosticReportType::InvalidArtSetId(String::new()));
+        diag_ignored!(self, diagnostics_ignored, checkbox_invalid_variant_filename, PortraitSettingsDiagnosticReportType::InvalidVariantFilename(String::new(), String::new(), false, false));
+        diag_ignored!(self, diagnostics_ignored, checkbox_file_diffuse_not_found_for_variant, PortraitSettingsDiagnosticReportType::FileDiffuseNotFoundForVariant(String::new(), String::new(), false, false, String::new()));
+        diag_ignored!(self, diagnostics_ignored, checkbox_file_mask_1_not_found_for_variant, PortraitSettingsDiagnosticReportType::FileMask1NotFoundForVariant(String::new(), String::new(), false, false, String::new()));
+        diag_ignored!(self, diagnostics_ignored, checkbox_file_mask_2_not_found_for_variant, PortraitSettingsDiagnosticReportType::FileMask2NotFoundForVariant(String::new(), String::new(), false, false, String::new()));
+        diag_ignored!(self, diagnostics_ignored, checkbox_file_mask_3_not_found_for_variant, PortraitSettingsDiagnosticReportType::FileMask3NotFoundForVariant(String::new(), String::new(), false, false, String::new()));
 
-        if !self.checkbox_loocomotion_graph_path_not_found.is_checked() {
-            diagnostics_ignored.push(AnimFragmentBattleDiagnosticReportType::LocomotionGraphPathNotFound(String::new()).to_string());
-        }
-        if !self.checkbox_file_path_not_found.is_checked() {
-            diagnostics_ignored.push(AnimFragmentBattleDiagnosticReportType::FilePathNotFound(String::new()).to_string());
-        }
-        if !self.checkbox_meta_file_path_not_found.is_checked() {
-            diagnostics_ignored.push(AnimFragmentBattleDiagnosticReportType::MetaFilePathNotFound(String::new()).to_string());
-        }
-        if !self.checkbox_snd_file_path_not_found.is_checked() {
-            diagnostics_ignored.push(AnimFragmentBattleDiagnosticReportType::SndFilePathNotFound(String::new()).to_string());
-        }
+        diag_ignored!(self, diagnostics_ignored, checkbox_loocomotion_graph_path_not_found, AnimFragmentBattleDiagnosticReportType::LocomotionGraphPathNotFound(String::new()));
+        diag_ignored!(self, diagnostics_ignored, checkbox_file_path_not_found, AnimFragmentBattleDiagnosticReportType::FilePathNotFound(String::new()));
+        diag_ignored!(self, diagnostics_ignored, checkbox_meta_file_path_not_found, AnimFragmentBattleDiagnosticReportType::MetaFilePathNotFound(String::new()));
+        diag_ignored!(self, diagnostics_ignored, checkbox_snd_file_path_not_found, AnimFragmentBattleDiagnosticReportType::SndFilePathNotFound(String::new()));
 
-        if !self.checkbox_lua_invalid_key.is_checked() {
-            diagnostics_ignored.push(TextDiagnosticReportType::InvalidKey((0,0), (0,0), String::new(), String::new(), String::new()).to_string());
-        }
+        diag_ignored!(self, diagnostics_ignored, checkbox_lua_invalid_key, TextDiagnosticReportType::InvalidKey((0,0), (0,0), String::new(), String::new(), String::new()));
 
         diagnostics_ignored
     }
