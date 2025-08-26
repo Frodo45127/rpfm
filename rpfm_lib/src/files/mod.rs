@@ -2481,3 +2481,56 @@ impl<'a> EncodeableExtraData<'a> {
         extra_data
     }
 }
+
+/// Sanitizes a destination path and creates a file with the sanitized path.
+/// Logs a message if the filename was changed due to invalid Windows characters.
+fn sanitize_and_create_file(rfile: &mut RFile, destination_path: &Path, extra_data: &Option<EncodeableExtraData>) -> Result<PathBuf> {
+    let sanitized_destination_path = sanitize_path(&destination_path);
+    
+    if sanitized_destination_path != destination_path {
+        #[cfg(feature = "integration_log")] {
+            warn!("Filename sanitized from '{}' to '{}' due to invalid Windows characters", 
+                  destination_path.to_owned().file_name().unwrap_or_default().to_string_lossy(),
+                  sanitized_destination_path.file_name().unwrap_or_default().to_string_lossy());
+        }
+    }
+    
+    let mut file = BufWriter::new(File::create(&sanitized_destination_path)?);
+    let data = rfile.encode(extra_data, false, false, true)?.unwrap();
+    file.write_all(&data)?;
+    Ok(sanitized_destination_path)
+}
+
+/// Sanitizes a path by applying filename sanitization to the filename part while preserving the directory structure.
+fn sanitize_path(path: &Path) -> PathBuf {
+    if let Some(file_name) = path.file_name() {
+        let sanitized_name = sanitize_filename(file_name.to_string_lossy().as_ref());
+        let mut sanitized_path = path.to_path_buf();
+        sanitized_path.set_file_name(sanitized_name);
+        sanitized_path
+    } else {
+        path.to_path_buf()
+    }
+}
+
+/// Sanitizes a filename by removing or replacing invalid Windows characters.
+/// Windows doesn't allow: <, >, :, ", /, \, |, ?, *
+fn sanitize_filename(filename: &str) -> String {
+    let mut sanitized = filename.to_string();
+    
+    // Replace invalid characters with underscores.
+    let invalid_chars = ['<', '>', ':', '"', '/', '\\', '|', '?', '*'];
+    for &ch in &invalid_chars {
+        sanitized = sanitized.replace(ch, "_");
+    }
+    
+    // Remove leading/trailing spaces and dots.
+    sanitized = sanitized.trim().trim_matches('.').to_string();
+    
+    // If the filename becomes empty after sanitization, use a default name.
+    if sanitized.is_empty() {
+        sanitized = "unnamed_file".to_string();
+    }
+    
+    sanitized
+}
