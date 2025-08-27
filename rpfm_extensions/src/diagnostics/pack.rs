@@ -66,7 +66,7 @@ impl DiagnosticReport for PackDiagnosticReport {
     fn message(&self) -> String {
         match &self.report_type {
             PackDiagnosticReportType::InvalidPackName(pack_name) => format!("Invalid Pack name: {pack_name}"),
-            PackDiagnosticReportType::InvalidFileName(pack_name, file_name) => format!("Invalid file name ({file_name}) in pack: {pack_name}"),
+            PackDiagnosticReportType::InvalidFileName(pack_name, file_name) => format!("Invalid file name ({file_name}) in pack: {pack_name}. This file will be renamed when extracting/exporting, which may cause issues when importing back, especially with MyMods."),
             PackDiagnosticReportType::MissingLocDataFileDetected(pack_name) => format!("Missing Loc Data file in Pack: {pack_name}"),
             PackDiagnosticReportType::FileITM(path) => format!("File identical to parent/vanilla file: {path}"),
             PackDiagnosticReportType::FileOverwrite(path) => format!("File overwriting a parent/vanilla file: {path}"),
