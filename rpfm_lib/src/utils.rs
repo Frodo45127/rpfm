@@ -369,6 +369,42 @@ pub const INVALID_CHARACTERS_WINDOWS: [char; 9] = [
     '*',
 ];
 
+/// Default filename for sanitized empty filenames.
+pub const DEFAULT_FILENAME: &str = "unnamed_file";
+
+/// Sanitizes a path by applying filename sanitization to the filename part while preserving the directory structure.
+pub fn sanitize_path(path: &Path) -> PathBuf {
+    if let Some(file_name) = path.file_name() {
+        let sanitized_name = sanitize_filename(file_name.to_string_lossy().as_ref());
+        let mut sanitized_path = path.to_path_buf();
+        sanitized_path.set_file_name(sanitized_name);
+        sanitized_path
+    } else {
+        path.to_path_buf()
+    }
+}
+
+/// Sanitizes a filename by removing or replacing invalid Windows characters.
+/// Windows doesn't allow: <, >, :, ", /, \, |, ?, *
+pub fn sanitize_filename(filename: &str) -> String {
+    let mut sanitized = filename.to_string();
+    
+    // Replace invalid characters with underscores.
+    for &ch in &INVALID_CHARACTERS_WINDOWS {
+        sanitized = sanitized.replace(ch, "_");
+    }
+    
+    // Remove leading/trailing spaces and dots.
+    sanitized = sanitized.trim().trim_matches('.').to_string();
+    
+    // If the filename becomes empty after sanitization, use a default name.
+    if sanitized.is_empty() {
+        sanitized = DEFAULT_FILENAME.to_string();
+    }
+    
+    sanitized
+}
+
 //--------------------------------------------------------//
 // Decoder utils.
 //--------------------------------------------------------//
