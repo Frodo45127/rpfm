@@ -531,28 +531,22 @@ pub trait Container {
                                 warn!("File with path {} failed to extract as TSV. Extracting it as binary.", rfile.path_in_container_raw());
                             }
 
-                            extracted_paths.push(destination_path.to_owned());
-                            let mut file = BufWriter::new(File::create(&destination_path)?);
-                            let data = rfile.encode(extra_data, false, false, true)?.unwrap();
-                            file.write_all(&data)?;
+                            let extracted_path = rfile.sanitize_and_create_file(&destination_path, extra_data)?;
+                            extracted_paths.push(extracted_path);
                         } else {
                             extracted_paths.push(destination_path_tsv);
                             result?;
                         }
                     } else {
-                        extracted_paths.push(destination_path.to_owned());
-                        let mut file = BufWriter::new(File::create(&destination_path)?);
-                        let data = rfile.encode(extra_data, false, false, true)?.unwrap();
-                        file.write_all(&data)?;
+                        let extracted_path = rfile.sanitize_and_create_file(&destination_path, extra_data)?;
+                        extracted_paths.push(extracted_path);
                     }
                 }
 
                 // Otherwise, just write the binary data to disk.
                 else {
-                    extracted_paths.push(destination_path.to_owned());
-                    let mut file = BufWriter::new(File::create(&destination_path)?);
-                    let data = rfile.encode(extra_data, false, false, true)?.unwrap();
-                    file.write_all(&data)?;
+                    let extracted_path = rfile.sanitize_and_create_file(&destination_path, extra_data)?;
+                    extracted_paths.push(extracted_path);
                 }
             }
             ContainerPath::Folder(mut container_path) => {
@@ -604,28 +598,22 @@ pub trait Container {
                                     warn!("File with path {} failed to extract as TSV. Extracting it as binary.", rfile.path_in_container_raw());
                                 }
 
-                                extracted_paths.push(destination_path.to_owned());
-                                let mut file = BufWriter::new(File::create(&destination_path)?);
-                                let data = rfile.encode(extra_data, false, false, true)?.unwrap();
-                                file.write_all(&data)?;
+                                let extracted_path = rfile.sanitize_and_create_file(&destination_path, extra_data)?;
+                                extracted_paths.push(extracted_path);
                             } else {
                                 extracted_paths.push(destination_path_tsv);
                                 result?;
                             }
                         } else {
-                            extracted_paths.push(destination_path.to_owned());
-                            let mut file = BufWriter::new(File::create(&destination_path)?);
-                            let data = rfile.encode(extra_data, false, false, true)?.unwrap();
-                            file.write_all(&data)?;
+                            let extracted_path = rfile.sanitize_and_create_file(&destination_path, extra_data)?;
+                            extracted_paths.push(extracted_path);
                         }
                     }
 
                     // Otherwise, just write the binary data to disk.
                     else {
-                        extracted_paths.push(destination_path.to_owned());
-                        let mut file = BufWriter::new(File::create(&destination_path)?);
-                        let data = rfile.encode(extra_data, false, false, true)?.unwrap();
-                        file.write_all(&data)?;
+                        let extracted_path = rfile.sanitize_and_create_file(&destination_path, extra_data)?;
+                        extracted_paths.push(extracted_path);
                     }
 
                 }
@@ -2061,8 +2049,11 @@ impl RFile {
     /// Only supported for DB and Loc files.
     pub fn tsv_export_to_path(&mut self, path: &Path, schema: &Schema, keys_first: bool) -> Result<()> {
 
+        // Sanitize the path before creating the file
+        let sanitized_path = sanitize_path(path);
+        
         // Make sure the folder actually exists.
-        let mut folder_path = path.to_path_buf();
+        let mut folder_path = sanitized_path.to_path_buf();
         folder_path.pop();
         DirBuilder::new().recursive(true).create(&folder_path)?;
 
@@ -2073,7 +2064,7 @@ impl RFile {
             .quote_style(QuoteStyle::Never)
             .has_headers(false)
             .flexible(true)
-            .from_path(path)?;
+            .from_path(&sanitized_path)?;
 
         let mut extra_data = DecodeableExtraData::default();
         extra_data.set_schema(Some(schema));
@@ -2083,7 +2074,7 @@ impl RFile {
         // If it fails in decoding, delete the tsv file.
         let file = self.decode(&extra_data, false, true);
         if let Err(error) = file {
-            let _ = std::fs::remove_file(path);
+            let _ = std::fs::remove_file(&sanitized_path);
             return Err(error);
         }
 
@@ -2095,7 +2086,7 @@ impl RFile {
 
         // If the tsv export failed, delete the tsv file.
         if file.is_err() {
-            let _ = std::fs::remove_file(path);
+            let _ = std::fs::remove_file(&sanitized_path);
         }
 
         file
@@ -2154,6 +2145,25 @@ impl RFile {
             RFileInnerData::Cached(ref data) => checksum(CrcAlgorithm::Crc32Iscsi, data),
             RFileInnerData::OnDisk(ref on_disk) => checksum(CrcAlgorithm::Crc32Iscsi, &on_disk.read()?),
         })
+    }
+
+    /// Sanitizes a destination path and creates a file with the sanitized path.
+    /// Logs a message if the filename was changed due to invalid Windows characters.
+    pub fn sanitize_and_create_file(&mut self, destination_path: &Path, extra_data: &Option<EncodeableExtraData>) -> Result<PathBuf> {
+        let sanitized_destination_path = sanitize_path(&destination_path);
+        
+        if sanitized_destination_path != destination_path {
+            #[cfg(feature = "integration_log")] {
+                warn!("Filename sanitized from '{}' to '{}' due to invalid Windows characters", 
+                      destination_path.to_owned().file_name().unwrap_or_default().to_string_lossy(),
+                      sanitized_destination_path.file_name().unwrap_or_default().to_string_lossy());
+            }
+        }
+        
+        let mut file = BufWriter::new(File::create(&sanitized_destination_path)?);
+        let data = self.encode(extra_data, false, false, true)?.unwrap();
+        file.write_all(&data)?;
+        Ok(sanitized_destination_path)
     }
 }
 

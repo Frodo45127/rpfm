@@ -41,6 +41,8 @@ pub mod notes;
 pub mod schema;
 pub mod utils;
 
+#[cfg(test)] mod utils_test;
+
 lazy_static! {
 
     /// Regex to find if a path belongs to a db table.

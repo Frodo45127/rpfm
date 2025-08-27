@@ -16,20 +16,11 @@ use serde_derive::{Serialize, Deserialize};
 use std::{fmt, fmt::Display};
 
 use rpfm_lib::files::{EncodeableExtraData, pack::Pack};
+use rpfm_lib::utils::INVALID_CHARACTERS_WINDOWS;
 
 use crate::diagnostics::*;
 
-const INVALID_CHARACTERS_WINDOWS: [char; 9] = [
-    '<',
-    '>',
-    ':',
-    '"',
-    '/',
-    '\\',
-    '|',
-    '?',
-    '*',
-];
+
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -75,7 +66,7 @@ impl DiagnosticReport for PackDiagnosticReport {
     fn message(&self) -> String {
         match &self.report_type {
             PackDiagnosticReportType::InvalidPackName(pack_name) => format!("Invalid Pack name: {pack_name}"),
-            PackDiagnosticReportType::InvalidFileName(pack_name, file_name) => format!("Invalid file name ({file_name}) in pack: {pack_name}"),
+            PackDiagnosticReportType::InvalidFileName(pack_name, file_name) => format!("Invalid file name ({file_name}) in pack: {pack_name}. This file will be renamed when extracting/exporting, which may cause issues when importing back, especially with MyMods."),
             PackDiagnosticReportType::MissingLocDataFileDetected(pack_name) => format!("Missing Loc Data file in Pack: {pack_name}"),
             PackDiagnosticReportType::FileITM(path) => format!("File identical to parent/vanilla file: {path}"),
             PackDiagnosticReportType::FileOverwrite(path) => format!("File overwriting a parent/vanilla file: {path}"),
@@ -147,10 +138,17 @@ impl PackDiagnostic {
 
         let invalid_file_names = pack.paths().par_iter()
             .map(|(path, real_paths)| (path, path.split("/"), real_paths))
-            .filter(|(_, split, _)| split.clone()
-                .last()
-                .unwrap_or_default()
-                .contains(INVALID_CHARACTERS_WINDOWS))
+            .filter(|(_, split, _)| {
+                let filename = split.clone().last().unwrap_or_default();
+                // Check for invalid Windows characters.
+                let has_invalid_chars = filename.chars().any(|c| INVALID_CHARACTERS_WINDOWS.contains(&c));
+                // Check for leading/trailing whitespace.
+                let has_whitespace_issues = filename.starts_with(' ') || filename.ends_with(' ');
+                // Check for files that are only dots.
+                let is_only_dots = !filename.is_empty() && filename.chars().all(|c| c == '.');
+                
+                has_invalid_chars || has_whitespace_issues || is_only_dots
+            })
             .filter_map(|(_, _, real_paths)| real_paths.first())
             .collect::<Vec<_>>();
 
