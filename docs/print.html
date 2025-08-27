@@ -791,6 +791,9 @@ Meaning:</p>
 <li><em><strong>If you just want to ignore some lines</strong></em>: First, create the table like a normal db (right-click the pack, then <code>Create/Create DB</code>, select it from the combobox, give it a name and and hit accept). Once the table exist in your pack, <em><strong>YOU DO NOT NEED TO EDIT IT MANUALLY</strong></em>. In fact, due to the way keys are shown in RPFM, specially in multikey tables, if you try to input a key manually in the twad_key_deletes table chances are you write it wrong and you won't notice it until you start the game. Instead, go to the table you want to remove the lines from, select them, right-click, <code>Add Selection to Key Deletes</code> and click on your new table. This will automatically add the keys of the selected rows to the twad_key_deletes table you created. Magic!</li>
 </ul>
 <p><img src="./images/tut_twad_key_deletes_add_to_deletes.png" alt="And this is how magic is made...." /></p>
+<ul>
+<li><em><strong>If you have no other way to do what you want to do, you can edit the <code>twad_key_deletes</code> table like any other table</strong></em>. This is only recommended for situations not covered by the other two methods (like deleting a row from the table) because it can otherwise lead to incorrect/non-working entries being added into the new table, that RPFM can't yet detect as errors. And... it'll take you forever to add 10.000 keys this way.</li>
+</ul>
 <h3 id="but-it-is-gold-all-that-glitters"><a class="header" href="#but-it-is-gold-all-that-glitters">But it is gold all that glitters?</a></h3>
 <p>Now, while this allows modders to finally get rid of datacores, there are some caveats that one has to take into account:</p>
 <ul>

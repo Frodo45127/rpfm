@@ -35,6 +35,8 @@ In Warhammer 3, starting with patch 6.3, RPFM can now create a new table called 
 
 ![And this is how magic is made....](./images/tut_twad_key_deletes_add_to_deletes.png)
 
+- ***If you have no other way to do what you want to do, you can edit the `twad_key_deletes` table like any other table***. This is only recommended for situations not covered by the other two methods (like deleting a row from the table) because it can otherwise lead to incorrect/non-working entries being added into the new table, that RPFM can't yet detect as errors. And... it'll take you forever to add 10.000 keys this way.
+
 ### But it is gold all that glitters?
 
 Now, while this allows modders to finally get rid of datacores, there are some caveats that one has to take into account:
