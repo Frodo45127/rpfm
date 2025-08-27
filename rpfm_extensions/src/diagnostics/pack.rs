@@ -16,20 +16,11 @@ use serde_derive::{Serialize, Deserialize};
 use std::{fmt, fmt::Display};
 
 use rpfm_lib::files::{EncodeableExtraData, pack::Pack};
+use rpfm_lib::utils::INVALID_CHARACTERS_WINDOWS;
 
 use crate::diagnostics::*;
 
-const INVALID_CHARACTERS_WINDOWS: [char; 9] = [
-    '<',
-    '>',
-    ':',
-    '"',
-    '/',
-    '\\',
-    '|',
-    '?',
-    '*',
-];
+
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
