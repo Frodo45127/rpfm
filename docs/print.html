@@ -767,15 +767,15 @@ hb = {
 <p>To explain what a datacore is, first we need to explain how table lines are loaded. Imagine the following table setup:</p>
 <ul>
 <li><strong>db/whatever_tables/@table</strong></li>
-<li><strong>db/whatever_tables/data__</strong>  (this is the vanilla table, may vary in some games)</li>
 <li><strong>db/whatever_tables/ztable</strong></li>
+<li><strong>db/whatever_tables/data__</strong>  (this is the vanilla table, may vary in some games)</li>
 </ul>
 <p>When loading ingame, those three tables are kinda merged into one, and when two lines of that merged table have the same key values, only the first line loads.
 Meaning:</p>
 <ul>
 <li><strong>db/whatever_tables/@table</strong>: This contains new lines and lines intended to overwrite vanilla lines. For example, if you just want to change a value from a vanilla line, you put it here and change the value here.</li>
-<li><strong>db/whatever_tables/data__</strong>: This contains the vanilla data.</li>
 <li><strong>db/whatever_tables/ztable</strong>: This contains new lines that, in case of conflict, you want overwritten. Like vanilla fixes and things like that.</li>
+<li><strong>db/whatever_tables/data__</strong>: This contains the vanilla data.</li>
 </ul>
 <p>Now you may notice there's a specific situation I haven't mentioned. What do you do if you want to remove lines from a table? For example, how do you remove an effect from a building? You have only one way: overwrite the entire table in your mod with the line removed. <strong>That's what's called 'Datacoring'</strong>.</p>
 <h3 id="why-is-bad"><a class="header" href="#why-is-bad">Why is bad?</a></h3>

@@ -5,15 +5,15 @@
 To explain what a datacore is, first we need to explain how table lines are loaded. Imagine the following table setup:
 
 - **db/whatever_tables/@table**
-- **db/whatever_tables/data__**  (this is the vanilla table, may vary in some games)
 - **db/whatever_tables/ztable**
+- **db/whatever_tables/data\_\_**  (this is the vanilla table, may vary in some games)
 
 When loading ingame, those three tables are kinda merged into one, and when two lines of that merged table have the same key values, only the first line loads.
 Meaning:
 
 - **db/whatever_tables/@table**: This contains new lines and lines intended to overwrite vanilla lines. For example, if you just want to change a value from a vanilla line, you put it here and change the value here.
-- **db/whatever_tables/data__**: This contains the vanilla data.
 - **db/whatever_tables/ztable**: This contains new lines that, in case of conflict, you want overwritten. Like vanilla fixes and things like that.
+- **db/whatever_tables/data\_\_**: This contains the vanilla data.
 
 Now you may notice there's a specific situation I haven't mentioned. What do you do if you want to remove lines from a table? For example, how do you remove an effect from a building? You have only one way: overwrite the entire table in your mod with the line removed. **That's what's called 'Datacoring'**.
 
