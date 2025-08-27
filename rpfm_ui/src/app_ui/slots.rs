@@ -1432,6 +1432,20 @@ impl AppUISlots {
                             <li>Model Renderer by: <b>Phazer</b>.</li>
 
                             <li>TW: Arena research and coding: <b>Trolldemorted</b>.</li>
+
+                            <li>Ocasional contributors:
+                                <ul style=\"list-style-type: disc\">
+                                    <li><b>LenardHess</b></li>
+                                    <li><b>chongwoonhan</b></li>
+                                    <li><b>DaBultz</b></li>
+                                    <li><b>gqqnbig</b></li>
+                                    <li><b>SWarrener</b></li>
+                                    <li><b>bukowa</b></li>
+                                    <li><b>chadvandy</b></li>
+                                    <li><b>im-mortal</b></li>
+                                    <li><b>steve1316</b></li>
+                                </ul>
+                            </li>
                         </ul>
 
                         <h3>Special thanks</h3>
