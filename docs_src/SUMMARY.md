@@ -40,4 +40,5 @@
 - [Tutorials](./chapter_tutorials_intro.md)
     - [How To Translate A Mod](./chapter_tutorials_translator.md)
     - [How To Optimize Your Mod](./chapter_tutorials_optimizer.md)
+    - [Datacores And You](./chapter_tutorials_twad_key_deletes.md)
 - [Compilation Instructions](./chapter_comp.md)
