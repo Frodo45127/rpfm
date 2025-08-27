@@ -908,10 +908,10 @@ fn decode_field_postprocess(row_data: &mut Vec<DecodedData>, data: DecodedData, 
 
                     // For what I could see, this happens when loading a table that has invalid data on the key field,
                     // which can happen accidentally when loading tables not intended for the game the definition is for,
-                    // or regularly on tables with incorrectly inputted data. In those cases, we turn the value to -1
+                    // or regularly on tables with incorrectly inputted data. In those cases, we turn the value to 87654321
                     // and flag the table so it's know this has happened.
                     *altered_flag |= true;
-                    -1
+                    87654321
                 }
             },
             _ => unimplemented!()

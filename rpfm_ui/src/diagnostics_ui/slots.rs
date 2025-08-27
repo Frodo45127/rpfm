@@ -435,6 +435,7 @@ impl DiagnosticsUISlots {
                 diag_blocked!(diagnostics_ui, checkbox_incorrect_game_path, toggled);
                 diag_blocked!(diagnostics_ui, checkbox_banned_table, toggled);
                 diag_blocked!(diagnostics_ui, checkbox_value_cannot_be_empty, toggled);
+                diag_blocked!(diagnostics_ui, checkbox_altered_table, toggled);
                 diag_blocked!(diagnostics_ui, checkbox_invalid_art_set_id, toggled);
                 diag_blocked!(diagnostics_ui, checkbox_invalid_variant_filename, toggled);
                 diag_blocked!(diagnostics_ui, checkbox_file_diffuse_not_found_for_variant, toggled);

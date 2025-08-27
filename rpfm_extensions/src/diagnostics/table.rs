@@ -69,6 +69,7 @@ pub enum TableDiagnosticReportType {
     FieldWithPathNotFound(Vec<String>),
     BannedTable,
     ValueCannotBeEmpty(String),
+    AlteredTable,
 }
 
 /// Internal struct with cached data of tables.
@@ -136,6 +137,7 @@ impl DiagnosticReport for TableDiagnosticReport {
             TableDiagnosticReportType::FieldWithPathNotFound(paths) => format!("Path not found: {}.", paths.iter().join(" || ")),
             TableDiagnosticReportType::BannedTable => "Banned table.".to_owned(),
             TableDiagnosticReportType::ValueCannotBeEmpty(field_name) => format!("Empty value for column \"{field_name}\"."),
+            TableDiagnosticReportType::AlteredTable => "Altered Table".to_owned(),
         }
     }
 
@@ -159,6 +161,7 @@ impl DiagnosticReport for TableDiagnosticReport {
             TableDiagnosticReportType::FieldWithPathNotFound(_) => DiagnosticLevel::Warning,
             TableDiagnosticReportType::BannedTable => DiagnosticLevel::Error,
             TableDiagnosticReportType::ValueCannotBeEmpty(_) => DiagnosticLevel::Error,
+            TableDiagnosticReportType::AlteredTable => DiagnosticLevel::Error,
         }
     }
 }
@@ -184,6 +187,7 @@ impl Display for TableDiagnosticReportType {
             Self::FieldWithPathNotFound(_) => "FieldWithPathNotFound",
             Self::BannedTable => "BannedTable",
             Self::ValueCannotBeEmpty(_) => "ValueCannotBeEmpty",
+            Self::AlteredTable => "AlteredTable",
         }, f)
     }
 }
@@ -292,6 +296,11 @@ impl TableDiagnostic {
                 // Check if it's one of the banned tables for the game selected.
                 if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, None, Some("BannedTable"), &table_info.ignored_fields, &table_info.ignored_diagnostics, &table_info.ignored_diagnostics_for_fields) && game_info.is_file_banned(file.path_in_container_raw()) {
                     let result = TableDiagnosticReport::new(TableDiagnosticReportType::BannedTable, &[], &[]);
+                    diagnostic.results_mut().push(result);
+                }
+
+                if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, None, Some("AlteredTable"), &table_info.ignored_fields, &table_info.ignored_diagnostics, &table_info.ignored_diagnostics_for_fields) && table.altered() {
+                    let result = TableDiagnosticReport::new(TableDiagnosticReportType::AlteredTable, &[], &[]);
                     diagnostic.results_mut().push(result);
                 }
 

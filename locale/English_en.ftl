@@ -1737,3 +1737,16 @@ file_duplicated_explanation = The game files are case-agnostic. Meaning if you h
     RPFM will consider them two different files, but the game will see them as the same file and will only load one of them.
 
     This warning tells you that there are two or more files in your pack that the game will consider the same file, and will only load one of them.
+
+label_altered_table = Altered Table
+altered_table_explanation = This table has been altered by RPFM when the Pack was opened and one or more cells had their data changed.
+
+    Why this happens? Since 4.6.0, RPFM treats some string fields in which the game only expects numbers as numeric fields. If you have a pack with any data other than numbers in one of those fields,
+    RPFM will change that data into <b><i>87654321</i></b> and you'll get this error.
+
+    What to do about it? Open the table with this error, search all places with a value of <b><i>87654321</i></b> and give them a proper numeric value of your choosing.
+
+    NOTE: This error only goes away after saving the pack with all problematic cells fixed and opening it up again.
+
+    NOTE 2: This can also happen by opening a pack with the wrong game selected, causing an incorrect definition to be used for some tables, and therefor causing some fields to be treated as numbers when they shouldn't.
+    In this case, DO NOT SAVE THE PACK. Switch the game selected to the one the pack is for, then open the pack again, and the error should go away.

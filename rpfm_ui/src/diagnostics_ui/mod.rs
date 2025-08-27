@@ -167,6 +167,7 @@ pub struct DiagnosticsUI {
     checkbox_incorrect_game_path: QBox<QCheckBox>,
     checkbox_banned_table: QBox<QCheckBox>,
     checkbox_value_cannot_be_empty: QBox<QCheckBox>,
+    checkbox_altered_table: QBox<QCheckBox>,
     checkbox_invalid_art_set_id: QBox<QCheckBox>,
     checkbox_invalid_variant_filename: QBox<QCheckBox>,
     checkbox_file_diffuse_not_found_for_variant: QBox<QCheckBox>,
@@ -321,6 +322,7 @@ impl DiagnosticsUI {
         let checkbox_incorrect_game_path = QCheckBox::from_q_string_q_widget(&qtr("label_incorrect_game_path"), &sidebar_scroll_area);
         let checkbox_banned_table = QCheckBox::from_q_string_q_widget(&qtr("label_banned_table"), &sidebar_scroll_area);
         let checkbox_value_cannot_be_empty = QCheckBox::from_q_string_q_widget(&qtr("label_value_cannot_be_empty"), &sidebar_scroll_area);
+        let checkbox_altered_table = QCheckBox::from_q_string_q_widget(&qtr("label_altered_table"), &sidebar_scroll_area);
         let checkbox_invalid_art_set_id = QCheckBox::from_q_string_q_widget(&qtr("label_invalid_art_set_id"), &sidebar_scroll_area);
         let checkbox_invalid_variant_filename = QCheckBox::from_q_string_q_widget(&qtr("label_invalid_variant_filename"), &sidebar_scroll_area);
         let checkbox_file_diffuse_not_found_for_variant = QCheckBox::from_q_string_q_widget(&qtr("label_file_diffuse_not_found_for_variant"), &sidebar_scroll_area);
@@ -364,6 +366,7 @@ impl DiagnosticsUI {
         checkbox_incorrect_game_path.set_checked(true);
         checkbox_banned_table.set_checked(true);
         checkbox_value_cannot_be_empty.set_checked(true);
+        checkbox_altered_table.set_checked(true);
         checkbox_invalid_art_set_id.set_checked(true);
         checkbox_invalid_variant_filename.set_checked(true);
         checkbox_file_diffuse_not_found_for_variant.set_checked(true);
@@ -407,6 +410,7 @@ impl DiagnosticsUI {
         sidebar_grid.add_widget_1a(&checkbox_incorrect_game_path);
         sidebar_grid.add_widget_1a(&checkbox_banned_table);
         sidebar_grid.add_widget_1a(&checkbox_value_cannot_be_empty);
+        sidebar_grid.add_widget_1a(&checkbox_altered_table);
         sidebar_grid.add_widget_1a(&checkbox_invalid_art_set_id);
         sidebar_grid.add_widget_1a(&checkbox_invalid_variant_filename);
         sidebar_grid.add_widget_1a(&checkbox_file_diffuse_not_found_for_variant);
@@ -488,6 +492,7 @@ impl DiagnosticsUI {
             checkbox_incorrect_game_path,
             checkbox_banned_table,
             checkbox_value_cannot_be_empty,
+            checkbox_altered_table,
             checkbox_invalid_art_set_id,
             checkbox_invalid_variant_filename,
             checkbox_file_diffuse_not_found_for_variant,
@@ -1597,6 +1602,7 @@ impl DiagnosticsUI {
         diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_field_with_path_not_found, TableDiagnosticReportType::FieldWithPathNotFound(vec![]));
         diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_banned_table, TableDiagnosticReportType::BannedTable);
         diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_value_cannot_be_empty, TableDiagnosticReportType::ValueCannotBeEmpty(String::new()));
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_altered_table, TableDiagnosticReportType::AlteredTable);
 
         diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_invalid_dependency_packfile, DependencyDiagnosticReportType::InvalidDependencyPackName(String::new()));
 
@@ -1786,6 +1792,7 @@ impl DiagnosticsUI {
             TableDiagnosticReportType::FieldWithPathNotFound(_) => qtr("field_with_path_not_found_explanation"),
             TableDiagnosticReportType::BannedTable => qtr("banned_table_explanation"),
             TableDiagnosticReportType::ValueCannotBeEmpty(_) => qtr("value_cannot_be_empty_explanation"),
+            TableDiagnosticReportType::AlteredTable => qtr("altered_table_explanation"),
         };
 
         for item in items {
@@ -1878,6 +1885,7 @@ impl DiagnosticsUI {
         diag_ignored!(self, diagnostics_ignored, checkbox_field_with_path_not_found, TableDiagnosticReportType::FieldWithPathNotFound(vec![]));
         diag_ignored!(self, diagnostics_ignored, checkbox_banned_table, TableDiagnosticReportType::BannedTable);
         diag_ignored!(self, diagnostics_ignored, checkbox_value_cannot_be_empty, TableDiagnosticReportType::ValueCannotBeEmpty(String::new()));
+        diag_ignored!(self, diagnostics_ignored, checkbox_altered_table, TableDiagnosticReportType::AlteredTable);
 
         diag_ignored!(self, diagnostics_ignored, checkbox_invalid_dependency_packfile, DependencyDiagnosticReportType::InvalidDependencyPackName(String::new()));
 
