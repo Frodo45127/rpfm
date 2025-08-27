@@ -152,6 +152,9 @@ pub struct Tool {
 
     /// Bottom buttonbox of the Tool.
     button_box: QPtr<QDialogButtonBox>,
+
+    /// If the pack should be optimized before saving.
+    optimize: bool
 }
 
 //-------------------------------------------------------------------------------//
@@ -162,7 +165,7 @@ pub struct Tool {
 impl Tool {
 
     /// This function creates a Tool with the data it needs.
-    pub unsafe fn new(parent: impl CastInto<Ptr<QWidget>>, paths: &[ContainerPath], tool_supported_games: &[&str], template_path: &str) -> Result<Self> {
+    pub unsafe fn new(parent: impl CastInto<Ptr<QWidget>>, paths: &[ContainerPath], tool_supported_games: &[&str], template_path: &str, optimize: bool) -> Result<Self> {
 
         // First, some checks to ensure we can actually open a tool.
         // The requirements for all tools are:
@@ -213,6 +216,7 @@ impl Tool {
             packed_files: Rc::new(RefCell::new(HashMap::new())),
             message_widget,
             button_box,
+            optimize
         })
     }
 
@@ -244,7 +248,7 @@ impl Tool {
 
         // If either the PackFile exists, or it didn't but now it does, then me need to check, file by file, to see if we can merge
         // the data edited by the tool into the current files, or we have to insert the files as new.
-        let receiver = CENTRAL_COMMAND.send_background(Command::SavePackedFilesToPackFileAndClean(packed_files.to_vec()));
+        let receiver = CENTRAL_COMMAND.send_background(Command::SavePackedFilesToPackFileAndClean(packed_files.to_vec(), self.optimize));
         let response = CentralCommand::recv(&receiver);
         match response {
             Response::VecContainerPathVecContainerPath(paths_to_add, paths_to_delete) => {

@@ -195,7 +195,7 @@ impl ToolTranslator {
 
         // Initialize a Tool. This also performs some common checks to ensure we can actually use the tool.
         let view = if cfg!(debug_assertions) { VIEW_DEBUG } else { VIEW_RELEASE };
-        let tool = Tool::new(app_ui.main_window(), &paths, &TOOL_SUPPORTED_GAMES, view)?;
+        let tool = Tool::new(app_ui.main_window(), &paths, &TOOL_SUPPORTED_GAMES, view, false)?;
         tool.set_title(&tr("translator_title"));
         tool.backup_used_paths(app_ui, pack_file_contents_ui)?;
 

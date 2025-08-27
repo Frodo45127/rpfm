@@ -32,14 +32,14 @@ use std::sync::{Arc, atomic::Ordering, RwLock};
 use std::thread;
 use std::time::{Duration, SystemTime};
 
-use rpfm_extensions::dependencies::Dependencies;
+use rpfm_extensions::dependencies::{Dependencies, KEY_DELETES_TABLE_NAME};
 use rpfm_extensions::diagnostics::Diagnostics;
 use rpfm_extensions::optimizer::OptimizableContainer;
 #[cfg(feature = "enable_tools")] use rpfm_extensions::translator::PackTranslation;
 
 use rpfm_lib::binary::WriteBytes;
 use rpfm_lib::compression::CompressionFormat;
-use rpfm_lib::files::{animpack::AnimPack, Container, ContainerPath, db::DB, DecodeableExtraData, FileType, loc::Loc, pack::*, portrait_settings::PortraitSettings, RFile, RFileDecoded, table::Table, text::*};
+use rpfm_lib::files::{animpack::AnimPack, Container, ContainerPath, db::DB, DecodeableExtraData, FileType, loc::Loc, pack::*, portrait_settings::PortraitSettings, RFile, RFileDecoded, table::{DecodedData, Table}, text::*};
 use rpfm_lib::games::{GameInfo, LUA_REPO, LUA_BRANCH, LUA_REMOTE, OLD_AK_REPO, OLD_AK_BRANCH, OLD_AK_REMOTE, pfh_file_type::PFHFileType, supported_games::*, VanillaDBTableNameLogic};
 #[cfg(feature = "enable_tools")] use rpfm_lib::games::{TRANSLATIONS_REPO, TRANSLATIONS_BRANCH, TRANSLATIONS_REMOTE};
 use rpfm_lib::integrations::{assembly_kit::*, git::*, log::*};
@@ -493,7 +493,7 @@ pub fn background_loop() {
                 if let Some(ref schema) = *SCHEMA.read().unwrap() {
                     let game_info = GAME_SELECTED.read().unwrap();
                     match pack_file_decoded.optimize(None, &mut dependencies.write().unwrap(), schema, &game_info, &options) {
-                        Ok(paths_to_delete) => CentralCommand::send_back(&sender, Response::HashSetString(paths_to_delete)),
+                        Ok((paths_to_delete, paths_to_add)) => CentralCommand::send_back(&sender, Response::HashSetStringHashSetString(paths_to_delete, paths_to_add)),
                         Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                     }
                 } else {
@@ -998,7 +998,12 @@ pub fn background_loop() {
             },
             Command::GetCustomTableList => match &*SCHEMA.read().unwrap() {
                 Some(schema) => {
-                    let tables = schema.definitions().par_iter().filter(|(key, defintions)| !defintions.is_empty() && key.starts_with("start_pos_")).map(|(key, _)| key.to_owned()).collect::<Vec<_>>();
+                    let tables = schema.definitions().par_iter().filter(|(key, defintions)|
+                        !defintions.is_empty() && (
+                            key.starts_with("start_pos_") ||
+                            key.starts_with("twad_")
+                        )
+                    ).map(|(key, _)| key.to_owned()).collect::<Vec<_>>();
                     CentralCommand::send_back(&sender, Response::VecString(tables));
                 }
                 None => CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected.")))
@@ -1017,7 +1022,7 @@ pub fn background_loop() {
                         None => {
 
                             // If the table is one of the starpos tables, we need to return the latest version of the table, even if it's not in the game files.
-                            if table_name.starts_with("start_pos_") {
+                            if table_name.starts_with("start_pos_") || table_name.starts_with("twad_") {
                                 match &*SCHEMA.read().unwrap() {
                                     Some(schema) => {
                                         match schema.definitions_by_table_name(&table_name) {
@@ -1499,6 +1504,39 @@ pub fn background_loop() {
 
                 let packed_files_info = pack_file_decoded.files_by_paths(&edited_paths, false).into_par_iter().map(From::from).collect();
                 CentralCommand::send_back(&sender, Response::VecContainerPathVecRFileInfo(edited_paths, packed_files_info));
+            },
+
+            Command::GetTablesByTableName(table_name) => {
+                let path = ContainerPath::Folder(format!("db/{table_name}/"));
+                let files = pack_file_decoded.files_by_type_and_paths(&[FileType::DB], &[path], true);
+                let paths = files.iter()
+                    .map(|x| x.path_in_container_raw().to_owned())
+                    .collect::<Vec<_>>();
+
+                CentralCommand::send_back(&sender, Response::VecString(paths));
+            },
+
+            Command::AddKeysToKeyDeletes(table_file_name, key_table_name, keys) => {
+                let path = ContainerPath::File(format!("db/{KEY_DELETES_TABLE_NAME}/{table_file_name}"));
+                let mut files = pack_file_decoded.files_by_type_and_paths_mut(&[FileType::DB], &[path], true);
+
+                let mut cont_path = None;
+                if let Some(file) = files.first_mut() {
+                    if let Ok(RFileDecoded::DB(db)) = file.decoded_mut() {
+                        for key in &keys {
+                            let row = vec![
+                                DecodedData::StringU8(key.to_owned()),
+                                DecodedData::StringU8(key_table_name.to_owned()),
+                            ];
+
+                            db.data_mut().push(row);
+                        }
+
+                        cont_path = Some(file.path_in_container());
+                    }
+                }
+
+                CentralCommand::send_back(&sender, Response::OptionContainerPath(cont_path));
             }
 
             Command::GoToDefinition(ref_table, mut ref_column, ref_data) => {
@@ -1992,7 +2030,7 @@ pub fn background_loop() {
                 CentralCommand::send_back(&sender, Response::HashMapDataSourceHashSetContainerPath(files));
             },
 
-            #[cfg(feature = "enable_tools")] Command::SavePackedFilesToPackFileAndClean(files) => {
+            #[cfg(feature = "enable_tools")] Command::SavePackedFilesToPackFileAndClean(files, optimize) => {
                 let schema = SCHEMA.read().unwrap();
                 match &*schema {
                     Some(ref schema) => {
@@ -2010,16 +2048,26 @@ pub fn background_loop() {
                         added_paths.sort();
                         added_paths.dedup();
 
-                        // TODO: DO NOT CALL QT ON BACKEND.
-                        let options = init_optimizer_options();
+                        if optimize {
 
-                        // Then, optimize the PackFile. This should remove any non-edited rows/files.
-                        let game_info = GAME_SELECTED.read().unwrap();
-                        match pack_file_decoded.optimize(None, &mut dependencies.write().unwrap(), schema, &game_info, &options) {
-                            Ok(paths_to_delete) => CentralCommand::send_back(&sender, Response::VecContainerPathVecContainerPath(added_paths, paths_to_delete.into_iter()
-                                .map(ContainerPath::File)
-                                .collect())),
-                            Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                            // TODO: DO NOT CALL QT ON BACKEND.
+                            let options = init_optimizer_options();
+
+                            // Then, optimize the PackFile. This should remove any non-edited rows/files.
+                            let game_info = GAME_SELECTED.read().unwrap();
+                            match pack_file_decoded.optimize(None, &mut dependencies.write().unwrap(), schema, &game_info, &options) {
+                                Ok((paths_to_delete, paths_to_add)) => {
+                                    added_paths.extend(paths_to_add.into_iter()
+                                        .map(ContainerPath::File)
+                                        .collect::<Vec<_>>());
+                                    CentralCommand::send_back(&sender, Response::VecContainerPathVecContainerPath(added_paths, paths_to_delete.into_iter()
+                                        .map(ContainerPath::File)
+                                        .collect()));
+                                },
+                                Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                            }
+                        } else {
+                            CentralCommand::send_back(&sender, Response::VecContainerPathVecContainerPath(added_paths, vec![]));
                         }
                     },
                     None => CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected."))),
@@ -3132,10 +3180,15 @@ fn add_tile_maps_and_tiles(pack: &mut Pack, dependencies: &mut Dependencies, sch
     // TODO: DO NOT CALL QT ON BACKEND.
     let options = init_optimizer_options();
     let game_info = GAME_SELECTED.read().unwrap();
-    let paths_to_delete = pack.optimize(Some(added_paths.clone()), dependencies, schema, &game_info, &options)?
-        .iter()
+    let (paths_to_delete, paths_to_add) = pack.optimize(Some(added_paths.clone()), dependencies, schema, &game_info, &options)?;
+
+    let paths_to_delete = paths_to_delete.iter()
         .map(|path| ContainerPath::File(path.to_string()))
         .collect::<Vec<_>>();
+
+    added_paths.extend(paths_to_add.into_iter()
+        .map(|path| ContainerPath::File(path.to_string()))
+        .collect::<Vec<_>>());
 
     Ok((added_paths, paths_to_delete))
 }

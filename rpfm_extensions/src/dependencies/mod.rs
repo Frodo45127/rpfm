@@ -31,6 +31,8 @@ use rpfm_lib::utils::{current_time, files_from_subdir, last_modified_time_from_f
 
 use crate::VERSION;
 
+pub const KEY_DELETES_TABLE_NAME: &str = "twad_key_deletes_tables";
+
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
@@ -398,6 +400,24 @@ impl Dependencies {
 
         let patches = Some(definition.patches());
         let fields_processed = definition.fields_processed();
+
+        // Key deletes works in a different way. For it we have to get the names of all the tables,
+        // then we retrieve the keys data dinamically when selecting in the ui.
+        if local_table_name == KEY_DELETES_TABLE_NAME {
+            let mut hashmap = HashMap::new();
+            let mut references = TableReferences::default();
+            *references.field_name_mut() = "table_name".to_owned();
+
+            for key in schema.definitions().keys() {
+                if key.len() > 7 {
+                    let table_name = key.to_owned().drain(..key.len() - 7).collect::<String>();
+                    references.data.insert(table_name, String::new());
+                }
+            }
+
+            hashmap.insert(1, references);
+            return hashmap;
+        }
 
         fields_processed.par_iter().enumerate().filter_map(|(column, field)| {
             match field.is_reference(patches) {

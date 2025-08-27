@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>400</width>
-    <height>300</height>
+    <width>415</width>
+    <height>342</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -26,78 +26,263 @@
      <property name="title">
       <string>GroupBox</string>
      </property>
-     <layout class="QGridLayout" name="gridLayout_3" rowstretch="0,0,0,0,0,0,1,0" columnstretch="0,1,0">
-      <item row="4" column="0">
-       <widget class="QCheckBox" name="remove_empty_masks_checkbox">
-        <property name="text">
-         <string/>
+     <layout class="QGridLayout" name="gridLayout_3" rowstretch="0,0,0,0,0,0,0,0" columnstretch="0,0,0">
+      <item row="3" column="0" colspan="2">
+       <widget class="QGroupBox" name="table_groupbox">
+        <property name="title">
+         <string>GroupBox</string>
         </property>
+        <layout class="QGridLayout" name="gridLayout_4" columnstretch="0,1">
+         <item row="4" column="0">
+          <widget class="QCheckBox" name="table_remove_itm_entries_checkbox">
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="0">
+          <widget class="QCheckBox" name="db_import_datacores_into_twad_key_deletes_checkbox">
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+         <item row="7" column="0" colspan="2">
+          <widget class="QWidget" name="widget_2" native="true"/>
+         </item>
+         <item row="4" column="1">
+          <widget class="QLabel" name="table_remove_itm_entries_label">
+           <property name="text">
+            <string>TextLabel</string>
+           </property>
+          </widget>
+         </item>
+         <item row="5" column="0">
+          <widget class="QCheckBox" name="table_remove_itnr_entries_checkbox">
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0">
+          <widget class="QCheckBox" name="db_optimize_datacored_tables_checkbox">
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1">
+          <widget class="QLabel" name="table_remove_duplicated_entries_label">
+           <property name="text">
+            <string>TextLabel</string>
+           </property>
+          </widget>
+         </item>
+         <item row="5" column="1">
+          <widget class="QLabel" name="table_remove_itnr_entries_label">
+           <property name="text">
+            <string>TextLabel</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="0">
+          <widget class="QCheckBox" name="table_remove_duplicated_entries_checkbox">
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+         <item row="6" column="0">
+          <widget class="QCheckBox" name="table_remove_empty_file_checkbox">
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QLabel" name="db_import_datacores_into_twad_key_deletes_label">
+           <property name="text">
+            <string>TextLabel</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QLabel" name="db_optimize_datacored_tables_label">
+           <property name="text">
+            <string>TextLabel</string>
+           </property>
+          </widget>
+         </item>
+         <item row="6" column="1">
+          <widget class="QLabel" name="table_remove_empty_file_label">
+           <property name="text">
+            <string>TextLabel</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
        </widget>
       </item>
-      <item row="2" column="0">
-       <widget class="QCheckBox" name="remove_unused_art_sets_checkbox">
-        <property name="text">
-         <string/>
+      <item row="2" column="0" colspan="2">
+       <widget class="QGroupBox" name="pack_groupbox">
+        <property name="title">
+         <string>GroupBox</string>
         </property>
+        <layout class="QGridLayout" name="gridLayout_5" rowstretch="0,0" columnstretch="0,1">
+         <item row="0" column="0">
+          <widget class="QCheckBox" name="pack_remove_itm_files_checkbox">
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QLabel" name="pack_remove_itm_files_label">
+           <property name="text">
+            <string>TextLabel</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0">
+          <widget class="QWidget" name="widget_3" native="true"/>
+         </item>
+        </layout>
        </widget>
       </item>
-      <item row="3" column="1">
-       <widget class="QLabel" name="remove_unused_variants_label">
-        <property name="text">
-         <string>TextLabel</string>
+      <item row="2" column="2">
+       <widget class="QGroupBox" name="text_groupbox">
+        <property name="title">
+         <string>GroupBox</string>
         </property>
+        <layout class="QGridLayout" name="gridLayout_6" columnstretch="0,1">
+         <item row="1" column="1">
+          <widget class="QLabel" name="text_remove_unused_xml_prefab_folder_label">
+           <property name="text">
+            <string>TextLabel</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="0">
+          <widget class="QCheckBox" name="text_remove_unused_xml_map_folders_checkbox">
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="0">
+          <widget class="QCheckBox" name="text_remove_model_statistics_files_checkbox">
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0">
+          <widget class="QCheckBox" name="text_remove_unused_xml_prefab_folder_checkbox">
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QLabel" name="text_remove_unused_xml_map_folders_label">
+           <property name="text">
+            <string>TextLabel</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="0">
+          <widget class="QCheckBox" name="text_remove_agf_files_checkbox">
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1">
+          <widget class="QLabel" name="text_remove_agf_files_label">
+           <property name="text">
+            <string>TextLabel</string>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="1">
+          <widget class="QLabel" name="text_remove_model_statistics_files_label">
+           <property name="text">
+            <string>TextLabel</string>
+           </property>
+          </widget>
+         </item>
+         <item row="4" column="1">
+          <widget class="QWidget" name="widget_4" native="true"/>
+         </item>
+        </layout>
        </widget>
       </item>
-      <item row="4" column="1">
-       <widget class="QLabel" name="remove_empty_masks_label">
-        <property name="text">
-         <string>TextLabel</string>
+      <item row="3" column="2">
+       <widget class="QGroupBox" name="pts_groupbox">
+        <property name="title">
+         <string>GroupBox</string>
         </property>
-       </widget>
-      </item>
-      <item row="7" column="0" colspan="3">
-       <widget class="QWidget" name="widget_2" native="true"/>
-      </item>
-      <item row="1" column="1">
-       <widget class="QLabel" name="optimize_datacored_tables_label">
-        <property name="text">
-         <string>TextLabel</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="0">
-       <widget class="QCheckBox" name="optimize_datacored_tables_checkbox">
-        <property name="text">
-         <string/>
-        </property>
-       </widget>
-      </item>
-      <item row="3" column="0">
-       <widget class="QCheckBox" name="remove_unused_variants_checkbox">
-        <property name="text">
-         <string/>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="1">
-       <widget class="QLabel" name="remove_unused_art_sets_label">
-        <property name="text">
-         <string>TextLabel</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="0">
-       <widget class="QCheckBox" name="remove_itm_checkbox">
-        <property name="text">
-         <string/>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="1">
-       <widget class="QLabel" name="remove_itm_label">
-        <property name="text">
-         <string>TextLabel</string>
-        </property>
+        <layout class="QGridLayout" name="gridLayout_2" rowstretch="0,0,0,0,0" columnstretch="0,1">
+         <item row="1" column="0">
+          <widget class="QCheckBox" name="pts_remove_unused_variants_checkbox">
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1">
+          <widget class="QLabel" name="pts_remove_empty_masks_label">
+           <property name="text">
+            <string>TextLabel</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="0">
+          <widget class="QCheckBox" name="pts_remove_unused_art_sets_checkbox">
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QLabel" name="pts_remove_unused_art_sets_label">
+           <property name="text">
+            <string>TextLabel</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QLabel" name="pts_remove_unused_variants_label">
+           <property name="text">
+            <string>TextLabel</string>
+           </property>
+          </widget>
+         </item>
+         <item row="4" column="0">
+          <widget class="QWidget" name="widget" native="true"/>
+         </item>
+         <item row="2" column="0">
+          <widget class="QCheckBox" name="pts_remove_empty_masks_checkbox">
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="0">
+          <widget class="QCheckBox" name="pts_remove_empty_file_checkbox">
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="1">
+          <widget class="QLabel" name="pts_remove_empty_file_label">
+           <property name="text">
+            <string>TextLabel</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
        </widget>
       </item>
      </layout>

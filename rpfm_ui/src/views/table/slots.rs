@@ -168,9 +168,13 @@ impl TableViewSlots {
 
         // When we want to trigger the context menu update function.
         let context_menu_enabler = SlotOfQItemSelectionQItemSelection::new(&view.table_view, clone!(
+            app_ui,
+            pack_file_contents_ui,
             view => move |_,_| {
             info!("Triggering `Update Context Menu for Table` By Slot");
             view.context_menu_update();
+
+            TableView::update_key_deletes_list(&view, &app_ui, &pack_file_contents_ui);
         }));
 
         // When we want to respond to a change in one item in the model.

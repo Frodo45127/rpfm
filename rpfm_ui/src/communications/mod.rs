@@ -317,7 +317,7 @@ pub enum Command {
     ImportDependenciesToOpenPackFile(BTreeMap<DataSource, Vec<ContainerPath>>),
 
     /// This command is used to save all provided PackedFiles into the current PackFile, then merge them and optimize them if possible.
-    #[cfg(feature = "enable_tools")] SavePackedFilesToPackFileAndClean(Vec<RFile>),
+    #[cfg(feature = "enable_tools")] SavePackedFilesToPackFileAndClean(Vec<RFile>, bool),
 
     /// This command is used to get all the file names under a path in all dependencies.
     #[cfg(feature = "enable_tools")] GetPackedFilesNamesStartingWitPathFromAllSources(ContainerPath),
@@ -363,6 +363,8 @@ pub enum Command {
     #[cfg(feature = "enable_tools")] CheckTranslationsUpdates,
     #[cfg(feature = "enable_tools")] UpdateTranslations,
     GetTablesFromDependencies(String),
+    GetTablesByTableName(String),
+    AddKeysToKeyDeletes(String, String, Vec<String>),
 }
 
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.
@@ -518,6 +520,7 @@ pub enum Response {
     VecNote(Vec<Note>),
     Note(Note),
     HashSetString(HashSet<String>),
+    HashSetStringHashSetString(HashSet<String>, HashSet<String>),
     StringVecContainerPath(String, Vec<ContainerPath>),
     VecContainerPathVecRFileInfo(Vec<ContainerPath>, Vec<RFileInfo>),
     VecContainerPathVecContainerPath(Vec<ContainerPath>, Vec<ContainerPath>),

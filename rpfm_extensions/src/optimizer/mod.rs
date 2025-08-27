@@ -10,18 +10,21 @@
 
 //! This module contains the [Optimizable] and [OptimizableContainer] trait.
 
+use getset::{Getters, Setters};
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 use std::collections::{HashMap, HashSet};
 
 use rpfm_lib::error::{RLibError, Result};
-use rpfm_lib::files::{Container, ContainerPath, db::DB, EncodeableExtraData, FileType, loc::Loc, pack::Pack, portrait_settings::PortraitSettings, RFileDecoded, table::DecodedData, text::TextFormat};
-use rpfm_lib::games::GameInfo;
+use rpfm_lib::files::{Container, ContainerPath, db::DB, EncodeableExtraData, FileType, loc::Loc, pack::Pack, portrait_settings::PortraitSettings, RFile, RFileDecoded, table::DecodedData, text::TextFormat};
+use rpfm_lib::games::{GameInfo, supported_games::KEY_WARHAMMER_3};
 use rpfm_lib::schema::Schema;
 
-use crate::dependencies::Dependencies;
+use crate::dependencies::{Dependencies, KEY_DELETES_TABLE_NAME};
 
 const EMPTY_MASK_PATH_END: &str = "empty_mask.png";
+const DEFAULT_KEY_DELETES_FILE: &str = "db/twad_key_deletes_tables/generated_deletes";
 
 //-------------------------------------------------------------------------------//
 //                             Trait definitions
@@ -48,78 +51,95 @@ pub trait OptimizableContainer: Container {
         schema: &Schema,
         game: &GameInfo,
         options: &OptimizerOptions,
-    ) -> Result<HashSet<String>>;
+    ) -> Result<(HashSet<String>, HashSet<String>)>;
 }
 
 /// Struct containing the configurable options for the optimizer.
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Getters, Setters, Deserialize, Serialize)]
+#[getset(get = "pub", set = "pub")]
 pub struct OptimizerOptions {
 
+    /// Allow the optimizer to remove files unchanged from vanilla, reducing the pack size.
+    pack_remove_itm_files: bool,
+
+    /// Allows the optimizer to update the twad_key_deletes table using the data cored tables in your pack to guess the keys.
+    ///
+    /// IT DOESN'T DELETE THE DATACORED TABLES.
+    db_import_datacores_into_twad_key_deletes: bool,
+
     /// Allow the optimizer to optimize datacored tables. THIS IS NOT RECOMMENDED, as datacored tables usually are they way they are for a reason.
-    optimize_datacored_tables: bool,
+    ///
+    /// THIS IS NOT RECOMMENDED, as datacored tables usually are the way they are for a reason.
+    db_optimize_datacored_tables: bool,
 
-    /// Allow the optimizer to remove files unchanged from vanilla, reducing the pack size.
-    remove_itm_files: bool,
+    /// Allows the optimizer to remove duplicated rows from db and loc files.
+    table_remove_duplicated_entries: bool,
+
+    /// Allows the optimizer to remove ITM (Identical To Master) rows from db and loc files.
+    table_remove_itm_entries: bool,
+
+    /// Allows the optimizer to remove ITNR (Identical To New Row) rows from db and loc files.
+    table_remove_itnr_entries: bool,
+
+    /// Allows the optimizer to remove empty db and loc files.
+    table_remove_empty_file: bool,
+
+    /// Allows the optimizer to remove unused xml files in map folders.
+    text_remove_unused_xml_map_folders: bool,
+
+    /// Allows the optimizer to remove unused xml files in the prefab folder.
+    text_remove_unused_xml_prefab_folder: bool,
+
+    /// Allows the optimizer to remove unused agf files.
+    text_remove_agf_files: bool,
+
+    /// Allows the optimizer to remove unused model_statistics files.
+    text_remove_model_statistics_files: bool,
 
     /// Allow the optimizer to remove unused art sets in Portrait Settings files.
     ///
     /// Only use this after you have confirmed the unused art sets are actually unused and not caused by a typo.
-    remove_unused_art_sets: bool,
+    pts_remove_unused_art_sets: bool,
 
     /// Allow the optimizer to remove unused variants from art sets in Portrait Settings files.
     ///
     /// Only use this after you have confirmed the unused variants are actually unused and not caused by a typo.
-    remove_unused_variants: bool,
+    pts_remove_unused_variants: bool,
 
     /// Allow the optimizer to remove empty masks in Portrait Settings file, reducing their side.
     ///
     /// Ingame there's no difference between an empty mask and an invalid one, so it's better to remove them to reduce their size.
-    remove_empty_masks: bool,
+    pts_remove_empty_masks: bool,
+
+    /// Allows the optimizer to remove empty Portrait Settings files.
+    pts_remove_empty_file: bool,
 }
 
-impl OptimizerOptions {
-
-    /// Allow the optimizer to optimize datacored tables.
-    ///
-    /// THIS IS NOT RECOMMENDED, as datacored tables usually are they way they are for a reason.
-    pub fn set_optimize_datacored_tables(&mut self, enable: bool) -> &mut Self {
-        self.optimize_datacored_tables = enable;
-        self
-    }
-
-    /// Allow the optimizer to remove files unchanged from vanilla, reducing the pack size.
-    pub fn set_remove_itm_files(&mut self, enable: bool) -> &mut Self {
-        self.remove_itm_files = enable;
-        self
-    }
-
-    /// Allow the optimizer to remove unused art sets in Portrait Settings files.
-    ///
-    /// Only use this after you have confirmed the unused art sets are actually unused and not caused by a typo.
-    pub fn set_remove_unused_art_sets(&mut self, enable: bool) -> &mut Self {
-        self.remove_unused_art_sets = enable;
-        self
-    }
-
-    /// Allow the optimizer to remove unused variants from art sets in Portrait Settings files.
-    ///
-    /// Only use this after you have confirmed the unused variants are actually unused and not caused by a typo.
-    pub fn set_remove_unused_variants(&mut self, enable: bool) -> &mut Self {
-        self.remove_unused_variants = enable;
-        self
-    }
-
-    /// Allow the optimizer to remove empty masks in Portrait Settings file, reducing their side.
-    ///
-    /// Ingame there's no difference between an empty mask and an invalid one, so it's better to remove them to reduce their size.
-    pub fn set_remove_empty_masks(&mut self, enable: bool) -> &mut Self {
-        self.remove_empty_masks = enable;
-        self
-    }
-}
 //-------------------------------------------------------------------------------//
 //                           Trait implementations
 //-------------------------------------------------------------------------------//
+
+impl Default for OptimizerOptions {
+    fn default() -> Self {
+        Self {
+            pack_remove_itm_files: true,
+            db_import_datacores_into_twad_key_deletes: false,
+            db_optimize_datacored_tables: false,
+            table_remove_duplicated_entries: true,
+            table_remove_itm_entries: true,
+            table_remove_itnr_entries: true,
+            table_remove_empty_file: true,
+            text_remove_unused_xml_map_folders: true,
+            text_remove_unused_xml_prefab_folder: true,
+            text_remove_agf_files: true,
+            text_remove_model_statistics_files: true,
+            pts_remove_unused_art_sets: false,
+            pts_remove_unused_variants: false,
+            pts_remove_empty_masks: false,
+            pts_remove_empty_file: true,
+        }
+    }
+}
 
 impl OptimizableContainer for Pack {
 
@@ -132,6 +152,7 @@ impl OptimizableContainer for Pack {
     ///     - Removal of ITM (Identical To Master) entries.
     ///     - Removal of ITNR (Identical To New Row) entries.
     ///     - Removal of empty tables.
+    ///     - Conversion of datacores into twad_key_deletes_entries.
     /// - Text files:
     ///     - Removal of XML files in map folders (extra files resulting of Terry export process).
     ///     - Removal of XML files in prefabs folder (extra files resulting of Terry export process).
@@ -142,22 +163,32 @@ impl OptimizableContainer for Pack {
     ///     - Removal of art sets not present in the campaign_character_arts table (unused data).
     ///     - Removal of empty masks.
     ///     - Removal of empty Portrait Settings files.
-    ///
-    /// NOTE: due to a consequence of the optimization, all tables are also sorted by their first key.
-    ///
-    /// Not yet working:
-    /// - Remove files identical to Parent/Vanilla files (if is identical to vanilla, but a parent mod overwrites it, it ignores it).
+    /// - Pack:
+    ///     - Remove files identical to parent/vanilla.
     fn optimize(&mut self,
         paths_to_optimize: Option<Vec<ContainerPath>>,
         dependencies: &mut Dependencies,
-        _schema: &Schema,
+        schema: &Schema,
         game: &GameInfo,
         options: &OptimizerOptions
-    ) -> Result<HashSet<String>> {
+    ) -> Result<(HashSet<String>, HashSet<String>)> {
+        let mut files_to_add: HashSet<String> = HashSet::new();
+        let mut files_to_delete: HashSet<String> = HashSet::new();
 
         // We can only optimize if we have vanilla data available.
         if !dependencies.is_vanilla_data_loaded(false) {
             return Err(RLibError::DependenciesCacheNotGeneratedorOutOfDate);
+        }
+
+        // If we're importing the datacored deletions, create the file for them if it doesn't exist.
+        if options.db_import_datacores_into_twad_key_deletes && game.key() == KEY_WARHAMMER_3 {
+            if let Some(def) = schema.definitions_by_table_name(KEY_DELETES_TABLE_NAME) {
+                if def.len() >= 1 {
+                    let table = DB::new(&def[0], None, KEY_DELETES_TABLE_NAME);
+                    let _ = self.insert(RFile::new_from_decoded(&RFileDecoded::DB(table), 0, DEFAULT_KEY_DELETES_FILE));
+                    files_to_add.insert(DEFAULT_KEY_DELETES_FILE.to_owned());
+                }
+            }
         }
 
         // Cache the pack paths for the text file checks.
@@ -170,11 +201,60 @@ impl OptimizableContainer for Pack {
             None => self.files_mut().values_mut().collect::<Vec<_>>(),
         };
 
-        // List of files to delete.
-        let mut files_to_delete: HashSet<String> = HashSet::new();
+
+        // Import into twad_key_deletes is only supported in wh3, as that table is only in that game... for now.
+        if options.db_import_datacores_into_twad_key_deletes && game.key() == KEY_WARHAMMER_3 {
+            let mut generated_rows = vec![];
+            let datacores = files_to_optimize.iter()
+                .filter(|x| x.file_type() == FileType::DB && dependencies.file_exists(x.path_in_container_raw(), true, true, true))
+                .collect::<Vec<_>>();
+
+            for datacore in datacores {
+                if let Ok(dep_file) = dependencies.file(datacore.path_in_container_raw(), true, true, true) {
+                    if let Ok(RFileDecoded::DB(dep_table)) = dep_file.decoded() {
+                        if let Ok(RFileDecoded::DB(datacore_table)) = datacore.decoded() {
+                            let mut datacore_keys: HashSet<String> = HashSet::new();
+                            let key_cols = datacore_table.definition().key_column_positions();
+                            datacore_keys.extend(datacore_table.data()
+                                .iter()
+                                .map(|x| key_cols.iter()
+                                    .map(|y| x[*y].data_to_string())
+                                    .join("")
+                                )
+                                .collect::<Vec<_>>()
+                            );
+
+                            let mut dep_keys = HashSet::new();
+                            let key_cols = dep_table.definition().key_column_positions();
+                            dep_keys.extend(dep_table.data()
+                                .iter()
+                                .map(|x| key_cols.iter()
+                                    .map(|y| x[*y].data_to_string())
+                                    .join("")
+                                )
+                                .collect::<Vec<_>>()
+                            );
+
+                            let table_name_dec_data = DecodedData::StringU8(datacore_table.table_name_without_tables().to_owned());
+                            for key in dep_keys {
+                                if !datacore_keys.contains(&key) {
+                                    generated_rows.push(vec![table_name_dec_data.clone(), DecodedData::StringU8(key.to_owned())]);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if let Some(file) = files_to_optimize.iter_mut().find(|x| x.path_in_container_raw() == DEFAULT_KEY_DELETES_FILE) {
+                if let Ok(RFileDecoded::DB(db)) = file.decoded_mut() {
+                    let _ = db.set_data(&generated_rows);
+                }
+            }
+        }
 
         // Pass to identify and remove itms.
-        if options.remove_itm_files {
+        if options.pack_remove_itm_files {
             let extra_data = Some(EncodeableExtraData::new_from_game_info(game));
             for rfile in &mut files_to_optimize {
                 if let Ok(dep_file) = dependencies.file_mut(rfile.path_in_container_raw(), true, true) {
@@ -201,10 +281,12 @@ impl OptimizableContainer for Pack {
 
                         // Unless we specifically wanted to, ignore the same-name-as-vanilla-or-parent files,
                         // as those are probably intended to overwrite vanilla files, not to be optimized.
-                        if options.optimize_datacored_tables || !dependencies.file_exists(&path, true, true, true) {
+                        if options.db_optimize_datacored_tables || !dependencies.file_exists(&path, true, true, true) {
                             if let Ok(RFileDecoded::DB(db)) = rfile.decoded_mut() {
                                 if db.optimize(dependencies, Some(&mut self_copy), options) {
-                                    return Some(path);
+                                    if options.table_remove_empty_file {
+                                        return Some(path);
+                                    }
                                 }
                             }
                         }
@@ -213,10 +295,12 @@ impl OptimizableContainer for Pack {
                     FileType::Loc => {
 
                         // Same as with tables, don't optimize them if they're overwriting.
-                        if options.optimize_datacored_tables || !dependencies.file_exists(&path, true, true, true) {
+                        if options.db_optimize_datacored_tables || !dependencies.file_exists(&path, true, true, true) {
                             if let Ok(RFileDecoded::Loc(loc)) = rfile.decoded_mut() {
                                 if loc.optimize(dependencies, Some(&mut self_copy), options) {
-                                    return Some(path);
+                                    if options.table_remove_empty_file {
+                                        return Some(path);
+                                    }
                                 }
                             }
                         }
@@ -225,16 +309,19 @@ impl OptimizableContainer for Pack {
                     FileType::Text => {
 
                         // agf and model_statistics are debug files outputed by bob in older games.
-                        if path.ends_with(".agf") || path.ends_with(".model_statistics") {
+                        if (options.text_remove_agf_files && path.ends_with(".agf")) ||
+                            (options.text_remove_model_statistics_files && path.ends_with(".model_statistics")) {
                             if let Ok(Some(RFileDecoded::Text(_))) = rfile.decode(&None, false, true) {
                                 return Some(path);
                             }
                         }
 
                         else if !path.is_empty() && (
-                                path.starts_with("prefabs/") ||
-                                path.starts_with("terrain/battles/") ||
-                                path.starts_with("terrain/tiles/battle/")
+                                (options.text_remove_unused_xml_prefab_folder && path.starts_with("prefabs/")) ||
+                                (options.text_remove_unused_xml_map_folders && (
+                                    path.starts_with("terrain/battles/") ||
+                                    path.starts_with("terrain/tiles/battle/")
+                                ))
                             )
                             && !path.ends_with(".wsmodel")
                             && !path.ends_with(".environment")
@@ -264,7 +351,9 @@ impl OptimizableContainer for Pack {
                         // Meaning they are not used by the game.
                         if let Ok(RFileDecoded::PortraitSettings(ps)) = rfile.decoded_mut() {
                             if ps.optimize(dependencies, Some(&mut self_copy), options) {
-                                return Some(path);
+                                if options.pts_remove_empty_file {
+                                    return Some(path);
+                                }
                             }
                         }
                     }
@@ -281,7 +370,7 @@ impl OptimizableContainer for Pack {
         files_to_delete.iter().for_each(|x| { self.remove(&ContainerPath::File(x.to_owned())); });
 
         // Return the deleted files, so the caller can know what got removed.
-        Ok(files_to_delete)
+        Ok((files_to_delete, files_to_add))
     }
 }
 
@@ -296,7 +385,7 @@ impl Optimizable for DB {
     /// - Removal of ITNR (Identical To New Row) entries.
     ///
     /// It returns if the DB is empty, meaning it can be safetly deleted.
-    fn optimize(&mut self, dependencies: &mut Dependencies, container: Option<&mut Pack>, _options: &OptimizerOptions) -> bool {
+    fn optimize(&mut self, dependencies: &mut Dependencies, container: Option<&mut Pack>, options: &OptimizerOptions) -> bool {
         let container = match container {
             Some(container) => container,
             None => return false,
@@ -353,12 +442,22 @@ impl Optimizable for DB {
                             data.to_owned()
                         }
                     ).collect::<Vec<DecodedData>>();
-                    !vanilla_table.contains(&serde_json::to_string(&entry_json).unwrap()) && entry != &new_row
+
+                    (!options.table_remove_itm_entries || (
+                        options.table_remove_itm_entries &&
+                        !vanilla_table.contains(&serde_json::to_string(&entry_json).unwrap()))
+                    ) &&
+                    (!options.table_remove_itnr_entries || (
+                        options.table_remove_itnr_entries &&
+                        entry != &new_row)
+                    )
                 });
 
                 // Dedupper. This is slower than a normal dedup, but it doesn't reorder rows.
-                let mut dummy_set = HashSet::new();
-                entries.retain(|x| dummy_set.insert(x.clone()));
+                if options.table_remove_duplicated_entries {
+                    let mut dummy_set = HashSet::new();
+                    entries.retain(|x| dummy_set.insert(x.clone()));
+                }
 
                 // Then we overwrite the entries and return if the table is empty or now, so we can optimize it further at the Container level.
                 //
@@ -382,7 +481,7 @@ impl Optimizable for Loc {
     /// - Removal of ITNR (Identical To New Row) entries.
     ///
     /// It returns if the Loc is empty, meaning it can be safetly deleted.
-    fn optimize(&mut self, dependencies: &mut Dependencies, _container: Option<&mut Pack>, _options: &OptimizerOptions) -> bool {
+    fn optimize(&mut self, dependencies: &mut Dependencies, _container: Option<&mut Pack>, options: &OptimizerOptions) -> bool {
 
         // Get a manipulable copy of all the entries, so we can optimize it.
         let mut entries = self.data().to_vec();
@@ -404,19 +503,25 @@ impl Optimizable for Loc {
                 // Remove ITM and ITNR entries.
                 let new_row = self.new_row();
                 entries.retain(|entry| {
-                    if entry == &new_row {
+                    if options.table_remove_itnr_entries && entry == &new_row {
                         return false;
                     }
 
-                    match vanilla_table.get(&*entry[0].data_to_string()) {
-                        Some(vanilla_value) => &*entry[1].data_to_string() != vanilla_value,
-                        None => true
+                    if options.table_remove_itm_entries {
+                        match vanilla_table.get(&*entry[0].data_to_string()) {
+                            Some(vanilla_value) => return &*entry[1].data_to_string() != vanilla_value,
+                            None => return true
+                        }
                     }
+
+                    true
                 });
 
                 // Dedupper. This is slower than a normal dedup, but it doesn't reorder rows.
-                let mut dummy_set = HashSet::new();
-                entries.retain(|x| dummy_set.insert(x.clone()));
+                if options.table_remove_duplicated_entries {
+                    let mut dummy_set = HashSet::new();
+                    entries.retain(|x| dummy_set.insert(x.clone()));
+                }
 
                 // Then we overwrite the entries and return if the table is empty or now, so we can optimize it further at the Container level.
                 //
@@ -458,7 +563,7 @@ impl Optimizable for PortraitSettings {
 
         entries.retain_mut(|entry| {
             entry.variants_mut().retain_mut(|variant| {
-                if options.remove_empty_masks {
+                if options.pts_remove_empty_masks {
                     if variant.file_mask_1().ends_with(EMPTY_MASK_PATH_END) {
                         variant.file_mask_1_mut().clear();
                     }
@@ -470,14 +575,14 @@ impl Optimizable for PortraitSettings {
                     }
                 }
 
-                if options.remove_unused_variants {
+                if options.pts_remove_unused_variants {
                     variant_filenames.contains(variant.filename())
                 } else {
                     true
                 }
             });
 
-            if options.remove_unused_art_sets {
+            if options.pts_remove_unused_art_sets {
                 art_set_ids.contains(entry.id())
             } else {
                 true

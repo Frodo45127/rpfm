@@ -78,9 +78,10 @@ use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
 use std::rc::Rc;
 
-use rpfm_extensions::dependencies::TableReferences;
+use rpfm_extensions::dependencies::{KEY_DELETES_TABLE_NAME, TableReferences};
 
 use rpfm_lib::files::{ContainerPath, FileType, db::DB, loc::Loc, table::{*, local::TableInMemory}};
+use rpfm_lib::games::supported_games::KEY_WARHAMMER_3;
 use rpfm_lib::integrations::log::error;
 use rpfm_lib::schema::{Definition, Field, FieldType, Schema};
 
@@ -243,6 +244,7 @@ pub struct TableView {
     context_menu_go_to_definition: QPtr<QAction>,
     context_menu_go_to_file: QPtr<QAction>,
     context_menu_go_to_loc: Vec<QPtr<QAction>>,
+    context_menu_add_to_twad_key_deletes_m: QBox<QMenu>,
 
     sidebar_scroll_area: QBox<QScrollArea>,
 
@@ -389,10 +391,16 @@ impl TableView {
         if let TableType::DependencyManager(_) = table_data {
             let warning_message = QLabel::from_q_string_q_widget(&qtr("dependency_packfile_list_label"), parent);
             layout.add_widget_5a(&warning_message, 0, 0, 1, 4);
-        } else if let FileType::DB = packed_file_type {
+        } else if let TableType::DB(ref db) = table_data {
             banned_table = GAME_SELECTED.read().unwrap().is_file_banned(&format!("db/{}", &table_name_for_ref));
             if banned_table {
                 let warning_message = QLabel::from_q_string_q_widget(&qtr("banned_tables_warning"), parent);
+                layout.add_widget_5a(&warning_message, 0, 0, 1, 4);
+            }
+
+            if db.table_name() == KEY_DELETES_TABLE_NAME {
+                let warning_message = QLabel::from_q_string_q_widget(&qtr("twad_key_deletes_warning"), parent);
+                warning_message.set_word_wrap(true);
                 layout.add_widget_5a(&warning_message, 0, 0, 1, 4);
             }
         }
@@ -427,6 +435,7 @@ impl TableView {
         let context_menu_copy_to_filter_value = add_action_to_menu(&context_menu_copy_submenu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "copy_as_filter_value", "context_menu_copy_to_filter_value", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_paste = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "paste", "context_menu_paste", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_paste_as_new_row = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "paste_as_new_row", "context_menu_paste_as_new_row", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
+        let context_menu_add_to_twad_key_deletes_m = QMenu::from_q_string_q_widget(&qtr("context_menu_add_to_twad_key_deletes"), &table_view);
         let context_menu_generate_ids = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "generate_ids", "context_menu_generate_ids", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_rewrite_selection = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "rewrite_selection", "context_menu_rewrite_selection", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_revert_value = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "revert_value", "context_menu_revert_value", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
@@ -461,6 +470,7 @@ impl TableView {
         context_menu.insert_menu(&context_menu_paste, &context_menu_clone_submenu);
         context_menu.insert_menu(&context_menu_paste, &context_menu_copy_submenu);
         context_menu.insert_menu(&context_menu_paste, &context_menu_go_to);
+        context_menu.insert_menu(&context_menu_paste_as_new_row, &context_menu_add_to_twad_key_deletes_m);
         context_menu.insert_separator(&context_menu_profiles_create);
         context_menu.insert_menu(&context_menu_profiles_create, &context_menu_profiles_apply);
         context_menu.insert_menu(&context_menu_profiles_create, &context_menu_profiles_delete);
@@ -657,6 +667,7 @@ impl TableView {
             context_menu_go_to_definition,
             context_menu_go_to_file,
             context_menu_go_to_loc,
+            context_menu_add_to_twad_key_deletes_m,
 
             sidebar_hide_checkboxes,
             sidebar_hide_checkboxes_all,
@@ -1149,6 +1160,107 @@ impl TableView {
                     self.context_menu_redo.set_enabled(!self.history_redo.read().unwrap().is_empty());
                 }
             }
+        }
+    }
+
+    pub unsafe fn update_key_deletes_list(view: &Arc<Self>, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
+
+        // The add to key deletes menu works a bit different. Must be enabled only in supported games, regardless of pack source.
+        let receiver = CENTRAL_COMMAND.send_background(Command::GetTablesByTableName(KEY_DELETES_TABLE_NAME.to_owned()));
+        let response = CentralCommand::recv(&receiver);
+        match response {
+            Response::VecString(paths) => {
+                view.context_menu_add_to_twad_key_deletes_m.clear();
+
+                let mut context_menu_add_to_twad_key_deletes = vec![];
+                for path in &paths {
+                    let path_split = path.split('/').collect::<Vec<_>>();
+                    if let Some(file_name) = path_split.last() {
+                        if !file_name.is_empty() {
+                            let file_name = file_name.to_string();
+                            let action = view.context_menu_add_to_twad_key_deletes_m.add_action_q_string(&QString::from_std_str(&file_name));
+
+                            // Create the slot for that action.
+                            let slot = SlotNoArgs::new(&action, clone!(
+                                app_ui,
+                                pack_file_contents_ui,
+                                view,
+                                file_name => move || {
+                                if let Err(error) = view.add_selection_to_key_deletes(&app_ui, &pack_file_contents_ui, &file_name) {
+                                    show_dialog(&view.table_view, error, true);
+                                }
+                            }));
+
+                            action.triggered().connect(&slot);
+                            context_menu_add_to_twad_key_deletes.push(action);
+                        }
+                    }
+                }
+
+                if context_menu_add_to_twad_key_deletes.is_empty() || GAME_SELECTED.read().unwrap().key() != KEY_WARHAMMER_3 {
+                    view.context_menu_add_to_twad_key_deletes_m.set_enabled(false);
+                }
+            }
+            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+        }
+    }
+
+    pub unsafe fn add_selection_to_key_deletes(&self, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>, file_name: &str) -> Result<()> {
+        let _ = AppUI::back_to_back_end_all(app_ui, pack_file_contents_ui);
+
+        let table_name = if let Some(ref table_name) = self.table_name {
+            table_name.to_owned().drain(..table_name.len() - 7).collect::<String>()
+        } else { unreachable!() };
+
+        let mut rows = HashSet::new();
+        let indexes_sorted = get_real_indexes_from_visible_selection_sorted(&self.table_view_ptr(), &self.table_view_filter_ptr());
+        for index in indexes_sorted {
+            if index.is_valid() {
+                rows.insert(index.row());
+            }
+        }
+
+        let key_cols = self.table_definition().key_column_positions();
+        let mut keys = vec![];
+        for row in rows {
+            let mut key = String::new();
+            for key_col in &key_cols {
+                let index = self.table_model.index_2a(row, *key_col as i32);
+                key.push_str(&self.table_model.data_2a(&index, 2).to_string().to_std_string());
+            }
+
+            if !key.is_empty() {
+                keys.push(key);
+            }
+        }
+
+        let receiver = CENTRAL_COMMAND.send_background(Command::AddKeysToKeyDeletes(file_name.to_string(), table_name, keys));
+        let response = CentralCommand::recv(&receiver);
+        match response {
+            Response::OptionContainerPath(path) => {
+                if let Some(path) = path {
+                    let edited_paths = vec![path];
+
+                    // If it worked, get the list of edited PackedFiles and update the TreeView to reflect the change.
+                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Modify(edited_paths.to_vec()), DataSource::PackFile);
+                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::MarkAlwaysModified(edited_paths.to_vec()), DataSource::PackFile);
+                    //pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile);
+
+                    // Before finishing, reload all edited views.
+                    let mut open_packedfiles = UI_STATE.set_open_packedfiles();
+                    edited_paths.iter().for_each(|path| {
+                        if let Some(file_view) = open_packedfiles.iter_mut().find(|x| *x.path_read() == path.path_raw() && x.data_source() == DataSource::PackFile) {
+                            if file_view.reload(path.path_raw(), pack_file_contents_ui).is_err() {
+                                let _ = AppUI::purge_that_one_specifically(app_ui, pack_file_contents_ui, path.path_raw(), DataSource::PackFile, false);
+                            }
+                        }
+                    });
+                }
+
+                Ok(())
+            },
+            Response::Error(error) => Err(error),
+            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
         }
     }
 

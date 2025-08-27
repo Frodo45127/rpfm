@@ -226,7 +226,7 @@ impl ToolUnitEditor {
         ];
 
         let view = if cfg!(debug_assertions) { VIEW_DEBUG } else { VIEW_RELEASE };
-        let tool = Tool::new(app_ui.main_window(), &paths, &TOOL_SUPPORTED_GAMES, view)?;
+        let tool = Tool::new(app_ui.main_window(), &paths, &TOOL_SUPPORTED_GAMES, view, true)?;
         tool.set_title(&tr("unit_editor_title"));
         tool.backup_used_paths(app_ui, pack_file_contents_ui)?;
 

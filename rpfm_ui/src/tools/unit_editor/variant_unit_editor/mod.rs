@@ -158,7 +158,7 @@ impl SubToolVariantUnitEditor {
     pub unsafe fn new(parent: Ref<QWidget>, data: &HashMap<String, String>) -> Result<Option<HashMap<String, String>>> {
 
         let view = if cfg!(debug_assertions) { VIEW_DEBUG } else { VIEW_RELEASE };
-        let tool = Tool::new(parent, &[], &TOOL_SUPPORTED_GAMES, view)?;
+        let tool = Tool::new(parent, &[], &TOOL_SUPPORTED_GAMES, view, true)?;
 
         tool.set_title(&tr("variant_editor_title"));
 

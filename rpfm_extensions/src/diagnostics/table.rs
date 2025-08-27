@@ -283,6 +283,7 @@ impl TableDiagnostic {
             .collect::<Vec<_>>();
 
         for (index, (table, file)) in dec_files.iter().enumerate() {
+            let is_twad_key_deletes = table.table_name().starts_with("twad_key_deletes");
             let check_ak_only = check_ak_only_refs || table.table_name().starts_with("start_pos_");
             if let Some(table_info) = table_infos.get(index) {
                 let mut diagnostic = TableDiagnostic::new(file.path_in_container_raw(), file.container_name().as_deref().unwrap_or(""));
@@ -448,10 +449,16 @@ impl TableDiagnostic {
                         }
 
                         // Dependency checks.
-                        if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, Some(field.name()), None, &table_info.ignored_fields, &table_info.ignored_diagnostics, &table_info.ignored_diagnostics_for_fields) && field.is_reference(table_info.patches).is_some() {
+                        if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, Some(field.name()), None, &table_info.ignored_fields, &table_info.ignored_diagnostics, &table_info.ignored_diagnostics_for_fields) &&
+                            (field.is_reference(table_info.patches).is_some() ||
+                                (
+                                    is_twad_key_deletes &&
+                                    field.name() == "table_name"
+                                )
+                            ) {
+
                             match dependency_data.get(&(column as i32)) {
                                 Some(ref_data) => {
-
                                     if *ref_data.referenced_column_is_localised() {
                                         // TODO: report missing loc data here.
                                     }

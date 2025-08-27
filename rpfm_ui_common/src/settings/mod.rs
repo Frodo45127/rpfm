@@ -23,8 +23,6 @@ use directories::ProjectDirs;
 
 use std::path::{Path, PathBuf};
 
-use rpfm_extensions::optimizer::OptimizerOptions;
-
 //-------------------------------------------------------------------------------//
 //                         Setting-related functions
 //-------------------------------------------------------------------------------//
@@ -260,16 +258,4 @@ pub fn config_path() -> Result<PathBuf> {
 /// This function returns the path where crash logs are stored.
 pub fn error_path() -> Result<PathBuf> {
     Ok(config_path()?.join("error"))
-}
-
-pub fn init_optimizer_options() -> OptimizerOptions {
-    let mut options = OptimizerOptions::default();
-
-    options.set_remove_itm_files(setting_bool("optimize_remove_itm"));
-    options.set_optimize_datacored_tables(setting_bool("optimize_not_renamed_packedfiles"));
-    options.set_remove_unused_art_sets(setting_bool("remove_unused_art_sets"));
-    options.set_remove_unused_variants(setting_bool("remove_unused_variants"));
-    options.set_remove_empty_masks(setting_bool("remove_empty_masks"));
-
-    options
 }

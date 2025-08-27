@@ -29,6 +29,8 @@ use std::fs::{DirBuilder, File};
 use std::io::{BufWriter, Write};
 use std::path::PathBuf;
 
+use rpfm_extensions::optimizer::OptimizerOptions;
+
 use rpfm_lib::error::RLibError;
 use rpfm_lib::games::{*, supported_games::*};
 use rpfm_lib::schema::{SCHEMA_FOLDER, DefinitionPatch};
@@ -188,6 +190,24 @@ pub unsafe fn init_settings(main_window: &QPtr<QMainWindow>) {
     set_setting_if_new_string(&q_settings, "colour_dark_diagnostic_warning", "#cece67");
     set_setting_if_new_string(&q_settings, "colour_dark_diagnostic_info", "#55aaff");
 
+    // Optimizer settings.
+    let opt = OptimizerOptions::default();
+    set_setting_if_new_bool(&q_settings, "pack_remove_itm_files", *opt.pack_remove_itm_files());
+    set_setting_if_new_bool(&q_settings, "db_import_datacores_into_twad_key_deletes", *opt.db_import_datacores_into_twad_key_deletes());
+    set_setting_if_new_bool(&q_settings, "db_optimize_datacored_tables", *opt.db_optimize_datacored_tables());
+    set_setting_if_new_bool(&q_settings, "table_remove_duplicated_entries", *opt.table_remove_duplicated_entries());
+    set_setting_if_new_bool(&q_settings, "table_remove_itm_entries", *opt.table_remove_itm_entries());
+    set_setting_if_new_bool(&q_settings, "table_remove_itnr_entries", *opt.table_remove_itnr_entries());
+    set_setting_if_new_bool(&q_settings, "table_remove_empty_file", *opt.table_remove_empty_file());
+    set_setting_if_new_bool(&q_settings, "text_remove_unused_xml_map_folders", *opt.text_remove_unused_xml_map_folders());
+    set_setting_if_new_bool(&q_settings, "text_remove_unused_xml_prefab_folder", *opt.text_remove_unused_xml_prefab_folder());
+    set_setting_if_new_bool(&q_settings, "text_remove_agf_files", *opt.text_remove_agf_files());
+    set_setting_if_new_bool(&q_settings, "text_remove_model_statistics_files", *opt.text_remove_model_statistics_files());
+    set_setting_if_new_bool(&q_settings, "pts_remove_unused_art_sets", *opt.pts_remove_unused_art_sets());
+    set_setting_if_new_bool(&q_settings, "pts_remove_unused_variants", *opt.pts_remove_unused_variants());
+    set_setting_if_new_bool(&q_settings, "pts_remove_empty_masks", *opt.pts_remove_empty_masks());
+    set_setting_if_new_bool(&q_settings, "pts_remove_empty_file", *opt.pts_remove_empty_file());
+
     q_settings.sync();
 }
 
@@ -235,6 +255,28 @@ pub fn init_config_path() -> Result<()> {
     }
 
     Ok(())
+}
+
+pub fn init_optimizer_options() -> OptimizerOptions {
+    let mut options = OptimizerOptions::default();
+
+    options.set_pack_remove_itm_files(setting_bool("pack_remove_itm_files"));
+    options.set_db_import_datacores_into_twad_key_deletes(setting_bool("db_import_datacores_into_twad_key_deletes"));
+    options.set_db_optimize_datacored_tables(setting_bool("db_optimize_datacored_tables"));
+    options.set_table_remove_duplicated_entries(setting_bool("table_remove_duplicated_entries"));
+    options.set_table_remove_itm_entries(setting_bool("table_remove_itm_entries"));
+    options.set_table_remove_itnr_entries(setting_bool("table_remove_itnr_entries"));
+    options.set_table_remove_empty_file(setting_bool("table_remove_empty_file"));
+    options.set_text_remove_unused_xml_map_folders(setting_bool("text_remove_unused_xml_map_folders"));
+    options.set_text_remove_unused_xml_prefab_folder(setting_bool("text_remove_unused_xml_prefab_folder"));
+    options.set_text_remove_agf_files(setting_bool("text_remove_agf_files"));
+    options.set_text_remove_model_statistics_files(setting_bool("text_remove_model_statistics_files"));
+    options.set_pts_remove_unused_art_sets(setting_bool("pts_remove_unused_art_sets"));
+    options.set_pts_remove_unused_variants(setting_bool("pts_remove_unused_variants"));
+    options.set_pts_remove_empty_masks(setting_bool("pts_remove_empty_masks"));
+    options.set_pts_remove_empty_file(setting_bool("pts_remove_empty_file"));
+
+    options
 }
 
 /// This function returns the schema path.

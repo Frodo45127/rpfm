@@ -1576,9 +1576,11 @@ impl AppUI {
             let receiver = CENTRAL_COMMAND.send_background(Command::OptimizePackFile(options));
             let response = CENTRAL_COMMAND.recv_try(&receiver);
             match response {
-                Response::HashSetString(response) => {
-                    let response = response.iter().map(|x| ContainerPath::File(x.to_owned())).collect::<Vec<ContainerPath>>();
-                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Delete(response, true), DataSource::PackFile);
+                Response::HashSetStringHashSetString(response_1, response_2) => {
+                    let response_1 = response_1.iter().map(|x| ContainerPath::File(x.to_owned())).collect::<Vec<ContainerPath>>();
+                    let response_2 = response_2.iter().map(|x| ContainerPath::File(x.to_owned())).collect::<Vec<ContainerPath>>();
+                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Delete(response_1, true), DataSource::PackFile);
+                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(response_2), DataSource::PackFile);
                 }
                 Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
                 _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
@@ -3866,39 +3868,105 @@ impl AppUI {
         // Create and configure the dialog.
         let instructions_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "instructions_label")?;
         let options_groupbox: QPtr<QGroupBox> = find_widget(&main_widget.static_upcast(), "options_groupbox")?;
-        let remove_itm: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "remove_itm_checkbox")?;
-        let optimize_datacored_tables: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "optimize_datacored_tables_checkbox")?;
-        let remove_unused_art_sets: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "remove_unused_art_sets_checkbox")?;
-        let remove_unused_variants: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "remove_unused_variants_checkbox")?;
-        let remove_empty_masks: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "remove_empty_masks_checkbox")?;
-        let remove_itm_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "remove_itm_label")?;
-        let optimize_datacored_tables_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "optimize_datacored_tables_label")?;
-        let remove_unused_art_sets_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "remove_unused_art_sets_label")?;
-        let remove_unused_variants_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "remove_unused_variants_label")?;
-        let remove_empty_masks_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "remove_empty_masks_label")?;
-        let button_box: QPtr<QDialogButtonBox> = find_widget(&main_widget.static_upcast(), "button_box")?;
-        options_groupbox.set_title(&qtr("optimizer_options_title"));
-        instructions_label.set_text(&qtr("optimizer_instructions_label"));
-        remove_itm_label.set_text(&qtr("optimizer_remove_itm"));
-        optimize_datacored_tables_label.set_text(&qtr("optimizer_optimize_datacored_tables"));
-        remove_unused_art_sets_label.set_text(&qtr("optimizer_remove_unused_art_sets"));
-        remove_unused_variants_label.set_text(&qtr("optimizer_remove_unused_variants"));
-        remove_empty_masks_label.set_text(&qtr("optimizer_remove_empty_masks"));
+        let pack_groupbox: QPtr<QGroupBox> = find_widget(&main_widget.static_upcast(), "pack_groupbox")?;
+        let table_groupbox: QPtr<QGroupBox> = find_widget(&main_widget.static_upcast(), "table_groupbox")?;
+        let text_groupbox: QPtr<QGroupBox> = find_widget(&main_widget.static_upcast(), "text_groupbox")?;
+        let pts_groupbox: QPtr<QGroupBox> = find_widget(&main_widget.static_upcast(), "pts_groupbox")?;
 
-        remove_itm.set_checked(setting_bool("optimize_remove_itm"));
-        optimize_datacored_tables.set_checked(setting_bool("optimize_not_renamed_packedfiles"));
-        remove_unused_art_sets.set_checked(setting_bool("remove_unused_art_sets"));
-        remove_unused_variants.set_checked(setting_bool("remove_unused_variants"));
-        remove_empty_masks.set_checked(setting_bool("remove_empty_masks"));
+        let pack_remove_itm_files_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "pack_remove_itm_files_checkbox")?;
+        let db_import_datacores_into_twad_key_deletes_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "db_import_datacores_into_twad_key_deletes_checkbox")?;
+        let db_optimize_datacored_tables_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "db_optimize_datacored_tables_checkbox")?;
+        let table_remove_duplicated_entries_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "table_remove_duplicated_entries_checkbox")?;
+        let table_remove_itm_entries_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "table_remove_itm_entries_checkbox")?;
+        let table_remove_itnr_entries_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "table_remove_itnr_entries_checkbox")?;
+        let table_remove_empty_file_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "table_remove_empty_file_checkbox")?;
+        let text_remove_unused_xml_map_folders_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "text_remove_unused_xml_map_folders_checkbox")?;
+        let text_remove_unused_xml_prefab_folder_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "text_remove_unused_xml_prefab_folder_checkbox")?;
+        let text_remove_agf_files_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "text_remove_agf_files_checkbox")?;
+        let text_remove_model_statistics_files_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "text_remove_model_statistics_files_checkbox")?;
+        let pts_remove_unused_art_sets_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "pts_remove_unused_art_sets_checkbox")?;
+        let pts_remove_unused_variants_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "pts_remove_unused_variants_checkbox")?;
+        let pts_remove_empty_masks_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "pts_remove_empty_masks_checkbox")?;
+        let pts_remove_empty_file_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "pts_remove_empty_file_checkbox")?;
+
+        let pack_remove_itm_files_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "pack_remove_itm_files_label")?;
+        let db_import_datacores_into_twad_key_deletes_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "db_import_datacores_into_twad_key_deletes_label")?;
+        let db_optimize_datacored_tables_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "db_optimize_datacored_tables_label")?;
+        let table_remove_duplicated_entries_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "table_remove_duplicated_entries_label")?;
+        let table_remove_itm_entries_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "table_remove_itm_entries_label")?;
+        let table_remove_itnr_entries_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "table_remove_itnr_entries_label")?;
+        let table_remove_empty_file_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "table_remove_empty_file_label")?;
+        let text_remove_unused_xml_map_folders_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "text_remove_unused_xml_map_folders_label")?;
+        let text_remove_unused_xml_prefab_folder_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "text_remove_unused_xml_prefab_folder_label")?;
+        let text_remove_agf_files_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "text_remove_agf_files_label")?;
+        let text_remove_model_statistics_files_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "text_remove_model_statistics_files_label")?;
+        let pts_remove_unused_art_sets_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "pts_remove_unused_art_sets_label")?;
+        let pts_remove_unused_variants_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "pts_remove_unused_variants_label")?;
+        let pts_remove_empty_masks_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "pts_remove_empty_masks_label")?;
+        let pts_remove_empty_file_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "pts_remove_empty_file_label")?;
+
+        let button_box: QPtr<QDialogButtonBox> = find_widget(&main_widget.static_upcast(), "button_box")?;
+
+        instructions_label.set_text(&qtr("optimizer_instructions_label"));
+        options_groupbox.set_title(&qtr("optimizer_options_title"));
+        pack_groupbox.set_title(&qtr("optimizer_pack_title"));
+        table_groupbox.set_title(&qtr("optimizer_table_title"));
+        text_groupbox.set_title(&qtr("optimizer_text_title"));
+        pts_groupbox.set_title(&qtr("optimizer_pts_title"));
+
+        pack_remove_itm_files_label.set_text(&qtr("optimizer_pack_remove_itm_files"));
+        db_import_datacores_into_twad_key_deletes_label.set_text(&qtr("optimizer_db_import_datacores_into_twad_key_deletes"));
+        db_optimize_datacored_tables_label.set_text(&qtr("optimizer_db_optimize_datacored_tables"));
+        table_remove_duplicated_entries_label.set_text(&qtr("optimizer_table_remove_duplicated_entries"));
+        table_remove_itm_entries_label.set_text(&qtr("optimizer_table_remove_itm_entries"));
+        table_remove_itnr_entries_label.set_text(&qtr("optimizer_table_remove_itnr_entries"));
+        table_remove_empty_file_label.set_text(&qtr("optimizer_table_remove_empty_file"));
+        text_remove_unused_xml_map_folders_label.set_text(&qtr("optimizer_text_remove_unused_xml_map_folders"));
+        text_remove_unused_xml_prefab_folder_label.set_text(&qtr("optimizer_text_remove_unused_xml_prefab_folder"));
+        text_remove_agf_files_label.set_text(&qtr("optimizer_text_remove_agf_files"));
+        text_remove_model_statistics_files_label.set_text(&qtr("optimizer_text_remove_model_statistics_files"));
+        pts_remove_unused_art_sets_label.set_text(&qtr("optimizer_pts_remove_unused_art_sets"));
+        pts_remove_unused_variants_label.set_text(&qtr("optimizer_pts_remove_unused_variants"));
+        pts_remove_empty_masks_label.set_text(&qtr("optimizer_pts_remove_empty_masks"));
+        pts_remove_empty_file_label.set_text(&qtr("optimizer_pts_remove_empty_file"));
+
+        pack_remove_itm_files_checkbox.set_checked(setting_bool("pack_remove_itm_files"));
+        db_import_datacores_into_twad_key_deletes_checkbox.set_checked(setting_bool("db_import_datacores_into_twad_key_deletes"));
+        db_optimize_datacored_tables_checkbox.set_checked(setting_bool("db_optimize_datacored_tables"));
+        table_remove_duplicated_entries_checkbox.set_checked(setting_bool("table_remove_duplicated_entries"));
+        table_remove_itm_entries_checkbox.set_checked(setting_bool("table_remove_itm_entries"));
+        table_remove_itnr_entries_checkbox.set_checked(setting_bool("table_remove_itnr_entries"));
+        table_remove_empty_file_checkbox.set_checked(setting_bool("table_remove_empty_file"));
+        text_remove_unused_xml_map_folders_checkbox.set_checked(setting_bool("text_remove_unused_xml_map_folders"));
+        text_remove_unused_xml_prefab_folder_checkbox.set_checked(setting_bool("text_remove_unused_xml_prefab_folder"));
+        text_remove_agf_files_checkbox.set_checked(setting_bool("text_remove_agf_files"));
+        text_remove_model_statistics_files_checkbox.set_checked(setting_bool("text_remove_model_statistics_files"));
+        pts_remove_unused_art_sets_checkbox.set_checked(setting_bool("pts_remove_unused_art_sets"));
+        pts_remove_unused_variants_checkbox.set_checked(setting_bool("pts_remove_unused_variants"));
+        pts_remove_empty_masks_checkbox.set_checked(setting_bool("pts_remove_empty_masks"));
+        pts_remove_empty_file_checkbox.set_checked(setting_bool("pts_remove_empty_file"));
+
+        db_optimize_datacored_tables_checkbox.set_visible(false);
+        db_optimize_datacored_tables_label.set_visible(false);
 
         button_box.button(StandardButton::Ok).released().connect(dialog.slot_accept());
 
         if dialog.exec() == 1 {
-            set_setting_bool("optimize_remove_itm", remove_itm.is_checked());
-            set_setting_bool("optimize_not_renamed_packedfiles", optimize_datacored_tables.is_checked());
-            set_setting_bool("remove_unused_art_sets", remove_unused_art_sets.is_checked());
-            set_setting_bool("remove_unused_variants", remove_unused_variants.is_checked());
-            set_setting_bool("remove_empty_masks", remove_empty_masks.is_checked());
+            set_setting_bool("pack_remove_itm_files", pack_remove_itm_files_checkbox.is_checked());
+            set_setting_bool("db_import_datacores_into_twad_key_deletes", db_import_datacores_into_twad_key_deletes_checkbox.is_checked());
+            set_setting_bool("db_optimize_datacored_tables", db_optimize_datacored_tables_checkbox.is_checked());
+            set_setting_bool("table_remove_duplicated_entries", table_remove_duplicated_entries_checkbox.is_checked());
+            set_setting_bool("table_remove_itm_entries", table_remove_itm_entries_checkbox.is_checked());
+            set_setting_bool("table_remove_itnr_entries", table_remove_itnr_entries_checkbox.is_checked());
+            set_setting_bool("table_remove_empty_file", table_remove_empty_file_checkbox.is_checked());
+            set_setting_bool("text_remove_unused_xml_map_folders", text_remove_unused_xml_map_folders_checkbox.is_checked());
+            set_setting_bool("text_remove_unused_xml_prefab_folder", text_remove_unused_xml_prefab_folder_checkbox.is_checked());
+            set_setting_bool("text_remove_agf_files", text_remove_agf_files_checkbox.is_checked());
+            set_setting_bool("text_remove_model_statistics_files", text_remove_model_statistics_files_checkbox.is_checked());
+            set_setting_bool("pts_remove_unused_art_sets", pts_remove_unused_art_sets_checkbox.is_checked());
+            set_setting_bool("pts_remove_unused_variants", pts_remove_unused_variants_checkbox.is_checked());
+            set_setting_bool("pts_remove_empty_masks", pts_remove_empty_masks_checkbox.is_checked());
+            set_setting_bool("pts_remove_empty_file", pts_remove_empty_file_checkbox.is_checked());
 
             AppUI::purge_them_all(app_ui, pack_file_contents_ui, true)?;
             GlobalSearchUI::clear(global_search_ui);
@@ -3907,21 +3975,33 @@ impl AppUI {
             let receiver = CENTRAL_COMMAND.send_background(Command::OptimizePackFile(options));
             let response = CENTRAL_COMMAND.recv_try(&receiver);
             match response {
-                Response::HashSetString(response) => {
-                    let response = response.iter().map(|x| ContainerPath::File(x.to_owned())).collect::<Vec<ContainerPath>>();
+                Response::HashSetStringHashSetString(response_1, response_2) => {
+                    let response_1 = response_1.iter().map(|x| ContainerPath::File(x.to_owned())).collect::<Vec<ContainerPath>>();
+                    let response_2 = response_2.iter().map(|x| ContainerPath::File(x.to_owned())).collect::<Vec<ContainerPath>>();
 
-                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Delete(response, true), DataSource::PackFile);
+                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Delete(response_1, true), DataSource::PackFile);
+                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(response_2), DataSource::PackFile);
                     Ok(Some(()))
                 }
                 Response::Error(error) => Err(error),
                 _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
             }
         } else {
-            set_setting_bool("optimize_remove_itm", remove_itm.is_checked());
-            set_setting_bool("optimize_not_renamed_packedfiles", optimize_datacored_tables.is_checked());
-            set_setting_bool("remove_unused_art_sets", remove_unused_art_sets.is_checked());
-            set_setting_bool("remove_unused_variants", remove_unused_variants.is_checked());
-            set_setting_bool("remove_empty_masks", remove_empty_masks.is_checked());
+            set_setting_bool("pack_remove_itm_files", pack_remove_itm_files_checkbox.is_checked());
+            set_setting_bool("db_import_datacores_into_twad_key_deletes", db_import_datacores_into_twad_key_deletes_checkbox.is_checked());
+            set_setting_bool("db_optimize_datacored_tables", db_optimize_datacored_tables_checkbox.is_checked());
+            set_setting_bool("table_remove_duplicated_entries", table_remove_duplicated_entries_checkbox.is_checked());
+            set_setting_bool("table_remove_itm_entries", table_remove_itm_entries_checkbox.is_checked());
+            set_setting_bool("table_remove_itnr_entries", table_remove_itnr_entries_checkbox.is_checked());
+            set_setting_bool("table_remove_empty_file", table_remove_empty_file_checkbox.is_checked());
+            set_setting_bool("text_remove_unused_xml_map_folders", text_remove_unused_xml_map_folders_checkbox.is_checked());
+            set_setting_bool("text_remove_unused_xml_prefab_folder", text_remove_unused_xml_prefab_folder_checkbox.is_checked());
+            set_setting_bool("text_remove_agf_files", text_remove_agf_files_checkbox.is_checked());
+            set_setting_bool("text_remove_model_statistics_files", text_remove_model_statistics_files_checkbox.is_checked());
+            set_setting_bool("pts_remove_unused_art_sets", pts_remove_unused_art_sets_checkbox.is_checked());
+            set_setting_bool("pts_remove_unused_variants", pts_remove_unused_variants_checkbox.is_checked());
+            set_setting_bool("pts_remove_empty_masks", pts_remove_empty_masks_checkbox.is_checked());
+            set_setting_bool("pts_remove_empty_file", pts_remove_empty_file_checkbox.is_checked());
 
             Ok(None)
         }

@@ -1681,33 +1681,36 @@ audio_wem_warning_label = <p><b style="color:red;">WARNING: .wem files are not y
 
 optimizer_instructions_label = <h3>Are you sure you want to optimize this PackFile?</h3>
     <p>
-        For those who don't know it, what this does is:
+        For those who don't know it, depending on what options you select in the right side of this dialog, it does the following:
         <ul>
-            <li><b>OPTIONAL: Remove files which are direct copies without changes from parent/vanilla files.</li>
-            <li><b>Remove duplicated entries on DB tables</b> (unless the table is datacoring).</li>
-            <li><b>Remove duplicated entries on LOC tables</b> (unless the table is datacoring).</li>
-            <li><b>Remove rows unchanged from default row on DB tables</b> (unless the table is datacoring).</li>
-            <li><b>Remove rows unchanged from default row on LOC tables</b> (unless the table is datacoring).</li>
-            <li><b>Remove DB table entries unchanged from the vanilla or parent files</b> (unless the table is datacoring).</li>
-            <li><b>Remove LOC entries unchanged from the vanilla or parent files</b> (unless the table is datacoring).</li>
-            <li><b>Remove empty DB tables.</b></li>
-            <li><b>Remove empty LOC files.</b></li>
-            <li><b>Remove useless xml on map packs</b>, which are a byproduct of how bob exports map packs.</li>
-            <li><b>Remove useless xml on prefabs</b>, which are a byproduct of how bob exports prefabs.</li>
-            <li><b>Remove useless agf and model_statistics files</b>, which are a byproduct of how bob exports models.</li>
-            <li><b>OPTIONAL: Remove unused/invalid variants and art sets from portrait settings files.</b></li>
-            <li><b>OPTIONAL: Remove empty masks from portrait settings variants.</b></li>
-            <li><b>Remove empty Portrait Settings files</b> (only the .bin files, .xml files are kept just in case you use selfie).</li>
+            <li><b>Pack:</b></li>
+            <ul>
+                <li><b>Remove files which are direct copies without changes from parent/vanilla files.</li>
+            </ul>
+            <li><b>DB/Loc Files:</b></li>
+            <ul>
+                <li><b>Analyze datacored tables and import their removed keys into twad_key_deletes (only in WH3).</li>
+                <li><b>Remove duplicated entries</b> (unless the table is datacoring or they're on different files).</li>
+                <li><b>Remove entries unchanged from vanilla or parent files</b> (unless the table is datacoring).</li>
+                <li><b>Remove entries unchanged from default</b> (unless the table is datacoring).</li>
+                <li><b>Remove empty DB or Loc tables.</b></li>
+            </ul>
+            <li><b>Text Files:</b></li>
+            <ul>
+                <li><b>Remove useless xml on map packs</b>, which are a byproduct of how bob exports map packs.</li>
+                <li><b>Remove useless xml on prefabs</b>, which are a byproduct of how bob exports prefabs.</li>
+                <li><b>Remove useless agf and model_statistics files</b>, which are a byproduct of how bob exports models.</li>
+            </ul>
+            <li><b>Portrait Settings Files:</b></li>
+            <ul>
+                <li><b>Remove unused/invalid variants and art sets from portrait settings files.</b></li>
+                <li><b>Remove empty masks from portrait settings variants.</b></li>
+                <li><b>Remove empty Portrait Settings files</b> (only the .bin files, .xml files are kept just in case you use selfie).</li>
+                <li><b>Remove empty Portrait Settings files.</b></li>
+            </ul>
         </ul>
         You sure you want to do it?
     </p>
-
-optimizer_title = Optimizer
-optimizer_options_title = Options
-optimizer_optimize_datacored_tables = <b>Tables (NOT RECOMMENDED):</b> Optimize datacored tables
-optimizer_remove_unused_art_sets = <b>Portrait Settings:</b> Remove unused Art Sets
-optimizer_remove_unused_variants = <b>Portrait Settings:</b> Remove unused Variants
-optimizer_remove_empty_masks = <b>Portrait Settings:</b> Remove empty masks
 
 translator_key = Key:
 context = Context
@@ -1723,7 +1726,6 @@ label_file_overwrite = File overwriting different parent/vanilla file
 
 file_itm_explanation = This file is identical to a parent or vanilla file. This means id does pretty much nothing but make your pack bigger.
 file_overwrite_explanation = This file is overwriting a parent or vanilla file. Not a problem, just so you know what files are overwriting vanilla assets more easely.
-optimizer_remove_itm = <b>Pack:</b> Remove unchanged files
 
 behavior_deepl = Auto-translate with DeepL (needs API Key, best quality)
 translator_translate_with_deepl = Translate with Deepl
@@ -1737,6 +1739,50 @@ file_duplicated_explanation = The game files are case-agnostic. Meaning if you h
     RPFM will consider them two different files, but the game will see them as the same file and will only load one of them.
 
     This warning tells you that there are two or more files in your pack that the game will consider the same file, and will only load one of them.
+
+context_menu_add_to_twad_key_deletes = Add Selection to Key Deletes
+twad_key_deletes_warning = <p>This table is a special table used to remove lines from any other table on runtime, without having to edit said table.
+    The main usecase of this table is to avoid datacoring, or the act of overwriting an entire table to remove one or more lines from it.</p>
+
+    <p>Why? Because datacored tables are often difficult to maintain correctly, and may cause compatibility issues between mods if two or more mods do it to the same table.
+    Using this table instead removes all those compatibility issues, makes it very easy to maintain and, as a bonus, it makes your mod smaller in the process.</p>
+
+    <p><b>NOTES ON THIS TABLE:</b></p>
+    <ul>
+        <li>It's recommended that you avoid manually adding entries to this table, specially when you want to remove a key from a multi-key table, like a junctions table. Instead, use one of the following methods:</li>
+        <ul>
+            <li>If your mod contains datacored tables, go to "Special Stuff/Warhammer 3/Optimize Pack", then make sure the "DB: Import datacores into twad_key_deletes" checkbox is checked and hit accept.
+            That will create this table and automatically populate it with all the autodetected removed lines in your datacored tables. It will not delete the datacored tables, so you'll have to delete those manually once you're happy with the results.</li>
+            <li>If you just want to remove some lines from a table, first make sure an instance of this table exists in your pack. If not, right-click the open pack, then hit "Create/Create DB" and create it from there.
+            Then open the table you want to remove lines from, select the lines to remove, right-click them, and hit "Add Selection to Key Deletes/yourtablename".</li>
+        </ul>
+        <li>Note that adding a key to this table is equivalent to datacoring the relevant table and deleting the line with the same key. This means if you add a key that's referenced in other tables
+        you may end up causing crashes on runtime that the diagnostics tool cannot detect (at least yet). Beware of that.</li>
+    </ul>
+    <p>
+
+optimizer_title = Optimizer
+optimizer_options_title = Options
+optimizer_pack_title = Pack
+optimizer_table_title = DB/Loc Files
+optimizer_text_title = Text Files
+optimizer_pts_title = Portrait Settings Files
+
+optimizer_pack_remove_itm_files = Remove unchanged files
+optimizer_db_import_datacores_into_twad_key_deletes = Import datacores into twad_key_deletes
+optimizer_db_optimize_datacored_tables = <b>NOT RECOMMENDED:</b> Optimize datacored tables
+optimizer_table_remove_duplicated_entries = Remove duplicated entries
+optimizer_table_remove_itm_entries = Remove entries unchanged from vanilla/parent
+optimizer_table_remove_itnr_entries = Remove entries unchanged from default
+optimizer_table_remove_empty_file = Remove empty files
+optimizer_text_remove_unused_xml_map_folders = Remove unused XML files on map folders
+optimizer_text_remove_unused_xml_prefab_folder = Remove unused XML files on the prefab folder
+optimizer_text_remove_agf_files = Remove .agf files
+optimizer_text_remove_model_statistics_files = Remove .model_statistics files
+optimizer_pts_remove_unused_art_sets = Remove unused Art Sets
+optimizer_pts_remove_unused_variants = Remove unused Variants
+optimizer_pts_remove_empty_masks = Remove empty Masks
+optimizer_pts_remove_empty_file = Remove empty files
 
 label_altered_table = Altered Table
 altered_table_explanation = This table has been altered by RPFM when the Pack was opened and one or more cells had their data changed.
