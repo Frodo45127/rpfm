@@ -531,21 +531,21 @@ pub trait Container {
                                 warn!("File with path {} failed to extract as TSV. Extracting it as binary.", rfile.path_in_container_raw());
                             }
 
-                            let extracted_path = sanitize_and_create_file(rfile, &destination_path, extra_data)?;
+                            let extracted_path = rfile.sanitize_and_create_file(&destination_path, extra_data)?;
                             extracted_paths.push(extracted_path);
                         } else {
                             extracted_paths.push(destination_path_tsv);
                             result?;
                         }
                     } else {
-                        let extracted_path = sanitize_and_create_file(rfile, &destination_path, extra_data)?;
+                        let extracted_path = rfile.sanitize_and_create_file(&destination_path, extra_data)?;
                         extracted_paths.push(extracted_path);
                     }
                 }
 
                 // Otherwise, just write the binary data to disk.
                 else {
-                    let extracted_path = sanitize_and_create_file(rfile, &destination_path, extra_data)?;
+                    let extracted_path = rfile.sanitize_and_create_file(&destination_path, extra_data)?;
                     extracted_paths.push(extracted_path);
                 }
             }
@@ -598,21 +598,21 @@ pub trait Container {
                                     warn!("File with path {} failed to extract as TSV. Extracting it as binary.", rfile.path_in_container_raw());
                                 }
 
-                                let extracted_path = sanitize_and_create_file(rfile, &destination_path, extra_data)?;
+                                let extracted_path = rfile.sanitize_and_create_file(&destination_path, extra_data)?;
                                 extracted_paths.push(extracted_path);
                             } else {
                                 extracted_paths.push(destination_path_tsv);
                                 result?;
                             }
                         } else {
-                            let extracted_path = sanitize_and_create_file(rfile, &destination_path, extra_data)?;
+                            let extracted_path = rfile.sanitize_and_create_file(&destination_path, extra_data)?;
                             extracted_paths.push(extracted_path);
                         }
                     }
 
                     // Otherwise, just write the binary data to disk.
                     else {
-                        let extracted_path = sanitize_and_create_file(rfile, &destination_path, extra_data)?;
+                        let extracted_path = rfile.sanitize_and_create_file(&destination_path, extra_data)?;
                         extracted_paths.push(extracted_path);
                     }
 
