@@ -7,26 +7,49 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
 ## [Unreleased]
+
+## [4.6.0]
 ### Added
 - Translator: preview panel now is capable of interpret most tags.
 - Translator: preview panel now is capable of correctly interpret db colours.
 - Translator: preview panel now is capable of correctly interpret tagged images.
+- Translator: the key for the value currently being translated is now fully shown in a line edit.
+- Translator: implemented integration with DeepL (you need to provide your own API key in the settings for it to work).
 - Implemented new "File Identical to Parent/Vanilla" diagnostic.
 - Implemented new "File is Overwriting a Parent/Vanilla file" diagnostic.
+- Implemented new "File Duplicated" diagnostic.
+- Implemented new "Altered Table" diagnostic, to detect tables that have been altered by RPFM because they contained invalid data in KEY or ID columns.
 - Implemented new "Remove unchanged files" option in the optimizer.
-- Translator: implemented integration with DeepL (you need to provide your own API key in the settings for it to work).
+- Implemented limited support for cs2.parsed v11 files (lib-only).
+- Implemented support for .wav audio files (present in Shogun 2).
+- Implemented basic tile_database.bin support (lib-only, thanks to @Victimized for the help).
+- Fully rewored the optimizer, making it fully configurable (if you don't select any option, it won't do anything).
+- Implemented support for the new `twad_key_deletes` table in Warhammer 3 6.3.
+- Implemented `Import datacores into twad_key_deletes table` option in the optimizer.
+- Implemented `Add Selection to Key Deletes` action in db's context menu.
+- Added documentation to explain how to use all the features related to the new `twad_key_deletes` table.
 
 ### Changed
 - All tool dialogs are now maximizable.
 - Translator: the context line is now bigger, to make it easier to input context.
 - AK Only Diagnostics (the ones that tend to trigger false positives) are now enabled by default for start_pos files, as they barely get any diagnostic result if these are not enabled.
 - Keys and IDs that have String or I64 types are now treated as I32, as they're often used in I32 fields and they do not accept numbers bigger than that.
+- When trying to figure out what kind of game install you have (store, os,...) RPFM now tries to find the game executable in a case-insensitive way. This should mainly fix issues with using RPFM with an Epic version of the games.
+- Files with invalid names in windows are now automatically renamed on extract, and the diagnostic to detect them has been expanded to cover more cases and be a bit more clear about the consecuences of not fixing your file names (thanks to [@steve1316](https://github.com/steve1316)).
+- Updated credits to add small contributors.
 
 ### Fixed
 - Fixed multiple diagnostics filters not working as expected.
 - Fixed source/translated text panels in translator sometimes wrongly interpreting text as xml.
 - Fixed automatic pach generation not using the open pack when looking for tables, causing it to fail to generate patches on ak-only tables.
 - Fixed files added to the pack not getting preloaded, causing missing file errors on save if you delete the source files from disk before you save the pack.
+- Fixed colours sometimes becoming stuck in the translator previews.
+- Fixed a myriad of issues regarding the way the translator handled the line selection changes.
+- Fixed some global diagnostics being duplicated on diagnostics check.
+- Fixed \\r in loc keys not being detected as an error as part of the `Invalid Loc Key` diagnostic.
+- Fixed some visual issues (hidden columns become visible) when reloading an open anim fragment view.
+- Fixed optimizer removing lines that were removed in a datacore, only to be re-added later in a modded table.
+- Fixed translator optimizing away some lines after translating a mod.
 
 ## [4.5.4]
 ### Added
@@ -1699,7 +1722,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.5.4...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.6.0...HEAD
+[4.6.0]: https://github.com/Frodo45127/rpfm/compare/v4.5.4...v4.6.0
 [4.5.4]: https://github.com/Frodo45127/rpfm/compare/v4.5.3...v4.5.4
 [4.5.3]: https://github.com/Frodo45127/rpfm/compare/v4.5.2...v4.5.3
 [4.5.2]: https://github.com/Frodo45127/rpfm/compare/v4.5.1...v4.5.2
