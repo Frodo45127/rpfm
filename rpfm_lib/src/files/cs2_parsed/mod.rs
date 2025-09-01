@@ -90,6 +90,7 @@ pub struct Cs2Parsed {
     pieces: Vec<Piece>,
 }
 
+/// Logic data of a piece of a model.
 #[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
 pub struct Piece {
     name: String,
@@ -101,12 +102,13 @@ pub struct Piece {
     f_6: f32,
 }
 
+/// Logic data of a destruct of a piece of a model.
 #[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
 pub struct Destruct {
     name: String,
     index: u32,
 
-    // This one's special. In later games it's defined in its own file, so we reuse that definition.
+    /// Collision data. Used in Thrones and older games. Newer games have this logic in a separate cs2.collision file.
     collision_3d: Collision3d,
     collision_outlines: Vec<CollisionOutline>,
     windows: i32,
@@ -117,9 +119,13 @@ pub struct Destruct {
     platforms: Vec<Platform>,
     uk_2: i32,
     bounding_box: Cube,
-    cannon_emitters: i32,                              // Cannons
+
+    /// Projectile emitters for cannons. Used in Thrones and older games. Newer games have this logic moved to the map itself.
+    cannon_emitters: i32,
+
+    /// Projectile emitters for arrows. Used in Thrones and older games. Newer games have this logic moved to the map itself.
     arrow_emitters: Vec<ProjectileEmitter>,
-    docking_points: i32,                              // Docking points?
+    docking_points: i32,
     soft_collisions: Vec<SoftCollisions>,
     uk_7: i32,
     file_refs: Vec<FileRef>,
@@ -138,6 +144,7 @@ pub struct UiFlag {
     transform: Transform4x4,
 }
 
+/// Gate pieces on wall gates, where units go in and out of the city.
 #[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
 pub struct Gate {
     collision_1: Collision3d,
@@ -161,19 +168,21 @@ pub struct SoftCollisions {
     point_1: Point2d,
 }
 
+/// Projectile Emitter, used by buildings to define where their projectiles are shot from.
 #[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
 pub struct ProjectileEmitter {
     name: String,
     transform: Transform4x4,
 }
 
+/// File References, used to attach building models to other building models (like the torches in Attila's walls).
 #[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
 pub struct FileRef {
     key: String,
     name: String,
     transform: Transform4x4,
 
-    // Ref type (19 and 20 are for side pillars).
+    /// Ids? They seem to be unique within the same file, not even colliding between destructs.
     uk_1: i16,
 }
 
@@ -208,7 +217,7 @@ pub struct Pipe {
 
 /// Entity Formation Lines, for units to form for specific actions in specific places.
 ///
-/// Check [EFLineType] documentation to know what types you can use. Some times may not work in certain games, and it's possible the list doesn't match older games.
+/// Check [EFLineType] documentation to know what types you can use. Some may not work in certain games, and it's possible the list doesn't match older games.
 #[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
 pub struct EFLine {
     name: String,
