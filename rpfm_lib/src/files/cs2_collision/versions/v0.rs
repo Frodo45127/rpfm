@@ -22,18 +22,15 @@ use super::*;
 impl Collision3d {
 
     pub fn read_v0<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
-dbg!(format!("{:02X}", data.stream_position()?));
         self.name = data.read_sized_string_u16()?;
-dbg!(format!("{:02X}", data.stream_position()?));
 
         self.uk_1 = data.read_i32()?;
-dbg!(format!("{:02X}", data.stream_position()?));
         self.uk_2 = data.read_i32()?;
-dbg!(format!("{:02X}", data.stream_position()?));
+
         for _ in 0..data.read_u32()? {
             self.vertices.push(Point3d::decode(data, &None)?);
         }
-dbg!(format!("{:02X}", data.stream_position()?));
+
         for _ in 0..data.read_u32()? {
             let mut collision_triangle = CollisionTriangle::default();
 
@@ -61,7 +58,7 @@ dbg!(format!("{:02X}", data.stream_position()?));
 
             self.triangles.push(collision_triangle);
         }
-dbg!(format!("{:02X}", data.stream_position()?));
+
         Ok(())
     }
 
