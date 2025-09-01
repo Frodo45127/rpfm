@@ -172,6 +172,8 @@ pub struct FileRef {
     key: String,
     name: String,
     transform: Transform4x4,
+
+    // Ref type (19 and 20 are for side pillars).
     uk_1: i16,
 }
 
@@ -343,12 +345,20 @@ impl Decodeable for Cs2Parsed {
             20 => decoded.read_v20(data)?,
             18 => decoded.read_v18(data)?,
             13 => decoded.read_v13(data)?,
+            12 => decoded.read_v12(data)?,
             11 => decoded.read_v11(data)?,
+            10 => decoded.read_v10(data)?,
+            9 => decoded.read_v9(data)?,
+            8 => decoded.read_v8(data)?,
+            0 => decoded.read_v0(data)?,
              _ => return Err(RLibError::DecodingUnsupportedVersion(decoded.version as usize)),
         }
 
         // Trigger an error if there's left data on the source.
-        check_size_mismatch(data.stream_position()? as usize, data.len()? as usize)?;
+        if let Err(error) = check_size_mismatch(data.stream_position()? as usize, data.len()? as usize) {
+            dbg!(&decoded);
+            return Err(error);
+        }
 
         Ok(decoded)
     }
@@ -364,7 +374,12 @@ impl Encodeable for Cs2Parsed {
             20 => self.write_v20(buffer)?,
             18 => self.write_v18(buffer)?,
             13 => self.write_v13(buffer)?,
+            12 => self.write_v12(buffer)?,
             11 => self.write_v11(buffer)?,
+            10 => self.write_v10(buffer)?,
+            9 => self.write_v9(buffer)?,
+            8 => self.write_v8(buffer)?,
+            0 => self.write_v0(buffer)?,
             _ => unimplemented!()
         }
 
