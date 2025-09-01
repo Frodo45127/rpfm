@@ -364,10 +364,7 @@ impl Decodeable for Cs2Parsed {
         }
 
         // Trigger an error if there's left data on the source.
-        if let Err(error) = check_size_mismatch(data.stream_position()? as usize, data.len()? as usize) {
-            dbg!(&decoded);
-            return Err(error);
-        }
+        check_size_mismatch(data.stream_position()? as usize, data.len()? as usize)?;
 
         Ok(decoded)
     }
