@@ -1425,7 +1425,7 @@ impl PackedFileDecoderView {
         data.seek(SeekFrom::Start(self.header_size))?;
 
         // All the other checks are done here.
-        let max_steps = raw_definition.get_non_localisable_fields(&raw_localisable_fields.fields, &raw_table.rows[0]).len() - 1;
+        let max_steps = raw_definition.get_non_localisable_fields(&raw_localisable_fields.fields, &raw_table.rows[0]).len().checked_sub(1).unwrap_or_default();
         for step in 0..max_steps {
             println!("Possible definitions for the step {} of {}: {}.", step + 1, max_steps, definitions_possible.len());
             if definitions_possible.is_empty() {
