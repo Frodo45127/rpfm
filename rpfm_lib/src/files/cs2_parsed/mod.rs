@@ -38,6 +38,7 @@ const SHIP_LADDER: i32 = 3;
 const SIEGE_LADDER1: i32 = 8;
 const STAIRS: i32 = 9;
 const ROPE: i32 = 10;
+const UNKNOWN_SAMBUCA_PIPE: i32 = 11;
 const DOOR_NO_TELEPORT: i32 = 13;
 const JUMP: i32 = 14;                   // PT_JUMP
 const WALL_DOOR_TELEPORT: i32 = 30;     // PT_WALL_DOOR
@@ -110,7 +111,7 @@ pub struct Destruct {
     collision_outlines: Vec<CollisionOutline>,
     windows: i32,
     doors: i32,
-    gates: i32,
+    gates: Vec<Gate>,
     pipes: Vec<Pipe>,
     orange_thingies: Vec<Vec<OrangeThingy>>,    // Nogos?
     platforms: Vec<Platform>,
@@ -135,6 +136,14 @@ pub struct Destruct {
 pub struct UiFlag {
     name: String,
     transform: Transform4x4,
+}
+
+#[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
+pub struct Gate {
+    collision_1: Collision3d,
+    collision_2: Collision3d,
+    uk_1: u32,
+    uk_2: u32,
 }
 
 #[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
@@ -238,6 +247,8 @@ enum PipeType {
     Stairs,
     /// Rope used to climb walls in 3K.
     Rope,
+    /// Pipe used in thrones, in sambucas cs2.
+    UnknownSambucaPipe,
     /// Door threshold to enter garrisonable buildings.
     DoorNoTeleport,
     /// Alternative pipe for units to jump into walls.
@@ -331,6 +342,7 @@ impl Decodeable for Cs2Parsed {
             21 => decoded.read_v21(data)?,
             20 => decoded.read_v20(data)?,
             18 => decoded.read_v18(data)?,
+            13 => decoded.read_v13(data)?,
             11 => decoded.read_v11(data)?,
              _ => return Err(RLibError::DecodingUnsupportedVersion(decoded.version as usize)),
         }
@@ -351,10 +363,10 @@ impl Encodeable for Cs2Parsed {
             21 => self.write_v21(buffer)?,
             20 => self.write_v20(buffer)?,
             18 => self.write_v18(buffer)?,
+            13 => self.write_v13(buffer)?,
             11 => self.write_v11(buffer)?,
             _ => unimplemented!()
         }
-
 
         Ok(())
     }
@@ -444,6 +456,7 @@ impl TryFrom<i32> for PipeType {
             SIEGE_LADDER1 => Ok(Self::SiegeLadder1),
             STAIRS => Ok(Self::Stairs),
             ROPE => Ok(Self::Rope),
+            UNKNOWN_SAMBUCA_PIPE => Ok(Self::UnknownSambucaPipe),
             DOOR_NO_TELEPORT => Ok(Self::DoorNoTeleport),
             JUMP => Ok(Self::Jump),
             WALL_DOOR_TELEPORT => Ok(Self::WallDoorTeleport),
@@ -466,6 +479,7 @@ impl From<PipeType> for i32 {
             PipeType::SiegeLadder1 => SIEGE_LADDER1,
             PipeType::Stairs => STAIRS,
             PipeType::Rope => ROPE,
+            PipeType::UnknownSambucaPipe => UNKNOWN_SAMBUCA_PIPE,
             PipeType::DoorNoTeleport => DOOR_NO_TELEPORT,
             PipeType::Jump => JUMP,
             PipeType::WallDoorTeleport => WALL_DOOR_TELEPORT,

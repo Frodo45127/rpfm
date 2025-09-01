@@ -19,13 +19,12 @@ use super::*;
 
 impl Cs2Parsed {
 
-    pub fn read_v11<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
+    pub fn read_v13<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
         self.bounding_box = Cube::decode(data, &None)?;
         self.ui_flag.name = data.read_sized_string_u16()?;
         self.ui_flag.transform = Transform4x4::decode(data, &None)?;
 
         self.int_1 = data.read_i32()?;
-
         // Pieces
         for _ in 0..data.read_u32()? {
             let mut piece = Piece::default();
@@ -41,7 +40,8 @@ impl Cs2Parsed {
                 destruct.name = data.read_sized_string_u16()?;
                 destruct.index = data.read_u32()?;
 
-                destruct.collision_3d.read_v11(data)?;
+                destruct.collision_3d.read_v13(data)?;
+
                 destruct.windows = data.read_i32()?;
                 destruct.doors = data.read_i32()?;
 
@@ -49,8 +49,8 @@ impl Cs2Parsed {
                 for _ in 0..data.read_i32()? {
                     let mut collision_1 = Collision3d::default();
                     let mut collision_2 = Collision3d::default();
-                    collision_1.read_v11(data)?;
-                    collision_2.read_v11(data)?;
+                    collision_1.read_v13(data)?;
+                    collision_2.read_v13(data)?;
 
                     destruct.gates.push(Gate {
                         collision_1,
@@ -148,7 +148,45 @@ impl Cs2Parsed {
                     });
                 }
 
-                destruct.f_1 = data.read_f32()?;
+                // Docking lines.
+                for _ in 0..data.read_u32()? {
+                    destruct.docking_lines.push(DockingLine {
+                        key: data.read_sized_string_u16()?,
+                        start: Point2d::decode(data, &None)?,
+                        end: Point2d::decode(data, &None)?,
+                        direction: Point2d::decode(data, &None)?,
+                    });
+                }
+
+                for _ in 0..data.read_u32()? {
+                    destruct.action_vfx.push(Vfx {
+                        key: data.read_sized_string_u16()?,
+                        matrix_1: Transform4x4::decode(data, &None)?,
+                    });
+                }
+
+                for _ in 0..data.read_u32()? {
+                    destruct.action_vfx_attachments.push(Vfx {
+                        key: data.read_sized_string_u16()?,
+                        matrix_1: Transform4x4::decode(data, &None)?,
+                    });
+                }
+
+                for _ in 0..data.read_u32()? {
+                    let mut vec = vec![];
+                    for _ in 0..data.read_u32()? {
+                        vec.push(data.read_i16()?);
+                    }
+                    destruct.bin_data.push(vec);
+                }
+
+                for _ in 0..data.read_u32()? {
+                    let mut vec = vec![];
+                    for _ in 0..data.read_u32()? {
+                        vec.push(data.read_i16()?);
+                    }
+                    destruct.bin_data_2.push(vec.clone());
+                }
 
                 piece.destructs.push(destruct);
             }
@@ -161,7 +199,7 @@ impl Cs2Parsed {
         Ok(())
     }
 
-    pub fn write_v11<W: WriteBytes>(&mut self, buffer: &mut W) -> Result<()> {
+    pub fn write_v13<W: WriteBytes>(&mut self, buffer: &mut W) -> Result<()> {
         self.bounding_box.encode(buffer, &None)?;
         buffer.write_sized_string_u16(&self.ui_flag.name)?;
         self.ui_flag.transform.encode(buffer, &None)?;
@@ -180,14 +218,14 @@ impl Cs2Parsed {
                 buffer.write_sized_string_u16(&destruct.name)?;
                 buffer.write_u32(destruct.index)?;
 
-                destruct.collision_3d.write_v11(buffer)?;
-                buffer.write_u32(destruct.windows as u32)?;
-                buffer.write_u32(destruct.doors as u32)?;
+                destruct.collision_3d.write_v13(buffer)?;
+                buffer.write_i32(destruct.windows)?;
+                buffer.write_i32(destruct.doors)?;
 
                 buffer.write_u32(destruct.gates.len() as u32)?;
                 for gate in &mut destruct.gates {
-                    gate.collision_1.write_v11(buffer)?;
-                    gate.collision_2.write_v11(buffer)?;
+                    gate.collision_1.write_v13(buffer)?;
+                    gate.collision_2.write_v13(buffer)?;
                     buffer.write_u32(gate.uk_1)?;
                     buffer.write_u32(gate.uk_2)?;
                 }
@@ -267,7 +305,41 @@ impl Cs2Parsed {
                     buffer.write_u32(ef_line.parent_index)?;
                 }
 
-                buffer.write_f32(destruct.f_1)?;
+                buffer.write_u32(destruct.docking_lines.len() as u32)?;
+                for docking_line in &mut destruct.docking_lines {
+                    buffer.write_sized_string_u16(&docking_line.key)?;
+                    docking_line.start.encode(buffer, &None)?;
+                    docking_line.end.encode(buffer, &None)?;
+                    docking_line.direction.encode(buffer, &None)?;
+                }
+
+                buffer.write_u32(destruct.action_vfx.len() as u32)?;
+                for vfx in &mut destruct.action_vfx {
+                    buffer.write_sized_string_u16(&vfx.key)?;
+                    vfx.matrix_1.encode(buffer, &None)?;
+                }
+
+                buffer.write_u32(destruct.action_vfx_attachments.len() as u32)?;
+                for vfx in &mut destruct.action_vfx_attachments {
+                    buffer.write_sized_string_u16(&vfx.key)?;
+                    vfx.matrix_1.encode(buffer, &None)?;
+                }
+
+                buffer.write_u32(destruct.bin_data.len() as u32)?;
+                for bin_data in &destruct.bin_data {
+                    buffer.write_u32(bin_data.len() as u32)?;
+                    for bin_data in bin_data {
+                        buffer.write_i16(*bin_data)?;
+                    }
+                }
+
+                buffer.write_u32(destruct.bin_data_2.len() as u32)?;
+                for bin_data in &destruct.bin_data_2 {
+                    buffer.write_u32(bin_data.len() as u32)?;
+                    for bin_data in bin_data {
+                        buffer.write_i16(*bin_data)?;
+                    }
+                }
             }
 
             buffer.write_f32(piece.f_6)?;
@@ -276,3 +348,4 @@ impl Cs2Parsed {
         Ok(())
     }
 }
+
