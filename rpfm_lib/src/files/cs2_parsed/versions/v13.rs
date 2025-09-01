@@ -107,7 +107,7 @@ impl Cs2Parsed {
                 destruct.cannon_emitters = data.read_i32()?;
 
                 for _ in 0..data.read_u32()? {
-                    destruct.projectile_emitters.push(ProjectileEmitter {
+                    destruct.arrow_emitters.push(ProjectileEmitter {
                         name: data.read_sized_string_u16()?,
                         transform: Transform4x4::decode(data, &None)?,
                     });
@@ -268,8 +268,8 @@ impl Cs2Parsed {
                 destruct.bounding_box.encode(buffer, &None)?;
                 buffer.write_i32(destruct.cannon_emitters)?;
 
-                buffer.write_u32(destruct.projectile_emitters.len() as u32)?;
-                for emitter in &mut destruct.projectile_emitters {
+                buffer.write_u32(destruct.arrow_emitters.len() as u32)?;
+                for emitter in &mut destruct.arrow_emitters {
                     buffer.write_sized_string_u16(&emitter.name)?;
                     emitter.transform.encode(buffer, &None)?;
                 }

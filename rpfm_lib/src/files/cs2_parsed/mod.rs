@@ -118,7 +118,7 @@ pub struct Destruct {
     uk_2: i32,
     bounding_box: Cube,
     cannon_emitters: i32,                              // Cannons
-    projectile_emitters: Vec<ProjectileEmitter>,
+    arrow_emitters: Vec<ProjectileEmitter>,
     docking_points: i32,                              // Docking points?
     soft_collisions: Vec<SoftCollisions>,
     uk_7: i32,
