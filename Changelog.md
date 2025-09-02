@@ -8,6 +8,21 @@ If you're looking for the changes included in the latest beta (against the lates
 
 ## [Unreleased]
 
+## [4.6.1]
+### Added
+- Implemented support for all cs2.parsed files from Rome 2, Attila and Thrones (lib-only).
+- Implemented "Migrate cs2.parsed" feature, which allows you to migrate Attila and Thrones cs2.parsed files into Rome 2 (lib-only).
+
+### Changed
+- Disabled support for the is_numeric flag to avoid data corruption.
+
+### Fixed
+- Fixed rare substract overflow crash in the decoder.
+- Fixed treeview losing a folder in cases where it tried to delete a non-existant file.
+- Fixed optimizer saving data in the twad_key_deletes folder in the wrong columns.
+- Fixed optimizer generating a phantom twad_key_deletes table when there was nothing to populate it with.
+- Fixed twad_key_deletes keys being generated in the wrong order on some multi-key tables.
+
 ## [4.6.0]
 ### Added
 - Translator: preview panel now is capable of interpret most tags.
@@ -1722,7 +1737,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.6.0...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.6.1...HEAD
+[4.6.1]: https://github.com/Frodo45127/rpfm/compare/v4.6.0...v4.6.1
 [4.6.0]: https://github.com/Frodo45127/rpfm/compare/v4.5.4...v4.6.0
 [4.5.4]: https://github.com/Frodo45127/rpfm/compare/v4.5.3...v4.5.4
 [4.5.3]: https://github.com/Frodo45127/rpfm/compare/v4.5.2...v4.5.3
