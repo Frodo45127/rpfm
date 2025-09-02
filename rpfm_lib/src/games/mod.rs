@@ -134,7 +134,10 @@ pub struct GameInfo {
     install_type_cache: Arc<RwLock<HashMap<PathBuf, InstallType>>>,
 
     /// List of compression formats supported by the game, sorted from newer to older.
-    compression_formats_supported: Vec<CompressionFormat>
+    compression_formats_supported: Vec<CompressionFormat>,
+
+    /// Max version of the cs2.parsed format this game supports, for supporting between-game conversion of models.
+    max_cs2_parsed_version: u32,
 }
 
 /// This enum holds the info about each game approach at naming db tables.

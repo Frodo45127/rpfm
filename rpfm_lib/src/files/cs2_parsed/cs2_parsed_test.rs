@@ -125,6 +125,29 @@ fn test_encode_cs2_parsed_v11() {
 
     assert_eq!(before, after);
 }
+/*
+#[test]
+fn test_encode_cs2_parsed_migrate_to_rome_2() {
+    let games = SupportedGames::default();
+    let game = games.game(KEY_ROME_2).unwrap();
+
+    let paths = files_from_subdir(&PathBuf::from("../test_files/cs2_files/"), true).unwrap();
+    for path in &paths {
+        if path.to_string_lossy().ends_with("cs2.parsed") {
+            let mut reader = BufReader::new(File::open(&path).unwrap());
+            let decodeable_extra_data = DecodeableExtraData::default();
+
+            let mut data = Cs2Parsed::decode(&mut reader, &Some(decodeable_extra_data)).unwrap();
+            data.migrate_game(game).unwrap();
+            let mut after = vec![];
+
+            data.encode(&mut after, &None).unwrap();
+
+            let mut writer = BufWriter::new(File::create(path).unwrap());
+            writer.write_all(&after).unwrap();
+        }
+    }
+}*/
 
 /*
 #[test]

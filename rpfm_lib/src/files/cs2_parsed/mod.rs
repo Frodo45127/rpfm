@@ -15,6 +15,7 @@ use crate::error::{Result, RLibError};
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::files::{cs2_collision::Collision3d, DecodeableExtraData, Decodeable, EncodeableExtraData, Encodeable};
 use crate::files::bmd::common::*;
+use crate::games::GameInfo;
 use crate::utils::check_size_mismatch;
 
 pub const EXTENSION: &str = ".cs2.parsed";
@@ -513,4 +514,20 @@ impl From<PipeType> for i32 {
     }
 }
 
+impl Cs2Parsed {
 
+    pub fn migrate_game(&mut self, game: &GameInfo) -> Result<()> {
+
+        if *game.max_cs2_parsed_version() == 0 {
+            return Err(RLibError::GameDoesntSupportCs2Migration)
+        }
+
+        // Games (at least until thrones) seem to support all previous formats.
+        // So we only perform a migration if the format of the file is newer than the latest supported one by the game.
+        if self.version > *game.max_cs2_parsed_version() {
+            self.version = *game.max_cs2_parsed_version();
+        }
+
+        Ok(())
+    }
+}

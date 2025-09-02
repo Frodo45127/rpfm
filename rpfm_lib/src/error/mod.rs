@@ -118,6 +118,9 @@ pub enum RLibError {
     #[error("Unknown Pipe Type: {0}")]
     UnknownPipeType(String),
 
+    #[error("Migration to this game is not yet supported for cs2.parsed files.")]
+    GameDoesntSupportCs2Migration,
+
     #[error("This is either not a Text File, or a Text File using an unsupported encoding")]
     DecodingTextUnsupportedEncodingOrNotATextFile,
 

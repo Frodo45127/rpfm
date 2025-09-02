@@ -268,7 +268,8 @@ impl Default for SupportedGames {
             install_type_cache: Arc::new(RwLock::new(HashMap::new())),
             compression_formats_supported: vec![
                 CompressionFormat::Lzma1
-            ]
+            ],
+            max_cs2_parsed_version: 0
         });
 
         // Pharaoh
@@ -464,7 +465,8 @@ impl Default for SupportedGames {
             install_type_cache: Arc::new(RwLock::new(HashMap::new())),
             compression_formats_supported: vec![
                 CompressionFormat::Lzma1
-            ]
+            ],
+            max_cs2_parsed_version: 0
         });
 
         // Warhammer 3
@@ -682,7 +684,8 @@ impl Default for SupportedGames {
                 CompressionFormat::Zstd,
                 CompressionFormat::Lz4,
                 CompressionFormat::Lzma1
-            ]
+            ],
+            max_cs2_parsed_version: 0
         });
 
         // Troy
@@ -878,7 +881,8 @@ impl Default for SupportedGames {
             install_type_cache: Arc::new(RwLock::new(HashMap::new())),
             compression_formats_supported: vec![
                 CompressionFormat::Lzma1
-            ]
+            ],
+            max_cs2_parsed_version: 0
         });
 
         // Three Kingdoms
@@ -1161,7 +1165,8 @@ impl Default for SupportedGames {
             install_type_cache: Arc::new(RwLock::new(HashMap::new())),
             compression_formats_supported: vec![
                 CompressionFormat::Lzma1
-            ]
+            ],
+            max_cs2_parsed_version: 0
         });
 
         // Warhammer 2
@@ -1695,7 +1700,8 @@ impl Default for SupportedGames {
             install_type_cache: Arc::new(RwLock::new(HashMap::new())),
             compression_formats_supported: vec![
                 CompressionFormat::Lzma1
-            ]
+            ],
+            max_cs2_parsed_version: 0
         });
 
         // Warhammer
@@ -1964,7 +1970,8 @@ impl Default for SupportedGames {
                 "warscape_animated/game_expansion_key".to_owned(),
             ],
             install_type_cache: Arc::new(RwLock::new(HashMap::new())),
-            compression_formats_supported: vec![]
+            compression_formats_supported: vec![],
+            max_cs2_parsed_version: 0
         });
 
         // Thrones of Britannia
@@ -2158,7 +2165,8 @@ impl Default for SupportedGames {
                 "warscape_underlay_textures/width".to_owned(),
             ],
             install_type_cache: Arc::new(RwLock::new(HashMap::new())),
-            compression_formats_supported: vec![]
+            compression_formats_supported: vec![],
+            max_cs2_parsed_version: 13
         });
 
         // Attila
@@ -2359,7 +2367,8 @@ impl Default for SupportedGames {
                 "warscape_underlay_textures/width".to_owned(),
             ],
             install_type_cache: Arc::new(RwLock::new(HashMap::new())),
-            compression_formats_supported: vec![]
+            compression_formats_supported: vec![],
+            max_cs2_parsed_version: 13
         });
 
         // Rome 2
@@ -2551,7 +2560,8 @@ impl Default for SupportedGames {
                 "warscape_underlay_textures/width".to_owned(),
             ],
             install_type_cache: Arc::new(RwLock::new(HashMap::new())),
-            compression_formats_supported: vec![]
+            compression_formats_supported: vec![],
+            max_cs2_parsed_version: 11
         });
 
         // Shogun 2
@@ -2725,7 +2735,8 @@ impl Default for SupportedGames {
                 "warscape_underlay_textures/width".to_owned(),
             ],
             install_type_cache: Arc::new(RwLock::new(HashMap::new())),
-            compression_formats_supported: vec![]
+            compression_formats_supported: vec![],
+            max_cs2_parsed_version: 0
         });
 
         // Napoleon
@@ -3053,7 +3064,8 @@ impl Default for SupportedGames {
                 "wind_levels/magnitudeY".to_owned(),
             ],
             install_type_cache: Arc::new(RwLock::new(HashMap::new())),
-            compression_formats_supported: vec![]
+            compression_formats_supported: vec![],
+            max_cs2_parsed_version: 0
         });
 
         // Empire
@@ -3515,7 +3527,8 @@ impl Default for SupportedGames {
                 "wind_levels/magnitudeY".to_owned(),
             ],
             install_type_cache: Arc::new(RwLock::new(HashMap::new())),
-            compression_formats_supported: vec![]
+            compression_formats_supported: vec![],
+            max_cs2_parsed_version: 0
         });
 
         // NOTE: There are things that depend on the order of this list, and this game must ALWAYS be the last one.
@@ -3565,7 +3578,8 @@ impl Default for SupportedGames {
             lua_autogen_folder: None,
             ak_lost_fields: vec![],
             install_type_cache: Arc::new(RwLock::new(HashMap::new())),
-            compression_formats_supported: vec![]
+            compression_formats_supported: vec![],
+            max_cs2_parsed_version: 0
         });
 
         let order_list = vec![
