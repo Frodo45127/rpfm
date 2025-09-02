@@ -1220,7 +1220,8 @@ impl TableView {
             }
         }
 
-        let key_cols = self.table_definition().key_column_positions();
+        let definition = self.table_definition();
+        let key_cols = definition.key_column_positions_by_ca_order();
         let mut keys = vec![];
         for row in rows {
             let mut key = String::new();

@@ -214,7 +214,7 @@ impl OptimizableContainer for Pack {
                     if let Ok(RFileDecoded::DB(dep_table)) = dep_file.decoded() {
                         if let Ok(RFileDecoded::DB(datacore_table)) = datacore.decoded() {
                             let mut datacore_keys: HashSet<String> = HashSet::new();
-                            let key_cols = datacore_table.definition().key_column_positions();
+                            let key_cols = datacore_table.definition().key_column_positions_by_ca_order();
                             datacore_keys.extend(datacore_table.data()
                                 .iter()
                                 .map(|x| key_cols.iter()
@@ -225,7 +225,7 @@ impl OptimizableContainer for Pack {
                             );
 
                             let mut dep_keys = HashSet::new();
-                            let key_cols = dep_table.definition().key_column_positions();
+                            let key_cols = dep_table.definition().key_column_positions_by_ca_order();
                             dep_keys.extend(dep_table.data()
                                 .iter()
                                 .map(|x| key_cols.iter()

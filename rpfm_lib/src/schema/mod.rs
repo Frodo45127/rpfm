@@ -921,6 +921,22 @@ impl Definition {
             .collect::<Vec<_>>()
     }
 
+    /// This function returns the position of all key columns on a table, in the same order as they're in the assembly kit.
+    ///
+    /// This is mainly needed for twad_key_deletes, because for some reason the game uses dave's order, not the binary order for the keys.
+    pub fn key_column_positions_by_ca_order(&self) -> Vec<usize> {
+        let fields_processed = self.fields_processed();
+        let mut keys = fields_processed
+            .iter()
+            .enumerate()
+            .filter(|(_, x)| x.is_key(Some(self.patches())))
+            .map(|(x, _)| x)
+            .collect::<Vec<_>>();
+
+        keys.sort_by_key(|x| fields_processed[*x].ca_order);
+        keys
+    }
+
     /// This function maps a table definition to a `CREATE TABLE` SQL Query.
     ///
     /// NOTE: While this function supports creating a table with foreign keys,
