@@ -1302,7 +1302,9 @@ impl Field {
         self.is_part_of_colour
     }
 
-    pub fn is_numeric(&self, schema_patches: Option<&DefinitionPatch>) -> bool {
+    pub fn is_numeric(&self, _schema_patches: Option<&DefinitionPatch>) -> bool {
+        return false;
+        /*
         if let Some(schema_patches) = schema_patches {
             if let Some(patch) = schema_patches.get(self.name()) {
                 if let Some(is_numeric) = patch.get("is_numeric") {
@@ -1311,7 +1313,7 @@ impl Field {
             }
         }
 
-        false
+        false*/
     }
 
     /// Getter for the `cannot_be_empty` field.

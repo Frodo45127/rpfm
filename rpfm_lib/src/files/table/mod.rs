@@ -832,7 +832,7 @@ fn decode_row_postprocess(row_data: &mut Vec<DecodedData>, split_colours: &mut B
     Ok(())
 }
 
-fn decode_field_postprocess(row_data: &mut Vec<DecodedData>, data: DecodedData, field: &Field, split_colours: &mut BTreeMap<u8, HashMap<String, u8>>, patches: &Option<&DefinitionPatch>, altered_flag: &mut bool) {
+fn decode_field_postprocess(row_data: &mut Vec<DecodedData>, data: DecodedData, field: &Field, split_colours: &mut BTreeMap<u8, HashMap<String, u8>>, _patches: &Option<&DefinitionPatch>, _altered_flag: &mut bool) {
 
     // If the field is a bitwise, split it into multiple fields. This is currently limited to integer types.
     if field.is_bitwise() > 1 {
@@ -893,7 +893,7 @@ fn decode_field_postprocess(row_data: &mut Vec<DecodedData>, data: DecodedData, 
             }
         }
     }
-
+    /*
     // Numeric fields are processed as i32. We need to write them back into their original type here.
     else if field.is_numeric(*patches) {
         let data = match data {
@@ -918,7 +918,7 @@ fn decode_field_postprocess(row_data: &mut Vec<DecodedData>, data: DecodedData, 
         };
 
         row_data.push(DecodedData::I32(data));
-    }
+    }*/
 
     else {
         row_data.push(data);
@@ -1022,7 +1022,7 @@ pub fn encode_table<W: WriteBytes>(entries: &[Vec<DecodedData>], data: &mut W, d
                     _ => return Err(RLibError::EncodingTableWrongFieldType(FieldType::from(&row[data_column]).to_string(), field.field_type().to_string()))
                 }
             }
-
+            /*
             // Numeric fields are processed as i32. We need to write them back into their original type here.
             else if field.is_numeric(*patches) {
                 match &row[data_column] {
@@ -1042,7 +1042,7 @@ pub fn encode_table<W: WriteBytes>(entries: &[Vec<DecodedData>], data: &mut W, d
                     }
                     _ => return Err(RLibError::EncodingTableWrongFieldType(FieldType::from(&row[data_column]).to_string(), field.field_type().to_string())),
                 }
-            }
+            }*/
 
             // If no special behavior has been needed, encode the field as a normal field, except for strings.
             else {
