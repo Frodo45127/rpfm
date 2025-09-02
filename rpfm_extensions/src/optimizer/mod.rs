@@ -238,7 +238,7 @@ impl OptimizableContainer for Pack {
                             let table_name_dec_data = DecodedData::StringU8(datacore_table.table_name_without_tables().to_owned());
                             for key in dep_keys {
                                 if !datacore_keys.contains(&key) {
-                                    generated_rows.push(vec![table_name_dec_data.clone(), DecodedData::StringU8(key.to_owned())]);
+                                    generated_rows.push(vec![DecodedData::StringU8(key.to_owned()), table_name_dec_data.clone()]);
                                 }
                             }
                         }
