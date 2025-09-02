@@ -1322,7 +1322,9 @@ impl PackTree for QPtr<QTreeView> {
 
                     // Otherwise, it's either a file or a folder.
                     else {
+                        let mut item_found = true;
                         for (index, name) in path.split('/').enumerate() {
+                            let mut found = false;
                             let name_q_string = QString::from_std_str(name);
 
                             // If we reached the final element of the path, try to find it on the children of the current parent.
@@ -1336,6 +1338,7 @@ impl PackTree for QPtr<QTreeView> {
                                     // If we found it, we're done.
                                     if child.text().compare_q_string(&name_q_string) == 0 {
                                         item = child;
+                                        found = true;
                                         break;
                                     }
                                 }
@@ -1350,10 +1353,22 @@ impl PackTree for QPtr<QTreeView> {
                                     // If we found one with children, check if it's the one we want. If it is, that's out new good boy.
                                     if child.text().compare_q_string(&name_q_string) == 0 {
                                         item = child;
+                                        found = true;
                                         break;
                                     }
                                 }
                             }
+
+                            // If we haven't found it, this element doesn't exist. Exit to avoid deleting the current element.
+                            if !found {
+                                item_found = false;
+                                break;
+                            }
+                        }
+
+                        // If the item was not found, it means it doesn't exist. This can happen when we create a file in the backend, and delete it before it's created on the ui.
+                        if !item_found {
+                            continue;
                         }
 
                         if remove_empty_parents {
