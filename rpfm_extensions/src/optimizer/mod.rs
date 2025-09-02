@@ -366,6 +366,9 @@ impl OptimizableContainer for Pack {
             None
         }).collect::<Vec<String>>());
 
+        // If a table added is also marked for deletion, don't add it.
+        files_to_add.retain(|x| !files_to_delete.contains(x));
+
         // Delete all the files marked for deletion.
         files_to_delete.iter().for_each(|x| { self.remove(&ContainerPath::File(x.to_owned())); });
 
