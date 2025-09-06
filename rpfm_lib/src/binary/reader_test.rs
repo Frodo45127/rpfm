@@ -14,6 +14,8 @@
 
 use std::io::Cursor;
 
+use nalgebra::{Vector2, Vector4};
+
 use super::ReadBytes;
 
 //---------------------------------------------------------------------------//
@@ -215,6 +217,17 @@ fn read_optional_i64() {
     assert!(ReadBytes::read_optional_i64(&mut Cursor::new([2, 10, 0, 0, 0])).is_err());
 }
 
+/// Test to `ReadBytes::read_f16()`.
+#[test]
+fn read_f16() {
+
+    // Check the reader works for a proper value.
+    assert_eq!(ReadBytes::read_f16(&mut Cursor::new([32, 65])).unwrap(), half::f16::from_f32(2.5625));
+
+    // Check the reader returns an error for a slice whose length is smaller than 2.
+    assert!(ReadBytes::read_f16(&mut Cursor::new([65])).is_err());
+}
+
 /// Test to `ReadBytes::read_f32()`.
 #[test]
 fn read_f32() {
@@ -224,6 +237,14 @@ fn read_f32() {
 
     // Check the reader returns an error for a slice whose length is smaller than 4.
     assert!(ReadBytes::read_f32(&mut Cursor::new([0, 32, 65])).is_err());
+}
+
+/// Test to `ReadBytes::read_f32_normal_from_u8()`.
+#[test]
+fn read_f32_normal_from_u8() {
+
+    // Check the reader works for a proper value.
+    assert_eq!(ReadBytes::read_f32_normal_from_u8(&mut Cursor::new([32])).unwrap(), -0.7490196);
 }
 
 /// Test to `ReadBytes::read_f64()`.
@@ -418,4 +439,115 @@ fn read_string_colour_rgb() {
 
     // Check the reader returns an error for a slice shorter than expected.
     assert!(ReadBytes::read_string_colour_rgb(&mut Cursor::new([0x87, 0x97])).is_err());
+}
+
+/// Test to `ReadBytes::read_vector_2_u8()`.
+#[test]
+fn read_vector_2_u8() {
+
+    // Check the reader works for a properly encoded vector.
+    assert_eq!(ReadBytes::read_vector_2_u8(&mut Cursor::new([0x0A, 0x0A])).unwrap(), Vector2::new(10, 10));
+
+    // Check the reader returns an error for a slice shorter than expected.
+    assert!(ReadBytes::read_vector_2_u8(&mut Cursor::new([0x87])).is_err());
+}
+
+/// Test to `ReadBytes::read_vector_2_f32_pct_from_vector_2_u8()`.
+#[test]
+fn read_vector_2_f32_pct_from_vector_2_u8() {
+
+    // Check the reader works for a properly encoded vector.
+    assert_eq!(ReadBytes::read_vector_2_f32_pct_from_vector_2_u8(&mut Cursor::new([0x0A, 0x0A])).unwrap(), Vector2::new(0.039215688, 0.039215688));
+
+    // Check the reader returns an error for a slice shorter than expected.
+    assert!(ReadBytes::read_vector_2_f32_pct_from_vector_2_u8(&mut Cursor::new([0x87])).is_err());
+}
+
+/// Test to `ReadBytes::read_vector_2_f32_from_vector_2_f16()`.
+#[test]
+fn read_vector_2_f32_from_vector_2_f16() {
+
+    // Check the reader works for a properly encoded vector.
+    assert_eq!(ReadBytes::read_vector_2_f32_from_vector_2_f16(&mut Cursor::new([
+        0x0A, 0x0A,
+        0x0A, 0x0A
+    ])).unwrap(), Vector2::new(0.00018429756, 0.00018429756));
+
+    // Check the reader returns an error for a slice shorter than expected.
+    assert!(ReadBytes::read_vector_2_f32_from_vector_2_f16(&mut Cursor::new([0x87])).is_err());
+}
+
+/// Test to `ReadBytes::read_vector_4_u8()`.
+#[test]
+fn read_vector_4_u8() {
+
+    // Check the reader works for a properly encoded vector.
+    assert_eq!(ReadBytes::read_vector_4_u8(&mut Cursor::new([0x0A, 0x0A, 0x0A, 0x0A])).unwrap(), Vector4::new(10, 10, 10, 10));
+
+    // Check the reader returns an error for a slice shorter than expected.
+    assert!(ReadBytes::read_vector_4_u8(&mut Cursor::new([0x87])).is_err());
+}
+
+/// Test to `ReadBytes::read_vector_4_f32()`.
+#[test]
+fn read_vector_4_f32() {
+
+    // Check the reader works for a properly encoded vector.
+    assert_eq!(ReadBytes::read_vector_4_f32(&mut Cursor::new([
+        0x00, 0x00, 0xFF, 0x3F,
+        0x00, 0x00, 0xFF, 0x3F,
+        0x00, 0x00, 0xFF, 0x3F,
+        0x00, 0x00, 0xFF, 0x3F
+    ])).unwrap(), Vector4::new(1.9921875, 1.9921875, 1.9921875, 1.9921875));
+
+    // Check the reader returns an error for a slice shorter than expected.
+    assert!(ReadBytes::read_vector_4_f32(&mut Cursor::new([0x87])).is_err());
+}
+
+/// Test to `ReadBytes::read_vector_4_f32_normal_from_vector_4_u8()`.
+#[test]
+fn read_vector_4_f32_normal_from_vector_4_u8() {
+
+    // Check the reader works for a properly encoded vector.
+    assert_eq!(ReadBytes::read_vector_4_f32_normal_from_vector_4_u8(&mut Cursor::new([
+        0x0A,
+        0x0A,
+        0x0A,
+        0x0A
+    ])).unwrap(), Vector4::new(-0.92156863, -0.92156863, -0.92156863, -0.92156863));
+
+    // Check the reader returns an error for a slice shorter than expected.
+    assert!(ReadBytes::read_vector_4_f32_normal_from_vector_4_u8(&mut Cursor::new([0x87])).is_err());
+}
+
+/// Test to `ReadBytes::read_vector_4_f32_pct_from_vector_4_u8()`.
+#[test]
+fn read_vector_4_f32_pct_from_vector_4_u8() {
+
+    // Check the reader works for a properly encoded vector.
+    assert_eq!(ReadBytes::read_vector_4_f32_pct_from_vector_4_u8(&mut Cursor::new([
+        0x0A,
+        0x0A,
+        0x0A,
+        0x0A
+    ])).unwrap(), Vector4::new(0.039215688, 0.039215688, 0.039215688, 0.039215688));
+
+    // Check the reader returns an error for a slice shorter than expected.
+    assert!(ReadBytes::read_vector_4_f32_pct_from_vector_4_u8(&mut Cursor::new([0x87])).is_err());
+}
+
+/// Test to `ReadBytes::read_vector_4_f32_normal_from_vector_4_f16()`.
+#[test]
+fn read_vector_4_f32_normal_from_vector_4_f16() {
+
+    // Check the reader works for a properly encoded vector.
+    assert_eq!(ReadBytes::read_vector_4_f32_normal_from_vector_4_f16(&mut Cursor::new([
+        0x0A, 0x3F,
+        0x0A, 0x3F,
+        0x0A, 0x3F,
+        0x0A, 0x3F
+    ])).unwrap(), Vector4::new(3.096775, 3.096775, 3.096775, 1.7597656));
+
+    // Check the reader returns an error for a slice shorter than expected.
+    assert!(ReadBytes::read_vector_4_f32_normal_from_vector_4_f16(&mut Cursor::new([0x87])).is_err());
 }

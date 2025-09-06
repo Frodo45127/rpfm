@@ -12,6 +12,8 @@
 //!
 //! [`WriteBytes`]: crate::binary::WriteBytes
 
+use nalgebra::{Vector2, Vector3, Vector4};
+
 use super::WriteBytes;
 
 //---------------------------------------------------------------------------//
@@ -172,6 +174,16 @@ fn write_optional_i64() {
     assert_eq!(data, vec![1, 254, 254, 255, 255, 255, 255, 255, 255]);
 }
 
+/// Test for WriteBytes::write_f16().
+#[test]
+fn write_f16() {
+
+    // Check the writer works properly.
+    let mut data = vec![];
+    assert!(data.write_f16(half::f16::from_f32(-10.2)).is_ok());
+    assert_eq!(data, vec![26, 201]);
+}
+
 /// Test for WriteBytes::write_f32().
 #[test]
 fn write_f32() {
@@ -180,6 +192,16 @@ fn write_f32() {
     let mut data = vec![];
     assert!(data.write_f32(-10.2).is_ok());
     assert_eq!(data, vec![51, 51, 35, 193]);
+}
+
+/// Test for WriteBytes::write_f32_normal_as_u8().
+#[test]
+fn write_f32_normal_as_u8() {
+
+    // Check the writer works properly.
+    let mut data = vec![];
+    assert!(data.write_f32_normal_as_u8(0.5).is_ok());
+    assert_eq!(data, vec![191]);
 }
 
 /// Test for WriteBytes::write_f64().
@@ -319,3 +341,81 @@ fn write_string_colour_rgb() {
     assert!(data.write_string_colour_rgb("0504FF").is_ok());
     assert_eq!(data, vec![0xFF, 0x04, 0x05, 0x00]);
 }
+
+/// Test for WriteBytes::write_vector_2_u8().
+#[test]
+fn write_vector_2_u8() {
+    let mut data = vec![];
+    assert!(data.write_vector_2_u8(Vector2::new(10, 10)).is_ok());
+    assert_eq!(data, vec![0x0A, 0x0A]);
+}
+
+/// Test for WriteBytes::write_vector_2_f32_pct_as_vector_2_u8().
+#[test]
+fn write_vector_2_f32_pct_as_vector_2_u8() {
+    let mut data = vec![];
+    assert!(data.write_vector_2_f32_pct_as_vector_2_u8(Vector2::new(0.039215688, 0.039215688)).is_ok());
+    assert_eq!(data, vec![0x0A, 0x0A]);
+}
+
+/// Test for WriteBytes::write_vector_2_f32_as_vector_2_f16().
+#[test]
+fn write_vector_2_f32_as_vector_2_f16() {
+    let mut data = vec![];
+    assert!(data.write_vector_2_f32_as_vector_2_f16(Vector2::new(0.00018429756, 0.00018429756)).is_ok());
+    assert_eq!(data, vec![
+        0x0A, 0x0A,
+        0x0A, 0x0A
+    ]);
+}
+
+/// Test for WriteBytes::write_vector_3_f32_normal_as_vector_4_u8().
+#[test]
+fn write_vector_3_f32_normal_as_vector_4_u8() {
+    let mut data = vec![];
+    assert!(data.write_vector_3_f32_normal_as_vector_4_u8(Vector3::new(-0.92156863, -0.92156863, -0.92156863)).is_ok());
+    assert_eq!(data, vec![0x0A, 0x0A, 0x0A, 0x00]);
+}
+
+/// Test for WriteBytes::write_vector_4_u8().
+#[test]
+fn write_vector_4_u8() {
+    let mut data = vec![];
+    assert!(data.write_vector_4_u8(Vector4::new(10, 10, 10, 10)).is_ok());
+    assert_eq!(data, vec![0x0A, 0x0A, 0x0A, 0x0A]);
+}
+
+/// Test for WriteBytes::write_vector_4_f32_pct_as_vector_4_u8().
+#[test]
+fn write_vector_4_f32_pct_as_vector_4_u8() {
+    let mut data = vec![];
+    assert!(data.write_vector_4_f32_pct_as_vector_4_u8(Vector4::new(0.039215688, 0.039215688, 0.039215688, 0.039215688)).is_ok());
+    assert_eq!(data, vec![0x0A, 0x0A, 0x0A, 0x0A]);
+}
+
+/// Test for WriteBytes::write_vector_4_f32_normal_as_vector_4_u8().
+#[test]
+fn write_vector_4_f32_normal_as_vector_4_u8() {
+    let mut data = vec![];
+    assert!(data.write_vector_4_f32_normal_as_vector_4_u8(Vector4::new(-0.92156863, -0.92156863, -0.92156863, -0.92156863)).is_ok());
+    assert_eq!(data, vec![
+        0x0A,
+        0x0A,
+        0x0A,
+        0x0A
+    ]);
+}
+
+/// Test for WriteBytes::write_vector_4_f32_normal_as_vector_4_f16().
+#[test]
+fn write_vector_4_f32_normal_as_vector_4_f16() {
+    let mut data = vec![];
+    assert!(data.write_vector_4_f32_normal_as_vector_4_f16(Vector4::new(3.096775, 3.096775, 3.096775, 1.7597656)).is_ok());
+    assert_eq!(data, vec![
+        0x0A, 0x3F,
+        0x0A, 0x3F,
+        0x0A, 0x3F,
+        0x0A, 0x3F
+    ]);
+}
+

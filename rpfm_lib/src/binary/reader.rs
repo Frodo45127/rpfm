@@ -13,6 +13,7 @@
 use byteorder::{LittleEndian, ReadBytesExt};
 use encoding_rs::{ISO_8859_15, UTF_16LE};
 use itertools::Itertools;
+use nalgebra::{Vector2, Vector4};
 
 use std::io::{Read, Seek, SeekFrom};
 
@@ -441,6 +442,26 @@ pub trait ReadBytes: Read + Seek {
         self.read_i64()
     }
 
+    /// This function tries to read an f16 value from `self`.
+    ///
+    /// It may fail if there are not enough bytes to read the value or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![32, 65];
+    /// let mut cursor = Cursor::new(data);
+    /// let data = cursor.read_f16().unwrap();
+    ///
+    /// assert_eq!(data, half::f16::from_f32(2.5625));
+    /// assert_eq!(cursor.read_f16().is_err(), true);
+    /// ```
+    fn read_f16(&mut self) -> Result<half::f16> {
+        Ok(half::f16::from_bits(self.read_u16()?))
+    }
+
     /// This function tries to read an f32 value from `self`.
     ///
     /// It may fail if there are not enough bytes to read the value or `self` cannot be read.
@@ -459,6 +480,26 @@ pub trait ReadBytes: Read + Seek {
     /// ```
     fn read_f32(&mut self) -> Result<f32> {
         ReadBytesExt::read_f32::<LittleEndian>(self).map_err(From::from)
+    }
+
+    /// This function tries to read an f32 value encoded in a single byte from `self`.
+    ///
+    /// It may fail if there are not enough bytes to read the value or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![32];
+    /// let mut cursor = Cursor::new(data);
+    /// let data = cursor.read_f32_normal_from_u8().unwrap();
+    ///
+    /// assert_eq!(data, -0.7490196);
+    /// assert_eq!(cursor.read_f32_normal_from_u8().is_err(), true);
+    /// ```
+    fn read_f32_normal_from_u8(&mut self) -> Result<f32> {
+        Ok(self.read_u8()? as f32 / 255.0 * 2.0 - 1.0)
     }
 
     /// This function tries to read an f64 value from `self`.
@@ -888,6 +929,230 @@ pub trait ReadBytes: Read + Seek {
         // Padding to 8 zeros so we don't lose the first one, then remove the last two zeros (alpha?).
         // REMEMBER, FORMAT ENCODED IS BBGGRR00.
         Ok(format!("{value:06X?}"))
+    }
+
+    /// This function tries to read a Vector of 2 u8 values from `self`.
+    ///
+    /// It may fail if there are not enough bytes to read the value or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use nalgebra::Vector2;
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![0x0A, 0x0A];
+    /// let mut cursor = Cursor::new(data);
+    /// let data = cursor.read_vector_2_u8().unwrap();
+    ///
+    /// assert_eq!(data, Vector2::new(10, 10));
+    /// assert_eq!(cursor.read_vector_2_u8().is_err(), true);
+    /// ```
+    fn read_vector_2_u8(&mut self) -> Result<Vector2<u8>> {
+        let x = self.read_u8()?;
+        let y = self.read_u8()?;
+
+        Ok(Vector2::new(x, y))
+    }
+
+    /// This function tries to read a Vector of 2 f32 percentage values from `self`.
+    ///
+    /// It may fail if there are not enough bytes to read the value or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use nalgebra::Vector2;
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![0x0A, 0x0A];
+    /// let mut cursor = Cursor::new(data);
+    /// let data = cursor.read_vector_2_f32_pct_from_vector_2_u8().unwrap();
+    ///
+    /// assert_eq!(data, Vector2::new(0.039215688, 0.039215688));
+    /// assert_eq!(cursor.read_vector_2_f32_pct_from_vector_2_u8().is_err(), true);
+    /// ```
+    fn read_vector_2_f32_pct_from_vector_2_u8(&mut self) -> Result<Vector2<f32>> {
+        let x = self.read_u8()? as f32;
+        let y = self.read_u8()? as f32;
+
+        Ok(Vector2::new(x / 255.0, y / 255.0))
+    }
+
+    /// This function tries to read a Vector of 2 f32 values from `self`.
+    ///
+    /// It may fail if there are not enough bytes to read the value or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use nalgebra::Vector2;
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![0x0A, 0x0A, 0x0A, 0x0A];
+    /// let mut cursor = Cursor::new(data);
+    /// let data = cursor.read_vector_2_f32_from_vector_2_f16().unwrap();
+    ///
+    /// assert_eq!(data, Vector2::new(0.00018429756, 0.00018429756));
+    /// assert_eq!(cursor.read_vector_2_f32_from_vector_2_f16().is_err(), true);
+    /// ```
+    fn read_vector_2_f32_from_vector_2_f16(&mut self) -> Result<Vector2<f32>> {
+        let x = self.read_f16()?.to_f32();
+        let y = self.read_f16()?.to_f32();
+
+        Ok(Vector2::new(x, y))
+    }
+
+    /// This function tries to read a Vector of 4 u8 values from `self`.
+    ///
+    /// It may fail if there are not enough bytes to read the value or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use nalgebra::Vector4;
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![0x0A, 0x0A, 0x0A, 0x0A];
+    /// let mut cursor = Cursor::new(data);
+    /// let data = cursor.read_vector_4_u8().unwrap();
+    ///
+    /// assert_eq!(data, Vector4::new(10, 10, 10, 10));
+    /// assert_eq!(cursor.read_vector_4_u8().is_err(), true);
+    /// ```
+    fn read_vector_4_u8(&mut self) -> Result<Vector4<u8>> {
+        let x = self.read_u8()?;
+        let y = self.read_u8()?;
+        let z = self.read_u8()?;
+        let w = self.read_u8()?;
+
+        Ok(Vector4::new(x, y, z, w))
+    }
+
+    /// This function tries to read a Vector of 4 f32 values from `self`.
+    ///
+    /// It may fail if there are not enough bytes to read the value or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use nalgebra::Vector4;
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![
+    ///     0x00, 0x00, 0xFF, 0x3F,
+    ///     0x00, 0x00, 0xFF, 0x3F,
+    ///     0x00, 0x00, 0xFF, 0x3F,
+    ///     0x00, 0x00, 0xFF, 0x3F
+    /// ];
+    /// let mut cursor = Cursor::new(data);
+    /// let data = cursor.read_vector_4_f32().unwrap();
+    ///
+    /// assert_eq!(data, Vector4::new(1.9921875, 1.9921875, 1.9921875, 1.9921875));
+    /// assert_eq!(cursor.read_vector_4_f32().is_err(), true);
+    /// ```
+    fn read_vector_4_f32(&mut self) -> Result<Vector4<f32>> {
+        let x = self.read_f32()?;
+        let y = self.read_f32()?;
+        let z = self.read_f32()?;
+        let w = self.read_f32()?;
+
+        Ok(Vector4::new(x, y, z, w))
+    }
+
+    /// This function tries to read a Vector of 4 f32 normalized values from `self`.
+    ///
+    /// It may fail if there are not enough bytes to read the value or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use nalgebra::Vector4;
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![0x0A, 0x0A, 0x0A, 0x0A];
+    /// let mut cursor = Cursor::new(data);
+    /// let data = cursor.read_vector_4_f32_normal_from_vector_4_u8().unwrap();
+    ///
+    /// assert_eq!(data, Vector4::new(-0.92156863, -0.92156863, -0.92156863, -0.92156863));
+    /// assert_eq!(cursor.read_vector_4_f32_normal_from_vector_4_u8().is_err(), true);
+    /// ```
+    fn read_vector_4_f32_normal_from_vector_4_u8(&mut self) -> Result<Vector4<f32>> {
+        let mut x = self.read_f32_normal_from_u8()?;
+        let mut y = self.read_f32_normal_from_u8()?;
+        let mut z = self.read_f32_normal_from_u8()?;
+        let w = self.read_f32_normal_from_u8()?;
+
+        if w > 0.0 {
+            x *= w;
+            y *= w;
+            z *= w;
+        }
+
+        Ok(Vector4::new(x, y, z, w))
+    }
+
+    /// This function tries to read a Vector of 4 f32 percentage values from `self`.
+    ///
+    /// It may fail if there are not enough bytes to read the value or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use nalgebra::Vector4;
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![0x0A, 0x0A, 0x0A, 0x0A];
+    /// let mut cursor = Cursor::new(data);
+    /// let data = cursor.read_vector_4_f32_pct_from_vector_4_u8().unwrap();
+    ///
+    /// assert_eq!(data, Vector4::new(0.039215688, 0.039215688, 0.039215688, 0.039215688));
+    /// assert_eq!(cursor.read_vector_4_f32_pct_from_vector_4_u8().is_err(), true);
+    /// ```
+    fn read_vector_4_f32_pct_from_vector_4_u8(&mut self) -> Result<Vector4<f32>> {
+        let x = self.read_u8()? as f32;
+        let y = self.read_u8()? as f32;
+        let z = self.read_u8()? as f32;
+        let w = self.read_u8()? as f32;
+
+        Ok(Vector4::new(x / 255.0, y / 255.0, z / 255.0, w / 255.0))
+    }
+
+    /// This function tries to read a Vector of 4 f32 normalized values from `self`.
+    ///
+    /// It may fail if there are not enough bytes to read the value or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use nalgebra::Vector4;
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![
+    ///     0x0A, 0x3F,
+    ///     0x0A, 0x3F,
+    ///     0x0A, 0x3F,
+    ///     0x0A, 0x3F
+    /// ];
+    /// let mut cursor = Cursor::new(data);
+    /// let data = cursor.read_vector_4_f32_normal_from_vector_4_f16().unwrap();
+    ///
+    /// assert_eq!(data, Vector4::new(3.096775, 3.096775, 3.096775, 1.7597656));
+    /// assert_eq!(cursor.read_vector_4_f32_normal_from_vector_4_f16().is_err(), true);
+    /// ```
+    fn read_vector_4_f32_normal_from_vector_4_f16(&mut self) -> Result<Vector4<f32>> {
+        let mut x = self.read_f16()?.to_f32();
+        let mut y = self.read_f16()?.to_f32();
+        let mut z = self.read_f16()?.to_f32();
+        let w = self.read_f16()?.to_f32();
+
+        if w != 0.0 {
+            x *= w;
+            y *= w;
+            z *= w;
+        }
+
+        Ok(Vector4::new(x, y, z, w))
     }
 }
 

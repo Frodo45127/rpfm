@@ -14,6 +14,8 @@
 
 use byteorder::{LittleEndian, WriteBytesExt};
 use encoding_rs::ISO_8859_15;
+use half::f16;
+use nalgebra::{Vector2, Vector3, Vector4};
 
 use std::io::Write;
 
@@ -308,6 +310,23 @@ pub trait WriteBytes: Write {
         Self::write_i64(self, integer)
     }
 
+    /// This function tries to write a f16 value to `self`.
+    ///
+    /// It may fail if `self` cannot be written to.
+    ///
+    /// ```rust
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::WriteBytes;
+    ///
+    /// let mut data = vec![];
+    /// assert!(data.write_f16(half::f16::from_f32(-10.2)).is_ok());
+    /// assert_eq!(data, vec![26, 201]);
+    /// ```
+    fn write_f16(&mut self, float: half::f16) -> Result<()> {
+        self.write_u16(float.to_bits())
+    }
+
     /// This function tries to write a f32 value to `self`.
     ///
     /// It may fail if `self` cannot be written to.
@@ -323,6 +342,24 @@ pub trait WriteBytes: Write {
     /// ```
     fn write_f32(&mut self, float: f32) -> Result<()> {
         WriteBytesExt::write_f32::<LittleEndian>(self, float).map_err(From::from)
+    }
+
+    /// This function tries to write a normal f32 value to `self`.
+    ///
+    /// It may fail if `self` cannot be written to.
+    ///
+    /// ```rust
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::WriteBytes;
+    ///
+    /// let mut data = vec![];
+    /// assert!(data.write_f32_normal_as_u8(0.5).is_ok());
+    /// assert_eq!(data, vec![191]);
+    /// ```
+    fn write_f32_normal_as_u8(&mut self, float: f32) -> Result<()> {
+        let value = ((float + 1.0) / 2.0 * 255.0).round() as u8;
+        self.write_u8(value)
     }
 
     /// This function tries to write a f64 value to `self`.
@@ -576,6 +613,201 @@ pub trait WriteBytes: Write {
     fn write_string_colour_rgb(&mut self, value: &str) -> Result<()> {
         let value = u32::from_str_radix(value, 16)?;
         self.write_u32(value)
+    }
+
+    /// This function tries to write an Vector of 2 u8 to `self`.
+    ///
+    /// It may fail if `self` cannot be written to.
+    ///
+    /// ```rust
+    /// use nalgebra::Vector2;
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::WriteBytes;
+    ///
+    /// let mut data = vec![];
+    /// assert!(data.write_vector_2_u8(Vector2::new(10, 10)).is_ok());
+    /// assert_eq!(data, vec![0x0A, 0x0A]);
+    /// ```
+    fn write_vector_2_u8(&mut self, value: Vector2<u8>) -> Result<()> {
+        self.write_u8(value.x)?;
+        self.write_u8(value.y)?;
+
+        Ok(())
+    }
+
+    /// This function tries to write an Vector of 2 f32 converted to 2 u8 to `self`.
+    ///
+    /// It may fail if `self` cannot be written to.
+    ///
+    /// ```rust
+    /// use nalgebra::Vector2;
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::WriteBytes;
+    ///
+    /// let mut data = vec![];
+    /// assert!(data.write_vector_2_f32_pct_as_vector_2_u8(Vector2::new(0.039215688, 0.039215688)).is_ok());
+    /// assert_eq!(data, vec![0x0A, 0x0A]);
+    /// ```
+    fn write_vector_2_f32_pct_as_vector_2_u8(&mut self, value: Vector2<f32>) -> Result<()> {
+        self.write_u8((value.x * 255.0) as u8)?;
+        self.write_u8((value.y * 255.0) as u8)?;
+
+        Ok(())
+    }
+
+    /// This function tries to write an Vector of 2 f32 converted to 2 f16 to `self`.
+    ///
+    /// It may fail if `self` cannot be written to.
+    ///
+    /// ```rust
+    /// use nalgebra::Vector2;
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::WriteBytes;
+    ///
+    /// let mut data = vec![];
+    /// assert!(data.write_vector_2_f32_as_vector_2_f16(Vector2::new(0.00018429756, 0.00018429756)).is_ok());
+    /// assert_eq!(data, vec![0x0A, 0x0A, 0x0A, 0x0A]);
+    /// ```
+    fn write_vector_2_f32_as_vector_2_f16(&mut self, value: Vector2<f32>) -> Result<()> {
+        self.write_f16(f16::from_f32(value.x))?;
+        self.write_f16(f16::from_f32(value.y))?;
+
+        Ok(())
+    }
+
+    /// This function tries to write an Vector of 3 normalized f32 converted to 4 u8 to `self`.
+    ///
+    /// It may fail if `self` cannot be written to.
+    ///
+    /// ```rust
+    /// use nalgebra::Vector3;
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::WriteBytes;
+    ///
+    /// let mut data = vec![];
+    /// assert!(data.write_vector_3_f32_normal_as_vector_4_u8(Vector3::new(-0.92156863, -0.92156863, -0.92156863)).is_ok());
+    /// assert_eq!(data, vec![0x0A, 0x0A, 0x0A, 0x00]);
+    /// ```
+    fn write_vector_3_f32_normal_as_vector_4_u8(&mut self, value: Vector3<f32>) -> Result<()> {
+        self.write_f32_normal_as_u8(value.x)?;
+        self.write_f32_normal_as_u8(value.y)?;
+        self.write_f32_normal_as_u8(value.z)?;
+        self.write_f32_normal_as_u8(-1.0)?;
+
+        Ok(())
+    }
+
+    /// This function tries to write an Vector of 4 u8 to `self`.
+    ///
+    /// It may fail if `self` cannot be written to.
+    ///
+    /// ```rust
+    /// use nalgebra::Vector4;
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::WriteBytes;
+    ///
+    /// let mut data = vec![];
+    /// assert!(data.write_vector_4_u8(Vector4::new(10, 10, 10, 10)).is_ok());
+    /// assert_eq!(data, vec![0x0A, 0x0A, 0x0A, 0x0A]);
+    /// ```
+    fn write_vector_4_u8(&mut self, value: Vector4<u8>) -> Result<()> {
+        self.write_u8(value.x)?;
+        self.write_u8(value.y)?;
+        self.write_u8(value.z)?;
+        self.write_u8(value.w)?;
+
+        Ok(())
+    }
+
+    /// This function tries to write an Vector of 4 f32 as percentage converted to 4 u8 to `self`.
+    ///
+    /// It may fail if `self` cannot be written to.
+    ///
+    /// ```rust
+    /// use nalgebra::Vector4;
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::WriteBytes;
+    ///
+    /// let mut data = vec![];
+    /// assert!(data.write_vector_4_f32_pct_as_vector_4_u8(Vector4::new(0.039215688, 0.039215688, 0.039215688, 0.039215688)).is_ok());
+    /// assert_eq!(data, vec![0x0A, 0x0A, 0x0A, 0x0A]);
+    /// ```
+    fn write_vector_4_f32_pct_as_vector_4_u8(&mut self, value: Vector4<f32>) -> Result<()> {
+        self.write_u8((value.x * 255.0) as u8)?;
+        self.write_u8((value.y * 255.0) as u8)?;
+        self.write_u8((value.z * 255.0) as u8)?;
+        self.write_u8((value.w * 255.0) as u8)?;
+
+        Ok(())
+    }
+
+
+    /// This function tries to write an Vector of 4 normalized f32 converted to 4 u8 to `self`.
+    ///
+    /// It may fail if `self` cannot be written to.
+    ///
+    /// ```rust
+    /// use nalgebra::Vector4;
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::WriteBytes;
+    ///
+    /// let mut data = vec![];
+    /// assert!(data.write_vector_4_f32_normal_as_vector_4_u8(Vector4::new(-0.92156863, -0.92156863, -0.92156863, -0.92156863)).is_ok());
+    /// assert_eq!(data, vec![0x0A, 0x0A, 0x0A, 0x0A]);
+    /// ```
+    fn write_vector_4_f32_normal_as_vector_4_u8(&mut self, value: Vector4<f32>) -> Result<()> {
+        self.write_f32_normal_as_u8(value.x)?;
+        self.write_f32_normal_as_u8(value.y)?;
+        self.write_f32_normal_as_u8(value.z)?;
+        self.write_f32_normal_as_u8(value.w)?;
+
+        Ok(())
+    }
+
+    /// This function tries to write an Vector of 4 normalized f32 converted to 4 f16 to `self`.
+    ///
+    /// It may fail if `self` cannot be written to.
+    ///
+    /// ```rust
+    /// use nalgebra::Vector4;
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::WriteBytes;
+    ///
+    /// let mut data = vec![];
+    /// assert!(data.write_vector_4_f32_normal_as_vector_4_f16(Vector4::new(3.096775, 3.096775, 3.096775, 1.7597656)).is_ok());
+    /// assert_eq!(data, vec![
+    ///     0x0A, 0x3F,
+    ///     0x0A, 0x3F,
+    ///     0x0A, 0x3F,
+    ///     0x0A, 0x3F
+    /// ]);
+    /// ```
+    fn write_vector_4_f32_normal_as_vector_4_f16(&mut self, value: Vector4<f32>) -> Result<()> {
+        let mut x = value.x;
+        let mut y = value.y;
+        let mut z = value.z;
+        let w = value.w;
+
+        if w != 0.0 {
+            x /= w;
+            y /= w;
+            z /= w;
+        }
+
+        self.write_f16(f16::from_f32(x))?;
+        self.write_f16(f16::from_f32(y))?;
+        self.write_f16(f16::from_f32(z))?;
+        self.write_f16(f16::from_f32(w))?;
+
+        Ok(())
     }
 }
 
