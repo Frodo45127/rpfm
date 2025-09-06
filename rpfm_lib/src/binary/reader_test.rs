@@ -244,7 +244,7 @@ fn read_f32() {
 fn read_f32_normal_from_u8() {
 
     // Check the reader works for a proper value.
-    assert_eq!(ReadBytes::read_f32_normal_from_u8(&mut Cursor::new([32])).unwrap(), -0.7490196);
+    assert_eq!(ReadBytes::read_f32_normal_from_u8(&mut Cursor::new([253])).unwrap(), 0.9843137);
 }
 
 /// Test to `ReadBytes::read_f64()`.

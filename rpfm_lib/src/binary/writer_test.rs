@@ -200,8 +200,8 @@ fn write_f32_normal_as_u8() {
 
     // Check the writer works properly.
     let mut data = vec![];
-    assert!(data.write_f32_normal_as_u8(0.5).is_ok());
-    assert_eq!(data, vec![191]);
+    assert!(data.write_f32_normal_as_u8(0.9843137).is_ok());
+    assert_eq!(data, vec![253]);
 }
 
 /// Test for WriteBytes::write_f64().
@@ -384,6 +384,15 @@ fn write_vector_4_u8() {
     assert!(data.write_vector_4_u8(Vector4::new(10, 10, 10, 10)).is_ok());
     assert_eq!(data, vec![0x0A, 0x0A, 0x0A, 0x0A]);
 }
+
+/// Test for WriteBytes::write_vector_4_f32().
+#[test]
+fn write_vector_4_f32() {
+    let mut data = vec![];
+    assert!(data.write_vector_4_f32(Vector4::new(10.0, 10.0, 10.0, 10.0)).is_ok());
+    assert_eq!(data, vec![0, 0, 32, 65, 0, 0, 32, 65, 0, 0, 32, 65, 0, 0, 32, 65]);
+}
+
 
 /// Test for WriteBytes::write_vector_4_f32_pct_as_vector_4_u8().
 #[test]
