@@ -4,7 +4,7 @@ resolver = "2"
 members = [
     # Libs
     "rpfm_lib",
-    #"rpfm_extensions",
+    "rpfm_extensions",
     #"rpfm_ui_common",
 
     # Executables

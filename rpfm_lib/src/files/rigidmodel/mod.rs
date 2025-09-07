@@ -42,9 +42,9 @@ const PADDED_SIZE_256: usize = 256;
 
 const HEADER_LENGTH: u32 = 140;
 
-mod materials;
+pub mod materials;
 mod versions;
-mod vertices;
+pub mod vertices;
 
 #[cfg(test)] mod test_rigidmodel;
 

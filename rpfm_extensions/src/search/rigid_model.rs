@@ -9,12 +9,11 @@
 //---------------------------------------------------------------------------//
 
 use getset::{Getters, MutGetters};
-use regex::bytes::RegexBuilder;
 use serde_derive::{Deserialize, Serialize};
 
 use rpfm_lib::files::rigidmodel::RigidModel;
 
-use super::{find_in_bytes, MatchingMode, Replaceable, Searchable, replace_match_bytes};
+use super::{MatchingMode, Replaceable, Searchable, replace_match_bytes};
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -51,9 +50,10 @@ pub struct RigidModelMatch {
 impl Searchable for RigidModel {
     type SearchMatches = RigidModelMatches;
 
-    fn search(&self, file_path: &str, pattern: &str, case_sensitive: bool, matching_mode: &MatchingMode) -> RigidModelMatches {
-        let mut matches = RigidModelMatches::new(file_path);
+    fn search(&self, file_path: &str, _pattern: &str, _case_sensitive: bool, _matching_mode: &MatchingMode) -> RigidModelMatches {
+        let matches = RigidModelMatches::new(file_path);
 
+        /*
         match matching_mode {
             MatchingMode::Regex(regex) => {
 
@@ -78,7 +78,7 @@ impl Searchable for RigidModel {
                     }
                 }
             }
-        }
+        }*/
 
         matches
     }
@@ -86,14 +86,14 @@ impl Searchable for RigidModel {
 
 impl Replaceable for RigidModel {
 
-    fn replace(&mut self, _pattern: &str, replace_pattern: &str, _case_sensitive: bool, _matching_mode: &MatchingMode, search_matches: &RigidModelMatches) -> bool {
-        let mut edited = false;
-
+    fn replace(&mut self, _pattern: &str, _replace_pattern: &str, _case_sensitive: bool, _matching_mode: &MatchingMode, _search_matches: &RigidModelMatches) -> bool {
+        let edited = false;
+        /*
         // NOTE: Due to changes in index positions, we need to do this in reverse.
         // Otherwise we may cause one edit to generate invalid indexes for the next matches.
         for search_match in search_matches.matches().iter().rev() {
             edited |= search_match.replace(replace_pattern, self.data_mut());
-        }
+        }*/
 
         edited
     }

@@ -20,6 +20,7 @@
 
 pub mod dependencies;
 pub mod diagnostics;
+pub mod gltf;
 pub mod optimizer;
 pub mod search;
 pub mod translator;

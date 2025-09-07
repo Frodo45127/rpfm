@@ -43,3 +43,11 @@ float_eq = "^1"
 
 # Case-insensitive checks.
 caseless = "^0.2"
+
+# Support for porting back and forward gltf files.
+gltf = { version = "^1", features = ["extras"] }
+gltf-json = "^1"
+#gltf-utils = "^0"
+
+# Serialization of vec -> string values and back.
+base64 = "^0.22"
