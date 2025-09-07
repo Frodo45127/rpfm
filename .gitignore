@@ -78,6 +78,7 @@
 /test_files/test_encode_sound_bank_database_nap
 /test_files/test_encode_sound_bank_database_sho2
 /test_files/test_encode_tile_database.bin
+/test_files/test_encode_rigidmodel_*
 
 # This one is another separate thing, not tracked.
 /autosaves/
@@ -163,3 +164,6 @@ RenderViewLog.txt
 
 # Nuget's exe to fix the renderer repo on build.
 Nuget.exe
+
+# For people using zed.
+/.zed/

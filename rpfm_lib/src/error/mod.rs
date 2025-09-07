@@ -160,6 +160,24 @@ pub enum RLibError {
     #[error("Unsupported version {1} for type {0}.")]
     EncodingFastBinUnsupportedVersion(String, u16),
 
+    #[error("Unsupported signature: {0:#X?}.")]
+    DecodingRigidModelUnsupportedSignature(Vec<u8>),
+
+    #[error("Unknown rigid model version: {0}")]
+    DecodingRigidModelUnsupportedVersion(u32),
+
+    #[error("Unsupported material type: {0}.")]
+    DecodingRigidModelUnsupportedMaterialType(u16),
+
+    #[error("Unsupported texture type: {0}.")]
+    DecodingRigidModelUnknownTextureType(i32),
+
+    #[error("Unsupported vertex format: {0}.")]
+    DecodingRigidModelUnknownVertexFormat(u16),
+
+    #[error("Unsupported vertex format {0} for material {1}.")]
+    DecodingRigidModelUnsupportedVertexFormatForMaterial(u16, u16),
+
     #[error("Error decoding combined colour.")]
     DecodingTableCombinedColour,
 

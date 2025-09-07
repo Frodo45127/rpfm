@@ -23,7 +23,6 @@ integration_git = ["dep:git2"]
 integration_log = ["dep:backtrace", "dep:log", "dep:os_info", "dep:sentry", "dep:simplelog"]
 integration_sqlite = ["dep:rusqlite", "dep:r2d2_sqlite", "dep:r2d2"]
 
-support_rigidmodel = []
 support_uic = []
 
 [dependencies]
@@ -119,4 +118,4 @@ r2d2_sqlite = { version = "^0.26", optional = true }
 r2d2 = { version = "^0.8", optional = true }
 
 # F16 support until it gets into std.
-half = "2.4.1"
+half = "^2"

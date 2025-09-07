@@ -4,12 +4,12 @@ resolver = "2"
 members = [
     # Libs
     "rpfm_lib",
-    "rpfm_extensions",
-    "rpfm_ui_common",
+    #"rpfm_extensions",
+    #"rpfm_ui_common",
 
     # Executables
-    "rpfm_cli",
-    "rpfm_ui",
+    #"rpfm_cli",
+    #"rpfm_ui",
 ]
 
 [workspace.package]
