@@ -29,11 +29,6 @@ fn main() {
         println!("cargo:rustc-link-lib=dylib=QImage_DDS");
     }
 
-    // Rigidmodel lib, only on windows.
-    #[cfg(feature = "support_rigidmodel")] {
-        println!("cargo:rustc-link-lib=dylib=QtRMV2Widget");
-    }
-
     // Model renderer, only on windows.
     #[cfg(feature = "support_model_renderer")] {
 

@@ -49,14 +49,14 @@ use qt_core::QListOfInt;
 use qt_core::QVariant;
 use qt_core::CaseSensitivity;
 
-#[cfg(any(feature = "support_rigidmodel", feature = "enable_tools"))] use cpp_core::CppBox;
+#[cfg(feature = "enable_tools")] use cpp_core::CppBox;
 use cpp_core::Ptr;
 
-#[cfg(any(feature = "support_rigidmodel", feature = "support_model_renderer"))] use anyhow::{anyhow, Result};
+#[cfg(feature = "support_model_renderer")] use anyhow::{anyhow, Result};
 
 #[cfg(feature = "support_model_renderer")] use std::collections::HashMap;
 
-#[cfg(any(feature = "support_rigidmodel", feature = "support_model_renderer"))] use rpfm_lib::integrations::log;
+#[cfg(feature = "support_model_renderer")] use rpfm_lib::integrations::log;
 #[cfg(feature = "support_model_renderer")] use rpfm_lib::files::ContainerPath;
 use rpfm_ui_common::locale::{qtr, tr};
 
@@ -482,62 +482,6 @@ pub fn get_dds_qimage(data: &Ptr<QByteArray>) -> Ptr<QImage> {
 //---------------------------------------------------------------------------//
 // Rigidmodel stuff.
 //---------------------------------------------------------------------------//
-
-// This function allow us to create a complete RigidModel view.
-#[cfg(feature = "support_rigidmodel")]
-extern "C" { fn createRMV2Widget(parent: *mut QWidget) -> *mut QWidget; }
-#[cfg(feature = "support_rigidmodel")]
-pub fn new_rigid_model_view_safe(parent: &Ptr<QWidget>) -> QBox<QWidget> {
-    unsafe { QBox::from_raw(createRMV2Widget(parent.as_mut_raw_ptr())) }
-}
-
-// This function allow us to get the data from a Rigidmodel view.
-#[cfg(feature = "support_rigidmodel")]
-extern "C" { fn getRMV2Data(parent: *mut QWidget, data: *mut QByteArray) -> bool; }
-#[cfg(feature = "support_rigidmodel")]
-pub fn get_rigid_model_from_view_safe(parent: &QBox<QWidget>) -> Result<CppBox<QByteArray>> {
-    unsafe {
-        let data = QByteArray::new();
-        if getRMV2Data(parent.as_mut_raw_ptr(), data.as_mut_raw_ptr()) {
-            Ok(data)
-        } else {
-            let error = get_last_rigid_model_error(&parent.as_ptr())?;
-            log::warn!("Error setting rigid data: {:?}:", error);
-            Err(anyhow!(error))
-        }
-    }
-}
-
-// This function allow us to manually load data into a RigidModel View.
-#[cfg(feature = "support_rigidmodel")]
-extern "C" { fn setRMV2Data(parent: *mut QWidget, data: *const QByteArray) -> bool; }
-#[cfg(feature = "support_rigidmodel")]
-pub fn set_rigid_model_view_safe(parent: &Ptr<QWidget>, data: &Ptr<QByteArray>) -> Result<()> {
-    unsafe {
-        if setRMV2Data(parent.as_mut_raw_ptr(), data.as_raw_ptr()) {
-            Ok(())
-        } else {
-            let error = get_last_rigid_model_error(parent)?;
-            log::warn!("Error setting rigid data: {:?}:", error);
-            Err(anyhow!(error))
-        }
-    }
-}
-
-// This function allow us to get the last error reported by the lib.
-#[cfg(feature = "support_rigidmodel")]
-extern "C" { fn getLastErrorString(parent: *mut QWidget, string: *mut QString) -> bool; }
-#[cfg(feature = "support_rigidmodel")]
-pub fn get_last_rigid_model_error(parent: &Ptr<QWidget>) -> Result<String> {
-    unsafe {
-        let string = QString::new();
-        if getLastErrorString(parent.as_mut_raw_ptr(), string.as_mut_raw_ptr()) {
-            Ok(string.to_std_string())
-        } else {
-            Err(anyhow!("Error parsing a RigidModel file."))
-        }
-    }
-}
 
 #[cfg(feature = "support_model_renderer")]
 extern "C" { fn CreateQRenderingWidget(parent: *mut QWidget, gameIdString: *mut QString, AssetFetchCallBack: extern fn (*mut QListOfQString, *mut QListOfQByteArray), AnimPathsBySkeletonCallBack: extern fn (*mut QString, *mut QListOfQString)) -> *mut QWidget; }

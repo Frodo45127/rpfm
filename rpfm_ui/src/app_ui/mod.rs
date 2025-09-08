@@ -96,7 +96,7 @@ use crate::GAME_SELECTED;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::NEW_FILE_VIEW_CREATED;
 use crate::pack_tree::{BuildData, new_pack_file_tooltip, PackTree, TreeViewOperation};
-use crate::packedfile_views::{anim_fragment_battle::*, animpack::*, anims_table::*, audio::FileAudioView, bmd::FileBMDView, DataSource, decoder::*, dependencies_manager::*, esf::*, external::*, group_formations::*, image::*, matched_combat::*, FileView, packfile::PackFileExtraView, packfile_settings::*, portrait_settings::PortraitSettingsView, SpecialView, table::*, text::*, unit_variant::*, video::*, vmd::*};
+use crate::packedfile_views::{anim_fragment_battle::*, animpack::*, anims_table::*, audio::FileAudioView, bmd::FileBMDView, DataSource, decoder::*, dependencies_manager::*, esf::*, external::*, group_formations::*, image::*, matched_combat::*, FileView, packfile::PackFileExtraView, packfile_settings::*, portrait_settings::PortraitSettingsView, rigidmodel::*, SpecialView, table::*, text::*, unit_variant::*, video::*, vmd::*};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::references_ui::ReferencesUI;
 use crate::SCHEMA;
@@ -111,9 +111,6 @@ use crate::utils::*;
 
 #[cfg(feature = "support_model_renderer")]
 use crate::packedfile_views::{View, ViewType};
-
-#[cfg(any(feature = "support_rigidmodel", feature = "support_model_renderer"))]
-use crate::packedfile_views::rigidmodel::*;
 
 #[cfg(feature = "support_uic")]
 use crate::packedfile_views::uic::*;
@@ -2774,30 +2771,27 @@ impl AppUI {
                         }
 
                         // If the file is a RigidModel PackedFile...
-                        #[cfg(any(feature = "support_rigidmodel", feature = "support_model_renderer"))]
                         Response::RigidModelRFileInfo(data, file_info) => {
-                            if setting_bool("enable_rigidmodel_editor") || cfg!(feature = "support_model_renderer") {
-                                match PackedFileRigidModelView::new_view(&mut tab, &data) {
-                                    Ok(_) => {
+                            match RigidModelView::new_view(&mut tab, &data, app_ui, pack_file_contents_ui) {
+                                Ok(_) => {
 
-                                       // Add the file to the 'Currently open' list and make it visible.
-                                        app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
+                                   // Add the file to the 'Currently open' list and make it visible.
+                                    app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
 
-                                        // Fix the quick notes view.
-                                        let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
-                                        layout.add_widget_5a(tab.notes_widget(), 0, 99, layout.row_count(), 1);
+                                    // Fix the quick notes view.
+                                    let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
+                                    layout.add_widget_5a(tab.notes_widget(), 0, 99, layout.row_count(), 1);
 
-                                        let mut open_list = UI_STATE.set_open_packedfiles();
-                                        open_list.push(tab);
+                                    let mut open_list = UI_STATE.set_open_packedfiles();
+                                    open_list.push(tab);
 
-                                        if data_source == DataSource::PackFile {
-                                            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), data_source);
-                                        }
-                                    },
-                                    Err(error) => {
-                                        app_ui.tab_bar_packed_file.remove_tab(tab_index);
-                                        return show_dialog(&app_ui.main_window, error, false);
+                                    if data_source == DataSource::PackFile {
+                                        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), data_source);
                                     }
+                                },
+                                Err(error) => {
+                                    app_ui.tab_bar_packed_file.remove_tab(tab_index);
+                                    return show_dialog(&app_ui.main_window, error, false);
                                 }
                             }
                         }

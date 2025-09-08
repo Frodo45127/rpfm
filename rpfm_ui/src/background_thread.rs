@@ -3257,7 +3257,6 @@ fn decode_and_send_file(file: &mut RFile, sender: &Sender<Response>) {
         FileType::Font,
         FileType::HlslCompiled,
         FileType::Pack,
-        #[cfg(all(not(feature = "support_rigidmodel"), not(feature = "support_model_renderer")))] FileType::RigidModel,
         FileType::SoundBank,
         FileType::Unknown
     ];
@@ -3292,8 +3291,7 @@ fn decode_and_send_file(file: &mut RFile, sender: &Sender<Response>) {
         Ok(RFileDecoded::MatchedCombat(data)) => CentralCommand::send_back(sender, Response::MatchedCombatRFileInfo(data, From::from(&*file))),
         Ok(RFileDecoded::Pack(_)) => CentralCommand::send_back(sender, Response::Unknown),
         Ok(RFileDecoded::PortraitSettings(data)) => CentralCommand::send_back(sender, Response::PortraitSettingsRFileInfo(data, From::from(&*file))),
-        #[cfg(all(not(feature = "support_rigidmodel"), not(feature = "support_model_renderer")))] Ok(RFileDecoded::RigidModel(_)) => CentralCommand::send_back(sender, Response::Unknown),
-        #[cfg(any(feature = "support_rigidmodel", feature = "support_model_renderer"))]Ok(RFileDecoded::RigidModel(rigid_model)) => CentralCommand::send_back(sender, Response::RigidModelRFileInfo(rigid_model, From::from(&*file))),
+        Ok(RFileDecoded::RigidModel(data)) => CentralCommand::send_back(sender, Response::RigidModelRFileInfo(data, From::from(&*file))),
         Ok(RFileDecoded::SoundBank(_)) => CentralCommand::send_back(sender, Response::Unknown),
         Ok(RFileDecoded::Text(text)) => CentralCommand::send_back(sender, Response::TextRFileInfo(text, From::from(&*file))),
         Ok(RFileDecoded::UIC(uic)) => CentralCommand::send_back(sender, Response::UICRFileInfo(uic, From::from(&*file))),

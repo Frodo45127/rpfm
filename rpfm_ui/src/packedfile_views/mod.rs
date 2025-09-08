@@ -58,14 +58,12 @@ use self::notes::NotesView;
 use self::packfile::PackFileExtraView;
 use self::packfile_settings::PackFileSettingsView;
 use self::portrait_settings::PortraitSettingsView;
+use self::rigidmodel::RigidModelView;
 use self::table::PackedFileTableView;
 use self::text::PackedFileTextView;
 use self::unit_variant::UnitVariantView;
 use self::video::PackedFileVideoView;
 use self::vmd::FileVMDView;
-
-#[cfg(any(feature = "support_rigidmodel", feature = "support_model_renderer"))]
-use self::rigidmodel::PackedFileRigidModelView;
 
 #[cfg(feature = "support_uic")]
 use self::uic::FileUICView;
@@ -86,8 +84,6 @@ pub mod notes;
 pub mod packfile;
 pub mod packfile_settings;
 pub mod portrait_settings;
-
-#[cfg(any(feature = "support_rigidmodel", feature = "support_model_renderer"))]
 pub mod rigidmodel;
 pub mod table;
 pub mod text;
@@ -168,9 +164,7 @@ pub enum View {
     #[allow(dead_code)] PackFile(Arc<PackFileExtraView>),
     PackSettings(Arc<PackFileSettingsView>),
     PortraitSettings(Arc<PortraitSettingsView>),
-
-    #[cfg(any(feature = "support_rigidmodel", feature = "support_model_renderer"))]
-    RigidModel(Arc<PackedFileRigidModelView>),
+    RigidModel(Arc<RigidModelView>),
     Table(Arc<PackedFileTableView>),
     Text(Arc<PackedFileTextView>),
 
@@ -382,16 +376,8 @@ impl FileView {
                                 return Ok(())
                             },
 
-                            // Only save rigids if there's an editor for them.
-                            #[cfg(feature = "support_rigidmodel")] View::RigidModel(view) => {
-                                let data = view.save_view()?;
-                                RFileDecoded::RigidModel(data)
-                            }
-
-                            #[cfg(all(not(feature = "support_rigidmodel"), feature = "support_model_renderer"))] View::RigidModel(_) => {
-                                return Ok(())
-                            }
-
+                            View::PortraitSettings(view) => RFileDecoded::PortraitSettings(view.save_view()),
+                            View::RigidModel(view) => RFileDecoded::RigidModel(view.save_view(app_ui, pack_file_contents_ui)?),
                             View::Table(view) => {
                                 let new_table = get_table_from_view(&view.get_ref_table().table_model_ptr().static_upcast(), &view.get_ref_table().table_definition())?;
                                 match self.file_type {
@@ -414,7 +400,6 @@ impl FileView {
                                     _ => return Err(anyhow!("{}{}", RFILE_SAVED_ERROR, self.path_copy()))
                                 }
                             },
-                            View::PortraitSettings(view) => RFileDecoded::PortraitSettings(view.save_view()),
                             View::Text(view) => {
                                 let mut text = Text::default();
                                 let widget = view.get_mut_editor();
@@ -644,7 +629,6 @@ impl FileView {
                             }
                         },
 
-                        #[cfg(any(feature = "support_rigidmodel", feature = "support_model_renderer"))]
                         Response::RigidModelRFileInfo(rigidmodel, packed_file_info) => {
                             if let View::RigidModel(old_rigidmodel) = view {
                                 old_rigidmodel.reload_view(&rigidmodel)?;

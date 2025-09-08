@@ -1796,3 +1796,11 @@ altered_table_explanation = This table has been altered by RPFM when the Pack wa
 
     NOTE 2: This can also happen by opening a pack with the wrong game selected, causing an incorrect definition to be used for some tables, and therefor causing some fields to be treated as numbers when they shouldn't.
     In this case, DO NOT SAVE THE PACK. Switch the game selected to the one the pack is for, then open the pack again, and the error should go away.
+
+rigid_model_editor_detailed_view_title = Lod Data
+rigid_model_editor_mesh_block_title = Mesh Block Data
+rigid_model_editor_material_data_title = Material Data
+rigid_model_editor_mesh_data_title = Mesh Data
+rigid_model_editor_visibility = Visibility Distance:
+rigid_model_editor_lod_number = Lod Number:
+rigid_model_editor_quality_level = Quality Level:
