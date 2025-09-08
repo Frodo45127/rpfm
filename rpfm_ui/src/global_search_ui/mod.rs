@@ -104,6 +104,12 @@ const PORTRAIT_SETTINGS_ENTRY_INDEX: i32 = 40;
 const PORTRAIT_SETTINGS_BOOL_DATA: i32 = 41;
 const PORTRAIT_SETTINGS_VARIANT_INDEX: i32 = 42;
 
+const RIGID_MODEL_BOOL_DATA: i32 = 40;
+const RIGID_MODEL_MESH_LINDEX: i32 = 41;
+const RIGID_MODEL_MESH_MINDEX: i32 = 42;
+const RIGID_MODEL_ATT_INDEX: i32 = 43;
+const RIGID_MODEL_TEXT_INDEX: i32 = 44;
+
 const UNIT_VARIANT_ENTRY_INDEX: i32 = 40;
 const UNIT_VARIANT_BOOL_DATA: i32 = 41;
 const UNIT_VARIANT_VARIANT_INDEX: i32 = 42;
@@ -767,36 +773,6 @@ impl GlobalSearchUI {
                         }
                     }
 
-                    // In case of tables, we have to get the logical row/column of the match and select it.
-                    ViewType::Internal(View::Table(view)) => {
-                        let parent = gidhora.parent();
-                        let table_view = view.get_ref_table();
-                        let table_view = table_view.table_view_ptr();
-                        let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
-                        let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
-                        let table_selection_model = table_view.selection_model();
-
-                        let row = parent.child_2a(model_index.row(), 2).text().to_std_string().parse::<i32>().unwrap() - 1;
-                        let column = parent.child_2a(model_index.row(), 3).text().to_std_string().parse::<i32>().unwrap();
-
-                        let table_model_index = table_model.index_2a(row, column);
-                        let table_model_index_filtered = table_filter.map_from_source(&table_model_index);
-                        if table_model_index_filtered.is_valid() {
-                            table_view.set_focus_0a();
-                            table_view.set_current_index(table_model_index_filtered.as_ref());
-                            table_view.scroll_to_2a(table_model_index_filtered.as_ref(), ScrollHint::EnsureVisible);
-                            table_selection_model.select_q_model_index_q_flags_selection_flag(table_model_index_filtered.as_ref(), QFlags::from(SelectionFlag::ClearAndSelect));
-                        }
-                    }
-
-                    // If it's a text file, scroll to the row in question.
-                    ViewType::Internal(View::Text(view)) => {
-                        let parent = gidhora.parent();
-                        let row_number = parent.child_2a(model_index.row(), 2).text().to_std_string().parse::<i32>().unwrap() - 1;
-                        let editor = view.get_mut_editor();
-                        scroll_to_row_safe(&editor.as_ptr(), row_number.try_into().unwrap());
-                    }
-
                     // If it's a portrait settings file, open and select the matched value.
                     ViewType::Internal(View::PortraitSettings(view)) => {
                         let parent = gidhora.parent();
@@ -848,6 +824,55 @@ impl GlobalSearchUI {
                                 view.file_mask_3_line_edit().set_focus_0a();
                             }
                         }
+                    }
+
+                    ViewType::Internal(View::RigidModel(view)) => {
+                        let parent = gidhora.parent();
+
+                        let bool_data = parent.child_2a(model_index.row(), 0).data_1a(RIGID_MODEL_BOOL_DATA).to_u_int_0a();
+                        if bool_data == 1 {
+                            // TODO
+                        } else if bool_data > 1 {
+                            let l_index = parent.child_2a(model_index.row(), 0).data_1a(RIGID_MODEL_MESH_LINDEX).to_u_int_0a();
+                            let m_index = parent.child_2a(model_index.row(), 0).data_1a(RIGID_MODEL_MESH_MINDEX).to_u_int_0a();
+
+                            let lod_to_select = view.lod_tree_model().index_2a(l_index as i32, 0);
+                            let mesh_to_select = lod_to_select.child(m_index as i32, 0);
+
+                            view.change_selected_row(Some(mesh_to_select), None, app_ui, pack_file_contents_ui);
+
+                            // TODO: populate this with more types when the ui has them.
+                        }
+                    }
+
+                    // In case of tables, we have to get the logical row/column of the match and select it.
+                    ViewType::Internal(View::Table(view)) => {
+                        let parent = gidhora.parent();
+                        let table_view = view.get_ref_table();
+                        let table_view = table_view.table_view_ptr();
+                        let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
+                        let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
+                        let table_selection_model = table_view.selection_model();
+
+                        let row = parent.child_2a(model_index.row(), 2).text().to_std_string().parse::<i32>().unwrap() - 1;
+                        let column = parent.child_2a(model_index.row(), 3).text().to_std_string().parse::<i32>().unwrap();
+
+                        let table_model_index = table_model.index_2a(row, column);
+                        let table_model_index_filtered = table_filter.map_from_source(&table_model_index);
+                        if table_model_index_filtered.is_valid() {
+                            table_view.set_focus_0a();
+                            table_view.set_current_index(table_model_index_filtered.as_ref());
+                            table_view.scroll_to_2a(table_model_index_filtered.as_ref(), ScrollHint::EnsureVisible);
+                            table_selection_model.select_q_model_index_q_flags_selection_flag(table_model_index_filtered.as_ref(), QFlags::from(SelectionFlag::ClearAndSelect));
+                        }
+                    }
+
+                    // If it's a text file, scroll to the row in question.
+                    ViewType::Internal(View::Text(view)) => {
+                        let parent = gidhora.parent();
+                        let row_number = parent.child_2a(model_index.row(), 2).text().to_std_string().parse::<i32>().unwrap() - 1;
+                        let editor = view.get_mut_editor();
+                        scroll_to_row_safe(&editor.as_ptr(), row_number.try_into().unwrap());
                     }
 
                     // If it's a unit_variant file, open and select the matched value.
@@ -1246,36 +1271,95 @@ impl GlobalSearchUI {
             let file_type_item = atomic_from_cpp_box(file_type_item);
 
             let rows = matches.par_iter()
-                .filter(|match_unk| !match_unk.matches().is_empty())
-                .map(|match_unk| {
-                    let path = match_unk.path();
+                .filter(|match_rm| !match_rm.matches().is_empty())
+                .map(|match_rm| {
+                    let path = match_rm.path();
                     let qlist_daddy = QListOfQStandardItem::new();
                     let file = Self::new_item();
 
                     file.set_text(&QString::from_std_str(path));
                     TREEVIEW_ICONS.set_standard_item_icon(&file, Some(&file_type));
 
-                    for match_row in match_unk.matches() {
-
-                        // Create a new list of StandardItem.
+                    for match_row in match_rm.matches() {
                         let qlist_boi = QListOfQStandardItem::new();
 
                         // Create an empty row.
-                        let pos_formatted = Self::new_item();
-                        let pos = Self::new_item();
-                        let len = Self::new_item();
+                        let text = Self::new_item();
+                        let match_type = Self::new_item();
+                        let start = Self::new_item();
+                        let end = Self::new_item();
 
-                        pos_formatted.set_text(&QString::from_std_str(format!("0x{:0>8X}", *match_row.pos())));
-                        pos.set_data_2a(&QVariant::from_u64(*match_row.pos() as u64), 2);
-                        len.set_data_2a(&QVariant::from_u64(*match_row.len() as u64), 2);
+                        text.set_text(&QString::from_std_str(Self::format_search_match(match_row.text(), *match_row.start(), *match_row.end())));
+
+                        // Store the data needed to pin-point the match in the file in the rigid model.
+                        let bool_data = if *match_row.skeleton_id() {
+                            1
+                        } else if match_row.mesh_value().is_some() {
+                            if *match_row.mesh_name() {
+                                2
+                            } else if *match_row.mesh_mat_name() {
+                                3
+                            } else if *match_row.mesh_textute_directory() {
+                                4
+                            } else if *match_row.mesh_filters() {
+                                5
+                            } else if match_row.mesh_att_point_name().is_some() {
+                                6
+                            } else if match_row.mesh_texture_path().is_some() {
+                                7
+                            } else {
+                                panic!()
+                            }
+                        } else {
+                            panic!()
+                        };
+
+                        text.set_data_2a(&QVariant::from_uint(bool_data), RIGID_MODEL_BOOL_DATA);
+
+                        if bool_data > 1 {
+                            if let Some((l_index, m_index)) = match_row.mesh_value() {
+                                text.set_data_2a(&QVariant::from_uint(*l_index as u32), RIGID_MODEL_MESH_LINDEX);
+                                text.set_data_2a(&QVariant::from_uint(*m_index as u32), RIGID_MODEL_MESH_MINDEX);
+
+                                if let Some(index) = match_row.mesh_att_point_name() {
+                                    text.set_data_2a(&QVariant::from_uint(*index as u32), RIGID_MODEL_ATT_INDEX);
+                                }
+
+                                if let Some(index) = match_row.mesh_texture_path() {
+                                    text.set_data_2a(&QVariant::from_uint(*index as u32), RIGID_MODEL_TEXT_INDEX);
+                                }
+                            }
+                        }
+
+                        let string = match bool_data {
+                            1 => qtr("rigid_model_skeleton_id"),
+                            2 => qtr("rigid_model_mesh_name"),
+                            3 => qtr("rigid_model_mesh_mat_name"),
+                            4 => qtr("rigid_model_texture_directory"),
+                            5 => qtr("rigid_model_filters"),
+                            6 => qtr("rigid_model_att_point_name"),
+                            7 => qtr("rigid_model_text_path"),
+                            _ => QString::new(),
+                        };
+
+                        // Fix for translations ending in :.
+                        let chara = QChar::from_uchar(b':');
+                        if string.ends_with_q_char(&chara) {
+                            string.remove_q_char(&chara);
+                        }
+
+                        match_type.set_text(&string);
+
+                        start.set_data_2a(&QVariant::from_uint(*match_row.start() as u32), 2);
+                        end.set_data_2a(&QVariant::from_uint(*match_row.end() as u32), 2);
 
                         // Add an empty row to the list.
-                        qlist_boi.append_q_standard_item(&pos_formatted.into_ptr().as_mut_raw_ptr());
+                        qlist_boi.append_q_standard_item(&text.into_ptr().as_mut_raw_ptr());
+                        qlist_boi.append_q_standard_item(&match_type.into_ptr().as_mut_raw_ptr());
                         qlist_boi.append_q_standard_item(&Self::new_item().into_ptr().as_mut_raw_ptr());
                         qlist_boi.append_q_standard_item(&Self::new_item().into_ptr().as_mut_raw_ptr());
-                        qlist_boi.append_q_standard_item(&pos.into_ptr().as_mut_raw_ptr());
-                        qlist_boi.append_q_standard_item(&len.into_ptr().as_mut_raw_ptr());
-                        qlist_boi.append_q_standard_item(&Self::new_item().into_ptr().as_mut_raw_ptr());
+                        qlist_boi.append_q_standard_item(&start.into_ptr().as_mut_raw_ptr());
+                        qlist_boi.append_q_standard_item(&end.into_ptr().as_mut_raw_ptr());
 
                         // Append the new row.
                         file.append_row_q_list_of_q_standard_item(qlist_boi.as_ref());
@@ -1924,8 +2008,14 @@ impl GlobalSearchUI {
                             }
                         },
                         FileType::RigidModel => {
-                            let pos = parent.child_2a(item.row(), 3).text().to_std_string().parse().unwrap();
-                            let len = parent.child_2a(item.row(), 4).text().to_std_string().parse().unwrap();
+                            let item = parent.child_2a(item.row(), 0);
+                            let bool_data = item.data_1a(RIGID_MODEL_BOOL_DATA).to_u_int_0a() as usize;
+                            let l_index = item.data_1a(RIGID_MODEL_MESH_LINDEX).to_u_int_0a() as i32;
+                            let m_index = item.data_1a(RIGID_MODEL_MESH_MINDEX).to_u_int_0a() as i32;
+                            let a_index = item.data_1a(RIGID_MODEL_ATT_INDEX).to_u_int_0a() as i32;
+                            let t_index = item.data_1a(RIGID_MODEL_TEXT_INDEX).to_u_int_0a() as i32;
+                            let start = parent.child_2a(item.row(), 4).text().to_std_string().parse::<usize>().unwrap();
+                            let end = parent.child_2a(item.row(), 5).text().to_std_string().parse::<usize>().unwrap();
 
                             let match_file = match rigid_model_matches.iter_mut().find(|x| x.path() == &path) {
                                 Some(match_file) => match_file,
@@ -1936,7 +2026,31 @@ impl GlobalSearchUI {
                                 }
                             };
 
-                            let match_entry = RigidModelMatch::new(pos, len);
+                            let match_entry = RigidModelMatch::new(
+                                bool_data == 1,
+                                if bool_data > 1 {
+                                    Some((l_index, m_index))
+                                } else {
+                                    None
+                                },
+                                bool_data == 2,
+                                bool_data == 3,
+                                bool_data == 4,
+                                bool_data == 5,
+                                if bool_data == 6 {
+                                    Some(a_index)
+                                } else {
+                                    None
+                                },
+                                if bool_data == 7 {
+                                    Some(t_index)
+                                } else {
+                                    None
+                                },
+                                start,
+                                end,
+                                item.text().to_std_string()
+                            );
 
                             if !match_file.matches_mut().contains(&match_entry) {
                                 match_file.matches_mut().push(match_entry);
@@ -2215,15 +2329,46 @@ impl GlobalSearchUI {
                                 rigid_model_matches.remove(position);
                             }
 
-                            let text = RigidModelMatches::new(&path);
-                            rigid_model_matches.push(text);
+                            let matches = RigidModelMatches::new(&path);
+                            rigid_model_matches.push(matches);
                             let match_file = rigid_model_matches.last_mut().unwrap();
 
-                            // For the individual matches, we have to get them from the view, so the filtered out items are not added.
                             for row in 0..item.row_count() {
-                                let pos = item.child_2a(row, 3).text().to_std_string().parse().unwrap();
-                                let len = item.child_2a(row, 4).text().to_std_string().parse().unwrap();
-                                let match_entry = RigidModelMatch::new(pos, len);
+                                let item = item.child_2a(row, 0);
+                                let bool_data = item.data_1a(RIGID_MODEL_BOOL_DATA).to_u_int_0a() as usize;
+                                let l_index = item.data_1a(RIGID_MODEL_MESH_LINDEX).to_u_int_0a() as i32;
+                                let m_index = item.data_1a(RIGID_MODEL_MESH_MINDEX).to_u_int_0a() as i32;
+                                let a_index = item.data_1a(RIGID_MODEL_ATT_INDEX).to_u_int_0a() as i32;
+                                let t_index = item.data_1a(RIGID_MODEL_TEXT_INDEX).to_u_int_0a() as i32;
+                                let start = item.child_2a(row, 4).text().to_std_string().parse::<usize>().unwrap();
+                                let end = item.child_2a(row, 5).text().to_std_string().parse::<usize>().unwrap();
+
+                                let match_entry = RigidModelMatch::new(
+                                    bool_data == 1,
+                                    if bool_data > 1 {
+                                        Some((l_index, m_index))
+                                    } else {
+                                        None
+                                    },
+                                    bool_data == 2,
+                                    bool_data == 3,
+                                    bool_data == 4,
+                                    bool_data == 5,
+                                    if bool_data == 6 {
+                                        Some(a_index)
+                                    } else {
+                                        None
+                                    },
+                                    if bool_data == 7 {
+                                        Some(t_index)
+                                    } else {
+                                        None
+                                    },
+                                    start,
+                                    end,
+                                    item.text().to_std_string()
+                                );
+
                                 match_file.matches_mut().push(match_entry);
                             }
                         }

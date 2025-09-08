@@ -1804,3 +1804,11 @@ rigid_model_editor_mesh_data_title = Mesh Data
 rigid_model_editor_visibility = Visibility Distance:
 rigid_model_editor_lod_number = Lod Number:
 rigid_model_editor_quality_level = Quality Level:
+
+rigid_model_skeleton_id = Skeleton ID
+rigid_model_mesh_name = Mesh Name
+rigid_model_mesh_mat_name = Material Name
+rigid_model_texture_directory = Texture Directory
+rigid_model_filters = Filters
+rigid_model_att_point_name = Attachment Point Name
+rigid_model_text_path = Texture Path

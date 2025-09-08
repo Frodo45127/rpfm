@@ -335,7 +335,7 @@ impl RigidModelView {
         }
     }
 
-    unsafe fn change_selected_row(&self, new_index: Option<CppBox<QModelIndex>>, sibling_mode: Option<bool>, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
+    pub unsafe fn change_selected_row(&self, new_index: Option<CppBox<QModelIndex>>, sibling_mode: Option<bool>, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
         let is_generic_sel_change = new_index.is_some();
         self.detailed_view_groupbox().set_enabled(false);
 
