@@ -49,7 +49,7 @@ use std::sync::{atomic::AtomicPtr, RwLock};
 use rpfm_extensions::dependencies::TableReferences;
 
 use rpfm_lib::binary::WriteBytes;
-use rpfm_lib::files::{ContainerPath, RFileDecoded, table::Table};
+use rpfm_lib::files::{ContainerPath, RFileDecoded, rigidmodel::materials::TextureType, table::Table};
 use rpfm_lib::schema::{Definition, DefinitionPatch, Field, FieldType};
 
 use rpfm_ui_common::locale::{qtr, tr, tre};
@@ -438,6 +438,7 @@ pub unsafe fn load_data(
         TableType::DB(data) => (data.data(), false),
         TableType::Loc(data) => (data.data(), false),
         TableType::NormalTable(data) => (data.data(), false),
+        TableType::RigidTexturesTable(data) => (data.data(), false),
         #[cfg(feature = "enable_tools")] TableType::TranslatorTable(data) => (data.data(), true),
     };
 
@@ -1146,9 +1147,37 @@ pub unsafe fn get_reference_data(file_type: FileType, table_name: &str, definiti
                 _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
             }
         }
+        FileType::RigidModel => Ok(texture_type_strings()),
 
         _ => Ok(HashMap::new())
     }
+}
+
+fn texture_type_strings() -> HashMap<i32, TableReferences> {
+    let mut refs_hashmap = HashMap::new();
+    refs_hashmap.insert(i32::try_from(TextureType::Diffuse).unwrap().to_string(), "DIFFUSE".to_string());
+    refs_hashmap.insert(i32::try_from(TextureType::Normal).unwrap().to_string(), "NORMAL".to_string());
+    refs_hashmap.insert(i32::try_from(TextureType::Mask).unwrap().to_string(), "MASK".to_string());
+    refs_hashmap.insert(i32::try_from(TextureType::AmbientOcclusion).unwrap().to_string(), "AMBIENT_OCCLUSION".to_string());
+    refs_hashmap.insert(i32::try_from(TextureType::TilingDirtUV2).unwrap().to_string(), "TILING_DIRT_UV2".to_string());
+    refs_hashmap.insert(i32::try_from(TextureType::DirtAlphaMask).unwrap().to_string(), "DIRT_ALPHA_MASK".to_string());
+    refs_hashmap.insert(i32::try_from(TextureType::SkinMask).unwrap().to_string(), "SKIN_MASK".to_string());
+    refs_hashmap.insert(i32::try_from(TextureType::Specular).unwrap().to_string(), "SPECULAR".to_string());
+    refs_hashmap.insert(i32::try_from(TextureType::GlossMap).unwrap().to_string(), "GLOSS_MAP".to_string());
+    refs_hashmap.insert(i32::try_from(TextureType::DecalDirtmap).unwrap().to_string(), "DECAL_DIRTMAP".to_string());
+    refs_hashmap.insert(i32::try_from(TextureType::DecalDirtmask).unwrap().to_string(), "DECAL_DIRTMASK".to_string());
+    refs_hashmap.insert(i32::try_from(TextureType::DecalMask).unwrap().to_string(), "DECAL_MASK".to_string());
+    refs_hashmap.insert(i32::try_from(TextureType::DiffuseDamage).unwrap().to_string(), "DIFFUSE_DAMAGE".to_string());
+    refs_hashmap.insert(i32::try_from(TextureType::BaseColor).unwrap().to_string(), "BASE_COLOR".to_string());
+    refs_hashmap.insert(i32::try_from(TextureType::MaterialMap).unwrap().to_string(), "MATERIAL_MAP".to_string());
+
+    let mut refs = TableReferences::default();
+    *refs.data_mut() = refs_hashmap;
+
+    let mut refs_final = HashMap::new();
+    refs_final.insert(0, refs);
+
+    refs_final
 }
 
 /// This function sets up the item delegates for all columns in a table.

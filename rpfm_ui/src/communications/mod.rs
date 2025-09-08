@@ -25,6 +25,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use rpfm_extensions::dependencies::TableReferences;
 use rpfm_extensions::diagnostics::Diagnostics;
+use rpfm_extensions::gltf::Gltf;
 use rpfm_extensions::optimizer::OptimizerOptions;
 use rpfm_extensions::search::{GlobalSearch, MatchHolder};
 #[cfg(feature = "enable_tools")] use rpfm_extensions::translator::PackTranslation;
@@ -527,7 +528,8 @@ pub enum Response {
     #[cfg(feature = "enable_tools")] PackTranslation(PackTranslation),
     VecRFile(Vec<RFile>),
     VecBoolString(Vec<(bool, String)>),
-    CompressionFormat(CompressionFormat)
+    CompressionFormat(CompressionFormat),
+    Gltf(Gltf)
 }
 
 //-------------------------------------------------------------------------------//

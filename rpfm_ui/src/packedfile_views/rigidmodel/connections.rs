@@ -24,4 +24,6 @@ use super::{RigidModelView, slots::RigidModelSlots};
 /// to not pollute the other modules with a ton of connections.
 pub unsafe fn set_connections(ui: &Arc<RigidModelView>, slots: &RigidModelSlots) {
     ui.lod_tree_view().selection_model().selection_changed().connect(slots.load_data_to_detailed_view());
+    ui.version_combobox().current_text_changed().connect(slots.change_version());
+    ui.export_gltf_button().released().connect(slots.export_gltf());
 }

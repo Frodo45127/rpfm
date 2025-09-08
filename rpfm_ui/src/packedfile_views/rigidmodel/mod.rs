@@ -14,13 +14,17 @@
 //! This module loads the rigidmodel editor in a editable view. No 3d modeling here.
 
 use qt_widgets::q_abstract_item_view::{SelectionBehavior, SelectionMode};
-use qt_widgets::QDoubleSpinBox;
+use qt_widgets::{QComboBox, QDoubleSpinBox, QPushButton};
+use qt_widgets::QFileDialog;
 use qt_widgets::QGroupBox;
 use qt_widgets::QLabel;
+use qt_widgets::QLineEdit;
 use qt_widgets::QSpinBox;
 use qt_widgets::QGridLayout;
 use qt_widgets::QSplitter;
+use qt_widgets::QTableView;
 use qt_widgets::QTreeView;
+use qt_widgets::QWidget;
 
 use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;
@@ -36,22 +40,33 @@ use qt_core::QString;
 use qt_core::QVariant;
 
 use cpp_core::CppBox;
+use cpp_core::CppDeletable;
 
 use anyhow::Result;
 use getset::*;
 
+use std::collections::BTreeMap;
 use std::rc::Rc;
+use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
-use rpfm_lib::files::FileType;
-use rpfm_lib::files::rigidmodel::RigidModel;
+use rpfm_lib::files::{FileType, rigidmodel::{*, materials::{Texture, TextureType}}, table::{DecodedData, local::TableInMemory, Table}};
+use rpfm_lib::schema::{Definition, Field, FieldType};
+
+use rpfm_extensions::gltf::{gltf_from_rigid, save_gltf_to_disk};
 
 use rpfm_ui_common::locale::qtr;
 use rpfm_ui_common::utils::{find_widget, load_template};
 #[cfg(feature = "support_model_renderer")] use rpfm_ui_common::settings::setting_bool;
 #[cfg(feature = "support_model_renderer")] use rpfm_ui_common::utils::show_dialog;
 
+use crate::{communications::*, CENTRAL_COMMAND};
+use crate::dependencies_ui::DependenciesUI;
+use crate::diagnostics_ui::DiagnosticsUI;
+use crate::global_search_ui::GlobalSearchUI;
 use crate::packedfile_views::{AppUI, DataSource, FileView, PackFileContentsUI, utils::set_modified, View, ViewType};
+use crate::references_ui::ReferencesUI;
+use crate::views::table::{TableView, TableType, utils::get_table_from_view};
 
 use self::slots::RigidModelSlots;
 
@@ -77,18 +92,27 @@ pub struct RigidModelView {
 
     current_key: Arc<RwLock<Option<CppBox<QModelIndex>>>>,
 
+    rmv_groupbox: QPtr<QGroupBox>,
     detailed_view_groupbox: QPtr<QGroupBox>,
     mesh_block_groupbox: QPtr<QGroupBox>,
-    material_data_groupbox: QPtr<QGroupBox>,
     mesh_data_groupbox: QPtr<QGroupBox>,
+    material_data_groupbox: QPtr<QGroupBox>,
+    texture_list_groupbox: QBox<QWidget>,
 
     lod_tree_view: QPtr<QTreeView>,
     lod_tree_filter: QBox<QSortFilterProxyModel>,
     lod_tree_model: QBox<QStandardItemModel>,
 
+    version_combobox: QPtr<QComboBox>,
+    export_gltf_button: QPtr<QPushButton>,
     visibility_spinbox: QPtr<QDoubleSpinBox>,
     lod_number_spinbox: QPtr<QSpinBox>,
     quality_level_spinbox: QPtr<QSpinBox>,
+    mesh_name_lineedit: QPtr<QLineEdit>,
+    texture_folder_lineedit: QPtr<QLineEdit>,
+    shader_name_lineedit: QPtr<QLineEdit>,
+
+    textures_table: Arc<TableView>,
 
     #[cfg(feature = "support_model_renderer")] renderer: QBox<QWidget>,
     #[cfg(feature = "support_model_renderer")] renderer_enabled: bool,
@@ -107,6 +131,10 @@ impl RigidModelView {
         data: &RigidModel,
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        global_search_ui: &Rc<GlobalSearchUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>,
+        dependencies_ui: &Rc<DependenciesUI>,
+        references_ui: &Rc<ReferencesUI>,
     ) -> Result<()> {
 
         // Load the UI Template.
@@ -119,27 +147,47 @@ impl RigidModelView {
 
         #[cfg(feature = "support_model_renderer")] let mut renderer_enabled = false;
 
-        // TreeView and groupboxes.
         let lod_tree_view: QPtr<QTreeView> = find_widget(&main_widget.static_upcast(), "lod_tree_view")?;
+        let rmv_groupbox: QPtr<QGroupBox> = find_widget(&main_widget.static_upcast(), "rmv_groupbox")?;
         let detailed_view_groupbox: QPtr<QGroupBox> = find_widget(&main_widget.static_upcast(), "detailed_view_groupbox")?;
         let mesh_block_groupbox: QPtr<QGroupBox> = find_widget(&main_widget.static_upcast(), "mesh_block_groupbox")?;
-        let material_data_groupbox: QPtr<QGroupBox> = find_widget(&main_widget.static_upcast(), "material_data_groupbox")?;
         let mesh_data_groupbox: QPtr<QGroupBox> = find_widget(&main_widget.static_upcast(), "mesh_data_groupbox")?;
+        let material_data_groupbox: QPtr<QGroupBox> = find_widget(&main_widget.static_upcast(), "material_data_groupbox")?;
+        let texture_list_groupbox: QPtr<QGroupBox> = find_widget(&main_widget.static_upcast(), "texture_list_groupbox")?;
+        rmv_groupbox.set_title(&qtr("rigid_model_editor_rmv_title"));
         detailed_view_groupbox.set_title(&qtr("rigid_model_editor_detailed_view_title"));
         mesh_block_groupbox.set_title(&qtr("rigid_model_editor_mesh_block_title"));
-        material_data_groupbox.set_title(&qtr("rigid_model_editor_material_data_title"));
         mesh_data_groupbox.set_title(&qtr("rigid_model_editor_mesh_data_title"));
+        material_data_groupbox.set_title(&qtr("rigid_model_editor_material_data_title"));
+        texture_list_groupbox.set_title(&qtr("rigid_model_editor_texture_list_title"));
 
-        // Lod data.
+        let version_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "version_label")?;
         let visibility_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "visibility_label")?;
         let lod_number_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "lod_number_label")?;
         let quality_level_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "quality_level_label")?;
+        let mesh_name_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "mesh_name_label")?;
+        let texture_folder_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "texture_folder_label")?;
+        let shader_name_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "shader_name_label")?;
+        let export_gltf_button: QPtr<QPushButton> = find_widget(&main_widget.static_upcast(), "export_gltf_button")?;
+        let version_combobox: QPtr<QComboBox> = find_widget(&main_widget.static_upcast(), "version_combobox")?;
         let visibility_spinbox: QPtr<QDoubleSpinBox> = find_widget(&main_widget.static_upcast(), "visibility_spinbox")?;
         let lod_number_spinbox: QPtr<QSpinBox> = find_widget(&main_widget.static_upcast(), "lod_number_spinbox")?;
         let quality_level_spinbox: QPtr<QSpinBox> = find_widget(&main_widget.static_upcast(), "quality_level_spinbox")?;
+        let mesh_name_lineedit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "mesh_name_lineedit")?;
+        let texture_folder_lineedit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "texture_folder_lineedit")?;
+        let shader_name_lineedit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "shader_name_lineedit")?;
+        export_gltf_button.set_text(&qtr("rigid_model_editor_export_to_gltf"));
+        version_label.set_text(&qtr("rigid_model_editor_version"));
         visibility_label.set_text(&qtr("rigid_model_editor_visibility"));
         lod_number_label.set_text(&qtr("rigid_model_editor_lod_number"));
         quality_level_label.set_text(&qtr("rigid_model_editor_quality_level"));
+        mesh_name_label.set_text(&qtr("rigid_model_editor_mesh_name"));
+        texture_folder_label.set_text(&qtr("rigid_model_editor_texture_folder"));
+        shader_name_label.set_text(&qtr("rigid_model_editor_shader_name"));
+
+        version_combobox.add_item_q_string(&QString::from_std_str("8"));
+        version_combobox.add_item_q_string(&QString::from_std_str("7"));
+        version_combobox.add_item_q_string(&QString::from_std_str("6"));
 
         // Extra stuff.
         let lod_tree_filter = QSortFilterProxyModel::new_1a(&lod_tree_view);
@@ -153,8 +201,22 @@ impl RigidModelView {
 
         detailed_view_groupbox.set_enabled(false);
         mesh_block_groupbox.set_enabled(false);
-        material_data_groupbox.set_enabled(false);
-        mesh_data_groupbox.set_enabled(false);
+
+        // Textures table.
+        let table_data = TableType::RigidTexturesTable(Self::new_table());
+        let table_view: QPtr<QTableView> = find_widget(&texture_list_groupbox.static_upcast(), "textures_table_view")?;
+        let texture_list_groupbox = table_view.parent_widget();
+        let texture_list_groupbox = texture_list_groupbox.into_q_box();
+        let textures_table = TableView::new_view(&texture_list_groupbox, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile)))?;
+
+        let layout = texture_list_groupbox.layout().static_downcast::<QGridLayout>();
+        layout.replace_widget_2a(table_view.as_ptr(), textures_table.table_view().as_ptr());
+        table_view.delete();
+
+        // The translation list need special configuration.
+        textures_table.table_view().set_selection_mode(SelectionMode::SingleSelection);
+        textures_table.table_view().set_selection_behavior(SelectionBehavior::SelectItems);
+        textures_table.table_view().set_column_width(0, 50);
 
         let view = Arc::new(Self{
             path: file_view.path_raw(),
@@ -163,18 +225,27 @@ impl RigidModelView {
 
             current_key: Arc::new(RwLock::new(None)),
 
+            rmv_groupbox,
             detailed_view_groupbox,
             mesh_block_groupbox,
             material_data_groupbox,
             mesh_data_groupbox,
+            texture_list_groupbox,
 
             lod_tree_view,
             lod_tree_filter,
             lod_tree_model,
 
+            version_combobox,
+            export_gltf_button,
             visibility_spinbox,
             lod_number_spinbox,
             quality_level_spinbox,
+            mesh_name_lineedit,
+            texture_folder_lineedit,
+            shader_name_lineedit,
+
+            textures_table,
 
             #[cfg(feature = "support_model_renderer")] renderer: {
                 if setting_bool("enable_renderer") {
@@ -274,6 +345,10 @@ impl RigidModelView {
 
     /// This function loads the data of a lod into the detailed view.
     pub unsafe fn load_to_detailed_view(&self, index: &CppBox<QModelIndex>) {
+
+        // Sometimes data is not clear automatically, so we do it again here.
+        self.clear_selected_field_data();
+
         let key_item = self.lod_tree_model().item_from_index(index);
         let index_str = key_item.data_1a(DATA_INDEX).to_string().to_std_string();
 
@@ -297,7 +372,23 @@ impl RigidModelView {
         self.quality_level_spinbox.set_value(*lod.quality_level() as i32);
 
         if let Some(mesh) = mesh {
-            //TODO
+            self.mesh_name_lineedit.set_text(&QString::from_std_str(mesh.mesh().name()));
+            self.texture_folder_lineedit.set_text(&QString::from_std_str(mesh.material().texture_directory()));
+            self.shader_name_lineedit.set_text(&QString::from_std_str(mesh.material().filters()));
+
+            let mut new_table = Self::new_table();
+            for texture in mesh.material().textures() {
+                let t_type = *texture.tex_type();
+                let t_path = texture.path();
+
+                new_table.data_mut().push(vec![
+                    DecodedData::I32(i32::try_from(t_type).unwrap()),
+                    DecodedData::StringU8(t_path.to_string()),
+                ]);
+            }
+            self.textures_table.reload_view(TableType::RigidTexturesTable(new_table));
+
+            self.mesh_block_groupbox.set_enabled(true);
         }
 
         // Re-enable this, as it's disabled on changing row.
@@ -327,7 +418,23 @@ impl RigidModelView {
             lod.set_quality_level(self.quality_level_spinbox().value() as u32);
 
             if let Some(mesh_index) = mesh_index {
-                // TODO
+                if let Some(mesh) = lod.mesh_blocks_mut().get_mut(mesh_index) {
+                    mesh.mesh_mut().set_name(self.mesh_name_lineedit.text().to_std_string());
+                    mesh.material_mut().set_texture_directory(self.texture_folder_lineedit.text().to_std_string());
+                    mesh.material_mut().set_filters(self.shader_name_lineedit.text().to_std_string());
+
+                    let new_table = get_table_from_view(&self.textures_table.table_model().static_upcast(), &self.textures_table.table_definition()).unwrap();
+                    let mut new_text = vec![];
+                    for row in new_table.data().iter() {
+                        let mut text = Texture::default();
+                        text.set_tex_type(TextureType::try_from(row[0].data_to_string().parse::<i32>().unwrap()).unwrap());
+                        text.set_path(row[1].data_to_string().to_string());
+
+                        new_text.push(text);
+                    }
+
+                    mesh.material_mut().set_textures(new_text);
+                }
             }
 
             // As we don't use the list itself to store the data, we use this instead of a modified slot to mark the file as modified.
@@ -338,6 +445,7 @@ impl RigidModelView {
     pub unsafe fn change_selected_row(&self, new_index: Option<CppBox<QModelIndex>>, sibling_mode: Option<bool>, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
         let is_generic_sel_change = new_index.is_some();
         self.detailed_view_groupbox().set_enabled(false);
+        self.mesh_block_groupbox().set_enabled(false);
 
         let event_loop = QEventLoop::new_0a();
         event_loop.process_events_0a();
@@ -446,5 +554,42 @@ impl RigidModelView {
         self.visibility_spinbox.clear();
         self.lod_number_spinbox.clear();
         self.quality_level_spinbox.clear();
+        self.mesh_name_lineedit.clear();
+        self.texture_folder_lineedit.clear();
+        self.shader_name_lineedit.clear();
+
+        self.textures_table.table_model().clear();
+    }
+
+    fn new_table() -> TableInMemory {
+        let definition = Definition::new_with_fields(0, &[
+            Field::new("texture_type".to_string(), FieldType::StringU8, true, Some("PLACEHOLDER".to_string()), false, None, None, None, "".to_string(), 0, 0, BTreeMap::new(), None),
+            Field::new("texture_path".to_string(), FieldType::StringU8, true, Some("PLACEHOLDER".to_string()), false, None, None, None, "".to_string(), 0, 0, BTreeMap::new(), None),
+        ], &[], None);
+        let table_data = TableInMemory::new(&definition, None, "texture_list");
+        table_data
+    }
+
+    unsafe fn export_to_gltf(&self) -> Result<()> {
+        let rigid = self.data.read().unwrap().clone();
+        let receiver = CENTRAL_COMMAND.send_background(Command::ExportRigidToGltf(rigid));
+        let response = CentralCommand::recv(&receiver);
+        match response {
+            Response::Gltf(gltf) => {
+
+                let extraction_path =  QFileDialog::get_save_file_name_2a(
+                    self.detailed_view_groupbox(),
+                    &qtr("extract_gltf"),
+                );
+
+                if !extraction_path.is_empty() {
+                    save_gltf_to_disk(&gltf, &PathBuf::from(extraction_path.to_std_string())).map_err(From::from)
+                } else {
+                    Ok(())
+                }
+            },
+            Response::Error(error) => return Err(error),
+            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+        }
     }
 }

@@ -34,6 +34,7 @@ use std::time::{Duration, SystemTime};
 
 use rpfm_extensions::dependencies::{Dependencies, KEY_DELETES_TABLE_NAME};
 use rpfm_extensions::diagnostics::Diagnostics;
+use rpfm_extensions::gltf::gltf_from_rigid;
 use rpfm_extensions::optimizer::OptimizableContainer;
 #[cfg(feature = "enable_tools")] use rpfm_extensions::translator::PackTranslation;
 
@@ -2411,6 +2412,14 @@ pub fn background_loop() {
                 let dependencies = dependencies.read().unwrap();
                 match dependencies.db_data(&table_name, true, true) {
                     Ok(files) => CentralCommand::send_back(&sender, Response::VecRFile(files.iter().map(|x| (**x).clone()).collect::<Vec<_>>())),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                }
+            }
+
+            Command::ExportRigidToGltf(rigid) => {
+                let mut dependencies = dependencies.write().unwrap();
+                match gltf_from_rigid(&rigid, &mut dependencies) {
+                    Ok(gltf) => CentralCommand::send_back(&sender, Response::Gltf(gltf)),
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                 }
             }

@@ -11,9 +11,11 @@
 //!Module with the slots for RigidModelView Views.
 
 use qt_core::QBox;
+use qt_core::SlotNoArgs;
 use qt_core::SlotOfQItemSelectionQItemSelection;
 
 use getset::Getters;
+use qt_core::SlotOfQString;
 
 use std::rc::Rc;
 use std::sync::Arc;
@@ -21,6 +23,7 @@ use std::sync::Arc;
 use rpfm_lib::integrations::log::info;
 
 use rpfm_ui_common::clone;
+use rpfm_ui_common::utils::show_dialog;
 
 use crate::app_ui::AppUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
@@ -36,6 +39,8 @@ use super::RigidModelView;
 #[getset(get = "pub")]
 pub struct RigidModelSlots {
     load_data_to_detailed_view: QBox<SlotOfQItemSelectionQItemSelection>,
+    change_version: QBox<SlotOfQString>,
+    export_gltf: QBox<SlotNoArgs>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -64,8 +69,32 @@ impl RigidModelSlots {
             }
         ));
 
+        let change_version = SlotOfQString::new(&ui.lod_tree_view, clone!(
+            ui => move |new| {
+                info!("Triggering 'change_version' for Rigid Model view.");
+
+                if let Ok(new) = new.to_std_string().parse::<u32>() {
+                    if *ui.data.read().unwrap().version() != new {
+                        ui.data.write().unwrap().set_version(new);
+                    }
+                }
+            }
+        ));
+
+        let export_gltf = SlotNoArgs::new(&ui.lod_tree_view, clone!(
+            ui => move || {
+                info!("Triggering 'export_gltf' for Rigid Model view.");
+
+                if let Err(error) = ui.export_to_gltf() {
+                    show_dialog(ui.detailed_view_groupbox(), error, false);
+                }
+            }
+        ));
+
         RigidModelSlots {
             load_data_to_detailed_view,
+            change_version,
+            export_gltf
         }
     }
 }

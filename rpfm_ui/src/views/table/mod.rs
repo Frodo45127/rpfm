@@ -165,6 +165,9 @@ pub enum TableType {
     /// This one is for random views that just need a table with advanced behavior.
     NormalTable(TableInMemory),
 
+    /// This one is for the texture list in rigids.
+    RigidTexturesTable(TableInMemory),
+
     /// This one is for the translator view.
     #[cfg(feature = "enable_tools")] TranslatorTable(TableInMemory),
 }
@@ -339,6 +342,7 @@ impl TableView {
             TableType::DB(ref table) => (table.definition().clone(), Some(table.table_name()), FileType::DB, false),
             TableType::Loc(ref table) => (table.definition().clone(), None, FileType::Loc, false),
             TableType::NormalTable(ref table) => (table.definition().clone(), None, FileType::Unknown, false),
+            TableType::RigidTexturesTable(ref table) => (table.definition().clone(), None, FileType::RigidModel, false),
             #[cfg(feature = "enable_tools")] TableType::TranslatorTable(ref table) => (table.definition().clone(), None, FileType::Unknown, true),
         };
 
@@ -607,6 +611,8 @@ impl TableView {
 
         // Get the reference data for this table, to speedup reference searching.
         let reference_map = if let TableType::NormalTable(_) = table_data {
+            HashMap::new()
+        } else if let TableType::RigidTexturesTable(_) = table_data {
             HashMap::new()
         } else if let Some(schema) = &*SCHEMA.read().unwrap() {
             if let Some(table_name) = table_name {
@@ -917,6 +923,7 @@ impl TableView {
             TableType::DB(ref table) => table.definition().clone(),
             TableType::Loc(ref table) => table.definition().clone(),
             TableType::NormalTable(ref table) => table.definition().clone(),
+            TableType::RigidTexturesTable(ref table) => table.definition().clone(),
             #[cfg(feature = "enable_tools")] TableType::TranslatorTable(ref table) => table.definition().clone(),
             TableType::DependencyManager(_) => {
                 let mut definition = Definition::new(-1, None);

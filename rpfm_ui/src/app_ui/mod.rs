@@ -2772,7 +2772,7 @@ impl AppUI {
 
                         // If the file is a RigidModel PackedFile...
                         Response::RigidModelRFileInfo(data, file_info) => {
-                            match RigidModelView::new_view(&mut tab, &data, app_ui, pack_file_contents_ui) {
+                            match RigidModelView::new_view(&mut tab, &data, app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui) {
                                 Ok(_) => {
 
                                    // Add the file to the 'Currently open' list and make it visible.

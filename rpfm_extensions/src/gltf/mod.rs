@@ -9,13 +9,19 @@
 //---------------------------------------------------------------------------//
 
 use base64::{Engine, engine::general_purpose::STANDARD};
-use gltf::{Document, Gltf, json};
+pub use gltf::{Document, Gltf, json};
+use gltf_json::image::MimeType;
 use gltf_json::validation::{Checked::Valid, USize64};
 
+use std::fs::File;
+use std::io::{BufWriter, Write};
 use std::mem;
+use std::path::Path;
 
 use rpfm_lib::error::Result;
-use rpfm_lib::files::rigidmodel::{*, vertices::Vertex};
+use rpfm_lib::files::rigidmodel::{*, materials::TextureType, vertices::Vertex};
+
+use crate::dependencies::Dependencies;
 
 #[cfg(test)] mod test;
 
@@ -23,7 +29,7 @@ use rpfm_lib::files::rigidmodel::{*, vertices::Vertex};
 //                              Implementations
 //---------------------------------------------------------------------------//
 
-pub fn gltf_from_rigid(value: &RigidModel) -> Result<Gltf> {
+pub fn gltf_from_rigid(value: &RigidModel, dependencies: &mut Dependencies) -> Result<Gltf> {
     let mut root = gltf_json::Root::default();
 
     // All the data that is total war-exclusive goes here.
@@ -56,7 +62,6 @@ pub fn gltf_from_rigid(value: &RigidModel) -> Result<Gltf> {
             // Encode the vertex and index data to binary.
             let vertex_bin = to_padded_byte_vector(vertices.clone());
             let index_bin = to_padded_byte_vector(indices.clone());
-            //let images_bin = to_padded_byte_vector(mesh_block.material().textures().clone());
 
             // Buffers
             let vertex_buffer_length = vertices.len() * mem::size_of::<Vertex>();
@@ -76,15 +81,6 @@ pub fn gltf_from_rigid(value: &RigidModel) -> Result<Gltf> {
                 name: None,
                 uri: Some(format!("data:application/octet-stream;base64,{}", STANDARD.encode(&index_bin))),
             });
-            /*
-            let images_buffer_length = mesh_block.material().textures().len() * mem::size_of::<Texture>();
-            let images_buffer = root.push(json::Buffer {
-                byte_length: USize64::from(images_buffer_length),
-                extensions: Default::default(),
-                extras: Default::default(),
-                name: None,
-                uri: Some(format!("data:application/octet-stream;base64,{}", STANDARD.encode(&images_bin))),
-            });*/
 
             // Buffer views.
             let vertex_buffer_view = root.push(json::buffer::View {
@@ -108,17 +104,6 @@ pub fn gltf_from_rigid(value: &RigidModel) -> Result<Gltf> {
                 name: None,
                 target: Some(Valid(json::buffer::Target::ElementArrayBuffer)),
             });
-            /*
-            let images_buffer_view = root.push(json::buffer::View {
-                buffer: images_buffer,
-                byte_length: USize64::from(images_buffer_length),
-                byte_offset: None,
-                byte_stride: None,
-                extensions: Default::default(),
-                extras: Default::default(),
-                name: None,
-                target: None,
-            });*/
 
             // Accessors
             let indices = root.push(json::Accessor {
@@ -291,9 +276,8 @@ pub fn gltf_from_rigid(value: &RigidModel) -> Result<Gltf> {
                 sparse: None,
             });
 
-            /*
             // After the mesh, add the material data.
-            let material = root.push(json::Material {
+            let mut material = json::Material {
                 alpha_cutoff: Default::default(),
                 alpha_mode: Default::default(),
                 double_sided: Default::default(),
@@ -305,23 +289,66 @@ pub fn gltf_from_rigid(value: &RigidModel) -> Result<Gltf> {
                 emissive_factor: Default::default(),
                 extensions: Default::default(),
                 extras: Default::default(),
-            });
+            };
+
             // Add the textures used by the material block.
-            for texture in mesh_block.material().textures() {
+            for text in mesh_block.material().textures() {
+                if let Ok(ref mut image) = dependencies.file_mut(text.path(), true, true) {
+                    let image_data = image.encode(&None, false, false, true)?.unwrap();
+                    let images_buffer_length = image_data.len();
 
-                let image = root.push(json::Image {
-                    buffer_view: Some(images_buffer_view),
-                    mime_type: Some(MimeType(String::from("image/dds"))),
-                    name: Default::default(),
-                    uri: Default::default(),
-                    extensions: Default::default(),
-                    extras: Default::default(),
-                });
+                    let images_buffer = root.push(json::Buffer {
+                        byte_length: USize64::from(images_buffer_length),
+                        extensions: Default::default(),
+                        extras: Default::default(),
+                        name: None,
+                        uri: Some(format!("data:application/octet-stream;base64,{}", STANDARD.encode(&image_data))),
+                    });
 
+                    let images_buffer_view = root.push(json::buffer::View {
+                        buffer: images_buffer,
+                        byte_length: USize64::from(images_buffer_length),
+                        byte_offset: None,
+                        byte_stride: None,
+                        extensions: Default::default(),
+                        extras: Default::default(),
+                        name: None,
+                        target: None,
+                    });
 
+                    let image = root.push(json::Image {
+                        buffer_view: Some(images_buffer_view),
+                        mime_type: Some(MimeType(String::from("image/dds"))),
+                        name: Default::default(),
+                        uri: Default::default(),
+                        extensions: Default::default(),
+                        extras: Default::default(),
+                    });
 
+                    let texture = root.push(json::Texture {
+                        name: None,
+                        sampler: None,
+                        source: image,
+                        extensions: None,
+                        extras: None,
+                    });
+
+                    let normal_tex = json::material::NormalTexture {
+                        index: texture,
+                        scale: 1.0,
+                        tex_coord: 0,
+                        extensions: None,
+                        extras: None,
+                    };
+
+                    match text.tex_type() {
+                        TextureType::Normal => material.normal_texture = Some(normal_tex),
+                        _ => {}
+                    }
+                }
             }
-*/
+
+            let material = root.push(material);
 
             // Build the primitive for the mesh.
             let primitive = json::mesh::Primitive {
@@ -340,7 +367,7 @@ pub fn gltf_from_rigid(value: &RigidModel) -> Result<Gltf> {
                 extensions: Default::default(),
                 extras: Default::default(),
                 indices: Some(indices),
-                material: None,
+                material: Some(material),
                 mode: Valid(json::mesh::Mode::Triangles),
                 targets: None,
             };
@@ -348,7 +375,7 @@ pub fn gltf_from_rigid(value: &RigidModel) -> Result<Gltf> {
             let mesh = root.push(json::Mesh {
                 extensions: Default::default(),
                 extras: Default::default(),
-                name: None,
+                name: Some(mesh_block.mesh().name().to_owned()),
                 primitives: vec![primitive],
                 weights: None,
             });
@@ -378,6 +405,15 @@ pub fn rigid_from_gltf(_value: &Gltf) -> Result<RigidModel> {
     let rigid = RigidModel::default();
 
     Ok(rigid)
+}
+
+pub fn save_gltf_to_disk(value: &Gltf, path: &Path) -> Result<()> {
+    let mut writer_gltf = BufWriter::new(File::create(path)?);
+    writer_gltf.write_all(value.as_json().to_string_pretty()?.as_bytes())?;
+    //let mut writer_bin = BufWriter::new(File::create(path).unwrap());
+    //writer_bin.write_all(&value.blob.clone().unwrap()).unwrap();
+    //
+    Ok(())
 }
 
 /// Calculate bounding coordinates of a list of vertices, used for the clipping distance of the model

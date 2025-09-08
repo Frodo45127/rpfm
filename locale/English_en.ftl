@@ -1812,3 +1812,13 @@ rigid_model_texture_directory = Texture Directory
 rigid_model_filters = Filters
 rigid_model_att_point_name = Attachment Point Name
 rigid_model_text_path = Texture Path
+
+rigid_model_editor_version = Version:
+rigid_model_editor_mesh_name = Mesh Name:
+rigid_model_editor_texture_folder = Texture Folder:
+rigid_model_editor_shader_name = Shader Name:
+rigid_model_editor_rmv_title = RigidModel Data
+rigid_model_editor_texture_list_title = Texture List
+
+rigid_model_editor_export_to_gltf = Export to GLTF
+extract_gltf = Export GLTF File
