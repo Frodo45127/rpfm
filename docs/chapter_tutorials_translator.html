@@ -1,5 +1,5 @@
 <!DOCTYPE HTML>
-<html lang="en" class="rust" dir="ltr">
+<html lang="en" class="rust sidebar-visible" dir="ltr">
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
@@ -7,7 +7,7 @@
 
 
         <!-- Custom HTML head -->
-        
+
         <meta name="description" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
@@ -24,26 +24,41 @@
         <link rel="stylesheet" href="fonts/fonts.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" href="highlight.css">
-        <link rel="stylesheet" href="tomorrow-night.css">
-        <link rel="stylesheet" href="ayu-highlight.css">
+        <link rel="stylesheet" id="highlight-css" href="highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
 
-    </head>
-    <body class="sidebar-visible no-js">
-    <div id="body-container">
-        <!-- Provide site root to javascript -->
-        <script>
-            var path_to_root = "";
-            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "rust";
-        </script>
 
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "rust";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="body-container">
         <!-- Work around some values being stored in localStorage wrapped in quotes -->
         <script>
             try {
-                var theme = localStorage.getItem('mdbook-theme');
-                var sidebar = localStorage.getItem('mdbook-sidebar');
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
 
                 if (theme.startsWith('"') && theme.endsWith('"')) {
                     localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
@@ -57,70 +72,51 @@
 
         <!-- Set the theme before any content is loaded, prevents flash -->
         <script>
-            var theme;
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
             try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
             if (theme === null || theme === undefined) { theme = default_theme; }
-            var html = document.querySelector('html');
+            const html = document.documentElement;
             html.classList.remove('rust')
             html.classList.add(theme);
-            var body = document.querySelector('body');
-            body.classList.remove('no-js')
-            body.classList.add('js');
+            html.classList.add("js");
         </script>
 
         <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
 
         <!-- Hide / unhide sidebar before it is displayed -->
         <script>
-            var body = document.querySelector('body');
-            var sidebar = null;
-            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
             if (document.body.clientWidth >= 1080) {
                 try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
                 sidebar = sidebar || 'visible';
             } else {
                 sidebar = 'hidden';
+                sidebar_toggle.checked = false;
             }
-            sidebar_toggle.checked = sidebar === 'visible';
-            body.classList.remove('sidebar-visible');
-            body.classList.add("sidebar-" + sidebar);
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
         </script>
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
-            <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="chapter_1.html"><strong aria-hidden="true">1.</strong> What's RPFM?</a></li><li class="chapter-item expanded "><a href="chapter_2.html"><strong aria-hidden="true">2.</strong> Initial Configuration</a></li><li class="chapter-item expanded "><a href="chapter_3_0.html"><strong aria-hidden="true">3.</strong> Buttons and What They Do</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="chapter_3_1_0.html"><strong aria-hidden="true">3.1.</strong> Menu Bar</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="chapter_3_1_1.html"><strong aria-hidden="true">3.1.1.</strong> PackFile Menu</a></li><li class="chapter-item expanded "><a href="chapter_3_1_2.html"><strong aria-hidden="true">3.1.2.</strong> MyMod Menu</a></li><li class="chapter-item expanded "><a href="chapter_3_1_3.html"><strong aria-hidden="true">3.1.3.</strong> View Menu</a></li><li class="chapter-item expanded "><a href="chapter_3_1_4.html"><strong aria-hidden="true">3.1.4.</strong> Game Selected Menu</a></li><li class="chapter-item expanded "><a href="chapter_3_1_5.html"><strong aria-hidden="true">3.1.5.</strong> Special Stuff Menu</a></li><li class="chapter-item expanded "><a href="chapter_3_1_8.html"><strong aria-hidden="true">3.1.6.</strong> Tools Menu</a></li><li class="chapter-item expanded "><a href="chapter_3_1_6.html"><strong aria-hidden="true">3.1.7.</strong> About Menu</a></li><li class="chapter-item expanded "><a href="chapter_3_1_7.html"><strong aria-hidden="true">3.1.8.</strong> Debug Menu</a></li></ol></li><li class="chapter-item expanded "><a href="chapter_3_2_0.html"><strong aria-hidden="true">3.2.</strong> PackFile TreeView</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="chapter_3_2_1.html"><strong aria-hidden="true">3.2.1.</strong> Dependency Manager</a></li><li class="chapter-item expanded "><a href="chapter_3_2_2.html"><strong aria-hidden="true">3.2.2.</strong> PackFile Settings</a></li><li class="chapter-item expanded "><a href="chapter_3_2_3.html"><strong aria-hidden="true">3.2.3.</strong> Notes</a></li></ol></li><li class="chapter-item expanded "><a href="chapter_3_3_0.html"><strong aria-hidden="true">3.3.</strong> Global Search</a></li><li class="chapter-item expanded "><a href="chapter_3_4_0.html"><strong aria-hidden="true">3.4.</strong> Diagnostics Panel</a></li><li class="chapter-item expanded "><a href="chapter_3_5_0.html"><strong aria-hidden="true">3.5.</strong> Dependencies Panel</a></li><li class="chapter-item expanded "><a href="chapter_3_6_0.html"><strong aria-hidden="true">3.6.</strong> References Panel</a></li><li class="chapter-item expanded "><a href="chapter_3_7.html"><strong aria-hidden="true">3.7.</strong> Quick Notes Panel</a></li></ol></li><li class="chapter-item expanded "><a href="chapter_4_0.html"><strong aria-hidden="true">4.</strong> Editable Files</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="chapter_4_1.html"><strong aria-hidden="true">4.1.</strong> DB Tables</a></li><li class="chapter-item expanded "><a href="chapter_4_2.html"><strong aria-hidden="true">4.2.</strong> Locs</a></li><li class="chapter-item expanded "><a href="chapter_4_3.html"><strong aria-hidden="true">4.3.</strong> Text</a></li><li class="chapter-item expanded "><a href="chapter_4_4.html"><strong aria-hidden="true">4.4.</strong> Images</a></li><li class="chapter-item expanded "><a href="chapter_4_5.html"><strong aria-hidden="true">4.5.</strong> CA_VP8</a></li><li class="chapter-item expanded "><a href="chapter_4_6.html"><strong aria-hidden="true">4.6.</strong> AnimPacks</a></li><li class="chapter-item expanded "><a href="chapter_4_7.html"><strong aria-hidden="true">4.7.</strong> AnimTables</a></li><li class="chapter-item expanded "><a href="chapter_4_8.html"><strong aria-hidden="true">4.8.</strong> AnimFragments</a></li><li class="chapter-item expanded "><a href="chapter_4_9.html"><strong aria-hidden="true">4.9.</strong> MatchedCombat Tables</a></li><li class="chapter-item expanded "><a href="chapter_4_10.html"><strong aria-hidden="true">4.10.</strong> Portrait Settings</a></li><li class="chapter-item expanded "><a href="chapter_4_11.html"><strong aria-hidden="true">4.11.</strong> Audio</a></li><li class="chapter-item expanded "><a href="chapter_4_12.html"><strong aria-hidden="true">4.12.</strong> RigidModels</a></li></ol></li><li class="chapter-item expanded "><a href="chapter_5.html"><strong aria-hidden="true">5.</strong> DB Decoder</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="chapter_5_1.html"><strong aria-hidden="true">5.1.</strong> DB Types</a></li></ol></li><li class="chapter-item expanded "><a href="chapter_appendix.html"><strong aria-hidden="true">6.</strong> Extras</a></li><li class="chapter-item expanded "><a href="chapter_tutorials_intro.html"><strong aria-hidden="true">7.</strong> Tutorials</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="chapter_tutorials_translator.html" class="active"><strong aria-hidden="true">7.1.</strong> How To Translate A Mod</a></li><li class="chapter-item expanded "><a href="chapter_tutorials_optimizer.html"><strong aria-hidden="true">7.2.</strong> How To Optimize Your Mod</a></li><li class="chapter-item expanded "><a href="chapter_tutorials_twad_key_deletes.html"><strong aria-hidden="true">7.3.</strong> Datacores And You</a></li></ol></li><li class="chapter-item expanded "><a href="chapter_comp.html"><strong aria-hidden="true">8.</strong> Compilation Instructions</a></li></ol>
-            </div>
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
             </div>
         </nav>
 
-        <!-- Track and set sidebar scroll position -->
-        <script>
-            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
-            sidebarScrollbox.addEventListener('click', function(e) {
-                if (e.target.tagName === 'A') {
-                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
-                }
-            }, { passive: true });
-            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
-            sessionStorage.removeItem('sidebar-scroll');
-            if (sidebarScrollTop) {
-                // preserve sidebar scroll position when navigating via links within sidebar
-                sidebarScrollbox.scrollTop = sidebarScrollTop;
-            } else {
-                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
-                var activeSection = document.querySelector('#sidebar .active');
-                if (activeSection) {
-                    activeSection.scrollIntoView({ block: 'center' });
-                }
-            }
-        </script>
-
         <div id="page-wrapper" class="page-wrapper">
 
             <div class="page">
-                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar-hover-placeholder"></div>
                 <div id="menu-bar" class="menu-bar sticky">
                     <div class="left-buttons">
                         <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
@@ -130,13 +126,14 @@
                             <i class="fa fa-paint-brush"></i>
                         </button>
                         <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
                         </ul>
-                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
                             <i class="fa fa-search"></i>
                         </button>
                     </div>
@@ -153,7 +150,12 @@
 
                 <div id="search-wrapper" class="hidden">
                     <form id="searchbar-outer" class="searchbar-outer">
-                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                        <div class="search-wrapper">
+                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <i class="fa fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
                     </form>
                     <div id="searchresults-outer" class="searchresults-outer hidden">
                         <div id="searchresults-header" class="searchresults-header"></div>
@@ -198,17 +200,16 @@
 <h3 id="the-new-way"><a class="header" href="#the-new-way">The New Way</a></h3>
 <p>The new way is using RPFM's integrated Translator. It's really simple:</p>
 <ul>
-<li>Open the Pack.</li>
+<li>Open the Pack you want to translate.</li>
 <li>Open the Translator (Tools/Translator).</li>
-<li>Translate the lines left untranslated.</li>
+<li>Translate the lines marked as <em>Need Retranslation</em>.</li>
 <li>Hit Accept.</li>
 <li>Save the Pack.</li>
 </ul>
-<p>Why is this approach the recommended one? Because <strong>the translator does a lot of the heavy work</strong> you usually need to do:</p>
+<p>Why is this approach the recommended one? Because <strong>the translator does a lot of the heavy work</strong> for you, and fixes some problems that have historically plagued translations in Total War games. Specifically:</p>
 <ul>
-<li>It detects lines which are unchanged vs the vanilla english translation, and translates them automatically.</li>
-<li>If multiple lines share the same text, it detects them and applies the same translation to all of them.</li>
-<li>When translating, it provides you with the google translation to use it as a start, speeding up translations as you only need to proofread and fix it.</li>
+<li>It detects lines unchanged from the vanilla english translation, and translates them automatically using their official translation.</li>
+<li>When translating submods, it reuses translations from the parent mods if they exists and autotranslates lines reused from the parent mods using them.</li>
 <li>If you're updating a translation:
 <ul>
 <li>It detects lines which have been removed from the mod and marks them so you don't need to translate them.</li>
@@ -216,8 +217,74 @@
 <li>It detects lines which are new, and promps you to translate them.</li>
 </ul>
 </li>
+<li>Due to the way the translation data is stored, it's easy to share it with a team and collaborate on it.</li>
 </ul>
-<p>Additionally, it allows you to <strong>import translations made in any of the other two ways</strong> into it. And the translator generates translation json files which can be used by launchers to <strong>automatically apply translations on the fly</strong> to mods on your load order, like Runcher does with its "Enable Translations" feature.</p>
+<p>This means, just by using it, you get:</p>
+<ul>
+<li>No more time wasted updating a translation. Just open the updated mod in the translator, hit accept, and done.</li>
+<li>No more lines changed in an update still using their old translation.</li>
+<li>No more lines with the same text using different translations, leading to mismatching terminology.</li>
+</ul>
+<p>Additionally, these translations are used by TWPatcher to provide launch-time translation capabilities, meaning any launcher that uses TWPatcher (like Runcher) can automatically detect your mods, find translations for them, either online at the translation hub, or locally, and auto-apply them on runtime, fixing the dreaded <em>no text when no english</em> bug along the way. This means no more need to have 20 translation packs for your 20 mods!</p>
+<h3 id="how-to-use-the-translator"><a class="header" href="#how-to-use-the-translator">How to use the Translator</a></h3>
+<p><img src="./images/translator.png" alt="Estas usando este software de traduccion de forma incorrecta." /></p>
+<p>First, open the mod in the translator. The list of localisation lines in the mod is on the left, with the following structure:</p>
+<ul>
+<li><strong>Key</strong>: Key of the loc line to translate</li>
+<li><strong>Needs Retrasnlation?</strong>: If checked, the line needs to be translated, either because it's a new line, or because it was previously translated, but the mod changed that line at some point.</li>
+<li><strong>Removed</strong>: If checked, the line is no longer in use in the mod. The translator automatically hides these.</li>
+<li><strong>Original Value</strong>: The text that's in the mod in that line. Usually in english.</li>
+<li><strong>Translated Value</strong>: The translated text for that line.</li>
+</ul>
+<p><img src="./images/translator_right_side.png" alt="Estas usando este software de traduccion de forma incorrecta." /></p>
+<p>Next, the right side, where the configuration of the translator and the translation itself happens. At the top you have some instructions on how to use the tool and the language the translator is translating into, which is chosen based on which language you have the game on. Next is the <strong>Auto-translation behavior</strong> section, where you can configure how the translator acts every time you select/deselect a line from the list to translate:</p>
+<ul>
+<li>When you select a new line:
+<ul>
+<li><strong>Auto-translate with DeepL</strong>: it uses DeepL to automatically translate the line, providing rather high quality translations in general. To use this, you have to make an account in the <a href="https://www.deepl.com/">DeepL Webpage</a>, then generate an API Key, then set that API key in RPFM's settings.</li>
+<li><strong>Auto-translate with ChatGPT</strong>: it uses ChatGPT to automatically translate the line, providing translations ranging from medium quality, to absolute garbage. You can use the context panel to provide context to ChatGPT for the translation. To use it you need to generate a ChatGPT API Key, then set that API Key in RPFM's settings.</li>
+<li><strong>Auto-translate with Google Translate</strong>: it uses Google Translate to automatically translate the line, providing rather mediocre translations, but it's better than nothing.</li>
+<li><strong>Copy Source Value</strong>: just reuse the original english value for that line without translating it.</li>
+<li><strong>Empty Translated Value</strong>: do nothing when selecting a new line. Just provide an empty field to make the translation yourself, or to load a translation to the preview panel and not save it afterwards.</li>
+</ul>
+</li>
+<li>When you save the current line:
+<ul>
+<li><strong>Replicate Edit in Pre-Translated Lines</strong>: the translator by default searches for all the untranslated lines with the exact same original text as the one you're translating and re-uses the same translation for them. Select this if you want it to also do the same for lines already translated.</li>
+<li><strong>Only Edit the Current Line</strong>: fully disable the reusing of translations across lines with the same value.</li>
+</ul>
+</li>
+</ul>
+<p>After that there's a key field, so you can see the full key of whatever you're translating, and then there's the <strong>Original Value</strong> and <strong>Translated Value</strong> sections, which are composed of four panels and a couple of buttons:</p>
+<ul>
+<li>
+<p>Original Value:</p>
+<ul>
+<li>Left Panel: original text with minimal formatting (\n and \t are replaced with their formatted variants).</li>
+<li>Right Panel: original text with full formatting. Here you can see icons, coloured text, links,... more or less how it looks ingame.</li>
+</ul>
+</li>
+<li>
+<p>Translated Value:</p>
+<ul>
+<li>Buttons: button list to change to the previous/next line, or to perform one of the actions that usually happens when selecting a new line, but on demand.</li>
+<li>Left Panel: translated text with minimal formatting (\n and \t are replaced with their formatted variants). <strong>Here is where you can edit the translation</strong>.</li>
+<li>Right Panel: translated text with full formatting. Here you can see icons, coloured text, links,... more or less how it looks ingame.</li>
+</ul>
+</li>
+</ul>
+<p>So, how it works? You select a line, that line it's loaded in the right side of the window, you translate it, then select another line,... and once you're done, hit accept. That's all. When saving the translation, RPFM saves it to two places:</p>
+<ul>
+<li><strong>The Open Pack</strong>: it saves the entire translation into either <code>text/!!!!!!translated_locs.loc</code> or <code>text/localisation.loc</code>, depending on the game, so you can just use that pack translated.</li>
+<li><strong>The Disk</strong>: it also saves the translation data into <code>RPFM_CONFIG_FOLDER/config/translations_local/GAME_KEY/MOD_PACK_NAME/XX.json</code>. This file is what RPFM uses to keep track of what changes in the translation, how to update it when the mod updates,... so don't delete it. And this is also what TWPatcher uses to do the launch-time translation.</li>
+</ul>
+<h3 id="how-to-share-a-translation"><a class="header" href="#how-to-share-a-translation">How to share a translation</a></h3>
+<p>This is simple. Just grab the json file of the translation, and upload it <a href="https://github.com/Frodo45127/total_war_translation_hub">here</a>. Why it's good to share?</p>
+<ul>
+<li>In RPFM, the translator automatically searches for translations for mods in this repo. Meaning if someone translated a mod a year ago and uploaded it here, the Translator will update that translation and reuse it, so <strong>you don't have to retranslate the whole mod again</strong>.</li>
+<li>When launched, TWPatcher automatically pulls this github repo and looks for translations on it to perform the automatic launch-time translation.</li>
+</ul>
+<p>So basically, sharing it makes it future-proof. And allows others to use it withouh having to worry about submods, extra outdated packs, custom upcs... Because live can be easy, and the cost was just me spending some time setting this up.</p>
 <p>So basically, it's like doing it the Simple Way, but faster and with the benefits of the Advanced Way.</p>
 
                     </main>
@@ -266,6 +333,7 @@
         <script src="book.js"></script>
 
         <!-- Custom JS scripts -->
+
 
 
     </div>
