@@ -34,7 +34,7 @@ const MATERIAL_TYPE_CLOTH: u16 = 60;
 const MATERIAL_TYPE_COLLISION: u16 = 61;
 const MATERIAL_TYPE_COLLISION_SHAPE: u16 = 62;
 const MATERIAL_TYPE_TILED_DIRTMAP: u16 = 63;
-const MATERIAL_TYPE_SHIP_AMBIENTMAP: u16 = 64;
+const MATERIAL_TYPE_SHIP_AMBIENTMAP: u16 = 64;      // Possibly wrong.
 const MATERIAL_TYPE_WEIGHTED: u16 = 65;
 const MATERIAL_TYPE_RS_TERRAIN: u16 = 66;
 const MATERIAL_TYPE_PROJECTED_DECAL: u16 = 67;
@@ -86,6 +86,7 @@ const TEXTURE_TYPE_DIFFUSE_DAMAGE: i32 = 17;
 const TEXTURE_TYPE_BASE_COLOR: i32 = 27;
 const TEXTURE_TYPE_MATERIAL_MAP: i32 = 29;
 
+mod alpha_blend;
 mod rs_terrain;
 mod rs_river;
 mod projected_decal_v4;
@@ -238,6 +239,7 @@ impl Material {
             MaterialType::RsRiver => Self::read_rs_river(data)?,
             MaterialType::WeightedTextureBlend => Self::read_weighted_texture_blend(data)?,
             MaterialType::ProjectedDecalV4 => Self::read_projected_decal_v4(data)?,
+            MaterialType::AlphaBlend => Self::read_alpha_blend(data)?,
             _ => {
                 let mut mat = Self::default();
 
@@ -345,6 +347,7 @@ impl Material {
             MaterialType::RsRiver => self.write_rs_river(buffer)?,
             MaterialType::WeightedTextureBlend => self.write_weighted_texture_blend(buffer)?,
             MaterialType::ProjectedDecalV4 => self.write_projected_decal_v4(buffer)?,
+            MaterialType::AlphaBlend => self.write_alpha_blend(buffer)?,
             _ => {
 
                 buffer.write_u16(u16::from(self.vertex_format))?;

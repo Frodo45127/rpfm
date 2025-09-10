@@ -77,8 +77,10 @@ impl RigidModel {
 
                 mesh.material = Material::read(data, mesh.mesh.material_type)?;
 
-                for _ in 0..mesh.mesh.vertices().capacity() {
-                    mesh.mesh.vertices.push(Vertex::read(data, *mesh.material.vertex_format(), *mesh.mesh.material_type())?);
+                if mesh.mesh.material_type != MaterialType::AlphaBlend {
+                    for _ in 0..mesh.mesh.vertices().capacity() {
+                        mesh.mesh.vertices.push(Vertex::read(data, *mesh.material.vertex_format(), *mesh.mesh.material_type())?);
+                    }
                 }
 
                 for _ in 0..mesh.mesh.indices.capacity() {
@@ -125,8 +127,10 @@ impl RigidModel {
                 mesh.material.write(&mut mesh_data, mesh.mesh.material_type)?;
 
                 let offset_start_vertices = mesh_data.len();
-                for vertex in mesh.mesh.vertices() {
-                    vertex.write(&mut mesh_data, *mesh.material.vertex_format(), *mesh.mesh.material_type())?;
+                if mesh.mesh.material_type != MaterialType::AlphaBlend {
+                    for vertex in mesh.mesh.vertices() {
+                        vertex.write(&mut mesh_data, *mesh.material.vertex_format(), *mesh.mesh.material_type())?;
+                    }
                 }
 
                 total_vertices_size += mesh_data.len() - offset_start_vertices;
@@ -145,7 +149,13 @@ impl RigidModel {
                 mesh_header.write_u16(0)?;
                 mesh_header.write_u32(24 + mesh_data.len() as u32)?;
                 mesh_header.write_u32(24 + offset_start_vertices as u32)?;
-                mesh_header.write_u32(mesh.mesh.vertices.len() as u32)?;
+
+                if mesh.mesh.material_type == MaterialType::AlphaBlend {
+                    mesh_header.write_u32(24 as u32)?;
+                } else {
+                    mesh_header.write_u32(mesh.mesh.vertices.len() as u32)?;
+                }
+
                 mesh_header.write_u32(24 + offset_start_indices as u32)?;
                 mesh_header.write_u32(mesh.mesh.indices.len() as u32)?;
 
