@@ -164,10 +164,10 @@ impl Vertex {
                 let weights = data.read_vector_2_f32_pct_from_vector_2_u8()?;
                 v.weights = Vector4::new(weights.x, weights.y, 0.0, 0.0);
 
-                v.normal = swap_xz(&data.read_vector_4_f32_normal_from_vector_4_u8()?);
+                v.normal = data.read_vector_4_f32_normal_from_vector_4_u8()?;
                 v.texture_coordinate = data.read_vector_2_f32_from_vector_2_f16()?;
-                v.tangent = swap_xz(&data.read_vector_4_f32_normal_from_vector_4_u8()?);
-                v.bitangent = swap_xz(&data.read_vector_4_f32_normal_from_vector_4_u8()?);
+                v.tangent = data.read_vector_4_f32_normal_from_vector_4_u8()?;
+                v.bitangent = data.read_vector_4_f32_normal_from_vector_4_u8()?;
                 v.color = data.read_vector_4_f32_normal_from_vector_4_u8()?;
 
                 Ok(v)
@@ -228,10 +228,10 @@ impl Vertex {
                 data.write_vector_4_f32_normal_as_vector_4_f16(self.position)?;
                 data.write_vector_2_u8(Vector2::new(self.bone_indices.x, self.bone_indices.y))?;
                 data.write_vector_2_f32_pct_as_vector_2_u8(Vector2::new(self.weights.x, self.weights.y))?;
-                data.write_vector_4_f32_normal_as_vector_4_u8(swap_xz(&self.normal))?;
+                data.write_vector_4_f32_normal_as_vector_4_u8(self.normal)?;
                 data.write_vector_2_f32_as_vector_2_f16(self.texture_coordinate)?;
-                data.write_vector_4_f32_normal_as_vector_4_u8(swap_xz(&self.tangent))?;
-                data.write_vector_4_f32_normal_as_vector_4_u8(swap_xz(&self.bitangent))?;
+                data.write_vector_4_f32_normal_as_vector_4_u8(self.tangent)?;
+                data.write_vector_4_f32_normal_as_vector_4_u8(self.bitangent)?;
                 data.write_vector_4_f32_normal_as_vector_4_u8(self.color)?;
 
             }

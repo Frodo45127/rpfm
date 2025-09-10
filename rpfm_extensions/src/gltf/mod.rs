@@ -52,12 +52,6 @@ pub fn gltf_from_rigid(value: &RigidModel, dependencies: &mut Dependencies) -> R
 
             // Calculate mins and max for the values of the vertex.
             let (min_pos, max_pos) = bounding_coords_positions(&vertices);
-            let (min_nor, max_nor) = bounding_coords_normals(&vertices);
-            let (min_tan, max_tan) = bounding_coords_tangents(&vertices);
-            let (min_bitan, max_bitan) = bounding_coords_bitangents(&vertices);
-            let (min_col, max_col) = bounding_coords_colours(&vertices);
-            let (min_joi, max_joi) = bounding_coords_joints(&vertices);
-            let (min_wei, max_wei) = bounding_coords_weight(&vertices);
 
             // Encode the vertex and index data to binary.
             let vertex_bin = to_padded_byte_vector(vertices.clone());
@@ -184,8 +178,8 @@ pub fn gltf_from_rigid(value: &RigidModel, dependencies: &mut Dependencies) -> R
                 extensions: Default::default(),
                 extras: Default::default(),
                 type_: Valid(json::accessor::Type::Vec3),
-                min: Some(json::Value::from(Vec::from(min_nor))),
-                max: Some(json::Value::from(Vec::from(max_nor))),
+                min: None,
+                max: None,
                 name: None,
                 normalized: false,
                 sparse: None,
@@ -201,14 +195,15 @@ pub fn gltf_from_rigid(value: &RigidModel, dependencies: &mut Dependencies) -> R
                 extensions: Default::default(),
                 extras: Default::default(),
                 type_: Valid(json::accessor::Type::Vec4),
-                min: Some(json::Value::from(Vec::from(min_tan))),
-                max: Some(json::Value::from(Vec::from(max_tan))),
+                min: None,
+                max: None,
                 name: None,
                 normalized: false,
                 sparse: None,
             });
 
-            let _bitangents = root.push(json::Accessor {
+            // These are calculated by the client from tangents, not specified in the file.
+            /*let _bitangents = root.push(json::Accessor {
                 buffer_view: Some(vertex_buffer_view),
                 byte_offset: Some(USize64(64)),
                 count: USize64::from(vertices.len()),
@@ -223,7 +218,7 @@ pub fn gltf_from_rigid(value: &RigidModel, dependencies: &mut Dependencies) -> R
                 name: None,
                 normalized: false,
                 sparse: None,
-            });
+            });*/
 
             let colors = root.push(json::Accessor {
                 buffer_view: Some(vertex_buffer_view),
@@ -235,8 +230,8 @@ pub fn gltf_from_rigid(value: &RigidModel, dependencies: &mut Dependencies) -> R
                 extensions: Default::default(),
                 extras: Default::default(),
                 type_: Valid(json::accessor::Type::Vec4),
-                min: Some(json::Value::from(Vec::from(min_col))),
-                max: Some(json::Value::from(Vec::from(max_col))),
+                min: None,
+                max: None,
                 name: None,
                 normalized: false,
                 sparse: None,
@@ -252,8 +247,8 @@ pub fn gltf_from_rigid(value: &RigidModel, dependencies: &mut Dependencies) -> R
                 extensions: Default::default(),
                 extras: Default::default(),
                 type_: Valid(json::accessor::Type::Vec4),
-                min: Some(json::Value::from(Vec::from(min_joi))),
-                max: Some(json::Value::from(Vec::from(max_joi))),
+                min: None,
+                max: None,
                 name: None,
                 normalized: false,
                 sparse: None,
@@ -269,8 +264,8 @@ pub fn gltf_from_rigid(value: &RigidModel, dependencies: &mut Dependencies) -> R
                 extensions: Default::default(),
                 extras: Default::default(),
                 type_: Valid(json::accessor::Type::Vec4),
-                min: Some(json::Value::from(Vec::from(min_wei))),
-                max: Some(json::Value::from(Vec::from(max_wei))),
+                min: None,
+                max: None,
                 name: None,
                 normalized: false,
                 sparse: None,
@@ -290,24 +285,24 @@ pub fn gltf_from_rigid(value: &RigidModel, dependencies: &mut Dependencies) -> R
                 extensions: Default::default(),
                 extras: Default::default(),
             };
-
+            /*
             // Add the textures used by the material block.
             for text in mesh_block.material().textures() {
                 if let Ok(ref mut image) = dependencies.file_mut(text.path(), true, true) {
                     let image_data = image.encode(&None, false, false, true)?.unwrap();
-                    let images_buffer_length = image_data.len();
+                    let image_buffer_length = image_data.len();
 
-                    let images_buffer = root.push(json::Buffer {
-                        byte_length: USize64::from(images_buffer_length),
+                    let image_buffer = root.push(json::Buffer {
+                        byte_length: USize64::from(image_buffer_length),
                         extensions: Default::default(),
                         extras: Default::default(),
                         name: None,
                         uri: Some(format!("data:application/octet-stream;base64,{}", STANDARD.encode(&image_data))),
                     });
 
-                    let images_buffer_view = root.push(json::buffer::View {
-                        buffer: images_buffer,
-                        byte_length: USize64::from(images_buffer_length),
+                    let image_buffer_view = root.push(json::buffer::View {
+                        buffer: image_buffer,
+                        byte_length: USize64::from(image_buffer_length),
                         byte_offset: None,
                         byte_stride: None,
                         extensions: Default::default(),
@@ -317,7 +312,7 @@ pub fn gltf_from_rigid(value: &RigidModel, dependencies: &mut Dependencies) -> R
                     });
 
                     let image = root.push(json::Image {
-                        buffer_view: Some(images_buffer_view),
+                        buffer_view: Some(image_buffer_view),
                         mime_type: Some(MimeType(String::from("image/dds"))),
                         name: Default::default(),
                         uri: Default::default(),
@@ -333,20 +328,28 @@ pub fn gltf_from_rigid(value: &RigidModel, dependencies: &mut Dependencies) -> R
                         extras: None,
                     });
 
-                    let normal_tex = json::material::NormalTexture {
-                        index: texture,
-                        scale: 1.0,
-                        tex_coord: 0,
-                        extensions: None,
-                        extras: None,
-                    };
-
                     match text.tex_type() {
-                        TextureType::Normal => material.normal_texture = Some(normal_tex),
+                        TextureType::Diffuse => {
+                            material.pbr_metallic_roughness.base_color_texture = Some(json::texture::Info {
+                                index: texture,
+                                tex_coord: 1,
+                                extensions: None,
+                                extras: Default::default(),
+                            });
+                        },
+                        TextureType::Normal => {
+                            material.normal_texture = Some(json::material::NormalTexture {
+                                index: texture,
+                                scale: 1.0,
+                                tex_coord: 0,
+                                extensions: None,
+                                extras: None,
+                            });
+                        },
                         _ => {}
                     }
                 }
-            }
+            }*/
 
             let material = root.push(material);
 
@@ -359,7 +362,7 @@ pub fn gltf_from_rigid(value: &RigidModel, dependencies: &mut Dependencies) -> R
                     map.insert(Valid(json::mesh::Semantic::Tangents), tangents);
                     map.insert(Valid(json::mesh::Semantic::TexCoords(0)), text_coords_1);
                     map.insert(Valid(json::mesh::Semantic::TexCoords(1)), text_coords_2);
-                    map.insert(Valid(json::mesh::Semantic::Colors(0)), colors);
+                    //map.insert(Valid(json::mesh::Semantic::Colors(0)), colors);
                     map.insert(Valid(json::mesh::Semantic::Joints(0)), joints);
                     map.insert(Valid(json::mesh::Semantic::Weights(0)), weights);
                     map

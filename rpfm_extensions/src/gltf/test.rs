@@ -34,9 +34,9 @@ fn test_encode_rigidmodel_v8_gltf() {
     // Write the gltf to disk for debugging.
     let gltf = gltf_from_rigid(&data, &mut Dependencies::default()).unwrap();
     let mut writer_gltf = BufWriter::new(File::create(path_gltf_1).unwrap());
-    let mut writer_bin = BufWriter::new(File::create(path_gltf_2).unwrap());
+    //let mut writer_bin = BufWriter::new(File::create(path_gltf_2).unwrap());
     writer_gltf.write_all(gltf.as_json().to_string_pretty().unwrap().as_bytes()).unwrap();
-    writer_bin.write_all(&gltf.blob.clone().unwrap()).unwrap();
+    //writer_bin.write_all(&gltf.blob.clone().unwrap()).unwrap();
 
     let mut data_2 = rigid_from_gltf(&gltf).unwrap();
     let mut after = vec![];
