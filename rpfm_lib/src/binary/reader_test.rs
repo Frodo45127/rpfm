@@ -504,6 +504,21 @@ fn read_vector_4_f32() {
     assert!(ReadBytes::read_vector_4_f32(&mut Cursor::new([0x87])).is_err());
 }
 
+/// Test to `ReadBytes::read_vector_4_f32_from_vec_3_f32()`.
+#[test]
+fn read_vector_4_f32_from_vec_3_f32() {
+
+    // Check the reader works for a properly encoded vector.
+    assert_eq!(ReadBytes::read_vector_4_f32_from_vec_3_f32(&mut Cursor::new([
+        0x00, 0x00, 0xFF, 0x3F,
+        0x00, 0x00, 0xFF, 0x3F,
+        0x00, 0x00, 0xFF, 0x3F
+    ])).unwrap(), Vector4::new(1.9921875, 1.9921875, 1.9921875, 0.0));
+
+    // Check the reader returns an error for a slice shorter than expected.
+    assert!(ReadBytes::read_vector_4_f32_from_vec_3_f32(&mut Cursor::new([0x87])).is_err());
+}
+
 /// Test to `ReadBytes::read_vector_4_f32_normal_from_vector_4_u8()`.
 #[test]
 fn read_vector_4_f32_normal_from_vector_4_u8() {

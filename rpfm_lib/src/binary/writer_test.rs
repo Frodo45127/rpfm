@@ -393,6 +393,13 @@ fn write_vector_4_f32() {
     assert_eq!(data, vec![0, 0, 32, 65, 0, 0, 32, 65, 0, 0, 32, 65, 0, 0, 32, 65]);
 }
 
+/// Test for WriteBytes::write_vector_4_f32_to_vector_3_f32().
+#[test]
+fn write_vector_4_f32_to_vector_3_f32() {
+    let mut data = vec![];
+    assert!(data.write_vector_4_f32_to_vector_3_f32(Vector4::new(10.0, 10.0, 10.0, 0.0)).is_ok());
+    assert_eq!(data, vec![0, 0, 32, 65, 0, 0, 32, 65, 0, 0, 32, 65]);
+}
 
 /// Test for WriteBytes::write_vector_4_f32_pct_as_vector_4_u8().
 #[test]

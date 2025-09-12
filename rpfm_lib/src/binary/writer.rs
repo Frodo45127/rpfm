@@ -747,6 +747,28 @@ pub trait WriteBytes: Write {
         Ok(())
     }
 
+    /// This function tries to write an Vector of 4 f32 to a Vector of 3 f32 to `self`.
+    ///
+    /// It may fail if `self` cannot be written to.
+    ///
+    /// ```rust
+    /// use nalgebra::Vector4;
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::WriteBytes;
+    ///
+    /// let mut data = vec![];
+    /// assert!(data.write_vector_4_f32_to_vector_3_f32(Vector4::new(10.0, 10.0, 10.0, 0.0)).is_ok());
+    /// assert_eq!(data, vec![0, 0, 32, 65, 0, 0, 32, 65, 0, 0, 32, 65]);
+    /// ```
+    fn write_vector_4_f32_to_vector_3_f32(&mut self, value: Vector4<f32>) -> Result<()> {
+        self.write_f32(value.x)?;
+        self.write_f32(value.y)?;
+        self.write_f32(value.z)?;
+
+        Ok(())
+    }
+
     /// This function tries to write an Vector of 4 f32 as percentage converted to 4 u8 to `self`.
     ///
     /// It may fail if `self` cannot be written to.

@@ -1060,6 +1060,35 @@ pub trait ReadBytes: Read + Seek {
         Ok(Vector4::new(x, y, z, w))
     }
 
+    /// This function tries to read a Vector of 4 f32 values from a Vector of 3 f32 values from`self`.
+    ///
+    /// It may fail if there are not enough bytes to read the value or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use nalgebra::Vector4;
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![
+    ///     0x00, 0x00, 0xFF, 0x3F,
+    ///     0x00, 0x00, 0xFF, 0x3F,
+    ///     0x00, 0x00, 0xFF, 0x3F
+    /// ];
+    /// let mut cursor = Cursor::new(data);
+    /// let data = cursor.read_vector_4_f32_from_vec_3_f32().unwrap();
+    ///
+    /// assert_eq!(data, Vector4::new(1.9921875, 1.9921875, 1.9921875, 0.0));
+    /// assert_eq!(cursor.read_vector_4_f32_from_vec_3_f32().is_err(), true);
+    /// ```
+    fn read_vector_4_f32_from_vec_3_f32(&mut self) -> Result<Vector4<f32>> {
+        let x = self.read_f32()?;
+        let y = self.read_f32()?;
+        let z = self.read_f32()?;
+
+        Ok(Vector4::new(x, y, z, 0.0))
+    }
+
     /// This function tries to read a Vector of 4 f32 normalized values from `self`.
     ///
     /// It may fail if there are not enough bytes to read the value or `self` cannot be read.
