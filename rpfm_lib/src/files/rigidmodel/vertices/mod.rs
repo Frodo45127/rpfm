@@ -163,6 +163,28 @@ impl Vertex {
                     v.uk_1 = data.read_vector_4_u8()?;
                 },
 
+                MaterialType::Decal => {
+                    v.position = data.read_vector_4_f32_normal_from_vector_4_f16()?;
+                    v.texture_coordinate = data.read_vector_2_f32_from_vector_2_f16()?;
+                    v.texture_coordinate2 = data.read_vector_2_f32_from_vector_2_f16()?;
+                    v.normal = data.read_vector_4_f32_normal_from_vector_4_u8()?;
+                    v.tangent = data.read_vector_4_f32_normal_from_vector_4_u8()?;
+                    v.bitangent = data.read_vector_4_f32_normal_from_vector_4_u8()?;
+
+                    v.uk_1 = data.read_vector_4_u8()?;
+                }
+
+                MaterialType::Dirtmap => {
+                    v.position = data.read_vector_4_f32_normal_from_vector_4_f16()?;
+                    v.texture_coordinate = data.read_vector_2_f32_from_vector_2_f16()?;
+                    v.texture_coordinate2 = data.read_vector_2_f32_from_vector_2_f16()?;
+                    v.normal = data.read_vector_4_f32_normal_from_vector_4_u8()?;
+                    v.tangent = data.read_vector_4_f32_normal_from_vector_4_u8()?;
+                    v.bitangent = data.read_vector_4_f32_normal_from_vector_4_u8()?;
+
+                    v.uk_1 = data.read_vector_4_u8()?;
+                }
+
                 MaterialType::AlphaBlend => {
                     v.texture_coordinate = data.read_vector_2_f32_from_vector_2_f16()?;
                     v.texture_coordinate2 = data.read_vector_2_f32_from_vector_2_f16()?;
@@ -170,7 +192,11 @@ impl Vertex {
                 _ => return Err(RLibError::DecodingRigidModelUnsupportedVertexFormatForMaterial(vtype.into(), mtype.into()))
             },
 
-            // Possibly not correctly calculated.
+            VertexFormat::Collision => {
+                v.position = data.read_vector_4_f32_from_vec_3_f32()?;
+                v.normal = data.read_vector_4_f32_from_vec_3_f32()?;
+            }
+
             VertexFormat::Weighted => {
                 v.position = data.read_vector_4_f32_normal_from_vector_4_f16()?;
 
@@ -184,7 +210,7 @@ impl Vertex {
                 v.texture_coordinate = data.read_vector_2_f32_from_vector_2_f16()?;
                 v.tangent = data.read_vector_4_f32_normal_from_vector_4_u8()?;
                 v.bitangent = data.read_vector_4_f32_normal_from_vector_4_u8()?;
-                v.color = data.read_vector_4_f32_normal_from_vector_4_u8()?;
+                v.uk_1 = data.read_vector_4_u8()?;
             }
             VertexFormat::Cinematic => {
                 v.position = data.read_vector_4_f32_normal_from_vector_4_f16()?;
@@ -196,7 +222,7 @@ impl Vertex {
                 v.texture_coordinate = data.read_vector_2_f32_from_vector_2_f16()?;
                 v.tangent = data.read_vector_4_f32_normal_from_vector_4_u8()?;
                 v.bitangent = data.read_vector_4_f32_normal_from_vector_4_u8()?;
-                v.color = data.read_vector_4_f32_normal_from_vector_4_u8()?;
+                v.uk_1 = data.read_vector_4_u8()?;
             }
             VertexFormat::Uk8 => {
                 v.position = data.read_vector_4_f32_normal_from_vector_4_f16()?;
@@ -267,6 +293,26 @@ impl Vertex {
                     data.write_vector_4_u8(self.uk_1)?;
                 }
 
+                MaterialType::Decal => {
+                    data.write_vector_4_f32_normal_as_vector_4_f16(self.position)?;
+                    data.write_vector_2_f32_as_vector_2_f16(self.texture_coordinate)?;
+                    data.write_vector_2_f32_as_vector_2_f16(self.texture_coordinate2)?;
+                    data.write_vector_4_f32_normal_as_vector_4_u8(self.normal)?;
+                    data.write_vector_4_f32_normal_as_vector_4_u8(self.tangent)?;
+                    data.write_vector_4_f32_normal_as_vector_4_u8(self.bitangent)?;
+                    data.write_vector_4_u8(self.uk_1)?;
+                }
+
+                MaterialType::Dirtmap => {
+                    data.write_vector_4_f32_normal_as_vector_4_f16(self.position)?;
+                    data.write_vector_2_f32_as_vector_2_f16(self.texture_coordinate)?;
+                    data.write_vector_2_f32_as_vector_2_f16(self.texture_coordinate2)?;
+                    data.write_vector_4_f32_normal_as_vector_4_u8(self.normal)?;
+                    data.write_vector_4_f32_normal_as_vector_4_u8(self.tangent)?;
+                    data.write_vector_4_f32_normal_as_vector_4_u8(self.bitangent)?;
+                    data.write_vector_4_u8(self.uk_1)?;
+                }
+
                 MaterialType::AlphaBlend => {
                     data.write_vector_2_f32_as_vector_2_f16(self.texture_coordinate)?;
                     data.write_vector_2_f32_as_vector_2_f16(self.texture_coordinate2)?;
@@ -274,6 +320,12 @@ impl Vertex {
 
                 _ => return Err(RLibError::DecodingRigidModelUnsupportedVertexFormatForMaterial(vtype.into(), mtype.into()))
             },
+
+            VertexFormat::Collision => {
+                data.write_vector_4_f32_to_vector_3_f32(self.position)?;
+                data.write_vector_4_f32_to_vector_3_f32(self.normal)?;
+            }
+
             VertexFormat::Weighted => {
                 data.write_vector_4_f32_normal_as_vector_4_f16(self.position)?;
                 data.write_vector_2_u8(Vector2::new(self.bone_indices.x, self.bone_indices.y))?;
@@ -282,7 +334,7 @@ impl Vertex {
                 data.write_vector_2_f32_as_vector_2_f16(self.texture_coordinate)?;
                 data.write_vector_4_f32_normal_as_vector_4_u8(self.tangent)?;
                 data.write_vector_4_f32_normal_as_vector_4_u8(self.bitangent)?;
-                data.write_vector_4_f32_normal_as_vector_4_u8(self.color)?;
+                data.write_vector_4_u8(self.uk_1)?;
 
             }
             VertexFormat::Cinematic => {
@@ -293,7 +345,7 @@ impl Vertex {
                 data.write_vector_2_f32_as_vector_2_f16(self.texture_coordinate)?;
                 data.write_vector_4_f32_normal_as_vector_4_u8(self.tangent)?;
                 data.write_vector_4_f32_normal_as_vector_4_u8(self.bitangent)?;
-                data.write_vector_4_f32_normal_as_vector_4_u8(self.color)?;
+                data.write_vector_4_u8(self.uk_1)?;
             }
             VertexFormat::Uk8 => {
                 data.write_vector_4_f32_normal_as_vector_4_f16(*self.position())?;
