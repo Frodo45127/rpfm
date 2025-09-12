@@ -86,7 +86,6 @@ pub struct Mesh {
     name: String,
 
     material_type: MaterialType,
-    vertex_format: VertexFormat,
     shader_params: ShaderParams,
 
     min_bb: Vector3<f32>,
