@@ -364,7 +364,7 @@ pub enum Command {
     #[cfg(feature = "enable_tools")] UpdateTranslations,
     GetTablesFromDependencies(String),
     GetTablesByTableName(String),
-    AddKeysToKeyDeletes(String, String, Vec<String>),
+    AddKeysToKeyDeletes(String, String, HashSet<String>),
 }
 
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.

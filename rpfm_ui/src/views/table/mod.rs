@@ -1208,9 +1208,11 @@ impl TableView {
     pub unsafe fn add_selection_to_key_deletes(&self, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>, file_name: &str) -> Result<()> {
         let _ = AppUI::back_to_back_end_all(app_ui, pack_file_contents_ui);
 
-        let table_name = if let Some(ref table_name) = self.table_name {
-            table_name.to_owned().drain(..table_name.len() - 7).collect::<String>()
+        let table_name_full = if let Some(ref table_name) = self.table_name {
+            table_name.to_owned()
         } else { unreachable!() };
+
+        let table_name = table_name_full.to_owned().drain(..table_name_full.len() - 7).collect::<String>();
 
         let mut rows = HashSet::new();
         let indexes_sorted = get_real_indexes_from_visible_selection_sorted(&self.table_view_ptr(), &self.table_view_filter_ptr());
@@ -1220,20 +1222,25 @@ impl TableView {
             }
         }
 
-        let definition = self.table_definition();
-        let key_cols = definition.key_column_positions_by_ca_order();
-        let mut keys = vec![];
-        for row in rows {
-            let mut key = String::new();
-            for key_col in &key_cols {
-                let index = self.table_model.index_2a(row, *key_col as i32);
-                key.push_str(&self.table_model.data_2a(&index, 2).to_string().to_std_string());
-            }
+        // Reversed so we can remove them correctly.
+        let mut rows = rows.iter().collect::<Vec<_>>();
+        rows.sort();
+        rows.reverse();
 
-            if !key.is_empty() {
-                keys.push(key);
-            }
+        // We need the selected lines in db format, so we get the full table, remove the lines we want to keep, then replace the table with said lines.
+        let mut keys = HashSet::new();
+        let definition = self.table_definition();
+        let mut table = DB::new(&definition, None, &table_name_full);
+        let mut table_in_memory = get_table_from_view(&self.table_model.static_upcast(), &definition)?;
+
+        let mut rows_to_keep = vec![];
+        for row in rows {
+            rows_to_keep.push(table_in_memory.data_mut().remove(*row as usize));
         }
+
+        table_in_memory.set_data(&rows_to_keep)?;
+        table.set_data(&table_in_memory.data())?;
+        table.generate_twad_key_deletes_keys(&mut keys);
 
         let receiver = CENTRAL_COMMAND.send_background(Command::AddKeysToKeyDeletes(file_name.to_string(), table_name, keys));
         let response = CentralCommand::recv(&receiver);

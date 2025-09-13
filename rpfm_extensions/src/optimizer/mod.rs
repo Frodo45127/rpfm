@@ -11,7 +11,6 @@
 //! This module contains the [Optimizable] and [OptimizableContainer] trait.
 
 use getset::{Getters, Setters};
-use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 use std::collections::{HashMap, HashSet};
@@ -214,26 +213,10 @@ impl OptimizableContainer for Pack {
                     if let Ok(RFileDecoded::DB(dep_table)) = dep_file.decoded() {
                         if let Ok(RFileDecoded::DB(datacore_table)) = datacore.decoded() {
                             let mut datacore_keys: HashSet<String> = HashSet::new();
-                            let key_cols = datacore_table.definition().key_column_positions_by_ca_order();
-                            datacore_keys.extend(datacore_table.data()
-                                .iter()
-                                .map(|x| key_cols.iter()
-                                    .map(|y| x[*y].data_to_string())
-                                    .join("")
-                                )
-                                .collect::<Vec<_>>()
-                            );
+                            datacore_table.generate_twad_key_deletes_keys(&mut datacore_keys);
 
                             let mut dep_keys = HashSet::new();
-                            let key_cols = dep_table.definition().key_column_positions_by_ca_order();
-                            dep_keys.extend(dep_table.data()
-                                .iter()
-                                .map(|x| key_cols.iter()
-                                    .map(|y| x[*y].data_to_string())
-                                    .join("")
-                                )
-                                .collect::<Vec<_>>()
-                            );
+                            dep_table.generate_twad_key_deletes_keys(&mut dep_keys);
 
                             let table_name_dec_data = DecodedData::StringU8(datacore_table.table_name_without_tables().to_owned());
                             for key in dep_keys {

@@ -38,6 +38,7 @@
 
 use csv::{StringRecordsIter, Writer};
 use getset::Getters;
+use itertools::Itertools;
 #[cfg(feature = "integration_sqlite")]use r2d2::Pool;
 #[cfg(feature = "integration_sqlite")]use r2d2_sqlite::SqliteConnectionManager;
 use rayon::prelude::*;
@@ -586,6 +587,62 @@ impl DB {
 
     pub fn altered(&self) -> bool {
         *self.table.altered()
+    }
+
+    /// This function generates the combined keys for this table and adds them to the keys arg.
+    pub fn generate_twad_key_deletes_keys(&self, keys: &mut HashSet<String>) {
+        let definition = self.definition();
+        match self.table_name() {
+
+            // Order reversed vs dave schemas: agent + attribute.
+            "agent_to_agent_attributes_tables" => {
+                let key_pos_0 = definition.column_position_by_name("agent").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("attribute").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| x[key_pos_0].data_to_string().to_string() + &x[key_pos_1].data_to_string())
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // Uses ; for concatenating keys: attacker + ";" + defender.
+            "animation_set_prebattle_group_view_configurations_tables" => {
+                let key_pos_0 = definition.column_position_by_name("attacker").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("defender").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| x[key_pos_0].data_to_string().to_string() + ";" + &x[key_pos_1].data_to_string())
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // Uses " | ", with whitespace, for concatenating keys: armory_item + " | "  + variant.
+            "armory_item_variants_tables" => {
+                let key_pos_0 = definition.column_position_by_name("armory_item").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("variant").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| x[key_pos_0].data_to_string().to_string() + " | " + &x[key_pos_1].data_to_string())
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // For anything else (single-keys and keys that follow the schemas without weird behavior), use the twad order.
+            _ => {
+                let key_cols = definition.key_column_positions_by_ca_order();
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| key_cols.iter()
+                        .map(|y| x[*y].data_to_string())
+                        .join("")
+                    )
+                    .collect::<Vec<_>>()
+                );
+            }
+        }
     }
 }
 
