@@ -626,6 +626,8 @@ impl ToolTranslator {
 
         // If we have a new translation, save it and remove the "needs_retranslation" flag.
         if !new_value.is_empty() && new_value != old_value {
+            new_value = new_value.replace("\n||\n", "||");
+            new_value = new_value.replace("\n", "\\\\n");
 
             // If there's any other translation which uses the same value, automatically translate it.
             let original_value_item = self.table.table_model().item_2a(current_row, 3);
@@ -640,10 +642,6 @@ impl ToolTranslator {
                         let og_value_item = self.table.table_model().item_2a(row, 3);
                         if og_value_item.data_1a(2).to_string().compare_q_string(&original_value_item_qstr) == 0 {
                             let translated_value_item = self.table.table_model().item_2a(row, 4);
-
-                            new_value = new_value.replace("\n||\n", "||");
-                            new_value = new_value.replace("\n", "\\\\n");
-
                             translated_value_item.set_text(&QString::from_std_str(&new_value));
 
                             // Unmark it from retranslations.
