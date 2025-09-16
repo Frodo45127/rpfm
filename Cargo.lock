@@ -3574,7 +3574,6 @@ dependencies = [
  "float_eq",
  "getset",
  "itertools 0.14.0",
- "lazy_static",
  "rayon",
  "regex",
  "rpfm_lib",

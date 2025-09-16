@@ -680,7 +680,15 @@ impl TableDiagnostic {
                     }
 
                     // Magic Regex. It works. Don't ask why.
-                    if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, Some(field_text_name), Some("InvalidEscape"), &table_info.ignored_fields, &table_info.ignored_diagnostics, &table_info.ignored_diagnostics_for_fields) && !data.is_empty() && REGEX_INVALID_ESCAPES.is_match(&data).unwrap() {
+                    if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, Some(field_text_name), Some("InvalidEscape"), &table_info.ignored_fields, &table_info.ignored_diagnostics, &table_info.ignored_diagnostics_for_fields) &&
+                        !data.is_empty() &&
+                        (
+
+                            // Magic Regex didn't work, so we have to check for lines either with formatted symbols, or with missing slashes.
+                            (data.contains("\r") || (data.match_indices("\\r").count() != data.match_indices("\\\\r").count())) ||
+                            (data.contains("\n") || (data.match_indices("\\n").count() != data.match_indices("\\\\n").count())) ||
+                            (data.contains("\t") || (data.match_indices("\\t").count() != data.match_indices("\\\\t").count()))
+                        ) {
                         let result = TableDiagnosticReport::new(TableDiagnosticReportType::InvalidEscape, &[(row as i32, 1)], &fields);
                         diagnostic.results_mut().push(result);
                     }

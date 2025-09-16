@@ -18,19 +18,10 @@
     clippy::type_complexity,
 )]
 
-use fancy_regex::Regex;
-use lazy_static::lazy_static;
-
 pub mod dependencies;
 pub mod diagnostics;
 pub mod optimizer;
 pub mod search;
 pub mod translator;
-
-lazy_static! {
-
-    /// Regex to find if a path belongs to a db table.
-    pub static ref REGEX_INVALID_ESCAPES: Regex = Regex::new(r"(?<!\\)\\n|(?<!\\)\\t").unwrap();
-}
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");

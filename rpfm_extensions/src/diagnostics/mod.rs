@@ -33,7 +33,6 @@ use rpfm_lib::games::{GameInfo, VanillaDBTableNameLogic};
 use rpfm_lib::schema::{FieldType, Schema};
 
 use crate::dependencies::Dependencies;
-use crate::REGEX_INVALID_ESCAPES;
 
 use self::anim_fragment_battle::*;
 use self::config::*;
