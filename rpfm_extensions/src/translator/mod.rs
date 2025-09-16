@@ -237,6 +237,7 @@ impl PackTranslation {
             match Self::load_json(path, pack_name, game_key, language) {
                 Ok(mut tr) => return {
                     for trad in tr.translations_mut() {
+                        trad.1.value_translated = trad.1.value_translated.replace("\n||\n", "||");
                         trad.1.value_translated = trad.1.value_translated.replace("\r", "\\\\r");
                         trad.1.value_translated = trad.1.value_translated.replace("\n", "\\\\n");
                         trad.1.value_translated = trad.1.value_translated.replace("\t", "\\\\t");
