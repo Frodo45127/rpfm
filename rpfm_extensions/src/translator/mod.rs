@@ -235,7 +235,14 @@ impl PackTranslation {
     pub fn load(paths: &[PathBuf], pack_name: &str, game_key: &str, language: &str) -> Result<Self> {
         for path in paths {
             match Self::load_json(path, pack_name, game_key, language) {
-                Ok(tr) => return Ok(tr),
+                Ok(mut tr) => return {
+                    for trad in tr.translations_mut() {
+                        trad.1.value_translated = trad.1.value_translated.replace("\r", "\\\\r");
+                        trad.1.value_translated = trad.1.value_translated.replace("\n", "\\\\n");
+                        trad.1.value_translated = trad.1.value_translated.replace("\t", "\\\\t");
+                    }
+                    Ok(tr)
+                },
                 Err(_) => continue,
             }
         }
