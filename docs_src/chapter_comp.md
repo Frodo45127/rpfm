@@ -109,6 +109,5 @@ About the flags available (this list may be incomplete):
 
 * **support_modern_dds**: Compiles RPFM with support for DDS files. Same deal with the rigidmodel one, source was lost.
 * **support_uic**: Compiles RPFM with support for UIC files. Was never finished.
-* **support_soundbank**: Compiles RPFM with support for SoundBank files. Was never finished.
 * **enable_tools**: Compiles RPFM with support for tools. Optional because it adds a significant lenght of time to compilation.
 * **only_for_the_brave**: The first time a version of RPFM is executed it shows a dialog with a specific message. For updates that may require to inform the user of something.

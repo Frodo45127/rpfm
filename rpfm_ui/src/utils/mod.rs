@@ -285,13 +285,6 @@ pub fn get_feature_flags() -> String {
         feature_flags.push_str("support_uic");
     }
 
-    #[cfg(feature = "support_soundbank")] {
-        if !feature_flags.is_empty() {
-            feature_flags.push_str(", ");
-        }
-        feature_flags.push_str("support_soundbank");
-    }
-
     #[cfg(feature = "enable_tools")] {
         if !feature_flags.is_empty() {
             feature_flags.push_str(", ");

@@ -226,7 +226,7 @@ impl Icons {
                     &self.bmd_vegetation
                 }
 
-                else if cfg!(feature = "support_soundbank") && path.ends_with(sound_bank::EXTENSION) {
+                else if path.ends_with(sound_bank::EXTENSION) {
                     &self.sound_bank
                 }
 

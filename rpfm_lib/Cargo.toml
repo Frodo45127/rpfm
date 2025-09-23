@@ -25,7 +25,6 @@ integration_sqlite = ["dep:rusqlite", "dep:r2d2_sqlite", "dep:r2d2"]
 
 support_rigidmodel = []
 support_uic = []
-support_soundbank = []
 
 [dependencies]
 

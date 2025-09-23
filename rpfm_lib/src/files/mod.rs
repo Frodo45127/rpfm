@@ -1819,8 +1819,9 @@ impl RFile {
         self.file_name() != Some(RESERVED_NAME_SETTINGS) &&
         self.file_name() != Some(RESERVED_NAME_NOTES) &&
 
-        // These files either do not benefit from compression, or may cause overhead due to decompression.
-        !matches!(self.file_type, FileType::Audio | FileType::RigidModel | FileType::Video) &&
+        // These files either do not benefit from compression (video), may cause issues due to compression (audio not working)
+        // or may cause overhead due to decompression (models).
+        !matches!(self.file_type, FileType::Audio | FileType::Dat | FileType::RigidModel | FileType::SoundBank | FileType::Video) &&
 
         // We can only compress files if the game supports them. And only in WH3 (and newer games?) is the table compression bug fixed.
         (
@@ -1889,7 +1890,7 @@ impl RFile {
             self.file_type = FileType::BMDVegetation;
         }
 
-        else if cfg!(feature = "support_soundbank") && path.ends_with(sound_bank::EXTENSION) {
+        else if path.ends_with(sound_bank::EXTENSION) {
             self.file_type = FileType::SoundBank;
         }
 

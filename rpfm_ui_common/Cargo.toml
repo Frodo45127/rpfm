@@ -14,7 +14,6 @@ rust-version.workspace = true
 
 [features]
 support_uic = ["rpfm_lib/support_uic"]
-support_soundbank = ["rpfm_lib/support_soundbank"]
 
 [dependencies]
 
