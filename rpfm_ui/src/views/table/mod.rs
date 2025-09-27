@@ -1197,7 +1197,9 @@ impl TableView {
                     }
                 }
 
-                if context_menu_add_to_twad_key_deletes.is_empty() || GAME_SELECTED.read().unwrap().key() != KEY_WARHAMMER_3 {
+                if !context_menu_add_to_twad_key_deletes.is_empty() && GAME_SELECTED.read().unwrap().key() == KEY_WARHAMMER_3 {
+                    view.context_menu_add_to_twad_key_deletes_m.set_enabled(true);
+                } else {
                     view.context_menu_add_to_twad_key_deletes_m.set_enabled(false);
                 }
             }
