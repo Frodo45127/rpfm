@@ -8,6 +8,12 @@ If you're looking for the changes included in the latest beta (against the lates
 
 ## [Unreleased]
 
+## [4.6.3]
+### Fixed
+- Fixed issues regarding compressed .dat and .bnk files (open the pack and save it again to fix existing files).
+- Fixed twad_key_deletes keys being generated wrongly for a myriad of tables.
+- Fixed "Add Key to Key Deletes" button not getting enabled in an existing table view after creating the relevant table.
+
 ## [4.6.2]
 ### Changed
 - Opening a translation in the translator with unformatted characters and saving it again will correctly format the unformatted characters.
@@ -1745,7 +1751,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.6.2...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.6.3...HEAD
+[4.6.3]: https://github.com/Frodo45127/rpfm/compare/v4.6.2...v4.6.3
 [4.6.2]: https://github.com/Frodo45127/rpfm/compare/v4.6.1...v4.6.2
 [4.6.1]: https://github.com/Frodo45127/rpfm/compare/v4.6.0...v4.6.1
 [4.6.0]: https://github.com/Frodo45127/rpfm/compare/v4.5.4...v4.6.0
