@@ -630,6 +630,601 @@ impl DB {
                 );
             }
 
+            // It includes the item_type string two times: item_type + currency_type + item_type.
+            "battle_currency_deployables_cost_values_tables" => {
+                let key_pos_0 = definition.column_position_by_name("item_type").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("currency_type").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| x[key_pos_0].data_to_string().to_string() + &x[key_pos_1].data_to_string() + &x[key_pos_0].data_to_string())
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // It includes the item_type string two times: item_type + currency_type + item_type.
+            "battle_currency_units_cost_values_tables" => {
+                let key_pos_0 = definition.column_position_by_name("item_type").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("currency_type").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| x[key_pos_0].data_to_string().to_string() + &x[key_pos_1].data_to_string() + &x[key_pos_0].data_to_string())
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // It includes the army_name string two times: army_name + siege_item + army_name.
+            "battle_set_pieces_siege_items_tables" => {
+                let key_pos_0 = definition.column_position_by_name("army_name").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("siege_item").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| x[key_pos_0].data_to_string().to_string() + &x[key_pos_1].data_to_string() + &x[key_pos_0].data_to_string())
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // Uses ; for concatenating keys: distribution_profile_key + ";" + agent_type_key.
+            "cai_agent_type_distribution_profile_junctions_tables" => {
+                let key_pos_0 = definition.column_position_by_name("distribution_profile_key").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("agent_type_key").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| x[key_pos_0].data_to_string().to_string() + ";" + &x[key_pos_1].data_to_string())
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // Uses ; for concatenating keys: recruitment_profile_key + ";" + agent_type_key.
+            "cai_agent_type_recruitment_profile_junctions_tables" => {
+                let key_pos_0 = definition.column_position_by_name("recruitment_profile_key").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("agent_type_key").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| x[key_pos_0].data_to_string().to_string() + ";" + &x[key_pos_1].data_to_string())
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // Uses ; for concatenating keys: budget_allocation_key + ";" + budget_context_key + "; + budget_policy_key.
+            "cai_personalities_budget_allocation_policy_junctions_tables" => {
+                let key_pos_0 = definition.column_position_by_name("budget_allocation_key").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("budget_context_key").unwrap_or_default();
+                let key_pos_2 = definition.column_position_by_name("budget_policy_key").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| x[key_pos_0].data_to_string().to_string() + ";" + &x[key_pos_1].data_to_string() + ";" + &x[key_pos_2].data_to_string())
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // Uses ; for concatenating keys: building_key + ";" + policy_key.
+            "cai_personalities_construction_preference_policy_building_junctions_tables" => {
+                let key_pos_0 = definition.column_position_by_name("building_key").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("policy_key").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| x[key_pos_0].data_to_string().to_string() + ";" + &x[key_pos_1].data_to_string())
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // It includes the variable_group_key string two times: variable_group_key + variable_key + variable_group_key.
+            "cai_task_management_system_task_generator_variable_group_junctions_tables" => {
+                let key_pos_0 = definition.column_position_by_name("variable_group_key").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("variable_key").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| x[key_pos_0].data_to_string().to_string() + &x[key_pos_1].data_to_string() + &x[key_pos_0].data_to_string())
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // Uses ; for concatenating keys: manager + ";" + behaviour.
+            "campaign_ai_manager_behaviour_junctions_tables" => {
+                let key_pos_0 = definition.column_position_by_name("manager").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("behaviour").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| x[key_pos_0].data_to_string().to_string() + ";" + &x[key_pos_1].data_to_string())
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // Order reversed vs dave schemas: bmd_export_types + campaign_bmd_layer_group.
+            "campaign_bmd_layer_group_bmd_export_types_junctions_tables" => {
+                let key_pos_0 = definition.column_position_by_name("bmd_export_types").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("campaign_bmd_layer_group").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| x[key_pos_0].data_to_string().to_string() + &x[key_pos_1].data_to_string())
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // Uses custom formatting, and 1 and 0 for bools: campaign_difficulty_handicap + "-" + human ? 1 : 0 + "-" + effect + optional_campaign_key.
+            "campaign_difficulty_handicap_effects_tables" => {
+                let key_pos_0 = definition.column_position_by_name("campaign_difficulty_handicap").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("human").unwrap_or_default();
+                let key_pos_2 = definition.column_position_by_name("effect").unwrap_or_default();
+                let key_pos_3 = definition.column_position_by_name("optional_campaign_key").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| {
+                        let human = if x[key_pos_1].data_to_string() == "true" { "1" } else { "0" };
+                        x[key_pos_0].data_to_string().to_string() + "-" + human + "-" + &x[key_pos_2].data_to_string() + &x[key_pos_3].data_to_string()
+                    })
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // Order reversed vs dave schemas: agent_key + campaign_effect_scope_key.
+            "campaign_effect_scope_agent_junctions_tables" => {
+                let key_pos_0 = definition.column_position_by_name("agent_key").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("campaign_effect_scope_key").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| x[key_pos_0].data_to_string().to_string() + &x[key_pos_1].data_to_string())
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // Uses ; for concatenating keys: feature + ";" + group.
+            "campaign_features_tables" => {
+                let key_pos_0 = definition.column_position_by_name("feature").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("group").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| x[key_pos_0].data_to_string().to_string() + ";" + &x[key_pos_1].data_to_string())
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // Uses ; for concatenating keys: marker_type + ";" + group.
+            "campaign_markers_tables" => {
+                let key_pos_0 = definition.column_position_by_name("marker_type").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("group").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| x[key_pos_0].data_to_string().to_string() + ";" + &x[key_pos_1].data_to_string())
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // Uses custom formatting: faction_override.empty() ? unit : unit + "_" + faction_override.
+            "campaign_mercenary_unit_character_level_restrictions_tables" => {
+                let key_pos_0 = definition.column_position_by_name("unit").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("faction_override").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| {
+                        let fover = if x[key_pos_1].data_to_string().is_empty() {
+                            "".to_owned()
+                        } else {
+                            "_".to_string() + &x[key_pos_1].data_to_string()
+                        };
+                        x[key_pos_0].data_to_string().to_string() + &fover
+                    })
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // It includes the id string two times: id + id.
+            "campaign_movement_spline_materials_tables" => {
+                let key_pos_0 = definition.column_position_by_name("id").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| x[key_pos_0].data_to_string().to_string() + &x[key_pos_0].data_to_string())
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // Campaign doesn't exist in newer definitions: campaign + faction.
+            "campaign_rogue_army_leaders_tables" => {
+                let key_pos_0 = definition.column_position_by_name("campaign");
+                let key_pos_1 = definition.column_position_by_name("faction").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| {
+                        let camp = if let Some(y) = key_pos_0 { x[y].data_to_string().to_string() } else { "".to_owned() };
+                        camp + &x[key_pos_1].data_to_string()
+                    })
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // Uses ; for concatenating keys: faction + ";" + difficulty_level.
+            "campaign_rogue_army_setups_tables" => {
+                let key_pos_0 = definition.column_position_by_name("faction").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("difficulty_level").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| x[key_pos_0].data_to_string().to_string() + ";" + &x[key_pos_1].data_to_string())
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // Order custom vs dave schemas: variable_key + campaign_name + difficulty + campaign_type.
+            "campaigns_campaign_variables_junctions_tables" => {
+                let key_pos_0 = definition.column_position_by_name("variable_key").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("campaign_name").unwrap_or_default();
+                let key_pos_2 = definition.column_position_by_name("difficulty").unwrap_or_default();
+                let key_pos_3 = definition.column_position_by_name("campaign_type").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| x[key_pos_0].data_to_string().to_string() + &x[key_pos_1].data_to_string() + &x[key_pos_2].data_to_string() + &x[key_pos_3].data_to_string())
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // It includes the tree_type string two times: tree_type + variable_key + tree_type.
+            "campaign_tree_type_cultures_tables" => {
+                let key_pos_0 = definition.column_position_by_name("tree_type").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("culture").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| x[key_pos_0].data_to_string().to_string() + &x[key_pos_1].data_to_string() + &x[key_pos_0].data_to_string())
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // Order reversed vs dave schemas: issuer_key + mission_key.
+            "cdir_events_mission_issuer_junctions_tables" => {
+                let key_pos_0 = definition.column_position_by_name("issuer_key").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("mission_key").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| x[key_pos_0].data_to_string().to_string() + &x[key_pos_1].data_to_string())
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // Uses custom formatting: (for_army ? (for_navy ? "navy" : "army") : agent_key) + skill_rank + optional_campaign_key.
+            "character_experience_skill_tiers_tables" => {
+                let key_pos_0 = definition.column_position_by_name("for_army").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("for_navy").unwrap_or_default();
+                let key_pos_2 = definition.column_position_by_name("agent_key").unwrap_or_default();
+                let key_pos_3 = definition.column_position_by_name("skill_rank").unwrap_or_default();
+                let key_pos_4 = definition.column_position_by_name("optional_campaign_key").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| {
+                        let mut ckey = String::new();
+                        if x[key_pos_0].data_to_string() == "true" {
+                            if x[key_pos_1].data_to_string() == "true" {
+                                ckey.push_str("navy");
+                            } else {
+                                ckey.push_str("army");
+                            }
+                        } else {
+                            ckey.push_str(&x[key_pos_2].data_to_string());
+                        }
+
+                        ckey + &x[key_pos_3].data_to_string() + &x[key_pos_4].data_to_string()
+                    })
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // Order reversed vs dave schemas: battle_animations_table + culture_pack.
+            "culture_to_battle_animation_tables_tables" => {
+                let key_pos_0 = definition.column_position_by_name("battle_animations_table").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("culture_pack").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| x[key_pos_0].data_to_string().to_string() + &x[key_pos_1].data_to_string())
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // Order reversed vs dave schemas: effect + action_results_additional_outcome_record + bonus_value_id.
+            "effect_bonus_value_id_action_results_additional_outcomes_junctions_tables" => {
+                let key_pos_0 = definition.column_position_by_name("effect").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("action_results_additional_outcome_record").unwrap_or_default();
+                let key_pos_2 = definition.column_position_by_name("bonus_value_id").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| x[key_pos_0].data_to_string().to_string() + &x[key_pos_1].data_to_string() + &x[key_pos_2].data_to_string())
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // Order reversed vs dave schemas: effect + bonus_value + projectile.
+            "effect_bonus_value_projectile_junctions_tables" => {
+                let key_pos_0 = definition.column_position_by_name("effect").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("bonus_value").unwrap_or_default();
+                let key_pos_2 = definition.column_position_by_name("projectile").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| x[key_pos_0].data_to_string().to_string() + &x[key_pos_1].data_to_string() + &x[key_pos_2].data_to_string())
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // Uses ; for concatenating keys: effect + ";" + bonus_value_id + ";" + unit_attribute.
+            "effect_bonus_value_unit_attribute_junctions_tables" => {
+                let key_pos_0 = definition.column_position_by_name("effect").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("bonus_value_id").unwrap_or_default();
+                let key_pos_2 = definition.column_position_by_name("unit_attribute").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| x[key_pos_0].data_to_string().to_string() + ";" + &x[key_pos_1].data_to_string() + ";" + &x[key_pos_2].data_to_string())
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // Order reversed vs dave schemas: bonus_value_id + effect + unit_record_key.
+            "effect_bonus_value_unit_record_junctions_tables" => {
+                let key_pos_0 = definition.column_position_by_name("bonus_value_id").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("effect").unwrap_or_default();
+                let key_pos_2 = definition.column_position_by_name("unit_record_key").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| x[key_pos_0].data_to_string().to_string() + &x[key_pos_1].data_to_string() + &x[key_pos_2].data_to_string())
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // It includes the affected_stat string two times: ground_type + affected_stat + affected_group + affected_stat.
+            "ground_type_to_stat_effects_tables" => {
+                let key_pos_0 = definition.column_position_by_name("ground_type").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("affected_stat").unwrap_or_default();
+                let key_pos_2 = definition.column_position_by_name("affected_group").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| x[key_pos_0].data_to_string().to_string() + &x[key_pos_1].data_to_string() + &x[key_pos_2].data_to_string() + &x[key_pos_1].data_to_string())
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // Order reversed vs dave schemas: ability + land_unit.
+            "land_units_to_unit_abilites_junctions_tables" => {
+                let key_pos_0 = definition.column_position_by_name("ability").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("land_unit").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| x[key_pos_0].data_to_string().to_string() + &x[key_pos_1].data_to_string())
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // It includes the affected_stat string three times: loading_quote + campaign + campaign + campaign.
+            "loading_screen_quotes_to_campaigns_tables" => {
+                let key_pos_0 = definition.column_position_by_name("loading_quote").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("campaign").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| x[key_pos_0].data_to_string().to_string() + &x[key_pos_1].data_to_string() + &x[key_pos_1].data_to_string() + &x[key_pos_1].data_to_string())
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // Order reversed vs dave schemas: event + optional_campaign_key + culture + optional_subculture.
+            "message_event_strings_tables" => {
+                let key_pos_0 = definition.column_position_by_name("event").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("optional_campaign_key").unwrap_or_default();
+                let key_pos_2 = definition.column_position_by_name("culture").unwrap_or_default();
+                let key_pos_3 = definition.column_position_by_name("optional_subculture").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| x[key_pos_0].data_to_string().to_string() + &x[key_pos_1].data_to_string() + &x[key_pos_2].data_to_string() + &x[key_pos_3].data_to_string())
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // Uses 1 and 0 for bools: template_key + battle_type + is_defender ? 1 : 0.
+            "mp_force_gen_template_junctions_tables" => {
+                let key_pos_0 = definition.column_position_by_name("template_key").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("battle_type").unwrap_or_default();
+                let key_pos_2 = definition.column_position_by_name("is_defender").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| {
+                        let is_defender = if x[key_pos_2].data_to_string() == "true" { "1" } else { "0" };
+                        x[key_pos_0].data_to_string().to_string() + &x[key_pos_1].data_to_string() + is_defender
+                    })
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // Uses ; for concatenating keys: initiative_record + ";" + strength.
+            "provincial_initiative_strength_levels_tables" => {
+                let key_pos_0 = definition.column_position_by_name("initiative_record").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("strength").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| x[key_pos_0].data_to_string().to_string() + ";" + &x[key_pos_1].data_to_string())
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // Order reversed vs dave schemas: province + region.
+            "region_to_province_junctions_tables" => {
+                let key_pos_0 = definition.column_position_by_name("province").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("region").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| x[key_pos_0].data_to_string().to_string() + &x[key_pos_1].data_to_string())
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // Uses | for concatenating keys: payload + "|" + agent_record.
+            "ritual_payload_change_agent_capacities_tables" => {
+                let key_pos_0 = definition.column_position_by_name("payload").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("agent_record").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| x[key_pos_0].data_to_string().to_string() + "|" + &x[key_pos_1].data_to_string())
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // Uses | for concatenating keys: payload + "|" + unit_record.
+            "ritual_payload_change_unit_capacities_tables" => {
+                let key_pos_0 = definition.column_position_by_name("payload").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("unit_record").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| x[key_pos_0].data_to_string().to_string() + "|" + &x[key_pos_1].data_to_string())
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // Uses | for concatenating keys: slot_set_type + "|" + feature.
+            "slot_set_type_feature_junctions_tables" => {
+                let key_pos_0 = definition.column_position_by_name("slot_set_type").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("feature").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| x[key_pos_0].data_to_string().to_string() + "|" + &x[key_pos_1].data_to_string())
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // Uses : for concatenating keys: special_ability + ":" + phase + ":" + order.
+            "special_ability_to_special_ability_phase_junctions_tables" => {
+                let key_pos_0 = definition.column_position_by_name("special_ability").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("phase").unwrap_or_default();
+                let key_pos_2 = definition.column_position_by_name("order").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| x[key_pos_0].data_to_string().to_string() + ":" + &x[key_pos_1].data_to_string() + ":" + &x[key_pos_2].data_to_string())
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // Order reversed vs dave schemas: campaign + id + region + slot_template + slot_type.
+            "start_pos_region_slot_templates_tables" => {
+                let key_pos_0 = definition.column_position_by_name("campaign").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("id").unwrap_or_default();
+                let key_pos_2 = definition.column_position_by_name("region").unwrap_or_default();
+                let key_pos_3 = definition.column_position_by_name("slot_template").unwrap_or_default();
+                let key_pos_4 = definition.column_position_by_name("slot_type").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x|
+                        x[key_pos_0].data_to_string().to_string() +
+                        &x[key_pos_1].data_to_string() +
+                        &x[key_pos_2].data_to_string() +
+                        &x[key_pos_3].data_to_string() +
+                        &x[key_pos_4].data_to_string()
+                    )
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // Order reversed vs dave schemas: faction + technology.
+            "start_pos_technologies_tables" => {
+                let key_pos_0 = definition.column_position_by_name("faction").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("technology").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| x[key_pos_0].data_to_string().to_string() + &x[key_pos_1].data_to_string())
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // Uses custom format and ; for concatenating some of the keys: tax_name + ";" + effect + ";" + optional_campaign_key + ";" + optional_difficulty_level + ai_only ? 1 : 0.
+            "taxes_effects_jct_tables" => {
+                let key_pos_0 = definition.column_position_by_name("tax_name").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("effect").unwrap_or_default();
+                let key_pos_2 = definition.column_position_by_name("optional_campaign_key").unwrap_or_default();
+                let key_pos_3 = definition.column_position_by_name("optional_difficulty_level").unwrap_or_default();
+                let key_pos_4 = definition.column_position_by_name("ai_only").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| {
+                        let ai_only = if x[key_pos_4].data_to_string() == "true" { "1" } else { "0" };
+                        x[key_pos_0].data_to_string().to_string() + ";" +
+                        &x[key_pos_1].data_to_string() + ";" +
+                        &x[key_pos_2].data_to_string() + ";" +
+                        &x[key_pos_3].data_to_string() + ai_only
+                    })
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // Uses _ for concatenating keys: hex_id + "_" + category.
+            "ui_purchasable_effects_to_hex_ids_tables" => {
+                let key_pos_0 = definition.column_position_by_name("hex_id").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("category").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| x[key_pos_0].data_to_string().to_string() + "_" + &x[key_pos_1].data_to_string())
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // Uses custom formatting and : for concatenating keys: unit + ":" + faction + ":" + (general_unit ? "1" : "0").
+            "units_custom_battle_permissions_tables" => {
+                let key_pos_0 = definition.column_position_by_name("unit").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("faction").unwrap_or_default();
+                let key_pos_2 = definition.column_position_by_name("general_unit").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| {
+                        let general_unit = if x[key_pos_2].data_to_string() == "true" { "1" } else { "0" };
+                        x[key_pos_0].data_to_string().to_string() + ":" + &x[key_pos_1].data_to_string() + ":" + general_unit
+                    })
+                    .collect::<Vec<_>>()
+                );
+            }
+
+            // It includes the level_to_unlock string two times: category + level_to_unlock + level_to_unlock.
+            "workshop_categories_progress_levels_tables" => {
+                let key_pos_0 = definition.column_position_by_name("category").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("level_to_unlock").unwrap_or_default();
+
+                keys.extend(self.data()
+                    .iter()
+                    .map(|x| x[key_pos_0].data_to_string().to_string() + &x[key_pos_1].data_to_string() + &x[key_pos_1].data_to_string())
+                    .collect::<Vec<_>>()
+                );
+            }
+
             // For anything else (single-keys and keys that follow the schemas without weird behavior), use the twad order.
             _ => {
                 let key_cols = definition.key_column_positions_by_ca_order();
