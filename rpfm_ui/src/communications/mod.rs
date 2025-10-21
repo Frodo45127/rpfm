@@ -365,6 +365,7 @@ pub enum Command {
     GetTablesFromDependencies(String),
     GetTablesByTableName(String),
     AddKeysToKeyDeletes(String, String, HashSet<String>),
+    ExportRigidToGltf(RigidModel)
 }
 
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.
