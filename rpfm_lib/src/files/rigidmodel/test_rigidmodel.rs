@@ -39,6 +39,25 @@ fn test_encode_rigidmodel_v8() {
 }
 
 #[test]
+fn test_encode_rigidmodel_v7() {
+    let path_1 = "../test_files/test_decode_rigidmodel_v7.rigid_model_v2";
+    let path_2 = "../test_files/test_encode_rigidmodel_v7.rigid_model_v2";
+    let mut reader = BufReader::new(File::open(path_1).unwrap());
+
+    let data_len = reader.len().unwrap();
+    let before = reader.read_slice(data_len as usize, true).unwrap();
+    let mut data = RigidModel::decode(&mut reader, &None).unwrap();
+
+    let mut after = vec![];
+    data.encode(&mut after, &None).unwrap();
+
+    let mut writer = BufWriter::new(File::create(path_2).unwrap());
+    writer.write_all(&after).unwrap();
+
+    assert_eq!(before, after);
+}
+
+#[test]
 fn test_encode_rigidmodel_v6() {
     let path_1 = "../test_files/test_decode_rigidmodel_v6.rigid_model_v2";
     let path_2 = "../test_files/test_encode_rigidmodel_v6.rigid_model_v2";
@@ -54,11 +73,9 @@ fn test_encode_rigidmodel_v6() {
     let mut writer = BufWriter::new(File::create(path_2).unwrap());
     writer.write_all(&after).unwrap();
 
-    //let mut json_writer = BufWriter::new(File::create(PathBuf::from("../test_files/test_encode_rigidmodel_v6.rigid_model_v2.json")).unwrap());
-    //json_writer.write_all(serde_json::to_string_pretty(&data).unwrap().as_bytes()).unwrap();
     assert_eq!(before, after);
 }
-
+/*
 #[test]
 fn test_encode_rigidmodel_wh3() {
     let paths = files_from_subdir(&PathBuf::from("/home/frodo45127/Proyectos/rpfm_test_files2/wh3_rigis/"), true).unwrap();
@@ -82,7 +99,7 @@ fn test_encode_rigidmodel_wh3() {
             assert_eq!(before, after);
         }
     }
-}
+}*/
 
 /*
 #[test]
