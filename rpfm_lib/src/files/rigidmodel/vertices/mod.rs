@@ -382,10 +382,10 @@ impl Vertex {
         Ok(())
     }
 }
-
+/*
 /// Util to swap the x and z coordinates of a vector.
 fn swap_xz(input: &Vector4<f32>) -> Vector4<f32> {
     let mut i = *input;
     i.swap_rows(0, 2);
     i
-}
+}*/

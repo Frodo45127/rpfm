@@ -24,7 +24,6 @@ use qt_widgets::QGridLayout;
 use qt_widgets::QSplitter;
 use qt_widgets::QTableView;
 use qt_widgets::QTreeView;
-use qt_widgets::QWidget;
 
 use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;
@@ -53,7 +52,7 @@ use std::sync::{Arc, RwLock};
 use rpfm_lib::files::{FileType, rigidmodel::{*, materials::{Texture, TextureType}}, table::{DecodedData, local::TableInMemory, Table}};
 use rpfm_lib::schema::{Definition, Field, FieldType};
 
-use rpfm_extensions::gltf::{gltf_from_rigid, save_gltf_to_disk};
+use rpfm_extensions::gltf::save_gltf_to_disk;
 
 use rpfm_ui_common::locale::qtr;
 use rpfm_ui_common::utils::{find_widget, load_template};
@@ -92,12 +91,8 @@ pub struct RigidModelView {
 
     current_key: Arc<RwLock<Option<CppBox<QModelIndex>>>>,
 
-    rmv_groupbox: QPtr<QGroupBox>,
     detailed_view_groupbox: QPtr<QGroupBox>,
     mesh_block_groupbox: QPtr<QGroupBox>,
-    mesh_data_groupbox: QPtr<QGroupBox>,
-    material_data_groupbox: QPtr<QGroupBox>,
-    texture_list_groupbox: QBox<QWidget>,
 
     lod_tree_view: QPtr<QTreeView>,
     lod_tree_filter: QBox<QSortFilterProxyModel>,
@@ -225,12 +220,8 @@ impl RigidModelView {
 
             current_key: Arc::new(RwLock::new(None)),
 
-            rmv_groupbox,
             detailed_view_groupbox,
             mesh_block_groupbox,
-            material_data_groupbox,
-            mesh_data_groupbox,
-            texture_list_groupbox,
 
             lod_tree_view,
             lod_tree_filter,

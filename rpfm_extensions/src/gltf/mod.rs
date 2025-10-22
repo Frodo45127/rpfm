@@ -10,7 +10,6 @@
 
 use base64::{Engine, engine::general_purpose::STANDARD};
 pub use gltf::{Document, Gltf, json};
-use gltf_json::image::MimeType;
 use gltf_json::validation::{Checked::Valid, USize64};
 
 use std::fs::File;
@@ -19,7 +18,7 @@ use std::mem;
 use std::path::Path;
 
 use rpfm_lib::error::Result;
-use rpfm_lib::files::rigidmodel::{*, materials::TextureType, vertices::Vertex};
+use rpfm_lib::files::rigidmodel::{*, vertices::Vertex};
 
 use crate::dependencies::Dependencies;
 
@@ -29,7 +28,7 @@ use crate::dependencies::Dependencies;
 //                              Implementations
 //---------------------------------------------------------------------------//
 
-pub fn gltf_from_rigid(value: &RigidModel, dependencies: &mut Dependencies) -> Result<Gltf> {
+pub fn gltf_from_rigid(value: &RigidModel, _dependencies: &mut Dependencies) -> Result<Gltf> {
     let mut root = gltf_json::Root::default();
 
     // All the data that is total war-exclusive goes here.
@@ -51,7 +50,7 @@ pub fn gltf_from_rigid(value: &RigidModel, dependencies: &mut Dependencies) -> R
             let indices = mesh_block.mesh().indices();
 
             // Calculate mins and max for the values of the vertex.
-            let (min_pos, max_pos) = bounding_coords_positions(&vertices);
+            let (min_pos, max_pos) = bounding_coords_positions(vertices);
 
             // Encode the vertex and index data to binary.
             let vertex_bin = to_padded_byte_vector(vertices.clone());
@@ -220,7 +219,7 @@ pub fn gltf_from_rigid(value: &RigidModel, dependencies: &mut Dependencies) -> R
                 sparse: None,
             });*/
 
-            let colors = root.push(json::Accessor {
+            let _colors = root.push(json::Accessor {
                 buffer_view: Some(vertex_buffer_view),
                 byte_offset: Some(USize64(80)),
                 count: USize64::from(vertices.len()),
@@ -272,7 +271,7 @@ pub fn gltf_from_rigid(value: &RigidModel, dependencies: &mut Dependencies) -> R
             });
 
             // After the mesh, add the material data.
-            let mut material = json::Material {
+            let material = json::Material {
                 alpha_cutoff: Default::default(),
                 alpha_mode: Default::default(),
                 double_sided: Default::default(),
@@ -433,7 +432,7 @@ fn bounding_coords_positions(points: &[Vertex]) -> ([f32; 3], [f32; 3]) {
     }
     (min, max)
 }
-
+/*
 fn bounding_coords_normals(points: &[Vertex]) -> ([f32; 3], [f32; 3]) {
     let mut min = [f32::MAX, f32::MAX, f32::MAX];
     let mut max = [f32::MIN, f32::MIN, f32::MIN];
@@ -520,7 +519,7 @@ fn bounding_coords_weight(points: &[Vertex]) -> ([f32; 4], [f32; 4]) {
 
 fn align_to_multiple_of_four(n: &mut usize) {
     *n = (*n + 3) & !3;
-}
+}*/
 
 fn to_padded_byte_vector<T>(vec: Vec<T>) -> Vec<u8> {
     let byte_length = vec.len() * mem::size_of::<T>();
