@@ -7,6 +7,9 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
 ## [Unreleased]
+### Changed
+- Migrated RigidModel editor to a newer one integrated in RPFM's backend. This means RPFM should be able to read all RigidModel files now (at least the v6, 7 and 8 ones) and it should no longer corrupt files.
+- Migrated dds management to the image crate. This means dds should be visible on Linux now.
 
 ## [4.6.3]
 ### Fixed
