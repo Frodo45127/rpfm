@@ -8,7 +8,7 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! This is a module to read/write binary RigidModel files, v8.
+//! This is a module to read/write binary RigidModel files, v7.
 //!
 //! For internal use only.
 
@@ -23,7 +23,7 @@ use crate::files::rigidmodel::materials::*;
 
 impl RigidModel {
 
-    pub fn read_v8<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
+    pub fn read_v7<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
         let lod_count = data.read_u16()?;
         self.uk_1 = data.read_u16()?;
         self.skeleton_id = data.read_string_u8_0padded(PADDED_SIZE_128)?;
@@ -94,7 +94,7 @@ impl RigidModel {
         Ok(())
     }
 
-    pub fn write_v8<W: WriteBytes>(&self, buffer: &mut W) -> Result<()> {
+    pub fn write_v7<W: WriteBytes>(&self, buffer: &mut W) -> Result<()> {
         buffer.write_u16(self.lods.len() as u16)?;
         buffer.write_u16(self.uk_1)?;
         buffer.write_string_u8_0padded(self.skeleton_id(), PADDED_SIZE_128, true)?;

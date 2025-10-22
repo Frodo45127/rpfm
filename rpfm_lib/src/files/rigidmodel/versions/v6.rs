@@ -48,7 +48,6 @@ impl RigidModel {
 
         // Second pass is to populate the lods data.
         for lod in &mut self.lods {
-
             for _ in 0..lod.mesh_blocks.capacity() {
                 let mut mesh = MeshBlock::default();
 
@@ -66,9 +65,11 @@ impl RigidModel {
                 mesh.mesh.min_bb = Vector3::new(data.read_f32()?, data.read_f32()?, data.read_f32()?);
                 mesh.mesh.max_bb = Vector3::new(data.read_f32()?, data.read_f32()?, data.read_f32()?);
 
-                mesh.mesh.shader_params.name = data.read_string_u8_0terminated()?;
-                mesh.mesh.shader_params.uk_1 = data.read_slice(PADDED_SIZE_10, false)?;
-                mesh.mesh.shader_params.uk_2 = data.read_slice(8, false)?;
+                mesh.mesh.shader_params.data = data.read_slice(PADDED_SIZE_32, false)?;
+                //mesh.mesh.shader_params.name = data.read_string_u8_0terminated()?;
+                //mesh.mesh.shader_params.uk_1 = data.read_slice(PADDED_SIZE_10, false)?;
+                //mesh.mesh.shader_params.uk_2 = data.read_slice(8, false)?;
+                //mesh.mesh.shader_params.uk_2 = data.read_slice(PADDED_SIZE_10, false)?;
 
                 mesh.mesh.vertices = Vec::with_capacity(vertex_count as usize);
                 mesh.mesh.indices = Vec::with_capacity(index_count as usize);
@@ -76,7 +77,7 @@ impl RigidModel {
                 mesh.material = Material::read(data, mesh.mesh.material_type)?;
 
                 for _ in 0..mesh.mesh.vertices().capacity() {
-                    mesh.mesh.vertices.push(Vertex::read(data, *mesh.material.vertex_format(), *mesh.mesh.material_type())?);
+                    mesh.mesh.vertices.push(Vertex::read(data, self.version, *mesh.material.vertex_format(), *mesh.mesh.material_type())?);
                 }
 
                 for _ in 0..mesh.mesh.indices.capacity() {
@@ -116,15 +117,16 @@ impl RigidModel {
                 mesh_data.write_f32(mesh.mesh.max_bb().y)?;
                 mesh_data.write_f32(mesh.mesh.max_bb().z)?;
 
-                mesh_data.write_string_u8_0terminated(mesh.mesh.shader_params().name())?;
-                mesh_data.write_all(mesh.mesh.shader_params().uk_1())?;
-                mesh_data.write_all(mesh.mesh.shader_params().uk_2())?;
+                mesh_data.write_all(mesh.mesh.shader_params().data())?;
+                //mesh_data.write_string_u8_0terminated(mesh.mesh.shader_params().name())?;
+                //mesh_data.write_all(mesh.mesh.shader_params().uk_1())?;
+                //mesh_data.write_all(mesh.mesh.shader_params().uk_2())?;
 
                 mesh.material.write(&mut mesh_data, mesh.mesh.material_type)?;
 
                 let offset_start_vertices = mesh_data.len();
                 for vertex in mesh.mesh.vertices() {
-                    vertex.write(&mut mesh_data, *mesh.material.vertex_format(), *mesh.mesh.material_type())?;
+                    vertex.write(&mut mesh_data, self.version, *mesh.material.vertex_format(), *mesh.mesh.material_type())?;
                 }
 
                 total_vertices_size += mesh_data.len() - offset_start_vertices;

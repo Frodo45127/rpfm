@@ -23,7 +23,8 @@ const VERTEX_FORMAT_COLLISION: u16 = 1;
 const VERTEX_FORMAT_WEIGHTED: u16 = 3;
 const VERTEX_FORMAT_CINEMATIC: u16 = 4;
 const VERTEX_FORMAT_GRASS: u16 = 5;
-const VERTEX_FORMAT_UK_8: u16 = 8;          // Seen in glb_water_planes
+const VERTEX_FORMAT_UK_8: u16 = 8;              // Seen in glb_water_planes
+const VERTEX_FORMAT_UK_12: u16 = 12;            // Seen in sea_coral_shrubs_02
 const VERTEX_FORMAT_CLOTH_SIM: u16 = 25;
 
 //---------------------------------------------------------------------------//
@@ -38,6 +39,7 @@ pub enum VertexFormat {
     Cinematic,
     Grass,
     Uk8,
+    Uk12,
     ClothSim
 }
 
@@ -82,6 +84,7 @@ impl TryFrom<u16> for VertexFormat {
             VERTEX_FORMAT_CINEMATIC => Ok(Self::Cinematic),
             VERTEX_FORMAT_GRASS => Ok(Self::Grass),
             VERTEX_FORMAT_UK_8 => Ok(Self::Uk8),
+            VERTEX_FORMAT_UK_12 => Ok(Self::Uk12),
             VERTEX_FORMAT_CLOTH_SIM => Ok(Self::ClothSim),
             _ => Err(RLibError::DecodingRigidModelUnknownVertexFormat(value))
         }
@@ -97,13 +100,14 @@ impl From<VertexFormat> for u16 {
             VertexFormat::Cinematic => VERTEX_FORMAT_CINEMATIC,
             VertexFormat::Grass => VERTEX_FORMAT_GRASS,
             VertexFormat::Uk8 => VERTEX_FORMAT_UK_8,
+            VertexFormat::Uk12 => VERTEX_FORMAT_UK_12,
             VertexFormat::ClothSim => VERTEX_FORMAT_CLOTH_SIM,
         }
     }
 }
 
 impl Vertex {
-    pub fn read<R: ReadBytes>(data: &mut R, vtype: VertexFormat, mtype: MaterialType) -> Result<Self> {
+    pub fn read<R: ReadBytes>(data: &mut R, version: u32, vtype: VertexFormat, mtype: MaterialType) -> Result<Self> {
         let mut v = Self::default();
         match vtype {
             VertexFormat::Static => match mtype {
@@ -116,31 +120,25 @@ impl Vertex {
                     v.bitangent = data.read_vector_4_f32_normal_from_vector_4_u8()?;
                     v.uk_1 = data.read_vector_4_u8()?;
                 },
-
                 MaterialType::RsTerrain => {
                     v.position = data.read_vector_4_f32_normal_from_vector_4_f16()?;
                     v.normal = data.read_vector_4_f32_normal_from_vector_4_f16()?;
                 },
-
                 MaterialType::WeightedTextureBlend => {
                     v.position = data.read_vector_4_f32_normal_from_vector_4_f16()?;
                     v.normal = data.read_vector_4_f32_normal_from_vector_4_f16()?;
                 },
-
                 MaterialType::ProjectedDecalV4 => {
                     v.position = data.read_vector_4_f32_normal_from_vector_4_f16()?;
                 },
-
                 MaterialType::RsRiver => {
                     v.position = data.read_vector_4_f32()?;
                     v.normal = data.read_vector_4_f32()?;
                 },
-
                 MaterialType::TerrainBlend => {
                     v.position = data.read_vector_4_f32()?;
                     v.normal = data.read_vector_4_f32()?;
                 },
-
                 MaterialType::TiledDirtmap => {
                     v.position = data.read_vector_4_f32_normal_from_vector_4_f16()?;
                     v.texture_coordinate = data.read_vector_2_f32_from_vector_2_f16()?;
@@ -151,7 +149,6 @@ impl Vertex {
 
                     v.uk_1 = data.read_vector_4_u8()?;
                 },
-
                 MaterialType::ShipAmbientmap => {
                     v.position = data.read_vector_4_f32_normal_from_vector_4_f16()?;
                     v.texture_coordinate = data.read_vector_2_f32_from_vector_2_f16()?;
@@ -162,7 +159,6 @@ impl Vertex {
 
                     v.uk_1 = data.read_vector_4_u8()?;
                 },
-
                 MaterialType::Decal => {
                     v.position = data.read_vector_4_f32_normal_from_vector_4_f16()?;
                     v.texture_coordinate = data.read_vector_2_f32_from_vector_2_f16()?;
@@ -173,7 +169,6 @@ impl Vertex {
 
                     v.uk_1 = data.read_vector_4_u8()?;
                 }
-
                 MaterialType::Dirtmap => {
                     v.position = data.read_vector_4_f32_normal_from_vector_4_f16()?;
                     v.texture_coordinate = data.read_vector_2_f32_from_vector_2_f16()?;
@@ -184,10 +179,19 @@ impl Vertex {
 
                     v.uk_1 = data.read_vector_4_u8()?;
                 }
-
                 MaterialType::AlphaBlend => {
                     v.texture_coordinate = data.read_vector_2_f32_from_vector_2_f16()?;
                     v.texture_coordinate2 = data.read_vector_2_f32_from_vector_2_f16()?;
+                }
+                MaterialType::Cloth => {
+                    v.position = data.read_vector_4_f32_normal_from_vector_4_f16()?;
+                    v.texture_coordinate = data.read_vector_2_f32_from_vector_2_f16()?;
+                    v.texture_coordinate2 = data.read_vector_2_f32_from_vector_2_f16()?;
+                    v.normal = data.read_vector_4_f32_normal_from_vector_4_u8()?;
+                    v.tangent = data.read_vector_4_f32_normal_from_vector_4_u8()?;
+                    v.bitangent = data.read_vector_4_f32_normal_from_vector_4_u8()?;
+
+                    v.uk_1 = data.read_vector_4_u8()?;
                 }
                 _ => return Err(RLibError::DecodingRigidModelUnsupportedVertexFormatForMaterial(vtype.into(), mtype.into()))
             },
@@ -210,7 +214,10 @@ impl Vertex {
                 v.texture_coordinate = data.read_vector_2_f32_from_vector_2_f16()?;
                 v.tangent = data.read_vector_4_f32_normal_from_vector_4_u8()?;
                 v.bitangent = data.read_vector_4_f32_normal_from_vector_4_u8()?;
-                v.uk_1 = data.read_vector_4_u8()?;
+
+                if version >= 8 {
+                    v.uk_1 = data.read_vector_4_u8()?;
+                }
             }
             VertexFormat::Cinematic => {
                 v.position = data.read_vector_4_f32_normal_from_vector_4_f16()?;
@@ -222,11 +229,20 @@ impl Vertex {
                 v.texture_coordinate = data.read_vector_2_f32_from_vector_2_f16()?;
                 v.tangent = data.read_vector_4_f32_normal_from_vector_4_u8()?;
                 v.bitangent = data.read_vector_4_f32_normal_from_vector_4_u8()?;
-                v.uk_1 = data.read_vector_4_u8()?;
+
+                if version >= 8 {
+                    v.uk_1 = data.read_vector_4_u8()?;
+                }
             }
             VertexFormat::Uk8 => {
                 v.position = data.read_vector_4_f32_normal_from_vector_4_f16()?;
                 v.texture_coordinate = data.read_vector_2_f32_from_vector_2_f16()?;
+            }
+            VertexFormat::Uk12 => {
+                v.position = data.read_vector_4_f32_normal_from_vector_4_f16()?;
+                v.texture_coordinate = data.read_vector_2_f32_from_vector_2_f16()?;
+                v.texture_coordinate2 = data.read_vector_2_f32_from_vector_2_f16()?;
+                v.uk_1 = data.read_vector_4_u8()?;
             }
             _ => return Err(RLibError::DecodingRigidModelUnknownVertexFormat(vtype.into()))
         }
@@ -234,7 +250,7 @@ impl Vertex {
         Ok(v)
     }
 
-    pub fn write<W: WriteBytes>(&self, data: &mut W, vtype: VertexFormat, mtype: MaterialType) -> Result<()> {
+    pub fn write<W: WriteBytes>(&self, data: &mut W, version: u32, vtype: VertexFormat, mtype: MaterialType) -> Result<()> {
         match vtype {
             VertexFormat::Static => match mtype {
                 MaterialType::DefaultMaterial => {
@@ -248,31 +264,25 @@ impl Vertex {
                     // Color? Causes difference when processing if treated as color.
                     data.write_vector_4_u8(self.uk_1)?;
                 }
-
                 MaterialType::RsTerrain => {
                     data.write_vector_4_f32_normal_as_vector_4_f16(*self.position())?;
                     data.write_vector_4_f32_normal_as_vector_4_f16(*self.normal())?;
                 }
-
                 MaterialType::WeightedTextureBlend => {
                     data.write_vector_4_f32_normal_as_vector_4_f16(*self.position())?;
                     data.write_vector_4_f32_normal_as_vector_4_f16(*self.normal())?;
                 }
-
                 MaterialType::ProjectedDecalV4 => {
                     data.write_vector_4_f32_normal_as_vector_4_f16(*self.position())?;
                 }
-
                 MaterialType::RsRiver => {
                     data.write_vector_4_f32(*self.position())?;
                     data.write_vector_4_f32(*self.normal())?;
                 }
-
                 MaterialType::TerrainBlend => {
                     data.write_vector_4_f32(*self.position())?;
                     data.write_vector_4_f32(*self.normal())?;
                 }
-
                 MaterialType::TiledDirtmap => {
                     data.write_vector_4_f32_normal_as_vector_4_f16(self.position)?;
                     data.write_vector_2_f32_as_vector_2_f16(self.texture_coordinate)?;
@@ -282,7 +292,6 @@ impl Vertex {
                     data.write_vector_4_f32_normal_as_vector_4_u8(self.bitangent)?;
                     data.write_vector_4_u8(self.uk_1)?;
                 }
-
                 MaterialType::ShipAmbientmap => {
                     data.write_vector_4_f32_normal_as_vector_4_f16(self.position)?;
                     data.write_vector_2_f32_as_vector_2_f16(self.texture_coordinate)?;
@@ -292,7 +301,6 @@ impl Vertex {
                     data.write_vector_4_f32_normal_as_vector_4_u8(self.bitangent)?;
                     data.write_vector_4_u8(self.uk_1)?;
                 }
-
                 MaterialType::Decal => {
                     data.write_vector_4_f32_normal_as_vector_4_f16(self.position)?;
                     data.write_vector_2_f32_as_vector_2_f16(self.texture_coordinate)?;
@@ -302,7 +310,6 @@ impl Vertex {
                     data.write_vector_4_f32_normal_as_vector_4_u8(self.bitangent)?;
                     data.write_vector_4_u8(self.uk_1)?;
                 }
-
                 MaterialType::Dirtmap => {
                     data.write_vector_4_f32_normal_as_vector_4_f16(self.position)?;
                     data.write_vector_2_f32_as_vector_2_f16(self.texture_coordinate)?;
@@ -312,12 +319,19 @@ impl Vertex {
                     data.write_vector_4_f32_normal_as_vector_4_u8(self.bitangent)?;
                     data.write_vector_4_u8(self.uk_1)?;
                 }
-
                 MaterialType::AlphaBlend => {
                     data.write_vector_2_f32_as_vector_2_f16(self.texture_coordinate)?;
                     data.write_vector_2_f32_as_vector_2_f16(self.texture_coordinate2)?;
                 }
-
+                MaterialType::Cloth => {
+                    data.write_vector_4_f32_normal_as_vector_4_f16(self.position)?;
+                    data.write_vector_2_f32_as_vector_2_f16(self.texture_coordinate)?;
+                    data.write_vector_2_f32_as_vector_2_f16(self.texture_coordinate2)?;
+                    data.write_vector_4_f32_normal_as_vector_4_u8(self.normal)?;
+                    data.write_vector_4_f32_normal_as_vector_4_u8(self.tangent)?;
+                    data.write_vector_4_f32_normal_as_vector_4_u8(self.bitangent)?;
+                    data.write_vector_4_u8(self.uk_1)?;
+                }
                 _ => return Err(RLibError::DecodingRigidModelUnsupportedVertexFormatForMaterial(vtype.into(), mtype.into()))
             },
 
@@ -334,8 +348,10 @@ impl Vertex {
                 data.write_vector_2_f32_as_vector_2_f16(self.texture_coordinate)?;
                 data.write_vector_4_f32_normal_as_vector_4_u8(self.tangent)?;
                 data.write_vector_4_f32_normal_as_vector_4_u8(self.bitangent)?;
-                data.write_vector_4_u8(self.uk_1)?;
 
+                if version >= 8 {
+                    data.write_vector_4_u8(self.uk_1)?;
+                }
             }
             VertexFormat::Cinematic => {
                 data.write_vector_4_f32_normal_as_vector_4_f16(self.position)?;
@@ -345,11 +361,20 @@ impl Vertex {
                 data.write_vector_2_f32_as_vector_2_f16(self.texture_coordinate)?;
                 data.write_vector_4_f32_normal_as_vector_4_u8(self.tangent)?;
                 data.write_vector_4_f32_normal_as_vector_4_u8(self.bitangent)?;
-                data.write_vector_4_u8(self.uk_1)?;
+
+                if version >= 8 {
+                    data.write_vector_4_u8(self.uk_1)?;
+                }
             }
             VertexFormat::Uk8 => {
                 data.write_vector_4_f32_normal_as_vector_4_f16(*self.position())?;
                 data.write_vector_2_f32_as_vector_2_f16(self.texture_coordinate)?;
+            }
+            VertexFormat::Uk12 => {
+                data.write_vector_4_f32_normal_as_vector_4_f16(*self.position())?;
+                data.write_vector_2_f32_as_vector_2_f16(self.texture_coordinate)?;
+                data.write_vector_2_f32_as_vector_2_f16(self.texture_coordinate2)?;
+                data.write_vector_4_u8(self.uk_1)?;
             }
             _ => return Err(RLibError::DecodingRigidModelUnknownVertexFormat(vtype.into()))
         }

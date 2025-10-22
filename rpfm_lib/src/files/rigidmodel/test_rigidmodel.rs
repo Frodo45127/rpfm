@@ -70,19 +70,16 @@ fn test_encode_rigidmodel_wh3() {
 
             let data_len = reader.len().unwrap();
             let before = reader.read_slice(data_len as usize, true).unwrap();
-                dbg!(&path);
+            dbg!(&path);
             let mut data = RigidModel::decode(&mut reader, &Some(decodeable_extra_data)).unwrap();
 
-            if data.version != 7 {
-                dbg!(&path);
-                let mut after = vec![];
-                data.encode(&mut after, &None).unwrap();
+            let mut after = vec![];
+            data.encode(&mut after, &None).unwrap();
 
-                let mut writer = BufWriter::new(File::create(path_2).unwrap());
-                writer.write_all(&after).unwrap();
+            let mut writer = BufWriter::new(File::create(path_2).unwrap());
+            writer.write_all(&after).unwrap();
 
-                assert_eq!(before, after);
-            }
+            assert_eq!(before, after);
         }
     }
 }

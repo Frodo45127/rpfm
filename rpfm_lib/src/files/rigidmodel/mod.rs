@@ -24,7 +24,7 @@ use crate::files::{DecodeableExtraData, Decodeable, EncodeableExtraData, Encodea
 use crate::utils::check_size_mismatch;
 
 use self::materials::{Material, MaterialType};
-use self::vertices::{Vertex, VertexFormat};
+use self::vertices::Vertex;
 
 /// Signature/Magic Numbers/Whatever of a RigidModel.
 const SIGNATURE: &[u8; 4] = b"RMV2";
@@ -33,8 +33,8 @@ const SIGNATURE: &[u8; 4] = b"RMV2";
 pub const EXTENSION: &str = ".rigid_model_v2";
 
 // Constants for padded sized strings.
-const PADDED_SIZE_10: usize = 10;
-const PADDED_SIZE_12: usize = 12;
+//const PADDED_SIZE_10: usize = 10;
+//const PADDED_SIZE_12: usize = 12;
 const PADDED_SIZE_32: usize = 32;
 const PADDED_SIZE_64: usize = 64;
 const PADDED_SIZE_128: usize = 128;
@@ -100,9 +100,10 @@ pub struct Mesh {
 #[derive(Clone, Debug, Default, PartialEq, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct ShaderParams {
-    name: String,
-    uk_1: Vec<u8>,
-    uk_2: Vec<u8>,
+    data: Vec<u8>,
+    //name: String,
+    //uk_1: Vec<u8>,
+    //uk_2: Vec<u8>,
 }
 
 //---------------------------------------------------------------------------//
@@ -122,7 +123,7 @@ impl Decodeable for RigidModel {
 
         match rigid.version {
             8 => rigid.read_v8(data)?,
-            //7 => return Ok(rigid),
+            7 => rigid.read_v7(data)?,
             6 => rigid.read_v6(data)?,
             _ => Err(RLibError::DecodingRigidModelUnsupportedVersion(rigid.version))?,
         }
@@ -142,7 +143,7 @@ impl Encodeable for RigidModel {
 
         match self.version {
             8 => self.write_v8(buffer)?,
-            //7 => self.write_v7(buffer)?,
+            7 => self.write_v7(buffer)?,
             6 => self.write_v6(buffer)?,
             _ => Err(RLibError::DecodingRigidModelUnsupportedVersion(self.version))?,
         }
