@@ -378,6 +378,13 @@ pub struct DecodeableExtraData<'a> {
     /// Name of the folder that contains a table fragment.
     table_name: Option<&'a str>,
 
+    //----------------------------//
+    // Image-Related config data  //
+    //----------------------------//
+
+    /// If an image is a dds, so we know we have to use special code to deal with it.
+    is_dds: bool,
+
     //------------------------------//
     // General-purpouse config data //
     //------------------------------//
@@ -1548,7 +1555,14 @@ impl RFile {
                     FileType::Font => RFileDecoded::Font(Font::decode(&mut data, &Some(extra_data))?),
                     FileType::GroupFormations => RFileDecoded::GroupFormations(GroupFormations::decode(&mut data, &Some(extra_data))?),
                     FileType::HlslCompiled => RFileDecoded::HlslCompiled(HlslCompiled::decode(&mut data, &Some(extra_data))?),
-                    FileType::Image => RFileDecoded::Image(Image::decode(&mut data, &Some(extra_data))?),
+                    FileType::Image => {
+
+                        if self.path.ends_with(".dds") {
+                            extra_data.is_dds = true;
+                        }
+
+                        RFileDecoded::Image(Image::decode(&mut data, &Some(extra_data))?)
+                    },
                     FileType::Loc => RFileDecoded::Loc(Loc::decode(&mut data, &Some(extra_data))?),
                     FileType::MatchedCombat => RFileDecoded::MatchedCombat(MatchedCombat::decode(&mut data, &Some(extra_data))?),
                     FileType::Pack => RFileDecoded::Pack(Pack::decode(&mut data, &Some(extra_data))?),
@@ -1603,7 +1617,14 @@ impl RFile {
                     FileType::Font => RFileDecoded::Font(Font::decode(&mut data, &Some(extra_data))?),
                     FileType::GroupFormations => RFileDecoded::GroupFormations(GroupFormations::decode(&mut data, &Some(extra_data))?),
                     FileType::HlslCompiled => RFileDecoded::HlslCompiled(HlslCompiled::decode(&mut data, &Some(extra_data))?),
-                    FileType::Image => RFileDecoded::Image(Image::decode(&mut data, &Some(extra_data))?),
+                    FileType::Image => {
+
+                        if self.path.ends_with(".dds") {
+                            extra_data.is_dds = true;
+                        }
+
+                        RFileDecoded::Image(Image::decode(&mut data, &Some(extra_data))?)
+                    },
                     FileType::Loc => RFileDecoded::Loc(Loc::decode(&mut data, &Some(extra_data))?),
                     FileType::MatchedCombat => RFileDecoded::MatchedCombat(MatchedCombat::decode(&mut data, &Some(extra_data))?),
                     FileType::Pack => RFileDecoded::Pack(Pack::decode(&mut data, &Some(extra_data))?),

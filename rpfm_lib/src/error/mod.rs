@@ -486,4 +486,7 @@ pub enum RLibError {
 
     #[error(transparent)]
     LzmaError(#[from] lzma_rs::error::Error),
+
+    #[error(transparent)]
+    ImageError(#[from] image::ImageError),
 }

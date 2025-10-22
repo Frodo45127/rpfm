@@ -27,8 +27,6 @@ use qt_core::QPtr;
 use anyhow::{anyhow, Result};
 use rpfm_lib::files::{FileType, image::Image};
 
-#[cfg(feature = "support_modern_dds")]
-use crate::ffi::get_dds_qimage;
 use crate::ffi::{new_resizable_label_safe, set_pixmap_on_resizable_label_safe};
 use crate::packedfile_views::{FileView, View, ViewType};
 
@@ -57,32 +55,11 @@ impl PackedFileImageView {
 
         // Create the image in the UI.
         let byte_array = QByteArray::from_slice(data.data()).into_ptr();
-
-        #[cfg(feature = "support_modern_dds")]
-        let mut image = QPixmap::new();
-
-        #[cfg(not(feature = "support_modern_dds"))]
         let image = QPixmap::new();
 
         // If it fails to load and it's a dds, try the modern loader if its enabled.
         if !image.load_from_data_q_byte_array(byte_array.as_ref().unwrap()) {
-
-            #[cfg(feature = "support_modern_dds")] {
-                if file_view.path.read().unwrap().to_lowercase().ends_with(".dds") {
-                    let image_new = get_dds_qimage(&byte_array);
-                    if !image_new.is_null() {
-                        image = QPixmap::from_image_1a(image_new.as_ref().unwrap());
-                    } else {
-                        return Err(anyhow!("The image is not supported by the previsualizer."));
-                    }
-                } else {
-                    return Err(anyhow!("The image is not supported by the previsualizer."));
-                }
-            }
-
-            #[cfg(not(feature = "support_modern_dds"))] {
-                return Err(anyhow!("The image is not supported by the previsualizer."));
-            }
+            return Err(anyhow!("The image is not supported by the previsualizer."));
         }
 
         // Get the size of the holding widget.

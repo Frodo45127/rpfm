@@ -25,7 +25,6 @@ use qt_widgets::QTreeView;
 use qt_widgets::QWidget;
 
 #[cfg(feature = "enable_tools")] use qt_gui::QColor;
-#[cfg(feature = "support_modern_dds")] use qt_gui::QImage;
 use qt_gui::QPixmap;
 use qt_gui::QStandardItemModel;
 
@@ -469,14 +468,6 @@ pub fn new_resizable_label_safe(parent: &Ptr<QWidget>, pixmap: &Ptr<QPixmap>) ->
 extern "C" { fn set_pixmap_on_resizable_label(label: *mut QLabel, pixmap: *mut QPixmap); }
 pub fn set_pixmap_on_resizable_label_safe(label: &Ptr<QLabel>, pixmap: &Ptr<QPixmap>) {
     unsafe { set_pixmap_on_resizable_label(label.as_mut_raw_ptr(), pixmap.as_mut_raw_ptr()); }
-}
-
-// This function allow us to create a QImage with the contents of a DDS Texture.
-#[cfg(feature = "support_modern_dds")]
-extern "C" { fn getDDS_QImage(data: *const QByteArray) -> *mut QImage; }
-#[cfg(feature = "support_modern_dds")]
-pub fn get_dds_qimage(data: &Ptr<QByteArray>) -> Ptr<QImage> {
-    unsafe { Ptr::from_raw(getDDS_QImage(data.as_mut_raw_ptr())) }
 }
 
 //---------------------------------------------------------------------------//

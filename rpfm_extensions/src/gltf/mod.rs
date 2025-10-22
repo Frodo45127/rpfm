@@ -10,15 +10,15 @@
 
 use base64::{Engine, engine::general_purpose::STANDARD};
 pub use gltf::{Document, Gltf, json};
-use gltf_json::validation::{Checked::Valid, USize64};
+use gltf_json::{image::MimeType, validation::{Checked::Valid, USize64}};
 
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::mem;
 use std::path::Path;
 
-use rpfm_lib::error::Result;
-use rpfm_lib::files::rigidmodel::{*, vertices::Vertex};
+use rpfm_lib::{error::Result, files::RFileDecoded};
+use rpfm_lib::files::rigidmodel::{*, materials::TextureType, vertices::Vertex};
 
 use crate::dependencies::Dependencies;
 
@@ -28,7 +28,7 @@ use crate::dependencies::Dependencies;
 //                              Implementations
 //---------------------------------------------------------------------------//
 
-pub fn gltf_from_rigid(value: &RigidModel, _dependencies: &mut Dependencies) -> Result<Gltf> {
+pub fn gltf_from_rigid(value: &RigidModel, dependencies: &mut Dependencies) -> Result<Gltf> {
     let mut root = gltf_json::Root::default();
 
     // All the data that is total war-exclusive goes here.
@@ -271,7 +271,7 @@ pub fn gltf_from_rigid(value: &RigidModel, _dependencies: &mut Dependencies) -> 
             });
 
             // After the mesh, add the material data.
-            let material = json::Material {
+            let mut material = json::Material {
                 alpha_cutoff: Default::default(),
                 alpha_mode: Default::default(),
                 double_sided: Default::default(),
@@ -284,71 +284,74 @@ pub fn gltf_from_rigid(value: &RigidModel, _dependencies: &mut Dependencies) -> 
                 extensions: Default::default(),
                 extras: Default::default(),
             };
-            /*
+
             // Add the textures used by the material block.
             for text in mesh_block.material().textures() {
                 if let Ok(ref mut image) = dependencies.file_mut(text.path(), true, true) {
-                    let image_data = image.encode(&None, false, false, true)?.unwrap();
-                    let image_buffer_length = image_data.len();
+                    let image_data = image.decode(&None, false, true)?.unwrap();
 
-                    let image_buffer = root.push(json::Buffer {
-                        byte_length: USize64::from(image_buffer_length),
-                        extensions: Default::default(),
-                        extras: Default::default(),
-                        name: None,
-                        uri: Some(format!("data:application/octet-stream;base64,{}", STANDARD.encode(&image_data))),
-                    });
+                    if let RFileDecoded::Image(image) = image_data {
+                        let image_buffer_length = image.data().len();
 
-                    let image_buffer_view = root.push(json::buffer::View {
-                        buffer: image_buffer,
-                        byte_length: USize64::from(image_buffer_length),
-                        byte_offset: None,
-                        byte_stride: None,
-                        extensions: Default::default(),
-                        extras: Default::default(),
-                        name: None,
-                        target: None,
-                    });
+                        let image_buffer = root.push(json::Buffer {
+                            byte_length: USize64::from(image_buffer_length),
+                            extensions: Default::default(),
+                            extras: Default::default(),
+                            name: None,
+                            uri: Some(format!("data:application/octet-stream;base64,{}", STANDARD.encode(&image.data()))),
+                        });
 
-                    let image = root.push(json::Image {
-                        buffer_view: Some(image_buffer_view),
-                        mime_type: Some(MimeType(String::from("image/dds"))),
-                        name: Default::default(),
-                        uri: Default::default(),
-                        extensions: Default::default(),
-                        extras: Default::default(),
-                    });
+                        let image_buffer_view = root.push(json::buffer::View {
+                            buffer: image_buffer,
+                            byte_length: USize64::from(image_buffer_length),
+                            byte_offset: None,
+                            byte_stride: None,
+                            extensions: Default::default(),
+                            extras: Default::default(),
+                            name: None,
+                            target: None,
+                        });
 
-                    let texture = root.push(json::Texture {
-                        name: None,
-                        sampler: None,
-                        source: image,
-                        extensions: None,
-                        extras: None,
-                    });
+                        let image = root.push(json::Image {
+                            buffer_view: Some(image_buffer_view),
+                            mime_type: Some(MimeType(String::from("image/png"))),
+                            name: Default::default(),
+                            uri: Default::default(),
+                            extensions: Default::default(),
+                            extras: Default::default(),
+                        });
 
-                    match text.tex_type() {
-                        TextureType::Diffuse => {
-                            material.pbr_metallic_roughness.base_color_texture = Some(json::texture::Info {
-                                index: texture,
-                                tex_coord: 1,
-                                extensions: None,
-                                extras: Default::default(),
-                            });
-                        },
-                        TextureType::Normal => {
-                            material.normal_texture = Some(json::material::NormalTexture {
-                                index: texture,
-                                scale: 1.0,
-                                tex_coord: 0,
-                                extensions: None,
-                                extras: None,
-                            });
-                        },
-                        _ => {}
+                        let texture = root.push(json::Texture {
+                            name: None,
+                            sampler: None,
+                            source: image,
+                            extensions: None,
+                            extras: None,
+                        });
+
+                        match text.tex_type() {
+                            TextureType::Diffuse => {
+                                material.pbr_metallic_roughness.base_color_texture = Some(json::texture::Info {
+                                    index: texture,
+                                    tex_coord: 1,
+                                    extensions: None,
+                                    extras: Default::default(),
+                                });
+                            },
+                            TextureType::Normal => {
+                                material.normal_texture = Some(json::material::NormalTexture {
+                                    index: texture,
+                                    scale: 1.0,
+                                    tex_coord: 0,
+                                    extensions: None,
+                                    extras: None,
+                                });
+                            },
+                            _ => {}
+                        }
                     }
                 }
-            }*/
+            }
 
             let material = root.push(material);
 

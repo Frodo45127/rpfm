@@ -25,10 +25,6 @@ fn main() {
     common_config();
     let target_path = format!("./../target/{}/", if cfg!(debug_assertions) { "debug" } else { "release"});
 
-    #[cfg(feature = "support_modern_dds")] {
-        println!("cargo:rustc-link-lib=dylib=QImage_DDS");
-    }
-
     // Model renderer, only on windows.
     #[cfg(feature = "support_model_renderer")] {
 

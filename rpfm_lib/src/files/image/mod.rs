@@ -20,9 +20,14 @@
 //! - `.png`
 //! - `.dds`
 //! - `.gif`
+//!
+//! NOTE: DDS files are converted to png in order for a viewer to use them more easily.
 
 use getset::*;
+use image::{ImageFormat, ImageReader};
 use serde_derive::{Serialize, Deserialize};
+
+use std::io::Cursor;
 
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::Result;
@@ -55,9 +60,24 @@ pub struct Image {
 
 impl Decodeable for Image {
 
-    fn decode<R: ReadBytes>(data: &mut R, _extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
+    fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
         let len = data.len()?;
-        let data = data.read_slice(len as usize, false)?;
+        let mut data = data.read_slice(len as usize, false)?;
+
+        if let Some(extra_data) = extra_data {
+            if extra_data.is_dds {
+
+                // If it fails (v95 to 99 are unsupported) do not alter the data.
+                if let Ok(dds) = ImageReader::new(Cursor::new(&data))
+                    .with_guessed_format()?
+                    .decode() {
+
+                    data.clear();
+                    dds.write_to(&mut Cursor::new(&mut data), ImageFormat::Png).unwrap();
+                }
+            }
+        }
+
         Ok(Self {
             data,
         })

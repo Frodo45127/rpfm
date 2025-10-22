@@ -264,13 +264,6 @@ pub fn get_feature_flags() -> String {
         feature_flags.push_str("strict_subclasses_compilation");
     }
 
-    #[cfg(feature = "support_modern_dds")] {
-        if !feature_flags.is_empty() {
-            feature_flags.push_str(", ");
-        }
-        feature_flags.push_str("support_modern_dds");
-    }
-
     #[cfg(feature = "support_uic")] {
         if !feature_flags.is_empty() {
             feature_flags.push_str(", ");

@@ -16,7 +16,6 @@ rust-version.workspace = true
 [features]
 strict_subclasses_compilation = []
 support_model_renderer = []
-support_modern_dds = []
 support_uic = ["rpfm_lib/support_uic", "rpfm_ui_common/support_uic"]
 enable_tools = []
 only_for_the_brave = []

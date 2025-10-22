@@ -119,3 +119,6 @@ r2d2 = { version = "^0.8", optional = true }
 
 # F16 support until it gets into std.
 half = "^2"
+
+# Support for converting dds files to png.
+image = "^0.25"
