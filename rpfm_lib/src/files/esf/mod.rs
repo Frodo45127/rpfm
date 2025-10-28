@@ -37,10 +37,13 @@ pub const EXTENSIONS: [&str; 5] = [
 
 /// Signatured/Magic Numbers/Whatever of a ESF file.
 pub const SIGNATURE_CAAB: &[u8; 4] = &[0xCA, 0xAB, 0x00, 0x00];
+pub const SIGNATURE_CBAB: &[u8; 4] = &[0xCB, 0xAB, 0x00, 0x00];
 pub const SIGNATURE_CEAB: &[u8; 4] = &[0xCE, 0xAB, 0x00, 0x00];
 pub const SIGNATURE_CFAB: &[u8; 4] = &[0xCF, 0xAB, 0x00, 0x00];
 
-pub mod caab;
+mod caab;
+mod cbab;
+mod utils;
 
 #[cfg(test)] mod esf_test;
 
@@ -151,7 +154,7 @@ bitflags! {
 //---------------------------------------------------------------------------//
 
 /// This holds an entire ESF decoded in memory.
-#[derive(Getters, Setters, PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(Getters, Setters, PartialEq, Clone, Debug, Default, Serialize, Deserialize)]
 #[getset(get = "pub", set = "pub")]
 pub struct ESF {
 
@@ -169,11 +172,10 @@ pub struct ESF {
 }
 
 /// This enum represents the different signatures of ESF files.
-#[derive(Eq, PartialEq, Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Eq, PartialEq, Clone, Copy, Debug, Default, Serialize, Deserialize)]
 pub enum ESFSignature {
-
-    // Signature found on 3K files.
-    CAAB,
+    #[default]CAAB,
+    CBAB,
     CEAB,
     CFAB
 }
@@ -181,10 +183,11 @@ pub enum ESFSignature {
 /// This enum represents all known node types present on ESF files.
 ///
 /// NOTE: These are partially extracted from EditSF.
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Clone, Debug, Default, Serialize, Deserialize)]
 pub enum NodeType {
 
     // Invalid type.
+    #[default]
     Invalid,
 
     // Primitive nodes.
@@ -355,36 +358,25 @@ impl NodeType {
     }
 }
 
-/// Default implementation for `ESF`.
-impl Default for ESF {
-    fn default() -> Self {
-        Self {
-            signature: ESFSignature::CAAB,
-            unknown_1: 0,
-            creation_date: 0,
-            root_node: NodeType::Invalid,
-        }
-    }
-}
-
 /// Display implementation for `ESFSignature`.
 impl Display for ESFSignature {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         Display::fmt(match self {
             Self::CAAB => "CAAB",
+            Self::CBAB => "CBAB",
             Self::CEAB => "CEAB",
             Self::CFAB => "CFAB",
         }, f)
     }
 }
 
-/// TryFrom implementation of `ESFSignature`.
 impl TryFrom<&str> for ESFSignature {
     type Error = RLibError;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         match value {
             "CAAB" => Ok(Self::CAAB),
+            "CBAB" => Ok(Self::CBAB),
             "CEAB" => Ok(Self::CEAB),
             "CFAB" => Ok(Self::CFAB),
             _ => Err(RLibError::UnknownESFSignature(value.to_string())),
@@ -392,25 +384,43 @@ impl TryFrom<&str> for ESFSignature {
     }
 }
 
+impl TryFrom<Vec<u8>> for ESFSignature {
+    type Error = RLibError;
+
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
+        match value.as_slice().try_into()? {
+            SIGNATURE_CAAB => Ok(Self::CAAB),
+            SIGNATURE_CBAB => Ok(Self::CBAB),
+            SIGNATURE_CEAB => Ok(Self::CEAB),
+            SIGNATURE_CFAB => Ok(Self::CFAB),
+            _ => Err(RLibError::UnknownESFSignatureBytes(value[0], value[1])),
+        }
+    }
+}
+
+impl From<ESFSignature> for Vec<u8> {
+    fn from(value: ESFSignature) -> Self {
+        match value {
+            ESFSignature::CAAB => SIGNATURE_CAAB.to_vec(),
+            ESFSignature::CBAB => SIGNATURE_CBAB.to_vec(),
+            ESFSignature::CEAB => SIGNATURE_CEAB.to_vec(),
+            ESFSignature::CFAB => SIGNATURE_CFAB.to_vec(),
+        }
+    }
+}
 
 impl Decodeable for ESF {
 
     fn decode<R: ReadBytes>(data: &mut R, _extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
-        let signature_bytes = data.read_slice(4, false)?;
-        let signature_bytes = signature_bytes.as_slice().try_into()?;
+        let mut esf = Self::default();
 
-        // Match known signatures.
-        let signature = match signature_bytes {
-            SIGNATURE_CAAB => ESFSignature::CAAB,
-            SIGNATURE_CEAB => ESFSignature::CEAB,
-            SIGNATURE_CFAB => ESFSignature::CFAB,
-            _ => return Err(RLibError::DecodingESFUnsupportedSignature(signature_bytes[0], signature_bytes[1])),
-        };
+        let sig_bytes = data.read_slice(4, false)?;
+        esf.signature = ESFSignature::try_from(sig_bytes.to_vec())?;
 
-        // Match signatures that we can actually decode.
-        let esf = match signature {
-            ESFSignature::CAAB => Self::read_caab(data)?,
-            _ => return Err(RLibError::DecodingESFUnsupportedSignature(signature_bytes[0], signature_bytes[1])),
+        match esf.signature {
+            ESFSignature::CAAB => Self::read_caab(&mut esf, data)?,
+            //ESFSignature::CBAB => Self::read_cbab(&mut esf, data)?,
+            _ => return Err(RLibError::DecodingESFUnsupportedSignature(sig_bytes[0], sig_bytes[1])),
         };
 
         // Debugging code.
@@ -425,8 +435,12 @@ impl Decodeable for ESF {
 impl Encodeable for ESF {
 
     fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+        let sig_bytes: Vec<u8> = Vec::from(self.signature);
+        buffer.write_all(&sig_bytes)?;
+
         match self.signature {
             ESFSignature::CAAB => self.save_caab(buffer, extra_data),
+            //ESFSignature::CBAB => self.save_cbab(buffer, extra_data),
             _ => Err(RLibError::EncodingESFUnsupportedSignature(self.signature.to_string())),
         }
     }

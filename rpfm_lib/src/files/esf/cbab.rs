@@ -8,7 +8,7 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! Module with the logic and documentation for the CAAB ESF files.
+//! Module with the logic and documentation for the CBAB ESF files.
 
 use std::collections::BTreeMap;
 use std::io::{Cursor, SeekFrom, Write};
@@ -23,11 +23,11 @@ use super::*;
 //                           Implementation of ESF
 //---------------------------------------------------------------------------//
 
-/// Implementation of `ESF`. Section of functions specific for the CAAB format.
+/// Implementation of `ESF`. Section of functions specific for the CBAB format.
 impl ESF {
 
-    /// This function creates a `ESF` of type CAAB from a `Vec<u8>`.
-    pub(crate) fn read_caab<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
+    /// This function creates a `ESF` of type CBAB from a `Vec<u8>`.
+    pub(crate) fn read_cbab<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
 
         // Note: this assumes the caller has already read the first 4 bytes of the data.
         self.unknown_1 = data.read_u32()?;
@@ -127,8 +127,8 @@ impl ESF {
         Ok(())
     }
 
-    /// This function takes a `ESF` of type CAAB and encodes it to `Vec<u8>`.
-    pub(crate) fn save_caab<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+    /// This function takes a `ESF` of type CBAB and encodes it to `Vec<u8>`.
+    pub(crate) fn save_cbab<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         let mut extra_data = extra_data.clone().unwrap_or_default();
         let disable_compression = extra_data.disable_compression;
 
@@ -246,3 +246,4 @@ impl ESF {
         Ok(())
     }
 }
+

@@ -112,6 +112,9 @@ pub enum RLibError {
     #[error("Unknown ESF Signature: {0}")]
     UnknownESFSignature(String),
 
+    #[error("Unknown ESF Signature: {0:#X} {1:#X}")]
+    UnknownESFSignatureBytes(u8, u8),
+
     #[error("Unknown EF Line Type: {0}")]
     UnknownEFLineType(String),
 
@@ -133,7 +136,7 @@ pub enum RLibError {
     #[error("Incorrect/Unknown Frame size.")]
     DecodingCAVP8IncorrectOrUnknownFrameSize,
 
-    #[error("Unsupported signature: {0:#X}{1:#X}.")]
+    #[error("Unsupported signature: {0:#X} {1:#X}.")]
     DecodingESFUnsupportedSignature(u8, u8),
 
     #[error("Unsupported data type: {0}.")]
