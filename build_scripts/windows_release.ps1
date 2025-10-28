@@ -4,7 +4,7 @@ Set-Variable -Name "RPFM_VERSION" -Value (Select-String -Path Cargo.toml -Patter
 
 # Build the tools.
 cargo build --release --bin rpfm_cli
-cargo build --release --features "support_rigidmodel support_modern_dds enable_tools" --bin rpfm_ui
+cargo build --release --features "enable_tools" --bin rpfm_ui
 
 # Prepare the paths for the deployment.
 Set-Location I:\
