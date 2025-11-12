@@ -29,10 +29,15 @@ mod v1;
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct DeploymentRegion {
+    #[serde(rename = "@serialise_version")]
     serialise_version: u16,
+    #[serde(rename = "BOUNDARY")]
     boundary_list: Vec<Boundary>,
+    #[serde(rename = "@orientation")]
     orientation: f32,
+    #[serde(rename = "@snap_facing")]
     snap_facing: bool,
+    #[serde(rename = "@id")]
     id: u32,
 }
 

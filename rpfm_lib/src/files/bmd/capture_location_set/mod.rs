@@ -11,6 +11,7 @@
 use getset::*;
 use rand::Rng;
 use serde_derive::{Serialize, Deserialize};
+use serde::{Serializer, Deserializer};
 
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{Result, RLibError};
@@ -31,42 +32,100 @@ mod v11;
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct CaptureLocationSet {
+    #[serde(rename = "@serialise_version")]
     serialise_version: u16,
+    #[serde(rename = "CAPTURE_LOCATION_LIST")]
     capture_location_sets: Vec<CaptureLocationList>,
 }
 
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct CaptureLocationList {
+    #[serde(rename = "CAPTURE_LOCATION")]
     capture_locations: Vec<CaptureLocation>,
 }
 
 #[derive(PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
+#[serde(rename = "CAPTURE_LOCATION")]
 pub struct CaptureLocation {
+    //todo ID?
     id: u64,
+    #[serde(rename = "location")]
     location: Point2d,
+    #[serde(rename = "@radius")]
     radius: f32,
+    #[serde(rename = "@valid_for_min_num_players")]
     valid_for_min_num_players: u32,
+    #[serde(rename = "@valid_for_max_num_players")]
     valid_for_max_num_players: u32,
+    #[serde(rename = "@capture_point_type")]
     capture_point_type: String,
+    #[serde(rename = "@restore_type")]
     restore_type: String,
+    #[serde(rename = "location_points", serialize_with = "serialize_location_points", deserialize_with = "deserialize_location_points")]
     location_points: Vec<Point2d>,
+    #[serde(rename = "@database_key")]
     database_key: String,
+    #[serde(rename = "flag_facing")]
     flag_facing: Point2d,
+    #[serde(rename = "@destroy_building_on_capture")]
     destroy_building_on_capture: bool,
+    #[serde(rename = "@disable_building_abilities_when_no_original_owner")]
     disable_building_abilities_when_no_original_owner: bool,
+    #[serde(rename = "@abilities_affect_globally")]
     abilities_affect_globally: bool,
+    // todo
     building_links: Vec<BuildingLink>,
+    // todo
     toggle_slots_links: Vec<u32>,
+    // todo
     ai_hints_links: Vec<u8>,
+    #[serde(rename = "@script_id")]
     script_id: String,
+    #[serde(rename = "@is_time_based")]
     is_time_based: bool,
 }
 
 //---------------------------------------------------------------------------//
 //                Implementation of CaptureLocationSet
 //---------------------------------------------------------------------------//
+
+fn serialize_location_points<S>(
+    location_points: &Vec<Point2d>,
+    serializer: S,
+) -> std::result::Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    use serde::Serialize;
+
+    #[derive(Serialize)]
+    struct Wrapper<'a> {
+        #[serde(rename = "point")]
+        items: &'a Vec<Point2d>,
+    }
+
+    let wrapper = Wrapper { items: location_points };
+    wrapper.serialize(serializer)
+}
+
+fn deserialize_location_points<'de, D>(
+    deserializer: D,
+) -> std::result::Result<Vec<Point2d>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    use serde::Deserialize;
+    #[derive(Deserialize)]
+    struct Wrapper {
+        #[serde(rename = "point", default)]
+        items: Vec<Point2d>,
+    }
+
+    let wrapper = Wrapper::deserialize(deserializer)?;
+    Ok(wrapper.items)
+}
 
 impl Decodeable for CaptureLocationSet {
 

@@ -26,9 +26,19 @@ mod v1;
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Boundary {
+    #[serde(rename = "@serialise_version")]
     serialise_version: u16,
+    #[serde(rename = "@DEPLOYMENT_AREA_BOUNDARY_TYPE")]
     deployment_area_boundary_type: String,
-    boundary: Vec<Point2d>,
+    #[serde(rename = "BOUNDARY")]
+    boundary: BoundaryPositions,
+}
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct BoundaryPositions {
+    #[serde(rename = "position")]
+    boundary_positions: Vec<Point2d>,
 }
 
 //---------------------------------------------------------------------------//

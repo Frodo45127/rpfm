@@ -23,9 +23,9 @@ impl Bmd {
     pub(crate) fn read_v27<R: ReadBytes>(&mut self, data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<()> {
         self.battlefield_building_list = BattlefieldBuildingList::decode(data, extra_data)?;
         self.battlefield_building_list_far = BattlefieldBuildingListFar::decode(data, extra_data)?;
-        self.capture_location_set = CaptureLocationSet::decode(data, extra_data)?;
+        self.capture_location_set = CaptureLocationSet::decode(data, extra_data)?; // +-
         self.ef_line_list = EFLineList::decode(data, extra_data)?;
-        self.go_outlines = GoOutlines::decode(data, extra_data)?;
+        self.go_outlines = GoOutlines::decode(data, extra_data)?; // +
         self.non_terrain_outlines = NonTerrainOutlines::decode(data, extra_data)?;
         self.zones_template_list = ZonesTemplateList::decode(data, extra_data)?;
         self.prefab_instance_list = PrefabInstanceList::decode(data, extra_data)?;
@@ -37,19 +37,19 @@ impl Bmd {
         self.civilian_shelter_list = CivilianShelterList::decode(data, extra_data)?;
         self.prop_list = PropList::decode(data, extra_data)?;
         self.particle_emitter_list = ParticleEmitterList::decode(data, extra_data)?;
-        self.ai_hints = AIHints::decode(data, extra_data)?;
+        self.ai_hints = AIHints::decode(data, extra_data)?; // todo this
         self.light_probe_list = LightProbeList::decode(data, extra_data)?;
         self.terrain_stencil_triangle_list = TerrainStencilTriangleList::decode(data, extra_data)?;
         self.point_light_list = PointLightList::decode(data, extra_data)?;
         self.building_projectile_emitter_list = BuildingProjectileEmitterList::decode(data, extra_data)?;
-        self.playable_area = PlayableArea::decode(data, extra_data)?;
+        self.playable_area = PlayableArea::decode(data, extra_data)?; // +
         self.custom_material_mesh_list = CustomMaterialMeshList::decode(data, extra_data)?;
         self.terrain_stencil_blend_triangle_list = TerrainStencilBlendTriangleList::decode(data, extra_data)?;
         self.spot_light_list = SpotLightList::decode(data, extra_data)?;
         self.sound_shape_list = SoundShapeList::decode(data, extra_data)?;
         self.composite_scene_list = CompositeSceneList::decode(data, extra_data)?;
-        self.deployment_list = DeploymentList::decode(data, extra_data)?;
-        self.bmd_catchment_area_list = BmdCatchmentAreaList::decode(data, extra_data)?;
+        self.deployment_list = DeploymentList::decode(data, extra_data)?; // todo
+        self.bmd_catchment_area_list = BmdCatchmentAreaList::decode(data, extra_data)?; // +
         self.toggleable_buildings_slot_list = ToggleableBuildingsSlotList::decode(data, extra_data)?;
         self.terrain_decal_list = TerrainDecalList::decode(data, extra_data)?;
         self.tree_list_reference_list = TreeListReferenceList::decode(data, extra_data)?;
