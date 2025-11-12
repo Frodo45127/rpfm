@@ -10,6 +10,9 @@
 
 use getset::*;
 use serde_derive::{Serialize, Deserialize};
+use serde::{Serializer, Deserializer};
+// use crate::compression::_::_serde::Serialize;
+// use crate::compression::_::_serde::Deserialize;
 
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{Result, RLibError};
@@ -28,13 +31,54 @@ mod v1;
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct BmdCatchmentAreaList {
+    #[serde(rename = "@serialise_version")]
     serialise_version: u16,
+    #[serde(
+        rename = "BMD_CATCHMENT_AREAS",
+        serialize_with = "serialize_nested_areas",
+        deserialize_with = "deserialize_nested_areas"
+    )] // custom serializer and deserializer to implement nesting the BMD_CATCHMENT_AREA tag.
     bmd_catchment_areas: Vec<BmdCatchmentArea>,
 }
 
 //---------------------------------------------------------------------------//
 //                Implementation of BmdCatchmentAreaList
 //---------------------------------------------------------------------------//
+fn serialize_nested_areas<S>(
+    areas: &Vec<BmdCatchmentArea>,
+    serializer: S,
+) -> std::result::Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    use serde::Serialize;
+
+    #[derive(Serialize)]
+    struct Wrapper<'a> {
+        #[serde(rename = "BMD_CATCHMENT_AREA")]
+        items: &'a Vec<BmdCatchmentArea>,
+    }
+
+    let wrapper = Wrapper { items: areas };
+    wrapper.serialize(serializer)
+}
+
+fn deserialize_nested_areas<'de, D>(
+    deserializer: D,
+) -> std::result::Result<Vec<BmdCatchmentArea>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    use serde::Deserialize;
+    #[derive(Deserialize)]
+    struct Wrapper {
+        #[serde(rename = "BMD_CATCHMENT_AREA", default)]
+        items: Vec<BmdCatchmentArea>,
+    }
+
+    let wrapper = Wrapper::deserialize(deserializer)?;
+    Ok(wrapper.items)
+}
 
 impl Decodeable for BmdCatchmentAreaList {
 
