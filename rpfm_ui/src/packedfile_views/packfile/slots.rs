@@ -25,6 +25,7 @@ use std::rc::Rc;
 use rpfm_lib::files::ContainerPath;
 
 use rpfm_ui_common::clone;
+use rpfm_ui_common::utils::show_dialog;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
@@ -32,7 +33,6 @@ use crate::communications::*;
 use crate::packedfile_views::DataSource;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::{PackTree, TreeViewOperation};
-use crate::utils::show_dialog;
 use crate::UI_STATE;
 
 use super::PackFileExtraView;

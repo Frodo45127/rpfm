@@ -31,7 +31,7 @@ use rpfm_lib::utils::files_from_subdir;
 
 use rpfm_ui_common::locale::{qtr, qtre};
 use rpfm_ui_common::PROGRAM_PATH;
-use rpfm_ui_common::settings::*;
+use rpfm_ui_common::SETTINGS;
 use rpfm_ui_common::utils::*;
 
 use crate::app_ui::AppUI;
@@ -108,7 +108,7 @@ impl UpdaterUI {
     pub unsafe fn new_with_precheck(app_ui: &Rc<AppUI>) -> Result<()> {
         let mut update_available = false;
 
-        let updates_for_program = if setting_bool("check_updates_on_start") {
+        let updates_for_program = if SETTINGS.read().unwrap().bool("check_updates_on_start") {
             let receiver = CENTRAL_COMMAND.send_network(Command::CheckUpdates);
             let response = CENTRAL_COMMAND.recv_try(&receiver);
             match response {
@@ -131,7 +131,7 @@ impl UpdaterUI {
             None
         };
 
-        let updates_for_schema = if setting_bool("check_schema_updates_on_start") {
+        let updates_for_schema = if SETTINGS.read().unwrap().bool("check_schema_updates_on_start") {
             let receiver = CENTRAL_COMMAND.send_network(Command::CheckSchemaUpdates);
             let response = CENTRAL_COMMAND.recv_try(&receiver);
             match response {
@@ -154,7 +154,7 @@ impl UpdaterUI {
             None
         };
 
-        let updates_for_twautogen = if setting_bool("check_lua_autogen_updates_on_start") {
+        let updates_for_twautogen = if SETTINGS.read().unwrap().bool("check_lua_autogen_updates_on_start") {
             let receiver = CENTRAL_COMMAND.send_network(Command::CheckLuaAutogenUpdates);
             let response = CENTRAL_COMMAND.recv_try(&receiver);
             match response {
@@ -177,7 +177,7 @@ impl UpdaterUI {
             None
         };
 
-        let updates_for_old_ak = if setting_bool("check_old_ak_updates_on_start") {
+        let updates_for_old_ak = if SETTINGS.read().unwrap().bool("check_old_ak_updates_on_start") {
             let receiver = CENTRAL_COMMAND.send_network(Command::CheckEmpireAndNapoleonAKUpdates);
             let response = CENTRAL_COMMAND.recv_try(&receiver);
             match response {
@@ -231,7 +231,7 @@ impl UpdaterUI {
         let changelog_path = PROGRAM_PATH.join(CHANGELOG_FILE);
 
         info_groupbox.set_title(&qtr("updater_info_title"));
-        info_label.set_text(&qtre("updater_info", &[&changelog_path.to_string_lossy(), &setting_string("update_channel")]));
+        info_label.set_text(&qtre("updater_info", &[&changelog_path.to_string_lossy(), &SETTINGS.read().unwrap().string("update_channel")]));
         info_label.set_open_external_links(true);
 
         update_program_label.set_text(&qtr("updater_update_program"));
@@ -616,7 +616,7 @@ pub fn last_release(update_channel: UpdateChannel) -> Result<Release> {
 
 /// This function returns the currently selected update channel.
 pub fn update_channel() -> UpdateChannel {
-    match &*setting_string("update_channel") {
+    match &*SETTINGS.read().unwrap().string("update_channel") {
         BETA => UpdateChannel::Beta,
         _ => UpdateChannel::Stable,
     }

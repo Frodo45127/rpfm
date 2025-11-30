@@ -34,12 +34,12 @@ use std::sync::Arc;
 use rpfm_lib::files::pack::{PackSettings, SETTING_KEY_CF};
 
 use rpfm_ui_common::locale::qtr;
+use rpfm_ui_common::utils::create_grid_layout;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::packedfile_views::{FileView, PackFileContentsUI};
-use crate::utils::create_grid_layout;
 use self::slots::PackFileSettingsSlots;
 use super::{ViewType, View};
 

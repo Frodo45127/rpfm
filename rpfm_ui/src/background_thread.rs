@@ -49,6 +49,7 @@ use rpfm_lib::utils::*;
 
 use rpfm_ui_common::locale::tr;
 use rpfm_ui_common::PROGRAM_PATH;
+use rpfm_ui_common::SETTINGS;
 
 use crate::app_ui::NewFile;
 use crate::backend::*;
@@ -127,7 +128,7 @@ pub fn background_loop() {
                 let pack_version = game_selected.pfh_version_by_file_type(PFHFileType::Mod);
                 pack_file_decoded = Pack::new_with_name_and_version("unknown.pack", pack_version);
 
-                if let Some(version_number) = game_selected.game_version_number(&setting_path(game_selected.key())) {
+                if let Some(version_number) = game_selected.game_version_number(&SETTINGS.read().unwrap().path_buf(game_selected.key())) {
                     pack_file_decoded.set_game_version(version_number);
                 }
             }
@@ -135,7 +136,7 @@ pub fn background_loop() {
             // In case we want to "Open one or more PackFiles"...
             Command::OpenPackFiles(paths) => {
                 let game_selected = GAME_SELECTED.read().unwrap().clone();
-                match Pack::read_and_merge(&paths, &game_selected, setting_bool("use_lazy_loading"), false, false) {
+                match Pack::read_and_merge(&paths, &game_selected, SETTINGS.read().unwrap().bool("use_lazy_loading"), false, false) {
                     Ok(pack) => {
                         pack_file_decoded = pack;
 
@@ -175,7 +176,7 @@ pub fn background_loop() {
             // In case we want to "Load All CA PackFiles"...
             Command::LoadAllCAPackFiles => {
                 let game_selected = GAME_SELECTED.read().unwrap();
-                match Pack::read_and_merge_ca_packs(&game_selected, &setting_path(game_selected.key())) {
+                match Pack::read_and_merge_ca_packs(&game_selected, &SETTINGS.read().unwrap().path_buf(game_selected.key())) {
                     Ok(pack) => {
                         pack_file_decoded = pack;
 
@@ -203,7 +204,7 @@ pub fn background_loop() {
                 let extra_data = Some(initialize_encodeable_extra_data(&game_selected, pack_file_decoded.compression_format()));
 
                 let pack_type = *pack_file_decoded.header().pfh_file_type();
-                if !setting_bool("allow_editing_of_ca_packfiles") && pack_type != PFHFileType::Mod && pack_type != PFHFileType::Movie {
+                if !SETTINGS.read().unwrap().bool("allow_editing_of_ca_packfiles") && pack_type != PFHFileType::Mod && pack_type != PFHFileType::Movie {
                     CentralCommand::send_back(&sender, Response::Error(anyhow!("Pack cannot be saved due to being of CA-Only type. Either change the Pack Type or enable \"Allow Edition of CA Packs\" in the settings.")));
                     continue;
                 }
@@ -220,7 +221,7 @@ pub fn background_loop() {
                 let extra_data = Some(initialize_encodeable_extra_data(&game_selected, pack_file_decoded.compression_format()));
 
                 let pack_type = *pack_file_decoded.header().pfh_file_type();
-                if !setting_bool("allow_editing_of_ca_packfiles") && pack_type != PFHFileType::Mod && pack_type != PFHFileType::Movie {
+                if !SETTINGS.read().unwrap().bool("allow_editing_of_ca_packfiles") && pack_type != PFHFileType::Mod && pack_type != PFHFileType::Movie {
                     CentralCommand::send_back(&sender, Response::Error(anyhow!("Pack cannot be saved due to being of CA-Only type. Either change the Pack Type or enable \"Allow Edition of CA Packs\" in the settings.")));
                     continue;
                 }
@@ -325,8 +326,8 @@ pub fn background_loop() {
                     let pack_dependencies = pack_file_decoded.dependencies().iter().map(|x| x.1.clone()).collect::<Vec<_>>();
                     let handle = thread::spawn(move || {
                         let game_selected = GAME_SELECTED.read().unwrap();
-                        let game_path = setting_path(game_selected.key());
-                        let secondary_path = setting_path(SECONDARY_PATH);
+                        let game_path = SETTINGS.read().unwrap().path_buf(game_selected.key());
+                        let secondary_path = SETTINGS.read().unwrap().path_buf(SECONDARY_PATH);
                         let file_path = dependencies_cache_path().unwrap().join(game_selected.dependencies_cache_file_name());
                         let file_path = if game_changed { Some(&*file_path) } else { None };
                         let _ = dependencies.write().unwrap().rebuild(&None, &pack_dependencies, file_path, &game_selected, &game_path, &secondary_path);
@@ -359,7 +360,7 @@ pub fn background_loop() {
                     let pfh_file_type = *pack_file_decoded.header().pfh_file_type();
                     pack_file_decoded.header_mut().set_pfh_version(game.pfh_version_by_file_type(pfh_file_type));
 
-                    if let Some(version_number) = game.game_version_number(&setting_path(game.key())) {
+                    if let Some(version_number) = game.game_version_number(&SETTINGS.read().unwrap().path_buf(game.key())) {
                         pack_file_decoded.set_game_version(version_number);
                     }
                 }
@@ -369,8 +370,8 @@ pub fn background_loop() {
             // In case we want to generate the dependencies cache for our Game Selected...
             Command::GenerateDependenciesCache => {
                 let game_selected = GAME_SELECTED.read().unwrap();
-                let game_path = setting_path(game_selected.key());
-                let ignore_game_files_in_ak = setting_bool("ignore_game_files_in_ak");
+                let game_path = SETTINGS.read().unwrap().path_buf(game_selected.key());
+                let ignore_game_files_in_ak = SETTINGS.read().unwrap().bool("ignore_game_files_in_ak");
                 let asskit_path = assembly_kit_path().ok();
 
                 if game_path.is_dir() {
@@ -380,7 +381,7 @@ pub fn background_loop() {
                             let dependencies_path = dependencies_cache_path().unwrap().join(game_selected.dependencies_cache_file_name());
                             match cache.save(&dependencies_path) {
                                 Ok(_) => {
-                                    let secondary_path = setting_path(SECONDARY_PATH);
+                                    let secondary_path = SETTINGS.read().unwrap().path_buf(SECONDARY_PATH);
                                     let pack_dependencies = pack_file_decoded.dependencies().iter().map(|x| x.1.clone()).collect::<Vec<_>>();
                                     let _ = dependencies.write().unwrap().rebuild(&schema, &pack_dependencies, Some(&dependencies_path), &game_selected, &game_path, &secondary_path);
                                     let dependencies_info = DependenciesInfo::from(&*dependencies.read().unwrap());
@@ -398,7 +399,7 @@ pub fn background_loop() {
 
             // In case we want to update the Schema for our Game Selected...
             Command::UpdateCurrentSchemaFromAssKit => {
-                let ignore_game_files_in_ak = setting_bool("ignore_game_files_in_ak");
+                let ignore_game_files_in_ak = SETTINGS.read().unwrap().bool("ignore_game_files_in_ak");
 
                 if let Some(ref mut schema) = *SCHEMA.write().unwrap() {
                     match assembly_kit_path() {
@@ -652,7 +653,7 @@ pub fn background_loop() {
 
                         // TODO: See what should we do with the ignored paths.
                         ContainerPath::Folder(destination_path) => {
-                            match pack_file_decoded.insert_folder(source_path, destination_path, &None, &schema, setting_bool("include_base_folder_on_add_from_folder")) {
+                            match pack_file_decoded.insert_folder(source_path, destination_path, &None, &schema, SETTINGS.read().unwrap().bool("include_base_folder_on_add_from_folder")) {
                                 Ok(mut paths) => added_paths.append(&mut paths),
                                 Err(error) => it_broke = Some(error),
                             }
@@ -735,7 +736,7 @@ pub fn background_loop() {
 
                         // Try to decode it using lazy_load if enabled.
                         let extra_data = DecodeableExtraData::default();
-                        //extra_data.set_lazy_load(setting_bool("use_lazy_loading"));
+                        //extra_data.set_lazy_load(SETTINGS.read().unwrap().bool("use_lazy_loading"));
                         let _ = file.decode(&Some(extra_data), true, false);
 
                         match file.decoded_mut() {
@@ -775,7 +776,7 @@ pub fn background_loop() {
 
                         // Try to decode it using lazy_load if enabled.
                         let extra_data = DecodeableExtraData::default();
-                        //extra_data.set_lazy_load(setting_bool("use_lazy_loading"));
+                        //extra_data.set_lazy_load(SETTINGS.read().unwrap().bool("use_lazy_loading"));
                         let _ = file.decode(&Some(extra_data), true, false);
 
                         match file.decoded_mut() {
@@ -814,7 +815,7 @@ pub fn background_loop() {
 
                         // Try to decode it using lazy_load if enabled.
                         let extra_data = DecodeableExtraData::default();
-                        //extra_data.set_lazy_load(setting_bool("use_lazy_loading"));
+                        //extra_data.set_lazy_load(SETTINGS.read().unwrap().bool("use_lazy_loading"));
                         let _ = file.decode(&Some(extra_data), true, false);
 
                         match file.decoded_mut() {
@@ -919,7 +920,7 @@ pub fn background_loop() {
                 // Pack extraction.
                 if let Some(container_paths) = container_paths.get(&DataSource::PackFile) {
                     for container_path in container_paths {
-                        match pack_file_decoded.extract(container_path.clone(), &path, true, schema, false, setting_bool("tables_use_old_column_order_for_tsv"), &extra_data, true) {
+                        match pack_file_decoded.extract(container_path.clone(), &path, true, schema, false, SETTINGS.read().unwrap().bool("tables_use_old_column_order_for_tsv"), &extra_data, true) {
                             Ok(mut extracted_path) => extracted_paths.append(&mut extracted_path),
                             Err(_) => {
                                 //error!("Error extracting {}: {}", container_path.path_raw(), error);
@@ -960,7 +961,7 @@ pub fn background_loop() {
                         }
 
                         let container_path = ContainerPath::File(path_raw);
-                        match pack.extract(container_path, &path, true, schema, false, setting_bool("tables_use_old_column_order_for_tsv"), &extra_data, true) {
+                        match pack.extract(container_path, &path, true, schema, false, SETTINGS.read().unwrap().bool("tables_use_old_column_order_for_tsv"), &extra_data, true) {
                             Ok(mut extracted_path) => extracted_paths.append(&mut extracted_path),
                             Err(_) => errors += 1,
                         }
@@ -1200,7 +1201,7 @@ pub fn background_loop() {
                             },
                         };
                         match file {
-                            Some(file) => match file.tsv_export_to_path(&external_path, schema, setting_bool("tables_use_old_column_order_for_tsv")) {
+                            Some(file) => match file.tsv_export_to_path(&external_path, schema, SETTINGS.read().unwrap().bool("tables_use_old_column_order_for_tsv")) {
                                 Ok(_) => CentralCommand::send_back(&sender, Response::Success),
                                 Err(error) =>  CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                             }
@@ -1259,7 +1260,7 @@ pub fn background_loop() {
                         let folder = temp_dir().join(format!("rpfm_{}", pack_file_decoded.disk_file_name()));
                         let extra_data = Some(initialize_encodeable_extra_data(&GAME_SELECTED.read().unwrap(), pack_file_decoded.compression_format()));
 
-                        match pack_file_decoded.extract(path.clone(), &folder, true, &SCHEMA.read().unwrap(), false, setting_bool("tables_use_old_column_order_for_tsv"), &extra_data, true) {
+                        match pack_file_decoded.extract(path.clone(), &folder, true, &SCHEMA.read().unwrap(), false, SETTINGS.read().unwrap().bool("tables_use_old_column_order_for_tsv"), &extra_data, true) {
                             Ok(extracted_path) => {
                                 let _ = that(&extracted_path[0]);
                                 CentralCommand::send_back(&sender, Response::PathBuf(extracted_path[0].to_owned()));
@@ -1310,8 +1311,8 @@ pub fn background_loop() {
 
                                     // Then rebuild the dependencies stuff.
                                     if dependencies.read().unwrap().is_vanilla_data_loaded(false) {
-                                        let game_path = setting_path(game.key());
-                                        let secondary_path = setting_path(SECONDARY_PATH);
+                                        let game_path = SETTINGS.read().unwrap().path_buf(game.key());
+                                        let secondary_path = SETTINGS.read().unwrap().path_buf(SECONDARY_PATH);
                                         let dependencies_file_path = dependencies_cache_path().unwrap().join(game.dependencies_cache_file_name());
                                         let pack_dependencies = pack_file_decoded.dependencies().iter().map(|x| x.1.clone()).collect::<Vec<_>>();
 
@@ -1362,7 +1363,7 @@ pub fn background_loop() {
 
                 // Note: we no longer notify the UI of success or error to not hang it up.
                 let game_selected = GAME_SELECTED.read().unwrap();
-                let game_path = setting_path(game_selected.key());
+                let game_path = SETTINGS.read().unwrap().path_buf(game_selected.key());
                 let ca_paths = game_selected.ca_packs_paths(&game_path)
                     .unwrap_or_default()
                     .iter()
@@ -1389,7 +1390,7 @@ pub fn background_loop() {
 
                     // If we have more than the limit, delete the older one.
                     if let Ok(files) = files_in_folder_from_newest_to_oldest(&folder) {
-                        let max_files = setting_int("autosave_amount") as usize;
+                        let max_files = SETTINGS.read().unwrap().i32("autosave_amount") as usize;
                         for (index, file) in files.iter().enumerate() {
                             if index >= max_files {
                                 let _ = std::fs::remove_file(file);
@@ -1403,7 +1404,7 @@ pub fn background_loop() {
             Command::DiagnosticsCheck(diagnostics_ignored, check_ak_only_refs) => {
 
                 let game_selected = GAME_SELECTED.read().unwrap();
-                let game_path = setting_path(game_selected.key());
+                let game_path = SETTINGS.read().unwrap().path_buf(game_selected.key());
 
                 let mut diagnostics = Diagnostics::default();
                 *diagnostics.diagnostics_ignored_mut() = diagnostics_ignored;
@@ -1422,7 +1423,7 @@ pub fn background_loop() {
 
             Command::DiagnosticsUpdate(mut diagnostics, path_types, check_ak_only_refs) => {
                 let game_selected = GAME_SELECTED.read().unwrap();
-                let game_path = setting_path(game_selected.key());
+                let game_path = SETTINGS.read().unwrap().path_buf(game_selected.key());
 
                 if let Some(ref schema) = *SCHEMA.read().unwrap() {
                     if pack_file_decoded.pfh_file_type() == PFHFileType::Mod ||
@@ -1482,12 +1483,12 @@ pub fn background_loop() {
             Command::RebuildDependencies(rebuild_only_current_mod_dependencies) => {
                 if SCHEMA.read().unwrap().is_some() {
                     let game_selected = GAME_SELECTED.read().unwrap();
-                    let game_path = setting_path(game_selected.key());
+                    let game_path = SETTINGS.read().unwrap().path_buf(game_selected.key());
                     let dependencies_file_path = dependencies_cache_path().unwrap().join(game_selected.dependencies_cache_file_name());
                     let file_path = if !rebuild_only_current_mod_dependencies { Some(&*dependencies_file_path) } else { None };
                     let pack_dependencies = pack_file_decoded.dependencies().iter().map(|x| x.1.clone()).collect::<Vec<_>>();
 
-                    let secondary_path = setting_path(SECONDARY_PATH);
+                    let secondary_path = SETTINGS.read().unwrap().path_buf(SECONDARY_PATH);
                     let _ = dependencies.write().unwrap().rebuild(&SCHEMA.read().unwrap(), &pack_dependencies, file_path, &game_selected, &game_path, &secondary_path);
                     let dependencies_info = DependenciesInfo::from(&*dependencies.read().unwrap());
                     CentralCommand::send_back(&sender, Response::DependenciesInfo(dependencies_info));
@@ -2134,7 +2135,7 @@ pub fn background_loop() {
 
             // Initialize the folder for a MyMod, including the folder structure it needs.
             Command::InitializeMyModFolder(mod_name, mod_game, sublime_support, vscode_support, git_support)  => {
-                let mut mymod_path = setting_path(MYMOD_BASE_PATH);
+                let mut mymod_path = SETTINGS.read().unwrap().path_buf(MYMOD_BASE_PATH);
                 if !mymod_path.is_dir() {
                     CentralCommand::send_back(&sender, Response::Error(anyhow!("MyMod path is not configured. Configure it in the settings and try again.")));
                     continue;
@@ -2555,7 +2556,7 @@ quit_after_campaign_processing;"
     ));
 
     // Games may fail to launch if we don't have this path created, which is done the first time we start the game.
-    let game_path = setting_path(game.key());
+    let game_path = SETTINGS.read().unwrap().path_buf(game.key());
     let game_data_path = game.data_path(&game_path)?;
     if !game_path.is_dir() {
         return Err(anyhow!("Game path incorrect. Fix it in the settings and try again."));
@@ -2783,7 +2784,7 @@ quit_after_campaign_processing;"
 
         command.spawn()?;
     } else {
-        match GAME_SELECTED.read().unwrap().game_launch_command(&setting_path(GAME_SELECTED.read().unwrap().key())) {
+        match GAME_SELECTED.read().unwrap().game_launch_command(&SETTINGS.read().unwrap().path_buf(GAME_SELECTED.read().unwrap().key())) {
             Ok(command) => { let _ = open::that(command); },
             _ => return Err(anyhow!("The currently selected game cannot be launched from Steam.")),
         }
@@ -2809,7 +2810,7 @@ fn build_starpos_post(dependencies: &Dependencies, pack_file: &mut Pack, campaig
     *START_POS_WORKAROUND_THREAD.write().unwrap() = None;
 
     let game = GAME_SELECTED.read().unwrap();
-    let game_path = setting_path(game.key());
+    let game_path = SETTINGS.read().unwrap().path_buf(game.key());
 
     if !game_path.is_dir() {
         return Err(anyhow!("Game path incorrect. Fix it in the settings and try again."));
@@ -2873,7 +2874,7 @@ fn build_starpos_post(dependencies: &Dependencies, pack_file: &mut Pack, campaig
 
         // Rome 2 outputs the startpos in the assembly kit folder.
         KEY_ROME_2 => {
-            let asskit_path = setting_path(&(game.key().to_owned() + "_assembly_kit"));
+            let asskit_path = SETTINGS.read().unwrap().path_buf(&(game.key().to_owned() + "_assembly_kit"));
             if !asskit_path.is_dir() {
                 return Err(anyhow!("Assembly Kit path incorrect. Fix it in the settings and try again."));
             }
@@ -3072,7 +3073,7 @@ fn live_export(pack: &mut Pack) -> Result<()> {
     }
 
     let extra_data = Some(initialize_encodeable_extra_data(&GAME_SELECTED.read().unwrap(), pack.compression_format()));
-    let game_path = setting_path(GAME_SELECTED.read().unwrap().key());
+    let game_path = SETTINGS.read().unwrap().path_buf(GAME_SELECTED.read().unwrap().key());
     let data_path = GAME_SELECTED.read().unwrap().data_path(&game_path)?;
 
     // We're interested in lua and xml files only, not those entire folders.
@@ -3100,7 +3101,7 @@ fn live_export(pack: &mut Pack) -> Result<()> {
         // To avoid duplicating logic, we insert these files into the pack, extract them, then delete them from the Pack.
         let container_path = file.path_in_container();
         pack.insert(file)?;
-        pack.extract(container_path.clone(), &data_path, true, &None, false, setting_bool("tables_use_old_column_order_for_tsv"), &extra_data, true)?;
+        pack.extract(container_path.clone(), &data_path, true, &None, false, SETTINGS.read().unwrap().bool("tables_use_old_column_order_for_tsv"), &extra_data, true)?;
 
         pack.remove(&container_path);
     }
@@ -3271,7 +3272,7 @@ fn decode_and_send_file(file: &mut RFile, sender: &Sender<Response>) {
     ];
 
     // Do not even attempt to decode esf files if the editor is disabled.
-    if !setting_bool("enable_esf_editor") {
+    if !SETTINGS.read().unwrap().bool("enable_esf_editor") {
         ignored_file_types.push(FileType::ESF);
     }
 

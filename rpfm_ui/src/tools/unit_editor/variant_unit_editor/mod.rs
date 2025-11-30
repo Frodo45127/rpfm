@@ -182,7 +182,7 @@ impl SubToolVariantUnitEditor {
 
         // Copy faction dialog.
         let new_faction_view = if cfg!(debug_assertions) { ADD_FACTION_VIEW_DEBUG } else { ADD_FACTION_VIEW_RELEASE };
-        let new_faction_widget = crate::utils::load_template(&tool.main_widget, new_faction_view)?;
+        let new_faction_widget = load_template(&tool.main_widget, new_faction_view)?;
 
         let new_faction_button_box: QPtr<QDialogButtonBox> = tool.find_widget("new_faction_button_box")?;
         let new_faction_instructions_label: QPtr<QLabel> = tool.find_widget("new_faction_instructions_label")?;
@@ -191,7 +191,7 @@ impl SubToolVariantUnitEditor {
 
         // Copy colour variant dialog.
         let new_colour_variant_view = if cfg!(debug_assertions) { ADD_COLOUR_VARIANT_VIEW_DEBUG } else { ADD_COLOUR_VARIANT_VIEW_RELEASE };
-        let new_colour_variant_widget = crate::utils::load_template(&tool.main_widget, new_colour_variant_view)?;
+        let new_colour_variant_widget = load_template(&tool.main_widget, new_colour_variant_view)?;
 
         let new_colour_variant_button_box: QPtr<QDialogButtonBox> = tool.find_widget("new_colour_variant_button_box")?;
         let new_colour_variant_instructions_label: QPtr<QLabel> = tool.find_widget("new_colour_variant_instructions_label")?;

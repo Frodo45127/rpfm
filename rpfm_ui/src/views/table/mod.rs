@@ -88,6 +88,8 @@ use rpfm_lib::schema::{Definition, Field, FieldType, Schema};
 use rpfm_ui_common::ASSETS_PATH;
 use rpfm_ui_common::clone;
 use rpfm_ui_common::locale::{qtr, qtre, tr};
+use rpfm_ui_common::SETTINGS;
+use rpfm_ui_common::utils::*;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
@@ -373,12 +375,12 @@ impl TableView {
         table_view.set_model(&table_filter);
 
         // Make the last column fill all the available space, if the setting says so.
-        if setting_bool("extend_last_column_on_tables") {
+        if SETTINGS.read().unwrap().bool("extend_last_column_on_tables") {
             table_view.horizontal_header().set_stretch_last_section(true);
         }
 
         // Setup tight mode if the setting is enabled.
-        if setting_bool("tight_table_mode") {
+        if SETTINGS.read().unwrap().bool("tight_table_mode") {
             table_view.vertical_header().set_minimum_section_size(22);
             table_view.vertical_header().set_maximum_section_size(22);
             table_view.vertical_header().set_default_section_size(22);
@@ -514,7 +516,7 @@ impl TableView {
         search_column_selector.set_model(&search_column_list);
         search_column_selector.add_item_q_string(&QString::from_std_str("* (All Columns)"));
 
-        let fields = table_definition.fields_processed_sorted(setting_bool("tables_use_old_column_order"));
+        let fields = table_definition.fields_processed_sorted(SETTINGS.read().unwrap().bool("tables_use_old_column_order"));
         for column in &fields {
             search_column_selector.add_item_q_string(&QString::from_std_str(utils::clean_column_names(column.name())));
         }
@@ -976,7 +978,7 @@ impl TableView {
             filter.column_combobox().model().block_signals(true);
             filter.column_combobox().clear();
 
-            for column in self.table_definition.read().unwrap().fields_processed_sorted(setting_bool("tables_use_old_column_order")) {
+            for column in self.table_definition.read().unwrap().fields_processed_sorted(SETTINGS.read().unwrap().bool("tables_use_old_column_order")) {
                 let name = QString::from_std_str(utils::clean_column_names(column.name()));
                 filter.column_combobox().add_item_q_string(&name);
             }
@@ -989,8 +991,8 @@ impl TableView {
         }
 
         // Reset this setting so the last column gets resized properly.
-        table_view.horizontal_header().set_stretch_last_section(!setting_bool("extend_last_column_on_tables"));
-        table_view.horizontal_header().set_stretch_last_section(setting_bool("extend_last_column_on_tables"));
+        table_view.horizontal_header().set_stretch_last_section(!SETTINGS.read().unwrap().bool("extend_last_column_on_tables"));
+        table_view.horizontal_header().set_stretch_last_section(SETTINGS.read().unwrap().bool("extend_last_column_on_tables"));
     }
 
     /// This function returns a reference to the StandardItemModel widget.
@@ -2791,7 +2793,7 @@ impl TableView {
             let field = &fields_processed[item.column() as usize];
 
             // Update the lookup data while the model is blocked.
-            if setting_bool("enable_lookups") {
+            if SETTINGS.read().unwrap().bool("enable_lookups") {
                 let dependency_data = self.dependency_data.read().unwrap();
                 if let Some(column_data) = dependency_data.get(&item.column()) {
                     match column_data.data().get(&item.text().to_std_string()) {
@@ -2834,7 +2836,7 @@ impl TableView {
             }
 
             // If the edited column has icons we need to fetch the new icon from the backend and apply it.
-            if setting_bool("enable_icons") && field.is_filename(patches) {
+            if SETTINGS.read().unwrap().bool("enable_icons") && field.is_filename(patches) {
                 let mut icons = BTreeMap::new();
                 let data = vec![vec![get_field_from_view(&self.table_model.static_upcast(), field, item.row(), item.column())]];
 
@@ -2894,7 +2896,7 @@ impl TableView {
             }
         }
 
-        if setting_bool("table_resize_on_edit") {
+        if SETTINGS.read().unwrap().bool("table_resize_on_edit") {
             self.table_view.horizontal_header().resize_sections(ResizeMode::ResizeToContents);
         }
 

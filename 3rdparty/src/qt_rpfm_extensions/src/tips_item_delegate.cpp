@@ -8,7 +8,6 @@
 #include <QPainter>
 #include <QStandardItem>
 #include <QStyle>
-#include <QSettings>
 #include <QPainterPath>
 #include <QAbstractTextDocumentLayout>
 #include <QTextDocument>
@@ -19,10 +18,7 @@ extern "C" void new_tips_item_delegate(QObject *parent, bool is_dark_theme_enabl
     dynamic_cast<QAbstractItemView*>(parent)->setItemDelegateForColumn(0, delegate);
 }
 
-QTipsItemDelegate::QTipsItemDelegate(QObject *parent, bool is_dark_theme_enabled, bool has_filter): QExtendedStyledItemDelegate(parent) {
-    dark_theme = is_dark_theme_enabled;
-    use_filter = has_filter;
-
+QTipsItemDelegate::QTipsItemDelegate(QObject *parent, bool is_dark_theme_enabled, bool has_filter): QExtendedStyledItemDelegate(parent, nullptr, is_dark_theme_enabled, has_filter, false) {
     d_radius = 5;
     d_toppadding = 5;
     d_bottompadding = 3;

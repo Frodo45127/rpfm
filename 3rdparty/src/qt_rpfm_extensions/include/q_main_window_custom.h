@@ -6,7 +6,6 @@
 #include <QMoveEvent>
 #include <QEvent>
 #include <QMessageBox>
-#include <QSettings>
 #include <KBusyIndicatorWidget>
 
 extern "C" QMainWindow* new_q_main_window_custom(bool (*are_you_sure)(QMainWindow* main_window, bool is_delete_my_mod) = nullptr, bool is_dark_theme_enabled = false);

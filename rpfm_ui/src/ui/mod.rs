@@ -22,6 +22,7 @@ use qt_widgets::q_message_box::StandardButton;
 use qt_gui::QFont;
 use qt_gui::QIcon;
 
+use qt_core::QByteArray;
 use qt_core::QFlags;
 use qt_core::QString;
 use qt_core::WindowState;
@@ -40,6 +41,8 @@ use rpfm_lib::integrations::log::*;
 use rpfm_ui_common::ASSETS_PATH;
 use rpfm_ui_common::locale::qtr;
 use rpfm_ui_common::PROGRAM_PATH;
+use rpfm_ui_common::SETTINGS;
+use rpfm_ui_common::utils::*;
 
 use crate::VERSION;
 use crate::app_ui;
@@ -146,12 +149,12 @@ impl UI {
         init_settings(&app_ui.main_window().static_upcast());
 
         // Apply last ui state.
-        app_ui.main_window().restore_geometry(&setting_byte_array("geometry"));
-        app_ui.main_window().restore_state_1a(&setting_byte_array("windowState"));
+        app_ui.main_window().restore_geometry(&QByteArray::from_slice(&SETTINGS.read().unwrap().raw_data("originalGeometry")));
+        app_ui.main_window().restore_state_1a(&QByteArray::from_slice(&SETTINGS.read().unwrap().raw_data("originalWindowState")));
 
         // Apply the font.
-        let font_name = setting_string("font_name");
-        let font_size = setting_int("font_size");
+        let font_name = SETTINGS.read().unwrap().string("font_name");
+        let font_size = SETTINGS.read().unwrap().i32("font_size");
         let font = QFont::from_q_string_int(&QString::from_std_str(font_name), font_size);
         QApplication::set_font_1a(&font);
 
@@ -160,7 +163,7 @@ impl UI {
         UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
 
         // If we want the window to start maximized...
-        if setting_bool("start_maximized") {
+        if SETTINGS.read().unwrap().bool("start_maximized") {
             app_ui.main_window().set_window_state(QFlags::from(WindowState::WindowMaximized));
         }
 
@@ -172,7 +175,7 @@ impl UI {
 
         // Do not trigger the automatic game changed signal here, as that will trigger an expensive and useless dependency rebuild.
         info!("Setting initial Game Selected…");
-        match &*setting_string("default_game") {
+        match &*SETTINGS.read().unwrap().string("default_game") {
             KEY_PHARAOH_DYNASTIES => app_ui.game_selected_pharaoh_dynasties().set_checked(true),
             KEY_PHARAOH => app_ui.game_selected_pharaoh().set_checked(true),
             KEY_WARHAMMER_3 => app_ui.game_selected_warhammer_3().set_checked(true),
@@ -194,7 +197,7 @@ impl UI {
         }
 
         AppUI::change_game_selected(&app_ui, &pack_file_contents_ui, &dependencies_ui, true, false);
-        info!("Initial Game Selected set to {}.", setting_string("default_game"));
+        info!("Initial Game Selected set to {}.", SETTINGS.read().unwrap().string("default_game"));
 
         // We get all the Arguments provided when starting RPFM, just in case we passed it a path,
         // in which case, we automatically try to open it.
@@ -236,7 +239,7 @@ impl UI {
                         }
                     }
 
-                    if setting_bool("diagnostics_trigger_on_open") {
+                    if SETTINGS.read().unwrap().bool("diagnostics_trigger_on_open") {
                         DiagnosticsUI::check(&app_ui, &diagnostics_ui);
                     }
                 }
@@ -262,7 +265,7 @@ impl UI {
         // Show the "only for the brave" alert for specially unstable builds.
         #[cfg(feature = "only_for_the_brave")] {
             let first_boot_setting = "firstBoot".to_owned() + VERSION;
-            if !setting_bool(&first_boot_setting) {
+            if !SETTINGS.read().unwrap().bool(&first_boot_setting) {
 
                 let title = qtr("title_only_for_the_brave");
                 let message = qtr("message_only_for_the_brave");
@@ -275,7 +278,7 @@ impl UI {
                 ).exec();
 
                 // Set it so it doesn't popup again for this version.
-                set_setting_bool(&first_boot_setting, true);
+                set_SETTINGS.read().unwrap().bool(&first_boot_setting, true);
             }
         }
 
@@ -285,7 +288,7 @@ impl UI {
         if cfg!(target_os = "windows") {
             let first_boot_setting = "firstBootCheckDarkTheme".to_owned() + VERSION;
             let dark_stylesheet_customized = dark_stylesheet_is_customized().unwrap_or(true);
-            if !setting_bool(&first_boot_setting) && dark_stylesheet_customized {
+            if !SETTINGS.read().unwrap().bool(&first_boot_setting) && dark_stylesheet_customized {
 
                 let title = qtr("title_changes_detected_in_dark_theme_config");
                 let message = qtr("message_changes_detected_in_dark_theme_config");
@@ -302,7 +305,7 @@ impl UI {
                 }
 
                 // Set it so it doesn't popup again for this version.
-                set_setting_bool(&first_boot_setting, true);
+                let _ = SETTINGS.write().unwrap().set_bool(&first_boot_setting, true);
             }
         }
 
@@ -364,7 +367,7 @@ impl GameSelectedIcons {
         // Fix due to windows paths.
         let big_icon = if cfg!(target_os = "windows") {  big_icon.replace('\\', "/") } else { big_icon.to_owned() };
 
-        if !setting_bool("hide_background_icon") {
+        if !SETTINGS.read().unwrap().bool("hide_background_icon") {
             if app_ui.tab_bar_packed_file().count() == 0 {
 
                 // WTF of the day: without the border line, this doesn't work on windows. Who knows why...?

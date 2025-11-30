@@ -191,7 +191,7 @@ impl Tool {
 
         // Load the UI Template. All templates must be simple widgets.
         let dialog = new_q_dialog_custom_safe(parent.cast_into(), are_you_sure_dialog);
-        let main_widget = crate::utils::load_template(&dialog, template_path)?;
+        let main_widget = rpfm_ui_common::utils::load_template(&dialog, template_path)?;
 
         // Make sure we can maximize the dialog. I'm tired of doing it manually.
         let mut flags = dialog.window_flags();
@@ -323,7 +323,7 @@ impl Tool {
     /// For local use when no Tool has yet been created.
     unsafe fn find_widget_no_tool<T: StaticUpcast<qt_core::QObject>>(main_widget: &QPtr<QWidget>, widget_name: &str) -> Result<QPtr<T>>
         where QObject: DynamicCast<T> {
-        crate::utils::find_widget(main_widget, widget_name)
+        rpfm_ui_common::utils::find_widget(main_widget, widget_name)
     }
 
     /// This function gets the data needed for the tool from a DB table in a generic way.

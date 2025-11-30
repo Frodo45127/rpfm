@@ -20,7 +20,7 @@ use getset::*;
 use rpfm_lib::integrations::log::*;
 
 use rpfm_ui_common::clone;
-use rpfm_ui_common::settings::set_setting_int;
+use rpfm_ui_common::SETTINGS;
 
 use std::rc::Rc;
 
@@ -280,7 +280,7 @@ impl GlobalSearchSlots {
                     3
                 };
 
-                set_setting_int("global_search_source_status", value);
+                let _ = SETTINGS.write().unwrap().set_i32("global_search_source_status", value);
         }));
 
         // And here... we return all the slots.

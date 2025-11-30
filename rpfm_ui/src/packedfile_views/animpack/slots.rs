@@ -21,6 +21,8 @@ use std::sync::Arc;
 use rpfm_lib::files::ContainerPath;
 
 use rpfm_ui_common::clone;
+use rpfm_ui_common::SETTINGS;
+use rpfm_ui_common::utils::show_dialog;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
@@ -29,9 +31,7 @@ use crate::packedfile_views::DataSource;
 use crate::packedfile_views::animpack::PackedFileAnimPackView;
 use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::settings_ui::backend::setting_bool;
 use crate::UI_STATE;
-use crate::utils::show_dialog;
 use super::*;
 
 //-------------------------------------------------------------------------------//
@@ -190,7 +190,7 @@ impl PackedFileAnimPackViewSlots {
                         Response::Success => {
 
                             // If it works, remove them from the view.
-                            view.anim_pack_tree_view.update_treeview(true, TreeViewOperation::Delete(item_types, setting_bool("delete_empty_folders_on_delete")), DataSource::PackFile);
+                            view.anim_pack_tree_view.update_treeview(true, TreeViewOperation::Delete(item_types, SETTINGS.read().unwrap().bool("delete_empty_folders_on_delete")), DataSource::PackFile);
 
                             // Mark the AnimPack in the PackFile as modified.
                             view.pack_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![ContainerPath::File(view.path().read().unwrap().to_owned()); 1]), DataSource::PackFile);

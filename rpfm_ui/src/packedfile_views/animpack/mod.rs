@@ -36,6 +36,7 @@ use std::sync::{Arc, RwLock};
 use rpfm_lib::files::FileType;
 
 use rpfm_ui_common::locale::qtr;
+use rpfm_ui_common::utils::*;
 
 use crate::app_ui::AppUI;
 use crate::backend::RFileInfo;

@@ -50,12 +50,12 @@ use rpfm_lib::integrations::log::*;
 
 use rpfm_ui_common::ASSETS_PATH;
 use rpfm_ui_common::locale::{qtr, qtre};
-pub use rpfm_ui_common::utils::*;
+use rpfm_ui_common::SETTINGS;
+use rpfm_ui_common::utils::*;
 
 use crate::app_ui::AppUI;
 use crate::{DARK_PALETTE, GAME_SELECTED, LIGHT_PALETTE, LIGHT_STYLE_SHEET, SENTRY_GUARD};
 use crate::ffi::*;
-use crate::setting_bool;
 use crate::STATUS_BAR;
 use crate::pack_tree::{get_color_correct, get_color_wrong, get_color_clean};
 
@@ -327,7 +327,7 @@ pub fn dark_stylesheet_is_customized() -> Result<bool> {
 pub unsafe fn reload_theme(app_ui: &AppUI) {
     let app = QCoreApplication::instance();
     let qapp = app.static_downcast::<QApplication>();
-    let use_dark_theme = setting_bool("use_dark_theme");
+    let use_dark_theme = SETTINGS.read().unwrap().bool("use_dark_theme");
 
     // Initialize the globals before applying anything.
     let light_style_sheet = ref_from_atomic(&*LIGHT_STYLE_SHEET);
@@ -392,7 +392,7 @@ pub unsafe fn reload_theme(app_ui: &AppUI) {
 
 pub fn initialize_encodeable_extra_data(game_info: &'_ GameInfo, cf: CompressionFormat) -> EncodeableExtraData<'_> {
     let mut extra_data = EncodeableExtraData::new_from_game_info(game_info);
-    extra_data.set_regenerate_table_guid(!setting_bool("disable_uuid_regeneration_on_db_tables"));
+    extra_data.set_regenerate_table_guid(!SETTINGS.read().unwrap().bool("disable_uuid_regeneration_on_db_tables"));
     extra_data.set_compression_format(cf);
     extra_data
 }

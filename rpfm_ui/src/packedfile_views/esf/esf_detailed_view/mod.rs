@@ -41,6 +41,8 @@ use std::vec;
 use rpfm_lib::files::{esf::*, table::{*, local::*}};
 use rpfm_lib::schema::*;
 
+use rpfm_ui_common::utils::*;
+
 use crate::app_ui::AppUI;
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
@@ -49,7 +51,6 @@ use crate::global_search_ui::GlobalSearchUI;
 use crate::packedfile_views::{DataSource, esf::esftree::*};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::references_ui::ReferencesUI;
-use crate::utils::create_grid_layout;
 use crate::views::table::{*, utils::*};
 
 //-------------------------------------------------------------------------------//

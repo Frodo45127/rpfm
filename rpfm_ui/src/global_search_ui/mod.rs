@@ -70,7 +70,8 @@ use rpfm_lib::files::FileType;
 use rpfm_lib::utils::closest_valid_char_byte;
 
 use rpfm_ui_common::locale::qtr;
-use rpfm_ui_common::settings::setting_int;
+use rpfm_ui_common::SETTINGS;
+use rpfm_ui_common::utils::*;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
@@ -82,9 +83,7 @@ use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::packedfile_views::{DataSource, View, ViewType};
 use crate::references_ui::ReferencesUI;
-use crate::settings_ui::backend::*;
 use crate::TREEVIEW_ICONS;
-use crate::utils::*;
 use crate::UI_STATE;
 use crate::views::table::utils::open_subtable;
 
@@ -242,15 +241,12 @@ impl GlobalSearchUI {
         search_source_game.set_checked(true);
 
         // Remember the last status of the source radio.
-        if setting_variant_from_q_setting(&settings(), "global_search_source_status").can_convert(2) {
-            let status = setting_int("global_search_source_status");
-            match status {
-                0 => search_source_packfile.set_checked(true),
-                1 => search_source_parent.set_checked(true),
-                2 => search_source_game.set_checked(true),
-                3 => search_source_asskit.set_checked(true),
-                _ => {}
-            }
+        match SETTINGS.read().unwrap().i32("global_search_source_status") {
+            0 => search_source_packfile.set_checked(true),
+            1 => search_source_parent.set_checked(true),
+            2 => search_source_game.set_checked(true),
+            3 => search_source_asskit.set_checked(true),
+            _ => {}
         }
 
         let search_source_group_box: QPtr<QGroupBox> = find_widget(&main_widget.static_upcast(), "search_source_groupbox")?;

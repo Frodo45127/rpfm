@@ -37,6 +37,8 @@ use rpfm_lib::utils::*;
 
 use rpfm_ui_common::clone;
 use rpfm_ui_common::locale::{qtr, tre};
+use rpfm_ui_common::utils::show_dialog;
+use rpfm_ui_common::SETTINGS;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
@@ -49,10 +51,9 @@ use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::{DataSource, SpecialView};
 use crate::references_ui::ReferencesUI;
 use crate::SCHEMA;
-use crate::settings_ui::backend::*;
-use crate::utils::{show_dialog, check_regex};
 use crate::UI_STATE;
 use crate::ui_state::OperationalMode;
+use crate::utils::check_regex;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -565,7 +566,7 @@ impl PackFileContentsSlots {
                     OperationalMode::MyMod(ref game_folder_name, ref mod_name) => {
 
                         // In theory, if we reach this line this should always exist. In theory I should be rich.
-                        let mymods_base_path = setting_path("mymods_base_path");
+                        let mymods_base_path = SETTINGS.read().unwrap().path_buf("mymods_base_path");
                         if mymods_base_path.is_dir() {
 
                             // We get the assets folder of our mod (without .pack extension).
@@ -666,7 +667,7 @@ impl PackFileContentsSlots {
                 file_dialog.set_file_mode(FileMode::DirectoryOnly);
 
                 // Wonky workaround to allow multiple folder selection.
-                if setting_bool("enable_multifolder_filepicker") {
+                if SETTINGS.read().unwrap().bool("enable_multifolder_filepicker") {
                     file_dialog.set_options(QFlags::from(FileDialogOption::DontUseNativeDialog.to_int() | file_dialog.options().to_int()));
 
                     if let Ok(list_view) = file_dialog.find_child::<QListView>("listView") {
@@ -684,7 +685,7 @@ impl PackFileContentsSlots {
                     OperationalMode::MyMod(ref game_folder_name, ref mod_name) => {
 
                         // In theory, if we reach this line this should always exist. In theory I should be rich.
-                        let mymods_base_path = setting_path("mymods_base_path");
+                        let mymods_base_path = SETTINGS.read().unwrap().path_buf("mymods_base_path");
                         if mymods_base_path.is_dir() {
 
                             // We get the assets folder of our mod (without .pack extension).
@@ -863,7 +864,7 @@ impl PackFileContentsSlots {
 
                             selected_items.extend_from_slice(&items);
                             let items = ContainerPath::dedup(&selected_items);
-                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(items.to_vec(), setting_bool("delete_empty_folders_on_delete")), DataSource::PackFile);
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(items.to_vec(), SETTINGS.read().unwrap().bool("delete_empty_folders_on_delete")), DataSource::PackFile);
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(items.to_vec()), DataSource::PackFile);
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
 

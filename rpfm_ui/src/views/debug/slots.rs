@@ -19,10 +19,11 @@ use std::sync::Arc;
 
 use rpfm_ui_common::clone;
 use rpfm_ui_common::locale::tr;
+use rpfm_ui_common::utils::show_dialog;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
-use crate::utils::{show_dialog, log_to_status_bar};
+use crate::utils::log_to_status_bar;
 use crate::views::debug::DebugView;
 
 //-------------------------------------------------------------------------------//

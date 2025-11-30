@@ -15,12 +15,11 @@
     clippy::arc_with_non_send_sync,
 )]
 
-use qt_core::QCoreApplication;
-
 use lazy_static::lazy_static;
 use time::format_description::{parse, FormatItem};
 
 use std::path::PathBuf;
+use std::sync::{Arc, RwLock};
 
 use crate::locale::Locale;
 use crate::settings::*;
@@ -87,7 +86,7 @@ lazy_static!{
         // - Linux: /usr/share/rpfm.
         // - MacOs: Who knows?
         if cfg!(target_os = "linux") {
-            PathBuf::from("/usr/share/".to_owned() + unsafe { &QCoreApplication::application_name().to_std_string() })
+            PathBuf::from("/usr/share/".to_owned() + &APP_NAME.read().unwrap())
         } else {
             PROGRAM_PATH.to_path_buf()
         }
@@ -103,7 +102,7 @@ lazy_static!{
 
     /// Variable to keep the locale data used by the UI loaded and available. If we fail to load the selected locale data, copy the english one instead.
     static ref LOCALE: Locale = {
-        let language = setting_string("language");
+        let language = SETTINGS.read().unwrap().string("language");
         if !language.is_empty() {
             Locale::initialize(&language).unwrap_or_else(|_| LOCALE_FALLBACK.clone())
         } else {
@@ -116,6 +115,11 @@ lazy_static!{
     pub static ref SLASH_DMY_DATE_FORMAT: Vec<FormatItem<'static>> = parse("[day]/[month]/[year]").unwrap();
     pub static ref SLASH_MDY_DATE_FORMAT: Vec<FormatItem<'static>> = parse("[month]/[day]/[year]").unwrap();
 
+    pub static ref ORG_DOMAIN: Arc<RwLock<String>> = Arc::new(RwLock::new(String::from("com")));
+    pub static ref ORG_NAME: Arc<RwLock<String>> = Arc::new(RwLock::new(String::from("FrodoWazEre")));
+    pub static ref APP_NAME: Arc<RwLock<String>> = Arc::new(RwLock::new(String::from("rpfm")));
+
+    pub static ref SETTINGS: Arc<RwLock<Settings>> = Arc::new(RwLock::new(Settings::default()));
 }
 
 pub const ROOT_NODE_TYPE: i32 = 23;

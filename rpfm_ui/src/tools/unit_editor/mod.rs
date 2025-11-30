@@ -56,6 +56,7 @@ use rpfm_lib::games::supported_games::*;
 use rpfm_lib::integrations::log;
 
 use rpfm_ui_common::locale::{qtr, tr};
+use rpfm_ui_common::utils::*;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
@@ -327,7 +328,7 @@ impl ToolUnitEditor {
         // Copy unit dialog.
         //-----------------------------------------------------------------------//
         let copy_unit_view = if cfg!(debug_assertions) { COPY_UNIT_VIEW_DEBUG } else { COPY_UNIT_VIEW_RELEASE };
-        let copy_unit_widget = crate::utils::load_template(&tool.main_widget, copy_unit_view)?;
+        let copy_unit_widget = load_template(&tool.main_widget, copy_unit_view)?;
 
         let copy_unit_button_box: QPtr<QDialogButtonBox> = tool.find_widget("copy_unit_button_box")?;
         let copy_unit_instructions_label: QPtr<QLabel> = tool.find_widget("copy_unit_instructions_label")?;

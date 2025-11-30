@@ -50,7 +50,8 @@ use rpfm_lib::games::{*, supported_games::*};
 use rpfm_lib::integrations::git::GitResponse;
 
 use rpfm_ui_common::locale::{tr, tre, qtr};
-use rpfm_ui_common::settings::*;
+use rpfm_ui_common::SETTINGS;
+use rpfm_ui_common::utils::show_dialog;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
@@ -250,7 +251,7 @@ impl ToolTranslator {
 
         // For language, we try to get it from the game folder. If we can't, we fallback to whatever local files we have.
         let game = GAME_SELECTED.read().unwrap().clone();
-        let game_path = setting_path(game.key());
+        let game_path = SETTINGS.read().unwrap().path_buf(game.key());
         let locale = game.game_locale_from_file(&game_path)?;
         let language = match locale {
             Some(locale) => {
@@ -450,7 +451,7 @@ impl ToolTranslator {
         import_from_translated_pack.set_tool_tip(&qtr("translator_import_from_translated_pack"));
 
         // Only allow AI translation if we have a key in settings. Ignore keys in env.
-        if setting_string("ai_openai_api_key").is_empty() {
+        if SETTINGS.read().unwrap().string("ai_openai_api_key").is_empty() {
             chatgpt_radio_button.set_enabled(false);
             context_text_edit.set_enabled(false);
             translate_with_chatgpt.set_enabled(false);
@@ -458,7 +459,7 @@ impl ToolTranslator {
             chatgpt_radio_button.set_checked(true);
         }
 
-        if setting_string("deepl_api_key").is_empty() {
+        if SETTINGS.read().unwrap().string("deepl_api_key").is_empty() {
             deepl_radio_button.set_enabled(false);
             translate_with_deepl.set_enabled(false);
         } else {
@@ -872,7 +873,7 @@ impl ToolTranslator {
 
         // Get the API key from the settings. If no API key is provided, it will use the OPENAI_API_KEY env variable.
         let api_key = {
-            let key = setting_string("ai_openai_api_key");
+            let key = SETTINGS.read().unwrap().string("ai_openai_api_key");
             if key.is_empty() {
                 None
             } else {
@@ -914,7 +915,7 @@ impl ToolTranslator {
 
     #[tokio::main]
     async fn ask_deepl(string: &str, language: Lang) -> Result<String> {
-        let api_key = setting_string("deepl_api_key");
+        let api_key = SETTINGS.read().unwrap().string("deepl_api_key");
         if api_key.is_empty() {
             return Err(anyhow!("Missing DeepL API Key."))
         };

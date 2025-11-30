@@ -22,21 +22,24 @@ use qt_gui::{QPalette, q_palette::ColorRole};
 use qt_gui::q_color::NameFormat;
 
 use qt_core::QBox;
+use qt_core::QByteArray;
 use qt_core::QString;
 use qt_core::SlotNoArgs;
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::fs::remove_dir_all;
 use std::rc::Rc;
 use std::process::Command as SystemCommand;
 
 use rpfm_ui_common::clone;
 use rpfm_ui_common::locale::tr;
+use rpfm_ui_common::SETTINGS;
+use rpfm_ui_common::settings::Settings;
+use rpfm_ui_common::utils::show_dialog;
 
 use crate::app_ui::AppUI;
 use crate::ffi;
 use crate::settings_ui::{backend::*, SettingsUI};
-use crate::utils::show_dialog;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -89,45 +92,35 @@ impl SettingsUISlots {
 
                 // Restore RPFM settings and reload the view, WITHOUT SAVING THE SETTINGS.
                 // An exception are the original states. We need to keep those.
-                let q_settings = settings();
-                let keys = q_settings.all_keys();
-
-                let mut old_settings = HashMap::new();
-                for i in 0..keys.count_0a() {
-                    old_settings.insert(keys.at(i).to_std_string(), setting_variant_from_q_setting(&q_settings, &keys.at(i).to_std_string()));
-                }
+                let mut settings = Settings::default();
+                let mut old_settings = SETTINGS.read().unwrap().clone();
+                settings.set_block_write(true);
+                old_settings.set_block_write(true);
 
                 // Fonts are a bit special. Init picks them up from the running app, not from a fixed value,
                 // so we need to manually overwrite them here before init_settings gets triggered.
-                let original_font_name = setting_string("original_font_name");
-                let original_font_size = setting_int("original_font_size");
+                let original_font_name = old_settings.string("original_font_name");
+                let original_font_size = old_settings.i32("original_font_size");
 
-                q_settings.clear();
+                let _ = settings.set_string("font_name", &original_font_name);
+                let _ = settings.set_i32("font_size", original_font_size);
+                settings.set_block_write(false);
 
-                set_setting_string_to_q_setting(&q_settings, "font_name", &original_font_name);
-                set_setting_int_to_q_setting(&q_settings, "font_size", original_font_size);
-
-                q_settings.sync();
+                // Set the clean settings as the current ones, so init_settings can initialize them properly.
+                *SETTINGS.write().unwrap() = settings;
 
                 init_settings(&app_ui.main_window().static_upcast());
                 if let Err(error) = ui.load() {
                     return show_dialog(&ui.dialog, error, false);
                 }
 
+                // Set this value to indicate future operations that a reset has taken place.
+                let _ = old_settings.set_bool("factoryReset", true);
+                old_settings.set_block_write(false);
+
                 // Once the original settings are reloaded, wipe them out from the backend again and put the old ones in.
                 // That way, if the user cancels, we still have the old settings.
-                q_settings.clear();
-                q_settings.sync();
-
-                for (key, value) in &old_settings {
-                    set_setting_variant_to_q_setting(&q_settings, key, value.as_ref());
-                }
-
-                // Set this value to indicate future operations that a reset has taken place.
-                set_setting_bool_to_q_setting(&q_settings, "factoryReset", true);
-
-                // Save the backend settings again.
-                q_settings.sync();
+                *SETTINGS.write().unwrap() = old_settings;
             }
         ));
 
@@ -241,10 +234,8 @@ impl SettingsUISlots {
 
         let clear_layout = SlotNoArgs::new(&ui.dialog, clone!(
             app_ui => move || {
-                let q_settings = settings();
-                app_ui.main_window().restore_geometry(&q_settings.value_1a(&QString::from_std_str("originalGeometry")).to_byte_array());
-                app_ui.main_window().restore_state_1a(&q_settings.value_1a(&QString::from_std_str("originalWindowState")).to_byte_array());
-                q_settings.sync();
+                app_ui.main_window().restore_geometry(&QByteArray::from_slice(&SETTINGS.read().unwrap().raw_data("originalGeometry")));
+                app_ui.main_window().restore_state_1a(&QByteArray::from_slice(&SETTINGS.read().unwrap().raw_data("originalWindowState")));
         }));
 
         let add_rpfm_to_runcher_tools = SlotNoArgs::new(&ui.dialog, clone!(

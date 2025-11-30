@@ -8,18 +8,17 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*!
-Module with all the code to deal with the settings used to configure this lib.
-
-This module contains all the code related with the settings used by the lib to work. These
-settings are saved in the config folder, in a file called `settings.ron`, in case you want
-to change them manually.
-!*/
+//! Module with all the code to deal with the settings used to configure this program.
 
 use qt_widgets::QApplication;
 use qt_widgets::QMainWindow;
 
+use qt_core::QBox;
 use qt_core::QPtr;
+use qt_core::QSettings;
+use qt_core::QString;
+use qt_core::QVariant;
+use qt_core::q_variant;
 
 use anyhow::{anyhow, Result};
 use ron::ser::{PrettyConfig, to_string_pretty};
@@ -35,7 +34,7 @@ use rpfm_lib::error::RLibError;
 use rpfm_lib::games::{*, supported_games::*};
 use rpfm_lib::schema::{SCHEMA_FOLDER, DefinitionPatch};
 
-pub use rpfm_ui_common::settings::*;
+use rpfm_ui_common::{SETTINGS, settings::{Settings, config_path, error_path}};
 
 use crate::GAME_SELECTED;
 use crate::SUPPORTED_GAMES;
@@ -56,21 +55,26 @@ const TABLE_PROFILES_FOLDER: &str = "table_profiles";
 //-------------------------------------------------------------------------------//
 
 pub unsafe fn init_settings(main_window: &QPtr<QMainWindow>) {
-    let q_settings = settings();
+    let mut settings = match Settings::read() {
+        Ok(settings) => settings,
+        Err(_) => match import_from_q_settings() {
+            Ok(settings) => settings,
+            Err(_) => Settings::default(),
+        },
+    };
 
-    set_setting_if_new_q_byte_array(&q_settings, "originalGeometry", main_window.save_geometry().as_ref());
-    set_setting_if_new_q_byte_array(&q_settings, "originalWindowState", main_window.save_state_0a().as_ref());
+    settings.set_block_write(true);
 
-    set_setting_if_new_string(&q_settings, MYMOD_BASE_PATH, "");
-    set_setting_if_new_string(&q_settings, SECONDARY_PATH, "");
+    settings.initialize_string(MYMOD_BASE_PATH, "");
+    settings.initialize_string(SECONDARY_PATH, "");
 
     for game in &SUPPORTED_GAMES.games() {
         let game_key = game.key();
 
         // Fix unsanitized paths.
-        let current_path = setting_string_from_q_setting(&q_settings, game_key);
+        let current_path = settings.string(game_key);
         if current_path.contains("\\") {
-            set_setting_string_to_q_setting(&q_settings, game_key, &current_path.replace("\\", "/"));
+            let _ = settings.set_string(game_key, &current_path.replace("\\", "/"));
         }
 
         let game_path = if let Ok(Some(game_path)) = game.find_game_install_location() {
@@ -81,9 +85,9 @@ pub unsafe fn init_settings(main_window: &QPtr<QMainWindow>) {
 
         // If we got a path and we don't have it saved yet, save it automatically.
         if current_path.is_empty() && !game_path.is_empty() {
-            set_setting_string_to_q_setting(&q_settings, game_key, &game_path);
+            let _ = settings.set_string(game_key, &game_path);
         } else {
-            set_setting_if_new_string(&q_settings, game_key, &game_path);
+            settings.initialize_string(game_key, &game_path);
         }
 
         if game_key != KEY_EMPIRE &&
@@ -98,87 +102,92 @@ pub unsafe fn init_settings(main_window: &QPtr<QMainWindow>) {
 
             // If we got a path and we don't have it saved yet, save it automatically.
             let ak_key = game_key.to_owned() + "_assembly_kit";
-            let current_path = setting_string_from_q_setting(&q_settings, &ak_key);
+            let current_path = settings.string(&ak_key);
 
             // Fix unsanitized paths.
             if current_path.contains("\\") {
-                set_setting_string_to_q_setting(&q_settings, &ak_key, &current_path.replace("\\", "/"));
+                let _ = settings.set_string(&ak_key, &current_path.replace("\\", "/"));
             }
 
             // Ignore shogun 2, as that one is a zip.
             if current_path.is_empty() && !ak_path.is_empty() && game_key != KEY_SHOGUN_2 {
-                set_setting_string_to_q_setting(&q_settings, &ak_key, &ak_path);
+                let _ = settings.set_string(&ak_key, &ak_path);
             } else {
-                set_setting_if_new_string(&q_settings, &ak_key, &ak_path);
+                settings.initialize_string(&ak_key, &ak_path);
             }
         }
     }
 
     // General Settings.
-    set_setting_if_new_string(&q_settings, "default_game", KEY_WARHAMMER_3);
-    set_setting_if_new_string(&q_settings, "language", "English_en");
-    set_setting_if_new_string(&q_settings, "update_channel", STABLE);
-    set_setting_if_new_int(&q_settings, "autosave_amount", 10);
-    set_setting_if_new_int(&q_settings, "autosave_interval", 5);
+    settings.initialize_string("default_game", KEY_WARHAMMER_3);
+    settings.initialize_string("language", "English_en");
+    settings.initialize_string("update_channel", STABLE);
+    settings.initialize_i32("autosave_amount", 10);
+    settings.initialize_i32("autosave_interval", 5);
 
     let font = QApplication::font();
     let font_name = font.family().to_std_string();
     let font_size = font.point_size();
-    set_setting_if_new_string(&q_settings, "font_name", &font_name);
-    set_setting_if_new_int(&q_settings, "font_size", font_size);
-    set_setting_if_new_string(&q_settings, "original_font_name", &font_name);
-    set_setting_if_new_int(&q_settings, "original_font_size", font_size);
+    settings.initialize_string("font_name", &font_name);
+    settings.initialize_i32("font_size", font_size);
+    settings.initialize_string("original_font_name", &font_name);
+    settings.initialize_i32("original_font_size", font_size);
 
     // UI Settings.
-    set_setting_if_new_bool(&q_settings, "start_maximized", false);
-    set_setting_if_new_bool(&q_settings, "use_dark_theme", false);
-    set_setting_if_new_bool(&q_settings, "hide_background_icon", true);
-    set_setting_if_new_bool(&q_settings, "allow_editing_of_ca_packfiles", false);
-    set_setting_if_new_bool(&q_settings, "check_updates_on_start", true);
-    set_setting_if_new_bool(&q_settings, "check_schema_updates_on_start", true);
-    set_setting_if_new_bool(&q_settings, "check_lua_autogen_updates_on_start", true);
-    set_setting_if_new_bool(&q_settings, "check_old_ak_updates_on_start", true);
-    set_setting_if_new_bool(&q_settings, "use_lazy_loading", true);
-    set_setting_if_new_bool(&q_settings, "optimize_not_renamed_packedfiles", false);
-    set_setting_if_new_bool(&q_settings, "disable_uuid_regeneration_on_db_tables", true);
-    set_setting_if_new_bool(&q_settings, "packfile_treeview_resize_to_fit", false);
-    set_setting_if_new_bool(&q_settings, "expand_treeview_when_adding_items", true);
-    set_setting_if_new_bool(&q_settings, "use_right_size_markers", false);
-    set_setting_if_new_bool(&q_settings, "disable_file_previews", false);
-    set_setting_if_new_bool(&q_settings, "include_base_folder_on_add_from_folder", true);
-    set_setting_if_new_bool(&q_settings, "delete_empty_folders_on_delete", true);
-    set_setting_if_new_bool(&q_settings, "autosave_folder_size_warning_triggered", false);
-    set_setting_if_new_bool(&q_settings, "ignore_game_files_in_ak", false);
-    set_setting_if_new_bool(&q_settings, "enable_multifolder_filepicker", false);
-    set_setting_if_new_bool(&q_settings, "enable_pack_contents_drag_and_drop", true);
+    settings.initialize_bool("start_maximized", false);
+    settings.initialize_bool("use_dark_theme", false);
+    settings.initialize_bool("hide_background_icon", true);
+    settings.initialize_bool("allow_editing_of_ca_packfiles", false);
+    settings.initialize_bool("check_updates_on_start", true);
+    settings.initialize_bool("check_schema_updates_on_start", true);
+    settings.initialize_bool("check_lua_autogen_updates_on_start", true);
+    settings.initialize_bool("check_old_ak_updates_on_start", true);
+    settings.initialize_bool("use_lazy_loading", true);
+    settings.initialize_bool("optimize_not_renamed_packedfiles", false);
+    settings.initialize_bool("disable_uuid_regeneration_on_db_tables", true);
+    settings.initialize_bool("packfile_treeview_resize_to_fit", false);
+    settings.initialize_bool("expand_treeview_when_adding_items", true);
+    settings.initialize_bool("use_right_size_markers", false);
+    settings.initialize_bool("disable_file_previews", false);
+    settings.initialize_bool("include_base_folder_on_add_from_folder", true);
+    settings.initialize_bool("delete_empty_folders_on_delete", true);
+    settings.initialize_bool("autosave_folder_size_warning_triggered", false);
+    settings.initialize_bool("ignore_game_files_in_ak", false);
+    settings.initialize_bool("enable_multifolder_filepicker", false);
+    settings.initialize_bool("enable_pack_contents_drag_and_drop", true);
 
     // Table Settings.
-    set_setting_if_new_bool(&q_settings, "adjust_columns_to_content", true);
-    set_setting_if_new_bool(&q_settings, "extend_last_column_on_tables", true);
-    set_setting_if_new_bool(&q_settings, "disable_combos_on_tables", false);
-    set_setting_if_new_bool(&q_settings, "tight_table_mode", false);
-    set_setting_if_new_bool(&q_settings, "table_resize_on_edit", false);
-    set_setting_if_new_bool(&q_settings, "tables_use_old_column_order", true);
-    set_setting_if_new_bool(&q_settings, "tables_use_old_column_order_for_tsv", true);
-    set_setting_if_new_bool(&q_settings, "enable_lookups", true);
-    set_setting_if_new_bool(&q_settings, "enable_icons", true);
-    set_setting_if_new_bool(&q_settings, "enable_diff_markers", true);
-    set_setting_if_new_bool(&q_settings, "hide_unused_columns", true);
+    settings.initialize_bool("adjust_columns_to_content", true);
+    settings.initialize_bool("extend_last_column_on_tables", true);
+    settings.initialize_bool("disable_combos_on_tables", false);
+    settings.initialize_bool("tight_table_mode", false);
+    settings.initialize_bool("table_resize_on_edit", false);
+    settings.initialize_bool("tables_use_old_column_order", true);
+    settings.initialize_bool("tables_use_old_column_order_for_tsv", true);
+    settings.initialize_bool("enable_lookups", true);
+    settings.initialize_bool("enable_icons", true);
+    settings.initialize_bool("enable_diff_markers", true);
+    settings.initialize_bool("hide_unused_columns", true);
 
     // Debug Settings.
-    set_setting_if_new_bool(&q_settings, "check_for_missing_table_definitions", false);
-    set_setting_if_new_bool(&q_settings, "enable_debug_menu", false);
-    set_setting_if_new_bool(&q_settings, "spoof_ca_authoring_tool", false);
-    set_setting_if_new_bool(&q_settings, "enable_rigidmodel_editor", true);
-    set_setting_if_new_bool(&q_settings, "enable_unit_editor", false);
-    set_setting_if_new_bool(&q_settings, "enable_esf_editor", false);
-    #[cfg(feature = "support_model_renderer")] set_setting_if_new_bool(&q_settings, "enable_renderer", true);
+    settings.initialize_bool("check_for_missing_table_definitions", false);
+    settings.initialize_bool("enable_debug_menu", false);
+    settings.initialize_bool("spoof_ca_authoring_tool", false);
+    settings.initialize_bool("enable_rigidmodel_editor", true);
+    settings.initialize_bool("enable_unit_editor", false);
+    settings.initialize_bool("enable_esf_editor", false);
+    #[cfg(feature = "support_model_renderer")] settings.initialize_bool("enable_renderer", true);
 
     // Diagnostics Settings
-    set_setting_if_new_bool(&q_settings, "diagnostics_trigger_on_open", true);
-    set_setting_if_new_bool(&q_settings, "diagnostics_trigger_on_table_edit", true);
+    settings.initialize_bool("diagnostics_trigger_on_open", true);
+    settings.initialize_bool("diagnostics_trigger_on_table_edit", true);
+
+    // These settings need to use QSettings because they're read in the C++ side.
+    settings.initialize_raw_data("originalGeometry", &main_window.save_geometry().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>());
+    settings.initialize_raw_data("originalWindowState", &main_window.save_state_0a().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>());
 
     // Colours.
+    let q_settings = qt_core::QSettings::new();
     set_setting_if_new_string(&q_settings, "colour_light_table_added", "#87ca00");
     set_setting_if_new_string(&q_settings, "colour_light_table_modified", "#e67e22");
     set_setting_if_new_string(&q_settings, "colour_light_diagnostic_error", "#ff0000");
@@ -189,31 +198,68 @@ pub unsafe fn init_settings(main_window: &QPtr<QMainWindow>) {
     set_setting_if_new_string(&q_settings, "colour_dark_diagnostic_error", "#ff0000");
     set_setting_if_new_string(&q_settings, "colour_dark_diagnostic_warning", "#cece67");
     set_setting_if_new_string(&q_settings, "colour_dark_diagnostic_info", "#55aaff");
+    q_settings.sync();
 
     // Optimizer settings.
     let opt = OptimizerOptions::default();
-    set_setting_if_new_bool(&q_settings, "pack_remove_itm_files", *opt.pack_remove_itm_files());
-    set_setting_if_new_bool(&q_settings, "db_import_datacores_into_twad_key_deletes", *opt.db_import_datacores_into_twad_key_deletes());
-    set_setting_if_new_bool(&q_settings, "db_optimize_datacored_tables", *opt.db_optimize_datacored_tables());
-    set_setting_if_new_bool(&q_settings, "table_remove_duplicated_entries", *opt.table_remove_duplicated_entries());
-    set_setting_if_new_bool(&q_settings, "table_remove_itm_entries", *opt.table_remove_itm_entries());
-    set_setting_if_new_bool(&q_settings, "table_remove_itnr_entries", *opt.table_remove_itnr_entries());
-    set_setting_if_new_bool(&q_settings, "table_remove_empty_file", *opt.table_remove_empty_file());
-    set_setting_if_new_bool(&q_settings, "text_remove_unused_xml_map_folders", *opt.text_remove_unused_xml_map_folders());
-    set_setting_if_new_bool(&q_settings, "text_remove_unused_xml_prefab_folder", *opt.text_remove_unused_xml_prefab_folder());
-    set_setting_if_new_bool(&q_settings, "text_remove_agf_files", *opt.text_remove_agf_files());
-    set_setting_if_new_bool(&q_settings, "text_remove_model_statistics_files", *opt.text_remove_model_statistics_files());
-    set_setting_if_new_bool(&q_settings, "pts_remove_unused_art_sets", *opt.pts_remove_unused_art_sets());
-    set_setting_if_new_bool(&q_settings, "pts_remove_unused_variants", *opt.pts_remove_unused_variants());
-    set_setting_if_new_bool(&q_settings, "pts_remove_empty_masks", *opt.pts_remove_empty_masks());
-    set_setting_if_new_bool(&q_settings, "pts_remove_empty_file", *opt.pts_remove_empty_file());
+    settings.initialize_bool("pack_remove_itm_files", *opt.pack_remove_itm_files());
+    settings.initialize_bool("db_import_datacores_into_twad_key_deletes", *opt.db_import_datacores_into_twad_key_deletes());
+    settings.initialize_bool("db_optimize_datacored_tables", *opt.db_optimize_datacored_tables());
+    settings.initialize_bool("table_remove_duplicated_entries", *opt.table_remove_duplicated_entries());
+    settings.initialize_bool("table_remove_itm_entries", *opt.table_remove_itm_entries());
+    settings.initialize_bool("table_remove_itnr_entries", *opt.table_remove_itnr_entries());
+    settings.initialize_bool("table_remove_empty_file", *opt.table_remove_empty_file());
+    settings.initialize_bool("text_remove_unused_xml_map_folders", *opt.text_remove_unused_xml_map_folders());
+    settings.initialize_bool("text_remove_unused_xml_prefab_folder", *opt.text_remove_unused_xml_prefab_folder());
+    settings.initialize_bool("text_remove_agf_files", *opt.text_remove_agf_files());
+    settings.initialize_bool("text_remove_model_statistics_files", *opt.text_remove_model_statistics_files());
+    settings.initialize_bool("pts_remove_unused_art_sets", *opt.pts_remove_unused_art_sets());
+    settings.initialize_bool("pts_remove_unused_variants", *opt.pts_remove_unused_variants());
+    settings.initialize_bool("pts_remove_empty_masks", *opt.pts_remove_empty_masks());
+    settings.initialize_bool("pts_remove_empty_file", *opt.pts_remove_empty_file());
 
-    q_settings.sync();
+    settings.set_block_write(false);
+    let _ = settings.write();
+
+    *SETTINGS.write().unwrap() = settings;
+}
+
+pub fn import_from_q_settings() -> Result<Settings> {
+    let mut settings = Settings::default();
+
+    unsafe {
+        let q_settings = QSettings::new();
+        let qkeys = q_settings.all_keys();
+        let mut keys = Vec::new();
+        for index in 0..qkeys.count_0a() {
+            keys.push(qkeys.at(index).to_std_string());
+        }
+
+        // NOTE: Paths were strings. So those are not imported correctly.
+        for key in &keys {
+            let value = q_settings.value_1a(&QString::from_std_str(key));
+            match value.type_() {
+                q_variant::Type::Bool => { settings.bool.insert(key.to_string(), value.to_bool()); },
+                q_variant::Type::Int => { settings.i32.insert(key.to_string(), value.to_int_0a()); },
+                q_variant::Type::Double => { settings.f32.insert(key.to_string(), value.to_double_0a() as f32); },
+                q_variant::Type::String => { settings.string.insert(key.to_string(), value.to_string().to_std_string()); },
+                q_variant::Type::ByteArray => { settings.raw_data.insert(key.to_string(), value.to_byte_array().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>()); },
+                _ => continue,
+            };
+        }
+    }
+    Ok(settings)
 }
 
 //-------------------------------------------------------------------------------//
 //                             Extra Helpers
 //-------------------------------------------------------------------------------//
+
+pub unsafe fn set_setting_if_new_string(q_settings: &QBox<QSettings>, setting: &str, value: &str) {
+    if !q_settings.value_1a(&QString::from_std_str(setting)).is_valid() {
+        q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_q_string(&QString::from_std_str(value)));
+    }
+}
 
 /// Function to initialize the config folder, so RPFM can use it to store his stuff.
 ///
@@ -260,21 +306,22 @@ pub fn init_config_path() -> Result<()> {
 pub fn init_optimizer_options() -> OptimizerOptions {
     let mut options = OptimizerOptions::default();
 
-    options.set_pack_remove_itm_files(setting_bool("pack_remove_itm_files"));
-    options.set_db_import_datacores_into_twad_key_deletes(setting_bool("db_import_datacores_into_twad_key_deletes"));
-    options.set_db_optimize_datacored_tables(setting_bool("db_optimize_datacored_tables"));
-    options.set_table_remove_duplicated_entries(setting_bool("table_remove_duplicated_entries"));
-    options.set_table_remove_itm_entries(setting_bool("table_remove_itm_entries"));
-    options.set_table_remove_itnr_entries(setting_bool("table_remove_itnr_entries"));
-    options.set_table_remove_empty_file(setting_bool("table_remove_empty_file"));
-    options.set_text_remove_unused_xml_map_folders(setting_bool("text_remove_unused_xml_map_folders"));
-    options.set_text_remove_unused_xml_prefab_folder(setting_bool("text_remove_unused_xml_prefab_folder"));
-    options.set_text_remove_agf_files(setting_bool("text_remove_agf_files"));
-    options.set_text_remove_model_statistics_files(setting_bool("text_remove_model_statistics_files"));
-    options.set_pts_remove_unused_art_sets(setting_bool("pts_remove_unused_art_sets"));
-    options.set_pts_remove_unused_variants(setting_bool("pts_remove_unused_variants"));
-    options.set_pts_remove_empty_masks(setting_bool("pts_remove_empty_masks"));
-    options.set_pts_remove_empty_file(setting_bool("pts_remove_empty_file"));
+    let settings = SETTINGS.read().unwrap();
+    options.set_pack_remove_itm_files(settings.bool("pack_remove_itm_files"));
+    options.set_db_import_datacores_into_twad_key_deletes(settings.bool("db_import_datacores_into_twad_key_deletes"));
+    options.set_db_optimize_datacored_tables(settings.bool("db_optimize_datacored_tables"));
+    options.set_table_remove_duplicated_entries(settings.bool("table_remove_duplicated_entries"));
+    options.set_table_remove_itm_entries(settings.bool("table_remove_itm_entries"));
+    options.set_table_remove_itnr_entries(settings.bool("table_remove_itnr_entries"));
+    options.set_table_remove_empty_file(settings.bool("table_remove_empty_file"));
+    options.set_text_remove_unused_xml_map_folders(settings.bool("text_remove_unused_xml_map_folders"));
+    options.set_text_remove_unused_xml_prefab_folder(settings.bool("text_remove_unused_xml_prefab_folder"));
+    options.set_text_remove_agf_files(settings.bool("text_remove_agf_files"));
+    options.set_text_remove_model_statistics_files(settings.bool("text_remove_model_statistics_files"));
+    options.set_pts_remove_unused_art_sets(settings.bool("pts_remove_unused_art_sets"));
+    options.set_pts_remove_unused_variants(settings.bool("pts_remove_unused_variants"));
+    options.set_pts_remove_empty_masks(settings.bool("pts_remove_empty_masks"));
+    options.set_pts_remove_empty_file(settings.bool("pts_remove_empty_file"));
 
     options
 }
@@ -337,7 +384,7 @@ pub fn assembly_kit_path() -> Result<PathBuf> {
 
         // Post-Shogun 2 games.
         2 | 1 => {
-            let mut base_path = setting_path(&format!("{}_assembly_kit", game_selected.key()));
+            let mut base_path = SETTINGS.read().unwrap().path_buf(&format!("{}_assembly_kit", game_selected.key()));
             base_path.push("raw_data/db");
             Ok(base_path)
         }
