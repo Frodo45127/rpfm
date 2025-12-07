@@ -183,6 +183,8 @@ pub unsafe fn init_settings(app_ui: &AppUI) -> Result<()> {
     settings.initialize_bool("diagnostics_trigger_on_open", true);
     settings.initialize_bool("diagnostics_trigger_on_table_edit", true);
 
+    settings.initialize_vec_string("recentFileList", &[]);
+
     // These settings need to use QSettings because they're read in the C++ side.
     settings.initialize_raw_data("originalGeometry", &app_ui.main_window().save_geometry().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>());
     settings.initialize_raw_data("originalWindowState", &app_ui.main_window().save_state_0a().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>());

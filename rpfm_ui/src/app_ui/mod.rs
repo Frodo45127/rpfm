@@ -1347,8 +1347,6 @@ impl AppUI {
         // If it's only one packfile, store it in the recent file list.
         if pack_file_paths.len() == 1 {
             let mut settings = SETTINGS.write().unwrap();
-            settings.initialize_vec_string("recentFileList", &[]);
-
             let mut paths = settings.vec_string("recentFileList");
 
             if let Some(pos) = paths.iter().position(|x| x == pack_file_paths[0].to_str().unwrap()) {
