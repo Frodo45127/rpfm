@@ -2013,7 +2013,7 @@ impl Dependencies {
     /// This function updates a DB Table to its latest valid version, being the latest valid version the one in the vanilla files.
     ///
     /// It returns both, old and new versions, or an error.
-    pub fn update_db(&mut self, rfile: &mut RFileDecoded) -> Result<(i32, i32)> {
+    pub fn update_db(&mut self, rfile: &mut RFileDecoded) -> Result<(i32, i32, Vec<String>, Vec<String>)> {
         match rfile {
             RFileDecoded::DB(data) => {
                 let dep_db_undecoded = self.db_data(data.table_name(), true, false)?;
@@ -2025,7 +2025,20 @@ impl Dependencies {
                     let definition_old = data.definition().clone();
                     if definition_old != *definition_new {
                         data.set_definition(definition_new);
-                        Ok((*definition_old.version(), *definition_new.version()))
+
+                        // Get the info about the definition differences.
+                        let fields_old = definition_old.fields_processed();
+                        let fields_new = definition_new.fields_processed();
+                        let fields_deleted = fields_old.iter()
+                            .filter(|x| fields_new.iter().all(|y| y.name() != x.name()))
+                            .map(|x| x.name().to_owned())
+                            .collect::<Vec<_>>();
+                        let fields_added = fields_new.iter()
+                            .filter(|x| fields_old.iter().all(|y| y.name() != x.name()))
+                            .map(|x| x.name().to_owned())
+                            .collect::<Vec<_>>();
+
+                        Ok((*definition_old.version(), *definition_new.version(), fields_deleted, fields_added))
                     }
                     else {
                         Err(RLibError::NoDefinitionUpdateAvailable)

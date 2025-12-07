@@ -1086,7 +1086,7 @@ pub fn background_loop() {
                 if let Some(rfile) = pack_file_decoded.file_mut(path, false) {
                     if let Ok(decoded) = rfile.decoded_mut() {
                         match dependencies.write().unwrap().update_db(decoded) {
-                            Ok((old_version, new_version)) => CentralCommand::send_back(&sender, Response::I32I32(old_version, new_version)),
+                            Ok((old_version, new_version, fields_deleted, fields_added)) => CentralCommand::send_back(&sender, Response::I32I32VecStringVecString(old_version, new_version, fields_deleted, fields_added)),
                             Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                         }
                     } else { CentralCommand::send_back(&sender, Response::Error(anyhow!("File with the following path undecoded: {}", path))); }

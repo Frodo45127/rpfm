@@ -614,7 +614,10 @@ rename_move_instructions = <p>It's easy peasy:</p>
         </ul>
     </ul>
 
-update_table_success = Table updated from version '{"{"}{"}"}' to version '{"{"}{"}"}'.
+update_table_success = <p>Table updated from version '{"{"}{"}"}' to version '{"{"}{"}"}'.</p>
+update_table_success_files_deleted = </br>Fields deleted: <ul>{"{"}{"}"}</ul>
+update_table_success_files_added = </br>Fields added: <ul>{"{"}{"}"}</ul>
+
 no_errors_detected = No errors detected.
 original_data = Original Value: '{"{"}{"}"}'
 vanilla_data = Vanilla/Parent Value: '{"{"}{"}"}'

@@ -530,7 +530,8 @@ pub enum Response {
     VecRFile(Vec<RFile>),
     VecBoolString(Vec<(bool, String)>),
     CompressionFormat(CompressionFormat),
-    Gltf(Gltf)
+    Gltf(Gltf),
+    I32I32VecStringVecString(i32, i32, Vec<String>, Vec<String>)
 }
 
 //-------------------------------------------------------------------------------//

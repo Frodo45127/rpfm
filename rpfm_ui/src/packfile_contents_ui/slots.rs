@@ -26,6 +26,8 @@ use qt_core::QPtr;
 use qt_core::QString;
 use qt_core::{SlotNoArgs, SlotOfBool, SlotOfQModelIndexInt, SlotOfQString};
 
+use itertools::Itertools;
+
 use std::collections::HashSet;
 use std::fs::DirBuilder;
 use std::path::{Path, PathBuf};
@@ -1317,8 +1319,16 @@ impl PackFileContentsSlots {
                     let receiver = CENTRAL_COMMAND.send_background(Command::UpdateTable(item_type.clone()));
                     let response = CentralCommand::recv(&receiver);
                     match response {
-                        Response::I32I32(old_version, new_version) => {
-                            let message = tre("update_table_success", &[&old_version.to_string(), &new_version.to_string()]);
+                        Response::I32I32VecStringVecString(old_version, new_version, fields_deleted, fields_added) => {
+                            let mut message = tre("update_table_success", &[&old_version.to_string(), &new_version.to_string()]);
+                            if !fields_deleted.is_empty() {
+                                message.push_str(&tre("update_table_success_files_deleted", &[&fields_deleted.iter().map(|x| format!("<li>{x}</li>")).join("")]));
+                            }
+
+                            if !fields_added.is_empty() {
+                                message.push_str(&tre("update_table_success_files_added", &[&fields_added.iter().map(|x| format!("<li>{x}</li>")).join("")]));
+                            }
+
                             show_dialog(app_ui.main_window(), message, true);
 
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Modify(vec![item_type.clone(); 1]), DataSource::PackFile);
