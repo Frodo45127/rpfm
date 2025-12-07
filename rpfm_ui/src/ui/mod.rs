@@ -145,12 +145,12 @@ impl UI {
         diagnostics_ui::connections::set_connections(&diagnostics_ui, &diagnostics_slots);
         references_ui::connections::set_connections(&references_ui, &references_slots);
 
-        // Initialize settings.
-        init_settings(&app_ui.main_window().static_upcast());
+        // Initialize settings. Ignore errors here, as we have no way to show them yet.
+        let _ = init_settings(&app_ui);
 
         // Apply last ui state.
-        app_ui.main_window().restore_geometry(&QByteArray::from_slice(&SETTINGS.read().unwrap().raw_data("originalGeometry")));
-        app_ui.main_window().restore_state_1a(&QByteArray::from_slice(&SETTINGS.read().unwrap().raw_data("originalWindowState")));
+        app_ui.main_window().restore_geometry(&QByteArray::from_slice(&SETTINGS.read().unwrap().raw_data("geometry")));
+        app_ui.main_window().restore_state_1a(&QByteArray::from_slice(&SETTINGS.read().unwrap().raw_data("windowState")));
 
         // Apply the font.
         let font_name = SETTINGS.read().unwrap().string("font_name");

@@ -45,6 +45,7 @@ macro_rules! set_batch {
             $(
                 let _ = set.$rtype($id, $source);
             )*
+            set.set_block_write(false);
             let _ = set.write();
         }
     };

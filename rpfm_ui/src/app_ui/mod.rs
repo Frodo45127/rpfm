@@ -168,6 +168,7 @@ pub struct AppUI {
     menu_bar_packfile: QPtr<QMenu>,
     menu_bar_mymod: QPtr<QMenu>,
     menu_bar_view: QPtr<QMenu>,
+    menu_bar_debug: QPtr<QMenu>,
 
     //-------------------------------------------------------------------------------//
     // `PackFile` menu.
@@ -508,9 +509,7 @@ impl AppUI {
 
         // This menu is hidden unless you enable it.
         let menu_bar_debug = menu_bar.add_menu_q_string(&qtr("menu_bar_debug"));
-        if !SETTINGS.read().unwrap().bool("enable_debug_menu") {
-            menu_bar_debug.menu_action().set_visible(false);
-        }
+        menu_bar_debug.menu_action().set_visible(false);
 
         //-----------------------------------------------//
         // `PackFile` Menu.
@@ -863,6 +862,7 @@ impl AppUI {
             menu_bar_packfile,
             menu_bar_mymod,
             menu_bar_view,
+            menu_bar_debug,
 
             //-------------------------------------------------------------------------------//
             // "PackFile" menu.

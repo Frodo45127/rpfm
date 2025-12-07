@@ -626,6 +626,15 @@ pub extern fn anim_paths_by_skeleton_callback(skeleton_name: *mut QString, out: 
 
 /// This function allow us to create a dialog when trying to close the main window.
 pub extern "C" fn are_you_sure(main_window: *mut QMainWindow, is_delete_my_mod: bool) -> bool {
+    unsafe {
+        if !is_delete_my_mod {
+            rpfm_ui_common::set_batch![
+                set_raw_data, "geometry", &main_window.as_ref().unwrap().save_geometry().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>(),
+                set_raw_data, "windowState", &main_window.as_ref().unwrap().save_state_0a().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>()
+            ];
+        }
+    }
+
     let title = qtr("rpfm_title");
     let message = if is_delete_my_mod {
         qtr("delete_mymod_0")
@@ -636,16 +645,20 @@ pub extern "C" fn are_you_sure(main_window: *mut QMainWindow, is_delete_my_mod: 
     // In any other situation... just return true and forget about the dialog.
     else { return true };
 
-    // Create the dialog and run it (Yes => 3, No => 4).
-    unsafe { QMessageBox::from_2_q_string_icon3_int_q_widget(
-        &title,
-        &message,
-        q_message_box::Icon::Warning,
-        65536, // No
-        16384, // Yes
-        1, // By default, select yes.
-        main_window,
-    ).exec() == 3 }
+    // If we're closing the main window, save the geometry to the settings before closing it.
+    unsafe {
+
+        // Create the dialog and run it (Yes => 3, No => 4).
+        QMessageBox::from_2_q_string_icon3_int_q_widget(
+            &title,
+            &message,
+            q_message_box::Icon::Warning,
+            65536, // No
+            16384, // Yes
+            1, // By default, select yes.
+            main_window,
+        ).exec() == 3
+    }
 }
 
 /// This function allow us to create a dialog when trying to close another dialog.

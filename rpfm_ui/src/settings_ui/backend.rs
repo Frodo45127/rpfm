@@ -11,14 +11,13 @@
 //! Module with all the code to deal with the settings used to configure this program.
 
 use qt_widgets::QApplication;
-use qt_widgets::QMainWindow;
 
 use qt_core::QBox;
-use qt_core::QPtr;
+use qt_core::QByteArray;
 use qt_core::QSettings;
 use qt_core::QString;
+use qt_core::QStringList;
 use qt_core::QVariant;
-use qt_core::q_variant;
 
 use anyhow::{anyhow, Result};
 use ron::ser::{PrettyConfig, to_string_pretty};
@@ -36,6 +35,7 @@ use rpfm_lib::schema::{SCHEMA_FOLDER, DefinitionPatch};
 
 use rpfm_ui_common::{SETTINGS, settings::{Settings, config_path, error_path}};
 
+use crate::app_ui::AppUI;
 use crate::GAME_SELECTED;
 use crate::SUPPORTED_GAMES;
 use crate::updater_ui::STABLE;
@@ -54,13 +54,10 @@ const TABLE_PROFILES_FOLDER: &str = "table_profiles";
 //                         Setting-related functions
 //-------------------------------------------------------------------------------//
 
-pub unsafe fn init_settings(main_window: &QPtr<QMainWindow>) {
+pub unsafe fn init_settings(app_ui: &AppUI) -> Result<()> {
     let mut settings = match Settings::read() {
         Ok(settings) => settings,
-        Err(_) => match import_from_q_settings() {
-            Ok(settings) => settings,
-            Err(_) => Settings::default(),
-        },
+        Err(_) => Settings::default(),
     };
 
     settings.set_block_write(true);
@@ -117,6 +114,9 @@ pub unsafe fn init_settings(main_window: &QPtr<QMainWindow>) {
             }
         }
     }
+
+    // Hidden setting.
+    settings.initialize_bool("import_from_qt", false);
 
     // General Settings.
     settings.initialize_string("default_game", KEY_WARHAMMER_3);
@@ -183,8 +183,11 @@ pub unsafe fn init_settings(main_window: &QPtr<QMainWindow>) {
     settings.initialize_bool("diagnostics_trigger_on_table_edit", true);
 
     // These settings need to use QSettings because they're read in the C++ side.
-    settings.initialize_raw_data("originalGeometry", &main_window.save_geometry().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>());
-    settings.initialize_raw_data("originalWindowState", &main_window.save_state_0a().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>());
+    settings.initialize_raw_data("originalGeometry", &app_ui.main_window().save_geometry().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>());
+    settings.initialize_raw_data("originalWindowState", &app_ui.main_window().save_state_0a().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>());
+
+    // This one needs to be checked here, due to how the ui works.
+    app_ui.menu_bar_debug().menu_action().set_visible(settings.bool("enable_debug_menu"));
 
     // Colours.
     let q_settings = qt_core::QSettings::new();
@@ -219,36 +222,72 @@ pub unsafe fn init_settings(main_window: &QPtr<QMainWindow>) {
     settings.initialize_bool("pts_remove_empty_file", *opt.pts_remove_empty_file());
 
     settings.set_block_write(false);
-    let _ = settings.write();
 
+    if !settings.bool("import_from_qt") {
+        import_from_q_settings(&mut settings);
+    }
+
+    settings.write()?;
     *SETTINGS.write().unwrap() = settings;
+
+    Ok(())
 }
 
-pub fn import_from_q_settings() -> Result<Settings> {
-    let mut settings = Settings::default();
+pub fn import_from_q_settings(settings: &mut Settings) {
 
     unsafe {
         let q_settings = QSettings::new();
-        let qkeys = q_settings.all_keys();
-        let mut keys = Vec::new();
-        for index in 0..qkeys.count_0a() {
-            keys.push(qkeys.at(index).to_std_string());
-        }
 
-        // NOTE: Paths were strings. So those are not imported correctly.
-        for key in &keys {
-            let value = q_settings.value_1a(&QString::from_std_str(key));
-            match value.type_() {
-                q_variant::Type::Bool => { settings.bool.insert(key.to_string(), value.to_bool()); },
-                q_variant::Type::Int => { settings.i32.insert(key.to_string(), value.to_int_0a()); },
-                q_variant::Type::Double => { settings.f32.insert(key.to_string(), value.to_double_0a() as f32); },
-                q_variant::Type::String => { settings.string.insert(key.to_string(), value.to_string().to_std_string()); },
-                q_variant::Type::ByteArray => { settings.raw_data.insert(key.to_string(), value.to_byte_array().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>()); },
-                _ => continue,
-            };
-        }
+        settings.bool.iter_mut().for_each(|(key, set)| {
+            let default = QVariant::from_bool(*set);
+            let key = QString::from_std_str(key);
+            *set = q_settings.value_2a(&key, &default).to_bool();
+        });
+
+        settings.i32.iter_mut().for_each(|(key, set)| {
+            let default = QVariant::from_int(*set);
+            let key = QString::from_std_str(key);
+            *set = q_settings.value_2a(&key, &default).to_int_0a();
+        });
+
+        settings.f32.iter_mut().for_each(|(key, set)| {
+            let default = QVariant::from_float(*set);
+            let key = QString::from_std_str(key);
+            *set = q_settings.value_2a(&key, &default).to_float_0a();
+        });
+
+        settings.string.iter_mut().for_each(|(key, set)| {
+            let default = QVariant::from_q_string(&QString::from_std_str(&*set));
+            let key = QString::from_std_str(key);
+            *set = q_settings.value_2a(&key, &default).to_string().to_std_string();
+        });
+
+        settings.raw_data.iter_mut().for_each(|(key, set)| {
+            let default = QVariant::from_q_byte_array(&QByteArray::from_slice(set));
+            let key = QString::from_std_str(key);
+            *set = q_settings.value_2a(&key, &default).to_byte_array().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>();
+        });
+
+        settings.vec_string.iter_mut().for_each(|(key, set)| {
+            let q_list = QStringList::new();
+            for s in set.iter() {
+                q_list.append_q_string(&QString::from_std_str(s));
+            }
+
+            let default = QVariant::from_q_string_list(&q_list);
+            let key = QString::from_std_str(key);
+            let new_q_list = q_settings.value_2a(&key, &default).to_string_list();
+
+            let mut new_set = vec![];
+            for i in 0..new_q_list.count_0a() {
+                new_set.push(new_q_list.at(i).to_std_string());
+            }
+
+            *set = new_set;
+        });
+
+        let _ = settings.set_bool("import_from_qt", true);
     }
-    Ok(settings)
 }
 
 //-------------------------------------------------------------------------------//
