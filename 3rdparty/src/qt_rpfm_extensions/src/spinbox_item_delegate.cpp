@@ -1,21 +1,41 @@
 #include "spinbox_item_delegate.h"
-#include "limits.h"
-#include <QDebug>
 #include <QAbstractItemView>
 #include <QSpinBox>
 #include <QLineEdit>
+#include <QSettings>
 
 // Function to be called from any other language. This assing to the provided column of the provided TableView a QSpinBoxItemDelegate.
 // We have to pass it the integer type (16, 32 or 64) too for later checks.
-extern "C" void new_spinbox_item_delegate(QObject *parent, const int column, const int integer_type, QTimer* timer, bool is_dark_theme_enabled, bool has_filter, bool right_side_mark) {
-    QSpinBoxItemDelegate* delegate = new QSpinBoxItemDelegate(parent, integer_type, timer, is_dark_theme_enabled, has_filter, right_side_mark);
+extern "C" void new_spinbox_item_delegate(QObject *parent, const int column, const int integer_type, QTimer* timer, bool is_dark_theme_enabled, bool has_filter, bool right_side_mark, bool enable_diff_markers) {
+    QSpinBoxItemDelegate* delegate = new QSpinBoxItemDelegate(parent, integer_type, timer, is_dark_theme_enabled, has_filter, right_side_mark, enable_diff_markers);
     dynamic_cast<QAbstractItemView*>(parent)->setItemDelegateForColumn(column, delegate);
 }
 
 // Constructor of QSpinBoxItemDelegate. We use it to store the integer type of the value in the delegate.
-QSpinBoxItemDelegate::QSpinBoxItemDelegate(QObject *parent, const int integer_type, QTimer* timer, bool is_dark_theme_enabled, bool has_filter, bool right_side_mark): QExtendedStyledItemDelegate(parent, timer, is_dark_theme_enabled, has_filter, right_side_mark)
+QSpinBoxItemDelegate::QSpinBoxItemDelegate(QObject *parent, const int integer_type, QTimer* timer, bool is_dark_theme_enabled, bool has_filter, bool right_side_mark, bool enable_diff_markers):
+    QExtendedStyledItemDelegate(parent, timer, is_dark_theme_enabled, has_filter, right_side_mark, enable_diff_markers)
 {
     type = integer_type;
+    diag_timer = timer;
+    dark_theme = is_dark_theme_enabled;
+    use_filter = has_filter;
+    use_right_side_mark = right_side_mark;
+
+    QSettings* q_settings = new QSettings("FrodoWazEre", "rpfm");
+
+    if (dark_theme) {
+        colour_table_added = QColor(q_settings->value("colour_dark_table_added").toString());
+        colour_table_modified = QColor(q_settings->value("colour_dark_table_modified").toString());
+        colour_diagnostic_error = QColor(q_settings->value("colour_dark_diagnostic_error").toString());
+        colour_diagnostic_warning = QColor(q_settings->value("colour_dark_diagnostic_warning").toString());
+        colour_diagnostic_info = QColor(q_settings->value("colour_dark_diagnostic_info").toString());
+    } else {
+        colour_table_added = QColor(q_settings->value("colour_light_table_added").toString());
+        colour_table_modified = QColor(q_settings->value("colour_light_table_modified").toString());
+        colour_diagnostic_error = QColor(q_settings->value("colour_light_diagnostic_error").toString());
+        colour_diagnostic_warning = QColor(q_settings->value("colour_light_diagnostic_warning").toString());
+        colour_diagnostic_info = QColor(q_settings->value("colour_light_diagnostic_info").toString());
+    }
 }
 
 // Function called when the widget it's created. Here we configure the spinbox/linedit.

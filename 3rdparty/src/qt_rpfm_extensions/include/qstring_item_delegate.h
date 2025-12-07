@@ -7,7 +7,7 @@
 #include <QAbstractItemDelegate>
 #include <QTimer>
 
-extern "C" void new_qstring_item_delegate(QObject *parent = nullptr, const int column = 0, QTimer* timer = nullptr, bool is_dark_theme_enabled = false, bool has_filter = false, bool right_side_mark = false);
+extern "C" void new_qstring_item_delegate(QObject *parent = nullptr, const int column = 0, QTimer* timer = nullptr, bool is_dark_theme_enabled = false, bool has_filter = false, bool right_side_mark = false, bool enable_diff_markers = false);
 
 class QStringItemDelegate : public QExtendedStyledItemDelegate
 {
@@ -15,7 +15,7 @@ class QStringItemDelegate : public QExtendedStyledItemDelegate
 
 public:
 
-    explicit QStringItemDelegate(QObject *parent = nullptr, QTimer* timer = nullptr, bool is_dark_theme_enabled = false, bool has_filter = false, bool right_side_mark = false);
+    explicit QStringItemDelegate(QObject *parent = nullptr, QTimer* timer = nullptr, bool is_dark_theme_enabled = false, bool has_filter = false, bool right_side_mark = false, bool enable_diff_markers = false);
 
     QWidget* createEditor(QWidget *parent, const QStyleOptionViewItem &, const QModelIndex &) const;
     void setEditorData(QWidget *editor, const QModelIndex &index) const;
@@ -24,7 +24,7 @@ public:
 
 signals:
 
-private:
+protected:
     QTimer* diag_timer;
 };
 

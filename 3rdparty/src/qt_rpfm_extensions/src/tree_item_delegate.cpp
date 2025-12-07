@@ -5,6 +5,7 @@
 #include <QDoubleSpinBox>
 #include <QPainter>
 #include <QPen>
+#include <QSettings>
 #include <QSortFilterProxyModel>
 #include <QStandardItem>
 #include <QStyle>
@@ -17,7 +18,22 @@ extern "C" void new_tree_item_delegate(QObject *parent, bool is_dark_theme_enabl
 }
 
 // Constructor of the QTreeItemDelegate.
-QTreeItemDelegate::QTreeItemDelegate(QObject *parent, bool is_dark_theme_enabled, bool has_filter): QExtendedStyledItemDelegate(parent, nullptr, is_dark_theme_enabled, has_filter, true) {}
+QTreeItemDelegate::QTreeItemDelegate(QObject *parent, bool is_dark_theme_enabled, bool has_filter): QExtendedStyledItemDelegate(parent, nullptr, is_dark_theme_enabled, has_filter, true) {
+    dark_theme = is_dark_theme_enabled;
+    use_filter = has_filter;
+    use_right_side_mark = true;
+
+    QSettings* q_settings = new QSettings("FrodoWazEre", "rpfm");
+
+    if (dark_theme) {
+        colour_tree_added = QColor(q_settings->value("colour_dark_table_added").toString());
+        colour_tree_modified = QColor(q_settings->value("colour_dark_table_modified").toString());
+
+    } else {
+        colour_tree_added = QColor(q_settings->value("colour_light_table_added").toString());
+        colour_tree_modified = QColor(q_settings->value("colour_light_table_modified").toString());
+    }
+}
 
 
 // Function for the delegate to showup properly.

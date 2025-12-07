@@ -10,22 +10,22 @@
 #include <QSettings>
 
 // Function to be called from any other language. This assing to the provided column of the provided TableView a QExtendedStyledItemDelegate.
-extern "C" void new_generic_item_delegate(QObject *parent, const int column, QTimer* timer, bool is_dark_theme_enabled, bool has_filter, bool right_side_mark) {
-    QExtendedStyledItemDelegate* delegate = new QExtendedStyledItemDelegate(parent, timer, is_dark_theme_enabled, has_filter, right_side_mark);
+extern "C" void new_generic_item_delegate(QObject *parent, const int column, QTimer* timer, bool is_dark_theme_enabled, bool has_filter, bool right_side_mark, bool enable_diff_markers) {
+    QExtendedStyledItemDelegate* delegate = new QExtendedStyledItemDelegate(parent, timer, is_dark_theme_enabled, has_filter, right_side_mark, enable_diff_markers);
     dynamic_cast<QAbstractItemView*>(parent)->setItemDelegateForColumn(column, delegate);
 }
 
 // Constructor of QExtendedStyledItemDelegate. We use it to store the integer type of the value in the delegate.
-QExtendedStyledItemDelegate::QExtendedStyledItemDelegate(QObject *parent, QTimer* timer, bool is_dark_theme_enabled, bool has_filter, bool right_side_mark): QStyledItemDelegate(parent)
+QExtendedStyledItemDelegate::QExtendedStyledItemDelegate(QObject *parent, QTimer* timer, bool is_dark_theme_enabled, bool has_filter, bool right_side_mark, bool enable_diff_markers): QStyledItemDelegate(parent)
 {
     skipTextPainting = false;
     diag_timer = timer;
     dark_theme = is_dark_theme_enabled;
     use_filter = has_filter;
     use_right_side_mark = right_side_mark;
+    use_diff_markers = enable_diff_markers;
 
     QSettings* q_settings = new QSettings("FrodoWazEre", "rpfm");
-    use_diff_markers = q_settings->value("enable_diff_markers").toBool();
 
     if (dark_theme) {
         colour_table_added = QColor(q_settings->value("colour_dark_table_added").toString());

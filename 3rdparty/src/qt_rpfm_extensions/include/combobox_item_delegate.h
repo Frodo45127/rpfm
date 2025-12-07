@@ -1,14 +1,13 @@
 #ifndef COMBOBOX_ITEM_DELEGATE_H
 #define COMBOBOX_ITEM_DELEGATE_H
 
-#include "qt_subclasses_global.h"
 #include "extended_q_styled_item_delegate.h"
 #include <QStyledItemDelegate>
 #include <QAbstractItemDelegate>
 #include <QComboBox>
 #include <QTimer>
 
-extern "C" void new_combobox_item_delegate(QObject *parent = nullptr, const int column = 0, const QStringList *values = nullptr, const QStringList* lookups = nullptr, const bool is_editable = false, QTimer* timer = nullptr, bool is_dark_theme_enabled = false, bool has_filter = false, bool right_side_mark = false);
+extern "C" void new_combobox_item_delegate(QObject *parent = nullptr, const int column = 0, const QStringList *values = nullptr, const QStringList* lookups = nullptr, const bool is_editable = false, QTimer* timer = nullptr, bool is_dark_theme_enabled = false, bool has_filter = false, bool right_side_mark = false, bool enable_diff_markers = false);
 
 class QComboBoxItemDelegate : public QExtendedStyledItemDelegate
 {
@@ -16,7 +15,7 @@ class QComboBoxItemDelegate : public QExtendedStyledItemDelegate
 
 public:
 
-    explicit QComboBoxItemDelegate(QObject *parent = nullptr, const QStringList list = {""}, const QStringList lookup_list = {""}, bool is_editable = false, QTimer* timer = nullptr, bool is_dark_theme_enabled = false, bool has_filter = false, bool right_side_mark = false);
+    explicit QComboBoxItemDelegate(QObject *parent = nullptr, const QStringList list = {""}, const QStringList lookup_list = {""}, bool is_editable = false, QTimer* timer = nullptr, bool is_dark_theme_enabled = false, bool has_filter = false, bool right_side_mark = false, bool enable_diff_markers = false);
 
     QWidget* createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const;
     void setEditorData(QWidget *editor, const QModelIndex &index) const;
@@ -25,7 +24,7 @@ public:
 
 signals:
 
-private:
+protected:
     QStringList values;
     QStringList lookups;
     bool editable;

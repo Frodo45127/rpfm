@@ -19,6 +19,9 @@ extern "C" void new_tips_item_delegate(QObject *parent, bool is_dark_theme_enabl
 }
 
 QTipsItemDelegate::QTipsItemDelegate(QObject *parent, bool is_dark_theme_enabled, bool has_filter): QExtendedStyledItemDelegate(parent, nullptr, is_dark_theme_enabled, has_filter, false) {
+    dark_theme = is_dark_theme_enabled;
+    use_filter = has_filter;
+
     d_radius = 5;
     d_toppadding = 5;
     d_bottompadding = 3;
