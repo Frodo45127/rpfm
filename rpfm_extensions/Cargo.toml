@@ -50,4 +50,4 @@ gltf-json = "^1"
 #gltf-utils = "^0"
 
 # Serialization of vec -> string values and back.
-base64 = "^0.22"
+base64 = "^0"
