@@ -547,9 +547,11 @@ impl TableDiagnostic {
 
                     let keys = row_keys.values().copied().collect::<Vec<_>>();
                     let values = (row_keys.keys().map(|column| (row as i32, *column)).collect::<Vec<(i32, i32)>>(), index);
-                    match global_keys.get_mut(&keys) {
-                        Some(val) => val.push(values),
-                        None => { global_keys.insert(keys, vec![values]); },
+                    if !keys.is_empty() {
+                        match global_keys.get_mut(&keys) {
+                            Some(val) => val.push(values),
+                            None => { global_keys.insert(keys, vec![values]); },
+                        }
                     }
                 }
 
