@@ -6,10 +6,20 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
-## [Unreleased]
+## [4.7.0]
+### Added
+- Implemented setting to use the debug view for variant files.
+- Implemented list of changes on db update dialog.
+
 ### Changed
 - Migrated RigidModel editor to a newer one integrated in RPFM's backend. This means RPFM should be able to read all RigidModel files now (at least the v6, 7 and 8 ones) and it should no longer corrupt files.
 - Migrated dds management to the image crate. This means dds should be visible on Linux now.
+- Migrated most of the settings management away from QSettings. This is as preparation for a future ui migration. Your settings should migrate transparently.
+
+### Fixed
+- Fixed invalid default values for colour fields causing errors on save.
+- Fixed removed lines causing an incorrect line count in the translator.
+- Fixed incorrect duplicated combined keys warning on tables with no keys.
 
 ## [4.6.3]
 ### Fixed
@@ -1754,7 +1764,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.6.3...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.7.0...HEAD
+[4.7.0]: https://github.com/Frodo45127/rpfm/compare/v4.6.4...v4.7.0
 [4.6.3]: https://github.com/Frodo45127/rpfm/compare/v4.6.2...v4.6.3
 [4.6.2]: https://github.com/Frodo45127/rpfm/compare/v4.6.1...v4.6.2
 [4.6.1]: https://github.com/Frodo45127/rpfm/compare/v4.6.0...v4.6.1
