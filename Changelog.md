@@ -6,6 +6,10 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [4.7.1]
+### Fixed
+- Fixed CTD when editing tables.
+
 ## [4.7.0]
 ### Added
 - Implemented setting to use the debug view for variant files.

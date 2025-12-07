@@ -4064,7 +4064,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_cli"
-version = "4.7.0"
+version = "4.7.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -4080,7 +4080,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_extensions"
-version = "4.7.0"
+version = "4.7.1"
 dependencies = [
  "base64 0.22.1",
  "bincode",
@@ -4101,7 +4101,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_lib"
-version = "4.7.0"
+version = "4.7.1"
 dependencies = [
  "backtrace",
  "base64 0.22.1",
@@ -4151,7 +4151,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_ui"
-version = "4.7.0"
+version = "4.7.1"
 dependencies = [
  "anyhow",
  "aws-lc-rs",
@@ -4195,7 +4195,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_ui_common"
-version = "4.7.0"
+version = "4.7.1"
 dependencies = [
  "anyhow",
  "cpp_core",
