@@ -103,7 +103,16 @@ impl PackTranslation {
         // Once we have the clean list of loc entries we have in our Pack, we need to update the translation with it.
         // First we do a pass to mark all removed translations as such. This is separated from the rest because this pass is way slower than the rest.
         for (tr_key, tr) in translations.translations_mut() {
+            let was_removed = tr.removed;
             tr.removed = !merged_loc_hash.contains_key(&**tr_key);
+
+            // If the line has been removed, unmark it for translation,
+            // If the line has been re-added, force a retranslation.
+            if tr.removed {
+                tr.needs_retranslation = false;
+            } else if was_removed {
+                tr.needs_retranslation = true;
+            }
         }
 
         // Next, we update the translations data with the loc data of the merged loc.
