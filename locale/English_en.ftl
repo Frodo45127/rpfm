@@ -1822,3 +1822,4 @@ rigid_model_editor_texture_list_title = Texture List
 
 rigid_model_editor_export_to_gltf = Export to GLTF
 extract_gltf = Export GLTF File
+settings_use_debug_view_unit_variant = Use Debug View for Unit Variants:

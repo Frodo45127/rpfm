@@ -186,6 +186,7 @@ pub struct SettingsUI {
     debug_enable_unit_editor_label: QBox<QLabel>,
     debug_enable_unit_editor_checkbox: QBox<QCheckBox>,
     debug_enable_esf_editor_checkbox: QBox<QCheckBox>,
+    debug_use_debug_view_unit_variant_checkbox: QBox<QCheckBox>,
     #[cfg(feature = "support_model_renderer")] debug_enable_renderer_checkbox: QBox<QCheckBox>,
 
     debug_clear_dependencies_cache_folder_button: QBox<QPushButton>,
@@ -694,6 +695,7 @@ impl SettingsUI {
         let debug_enable_rigidmodel_editor_label = QLabel::from_q_string_q_widget(&qtr("settings_enable_rigidmodel_editor"), &debug_frame);
         let debug_enable_unit_editor_label = QLabel::from_q_string_q_widget(&qtr("settings_enable_unit_editor"), &debug_frame);
         let debug_enable_esf_editor_label = QLabel::from_q_string_q_widget(&qtr("settings_enable_esf_editor"), &debug_frame);
+        let debug_use_debug_view_unit_variant_label = QLabel::from_q_string_q_widget(&qtr("settings_use_debug_view_unit_variant"), &debug_frame);
         #[cfg(feature = "support_model_renderer")] let debug_enable_renderer_label = QLabel::from_q_string_q_widget(&qtr("settings_enable_renderer"), &debug_frame);
 
         let debug_check_for_missing_table_definitions_checkbox = QCheckBox::from_q_widget(&debug_frame);
@@ -701,6 +703,7 @@ impl SettingsUI {
         let debug_enable_rigidmodel_editor_checkbox = QCheckBox::from_q_widget(&debug_frame);
         let debug_enable_unit_editor_checkbox = QCheckBox::from_q_widget(&debug_frame);
         let debug_enable_esf_editor_checkbox = QCheckBox::from_q_widget(&debug_frame);
+        let debug_use_debug_view_unit_variant_checkbox = QCheckBox::from_q_widget(&debug_frame);
         #[cfg(feature = "support_model_renderer")] let debug_enable_renderer_checkbox = QCheckBox::from_q_widget(&debug_frame);
 
         let extra_packfile_use_lazy_loading_label = QLabel::from_q_string_q_widget(&qtr("settings_use_lazy_loading"), &debug_frame);
@@ -727,8 +730,11 @@ impl SettingsUI {
         debug_grid.add_widget_5a(&debug_enable_esf_editor_label, 6, 0, 1, 2);
         debug_grid.add_widget_5a(&debug_enable_esf_editor_checkbox, 6, 2, 1, 1);
 
-        #[cfg(feature = "support_model_renderer")] debug_grid.add_widget_5a(&debug_enable_renderer_label, 7, 0, 1, 2);
-        #[cfg(feature = "support_model_renderer")] debug_grid.add_widget_5a(&debug_enable_renderer_checkbox, 7, 2, 1, 1);
+        debug_grid.add_widget_5a(&debug_use_debug_view_unit_variant_label, 7, 0, 1, 2);
+        debug_grid.add_widget_5a(&debug_use_debug_view_unit_variant_checkbox, 7, 2, 1, 1);
+
+        #[cfg(feature = "support_model_renderer")] debug_grid.add_widget_5a(&debug_enable_renderer_label, 8, 0, 1, 2);
+        #[cfg(feature = "support_model_renderer")] debug_grid.add_widget_5a(&debug_enable_renderer_checkbox, 8, 2, 1, 1);
 
         debug_grid.add_widget_5a(&extra_packfile_use_lazy_loading_label, 11, 0, 1, 2);
         debug_grid.add_widget_5a(&extra_packfile_use_lazy_loading_checkbox, 11, 2, 1, 1);
@@ -927,6 +933,7 @@ impl SettingsUI {
             debug_enable_unit_editor_label,
             debug_enable_unit_editor_checkbox,
             debug_enable_esf_editor_checkbox,
+            debug_use_debug_view_unit_variant_checkbox,
             #[cfg(feature = "support_model_renderer")] debug_enable_renderer_checkbox,
 
             debug_clear_dependencies_cache_folder_button,
@@ -1055,11 +1062,16 @@ impl SettingsUI {
         self.debug_enable_rigidmodel_editor_checkbox.set_checked(settings.bool("enable_rigidmodel_editor"));
         self.debug_enable_unit_editor_checkbox.set_checked(settings.bool("enable_unit_editor"));
         self.debug_enable_esf_editor_checkbox.set_checked(settings.bool("enable_esf_editor"));
+        self.debug_use_debug_view_unit_variant_checkbox.set_checked(settings.bool("use_debug_view_unit_variant"));
         #[cfg(feature = "support_model_renderer")] self.debug_enable_renderer_checkbox.set_checked(settings.bool("enable_renderer"));
 
         // Load the Diagnostics Stuff.
         self.diagnostics_diagnostics_trigger_on_open_checkbox.set_checked(settings.bool("diagnostics_trigger_on_open"));
         self.diagnostics_diagnostics_trigger_on_table_edit_checkbox.set_checked(settings.bool("diagnostics_trigger_on_table_edit"));
+
+        // Load the AI-related stuff
+        self.ai_openai_api_key_line_edit.set_text(&QString::from_std_str(settings.string("ai_openai_api_key")));
+        self.deepl_api_key_line_edit.set_text(&QString::from_std_str(settings.string("deepl_api_key")));
 
         // Load colours.
         let q_settings = QSettings::new();
@@ -1095,22 +1107,6 @@ impl SettingsUI {
         self.ui_table_colour_dark_diagnostic_error_button.set_style_sheet(&QString::from_std_str(format!("background-color: {}", colour_dark_diagnostic_error.name_1a(NameFormat::HexArgb).to_std_string())));
         self.ui_table_colour_dark_diagnostic_warning_button.set_style_sheet(&QString::from_std_str(format!("background-color: {}", colour_dark_diagnostic_warning.name_1a(NameFormat::HexArgb).to_std_string())));
         self.ui_table_colour_dark_diagnostic_info_button.set_style_sheet(&QString::from_std_str(format!("background-color: {}", colour_dark_diagnostic_info.name_1a(NameFormat::HexArgb).to_std_string())));
-
-        // Load the Debug Stuff.
-        self.debug_check_for_missing_table_definitions_checkbox.set_checked(settings.bool("check_for_missing_table_definitions"));
-        self.debug_enable_debug_menu_checkbox.set_checked(settings.bool("enable_debug_menu"));
-        self.debug_enable_rigidmodel_editor_checkbox.set_checked(settings.bool("enable_rigidmodel_editor"));
-        self.debug_enable_unit_editor_checkbox.set_checked(settings.bool("enable_unit_editor"));
-        self.debug_enable_esf_editor_checkbox.set_checked(settings.bool("enable_esf_editor"));
-        #[cfg(feature = "support_model_renderer")] self.debug_enable_renderer_checkbox.set_checked(settings.bool("enable_renderer"));
-
-        // Load the Diagnostics Stuff.
-        self.diagnostics_diagnostics_trigger_on_open_checkbox.set_checked(settings.bool("diagnostics_trigger_on_open"));
-        self.diagnostics_diagnostics_trigger_on_table_edit_checkbox.set_checked(settings.bool("diagnostics_trigger_on_table_edit"));
-
-        // Load the AI-related stuff
-        self.ai_openai_api_key_line_edit.set_text(&QString::from_std_str(settings.string("ai_openai_api_key")));
-        self.deepl_api_key_line_edit.set_text(&QString::from_std_str(settings.string("deepl_api_key")));
 
         Ok(())
     }
@@ -1193,11 +1189,16 @@ impl SettingsUI {
         let _ = settings.set_bool("enable_rigidmodel_editor", self.debug_enable_rigidmodel_editor_checkbox.is_checked());
         let _ = settings.set_bool("enable_unit_editor", self.debug_enable_unit_editor_checkbox.is_checked());
         let _ = settings.set_bool("enable_esf_editor", self.debug_enable_esf_editor_checkbox.is_checked());
+        let _ = settings.set_bool("use_debug_view_unit_variant", self.debug_use_debug_view_unit_variant_checkbox.is_checked());
         #[cfg(feature = "support_model_renderer")] settings.set_bool("enable_renderer", self.debug_enable_renderer_checkbox.is_checked());
 
         // Get the Diagnostics Settings.
         let _ = settings.set_bool("diagnostics_trigger_on_open", self.diagnostics_diagnostics_trigger_on_open_checkbox.is_checked());
         let _ = settings.set_bool("diagnostics_trigger_on_table_edit", self.diagnostics_diagnostics_trigger_on_table_edit_checkbox.is_checked());
+
+        // Get the AI Settings.
+        let _ = settings.set_string("ai_openai_api_key", &self.ai_openai_api_key_line_edit.text().to_std_string());
+        let _ = settings.set_string("deepl_api_key", &self.deepl_api_key_line_edit.text().to_std_string());
 
         // Save the settings.
         settings.set_block_write(false);
@@ -1216,22 +1217,6 @@ impl SettingsUI {
         q_settings.set_value(&QString::from_std_str("colour_dark_diagnostic_error"), &QVariant::from_q_string(&self.ui_table_colour_dark_diagnostic_error_button.palette().color_1a(ColorRole::Background).name_1a(NameFormat::HexArgb)));
         q_settings.set_value(&QString::from_std_str("colour_dark_diagnostic_warning"), &QVariant::from_q_string(&self.ui_table_colour_dark_diagnostic_warning_button.palette().color_1a(ColorRole::Background).name_1a(NameFormat::HexArgb)));
         q_settings.set_value(&QString::from_std_str("colour_dark_diagnostic_info"), &QVariant::from_q_string(&self.ui_table_colour_dark_diagnostic_info_button.palette().color_1a(ColorRole::Background).name_1a(NameFormat::HexArgb)));
-
-        // Get the Debug Settings.
-        let _ = settings.set_bool("check_for_missing_table_definitions", self.debug_check_for_missing_table_definitions_checkbox.is_checked());
-        let _ = settings.set_bool("enable_debug_menu", self.debug_enable_debug_menu_checkbox.is_checked());
-        let _ = settings.set_bool("enable_rigidmodel_editor", self.debug_enable_rigidmodel_editor_checkbox.is_checked());
-        let _ = settings.set_bool("enable_unit_editor", self.debug_enable_unit_editor_checkbox.is_checked());
-        let _ = settings.set_bool("enable_esf_editor", self.debug_enable_esf_editor_checkbox.is_checked());
-        #[cfg(feature = "support_model_renderer")] let _ = settings.set_bool("enable_renderer", self.debug_enable_renderer_checkbox.is_checked());
-
-        // Get the Diagnostics Settings.
-        let _ = settings.set_bool("diagnostics_trigger_on_open", self.diagnostics_diagnostics_trigger_on_open_checkbox.is_checked());
-        let _ = settings.set_bool("diagnostics_trigger_on_table_edit", self.diagnostics_diagnostics_trigger_on_table_edit_checkbox.is_checked());
-
-        // Get the AI Settings.
-        let _ = settings.set_string("ai_openai_api_key", &self.ai_openai_api_key_line_edit.text().to_std_string());
-        let _ = settings.set_string("deepl_api_key", &self.deepl_api_key_line_edit.text().to_std_string());
 
         // Save the settings.
         q_settings.sync();

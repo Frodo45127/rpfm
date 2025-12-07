@@ -2830,25 +2830,49 @@ impl AppUI {
                         }
 
                         Response::UnitVariantRFileInfo(mut data, file_info) => {
-                            match UnitVariantView::new_view(&mut tab, &mut data, app_ui, pack_file_contents_ui) {
-                                Ok(_) => {
+                            if SETTINGS.read().unwrap().bool("use_debug_view_unit_variant") {
+                                match UnitVariantDebugView::new_view(&mut tab, data.clone()) {
+                                    Ok(_) => {
 
-                                    // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
+                                        // Add the file to the 'Currently open' list and make it visible.
+                                        app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
 
-                                    // Fix the quick notes view.
-                                    let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
-                                    layout.add_widget_5a(tab.notes_widget(), 0, 99, layout.row_count(), 1);
+                                        // Fix the quick notes view.
+                                        let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
+                                        layout.add_widget_5a(tab.notes_widget(), 0, 99, layout.row_count(), 1);
 
-                                    let mut open_list = UI_STATE.set_open_packedfiles();
-                                    open_list.push(tab);
-                                    if data_source == DataSource::PackFile {
-                                        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), data_source);
+                                        let mut open_list = UI_STATE.set_open_packedfiles();
+                                        open_list.push(tab);
+                                        if data_source == DataSource::PackFile {
+                                            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), data_source);
+                                        }
+                                    },
+                                    Err(error) => {
+                                        app_ui.tab_bar_packed_file.remove_tab(tab_index);
+                                        return show_dialog(&app_ui.main_window, error, false);
                                     }
-                                },
-                                Err(error) => {
-                                    app_ui.tab_bar_packed_file.remove_tab(tab_index);
-                                    return show_dialog(&app_ui.main_window, error, false);
+                                }
+                            } else {
+                                match UnitVariantView::new_view(&mut tab, &mut data, app_ui, pack_file_contents_ui) {
+                                    Ok(_) => {
+
+                                        // Add the file to the 'Currently open' list and make it visible.
+                                        app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
+
+                                        // Fix the quick notes view.
+                                        let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
+                                        layout.add_widget_5a(tab.notes_widget(), 0, 99, layout.row_count(), 1);
+
+                                        let mut open_list = UI_STATE.set_open_packedfiles();
+                                        open_list.push(tab);
+                                        if data_source == DataSource::PackFile {
+                                            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), data_source);
+                                        }
+                                    },
+                                    Err(error) => {
+                                        app_ui.tab_bar_packed_file.remove_tab(tab_index);
+                                        return show_dialog(&app_ui.main_window, error, false);
+                                    }
                                 }
                             }
                         }

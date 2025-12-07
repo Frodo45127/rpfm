@@ -62,6 +62,7 @@ use self::rigidmodel::RigidModelView;
 use self::table::PackedFileTableView;
 use self::text::PackedFileTextView;
 use self::unit_variant::UnitVariantView;
+use self::unit_variant::UnitVariantDebugView;
 use self::video::PackedFileVideoView;
 use self::vmd::FileVMDView;
 
@@ -171,6 +172,7 @@ pub enum View {
     #[cfg(feature = "support_uic")]
     UIC(Arc<FileUICView>),
     UnitVariant(Arc<UnitVariantView>),
+    UnitVariantDebug(Arc<UnitVariantDebugView>),
     Video(Arc<PackedFileVideoView>),
     VMD(Arc<FileVMDView>),
     WSModel(Arc<FileVMDView>),
@@ -419,6 +421,7 @@ impl FileView {
                                 RFileDecoded::UIC(view.save_view())
                             },
                             View::UnitVariant(view) => RFileDecoded::UnitVariant(view.save_view()),
+                            View::UnitVariantDebug(_) => return Ok(()),
                             View::Video(view) => {
                                 let _ = CENTRAL_COMMAND.send_background(Command::SetVideoFormat(self.path_copy(), view.get_current_format()));
                                 return Ok(());
@@ -662,8 +665,10 @@ impl FileView {
                             if let View::UnitVariant(old_variant) = view {
                                 let _ = old_variant.reload_view(&mut variant);
                                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), DataSource::PackFile);
-                            }
-                            else {
+                            } else if let View::UnitVariantDebug(old_variant) = view {
+                                let _ = old_variant.reload_view(variant);
+                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), DataSource::PackFile);
+                            } else {
                                 return Err(anyhow!(RFILE_RELOAD_ERROR));
                             }
                         }

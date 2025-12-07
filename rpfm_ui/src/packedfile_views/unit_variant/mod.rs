@@ -46,7 +46,7 @@ use getset::*;
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 
-use rpfm_lib::files::{FileType, unit_variant::*};
+use rpfm_lib::files::{FileType, RFileDecoded, unit_variant::*};
 
 use rpfm_ui_common::locale::{qtr, tr};
 use rpfm_ui_common::utils::*;
@@ -56,6 +56,7 @@ use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::ffi::*;
 use crate::packedfile_views::{FileView, View, ViewType};
 use crate::utils::*;
+use crate::views::debug::DebugView;
 
 use self::slots::UnitVariantSlots;
 
@@ -117,6 +118,12 @@ pub struct UnitVariantView {
     timer_delayed_updates_main: QBox<QTimer>,
     timer_delayed_updates_variants: QBox<QTimer>,
 }
+
+
+pub struct UnitVariantDebugView {
+    debug_view: Arc<DebugView>,
+}
+
 
 //-------------------------------------------------------------------------------//
 //                             Implementations
@@ -591,3 +598,37 @@ impl UnitVariantView {
             .collect::<Vec<_>>()
     }
 }
+
+impl UnitVariantDebugView {
+
+    pub unsafe fn new_view(
+        file_view: &mut FileView,
+        data: UnitVariant
+    ) -> Result<()> {
+
+        // For now just build a debug view.
+        let debug_view = DebugView::new_view(
+            file_view.main_widget(),
+            RFileDecoded::UnitVariant(data),
+            file_view.path_raw(),
+        )?;
+
+        let view = Self {
+            debug_view,
+        };
+
+        file_view.view_type = ViewType::Internal(View::UnitVariantDebug(Arc::new(view)));
+        file_view.file_type = FileType::MatchedCombat;
+
+        Ok(())
+    }
+
+    /// Function to reload the data of the view without having to delete the view itself.
+    pub unsafe fn reload_view(&self, data: UnitVariant) -> Result<()> {
+        self.debug_view.reload_view(&serde_json::to_string_pretty(&data)?);
+
+        Ok(())
+    }
+}
+
+

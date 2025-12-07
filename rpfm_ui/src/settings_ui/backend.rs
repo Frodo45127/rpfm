@@ -176,6 +176,7 @@ pub unsafe fn init_settings(app_ui: &AppUI) -> Result<()> {
     settings.initialize_bool("enable_rigidmodel_editor", true);
     settings.initialize_bool("enable_unit_editor", false);
     settings.initialize_bool("enable_esf_editor", false);
+    settings.initialize_bool("use_debug_view_unit_variant", false);
     #[cfg(feature = "support_model_renderer")] settings.initialize_bool("enable_renderer", true);
 
     // Diagnostics Settings
