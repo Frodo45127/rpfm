@@ -118,7 +118,7 @@ impl Searchable for RigidModel {
                                     None,
                                     entry_match.start(),
                                     entry_match.end(),
-                                    self.skeleton_id().to_owned()
+                                    mesh.mesh().name().to_owned()
                                 )
                             );
                         }
@@ -136,7 +136,7 @@ impl Searchable for RigidModel {
                                     None,
                                     entry_match.start(),
                                     entry_match.end(),
-                                    self.skeleton_id().to_owned()
+                                    mesh.material().name().to_owned()
                                 )
                             );
                         }
@@ -154,7 +154,7 @@ impl Searchable for RigidModel {
                                     None,
                                     entry_match.start(),
                                     entry_match.end(),
-                                    self.skeleton_id().to_owned()
+                                    mesh.material().texture_directory().to_owned()
                                 )
                             );
                         }
@@ -172,7 +172,7 @@ impl Searchable for RigidModel {
                                     None,
                                     entry_match.start(),
                                     entry_match.end(),
-                                    self.skeleton_id().to_owned()
+                                    mesh.material().filters().to_owned()
                                 )
                             );
                         }
@@ -191,7 +191,7 @@ impl Searchable for RigidModel {
                                         None,
                                         entry_match.start(),
                                         entry_match.end(),
-                                        self.skeleton_id().to_owned()
+                                        attachment.name().to_owned()
                                     )
                                 );
                             }
@@ -211,7 +211,7 @@ impl Searchable for RigidModel {
                                         Some(t_index as i32),
                                         entry_match.start(),
                                         entry_match.end(),
-                                        self.skeleton_id().to_owned()
+                                        texture.path().to_owned()
                                     )
                                 );
                             }
@@ -260,7 +260,7 @@ impl Searchable for RigidModel {
                                     None,
                                     *start,
                                     *end,
-                                    self.skeleton_id().to_owned()
+                                    mesh.mesh().name().to_owned()
                                 )
                             );
                         }
@@ -278,7 +278,7 @@ impl Searchable for RigidModel {
                                     None,
                                     *start,
                                     *end,
-                                    self.skeleton_id().to_owned()
+                                    mesh.material().name().to_owned()
                                 )
                             );
                         }
@@ -296,7 +296,7 @@ impl Searchable for RigidModel {
                                     None,
                                     *start,
                                     *end,
-                                    self.skeleton_id().to_owned()
+                                    mesh.material().texture_directory().to_owned()
                                 )
                             );
                         }
@@ -314,7 +314,7 @@ impl Searchable for RigidModel {
                                     None,
                                     *start,
                                     *end,
-                                    self.skeleton_id().to_owned()
+                                    mesh.material().filters().to_owned()
                                 )
                             );
                         }
@@ -333,7 +333,7 @@ impl Searchable for RigidModel {
                                         None,
                                         *start,
                                         *end,
-                                        self.skeleton_id().to_owned()
+                                        attachment.name().to_owned()
                                     )
                                 );
                             }
@@ -353,7 +353,7 @@ impl Searchable for RigidModel {
                                         Some(t_index as i32),
                                         *start,
                                         *end,
-                                        self.skeleton_id().to_owned()
+                                        texture.path().to_owned()
                                     )
                                 );
                             }
