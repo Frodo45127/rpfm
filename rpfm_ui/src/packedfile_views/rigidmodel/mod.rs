@@ -285,9 +285,11 @@ impl RigidModelView {
 
     /// This function loads the data into the view, so it can be accessed in the UI.
     unsafe fn load_data(&self) -> Result<()> {
+        let data = self.data().read().unwrap();
+        self.version_combobox().set_current_text(&QString::from_std_str(&data.version().to_string()));
+
         self.lod_tree_model.clear();
 
-        let data = self.data().read().unwrap();
         for (index, lod) in data.lods().iter().enumerate() {
             let item = QStandardItem::from_q_string(&QString::from_std_str("Lod ".to_string() + &index.to_string())).into_ptr();
             item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(format!("{index}"))), DATA_INDEX);
