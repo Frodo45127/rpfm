@@ -180,6 +180,10 @@ impl RigidModelView {
         texture_folder_label.set_text(&qtr("rigid_model_editor_texture_folder"));
         shader_name_label.set_text(&qtr("rigid_model_editor_shader_name"));
 
+        visibility_spinbox.set_maximum(f32::MAX as f64);
+        lod_number_spinbox.set_maximum(i32::MAX);
+        quality_level_spinbox.set_maximum(i32::MAX);
+
         version_combobox.add_item_q_string(&QString::from_std_str("8"));
         version_combobox.add_item_q_string(&QString::from_std_str("7"));
         version_combobox.add_item_q_string(&QString::from_std_str("6"));
