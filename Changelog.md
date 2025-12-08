@@ -6,6 +6,16 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [4.7.2]
+### Fixed
+- Fixed CTD when opening RigidModels containing certain specific materials.
+- Fixed CTD when searching text in RigidModels through Global Search.
+- Fixed visibility range in RigidModel views being incorrectly capped at 99.
+- Fixed missing material name in mesh blocks when opening a RigidModel view.
+- Fixed RigidModel view incorrectly setting RigidModels to V8, regardless of their version.
+- Fixed DDS files in some formats erroring out when opened.
+- Fixed DDS files being extracted as PNG files.
+
 ## [4.7.1]
 ### Fixed
 - Fixed CTD when editing tables.
@@ -1768,7 +1778,9 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.7.0...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.7.2...HEAD
+[4.7.2]: https://github.com/Frodo45127/rpfm/compare/v4.7.1...v4.7.2
+[4.7.1]: https://github.com/Frodo45127/rpfm/compare/v4.7.0...v4.7.1
 [4.7.0]: https://github.com/Frodo45127/rpfm/compare/v4.6.4...v4.7.0
 [4.6.3]: https://github.com/Frodo45127/rpfm/compare/v4.6.2...v4.6.3
 [4.6.2]: https://github.com/Frodo45127/rpfm/compare/v4.6.1...v4.6.2
