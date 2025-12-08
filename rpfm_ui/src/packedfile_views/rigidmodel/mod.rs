@@ -293,8 +293,8 @@ impl RigidModelView {
             item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(format!("{index}"))), DATA_INDEX);
             item.set_editable(false);
 
-            for (subindex, _) in lod.mesh_blocks().iter().enumerate() {
-                let sub_item = QStandardItem::from_q_string(&QString::from_std_str("Mesh Block ".to_string() + &subindex.to_string())).into_ptr();
+            for (subindex, block) in lod.mesh_blocks().iter().enumerate() {
+                let sub_item = QStandardItem::from_q_string(&QString::from_std_str("Mesh Block ".to_string() + &subindex.to_string() + " (Material: " + block.material().name() + ")")).into_ptr();
                 sub_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(format!("{index}-{subindex}"))), DATA_INDEX);
                 sub_item.set_editable(false);
                 item.append_row_q_standard_item(sub_item);
