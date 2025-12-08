@@ -492,4 +492,13 @@ pub enum RLibError {
 
     #[error(transparent)]
     ImageError(#[from] image::ImageError),
+
+    #[error(transparent)]
+    DDSDecError(#[from] dds::DecodingError),
+
+    #[error(transparent)]
+    DDSEncError(#[from] dds::EncodingError),
+
+    #[error("Unsupported colour format for DDS files.")]
+    DecodingDDSColourFormatUnsupported,
 }

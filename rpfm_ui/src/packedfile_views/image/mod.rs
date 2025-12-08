@@ -54,7 +54,12 @@ impl PackedFileImageView {
     ) -> Result<()> {
 
         // Create the image in the UI.
-        let byte_array = QByteArray::from_slice(data.data()).into_ptr();
+        let byte_array = if let Some(data) = data.converted_data() {
+            QByteArray::from_slice(data).into_ptr()
+        } else {
+            QByteArray::from_slice(data.data()).into_ptr()
+        };
+
         let image = QPixmap::new();
 
         // If it fails to load and it's a dds, try the modern loader if its enabled.

@@ -312,6 +312,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c02d123df017efcdfbd739ef81735b36c5ba83ec3c59c80a9d7ecc718f92e50"
 
 [[package]]
+name = "astc-decode"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2d6058e6202e20b7fa445692ec4b77ca8eb02508091fcd479ea753d9f60e376b"
+
+[[package]]
 name = "async-stream"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1046,6 +1052,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "50eb3a329e19d78c3a3dfa4ec5a51ecb84fa3a20c06edad04be25356018218f9"
 dependencies = [
  "derive_pod",
+]
+
+[[package]]
+name = "dds"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e917a58e17b27d2f15626c490754ccced7f46592dc5b5f39a3013b89cba5f068"
+dependencies = [
+ "astc-decode",
+ "bitflags 2.10.0",
+ "glam 0.25.0",
+ "rayon",
+ "resize",
+ "zerocopy",
 ]
 
 [[package]]
@@ -3985,6 +4005,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "resize"
+version = "0.8.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "87a103d0b47e783f4579149402f7499397ab25540c7a57b2f70487a5d2d20ef0"
+dependencies = [
+ "rayon",
+ "rgb",
+]
+
+[[package]]
 name = "rgb"
 version = "0.8.52"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4112,6 +4142,7 @@ dependencies = [
  "content_inspector",
  "crc-fast",
  "csv",
+ "dds",
  "directories",
  "encoding_rs",
  "float_eq",

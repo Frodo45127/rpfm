@@ -122,3 +122,4 @@ half = "^2"
 
 # Support for converting dds files to png.
 image = "^0.25"
+dds = "^0.2"
