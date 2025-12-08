@@ -277,7 +277,7 @@ impl Material {
             MaterialType::TerrainBlend |
             MaterialType::Weighted |
             MaterialType::DefaultMaterial => Self::read_default(data)?,
-            _ => todo!("{:?}", mtype)
+            _ => return Err(RLibError::DecodingRigidModelUnsupportedMaterialType(mtype.into()))
         })
     }
 
@@ -296,7 +296,7 @@ impl Material {
             MaterialType::TerrainBlend |
             MaterialType::Weighted |
             MaterialType::DefaultMaterial => self.write_default(buffer)?,
-            _ => todo!("{:?}", mtype)
+            _ => return Err(RLibError::DecodingRigidModelUnsupportedMaterialType(mtype.into()))
         }
 
         Ok(())
