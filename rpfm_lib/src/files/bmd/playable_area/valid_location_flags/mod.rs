@@ -26,10 +26,15 @@ mod v1;
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct ValidLocationFlags {
+    #[serde(rename = "@serialise_version")]
     serialise_version: u16,
+    #[serde(rename = "@valid_north")]
     valid_north: bool,
+    #[serde(rename = "@valid_south")]
     valid_south: bool,
+    #[serde(rename = "@valid_east")]
     valid_east: bool,
+    #[serde(rename = "@valid_west")]
     valid_west: bool,
 }
 

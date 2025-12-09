@@ -23,7 +23,7 @@ impl Boundary {
         self.deployment_area_boundary_type = data.read_sized_string_u8()?;
 
         for _ in 0..data.read_u32()? {
-            self.boundary.push(Point2d::decode(data, extra_data)?);
+            self.boundary.boundary_positions.push(Point2d::decode(data, extra_data)?);
         }
 
         Ok(())
@@ -31,9 +31,9 @@ impl Boundary {
 
     pub(crate) fn write_v1<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         buffer.write_sized_string_u8(&self.deployment_area_boundary_type)?;
-        buffer.write_u32(self.boundary.len() as u32)?;
+        buffer.write_u32(self.boundary.boundary_positions.len() as u32)?;
 
-        for point in &mut self.boundary {
+        for point in &mut self.boundary.boundary_positions {
             point.encode(buffer, extra_data)?;
         }
 

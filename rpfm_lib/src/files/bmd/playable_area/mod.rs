@@ -30,9 +30,13 @@ mod v3;
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct PlayableArea {
+    #[serde(rename = "@serialise_version")]
     serialise_version: u16,
+    #[serde(rename = "area")]
     area: Rectangle,
+    #[serde(rename = "@has_been_set")]
     has_been_set: bool,
+    #[serde(rename = "valid_location_flags")]
     valid_location_flags: ValidLocationFlags,
 }
 

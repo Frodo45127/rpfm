@@ -24,7 +24,15 @@ use super::*;
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct GoOutlines {
-    empire_outline: Vec<Outline2d>
+    #[serde(rename = "EMPIRE_OUTLINE")]
+    empire_outline: Outline
+}
+
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct Outline {
+    #[serde(rename = "OUTLINE")]
+    outline: Vec<Outline2d>
 }
 
 //---------------------------------------------------------------------------//
@@ -37,7 +45,7 @@ impl Decodeable for GoOutlines {
         let mut decoded = Self::default();
 
         for _ in 0..data.read_u32()? {
-            decoded.empire_outline.push(Outline2d::decode(data, extra_data)?);
+            decoded.empire_outline.outline.push(Outline2d::decode(data, extra_data)?);
         }
 
         Ok(decoded)
@@ -47,8 +55,8 @@ impl Decodeable for GoOutlines {
 impl Encodeable for GoOutlines {
 
     fn encode<W: WriteBytes>(&mut self, buffer: &mut W,extra_data: &Option<EncodeableExtraData>) -> Result<()> {
-        buffer.write_u32(self.empire_outline.len() as u32)?;
-        for outline in &mut self.empire_outline {
+        buffer.write_u32(self.empire_outline.outline.len() as u32)?;
+        for outline in &mut self.empire_outline.outline {
             outline.encode(buffer, extra_data)?;
         }
 

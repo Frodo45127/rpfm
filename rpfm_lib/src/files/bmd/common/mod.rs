@@ -10,6 +10,7 @@
 
 use getset::*;
 use serde_derive::{Serialize, Deserialize};
+use serde::{Serializer, /*Deserializer*/};
 
 use std::ops::Sub;
 
@@ -60,6 +61,7 @@ pub struct Cube {
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Outline2d {
+    #[serde(rename = "position")]
     outline: Vec<Point2d>,
 }
 
@@ -73,7 +75,9 @@ pub struct Outline3d {
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Point2d {
+    #[serde(rename = "@x", serialize_with = "serialize_f32_6decimals")]
     x: f32,
+    #[serde(rename = "@y", serialize_with = "serialize_f32_6decimals")]
     y: f32,
 }
 
@@ -103,9 +107,13 @@ pub struct Quaternion {
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Rectangle {
+    #[serde(rename = "@min_x", serialize_with = "serialize_f32_6decimals")]
     min_x: f32,
+    #[serde(rename = "@min_y", serialize_with = "serialize_f32_6decimals")]
     min_y: f32,
+    #[serde(rename = "@max_x", serialize_with = "serialize_f32_6decimals")]
     max_x: f32,
+    #[serde(rename = "@max_y", serialize_with = "serialize_f32_6decimals")]
     max_y: f32,
 }
 
@@ -151,6 +159,13 @@ pub struct Transform4x4 {
 //---------------------------------------------------------------------------//
 //                           Implementations
 //---------------------------------------------------------------------------//
+
+fn serialize_f32_6decimals<S>(value: &f32, serializer: S) -> std::result::Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    serializer.serialize_str(&format!("{:.6}", value))
+}
 
 impl Decodeable for ColourRGB {
 
