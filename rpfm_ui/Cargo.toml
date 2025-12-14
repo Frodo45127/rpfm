@@ -25,8 +25,8 @@ default = ["enable_tools"]
 [dependencies]
 
 # Internal dependencies.
-rpfm_lib = { path = "../rpfm_lib", version = "4.7.2", features = ["integration_log", "integration_git"] }
-rpfm_extensions = { path = "../rpfm_extensions", version = "4.7.2" }
+rpfm_lib = { path = "../rpfm_lib", version = "4.7.3", features = ["integration_log", "integration_git"] }
+rpfm_extensions = { path = "../rpfm_extensions", version = "4.7.3" }
 rpfm_ui_common = { path = "../rpfm_ui_common" }
 
 # Config dependencies.

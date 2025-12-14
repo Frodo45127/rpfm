@@ -6,6 +6,13 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [4.7.3]
+### Changed
+- When using the "Uninstall" action, the associated png file will also be deleted if the file is present in both, /data and the folder where the pack is located, as it's assumed the png was installed with the pack and should be uninstalled with it.
+
+### Fixed
+- Fixed language setting not working.
+
 ## [4.7.2]
 ### Fixed
 - Fixed CTD when opening RigidModels containing certain specific materials.
