@@ -420,7 +420,7 @@ impl AppUISlots {
                     return show_dialog(&app_ui.main_window, "Pack to install not found on disk.", false);
                 }
 
-                if let Ok(mut game_local_mods_path) = GAME_SELECTED.read().unwrap().local_mods_path(&SETTINGS.read().unwrap().path_buf(GAME_SELECTED.read().unwrap().key())) {
+                if let Ok(game_local_mods_path) = GAME_SELECTED.read().unwrap().local_mods_path(&SETTINGS.read().unwrap().path_buf(GAME_SELECTED.read().unwrap().key())) {
                     if !game_local_mods_path.is_dir() {
                         return show_dialog(&app_ui.main_window, "Game Path not configured. Go to <i>'PackFile/Settings'</i> and configure it.", false);
                     }
@@ -430,20 +430,35 @@ impl AppUISlots {
                     }
 
                     if let Some(ref mod_name) = pack_path.file_name() {
-                        game_local_mods_path.push(mod_name);
+                        let mut data_pack_path = game_local_mods_path.to_path_buf();
+                        data_pack_path.push(mod_name);
+
+                        let mut data_image_path = data_pack_path.clone();
+                        data_image_path.set_extension("png");
+
 
                         let ca_paths = match GAME_SELECTED.read().unwrap().ca_packs_paths(&SETTINGS.read().unwrap().path_buf(GAME_SELECTED.read().unwrap().key())) {
                             Ok(paths) => paths,
                             Err(_) => return show_dialog(&app_ui.main_window, "You can't do that to a CA PackFile, you monster!", false),
                         };
 
-                        if ca_paths.contains(&game_local_mods_path) {
+                        if ca_paths.contains(&data_pack_path) {
                             return show_dialog(&app_ui.main_window, "You can't do that to a CA PackFile, you monster!", false);
                         }
 
-                        if remove_file(&game_local_mods_path).is_err() {
+                        if remove_file(&data_pack_path).is_err() {
                             return show_dialog(&app_ui.main_window, "Error uninstalling the Pack from the game's folder. Make sure nothing else is using it and try again.", false);
                         }
+
+                        // Only delete the image if there is another one in the folder of the pack.
+                        let mut source_image_path = pack_path.to_path_buf();
+                        source_image_path.set_extension("png");
+                        if source_image_path.is_file() {
+                            if remove_file(&data_image_path).is_err() {
+                                return show_dialog(&app_ui.main_window, "Error uninstalling the thumbnail of the Pack from the game's folder. Make sure nothing else is using it and try again.", false);
+                            }
+                        }
+
 
                         // Report the success, so the user knows it worked.
                         log_to_status_bar(&tr("uninstall_success"));
