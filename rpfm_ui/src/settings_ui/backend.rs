@@ -54,7 +54,7 @@ const TABLE_PROFILES_FOLDER: &str = "table_profiles";
 //                         Setting-related functions
 //-------------------------------------------------------------------------------//
 
-pub unsafe fn init_settings(app_ui: &AppUI) -> Result<()> {
+pub unsafe fn init_settings() -> Result<()> {
     let mut settings = match Settings::read() {
         Ok(settings) => settings,
         Err(_) => Settings::default(),
@@ -183,14 +183,10 @@ pub unsafe fn init_settings(app_ui: &AppUI) -> Result<()> {
     settings.initialize_bool("diagnostics_trigger_on_open", true);
     settings.initialize_bool("diagnostics_trigger_on_table_edit", true);
 
+    settings.initialize_string("ai_openai_api_key", "");
+    settings.initialize_string("deepl_api_key", "");
+
     settings.initialize_vec_string("recentFileList", &[]);
-
-    // These settings need to use QSettings because they're read in the C++ side.
-    settings.initialize_raw_data("originalGeometry", &app_ui.main_window().save_geometry().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>());
-    settings.initialize_raw_data("originalWindowState", &app_ui.main_window().save_state_0a().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>());
-
-    // This one needs to be checked here, due to how the ui works.
-    app_ui.menu_bar_debug().menu_action().set_visible(settings.bool("enable_debug_menu"));
 
     // Colours.
     let q_settings = qt_core::QSettings::new();
@@ -234,6 +230,16 @@ pub unsafe fn init_settings(app_ui: &AppUI) -> Result<()> {
     *SETTINGS.write().unwrap() = settings;
 
     Ok(())
+}
+
+pub unsafe fn init_app_exclusive_settings(settings: &mut Settings, app_ui: &AppUI) {
+
+    // These settings need to use QSettings because they're read in the C++ side.
+    settings.initialize_raw_data("originalGeometry", &app_ui.main_window().save_geometry().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>());
+    settings.initialize_raw_data("originalWindowState", &app_ui.main_window().save_state_0a().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>());
+
+    // This one needs to be checked here, due to how the ui works.
+    app_ui.menu_bar_debug().menu_action().set_visible(settings.bool("enable_debug_menu"));
 }
 
 pub fn import_from_q_settings(settings: &mut Settings) {

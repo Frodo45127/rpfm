@@ -109,8 +109,10 @@ impl SettingsUISlots {
                 // Set the clean settings as the current ones, so init_settings can initialize them properly.
                 *SETTINGS.write().unwrap() = settings;
 
-                if let Err(error) = init_settings(&app_ui) {
+                if let Err(error) = init_settings() {
                     return show_dialog(&ui.dialog, "Failed to initialize settings: ".to_owned() + &error.to_string(), false);
+                } else {
+                    init_app_exclusive_settings(&mut *SETTINGS.write().unwrap(), &app_ui);
                 }
                 if let Err(error) = ui.load() {
                     return show_dialog(&ui.dialog, error, false);

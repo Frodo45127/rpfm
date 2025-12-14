@@ -114,6 +114,8 @@ impl UI {
 
     /// This function initialize the entire `UI`.
     pub unsafe fn new() -> Result<Self> {
+        let _ = init_settings();
+
         let app_ui = Rc::new(AppUI::new());
         let global_search_ui = Rc::new(GlobalSearchUI::new(app_ui.main_window())?);
         let pack_file_contents_ui = Rc::new(PackFileContentsUI::new(&app_ui)?);
@@ -146,7 +148,7 @@ impl UI {
         references_ui::connections::set_connections(&references_ui, &references_slots);
 
         // Initialize settings. Ignore errors here, as we have no way to show them yet.
-        let _ = init_settings(&app_ui);
+        init_app_exclusive_settings(&mut *SETTINGS.write().unwrap(), &app_ui);
 
         // Apply last ui state.
         app_ui.main_window().restore_geometry(&QByteArray::from_slice(&SETTINGS.read().unwrap().raw_data("geometry")));
