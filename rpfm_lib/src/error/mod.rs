@@ -316,6 +316,9 @@ pub enum RLibError {
     #[error("No Packs provided.")]
     NoPacksProvided,
 
+    #[error("No files to export.")]
+    LiveExportNoFilesToExport,
+
     #[error("The SQLite connection pool hasn't been initialized yet.")]
     MissingSQLitePool,
 

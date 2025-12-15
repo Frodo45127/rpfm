@@ -43,9 +43,6 @@ use std::fmt::Display;
 use std::fs::File;
 use std::io::Read;
 
-use rpfm_lib::compression::CompressionFormat;
-use rpfm_lib::files::EncodeableExtraData;
-use rpfm_lib::games::GameInfo;
 use rpfm_lib::integrations::log::*;
 
 use rpfm_ui_common::ASSETS_PATH;
@@ -388,11 +385,4 @@ pub unsafe fn reload_theme(app_ui: &AppUI) {
         qt_widgets::QApplication::set_palette_1a(light_palette);
         qapp.set_style_sheet(light_style_sheet);
     }
-}
-
-pub fn initialize_encodeable_extra_data(game_info: &'_ GameInfo, cf: CompressionFormat) -> EncodeableExtraData<'_> {
-    let mut extra_data = EncodeableExtraData::new_from_game_info(game_info);
-    extra_data.set_regenerate_table_guid(!SETTINGS.read().unwrap().bool("disable_uuid_regeneration_on_db_tables"));
-    extra_data.set_compression_format(cf);
-    extra_data
 }

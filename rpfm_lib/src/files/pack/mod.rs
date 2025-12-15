@@ -20,6 +20,7 @@ use itertools::Itertools;
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs::File;
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io::{BufReader, BufWriter, Cursor, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
@@ -1185,6 +1186,60 @@ impl Pack {
         else {
             Ok((format!("{} files patched.\n{} files deleted.", files_patched, files_to_delete.len()), files_to_delete))
         }
+    }
+
+    /// Function to perform a live extraction, meaning the files will be extracted while the game is running,
+    /// allowing for real-time updates and modifications without the need for a full game restart.
+    ///
+    /// Only works in Warhammer 3.
+    pub fn live_export(&mut self, game: &GameInfo, game_path: &Path, disable_regen_table_guid: bool, keys_first: bool) -> Result<()> {
+
+        // If there are no files, directly return an error.
+        if self.files().is_empty() {
+            return Err(RLibError::LiveExportNoFilesToExport);
+        }
+
+        let extra_data = Some(EncodeableExtraData::new_from_game_info_and_settings(&game, self.compression_format(), disable_regen_table_guid));
+        let data_path = game.data_path(&game_path)?;
+
+        // We're interested in lua and xml files only, not those entire folders.
+        let files = self.files_by_type_and_paths(&[FileType::Text], &[ContainerPath::Folder("script/".to_string()), ContainerPath::Folder("ui/".to_string())], true)
+            .into_iter()
+            .cloned()
+            .collect::<Vec<RFile>>();
+
+        let mut correlations = HashMap::new();
+        for mut file in files.into_iter() {
+            let mut path_split = file.path_in_container_split().iter().map(|x| x.to_owned()).collect::<Vec<_>>();
+            let mut hasher = DefaultHasher::new();
+
+            // Use time to ensure we never collide with a previous live export.
+            std::time::SystemTime::now().hash(&mut hasher);
+            let value = hasher.finish();
+            let new_name = format!("{}_{}", value, path_split.last().unwrap());
+
+            *path_split.last_mut().unwrap() = &new_name;
+            let new_path = path_split.join("/");
+
+            correlations.insert(file.path_in_container_raw().to_owned(), new_path.to_owned());
+            file.set_path_in_container_raw(&new_path);
+
+            // To avoid duplicating logic, we insert these files into the pack, extract them, then delete them from the Pack.
+            let container_path = file.path_in_container();
+            self.insert(file)?;
+            self.extract(container_path.clone(), &data_path, true, &None, false, keys_first, &extra_data, true)?;
+
+            self.remove(&container_path);
+        }
+
+        // This is the file you have to call from lua later on.
+        let summary_data_str = correlations.iter().map(|(key, value)| format!("    [\"{key}\"] = \"{value}\",")).join("\n");
+        let summary_data_lua = format!("return {{\n{summary_data_str}\n}}");
+        let summary_path = game_path.join("lua_path_mappings.txt");
+        let mut file = BufWriter::new(File::create(summary_path)?);
+        file.write_all(summary_data_lua.as_bytes())?;
+
+        Ok(())
     }
 }
 

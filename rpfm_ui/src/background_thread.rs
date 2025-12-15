@@ -20,13 +20,12 @@ use itertools::Itertools;
 use open::that;
 use rayon::prelude::*;
 
-use std::collections::{BTreeMap, HashMap, hash_map::DefaultHasher};
+use std::collections::{BTreeMap, HashMap};
 #[cfg(any(feature = "enable_tools", feature = "support_model_renderer"))] use std::collections::HashSet;
 use std::env::temp_dir;
 use std::fs::{DirBuilder, File};
-use std::hash::{Hash, Hasher};
-use std::io::{BufReader, BufWriter, Cursor, Read, Write};
-use std::path::{Path, PathBuf};
+use std::io::{BufWriter, Cursor, Write};
+use std::path::PathBuf;
 use std::process::Command as SystemCommand;
 use std::sync::{Arc, atomic::Ordering, RwLock};
 use std::thread;
@@ -40,7 +39,7 @@ use rpfm_extensions::optimizer::OptimizableContainer;
 
 use rpfm_lib::binary::WriteBytes;
 use rpfm_lib::compression::CompressionFormat;
-use rpfm_lib::files::{animpack::AnimPack, Container, ContainerPath, db::DB, DecodeableExtraData, FileType, loc::Loc, pack::*, portrait_settings::PortraitSettings, RFile, RFileDecoded, table::{DecodedData, Table}, text::*};
+use rpfm_lib::files::{animpack::AnimPack, Container, ContainerPath, db::DB, DecodeableExtraData, EncodeableExtraData, FileType, loc::Loc, pack::*, portrait_settings::PortraitSettings, RFile, RFileDecoded, table::{DecodedData, Table}, text::*};
 use rpfm_lib::games::{GameInfo, LUA_REPO, LUA_BRANCH, LUA_REMOTE, OLD_AK_REPO, OLD_AK_BRANCH, OLD_AK_REMOTE, pfh_file_type::PFHFileType, supported_games::*, VanillaDBTableNameLogic};
 #[cfg(feature = "enable_tools")] use rpfm_lib::games::{TRANSLATIONS_REPO, TRANSLATIONS_BRANCH, TRANSLATIONS_REMOTE};
 use rpfm_lib::integrations::{assembly_kit::*, git::*, log::*};
@@ -63,7 +62,6 @@ use crate::settings_ui::backend::*;
 use crate::START_POS_WORKAROUND_THREAD;
 use crate::SUPPORTED_GAMES;
 #[cfg(feature = "enable_tools")]use crate::tools::translator::*;
-use crate::utils::initialize_encodeable_extra_data;
 
 #[allow(dead_code)] const USER_SCRIPT_FILE_NAME: &str = "user.script.txt";
 #[allow(dead_code)] const VICTORY_OBJECTIVES_FILE_NAME: &str = "db/victory_objectives.txt";
@@ -200,8 +198,8 @@ pub fn background_loop() {
 
             // In case we want to "Save a PackFile"...
             Command::SavePackFile => {
-                let game_selected = GAME_SELECTED.read().unwrap();
-                let extra_data = Some(initialize_encodeable_extra_data(&game_selected, pack_file_decoded.compression_format()));
+                let game = GAME_SELECTED.read().unwrap();
+                let extra_data = Some(EncodeableExtraData::new_from_game_info_and_settings(&game, pack_file_decoded.compression_format(), SETTINGS.read().unwrap().bool("disable_uuid_regeneration_on_db_tables")));
 
                 let pack_type = *pack_file_decoded.header().pfh_file_type();
                 if !SETTINGS.read().unwrap().bool("allow_editing_of_ca_packfiles") && pack_type != PFHFileType::Mod && pack_type != PFHFileType::Movie {
@@ -209,7 +207,7 @@ pub fn background_loop() {
                     continue;
                 }
 
-                match pack_file_decoded.save(None, &game_selected, &extra_data) {
+                match pack_file_decoded.save(None, &game, &extra_data) {
                     Ok(_) => CentralCommand::send_back(&sender, Response::ContainerInfo(From::from(&pack_file_decoded))),
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(anyhow!("Error while trying to save the currently open PackFile: {}", error))),
                 }
@@ -217,8 +215,8 @@ pub fn background_loop() {
 
             // In case we want to "Save a PackFile As"...
             Command::SavePackFileAs(path) => {
-                let game_selected = GAME_SELECTED.read().unwrap();
-                let extra_data = Some(initialize_encodeable_extra_data(&game_selected, pack_file_decoded.compression_format()));
+                let game = GAME_SELECTED.read().unwrap();
+                let extra_data = Some(EncodeableExtraData::new_from_game_info_and_settings(&game, pack_file_decoded.compression_format(), SETTINGS.read().unwrap().bool("disable_uuid_regeneration_on_db_tables")));
 
                 let pack_type = *pack_file_decoded.header().pfh_file_type();
                 if !SETTINGS.read().unwrap().bool("allow_editing_of_ca_packfiles") && pack_type != PFHFileType::Mod && pack_type != PFHFileType::Movie {
@@ -226,7 +224,7 @@ pub fn background_loop() {
                     continue;
                 }
 
-                match pack_file_decoded.save(Some(&path), &game_selected, &extra_data) {
+                match pack_file_decoded.save(Some(&path), &game, &extra_data) {
                     Ok(_) => CentralCommand::send_back(&sender, Response::ContainerInfo(From::from(&pack_file_decoded))),
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(anyhow!("Error while trying to save the currently open PackFile: {}", error))),
                 }
@@ -236,9 +234,9 @@ pub fn background_loop() {
             Command::CleanAndSavePackFileAs(path) => {
                 pack_file_decoded.clean_undecoded();
 
-                let game_selected = GAME_SELECTED.read().unwrap();
-                let extra_data = Some(initialize_encodeable_extra_data(&game_selected, pack_file_decoded.compression_format()));
-                match pack_file_decoded.save(Some(&path), &game_selected, &extra_data) {
+                let game = GAME_SELECTED.read().unwrap();
+                let extra_data = Some(EncodeableExtraData::new_from_game_info_and_settings(&game, pack_file_decoded.compression_format(), SETTINGS.read().unwrap().bool("disable_uuid_regeneration_on_db_tables")));
+                match pack_file_decoded.save(Some(&path), &game, &extra_data) {
                     Ok(_) => CentralCommand::send_back(&sender, Response::ContainerInfo(From::from(&pack_file_decoded))),
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(anyhow!("Error while trying to save the currently open PackFile: {}", error))),
                 }
@@ -914,7 +912,8 @@ pub fn background_loop() {
                 let schema = if extract_tables_to_tsv { &*schema } else { &None };
                 let mut errors = 0;
 
-                let extra_data = Some(initialize_encodeable_extra_data(&GAME_SELECTED.read().unwrap(), pack_file_decoded.compression_format()));
+                let game = GAME_SELECTED.read().unwrap();
+                let extra_data = Some(EncodeableExtraData::new_from_game_info_and_settings(&game, pack_file_decoded.compression_format(), SETTINGS.read().unwrap().bool("disable_uuid_regeneration_on_db_tables")));
                 let mut extracted_paths = vec![];
 
                 // Pack extraction.
@@ -1174,7 +1173,8 @@ pub fn background_loop() {
             Command::CleanCache(paths) => {
                 let cf = pack_file_decoded.compression_format();
                 let mut files = pack_file_decoded.files_by_paths_mut(&paths, false);
-                let extra_data = Some(initialize_encodeable_extra_data(&GAME_SELECTED.read().unwrap(), cf));
+                let game = GAME_SELECTED.read().unwrap();
+                let extra_data = Some(EncodeableExtraData::new_from_game_info_and_settings(&game, cf, SETTINGS.read().unwrap().bool("disable_uuid_regeneration_on_db_tables")));
 
                 files.iter_mut().for_each(|file| {
                     let _ = file.encode(&extra_data, true, true, false);
@@ -1258,7 +1258,9 @@ pub fn background_loop() {
                 match data_source {
                     DataSource::PackFile => {
                         let folder = temp_dir().join(format!("rpfm_{}", pack_file_decoded.disk_file_name()));
-                        let extra_data = Some(initialize_encodeable_extra_data(&GAME_SELECTED.read().unwrap(), pack_file_decoded.compression_format()));
+                        let game = GAME_SELECTED.read().unwrap();
+                        let cf = pack_file_decoded.compression_format();
+                        let extra_data = Some(EncodeableExtraData::new_from_game_info_and_settings(&game, cf, SETTINGS.read().unwrap().bool("disable_uuid_regeneration_on_db_tables")));
 
                         match pack_file_decoded.extract(path.clone(), &folder, true, &SCHEMA.read().unwrap(), false, SETTINGS.read().unwrap().bool("tables_use_old_column_order_for_tsv"), &extra_data, true) {
                             Ok(extracted_path) => {
@@ -1274,9 +1276,13 @@ pub fn background_loop() {
 
             // When we want to save a PackedFile from the external view....
             Command::SavePackedFileFromExternalView(path, external_path) => {
-                match save_files_from_external_path(&mut pack_file_decoded, &path, &external_path) {
-                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                let schema = SCHEMA.read().unwrap();
+                match pack_file_decoded.file_mut(&path, false) {
+                    Some(file) => match file.encode_from_external_data(&schema, &external_path) {
+                        Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                        Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                    }
+                    None => CentralCommand::send_back(&sender, Response::Error(anyhow!("File not found"))),
                 }
             }
 
@@ -1294,7 +1300,7 @@ pub fn background_loop() {
                                 // Encode the decoded tables with the old schema, then re-decode them with the new one.
                                 let cf = pack_file_decoded.compression_format();
                                 let mut tables = pack_file_decoded.files_by_type_mut(&[FileType::DB]);
-                                let extra_data = Some(initialize_encodeable_extra_data(&GAME_SELECTED.read().unwrap(), cf));
+                                let extra_data = Some(EncodeableExtraData::new_from_game_info_and_settings(&game, cf, SETTINGS.read().unwrap().bool("disable_uuid_regeneration_on_db_tables")));
 
                                 tables.par_iter_mut().for_each(|x| { let _ = x.encode(&extra_data, true, true, false); });
 
@@ -1385,7 +1391,7 @@ pub fn background_loop() {
                     let date = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
                     let new_name = format!("{date}.pack");
                     let new_path = folder.join(new_name);
-                    let extra_data = Some(initialize_encodeable_extra_data(&game_selected, pack_file_decoded.compression_format()));
+                    let extra_data = Some(EncodeableExtraData::new_from_game_info_and_settings(&game_selected, pack_file_decoded.compression_format(), SETTINGS.read().unwrap().bool("disable_uuid_regeneration_on_db_tables")));
                     let _ = pack_file_decoded.clone().save(Some(&new_path), &game_selected, &extra_data);
 
                     // If we have more than the limit, delete the older one.
@@ -1755,6 +1761,7 @@ pub fn background_loop() {
             Command::GetPackFileName => CentralCommand::send_back(&sender, Response::String(pack_file_decoded.disk_file_name())),
             Command::GetPackedFileRawData(path) => {
                 let cf = pack_file_decoded.compression_format();
+                let game = GAME_SELECTED.read().unwrap();
                 match pack_file_decoded.files_mut().get_mut(&path) {
                     Some(ref mut rfile) => {
 
@@ -1767,7 +1774,7 @@ pub fn background_loop() {
                                 //
                                 // NOTE: This fucks up the table decoder if the table was badly decoded.
                                 Err(_) =>  {
-                                    let extra_data = Some(initialize_encodeable_extra_data(&GAME_SELECTED.read().unwrap(), cf));
+                                    let extra_data = Some(EncodeableExtraData::new_from_game_info_and_settings(&game, cf, SETTINGS.read().unwrap().bool("disable_uuid_regeneration_on_db_tables")));
                                     match rfile.encode(&extra_data, false, false, true) {
                                         Ok(data) => CentralCommand::send_back(&sender, Response::VecU8(data.unwrap())),
                                         Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
@@ -2115,9 +2122,9 @@ pub fn background_loop() {
             }
 
             Command::GenerateMissingLocData => {
-                match generate_missing_loc_data(&mut pack_file_decoded, &dependencies.read().unwrap()) {
+                match dependencies.read().unwrap().generate_missing_loc_data(&mut pack_file_decoded) {
                     Ok(path) => CentralCommand::send_back(&sender, Response::VecContainerPath(path)),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                 }
             }
 
@@ -2256,9 +2263,16 @@ pub fn background_loop() {
                 CentralCommand::send_back(&sender, Response::PathBuf(mymod_path));
             },
 
-            Command::LiveExport => match live_export(&mut pack_file_decoded) {
-                Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+            Command::LiveExport => {
+                let game = GAME_SELECTED.read().unwrap();
+                let game_path = SETTINGS.read().unwrap().path_buf(game.key());
+                let settings = SETTINGS.read().unwrap();
+                let disable_regen_table_guid = settings.bool("disable_uuid_regeneration_on_db_tables");
+                let keys_first = settings.bool("tables_use_old_column_order_for_tsv");
+                match pack_file_decoded.live_export(&*game, &game_path, disable_regen_table_guid, keys_first) {
+                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                }
             },
 
             Command::AddLineToPackIgnoredDiagnostics(line) => {
@@ -3064,65 +3078,13 @@ fn build_starpos_post(dependencies: &Dependencies, pack_file: &mut Pack, campaig
     }
 }
 
-/// Function to perform a live extraction.
-fn live_export(pack: &mut Pack) -> Result<()> {
-
-    // If there are no files, directly return an error.
-    if pack.files().is_empty() {
-        return Err(anyhow!("No files to export."));
-    }
-
-    let extra_data = Some(initialize_encodeable_extra_data(&GAME_SELECTED.read().unwrap(), pack.compression_format()));
-    let game_path = SETTINGS.read().unwrap().path_buf(GAME_SELECTED.read().unwrap().key());
-    let data_path = GAME_SELECTED.read().unwrap().data_path(&game_path)?;
-
-    // We're interested in lua and xml files only, not those entire folders.
-    let files = pack.files_by_type_and_paths(&[FileType::Text], &[ContainerPath::Folder("script/".to_string()), ContainerPath::Folder("ui/".to_string())], true)
-        .into_iter()
-        .cloned()
-        .collect::<Vec<RFile>>();
-
-    let mut correlations = HashMap::new();
-    for mut file in files.into_iter() {
-        let mut path_split = file.path_in_container_split().iter().map(|x| x.to_owned()).collect::<Vec<_>>();
-        let mut hasher = DefaultHasher::new();
-
-        // Use time to ensure we never collide with a previous live export.
-        std::time::SystemTime::now().hash(&mut hasher);
-        let value = hasher.finish();
-        let new_name = format!("{}_{}", value, path_split.last().unwrap());
-
-        *path_split.last_mut().unwrap() = &new_name;
-        let new_path = path_split.join("/");
-
-        correlations.insert(file.path_in_container_raw().to_owned(), new_path.to_owned());
-        file.set_path_in_container_raw(&new_path);
-
-        // To avoid duplicating logic, we insert these files into the pack, extract them, then delete them from the Pack.
-        let container_path = file.path_in_container();
-        pack.insert(file)?;
-        pack.extract(container_path.clone(), &data_path, true, &None, false, SETTINGS.read().unwrap().bool("tables_use_old_column_order_for_tsv"), &extra_data, true)?;
-
-        pack.remove(&container_path);
-    }
-
-    // This is the file you have to call from lua later on.
-    let summary_data_str = correlations.iter().map(|(key, value)| format!("    [\"{key}\"] = \"{value}\",")).join("\n");
-    let summary_data_lua = format!("return {{\n{summary_data_str}\n}}");
-    let summary_path = game_path.join("lua_path_mappings.txt");
-    let mut file = BufWriter::new(File::create(summary_path)?);
-    file.write_all(summary_data_lua.as_bytes())?;
-
-    Ok(())
-}
-
 /// Function to simplify logic for changing game selected.
 fn load_schemas(sender: &Sender<Response>, pack: &mut Pack, game: &GameInfo) {
     let cf = pack.compression_format();
 
     // Before loading the schema, make sure we don't have tables with definitions from the current schema.
     let mut files = pack.files_by_type_mut(&[FileType::DB]);
-    let extra_data = Some(initialize_encodeable_extra_data(game, cf));
+    let extra_data = Some(EncodeableExtraData::new_from_game_info_and_settings(game, cf, SETTINGS.read().unwrap().bool("disable_uuid_regeneration_on_db_tables")));
 
     files.par_iter_mut().for_each(|file| {
         let _ = file.encode(&extra_data, true, true, false);
@@ -3203,53 +3165,6 @@ fn add_tile_maps_and_tiles(pack: &mut Pack, dependencies: &mut Dependencies, sch
     Ok((added_paths, paths_to_delete))
 }
 
-/// Function to save files from external paths, so it's easier to use in the big loop.
-///
-/// NOTE: If TSV is detected and fails to import, this returns an error.
-fn save_files_from_external_path(pack: &mut Pack, internal_path: &str, external_path: &Path) -> Result<()> {
-
-    // We do it manually instead of using insert_file because insert_file replaces the file's metadata.
-    let mut file = BufReader::new(File::open(external_path)?);
-    let mut data = vec![];
-    file.read_to_end(&mut data)?;
-    match pack.file_mut(internal_path, false) {
-        Some(file) => {
-
-            // If we're dealing with a TSV, make sure to import it before setting up the data.
-            match external_path.extension() {
-                Some(extension) => {
-                    if extension.to_string_lossy() == "tsv" {
-                        let schema = SCHEMA.read().unwrap();
-                        if let Ok(rfile) = RFile::tsv_import_from_path(external_path, &schema) {
-                            file.set_decoded(rfile.decoded()?.clone())?;
-                        } else {
-                            file.set_cached(&data);
-                        }
-                    } else {
-                        file.set_cached(&data);
-                    }
-                }
-                None => {
-                    file.set_cached(&data);
-                }
-            }
-
-            // If they're tables, make sure they're left decoded.
-            if file.file_type() == FileType::DB || file.file_type() == FileType::Loc {
-                if let Some(ref schema) = *SCHEMA.read().unwrap() {
-                    let mut extra_data = DecodeableExtraData::default();
-                    extra_data.set_schema(Some(schema));
-                    let extra_data = Some(extra_data);
-                    let _ = file.decode(&extra_data, true, false);
-                }
-            }
-
-            Ok(())
-        }
-        None => Err(anyhow!("Failed to find file with path in pack: {}", internal_path)),
-    }
-}
-
 fn decode_and_send_file(file: &mut RFile, sender: &Sender<Response>) {
     let mut extra_data = DecodeableExtraData::default();
     let schema = SCHEMA.read().unwrap();
@@ -3312,17 +3227,4 @@ fn decode_and_send_file(file: &mut RFile, sender: &Sender<Response>) {
         Ok(RFileDecoded::WSModel(data)) => CentralCommand::send_back(sender, Response::WSModelRFileInfo(data, From::from(&*file))),
         Err(error) => CentralCommand::send_back(sender, Response::Error(From::from(error))),
     }
-}
-
-fn generate_missing_loc_data(pack: &mut Pack, dependencies: &Dependencies) -> Result<Vec<ContainerPath>> {
-    let loc_data = dependencies.loc_data(true, true)?;
-    let mut existing_locs = HashMap::new();
-
-    for loc in &loc_data {
-        if let Ok(RFileDecoded::Loc(ref data)) = loc.decoded() {
-            existing_locs.extend(data.table().data().iter().map(|x| (x[0].data_to_string().to_string(), x[1].data_to_string().to_string())));
-        }
-    }
-
-    pack.generate_missing_loc_data(&existing_locs).map_err(From::from)
 }

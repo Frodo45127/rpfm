@@ -23,7 +23,7 @@ use std::path::{Path, PathBuf};
 use std::thread::{JoinHandle, spawn};
 
 use rpfm_lib::error::{Result, RLibError};
-use rpfm_lib::files::{Container, ContainerPath, db::DB, DecodeableExtraData, FileType, pack::Pack, RFile, RFileDecoded};
+use rpfm_lib::files::{Container, ContainerPath, db::DB, DecodeableExtraData, FileType, pack::Pack, RFile, RFileDecoded, table::Table};
 use rpfm_lib::games::GameInfo;
 use rpfm_lib::integrations::{assembly_kit::table_data::RawTable, log::{info, error}};
 use rpfm_lib::schema::{Definition, DefinitionPatch, Field, FieldType, Schema};
@@ -2048,6 +2048,20 @@ impl Dependencies {
             }
             _ => Err(RLibError::DecodingDBNotADBTable),
         }
+    }
+
+    /// Function to generate the missing loc entries in a pack.
+    pub fn generate_missing_loc_data(&self, pack: &mut Pack) -> Result<Vec<ContainerPath>> {
+        let loc_data = self.loc_data(true, true)?;
+        let mut existing_locs = HashMap::new();
+
+        for loc in &loc_data {
+            if let Ok(RFileDecoded::Loc(ref data)) = loc.decoded() {
+                existing_locs.extend(data.table().data().iter().map(|x| (x[0].data_to_string().to_string(), x[1].data_to_string().to_string())));
+            }
+        }
+
+        pack.generate_missing_loc_data(&existing_locs).map_err(From::from)
     }
 
     /// This function bruteforces the order in which multikeyed tables get their keys together for loc entries.
