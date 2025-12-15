@@ -2073,7 +2073,7 @@ impl RFile {
 
         // Sanitize the path before creating the file
         let sanitized_path = sanitize_path(path);
-        
+
         // Make sure the folder actually exists.
         let mut folder_path = sanitized_path.to_path_buf();
         folder_path.pop();
@@ -2173,19 +2173,57 @@ impl RFile {
     /// Logs a message if the filename was changed due to invalid Windows characters.
     pub fn sanitize_and_create_file(&mut self, destination_path: &Path, extra_data: &Option<EncodeableExtraData>) -> Result<PathBuf> {
         let sanitized_destination_path = sanitize_path(&destination_path);
-        
+
         if sanitized_destination_path != destination_path {
             #[cfg(feature = "integration_log")] {
-                warn!("Filename sanitized from '{}' to '{}' due to invalid Windows characters", 
+                warn!("Filename sanitized from '{}' to '{}' due to invalid Windows characters",
                       destination_path.to_owned().file_name().unwrap_or_default().to_string_lossy(),
                       sanitized_destination_path.file_name().unwrap_or_default().to_string_lossy());
             }
         }
-        
+
         let mut file = BufWriter::new(File::create(&sanitized_destination_path)?);
         let data = self.encode(extra_data, false, false, true)?.unwrap();
         file.write_all(&data)?;
         Ok(sanitized_destination_path)
+    }
+
+    /// Function to encode a file using data from a external path, effectively replacing its data.
+    /// without replacing the file's metadata.
+    ///
+    /// NOTE: If TSV is detected and fails to import, this returns an error.
+    pub fn encode_from_external_data(&mut self, schema: &Option<Schema>, external_path: &Path) -> Result<()> {
+
+        let mut file = BufReader::new(File::open(external_path)?);
+        let mut data = vec![];
+        file.read_to_end(&mut data)?;
+
+        // If we're dealing with a TSV, make sure to import it before setting up the data.
+        match external_path.extension() {
+            Some(extension) => {
+                if extension.to_string_lossy() == "tsv" {
+                    match RFile::tsv_import_from_path(external_path, &schema) {
+                        Ok(rfile) => self.set_decoded(rfile.decoded()?.clone())?,
+                        Err(_) => self.set_cached(&data),
+                    }
+                } else {
+                    self.set_cached(&data);
+                }
+            }
+            None => self.set_cached(&data),
+        }
+
+        // If they're tables, make sure they're left decoded in memory.
+        if self.file_type() == FileType::DB || self.file_type() == FileType::Loc {
+            if let Some(ref schema) = schema {
+                let mut extra_data = DecodeableExtraData::default();
+                extra_data.set_schema(Some(schema));
+                let extra_data = Some(extra_data);
+                let _ = self.decode(&extra_data, true, false);
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -2510,6 +2548,13 @@ impl<'a> EncodeableExtraData<'a> {
         let mut extra_data = Self::default();
         extra_data.set_game_info(Some(game_info));
         extra_data.set_table_has_guid(*game_info.db_tables_have_guid());
+        extra_data
+    }
+
+    pub fn new_from_game_info_and_settings(game_info: &'a GameInfo, cf: CompressionFormat, disable_regen_table_guid: bool) -> EncodeableExtraData<'a> {
+        let mut extra_data = EncodeableExtraData::new_from_game_info(game_info);
+        extra_data.set_regenerate_table_guid(!disable_regen_table_guid);
+        extra_data.set_compression_format(cf);
         extra_data
     }
 }
