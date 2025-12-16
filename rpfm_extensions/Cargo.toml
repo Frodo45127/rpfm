@@ -51,3 +51,6 @@ gltf-json = "^1"
 
 # Serialization of vec -> string values and back.
 base64 = "^0"
+
+# Support for open files in a native way.
+open = "^5"

@@ -1241,6 +1241,98 @@ impl Pack {
 
         Ok(())
     }
+
+    /// Function to update the anim ids of the pack on mass, based on a starting id and an offset.
+    pub fn update_anim_ids(&mut self, game: &GameInfo, starting_id: i32, offset: i32) -> Result<Vec<ContainerPath>> {
+        if offset == 0 {
+            return Err(RLibError::UpdateAnimIdsError("Offset must be different than 0.".to_owned()))
+        }
+
+        if starting_id < 0 {
+            return Err(RLibError::UpdateAnimIdsError("Starting Id must be greater than 0.".to_owned()))
+        }
+
+        // First, do a pass over sparse files.
+        let mut extra_data = DecodeableExtraData::default();
+        extra_data.set_game_info(Some(&game));
+        let extra_data = Some(extra_data);
+
+        let mut files = self.files_by_type_mut(&[FileType::AnimFragmentBattle]);
+        let mut paths = files.par_iter_mut()
+            .filter_map(|file| {
+                let mut changed = false;
+                if let Ok(Some(RFileDecoded::AnimFragmentBattle(mut table))) = file.decode(&extra_data, false, true) {
+                    if *table.max_id() >= starting_id as u32 {
+                        table.set_max_id(*table.max_id() + offset as u32);
+                        changed = true;
+                    }
+
+                    for entry in table.entries_mut() {
+                        if *entry.animation_id() >= starting_id as u32 {
+                            entry.set_animation_id(*entry.animation_id() + offset as u32);
+                            changed = true;
+                        }
+
+                        if *entry.slot_id() >= starting_id as u32 {
+                            entry.set_slot_id(*entry.slot_id() + offset as u32);
+                            changed = true;
+                        }
+                    }
+
+                    if changed {
+                        let _ = file.set_decoded(RFileDecoded::AnimFragmentBattle(table));
+                        Some(file.path_in_container())
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            }
+        ).collect::<Vec<_>>();
+
+        // Then, do another pass over files in AnimPacks. No need to do a par_iter because there is often less than 10 animpacks in packs.
+        let mut anim_packs = self.files_by_type_mut(&[FileType::AnimPack]);
+
+        for anim_pack in anim_packs.iter_mut() {
+            let mut changed = false;
+            if let Ok(Some(RFileDecoded::AnimPack(mut pack))) = anim_pack.decode(&extra_data, false, true) {
+
+                let mut files = pack.files_by_type_mut(&[FileType::AnimFragmentBattle]);
+                for file in files.iter_mut() {
+                    if let Ok(Some(RFileDecoded::AnimFragmentBattle(mut table))) = file.decode(&extra_data, false, true) {
+                        if *table.max_id() >= starting_id as u32 {
+                            table.set_max_id(*table.max_id() + offset as u32);
+                            changed = true;
+                        }
+
+                        for entry in table.entries_mut() {
+                            if *entry.animation_id() >= starting_id as u32 {
+                                entry.set_animation_id(*entry.animation_id() + offset as u32);
+                                changed = true;
+                            }
+
+                            if *entry.slot_id() >= starting_id as u32 {
+                                entry.set_slot_id(*entry.slot_id() + offset as u32);
+                                changed = true;
+                            }
+                        }
+
+                        if changed {
+                            let _ = file.set_decoded(RFileDecoded::AnimFragmentBattle(table));
+                        }
+                    }
+                }
+
+                if changed {
+                    let _ = anim_pack.set_decoded(RFileDecoded::AnimPack(pack));
+                    paths.push(anim_pack.path_in_container());
+                }
+            }
+        }
+
+        Ok(paths)
+    }
 }
 
 impl PackNotes {

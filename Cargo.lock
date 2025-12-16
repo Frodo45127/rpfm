@@ -4291,6 +4291,7 @@ dependencies = [
  "gltf",
  "gltf-json",
  "itertools 0.14.0",
+ "open",
  "rayon",
  "regex",
  "rpfm_lib",

@@ -18,6 +18,8 @@
     clippy::type_complexity,
 )]
 
+use std::{sync::{mpsc::Sender, Arc, LazyLock, RwLock}, thread::JoinHandle};
+
 pub mod dependencies;
 pub mod diagnostics;
 pub mod gltf;
@@ -26,3 +28,6 @@ pub mod search;
 pub mod translator;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// Variable to keep the background thread for the startpos generation working.
+static START_POS_WORKAROUND_THREAD: LazyLock<Arc<RwLock<Option<Vec<(Sender<bool>, JoinHandle<()>)>>>>> = LazyLock::new(|| Arc::new(RwLock::new(None)));

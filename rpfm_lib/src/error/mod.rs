@@ -319,6 +319,12 @@ pub enum RLibError {
     #[error("No files to export.")]
     LiveExportNoFilesToExport,
 
+    #[error("{0}")]
+    BuildStartposError(String),
+
+    #[error("{0}")]
+    UpdateAnimIdsError(String),
+
     #[error("The SQLite connection pool hasn't been initialized yet.")]
     MissingSQLitePool,
 
