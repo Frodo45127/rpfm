@@ -14,8 +14,8 @@ Module with the background loop.
 Basically, this does the heavy load of the program.
 !*/
 
-use anyhow::{anyhow, Result};
-use crossbeam::channel::{Sender, unbounded};
+use anyhow::anyhow;
+use crossbeam::channel::Sender;
 use itertools::Itertools;
 use open::that;
 use rayon::prelude::*;
@@ -26,18 +26,16 @@ use std::env::temp_dir;
 use std::fs::{DirBuilder, File};
 use std::io::{BufWriter, Cursor, Write};
 use std::path::PathBuf;
-use std::process::Command as SystemCommand;
 use std::sync::{Arc, atomic::Ordering, RwLock};
 use std::thread;
-use std::time::{Duration, SystemTime};
+use std::time::SystemTime;
 
-use rpfm_extensions::dependencies::{Dependencies, KEY_DELETES_TABLE_NAME};
+use rpfm_extensions::dependencies::*;
 use rpfm_extensions::diagnostics::Diagnostics;
 use rpfm_extensions::gltf::gltf_from_rigid;
 use rpfm_extensions::optimizer::OptimizableContainer;
 #[cfg(feature = "enable_tools")] use rpfm_extensions::translator::PackTranslation;
 
-use rpfm_lib::binary::WriteBytes;
 use rpfm_lib::compression::CompressionFormat;
 use rpfm_lib::files::{animpack::AnimPack, Container, ContainerPath, db::DB, DecodeableExtraData, EncodeableExtraData, FileType, loc::Loc, pack::*, portrait_settings::PortraitSettings, RFile, RFileDecoded, table::{DecodedData, Table}, text::*};
 use rpfm_lib::games::{GameInfo, LUA_REPO, LUA_BRANCH, LUA_REMOTE, OLD_AK_REPO, OLD_AK_BRANCH, OLD_AK_REMOTE, pfh_file_type::PFHFileType, supported_games::*, VanillaDBTableNameLogic};
@@ -59,25 +57,9 @@ use crate::GAME_SELECTED;
 use crate::packedfile_views::DataSource;
 use crate::SCHEMA;
 use crate::settings_ui::backend::*;
-use crate::START_POS_WORKAROUND_THREAD;
 use crate::SUPPORTED_GAMES;
 #[cfg(feature = "enable_tools")]use crate::tools::translator::*;
 
-#[allow(dead_code)] const USER_SCRIPT_FILE_NAME: &str = "user.script.txt";
-#[allow(dead_code)] const VICTORY_OBJECTIVES_FILE_NAME: &str = "db/victory_objectives.txt";
-#[allow(dead_code)] const VICTORY_OBJECTIVES_EXTRACTED_FILE_NAME: &str = "victory_objectives.txt";
-
-const GAMES_NEEDING_VICTORY_OBJECTIVES: [&str; 9] = [
-    KEY_PHARAOH_DYNASTIES,
-    KEY_PHARAOH,
-    KEY_TROY,
-    KEY_THREE_KINGDOMS,
-    KEY_WARHAMMER_2,
-    KEY_WARHAMMER,
-    KEY_THRONES_OF_BRITANNIA,
-    KEY_ATTILA,
-    KEY_ROME_2
-];
 
 /// This is the background loop that's going to be executed in a parallel thread to the UI. No UI or "Unsafe" stuff here.
 ///
@@ -2131,9 +2113,12 @@ pub fn background_loop() {
             Command::PackMap(tile_maps, tiles) => {
                 match *SCHEMA.read().unwrap() {
                     Some(ref schema) => {
-                        match add_tile_maps_and_tiles(&mut pack_file_decoded, &mut dependencies.write().unwrap(), schema, tile_maps, tiles) {
+                        let game = GAME_SELECTED.read().unwrap().clone();
+                        let mut dependencies = dependencies.write().unwrap();
+                        let options = init_optimizer_options();
+                        match dependencies.add_tile_maps_and_tiles(&mut pack_file_decoded, &game, schema, options, tile_maps, tiles) {
                             Ok((paths_to_add, paths_to_delete)) => CentralCommand::send_back(&sender, Response::VecContainerPathVecContainerPath(paths_to_add, paths_to_delete)),
-                            Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                         }
                     }
                     None => CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected."))),
@@ -2372,54 +2357,71 @@ pub fn background_loop() {
             }
 
             Command::BuildStarpos(campaign_id, process_hlp_spd_data) => {
+                let dependencies = dependencies.read().unwrap();
+                let game = GAME_SELECTED.read().unwrap();
+                let settings = SETTINGS.read().unwrap();
+                let game_path = settings.path_buf(game.key());
 
                 // 3K needs two passes, one per startpos, and there are two per campaign.
-                if GAME_SELECTED.read().unwrap().key() == KEY_THREE_KINGDOMS {
-                    match build_starpos(&dependencies.read().unwrap(), &mut pack_file_decoded, &campaign_id, process_hlp_spd_data, "historical") {
-                        Ok(_) => match build_starpos(&dependencies.read().unwrap(), &mut pack_file_decoded, &campaign_id, false, "romance") {
+                if game.key() == KEY_THREE_KINGDOMS {
+                    match dependencies.build_starpos_pre(&mut pack_file_decoded, &game, &game_path, &campaign_id, process_hlp_spd_data, "historical") {
+                        Ok(_) => match dependencies.build_starpos_pre(&mut pack_file_decoded, &game, &game_path, &campaign_id, false, "romance") {
                             Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                            Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                         }
-                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                        Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                     }
                 } else {
-                    match build_starpos(&dependencies.read().unwrap(), &mut pack_file_decoded, &campaign_id, process_hlp_spd_data, "") {
+                    match dependencies.build_starpos_pre(&mut pack_file_decoded, &game, &game_path, &campaign_id, process_hlp_spd_data, "") {
                         Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                        Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                     }
                 }
             }
 
             Command::BuildStarposPost(campaign_id, process_hlp_spd_data) => {
+                let dependencies = dependencies.read().unwrap();
+                let game = GAME_SELECTED.read().unwrap();
+                let settings = SETTINGS.read().unwrap();
+                let game_path = settings.path_buf(game.key());
+                let asskit_path = Some(settings.path_buf(&(game.key().to_owned() + "_assembly_kit")));
+
                 let sub_start_pos = if GAME_SELECTED.read().unwrap().key() == KEY_THREE_KINGDOMS {
                     vec!["historical".to_owned(), "romance".to_owned()]
                 } else {
                     vec![]
                 };
 
-                match build_starpos_post(&dependencies.read().unwrap(), &mut pack_file_decoded, &campaign_id, process_hlp_spd_data, false, &sub_start_pos) {
+                match dependencies.build_starpos_post(&mut pack_file_decoded, &game, &game_path, asskit_path, &campaign_id, process_hlp_spd_data, false, &sub_start_pos) {
                     Ok(paths) => CentralCommand::send_back(&sender, Response::VecContainerPath(paths)),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                 }
             },
 
             Command::BuildStarposCleanup(campaign_id, process_hlp_spd_data) => {
+                let dependencies = dependencies.read().unwrap();
+                let game = GAME_SELECTED.read().unwrap();
+                let settings = SETTINGS.read().unwrap();
+                let game_path = settings.path_buf(game.key());
+                let asskit_path = Some(settings.path_buf(&(game.key().to_owned() + "_assembly_kit")));
+
                 let sub_start_pos = if GAME_SELECTED.read().unwrap().key() == KEY_THREE_KINGDOMS {
                     vec!["historical".to_owned(), "romance".to_owned()]
                 } else {
                     vec![]
                 };
 
-                match build_starpos_post(&dependencies.read().unwrap(), &mut pack_file_decoded, &campaign_id, process_hlp_spd_data, true, &sub_start_pos) {
+                match dependencies.build_starpos_post(&mut pack_file_decoded, &game, &game_path, asskit_path, &campaign_id, process_hlp_spd_data, true, &sub_start_pos) {
                     Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                 }
             },
 
             Command::UpdateAnimIds(starting_id, offset) => {
-                match update_anim_ids(&mut pack_file_decoded, starting_id, offset) {
+                let game = GAME_SELECTED.read().unwrap();
+                match pack_file_decoded.update_anim_ids(&game, starting_id, offset) {
                     Ok(paths) => CentralCommand::send_back(&sender, Response::VecContainerPath(paths)),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                 }
             }
 
@@ -2443,638 +2445,6 @@ pub fn background_loop() {
             Command::CheckUpdates | Command::CheckSchemaUpdates | Command::CheckLuaAutogenUpdates | Command::CheckEmpireAndNapoleonAKUpdates => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
             #[cfg(feature = "enable_tools")] Command::CheckTranslationsUpdates => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
         }
-    }
-}
-
-fn update_anim_ids(pack_file: &mut Pack, starting_id: i32, offset: i32) -> Result<Vec<ContainerPath>> {
-    if offset == 0 {
-        return Err(anyhow!("Offset must be different than 0."))
-    }
-
-    if starting_id < 0 {
-        return Err(anyhow!("Starting Id must be greater than 0."))
-    }
-
-    // First, do a pass over sparse files.
-    let game_info = GAME_SELECTED.read().unwrap().clone();
-    let mut extra_data = DecodeableExtraData::default();
-    extra_data.set_game_info(Some(&game_info));
-    let extra_data = Some(extra_data);
-
-    let mut files = pack_file.files_by_type_mut(&[FileType::AnimFragmentBattle]);
-    let mut paths = files.par_iter_mut()
-        .filter_map(|file| {
-            let mut changed = false;
-            if let Ok(Some(RFileDecoded::AnimFragmentBattle(mut table))) = file.decode(&extra_data, false, true) {
-                if *table.max_id() >= starting_id as u32 {
-                    table.set_max_id(*table.max_id() + offset as u32);
-                    changed = true;
-                }
-
-                for entry in table.entries_mut() {
-                    if *entry.animation_id() >= starting_id as u32 {
-                        entry.set_animation_id(*entry.animation_id() + offset as u32);
-                        changed = true;
-                    }
-
-                    if *entry.slot_id() >= starting_id as u32 {
-                        entry.set_slot_id(*entry.slot_id() + offset as u32);
-                        changed = true;
-                    }
-                }
-
-                if changed {
-                    let _ = file.set_decoded(RFileDecoded::AnimFragmentBattle(table));
-                    Some(file.path_in_container())
-                } else {
-                    None
-                }
-            } else {
-                None
-            }
-        }
-    ).collect::<Vec<_>>();
-
-    // Then, do another pass over files in AnimPacks. No need to do a par_iter because there is often less than 10 animpacks in packs.
-    let mut anim_packs = pack_file.files_by_type_mut(&[FileType::AnimPack]);
-
-    for anim_pack in anim_packs.iter_mut() {
-        let mut changed = false;
-        if let Ok(Some(RFileDecoded::AnimPack(mut pack))) = anim_pack.decode(&extra_data, false, true) {
-
-            let mut files = pack.files_by_type_mut(&[FileType::AnimFragmentBattle]);
-            for file in files.iter_mut() {
-                if let Ok(Some(RFileDecoded::AnimFragmentBattle(mut table))) = file.decode(&extra_data, false, true) {
-                    if *table.max_id() >= starting_id as u32 {
-                        table.set_max_id(*table.max_id() + offset as u32);
-                        changed = true;
-                    }
-
-                    for entry in table.entries_mut() {
-                        if *entry.animation_id() >= starting_id as u32 {
-                            entry.set_animation_id(*entry.animation_id() + offset as u32);
-                            changed = true;
-                        }
-
-                        if *entry.slot_id() >= starting_id as u32 {
-                            entry.set_slot_id(*entry.slot_id() + offset as u32);
-                            changed = true;
-                        }
-                    }
-
-                    if changed {
-                        let _ = file.set_decoded(RFileDecoded::AnimFragmentBattle(table));
-                    }
-                }
-            }
-
-            if changed {
-                let _ = anim_pack.set_decoded(RFileDecoded::AnimPack(pack));
-                paths.push(anim_pack.path_in_container());
-            }
-        }
-    }
-
-    Ok(paths)
-}
-
-// About the sub-startpos thing: 3k uses 2 startpos per campaign, so we need to do two passes for it, one for each campaign.
-fn build_starpos(dependencies: &Dependencies, pack_file: &mut Pack, campaign_id: &str, process_hlp_spd_data: bool, sub_start_pos: &str) -> Result<()> {
-    let pack_name = pack_file.disk_file_name();
-    if pack_name.is_empty() {
-        return Err(anyhow!("The Pack needs to be saved to disk in order to build a startpos. Save it and try again."));
-    }
-
-    if campaign_id.is_empty() {
-        return Err(anyhow!("campaign_id not provided."));
-    }
-
-    let process_hlp_spd_data_string = if process_hlp_spd_data {
-        String::from("process_campaign_ai_map_data;")
-    } else {
-        String::new()
-    };
-
-    let game = GAME_SELECTED.read().unwrap();
-
-    // Note: 3K uses 2 passes per campaign, each one with a different startpos, but both share the hlp/spd process, so that only needs to be generated once.
-    // Also, extra folders is to fix a bug in Rome 2, Attila and possibly Thrones where objectives are not processed if certain folders are missing.
-    let extra_folders = "add_working_directory assembly_kit\\working_data;";
-    let mut user_script_contents = if game.key() == KEY_ATTILA || game.key() == KEY_THRONES_OF_BRITANNIA { extra_folders.to_owned() } else { String::new() };
-
-    user_script_contents.push_str(&format!("
-mod {pack_name};
-process_campaign_startpos {campaign_id} {sub_start_pos};
-{process_hlp_spd_data_string}
-quit_after_campaign_processing;"
-    ));
-
-    // Games may fail to launch if we don't have this path created, which is done the first time we start the game.
-    let game_path = SETTINGS.read().unwrap().path_buf(game.key());
-    let game_data_path = game.data_path(&game_path)?;
-    if !game_path.is_dir() {
-        return Err(anyhow!("Game path incorrect. Fix it in the settings and try again."));
-    }
-
-    if !PathBuf::from(pack_file.disk_file_path()).starts_with(&game_data_path) {
-        return Err(anyhow!("The Pack needs to be in /data. Install it there and try again."));
-    }
-
-    // We need to extract the victory_objectives.txt file to "data/campaign_id/". Warhammer 3 doesn't use this file.
-    if GAMES_NEEDING_VICTORY_OBJECTIVES.contains(&game.key()) {
-        let mut game_campaign_path = game_data_path.to_path_buf();
-        game_campaign_path.push(campaign_id);
-        DirBuilder::new().recursive(true).create(&game_campaign_path)?;
-
-        game_campaign_path.push(VICTORY_OBJECTIVES_EXTRACTED_FILE_NAME);
-        pack_file.extract(ContainerPath::File(VICTORY_OBJECTIVES_FILE_NAME.to_owned()), &game_campaign_path, false, &None, true, false, &None, true)?;
-    }
-
-    let config_path = game.config_path(&game_path).ok_or(anyhow!("Error getting the game's config path."))?;
-    let scripts_path = config_path.join("scripts");
-    DirBuilder::new().recursive(true).create(&scripts_path)?;
-
-    // Rome 2 is bugged when generating startpos using the userscript. We need to pass it to the game through args in a cmd terminal instead of by file.
-    //
-    // So don't do any userscript change for Rome 2.
-    if game.key() != KEY_ROME_2 {
-
-        // Make a backup before editing the script, so we can restore it later.
-        let uspa = scripts_path.join(USER_SCRIPT_FILE_NAME);
-        let uspb = scripts_path.join(USER_SCRIPT_FILE_NAME.to_owned() + ".bak");
-
-        if uspa.is_file() {
-            std::fs::copy(&uspa, uspb)?;
-        }
-
-        let mut file = BufWriter::new(File::create(uspa)?);
-
-        // Napoleon, Empire and Shogun 2 require the user.script.txt or mod list file (for Shogun's latest update) to be in UTF-16 LE. What the actual fuck.
-        if *game.raw_db_version() < 2 {
-            file.write_string_u16(&user_script_contents)?;
-        } else {
-            file.write_all(user_script_contents.as_bytes())?;
-        }
-
-        file.flush()?;
-    }
-
-    // Due to how the starpos is generated, if we generate it on vanilla campaigns it'll overwrite existing files if it's generated on /data.
-    // So we must backup the vanilla files, then restore them after.
-    //
-    // Only needed from Warhammer 1 onwards, and in Rome 2 due to how is generated there.
-    if game.key() != KEY_THRONES_OF_BRITANNIA &&
-        game.key() != KEY_ATTILA &&
-        game.key() != KEY_SHOGUN_2 {
-
-        let sub_start_pos_suffix = if sub_start_pos.is_empty() {
-            String::new()
-        } else {
-            format!("_{sub_start_pos}")
-        };
-
-        let starpos_path = game_data_path.join(format!("campaigns/{campaign_id}/startpos{sub_start_pos_suffix}.esf"));
-        if starpos_path.is_file() {
-            let starpos_path_bak = game_data_path.join(format!("campaigns/{campaign_id}/startpos{sub_start_pos_suffix}.esf.bak"));
-            std::fs::copy(&starpos_path, starpos_path_bak)?;
-            std::fs::remove_file(starpos_path)?;
-        }
-    }
-
-    // Same for the other two files, if we're generating them. We need to get the campaign name from the campaigns table first, then get the files generated.
-    if process_hlp_spd_data {
-        let map_names = dependencies.db_values_from_table_name_and_column_name_for_value(Some(pack_file), "campaigns_tables", "campaign_name", "map_name", true, true);
-        if let Some(map_name) = map_names.get(campaign_id) {
-            match game.key() {
-
-                // For generating the hlp data, from Warhammer 1 onwards the game outputs it to /data, which may not exists and may conflict with existing files.
-                //
-                // Create the folder just in case, and back any file found.
-                KEY_PHARAOH_DYNASTIES |
-                KEY_PHARAOH |
-                KEY_WARHAMMER_3 |
-                KEY_TROY |
-                KEY_THREE_KINGDOMS |
-                KEY_WARHAMMER_2 |
-                KEY_WARHAMMER => {
-                    let hlp_folder_path = game_data_path.join(format!("campaign_maps/{map_name}"));
-                    if !hlp_folder_path.is_dir() {
-                        DirBuilder::new().recursive(true).create(&hlp_folder_path)?;
-                    }
-
-                    let hlp_path = game_data_path.join(format!("campaign_maps/{map_name}/hlp_data.esf"));
-                    if hlp_path.is_file() {
-                        let hlp_path_bak = game_data_path.join(format!("campaign_maps/{map_name}/hlp_data.esf.bak"));
-                        std::fs::copy(&hlp_path, hlp_path_bak)?;
-                        std::fs::remove_file(hlp_path)?;
-                    }
-                },
-
-                // For Thrones and Attila is more tricky, because the game itself is bugged when processing this file.
-                //
-                // It's generated in the game's config folder, but we need to manually keep recreating the folder for a while because the game deletes it
-                // in the middle of the process and causes an error when trying to write the file. The way we do it is with a background thread
-                // that keeps recreating it every 100ms if it ever detects it's gone.
-                //
-                // Keep in mind this thread is kept alive for as long as the program runs unless it's intentionally stopped. So remember to stop it.
-                KEY_THRONES_OF_BRITANNIA |
-                KEY_ATTILA => {
-                    let folder_path = config_path.join(format!("maps/campaign_maps/{map_name}"));
-
-                    let (sender, receiver) = unbounded::<bool>();
-                    let join = thread::spawn(move || {
-                        loop {
-                            match receiver.try_recv() {
-                                Ok(stop) => if stop {
-                                    break;
-                                }
-                                Err(_) => {
-                                    if !folder_path.is_dir() {
-                                        let _ = DirBuilder::new().recursive(true).create(&folder_path);
-                                    }
-
-                                    thread::sleep(Duration::from_millis(100));
-                                }
-                            }
-                        }
-                    });
-
-                     *START_POS_WORKAROUND_THREAD.write().unwrap() = Some(vec![(sender, join)]);
-                },
-
-                // For rome 2 is a weird one. It generates the file in config (like Attila), but them moves it to /data (like Warhammer).
-                //
-                // So we need to first, ensure the config folder is created (it may not exists, but it's not deleted mid-process like in Attile)
-                // and it's empty, and then backup the hlp file, if exists, from /data.
-                KEY_ROME_2 => {
-                    let hlp_folder = game_data_path.join(format!("campaign_maps/{map_name}/"));
-                    if hlp_folder.is_dir() {
-                        let _ = DirBuilder::new().recursive(true).create(&hlp_folder);
-                    }
-
-                    let hlp_path = hlp_folder.join("hlp_data.esf");
-                    if hlp_path.is_file() {
-                        let hlp_path_bak = game_data_path.join(format!("campaign_maps/{map_name}/hlp_data.esf.bak"));
-                        std::fs::copy(&hlp_path, hlp_path_bak)?;
-                        std::fs::remove_file(hlp_path)?;
-                    }
-
-                }
-                KEY_SHOGUN_2 => return Err(anyhow!("Unsupported... yet. If you want to test support for this game, let me know.")),
-                KEY_NAPOLEON => return Err(anyhow!("Unsupported... yet. If you want to test support for this game, let me know.")),
-                KEY_EMPIRE => return Err(anyhow!("Unsupported... yet. If you want to test support for this game, let me know.")),
-                _ => return Err(anyhow!("How the fuck did you trigger this?")),
-            }
-
-            // This file is only from Warhammer 1 onwards. No need to check if the path exists because the hlp process should have created the folder.
-            if game.key() != KEY_THRONES_OF_BRITANNIA &&
-                game.key() != KEY_ATTILA &&
-                game.key() != KEY_ROME_2 &&
-                game.key() != KEY_SHOGUN_2 &&
-                game.key() != KEY_NAPOLEON &&
-                game.key() != KEY_EMPIRE {
-
-                let spd_path = game_data_path.join(format!("campaign_maps/{map_name}/spd_data.esf"));
-                if spd_path.is_file() {
-                    let spd_path_bak = game_data_path.join(format!("campaign_maps/{map_name}/spd_data.esf.bak"));
-                    std::fs::copy(&spd_path, spd_path_bak)?;
-                    std::fs::remove_file(spd_path)?;
-                }
-            }
-        }
-    }
-
-    // Then launch the game. 3K needs to be launched manually and in a blocking manner to make sure it does each pass it has to do correctly.
-    if game.key() == KEY_THREE_KINGDOMS {
-        let exe_path = game.executable_path(&game_path).ok_or_else(|| anyhow!("Game exe path not found."))?;
-        let exe_name = exe_path.file_name().ok_or_else(|| anyhow!("Game exe name not found."))?.to_string_lossy();
-
-        // NOTE: This uses a non-existant load order file on purpouse, so no mod in the load order interferes with generating the startpos.
-        let mut command = SystemCommand::new("cmd");
-        command.arg("/C");
-        command.arg("start");
-        command.arg("/wait");
-        command.arg("/d");
-        command.arg(game_path.to_string_lossy().replace('\\', "/"));
-        command.arg(exe_name.to_string());
-        command.arg("temp_file.txt;");
-
-        let _ = command.output()?;
-
-        // In multipass, we need to clean the user script after each pass.
-        let uspa = scripts_path.join(USER_SCRIPT_FILE_NAME);
-        let uspb = scripts_path.join(USER_SCRIPT_FILE_NAME.to_owned() + ".bak");
-        if uspb.is_file() {
-            std::fs::copy(uspb, uspa)?;
-        }
-
-        // If there's no backup, means there was no file to begin with, so we delete the custom file.
-        else if uspa.is_file() {
-            std::fs::remove_file(uspa)?;
-        }
-
-    // Rome 2 needs to be launched manually through the cmd with params. The rest can be launched through their regular launcher.
-    } else if game.key() == KEY_ROME_2 {
-        let exe_path = game.executable_path(&game_path).ok_or_else(|| anyhow!("Game exe path not found."))?;
-        let exe_name = exe_path.file_name().ok_or_else(|| anyhow!("Game exe name not found."))?.to_string_lossy();
-
-        // NOTE: This uses a non-existant load order file on purpouse, so no mod in the load order interferes with generating the startpos.
-        let mut command = SystemCommand::new("cmd");
-        command.arg("/C");
-        command.arg("start");
-        command.arg("/d");
-        command.arg(game_path.to_string_lossy().replace('\\', "/"));
-        command.arg(exe_name.to_string());
-        command.arg("temp_file.txt;");
-
-        // We need to turn the user script contents into a oneliner or the command will ignore it.
-        #[cfg(target_os = "windows")] {
-            use std::os::windows::process::CommandExt;
-
-            // Rome 2 needs the working_data folder in order to throw the startpos file there.
-            command.raw_arg(extra_folders);
-            command.raw_arg(user_script_contents.replace("\n", " "));
-        }
-
-        command.spawn()?;
-    } else {
-        match GAME_SELECTED.read().unwrap().game_launch_command(&SETTINGS.read().unwrap().path_buf(GAME_SELECTED.read().unwrap().key())) {
-            Ok(command) => { let _ = open::that(command); },
-            _ => return Err(anyhow!("The currently selected game cannot be launched from Steam.")),
-        }
-    }
-
-    Ok(())
-}
-
-fn build_starpos_post(dependencies: &Dependencies, pack_file: &mut Pack, campaign_id: &str, process_hlp_spd_data: bool, cleanup_mode: bool, sub_start_pos: &[String]) -> Result<Vec<ContainerPath>> {
-
-    let mut startpos_failed = false;
-    let mut sub_startpos_failed = vec![];
-    let mut hlp_failed = false;
-    let mut spd_failed = false;
-
-    // Before anything else, close the workaround thread.
-    if let Some(data) = START_POS_WORKAROUND_THREAD.write().unwrap().as_mut() {
-        let (sender, handle) = data.remove(0);
-        let _ = sender.send(true);
-        let _ = handle.join();
-    }
-
-    *START_POS_WORKAROUND_THREAD.write().unwrap() = None;
-
-    let game = GAME_SELECTED.read().unwrap();
-    let game_path = SETTINGS.read().unwrap().path_buf(game.key());
-
-    if !game_path.is_dir() {
-        return Err(anyhow!("Game path incorrect. Fix it in the settings and try again."));
-    }
-
-    let game_data_path = game.data_path(&game_path)?;
-
-    // Warhammer 3 doesn't use this folder.
-    if GAMES_NEEDING_VICTORY_OBJECTIVES.contains(&game.key()) {
-
-        // We need to delete the "data/campaign_id/" folder.
-        let mut game_campaign_path = game_data_path.to_path_buf();
-        game_campaign_path.push(campaign_id);
-        if game_campaign_path.is_dir() {
-            let _ = std::fs::remove_dir_all(game_campaign_path);
-        }
-    }
-
-    let config_path = game.config_path(&game_path).ok_or(anyhow!("Error getting the game's config path."))?;
-    let scripts_path = config_path.join("scripts");
-    if !scripts_path.is_dir() {
-        DirBuilder::new().recursive(true).create(&scripts_path)?;
-    }
-
-    // Restore the userscript backup, if any.
-    let uspa = scripts_path.join(USER_SCRIPT_FILE_NAME);
-    let uspb = scripts_path.join(USER_SCRIPT_FILE_NAME.to_owned() + ".bak");
-    if uspb.is_file() {
-        std::fs::copy(uspb, uspa)?;
-    }
-
-    // If there's no backup, means there was no file to begin with, so we delete the custom file.
-    else if uspa.is_file() {
-        std::fs::remove_file(uspa)?;
-    }
-
-    let mut added_paths = vec![];
-
-    // Add the starpos file. As some games have multiple startpos per campaign (3K) we return a vector with all the paths we have to generate.
-    let starpos_paths = match game.key() {
-        KEY_PHARAOH_DYNASTIES |
-        KEY_PHARAOH |
-        KEY_WARHAMMER_3 |
-        KEY_TROY |
-        KEY_THREE_KINGDOMS |
-        KEY_WARHAMMER_2 |
-        KEY_WARHAMMER => {
-            if sub_start_pos.is_empty() {
-                vec![game_data_path.join(format!("campaigns/{campaign_id}/startpos.esf"))]
-            } else {
-                let mut paths = vec![];
-                for sub in sub_start_pos {
-                    paths.push(game_data_path.join(format!("campaigns/{campaign_id}/startpos_{sub}.esf")));
-
-                }
-                paths
-            }
-        }
-        KEY_THRONES_OF_BRITANNIA |
-        KEY_ATTILA => vec![config_path.join(format!("maps/campaigns/{campaign_id}/startpos.esf"))],
-
-        // Rome 2 outputs the startpos in the assembly kit folder.
-        KEY_ROME_2 => {
-            let asskit_path = SETTINGS.read().unwrap().path_buf(&(game.key().to_owned() + "_assembly_kit"));
-            if !asskit_path.is_dir() {
-                return Err(anyhow!("Assembly Kit path incorrect. Fix it in the settings and try again."));
-            }
-
-            vec![asskit_path.join(format!("working_data/campaigns/{campaign_id}/startpos.esf"))]
-        },
-
-        // Shogun 2 outputs to data, but unlike modern names, vanilla startpos are packed, so there's no rist of overwrite.
-        // We still need to clean it up later though. Napoleon and Empire override vanilla files, so those are backed.
-        KEY_SHOGUN_2 |
-        KEY_NAPOLEON |
-        KEY_EMPIRE => vec![game_data_path.join(format!("campaigns/{campaign_id}/startpos.esf"))],
-        _ => return Err(anyhow!("How the fuck did you trigger this?")),
-    };
-
-    let starpos_paths_pack = if sub_start_pos.is_empty() {
-        vec![format!("campaigns/{}/startpos.esf", campaign_id)]
-    } else {
-        let mut paths = vec![];
-        for sub in sub_start_pos {
-            paths.push(format!("campaigns/{campaign_id}/startpos_{sub}.esf"));
-        }
-        paths
-    };
-
-    if !cleanup_mode {
-        for (index, starpos_path) in starpos_paths.iter().enumerate() {
-            if !starpos_path.is_file() {
-                if sub_start_pos.is_empty() {
-                    startpos_failed = true;
-                } else {
-                    sub_startpos_failed.push(sub_start_pos[index].to_owned());
-                }
-            } else {
-
-                let mut rfile = RFile::new_from_file_path(starpos_path)?;
-                rfile.set_path_in_container_raw(&starpos_paths_pack[index]);
-                rfile.load()?;
-                rfile.guess_file_type()?;
-
-                added_paths.push(pack_file.insert(rfile).map(|x| x.unwrap())?);
-            }
-        }
-    }
-
-    // Restore the old starpos if there was one, and delete the new one if it has already been added.
-    //
-    // Only needed from Warhammer 1 onwards, and for Rome 2, Napoleon and Empire. Other games generate the startpos outside that folder.
-    //
-    // 3K uses 2 startpos, so we need to restore them both.
-    if game.key() != KEY_THRONES_OF_BRITANNIA &&
-        game.key() != KEY_ATTILA &&
-        game.key() != KEY_SHOGUN_2 {
-
-        for starpos_path in &starpos_paths {
-            let file_name = starpos_path.file_name().unwrap().to_string_lossy().to_string();
-            let file_name_bak = file_name + ".bak";
-
-            let mut starpos_path_bak = starpos_path.to_path_buf();
-            starpos_path_bak.set_file_name(file_name_bak);
-
-            if starpos_path_bak.is_file() {
-                std::fs::copy(&starpos_path_bak, starpos_path)?;
-                std::fs::remove_file(starpos_path_bak)?;
-            }
-        }
-    }
-
-    // In Shogun 2, we need to cleanup the generated file as to not interfere with the packed one.
-    if game.key() == KEY_SHOGUN_2 {
-        for starpos_path in &starpos_paths {
-            if starpos_path.is_file() {
-                std::fs::remove_file(starpos_path)?;
-            }
-        }
-    }
-
-    // Same with the other two files.
-    if process_hlp_spd_data {
-        let map_names = dependencies.db_values_from_table_name_and_column_name_for_value(Some(pack_file), "campaigns_tables", "campaign_name", "map_name", true, true);
-        if let Some(map_name) = map_names.get(campaign_id) {
-
-            // Same as with startpos. It's different depending on the game.
-            let hlp_path = match game.key() {
-                KEY_PHARAOH_DYNASTIES |
-                KEY_PHARAOH |
-                KEY_WARHAMMER_3 |
-                KEY_TROY |
-                KEY_THREE_KINGDOMS |
-                KEY_WARHAMMER_2 |
-                KEY_WARHAMMER => game_data_path.join(format!("campaign_maps/{map_name}/hlp_data.esf")),
-                KEY_THRONES_OF_BRITANNIA |
-                KEY_ATTILA => config_path.join(format!("maps/campaign_maps/{map_name}/hlp_data.esf")),
-                KEY_ROME_2 => game_data_path.join(format!("campaign_maps/{map_name}/hlp_data.esf")),
-                _ => return Err(anyhow!("How the fuck did you trigger this?")),
-            };
-
-            let hlp_path_pack = format!("campaign_maps/{map_name}/hlp_data.esf");
-
-            if !cleanup_mode {
-
-                if !hlp_path.is_file() {
-                    hlp_failed = true;
-                } else {
-
-                    let mut rfile_hlp = RFile::new_from_file_path(&hlp_path)?;
-                    rfile_hlp.set_path_in_container_raw(&hlp_path_pack);
-                    rfile_hlp.load()?;
-                    rfile_hlp.guess_file_type()?;
-
-                    added_paths.push(pack_file.insert(rfile_hlp).map(|x| x.unwrap())?);
-                }
-            }
-
-            // Only needed from Warhammer 1 onwards, and in Rome 2. Other games generate the hlp file outside that folder.
-            if game.key() != KEY_THRONES_OF_BRITANNIA &&
-                game.key() != KEY_ATTILA {
-
-                let hlp_path_bak = game_data_path.join(format!("campaign_maps/{map_name}/hlp_data.esf.bak"));
-
-                if hlp_path_bak.is_file() {
-                    std::fs::copy(&hlp_path_bak, hlp_path)?;
-                    std::fs::remove_file(hlp_path_bak)?;
-                }
-            }
-
-            // The spd file was introduced in Warhammer 1. Don't expect it on older games.
-            if game.key() != KEY_THRONES_OF_BRITANNIA &&
-                game.key() != KEY_ATTILA &&
-                game.key() != KEY_ROME_2 {
-
-                let spd_path = game_data_path.join(format!("campaign_maps/{map_name}/spd_data.esf"));
-                let spd_path_pack = format!("campaign_maps/{map_name}/spd_data.esf");
-
-                if !cleanup_mode {
-
-                    if !spd_path.is_file() {
-                        spd_failed = true;
-                    } else {
-
-                        let mut rfile_spd = RFile::new_from_file_path(&spd_path)?;
-                        rfile_spd.set_path_in_container_raw(&spd_path_pack);
-                        rfile_spd.load()?;
-                        rfile_spd.guess_file_type()?;
-
-                        added_paths.push(pack_file.insert(rfile_spd).map(|x| x.unwrap())?);
-                    }
-                }
-
-                let spd_path_bak = game_data_path.join(format!("campaign_maps/{map_name}/spd_data.esf.bak"));
-                if spd_path_bak.is_file() {
-                    std::fs::copy(&spd_path_bak, spd_path)?;
-                    std::fs::remove_file(spd_path_bak)?;
-                }
-            }
-        }
-    }
-
-    let mut error = String::new();
-    if startpos_failed || (!sub_start_pos.is_empty() && !sub_startpos_failed.is_empty()) || hlp_failed || spd_failed {
-        error.push_str("<p>One or more files failed to generate:</p><ul>")
-    }
-    if startpos_failed {
-        error.push_str("<li>Startpos file failed to generate.</li>");
-    }
-
-    for sub_failed in &sub_startpos_failed {
-        error.push_str(&format!("<li>\"{sub_failed}\" Startpos file failed to generate.</li>"));
-    }
-
-    if hlp_failed {
-        error.push_str("<li>HLP file failed to generate.</li>");
-    }
-
-    if spd_failed {
-        error.push_str("<li>SPD file failed to generate.</li>");
-    }
-
-    if startpos_failed || hlp_failed || spd_failed {
-        error.push_str("</ul><p>No files were added and the related files were restored to their pre-build state. Check your tables are correct before trying to generate them again.</p>")
-    }
-
-    if error.is_empty() {
-        Ok(added_paths)
-    } else {
-        Err(anyhow!(error))
     }
 }
 
@@ -3109,60 +2479,6 @@ fn load_schemas(sender: &Sender<Response>, pack: &mut Pack, game: &GameInfo) {
     // Send a response, so the UI continues working while we finish things here.
     info!("Sending success after game selected change.");
     CentralCommand::send_back(sender, Response::Success);
-}
-
-/// Function to simplify logic for changing game selected.
-fn add_tile_maps_and_tiles(pack: &mut Pack, dependencies: &mut Dependencies, schema: &Schema, tile_maps: Vec<PathBuf>, tiles: Vec<(PathBuf, String)>) -> Result<(Vec<ContainerPath>, Vec<ContainerPath>)> {
-    let mut added_paths = vec![];
-
-    // Tile Maps are from assembly_kit/working_data/terrain/battles/.
-    for tile_map in &tile_maps {
-        added_paths.append(&mut pack.insert_folder(tile_map, "terrain/battles", &None, &None, true)?);
-    }
-
-    // Tiles are from assembly_kit/working_data/terrain/tiles/battle/, and can be in a subfolder if they're part of a tileset.
-    for (tile, subpath) in &tiles {
-
-        let (internal_path, needs_tile_database) = if subpath.is_empty() {
-            ("terrain/tiles/battle".to_owned(), false)
-        } else {
-            (format!("terrain/tiles/battle/{}", subpath.replace('\\', "/")), true)
-        };
-        added_paths.append(&mut pack.insert_folder(tile, &internal_path, &None, &None, true)?);
-
-        // If it's part of a tile set, we need to add the relevant tile database file for the tileset or the map will load as blank ingame.
-        if needs_tile_database {
-
-            // We only need the database for out map, not the full database folder.
-            let subpath_len = subpath.replace('\\', "/").split('/').count();
-            let mut tile_database = tile.to_path_buf();
-
-            (0..=subpath_len).for_each(|_| {
-                tile_database.pop();
-            });
-
-            let file_name = format!("{}_{}.bin", subpath.replace('/', "_"), tile.file_name().unwrap().to_string_lossy());
-            tile_database.push(format!("_tile_database/TILES/{file_name}"));
-            let tile_database_path = format!("terrain/tiles/battle/_tile_database/TILES/{file_name}");
-
-            added_paths.push(pack.insert_file(&tile_database, &tile_database_path, &None)?.unwrap());
-        }
-    }
-
-    // TODO: DO NOT CALL QT ON BACKEND.
-    let options = init_optimizer_options();
-    let game_info = GAME_SELECTED.read().unwrap();
-    let (paths_to_delete, paths_to_add) = pack.optimize(Some(added_paths.clone()), dependencies, schema, &game_info, &options)?;
-
-    let paths_to_delete = paths_to_delete.iter()
-        .map(|path| ContainerPath::File(path.to_string()))
-        .collect::<Vec<_>>();
-
-    added_paths.extend(paths_to_add.into_iter()
-        .map(|path| ContainerPath::File(path.to_string()))
-        .collect::<Vec<_>>());
-
-    Ok((added_paths, paths_to_delete))
 }
 
 fn decode_and_send_file(file: &mut RFile, sender: &Sender<Response>) {
