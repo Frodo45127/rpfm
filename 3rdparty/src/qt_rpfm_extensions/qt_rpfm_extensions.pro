@@ -15,7 +15,7 @@ TEMPLATE = lib
 
 # We only want the release version, as this lib is not going to get "advanced" stuff.
 # In case you want to build the debug version, change the following line, removing the "release".
-CONFIG += staticlib release
+CONFIG += staticlib debug
 
 DEFINES += QT_RPFM_EXTENSIONS_LIBRARY
 
@@ -110,6 +110,9 @@ windows {
 }
 
 unix {
+
+    # Make sure clang is used for compilation. Otherwise RPFM will fail to link.
+    QMAKE_CC = clang
 
     # For some reason, these flags fuck up compilation on windows, so we leave them linux only.
     QMAKE_CXXFLAGS = -Wl,-rpath='${ORIGIN}'

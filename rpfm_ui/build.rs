@@ -204,7 +204,14 @@ fn common_config() {
     println!("cargo:rerun-if-changed=./rpfm_ui/build.rs");
 
     // This creates the makefile for the custom widget lib.
-    match Command::new("qmake")
+    let mut qmake = Command::new("qmake");
+    if cfg!(debug_assertions) {
+        qmake.arg("CONFIG+=debug");
+    } else {
+        qmake.arg("CONFIG+=release");
+    }
+
+    match qmake
         .arg("-o")
         .arg("Makefile")
         .arg("qt_rpfm_extensions.pro")
