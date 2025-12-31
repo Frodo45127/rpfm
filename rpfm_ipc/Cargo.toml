@@ -1,0 +1,21 @@
+[package]
+name = "rpfm_ipc"
+version.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+edition.workspace = true
+
+[dependencies]
+# Internal dependencies.
+rpfm_lib = { workspace = true, features = ["integration_log", "integration_git", "integration_assembly_kit", "support_error_bincode"] }
+rpfm_extensions.workspace = true
+
+# Serialization support.
+serde.workspace = true
+serde_derive.workspace = true
+
+# Multithreaded iterator support.
+rayon.workspace = true
+
+# Basic get/set support.
+getset.workspace = true

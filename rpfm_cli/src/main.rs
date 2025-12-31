@@ -14,11 +14,10 @@
 
 use anyhow::Result;
 use clap::Parser;
-use lazy_static::lazy_static;
 
 use std::path::PathBuf;
 use std::process::exit;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, LazyLock, RwLock};
 
 use rpfm_lib::integrations::log::*;
 
@@ -30,14 +29,11 @@ mod commands;
 mod config;
 
 // Statics, so we don't need to pass them everywhere to use them.
-lazy_static! {
-
-    /// Sentry client guard, so we can reuse it later on and keep it in scope for the entire duration of the program.
-    static ref SENTRY_GUARD: Arc<RwLock<ClientInitGuard>> = Arc::new(RwLock::new(Logger::init(&{
-        init_config_path().expect("Error while trying to initialize config path. We're fucked.");
-        error_path().unwrap_or_else(|_| PathBuf::from("."))
-    }, true, true, release_name!()).unwrap()));
-}
+/// Sentry client guard, so we can reuse it later on and keep it in scope for the entire duration of the program.
+static SENTRY_GUARD: LazyLock<Arc<RwLock<ClientInitGuard>>> = LazyLock::new(|| Arc::new(RwLock::new(Logger::init(&{
+    init_config_path().expect("Error while trying to initialize config path. We're fucked.");
+    error_path().unwrap_or_else(|_| PathBuf::from("."))
+}, true, true, release_name!()).unwrap())));
 
 const SENTRY_DSN_KEY: &str = "https://1bee0e6bab154cd988b309096df932b8@o152833.ingest.sentry.io/4504850526699520";
 

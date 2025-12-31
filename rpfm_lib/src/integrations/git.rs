@@ -11,6 +11,7 @@
 //! This module contains the code for the limited Git support.
 
 use git2::{Reference, ReferenceFormat, Repository, Signature, StashFlags, build::CheckoutBuilder};
+use serde::{Deserialize, Serialize};
 
 use std::fs::{DirBuilder, File};
 use std::io::{BufWriter, Write};
@@ -41,7 +42,7 @@ pub struct GitIntegration {
 }
 
 /// Possible responses we can get from a fetch/pull.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum GitResponse {
     NewUpdate,
     NoUpdate,

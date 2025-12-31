@@ -27,8 +27,9 @@
     clippy::upper_case_acronyms,
 )]
 
-use lazy_static::*;
 use regex::Regex;
+
+use std::sync::LazyLock;
 
 pub mod binary;
 pub mod compression;
@@ -43,11 +44,8 @@ pub mod utils;
 
 #[cfg(test)] mod utils_test;
 
-lazy_static! {
+/// Regex to find if a path belongs to a db table.
+pub static REGEX_DB: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"db/[^/]+_tables/[^/]+$").unwrap());
 
-    /// Regex to find if a path belongs to a db table.
-    pub static ref REGEX_DB: Regex = Regex::new(r"db/[^/]+_tables/[^/]+$").unwrap();
-
-    /// Regex to find if a path belongs to a portrait settings file.
-    pub static ref REGEX_PORTRAIT_SETTINGS: Regex = Regex::new(r".*portrait_settings\S*\.bin$").unwrap();
-}
+/// Regex to find if a path belongs to a portrait settings file.
+pub static REGEX_PORTRAIT_SETTINGS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r".*portrait_settings\S*\.bin$").unwrap());

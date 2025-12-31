@@ -16,26 +16,24 @@ rust-version.workspace = true
 [dependencies]
 
 # Internal dependencies.
-rpfm_lib = { path = "../rpfm_lib", version = "4.7.3", features = ["integration_log", "integration_git"] }
-rpfm_extensions = { path = "../rpfm_extensions", version = "4.7.3" }
+rpfm_lib = { workspace = true, features = ["integration_log", "integration_git"] }
+rpfm_extensions = { workspace = true }
 
 # Error managing.
-anyhow = "1.0"
+anyhow.workspace = true
 
 # Config dependencies.
-directories = "^6.0"
-lazy_static = "^1.2"
+directories.workspace = true
 
 # CLI parsing, formatting and color support.
 clap = { version = "^4", features = ["derive", "wrap_help"] }
 
 # Serialize support.
-serde = "^1.0"
-csv = "^1.1"
+csv.workspace = true
 
 # Multithread iterator support.
-rayon = "^1.3"
+rayon.workspace = true
 
 # Windows resources support.
 [target.'cfg(windows)'.build-dependencies]
-winres = "^0.1"
+winres.workspace = true

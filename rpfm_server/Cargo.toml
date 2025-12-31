@@ -1,0 +1,51 @@
+[package]
+name = "rpfm_server"
+
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+
+# Network comms.
+axum = { version = "0.7", features = ["ws"] }
+tokio.workspace = true
+futures.workspace = true
+
+# Logging and tracing.
+tracing-subscriber = "0.3"
+
+# Error management.
+anyhow.workspace = true
+
+# Internal dependencies.
+rpfm_lib = { workspace = true, features = ["integration_log", "integration_git", "integration_assembly_kit", "support_error_bincode"] }
+rpfm_extensions.workspace = true
+rpfm_ipc.workspace = true
+
+# Multithreaded iterator support.
+rayon.workspace = true
+itertools.workspace = true
+
+# Support for opening files.
+open.workspace = true
+
+# Self update support.
+self_update.workspace = true
+tempfile.workspace = true
+zip-extract.workspace = true
+reqwest.workspace = true
+
+# Config support.
+directories.workspace = true
+
+# Serialization support.
+serde.workspace = true
+serde_json.workspace = true
+serde_derive.workspace = true
+ron.workspace = true
+
+# Windows resources support.
+[target.'cfg(windows)'.build-dependencies]
+winres.workspace = true

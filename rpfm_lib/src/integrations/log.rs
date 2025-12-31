@@ -20,7 +20,6 @@ Otherwise, none of them will work.
 !*/
 
 use backtrace::Backtrace;
-use lazy_static::lazy_static;
 pub use log::{error, info, warn};
 pub use sentry::{ClientInitGuard, Envelope, integrations::log::SentryLogger, protocol::*, release_name, end_session, end_session_with_status};
 use serde_derive::Serialize;
@@ -31,7 +30,7 @@ use std::fs::{DirBuilder, File};
 use std::io::{BufWriter, Write};
 use std::{panic, panic::PanicHookInfo};
 use std::path::Path;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, LazyLock, RwLock};
 
 use crate::error::Result;
 use crate::utils::current_time;
@@ -39,11 +38,8 @@ use crate::utils::current_time;
 /// Current version of the crate.
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-lazy_static! {
-
-    /// This is the DSN needed for Sentry reports to work. Don't change it.
-    pub static ref SENTRY_DSN: Arc<RwLock<String>> = Arc::new(RwLock::new(String::new()));
-}
+/// This is the DSN needed for Sentry reports to work. Don't change it.
+pub static SENTRY_DSN: LazyLock<Arc<RwLock<String>>> = LazyLock::new(|| Arc::new(RwLock::new(String::new())));
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
