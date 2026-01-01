@@ -32,14 +32,14 @@ use getset::Getters;
 
 use std::rc::Rc;
 
-use rpfm_ui_common::locale::{qtr, tr};
-use rpfm_ui_common::SETTINGS;
+use rpfm_ipc::MYMOD_BASE_PATH;
+
 use rpfm_ui_common::utils::{find_widget, load_template};
 
 use crate::app_ui::AppUI;
 use crate::ffi::*;
 use crate::GAME_SELECTED;
-use crate::settings_ui::backend::*;
+use crate::settings_helpers::settings_path_buf;
 use crate::SUPPORTED_GAMES;
 use crate::utils::*;
 
@@ -226,7 +226,7 @@ impl MyModUI {
         let mod_game = game.replace(' ', "_").to_lowercase();
 
         // If we have "MyMod" path configured (we SHOULD have it to access this window, but just in case...).
-        let mut mod_path = SETTINGS.read().unwrap().path_buf(MYMOD_BASE_PATH);
+        let mut mod_path = settings_path_buf(MYMOD_BASE_PATH);
         if mod_path.is_dir() {
 
             if mod_name.contains(' ') {

@@ -39,16 +39,16 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::rc::Rc;
 
+use rpfm_ipc::helpers::DataSource;
+
 use rpfm_lib::files::ContainerPath;
 
-use rpfm_ui_common::locale::qtr;
-use rpfm_ui_common::utils::*;
+use rpfm_ui_common::utils::{find_widget, load_template};
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi::*;
-use crate::packedfile_views::DataSource;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::UI_STATE;
@@ -219,7 +219,7 @@ impl DependenciesUI {
     pub unsafe fn import_dependencies(&self, paths_by_source: BTreeMap<DataSource, Vec<ContainerPath>>, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
         app_ui.toggle_main_window(false);
 
-        let receiver = CENTRAL_COMMAND.send_background(Command::ImportDependenciesToOpenPackFile(paths_by_source));
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::ImportDependenciesToOpenPackFile(paths_by_source));
         let response1 = CentralCommand::recv(&receiver);
         let response2 = CentralCommand::recv(&receiver);
         match response1 {
@@ -281,9 +281,9 @@ impl DependenciesUI {
             PathBuf::from(extraction_path.to_std_string())
         } else { return };
 
-        let receiver = CENTRAL_COMMAND.send_background(Command::ExtractPackedFiles(paths_by_source, extraction_path, true));
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::ExtractPackedFiles(paths_by_source, extraction_path, true));
         app_ui.toggle_main_window(false);
-        let response = CENTRAL_COMMAND.recv_try(&receiver);
+        let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
         match response {
             Response::StringVecPathBuf(result, _) => show_message_info(app_ui.message_widget(), result),
             Response::Error(error) => show_dialog(app_ui.main_window(), error, false),

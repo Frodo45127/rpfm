@@ -56,7 +56,6 @@ use std::sync::{Arc, RwLock};
 
 use rpfm_lib::files::{ContainerPath, FileType, portrait_settings::*, RFile, RFileDecoded};
 
-use rpfm_ui_common::locale::{qtr, tr};
 use rpfm_ui_common::utils::*;
 
 use crate::app_ui::AppUI;
@@ -815,8 +814,8 @@ impl PortraitSettingsView {
 
         // Do not bother doing this if we have no paths.
         if search {
-            let receiver = CENTRAL_COMMAND.send_background(Command::GetRFilesFromAllSources(paths, false));
-            let response = CENTRAL_COMMAND.recv_try(&receiver);
+            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetRFilesFromAllSources(paths, false));
+            let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
             match response {
                 Response::HashMapDataSourceHashMapStringRFile(mut files) => {
                     let diffuse_loaded = Self::load_variant_image_to_label(diffuse, &self.diffuse_label, &mut files);

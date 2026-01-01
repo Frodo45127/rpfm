@@ -80,6 +80,8 @@ use std::rc::Rc;
 
 use rpfm_extensions::dependencies::{KEY_DELETES_TABLE_NAME, TableReferences};
 
+use rpfm_ipc::helpers::DataSource;
+
 use rpfm_lib::files::{ContainerPath, FileType, db::DB, loc::Loc, table::{*, local::TableInMemory}};
 use rpfm_lib::games::supported_games::KEY_WARHAMMER_3;
 use rpfm_lib::integrations::log::error;
@@ -87,9 +89,7 @@ use rpfm_lib::schema::{Definition, Field, FieldType, Schema};
 
 use rpfm_ui_common::ASSETS_PATH;
 use rpfm_ui_common::clone;
-use rpfm_ui_common::locale::{qtr, qtre, tr};
-use rpfm_ui_common::SETTINGS;
-use rpfm_ui_common::utils::*;
+use rpfm_ui_common::utils::{atomic_from_ptr, create_grid_layout, find_widget, ptr_from_atomic, ref_from_atomic};
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
@@ -100,14 +100,14 @@ use crate::GAME_SELECTED;
 use crate::ffi::*;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::packedfile_views::{DataSource, utils::set_modified, View, ViewType};
+use crate::packedfile_views::{utils::set_modified, View, ViewType};
 use crate::pack_tree::*;
 use crate::QVARIANT_FALSE;
 use crate::QVARIANT_TRUE;
 use crate::references_ui::ReferencesUI;
-use crate::settings_ui::backend::*;
 use crate::SCHEMA;
 use crate::UI_STATE;
+use crate::settings_helpers::*;
 use crate::utils::*;
 
 use self::filter::*;
@@ -375,12 +375,12 @@ impl TableView {
         table_view.set_model(&table_filter);
 
         // Make the last column fill all the available space, if the setting says so.
-        if SETTINGS.read().unwrap().bool("extend_last_column_on_tables") {
+        if settings_bool("extend_last_column_on_tables") {
             table_view.horizontal_header().set_stretch_last_section(true);
         }
 
         // Setup tight mode if the setting is enabled.
-        if SETTINGS.read().unwrap().bool("tight_table_mode") {
+        if settings_bool("tight_table_mode") {
             table_view.vertical_header().set_minimum_section_size(22);
             table_view.vertical_header().set_maximum_section_size(22);
             table_view.vertical_header().set_default_section_size(22);
@@ -516,7 +516,7 @@ impl TableView {
         search_column_selector.set_model(&search_column_list);
         search_column_selector.add_item_q_string(&QString::from_std_str("* (All Columns)"));
 
-        let fields = table_definition.fields_processed_sorted(SETTINGS.read().unwrap().bool("tables_use_old_column_order"));
+        let fields = table_definition.fields_processed_sorted(settings_bool("tables_use_old_column_order"));
         for column in &fields {
             search_column_selector.add_item_q_string(&QString::from_std_str(utils::clean_column_names(column.name())));
         }
@@ -978,7 +978,7 @@ impl TableView {
             filter.column_combobox().model().block_signals(true);
             filter.column_combobox().clear();
 
-            for column in self.table_definition.read().unwrap().fields_processed_sorted(SETTINGS.read().unwrap().bool("tables_use_old_column_order")) {
+            for column in self.table_definition.read().unwrap().fields_processed_sorted(settings_bool("tables_use_old_column_order")) {
                 let name = QString::from_std_str(utils::clean_column_names(column.name()));
                 filter.column_combobox().add_item_q_string(&name);
             }
@@ -991,8 +991,8 @@ impl TableView {
         }
 
         // Reset this setting so the last column gets resized properly.
-        table_view.horizontal_header().set_stretch_last_section(!SETTINGS.read().unwrap().bool("extend_last_column_on_tables"));
-        table_view.horizontal_header().set_stretch_last_section(SETTINGS.read().unwrap().bool("extend_last_column_on_tables"));
+        table_view.horizontal_header().set_stretch_last_section(!settings_bool("extend_last_column_on_tables"));
+        table_view.horizontal_header().set_stretch_last_section(settings_bool("extend_last_column_on_tables"));
     }
 
     /// This function returns a reference to the StandardItemModel widget.
@@ -1175,7 +1175,7 @@ impl TableView {
     pub unsafe fn update_key_deletes_list(view: &Arc<Self>, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
 
         // The add to key deletes menu works a bit different. Must be enabled only in supported games, regardless of pack source.
-        let receiver = CENTRAL_COMMAND.send_background(Command::GetTablesByTableName(KEY_DELETES_TABLE_NAME.to_owned()));
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetTablesByTableName(KEY_DELETES_TABLE_NAME.to_owned()));
         let response = CentralCommand::recv(&receiver);
         match response {
             Response::VecString(paths) => {
@@ -1253,7 +1253,7 @@ impl TableView {
         table.set_data(&table_in_memory.data())?;
         table.generate_twad_key_deletes_keys(&mut keys);
 
-        let receiver = CENTRAL_COMMAND.send_background(Command::AddKeysToKeyDeletes(file_name.to_string(), table_name, keys));
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::AddKeysToKeyDeletes(file_name.to_string(), table_name, keys));
         let response = CentralCommand::recv(&receiver);
         match response {
             Response::OptionContainerPath(path) => {
@@ -1278,7 +1278,7 @@ impl TableView {
 
                 Ok(())
             },
-            Response::Error(error) => Err(error),
+            Response::Error(error) => Err(anyhow!(error)),
             _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
         }
     }
@@ -2793,7 +2793,7 @@ impl TableView {
             let field = &fields_processed[item.column() as usize];
 
             // Update the lookup data while the model is blocked.
-            if SETTINGS.read().unwrap().bool("enable_lookups") {
+            if settings_bool("enable_lookups") {
                 let dependency_data = self.dependency_data.read().unwrap();
                 if let Some(column_data) = dependency_data.get(&item.column()) {
                     match column_data.data().get(&item.text().to_std_string()) {
@@ -2836,7 +2836,7 @@ impl TableView {
             }
 
             // If the edited column has icons we need to fetch the new icon from the backend and apply it.
-            if SETTINGS.read().unwrap().bool("enable_icons") && field.is_filename(patches) {
+            if settings_bool("enable_icons") && field.is_filename(patches) {
                 let mut icons = BTreeMap::new();
                 let data = vec![vec![get_field_from_view(&self.table_model.static_upcast(), field, item.row(), item.column())]];
 
@@ -2896,7 +2896,7 @@ impl TableView {
             }
         }
 
-        if SETTINGS.read().unwrap().bool("table_resize_on_edit") {
+        if settings_bool("table_resize_on_edit") {
             self.table_view.horizontal_header().resize_sections(ResizeMode::ResizeToContents);
         }
 
@@ -3028,7 +3028,7 @@ impl TableView {
                 (fields_processed[*column as usize].clone(), value_before.to_string(), value_after.to_string()))
                 .collect::<Vec<_>>();
 
-            let receiver = CENTRAL_COMMAND.send_background(Command::CascadeEdition(table_name, definition, changes));
+            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::CascadeEdition(table_name, definition, changes));
             let response = CentralCommand::recv(&receiver);
             match response {
                 Response::VecContainerPathVecRFileInfo(edited_paths, packed_files_info) => {
@@ -3167,7 +3167,7 @@ impl TableView {
         button_box.button(StandardButton::RestoreDefaults).released().connect(&SlotNoArgs::new(self.table_view(), clone!(
             dialog,
             edited_table_name => move || {
-                let receiver = CENTRAL_COMMAND.send_background(Command::RemoveLocalSchemaPatchesForTable(edited_table_name.to_owned()));
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::RemoveLocalSchemaPatchesForTable(edited_table_name.to_owned()));
                 let response = CentralCommand::recv(&receiver);
                 match response {
                     Response::Success => show_dialog(&dialog, tr("patch_removed_table"), true),
@@ -3183,7 +3183,7 @@ impl TableView {
             dialog,
             field,
             edited_table_name => move || {
-                let receiver = CENTRAL_COMMAND.send_background(Command::RemoveLocalSchemaPatchesForTableAndField(edited_table_name.to_owned(), field.name().to_owned()));
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::RemoveLocalSchemaPatchesForTableAndField(edited_table_name.to_owned(), field.name().to_owned()));
                 let response = CentralCommand::recv(&receiver);
                 match response {
                     Response::Success => show_dialog(&dialog, tr("patch_removed_column"), true),
@@ -3301,11 +3301,11 @@ impl TableView {
             table_data.insert(field.name().to_owned(), column_data);
             patch.insert(edited_table_name.to_owned(), table_data);
 
-            let receiver = CENTRAL_COMMAND.send_background(Command::SaveLocalSchemaPatch(patch));
+            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SaveLocalSchemaPatch(patch));
             let response = CentralCommand::recv(&receiver);
             match response {
                 Response::Success => show_dialog(self.table_view(), tr("patch_success"), true),
-                Response::Error(error) => return Err(error),
+                Response::Error(error) => return Err(anyhow!(error)),
                 _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
             }
         }
@@ -3390,8 +3390,8 @@ impl TableView {
                 FileType::Loc => {
                     let index_row = self.table_filter.map_to_source(self.table_view.selection_model().selection().indexes().at(0)).row();
                     let key = self.table_model.index_2a(index_row, 0).data_0a().to_string().to_std_string();
-                    let receiver = CENTRAL_COMMAND.send_background(Command::GetSourceDataFromLocKey(key));
-                    let response = CENTRAL_COMMAND.recv_try(&receiver);
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetSourceDataFromLocKey(key));
+                    let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
                     match response {
                         Response::OptionStringStringVecString(response) => response,
                         _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
@@ -3411,8 +3411,8 @@ impl TableView {
                 });
 
                 // Then ask the backend to do the heavy work.
-                let receiver = CENTRAL_COMMAND.send_background(Command::GoToDefinition(ref_table, ref_column, ref_data));
-                let response = CENTRAL_COMMAND.recv_try(&receiver);
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GoToDefinition(ref_table, ref_column, ref_data));
+                let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
                 match response {
 
                     // We receive a path/column/row, so we know what to open/select.
@@ -3531,7 +3531,7 @@ impl TableView {
                 if !paths.is_empty() {
 
                     // Ask the backend to know what paths we have as files.
-                    let receiver = CENTRAL_COMMAND.send_background(Command::GetRFilesFromAllSources(paths.clone(), true));
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetRFilesFromAllSources(paths.clone(), true));
                     let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::HashMapDataSourceHashMapStringRFile(mut files) => {
@@ -3661,8 +3661,8 @@ impl TableView {
                 let loc_key = format!("{table_name}_{loc_column_name}_{key}");
 
                 // Then ask the backend to do the heavy work.
-                let receiver = CENTRAL_COMMAND.send_background(Command::GoToLoc(loc_key));
-                let response = CENTRAL_COMMAND.recv_try(&receiver);
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GoToLoc(loc_key));
+                let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
                 match response {
 
                     // We receive a path/column/row, so we know what to open/select.

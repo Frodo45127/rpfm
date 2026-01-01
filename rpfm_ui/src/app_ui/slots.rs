@@ -45,19 +45,19 @@ use std::fs::{copy, remove_file, remove_dir_all};
 use std::path::PathBuf;
 use std::rc::Rc;
 
+use rpfm_ipc::MYMOD_BASE_PATH;
+use rpfm_ipc::SECONDARY_PATH;
+use rpfm_ipc::helpers::{ContainerInfo, DataSource};
+
 use rpfm_lib::compression::CompressionFormat;
 use rpfm_lib::files::{ContainerPath, pack::RESERVED_NAME_NOTES, table::Table};
 use rpfm_lib::games::{pfh_file_type::PFHFileType, supported_games::*};
 use rpfm_lib::integrations::log::*;
 
 use rpfm_ui_common::clone;
-use rpfm_ui_common::locale::{qtr, tr, tre};
-use rpfm_ui_common::SETTINGS;
-use rpfm_ui_common::settings::config_path;
-use rpfm_ui_common::utils::*;
+use rpfm_ui_common::utils::{create_grid_layout, ref_from_atomic};
 
 use crate::app_ui::AppUI;
-use crate::backend::*;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, THREADS_COMMUNICATION_ERROR, Command, Response};
 use crate::dependencies_ui::DependenciesUI;
@@ -70,11 +70,12 @@ use crate::MANUAL_URL;
 use crate::mymod_ui::MyModUI;
 use crate::NEW_FILE_VIEW_CREATED;
 use crate::pack_tree::*;
-use crate::packedfile_views::{DataSource, View, ViewType};
+use crate::packedfile_views::{View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::PATREON_URL;
 use crate::references_ui::ReferencesUI;
-use crate::settings_ui::{backend::*, SettingsUI};
+use crate::settings_helpers::*;
+use crate::settings_ui::SettingsUI;
 #[cfg(feature = "enable_tools")]use crate::tools::{faction_painter::ToolFactionPainter, translator::ToolTranslator, unit_editor::ToolUnitEditor};
 use crate::ui::GameSelectedIcons;
 use crate::updater_ui::UpdaterUI;
@@ -240,7 +241,7 @@ impl AppUISlots {
             diagnostics_ui => move || {
                 info!("Triggering `Open PackFile Menu` By Slot");
 
-                let receiver = CENTRAL_COMMAND.send_background(Command::IsThereADependencyDatabase(false));
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::IsThereADependencyDatabase(false));
                 let response = CentralCommand::recv(&receiver);
                 let generated = if let Response::Bool(generated) = response { generated } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}") };
                 app_ui.packfile_load_all_ca_packfiles().set_enabled(!generated);
@@ -299,7 +300,7 @@ impl AppUISlots {
                             return show_dialog(&app_ui.main_window, error, false);
                         }
 
-                        if SETTINGS.read().unwrap().bool("diagnostics_trigger_on_open") {
+                        if settings_bool("diagnostics_trigger_on_open") {
                             DiagnosticsUI::check(&app_ui, &diagnostics_ui);
                         }
                     }
@@ -351,7 +352,7 @@ impl AppUISlots {
                 }
 
                 // Get the current path of the PackFile.
-                let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFilePath);
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackFilePath);
                 let response = CentralCommand::recv(&receiver);
                 let pack_path = if let Response::PathBuf(pack_path) = response { pack_path } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}") };
                 let mut pack_image_path = pack_path.clone();
@@ -362,7 +363,7 @@ impl AppUISlots {
                     return show_dialog(&app_ui.main_window, "Pack to install not found on disk.", false);
                 }
 
-                if let Ok(mut game_local_mods_path) = GAME_SELECTED.read().unwrap().local_mods_path(&SETTINGS.read().unwrap().path_buf(GAME_SELECTED.read().unwrap().key())) {
+                if let Ok(mut game_local_mods_path) = GAME_SELECTED.read().unwrap().local_mods_path(&settings_path_buf(GAME_SELECTED.read().unwrap().key())) {
                     if !game_local_mods_path.is_dir() {
                         return show_dialog(&app_ui.main_window, "Game Path not configured. Go to <i>'PackFile/Settings'</i> and configure it.", false);
                     }
@@ -375,7 +376,7 @@ impl AppUISlots {
                         game_local_mods_path.push(mod_name);
 
                         // Check if the PackFile is not a CA one before installing.
-                        let ca_paths = match GAME_SELECTED.read().unwrap().ca_packs_paths(&SETTINGS.read().unwrap().path_buf(GAME_SELECTED.read().unwrap().key())) {
+                        let ca_paths = match GAME_SELECTED.read().unwrap().ca_packs_paths(&settings_path_buf(GAME_SELECTED.read().unwrap().key())) {
                             Ok(paths) => paths,
                             Err(_) => return show_dialog(&app_ui.main_window, "You can't do that to a CA PackFile, you monster!", false),
                         };
@@ -411,7 +412,7 @@ impl AppUISlots {
                 info!("Triggering `Uninstall` By Slot");
 
                 // Get the current path of the PackFile.
-                let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFilePath);
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackFilePath);
                 let response = CentralCommand::recv(&receiver);
                 let pack_path = if let Response::PathBuf(pack_path) = response { pack_path } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}") };
 
@@ -420,7 +421,7 @@ impl AppUISlots {
                     return show_dialog(&app_ui.main_window, "Pack to install not found on disk.", false);
                 }
 
-                if let Ok(game_local_mods_path) = GAME_SELECTED.read().unwrap().local_mods_path(&SETTINGS.read().unwrap().path_buf(GAME_SELECTED.read().unwrap().key())) {
+                if let Ok(game_local_mods_path) = GAME_SELECTED.read().unwrap().local_mods_path(&settings_path_buf(GAME_SELECTED.read().unwrap().key())) {
                     if !game_local_mods_path.is_dir() {
                         return show_dialog(&app_ui.main_window, "Game Path not configured. Go to <i>'PackFile/Settings'</i> and configure it.", false);
                     }
@@ -437,7 +438,7 @@ impl AppUISlots {
                         data_image_path.set_extension("png");
 
 
-                        let ca_paths = match GAME_SELECTED.read().unwrap().ca_packs_paths(&SETTINGS.read().unwrap().path_buf(GAME_SELECTED.read().unwrap().key())) {
+                        let ca_paths = match GAME_SELECTED.read().unwrap().ca_packs_paths(&settings_path_buf(GAME_SELECTED.read().unwrap().key())) {
                             Ok(paths) => paths,
                             Err(_) => return show_dialog(&app_ui.main_window, "You can't do that to a CA PackFile, you monster!", false),
                         };
@@ -482,7 +483,7 @@ impl AppUISlots {
                 info!("Triggering `Load all CA PackFiles` By Slot");
 
                 // Reset the autosave timer.
-                let timer = SETTINGS.read().unwrap().i32("autosave_interval");
+                let timer = settings_i32("autosave_interval");
                 if timer > 0 {
                     app_ui.timer_backup_autosave.set_interval(timer * 60 * 1000);
                     app_ui.timer_backup_autosave.start_0a();
@@ -495,8 +496,8 @@ impl AppUISlots {
                 GlobalSearchUI::clear(&global_search_ui);
                 let _ = AppUI::purge_them_all(&app_ui, &pack_file_contents_ui, false);
 
-                let receiver = CENTRAL_COMMAND.send_background(Command::LoadAllCAPackFiles);
-                let response = CENTRAL_COMMAND.recv_try(&receiver);
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::LoadAllCAPackFiles);
+                let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
                 match response {
 
                     // If it's success....
@@ -579,7 +580,7 @@ impl AppUISlots {
                 };
 
                 // Send the type to the Background Thread, and update the UI.
-                let _ = CENTRAL_COMMAND.send_background(Command::SetPackFileType(packfile_type));
+                let _ = CENTRAL_COMMAND.read().unwrap().send(Command::SetPackFileType(packfile_type));
                 UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
             }
         ));
@@ -589,7 +590,7 @@ impl AppUISlots {
             app_ui,
             pack_file_contents_ui =>  move |_| {
                 let state = app_ui.change_packfile_type_index_includes_timestamp.is_checked();
-                let _ = CENTRAL_COMMAND.send_background(Command::ChangeIndexIncludesTimestamp(state));
+                let _ = CENTRAL_COMMAND.read().unwrap().send(Command::ChangeIndexIncludesTimestamp(state));
                 UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
             }
         ));
@@ -599,8 +600,8 @@ impl AppUISlots {
             app_ui,
             pack_file_contents_ui =>  move |_| {
                 let compression_format = CompressionFormat::from(app_ui.compression_format_group.checked_action().text().remove_q_string(&QString::from_std_str("&")).to_std_string().as_str());
-                let receiver = CENTRAL_COMMAND.send_background(Command::ChangeCompressionFormat(compression_format));
-                let response = CENTRAL_COMMAND.recv_try(&receiver);
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::ChangeCompressionFormat(compression_format));
+                let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
                 match response {
                     Response::CompressionFormat(cf) => {
                         app_ui.compression_format_group.block_signals(true);
@@ -628,21 +629,21 @@ impl AppUISlots {
                 info!("Triggering `Preferences Dialog` By Slot");
 
                 let game_key = GAME_SELECTED.read().unwrap().key();
-                let mymod_path_old = SETTINGS.read().unwrap().path_buf(MYMOD_BASE_PATH);
-                let secondary_path_old = SETTINGS.read().unwrap().path_buf(SECONDARY_PATH);
-                let game_path_old = SETTINGS.read().unwrap().path_buf(game_key);
-                let ak_path_old = SETTINGS.read().unwrap().path_buf(&format!("{game_key}_assembly_kit"));
-                let dark_theme_old = SETTINGS.read().unwrap().bool("use_dark_theme");
-                let font_name_old = SETTINGS.read().unwrap().string("font_name");
-                let font_size_old = SETTINGS.read().unwrap().i32("font_size");
+                let mymod_path_old = settings_path_buf(MYMOD_BASE_PATH);
+                let secondary_path_old = settings_path_buf(SECONDARY_PATH);
+                let game_path_old = settings_path_buf(game_key);
+                let ak_path_old = settings_path_buf(&format!("{game_key}_assembly_kit"));
+                let dark_theme_old = settings_bool("use_dark_theme");
+                let font_name_old = settings_string("font_name");
+                let font_size_old = settings_i32("font_size");
 
                 match SettingsUI::new(&app_ui) {
                     Ok(saved) => {
                         if saved {
-                            let mymod_path_new = SETTINGS.read().unwrap().path_buf(MYMOD_BASE_PATH);
-                            let secondary_path_new = SETTINGS.read().unwrap().path_buf(SECONDARY_PATH);
-                            let game_path_new = SETTINGS.read().unwrap().path_buf(game_key);
-                            let ak_path_new = SETTINGS.read().unwrap().path_buf(&format!("{game_key}_assembly_kit"));
+                            let mymod_path_new = settings_path_buf(MYMOD_BASE_PATH);
+                            let secondary_path_new = settings_path_buf(SECONDARY_PATH);
+                            let game_path_new = settings_path_buf(game_key);
+                            let ak_path_new = settings_path_buf(&format!("{game_key}_assembly_kit"));
 
                             // If we changed the "MyMod's Folder" path, disable the MyMod mode and set it so the MyMod menu will be re-built
                             // next time we open the MyMod menu.
@@ -658,24 +659,24 @@ impl AppUISlots {
                             }
 
                             // If we detect a change in theme, reload it.
-                            let dark_theme_new = SETTINGS.read().unwrap().bool("use_dark_theme");
+                            let dark_theme_new = settings_bool("use_dark_theme");
                             if dark_theme_old != dark_theme_new {
                                 crate::utils::reload_theme(&app_ui);
                             }
 
                             // If we detect a change in the saved font, trigger a font change.
-                            let font_name = SETTINGS.read().unwrap().string("font_name");
-                            let font_size = SETTINGS.read().unwrap().i32("font_size");
+                            let font_name = settings_string("font_name");
+                            let font_size = settings_i32("font_size");
                             if font_name_old != font_name || font_size_old != font_size {
                                 let font = QFont::from_q_string_int(&QString::from_std_str(&font_name), font_size);
                                 QApplication::set_font_1a(&font);
                             }
 
                             // If we detect a factory reset, reset the window's geometry and state.
-                            let factory_reset = SETTINGS.read().unwrap().bool("factoryReset");
+                            let factory_reset = settings_bool("factoryReset");
                             if factory_reset {
-                                app_ui.main_window().restore_geometry(&QByteArray::from_slice(&SETTINGS.read().unwrap().raw_data("originalGeometry")));
-                                app_ui.main_window().restore_state_1a(&QByteArray::from_slice(&SETTINGS.read().unwrap().raw_data("originalWindowState")));
+                                app_ui.main_window().restore_geometry(&QByteArray::from_slice(&settings_raw_data("originalGeometry")));
+                                app_ui.main_window().restore_state_1a(&QByteArray::from_slice(&settings_raw_data("originalWindowState")));
                             }
                         }
                     }
@@ -683,7 +684,7 @@ impl AppUISlots {
                 }
 
                 // Make sure we don't drag the factory reset setting, no matter if the user saved or not.
-                let _ = SETTINGS.write().unwrap().set_bool("factoryReset", false);
+                let _ = settings_set_bool("factoryReset", false);
             }
         ));
 
@@ -712,7 +713,7 @@ impl AppUISlots {
         // What happens when we trigger the "Open MyMod Folder" action.
         let mymod_open_mymod_folder = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
-            let path = SETTINGS.read().unwrap().path_buf("mymods_base_path");
+            let path = settings_path_buf("mymods_base_path");
             if path.is_dir() {
                 let _ = open::that(&path);
             } else {
@@ -757,8 +758,8 @@ impl AppUISlots {
                             app_ui.toggle_main_window(false);
 
                             // Initialize the folder structure of the MyMod.
-                            let receiver = CENTRAL_COMMAND.send_background(Command::InitializeMyModFolder(mod_name, mod_game, sublime_support, vscode_support, git_support));
-                            let response = CENTRAL_COMMAND.recv_try(&receiver);
+                            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::InitializeMyModFolder(mod_name, mod_game, sublime_support, vscode_support, git_support));
+                            let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
                             match response {
                                 Response::PathBuf(mymod_pack_path) => {
 
@@ -767,24 +768,24 @@ impl AppUISlots {
                                     GlobalSearchUI::clear(&global_search_ui);
 
                                     // Reset the autosave timer.
-                                    let timer = SETTINGS.read().unwrap().i32("autosave_interval");
+                                    let timer = settings_i32("autosave_interval");
                                     if timer > 0 {
                                         app_ui.timer_backup_autosave.set_interval(timer * 60 * 1000);
                                         app_ui.timer_backup_autosave.start_0a();
                                     }
 
-                                    let receiver = CENTRAL_COMMAND.send_background(Command::GetPackSettings);
-                                    let response = CENTRAL_COMMAND.recv_try(&receiver);
+                                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackSettings);
+                                    let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
                                     match response {
                                         Response::PackSettings(mut pack_settings) => {
 
                                             // Prepare the settings depending on what we choose to ignore.
                                             pack_settings.settings_text_mut().insert("import_files_to_ignore".to_owned(), paths_ignore_on_import);
 
-                                            let _ = CENTRAL_COMMAND.send_background(Command::NewPackFile);
-                                            let _ = CENTRAL_COMMAND.send_background(Command::SetPackSettings(pack_settings));
-                                            let receiver = CENTRAL_COMMAND.send_background(Command::SavePackFileAs(mymod_pack_path.clone()));
-                                            let response = CENTRAL_COMMAND.recv_try(&receiver);
+                                            let _ = CENTRAL_COMMAND.read().unwrap().send(Command::NewPackFile);
+                                            let _ = CENTRAL_COMMAND.read().unwrap().send(Command::SetPackSettings(pack_settings));
+                                            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SavePackFileAs(mymod_pack_path.clone()));
+                                            let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
                                             match response {
                                                 Response::ContainerInfo(pack_file_info) => {
 
@@ -863,7 +864,7 @@ impl AppUISlots {
                         // copy the PackFile to the data folder of the selected game.
                         OperationalMode::MyMod(ref game_folder_name, ref mod_name) => {
                             old_mod_name = mod_name.to_owned();
-                            let mymods_base_path = SETTINGS.read().unwrap().path_buf(MYMOD_BASE_PATH);
+                            let mymods_base_path = settings_path_buf(MYMOD_BASE_PATH);
                             if mymods_base_path.is_dir() {
 
                                 // We get the "MyMod"s PackFile path.
@@ -910,7 +911,7 @@ impl AppUISlots {
                     // If we deleted the "MyMod", we allow chaos to form below.
                     if mod_deleted {
                         UI_STATE.set_operational_mode(&app_ui, None);
-                        let _ = CENTRAL_COMMAND.send_background(Command::ResetPackFile);
+                        let _ = CENTRAL_COMMAND.read().unwrap().send(Command::ResetPackFile);
                         AppUI::enable_packfile_actions(&app_ui, &PathBuf::new(), false);
                         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Clear, DataSource::PackFile);
                         UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
@@ -994,7 +995,7 @@ impl AppUISlots {
         // What happens when we trigger the "Launch Game" action.
         let game_selected_launch_game = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
-            match GAME_SELECTED.read().unwrap().game_launch_command(&SETTINGS.read().unwrap().path_buf(GAME_SELECTED.read().unwrap().key())) {
+            match GAME_SELECTED.read().unwrap().game_launch_command(&settings_path_buf(GAME_SELECTED.read().unwrap().key())) {
                 Ok(command) => { let _ = open::that(command); },
                 _ => show_dialog(&app_ui.main_window, "The currently selected game cannot be launched from Steam.", false),
             }
@@ -1003,7 +1004,7 @@ impl AppUISlots {
         // What happens when we trigger the "Open Game's Data Folder" action.
         let game_selected_open_game_data_folder = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
-            if let Ok(path) = GAME_SELECTED.read().unwrap().data_path(&SETTINGS.read().unwrap().path_buf(GAME_SELECTED.read().unwrap().key())) {
+            if let Ok(path) = GAME_SELECTED.read().unwrap().data_path(&settings_path_buf(GAME_SELECTED.read().unwrap().key())) {
                 let _ = open::that(path);
             } else {
                 show_dialog(&app_ui.main_window, "Game Path not configured. Go to <i>'PackFile/Settings'</i> and configure it.", false);
@@ -1013,7 +1014,7 @@ impl AppUISlots {
         // What happens when we trigger the "Open Game's Assembly Kit Folder" action.
         let game_selected_open_game_assembly_kit_folder = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
-            let path = SETTINGS.read().unwrap().path_buf(&format!("{}_assembly_kit", GAME_SELECTED.read().unwrap().key()));
+            let path = settings_path_buf(&format!("{}_assembly_kit", GAME_SELECTED.read().unwrap().key()));
             if path.is_dir() {
                 let _ = open::that(&path);
             } else {
@@ -1054,8 +1055,8 @@ impl AppUISlots {
                 if AppUI::are_you_sure_edition(&app_ui, "generate_dependencies_cache_are_you_sure") {
                     info!("Triggering `Generate Dependencies Cache` By Slot");
 
-                    if (GAME_SELECTED.read().unwrap().raw_db_version() > &0 && !SETTINGS.read().unwrap().path_buf(&format!("{}_assembly_kit", GAME_SELECTED.read().unwrap().key())).is_dir()) ||
-                        (*GAME_SELECTED.read().unwrap().raw_db_version() == 0 && !old_ak_files_path().unwrap_or_default().join(GAME_SELECTED.read().unwrap().key()).is_dir()) {
+                    if (GAME_SELECTED.read().unwrap().raw_db_version() > &0 && !settings_path_buf(&format!("{}_assembly_kit", GAME_SELECTED.read().unwrap().key())).is_dir()) ||
+                        (*GAME_SELECTED.read().unwrap().raw_db_version() == 0 && !old_ak_data_path().unwrap_or_default().join(GAME_SELECTED.read().unwrap().key()).is_dir()) {
                         show_dialog(&app_ui.main_window, tr("generate_dependencies_cache_warn"), false);
                     }
 
@@ -1075,8 +1076,8 @@ impl AppUISlots {
                     wait_dialog.set_standard_buttons(QFlags::from(0));
                     wait_dialog.show();
 
-                    let receiver = CENTRAL_COMMAND.send_background(Command::GenerateDependenciesCache);
-                    let response = CENTRAL_COMMAND.recv_try(&receiver);
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GenerateDependenciesCache);
+                    let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
 
                     match response {
                         Response::DependenciesInfo(response) => {
@@ -1145,8 +1146,8 @@ impl AppUISlots {
 
                 GlobalSearchUI::clear(&global_search_ui);
 
-                let receiver = CENTRAL_COMMAND.send_background(Command::PatchSiegeAI);
-                let response = CENTRAL_COMMAND.recv_try(&receiver);
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::PatchSiegeAI);
+                let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
                 match response {
                     Response::StringVecContainerPath(message, paths) => {
                         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Delete(paths, true), DataSource::PackFile);
@@ -1173,8 +1174,8 @@ impl AppUISlots {
 
                 let _ = AppUI::back_to_back_end_all(&app_ui, &pack_file_contents_ui);
 
-                let receiver = CENTRAL_COMMAND.send_background(Command::LiveExport);
-                let response = CENTRAL_COMMAND.recv_try(&receiver);
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::LiveExport);
+                let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
                 match response {
                     Response::Success => show_message_info(app_ui.message_widget(), tr("live_export_success")),
                     Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
@@ -1197,8 +1198,8 @@ impl AppUISlots {
                 let _ = AppUI::back_to_back_end_all(&app_ui, &pack_file_contents_ui);
 
                 if let Ok(Some((tile_maps, tiles))) = AppUI::pack_map_dialog(&app_ui) {
-                    let receiver = CENTRAL_COMMAND.send_background(Command::PackMap(tile_maps, tiles));
-                    let response = CENTRAL_COMMAND.recv_try(&receiver);
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::PackMap(tile_maps, tiles));
+                    let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
                     match response {
                         Response::VecContainerPathVecContainerPath(paths_to_add, paths_to_delete) => {
 
@@ -1218,7 +1219,7 @@ impl AppUISlots {
                                 let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, DataSource::PackFile, false);
                             }
 
-                            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Delete(paths_to_delete.to_vec(), SETTINGS.read().unwrap().bool("delete_empty_folders_on_delete")), DataSource::PackFile);
+                            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Delete(paths_to_delete.to_vec(), settings_bool("delete_empty_folders_on_delete")), DataSource::PackFile);
 
                             for path in &paths_to_delete {
                                 let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path.path_raw(), DataSource::PackFile, false);
@@ -1262,8 +1263,8 @@ impl AppUISlots {
                     if file_dialog.exec() == 1 {
                         let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
                         let file_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
-                        let receiver = CENTRAL_COMMAND.send_background(Command::CleanAndSavePackFileAs(path));
-                        let response = CENTRAL_COMMAND.recv_try(&receiver);
+                        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::CleanAndSavePackFileAs(path));
+                        let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
                         match response {
                             Response::ContainerInfo(pack_file_info) => {
                                 let mut build_data = BuildData::new();
@@ -1496,8 +1497,8 @@ impl AppUISlots {
                 // If there is no problem, ere we go.
                 app_ui.toggle_main_window(false);
 
-                let receiver = CENTRAL_COMMAND.send_background(Command::UpdateCurrentSchemaFromAssKit);
-                let response = CENTRAL_COMMAND.recv_try(&receiver);
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::UpdateCurrentSchemaFromAssKit);
+                let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
                 match response {
                     Response::Success => show_dialog(&app_ui.main_window, tr("update_current_schema_from_asskit_success"), true),
                     Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
@@ -1534,8 +1535,8 @@ impl AppUISlots {
                 if dialog.exec() == 1 {
                     match serde_json::from_str(&patch_text_edit.to_plain_text().to_std_string()) {
                         Ok(patch) => {
-                            let receiver = CENTRAL_COMMAND.send_background(Command::ImportSchemaPatch(patch));
-                            let response = CENTRAL_COMMAND.recv_try(&receiver);
+                            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::ImportSchemaPatch(patch));
+                            let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
                             match response {
                                 Response::Success => show_dialog(&app_ui.main_window, tr("import_schema_patch_success"), true),
                                 Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
@@ -1606,7 +1607,7 @@ impl AppUISlots {
                                 for (column, field) in fields_processed.iter().enumerate() {
 
                                     // Update lookups pointing to other tables/locs. We don't need to update self-referencing lookups, as those update on edit.
-                                    if SETTINGS.read().unwrap().bool("enable_lookups") && field.lookup(patches).is_some() {
+                                    if settings_bool("enable_lookups") && field.lookup(patches).is_some() {
                                         if let Some(column_data) = data.get(&(column as i32)) {
                                             let column_data = column_data.data();
                                             if !column_data.is_empty() {
@@ -1623,7 +1624,7 @@ impl AppUISlots {
                                     }
 
                                     // Update icons.
-                                    if SETTINGS.read().unwrap().bool("enable_icons") && field.is_filename(patches) {
+                                    if settings_bool("enable_icons") && field.is_filename(patches) {
                                         let mut icons = BTreeMap::new();
                                         if let Ok(ref table_data) = table_data {
 
@@ -1799,27 +1800,27 @@ impl AppUISlots {
                 // Before autosaving, check the space used by autosaves and throw a warning if we pass 25GB
                 if let Ok(autosave_path) = backup_autosave_path() {
                     if let Ok(folder_size) = fs_extra::dir::get_size(autosave_path) {
-                        if folder_size > 26843545600 && !SETTINGS.read().unwrap().bool("autosave_folder_size_warning_triggered") {
-                            let _ = SETTINGS.write().unwrap().set_bool("autosave_folder_size_warning_triggered", true);
+                        if folder_size > 26843545600 && !settings_bool("autosave_folder_size_warning_triggered") {
+                            let _ = settings_set_bool("autosave_folder_size_warning_triggered", true);
 
                             show_dialog(app_ui.main_window(), tr("autosave_folder_size_warning"), false);
                         }
 
                         // Make the warning available again once we get under 25GB.
                         else if folder_size <= 26843545600 {
-                            let _ = SETTINGS.write().unwrap().set_bool("autosave_folder_size_warning_triggered", false);
+                            let _ = settings_set_bool("autosave_folder_size_warning_triggered", false);
                         }
                     }
                 }
 
                 // If the pack has been edited, autosave.
                 if UI_STATE.get_is_modified() {
-                    let _ = CENTRAL_COMMAND.send_background(Command::TriggerBackupAutosave);
+                    let _ = CENTRAL_COMMAND.read().unwrap().send(Command::TriggerBackupAutosave);
                     log_to_status_bar(&tr("autosaving"));
                 }
 
                 // Reset the timer.
-                let timer = SETTINGS.read().unwrap().i32("autosave_interval");
+                let timer = settings_i32("autosave_interval");
                 if timer > 0 {
                     app_ui.timer_backup_autosave.set_interval(timer * 60 * 1000);
                     app_ui.timer_backup_autosave.start_0a();
@@ -2013,7 +2014,7 @@ impl AppUISlots {
                     return show_dialog(&app_ui.main_window, error, false);
                 }
 
-                if SETTINGS.read().unwrap().bool("diagnostics_trigger_on_open") {
+                if settings_bool("diagnostics_trigger_on_open") {
                     DiagnosticsUI::check(&app_ui, &diagnostics_ui);
                 }
             }

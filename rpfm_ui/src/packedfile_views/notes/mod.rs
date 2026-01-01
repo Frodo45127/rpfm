@@ -46,12 +46,12 @@ use std::sync::{Arc, RwLock};
 use rpfm_lib::notes::Note;
 
 use rpfm_ui_common::ASSETS_PATH;
-use rpfm_ui_common::locale::{qtr, tr};
-use rpfm_ui_common::utils::*;
+use rpfm_ui_common::utils::find_widget;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::ffi::new_tips_item_delegate_safe;
+use crate::utils::{qtr, show_dialog, tr};
 
 mod connections;
 mod slots;
@@ -133,7 +133,7 @@ impl NotesView {
     pub unsafe fn load_data(&self) {
         self.model.clear();
 
-        let receiver = CENTRAL_COMMAND.send_background(Command::NotesForPath(self.path.read().unwrap().to_owned()));
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::NotesForPath(self.path.read().unwrap().to_owned()));
         let response = CentralCommand::recv(&receiver);
         match response {
             Response::VecNote(mut notes) => {
@@ -155,7 +155,7 @@ impl NotesView {
     /// This function saves a note on the currently open Pack.
     pub unsafe fn save_data(&self, note: Note) {
 
-        let receiver = CENTRAL_COMMAND.send_background(Command::AddNote(note));
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::AddNote(note));
         let response = CentralCommand::recv(&receiver);
         match response {
             Response::Note(note) => self.add_item_to_notes_list(&note),
@@ -292,7 +292,7 @@ impl NotesView {
     unsafe fn delete_selected_note(&self) {
         let note = self.note_from_selection();
 
-        let _ = CENTRAL_COMMAND.send_background(Command::DeleteNote(note.path().to_owned(), *note.id()));
+        let _ = CENTRAL_COMMAND.read().unwrap().send(Command::DeleteNote(note.path().to_owned(), *note.id()));
         let indexes = self.filter.map_selection_to_source(&self.list.selection_model().selection()).indexes();
         self.model.remove_row_1a(indexes.at(0).row());
     }

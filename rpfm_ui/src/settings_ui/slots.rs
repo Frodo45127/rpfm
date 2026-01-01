@@ -27,19 +27,21 @@ use qt_core::QString;
 use qt_core::SlotNoArgs;
 
 use std::collections::BTreeMap;
-use std::fs::remove_dir_all;
 use std::rc::Rc;
 use std::process::Command as SystemCommand;
 
-use rpfm_ui_common::clone;
-use rpfm_ui_common::locale::tr;
-use rpfm_ui_common::SETTINGS;
-use rpfm_ui_common::settings::Settings;
-use rpfm_ui_common::utils::show_dialog;
+use rpfm_ipc::MYMOD_BASE_PATH;
+use rpfm_ipc::SECONDARY_PATH;
+use rpfm_ipc::messages::Command;
 
+use rpfm_ui_common::clone;
+
+use crate::CENTRAL_COMMAND;
 use crate::app_ui::AppUI;
 use crate::ffi;
+use crate::settings_helpers::*;
 use crate::settings_ui::{backend::*, SettingsUI};
+use crate::utils::{show_dialog, tr};
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -92,39 +94,29 @@ impl SettingsUISlots {
 
                 // Restore RPFM settings and reload the view, WITHOUT SAVING THE SETTINGS.
                 // An exception are the original states. We need to keep those.
-                let mut settings = Settings::default();
-                let mut old_settings = SETTINGS.read().unwrap().clone();
-                settings.set_block_write(true);
-                old_settings.set_block_write(true);
+                CENTRAL_COMMAND.read().unwrap().send(Command::BackupSettings);
 
                 // Fonts are a bit special. Init picks them up from the running app, not from a fixed value,
                 // so we need to manually overwrite them here before init_settings gets triggered.
-                let original_font_name = old_settings.string("original_font_name");
-                let original_font_size = old_settings.i32("original_font_size");
+                let original_font_name = settings_string("original_font_name");
+                let original_font_size = settings_i32("original_font_size");
 
-                let _ = settings.set_string("font_name", &original_font_name);
-                let _ = settings.set_i32("font_size", original_font_size);
-                settings.set_block_write(false);
+                CENTRAL_COMMAND.read().unwrap().send(Command::ClearSettings);
+                init_app_exclusive_settings(&app_ui);
 
-                // Set the clean settings as the current ones, so init_settings can initialize them properly.
-                *SETTINGS.write().unwrap() = settings;
+                let _ = settings_set_string("font_name", &original_font_name);
+                let _ = settings_set_i32("font_size", original_font_size);
 
-                if let Err(error) = init_settings() {
-                    return show_dialog(&ui.dialog, "Failed to initialize settings: ".to_owned() + &error.to_string(), false);
-                } else {
-                    init_app_exclusive_settings(&mut *SETTINGS.write().unwrap(), &app_ui);
-                }
                 if let Err(error) = ui.load() {
                     return show_dialog(&ui.dialog, error, false);
                 }
 
-                // Set this value to indicate future operations that a reset has taken place.
-                let _ = old_settings.set_bool("factoryReset", true);
-                old_settings.set_block_write(false);
-
                 // Once the original settings are reloaded, wipe them out from the backend again and put the old ones in.
                 // That way, if the user cancels, we still have the old settings.
-                *SETTINGS.write().unwrap() = old_settings;
+                CENTRAL_COMMAND.read().unwrap().send(Command::RestoreBackupSettings);
+
+                // Set this value to indicate future operations that a reset has taken place.
+                let _ = settings_set_bool("factoryReset", true);
             }
         ));
 
@@ -191,11 +183,8 @@ impl SettingsUISlots {
 
         let clear_dependencies_cache = SlotNoArgs::new(&ui.dialog, clone!(mut ui => move || {
             match dependencies_cache_path() {
-                Ok(path) => match remove_dir_all(path) {
-                    Ok(_) => {
-                        let _ = init_config_path();
-                        show_dialog(&ui.dialog, tr("dependencies_cache_cleared"), true);
-                    }
+                Ok(path) => match settings_clear_path(&path) {
+                    Ok(_) => show_dialog(&ui.dialog, tr("dependencies_cache_cleared"), true),
                     Err(error) => show_dialog(&ui.dialog, error, false),
                 }
                 Err(error) => show_dialog(&ui.dialog, error, false)
@@ -204,11 +193,8 @@ impl SettingsUISlots {
 
         let clear_autosaves = SlotNoArgs::new(&ui.dialog, clone!(mut ui => move || {
             match backup_autosave_path() {
-                Ok(path) => match remove_dir_all(path) {
-                    Ok(_) => {
-                        let _ = init_config_path();
-                        show_dialog(&ui.dialog, tr("autosaves_cleared"), true);
-                    }
+                Ok(path) => match settings_clear_path(&path) {
+                    Ok(_) => show_dialog(&ui.dialog, tr("autosaves_cleared"), true),
                     Err(error) => show_dialog(&ui.dialog, error, false),
                 }
                 Err(error) => show_dialog(&ui.dialog, error, false)
@@ -224,11 +210,9 @@ impl SettingsUISlots {
                         let path = path.to_string_lossy().to_string() + "\\*.*";
                         let _ = SystemCommand::new("attrib").arg("-r").arg(path).arg("/s").output();
                     }
-                    match remove_dir_all(&path) {
-                        Ok(_) => {
-                            let _ = init_config_path();
-                            show_dialog(&ui.dialog, tr("schemas_cleared"), true);
-                        }
+
+                    match settings_clear_path(&path) {
+                        Ok(_) => show_dialog(&ui.dialog, tr("schemas_cleared"), true),
                         Err(error) => show_dialog(&ui.dialog, error, false),
                     }
                 }
@@ -238,8 +222,8 @@ impl SettingsUISlots {
 
         let clear_layout = SlotNoArgs::new(&ui.dialog, clone!(
             app_ui => move || {
-                app_ui.main_window().restore_geometry(&QByteArray::from_slice(&SETTINGS.read().unwrap().raw_data("originalGeometry")));
-                app_ui.main_window().restore_state_1a(&QByteArray::from_slice(&SETTINGS.read().unwrap().raw_data("originalWindowState")));
+                app_ui.main_window().restore_geometry(&QByteArray::from_slice(&settings_raw_data("originalGeometry")));
+                app_ui.main_window().restore_state_1a(&QByteArray::from_slice(&settings_raw_data("originalWindowState")));
         }));
 
         let add_rpfm_to_runcher_tools = SlotNoArgs::new(&ui.dialog, clone!(

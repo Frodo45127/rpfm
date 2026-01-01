@@ -33,17 +33,16 @@ use getset::*;
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 
+use rpfm_ipc::helpers::{DataSource, RFileInfo};
+
 use rpfm_lib::files::FileType;
 
-use rpfm_ui_common::locale::qtr;
-use rpfm_ui_common::utils::*;
+use rpfm_ui_common::utils::{find_widget, load_template};
 
 use crate::app_ui::AppUI;
-use crate::backend::RFileInfo;
-use crate::communications::*;
 use crate::ffi::*;
 use crate::pack_tree::PackTree;
-use crate::packedfile_views::{BuildData, DataSource, FileView, TreeViewOperation, View, ViewType};
+use crate::packedfile_views::{BuildData, FileView, TreeViewOperation, View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::utils::*;
 

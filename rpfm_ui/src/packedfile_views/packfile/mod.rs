@@ -34,10 +34,9 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use getset::Getters;
 
-use rpfm_ui_common::locale::qtr;
 use rpfm_ui_common::utils::{find_widget, load_template};
 
 use crate::app_ui::AppUI;
@@ -97,11 +96,11 @@ impl PackFileExtraView {
         // Load the extra PackFile to memory.
         // Ignore the response, we don't need it yet.
         // TODO: Use this data to populate tooltips.
-        let receiver = CENTRAL_COMMAND.send_background(Command::OpenPackExtra(pack_file_path.clone()));
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::OpenPackExtra(pack_file_path.clone()));
         let response = CentralCommand::recv(&receiver);
         match response {
             Response::ContainerInfo(_) => {},
-            Response::Error(error) => return Err(error),
+            Response::Error(error) => return Err(anyhow!(error)),
             _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
         }
 

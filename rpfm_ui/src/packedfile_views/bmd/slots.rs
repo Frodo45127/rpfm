@@ -14,12 +14,14 @@ use qt_core::SlotNoArgs;
 use std::rc::Rc;
 use std::sync::Arc;
 
+use rpfm_ipc::helpers::DataSource;
+
 use rpfm_lib::integrations::log::*;
 
 use rpfm_ui_common::clone;
 
 use crate::app_ui::AppUI;
-use crate::packedfile_views::{DataSource, utils::set_modified};
+use crate::packedfile_views::utils::set_modified;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use super::FileBMDView;
 

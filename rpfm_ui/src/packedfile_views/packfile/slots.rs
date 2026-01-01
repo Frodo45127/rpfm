@@ -25,7 +25,6 @@ use std::rc::Rc;
 use rpfm_lib::files::ContainerPath;
 
 use rpfm_ui_common::clone;
-use rpfm_ui_common::utils::show_dialog;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
@@ -34,6 +33,7 @@ use crate::packedfile_views::DataSource;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::UI_STATE;
+use crate::utils::show_dialog;
 
 use super::PackFileExtraView;
 
@@ -81,7 +81,7 @@ impl PackFileExtraViewSlots {
 
                     // Ask the Background Thread to move the files, and send him the path.
                     app_ui.toggle_main_window(false);
-                    let receiver = CENTRAL_COMMAND.send_background(Command::AddPackedFilesFromPackFile((pack_file_view.pack_file_path.read().unwrap().to_path_buf(), item_types)));
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::AddPackedFilesFromPackFile((pack_file_view.pack_file_path.read().unwrap().to_path_buf(), item_types)));
                     let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::VecContainerPath(paths_ok) => {

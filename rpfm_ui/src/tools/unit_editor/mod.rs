@@ -55,7 +55,6 @@ use rpfm_lib::files::{ContainerPath, FileType, RFile, text::{Text, TextFormat}};
 use rpfm_lib::games::supported_games::*;
 use rpfm_lib::integrations::log;
 
-use rpfm_ui_common::locale::{qtr, tr};
 use rpfm_ui_common::utils::*;
 
 use crate::CENTRAL_COMMAND;
@@ -460,7 +459,7 @@ impl ToolUnitEditor {
     unsafe fn load_data(&self) -> Result<()> {
 
         // Note: this data is HashMap<DataSource, HashMap<Path, RFile>>.
-        let receiver = CENTRAL_COMMAND.send_background(Command::GetRFilesFromAllSources(self.tool.used_paths.to_vec(), false));
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetRFilesFromAllSources(self.tool.used_paths.to_vec(), false));
         let response = CentralCommand::recv(&receiver);
         let mut data = if let Response::HashMapDataSourceHashMapStringRFile(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
 
@@ -628,7 +627,7 @@ impl ToolUnitEditor {
                 }
             }
 
-            let receiver = CENTRAL_COMMAND.send_background(Command::GetRFilesFromAllSources(icon_paths.to_vec(), false));
+            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetRFilesFromAllSources(icon_paths.to_vec(), false));
             let response = CentralCommand::recv(&receiver);
             let images_data = if let Response::HashMapDataSourceHashMapStringRFile(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
 

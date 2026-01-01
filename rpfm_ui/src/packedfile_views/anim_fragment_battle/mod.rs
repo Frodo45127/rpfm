@@ -30,8 +30,8 @@ use std::sync::Arc;
 
 use rpfm_lib::files::{anim_fragment_battle::AnimFragmentBattle, FileType};
 use rpfm_lib::games::supported_games::*;
-use rpfm_ui_common::locale::qtr;
-use rpfm_ui_common::utils::*;
+
+use rpfm_ui_common::utils::{find_widget, load_template};
 
 use crate::GAME_SELECTED;
 use crate::dependencies_ui::DependenciesUI;
@@ -39,6 +39,7 @@ use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packedfile_views::{AppUI, FileView, PackFileContentsUI, View, ViewType};
 use crate::references_ui::ReferencesUI;
+use crate::utils::qtr;
 use crate::views::table::utils::get_table_from_view;
 use crate::views::table::{TableType, TableView};
 

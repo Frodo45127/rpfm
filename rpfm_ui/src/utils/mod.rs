@@ -14,11 +14,8 @@ Module with all the utility functions, to make our programming lives easier.
 
 use qt_widgets::QAction;
 use qt_widgets::QApplication;
-use qt_widgets::QDialog;
-use qt_widgets::QLabel;
 use qt_widgets::QMenu;
 use qt_widgets::{QMessageBox, q_message_box::{Icon, StandardButton}};
-use qt_widgets::QPushButton;
 use qt_widgets::QWidget;
 use qt_widgets::QMainWindow;
 
@@ -30,8 +27,7 @@ use qt_core::QListOfQObject;
 use qt_core::QPtr;
 use qt_core::QString;
 
-use qt_core::SlotNoArgs;
-
+use cpp_core::CppBox;
 use cpp_core::Ptr;
 use cpp_core::Ref;
 
@@ -46,12 +42,13 @@ use std::io::Read;
 use rpfm_lib::integrations::log::*;
 
 use rpfm_ui_common::ASSETS_PATH;
-use rpfm_ui_common::locale::{qtr, qtre};
-use rpfm_ui_common::SETTINGS;
 use rpfm_ui_common::utils::*;
 
+use crate::LOCALE;
+use crate::LOCALE_FALLBACK;
 use crate::app_ui::AppUI;
-use crate::{DARK_PALETTE, GAME_SELECTED, LIGHT_PALETTE, LIGHT_STYLE_SHEET, SENTRY_GUARD};
+use crate::settings_helpers::settings_bool;
+use crate::{DARK_PALETTE, LIGHT_PALETTE, LIGHT_STYLE_SHEET};
 use crate::ffi::*;
 use crate::STATUS_BAR;
 use crate::pack_tree::{get_color_correct, get_color_wrong, get_color_clean};
@@ -119,6 +116,11 @@ pub unsafe fn show_message_info<T: Display>(widget: &QPtr<QWidget>, text: T) {
     kmessage_widget_set_info_safe(&widget.as_ptr(), message.into_ptr())
 }
 
+pub unsafe fn show_dialog<T: Display>(parent: impl cpp_core::CastInto<Ptr<QWidget>>, text: T, is_success: bool) {
+    let title = if is_success { tr("title_success")} else { tr("title_error") };
+    rpfm_ui_common::utils::show_dialog(parent, title, text, is_success);
+}
+
 /// This function creates a non-modal dialog, for debugging purpouses.
 ///
 /// It requires:
@@ -151,9 +153,9 @@ pub unsafe fn show_debug_dialog<T: AsRef<str>>(parent: impl cpp_core::CastInto<P
 /// - text: something that implements the trait `Display`, to put in the dialog window.
 /// - table_name: name/type of the table to decode.
 /// - table_data: data of the table to decode.
-pub unsafe fn show_dialog_decode_button<T: Display>(parent: Ptr<QWidget>, text: T, table_name: &str, table_data: &[u8]) {
-    let table_name = table_name.to_owned();
-    let table_data = table_data.to_owned();
+pub unsafe fn show_dialog_decode_button<T: Display>(parent: Ptr<QWidget>, text: T) {
+    // let table_name = table_name.to_owned();
+    // let table_data = table_data.to_owned();
 
     // Create and run the dialog.
     let dialog = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
@@ -167,17 +169,17 @@ pub unsafe fn show_dialog_decode_button<T: Display>(parent: Ptr<QWidget>, text: 
     let send_table_button = dialog.add_button_q_string_button_role(&qtr("send_table_for_decoding"), qt_widgets::q_message_box::ButtonRole::AcceptRole);
     dialog.add_button_standard_button(StandardButton::Ok);
 
-    let send_table_slot = SlotNoArgs::new(&dialog, move || {
-        show_undecoded_table_report_dialog(parent, &table_name, &table_data);
-    });
-    send_table_button.released().connect(&send_table_slot);
+    // let send_table_slot = SlotNoArgs::new(&dialog, move || {
+    //     show_undecoded_table_report_dialog(parent, &table_name, &table_data);
+    // });
+    // send_table_button.released().connect(&send_table_slot);
 
     // Disable sending tables until I implement a more robust way to stop the spam.
     send_table_button.set_enabled(false);
 
     dialog.exec();
 }
-
+/*
 /// This function creates a modal dialog, for sending tables to be decoded.
 ///
 /// It requires:
@@ -214,7 +216,7 @@ pub unsafe fn show_undecoded_table_report_dialog(parent: Ptr<QWidget>, table_nam
     accept_button.released().connect(dialog.slot_accept());
     cancel_button.released().connect(dialog.slot_close());
     dialog.exec();
-}
+}*/
 
 pub unsafe fn add_action_to_menu(menu: &QPtr<QMenu>, shortcuts: Ref<QListOfQObject>, action_group: &str, action_name: &str, action_translation_key: &str, associated_widget: Option<QPtr<QWidget>>) -> QPtr<QAction> {
     let action = shortcut_action_safe(shortcuts.as_ptr(), QString::from_std_str(action_group).into_ptr(), QString::from_std_str(action_name).into_ptr());
@@ -324,7 +326,7 @@ pub fn dark_stylesheet_is_customized() -> Result<bool> {
 pub unsafe fn reload_theme(app_ui: &AppUI) {
     let app = QCoreApplication::instance();
     let qapp = app.static_downcast::<QApplication>();
-    let use_dark_theme = SETTINGS.read().unwrap().bool("use_dark_theme");
+    let use_dark_theme = settings_bool("use_dark_theme");
 
     // Initialize the globals before applying anything.
     let light_style_sheet = ref_from_atomic(&*LIGHT_STYLE_SHEET);
@@ -385,4 +387,34 @@ pub unsafe fn reload_theme(app_ui: &AppUI) {
         qt_widgets::QApplication::set_palette_1a(light_palette);
         qapp.set_style_sheet(light_style_sheet);
     }
+}
+
+/// This function returns the translation for the key provided in the current language.
+///
+/// If the key doesn't exists, it returns the equivalent from the english localisation. If it fails to find it there too, returns a warning.
+pub fn tr(key: &str) -> String {
+    LOCALE.tr(&LOCALE_FALLBACK, key)
+}
+
+/// This function returns the translation for the key provided in the current language,
+/// replacing certain parts of the translation with the replacements provided.
+///
+/// If the key doesn't exists, it returns the equivalent from the english localisation. If it fails to find it there too, returns a warning.
+pub fn tre(key: &str, replacements: &[&str]) -> String {
+    LOCALE.tre(&LOCALE_FALLBACK, key, replacements)
+}
+
+/// This function returns the translation as a `QString` for the key provided in the current language.
+///
+/// If the key doesn't exists, it returns the equivalent from the english localisation. If it fails to find it there too, returns a warning.
+pub fn qtr(key: &str) -> CppBox<QString> {
+    QString::from_std_str(tr(key))
+}
+
+/// This function returns the translation as a `QString` for the key provided in the current language,
+/// replacing certain parts of the translation with the replacements provided.
+///
+/// If the key doesn't exists, it returns the equivalent from the english localisation. If it fails to find it there too, returns a warning.
+pub fn qtre(key: &str, replacements: &[&str]) -> CppBox<QString> {
+    QString::from_std_str(tre(key, replacements))
 }

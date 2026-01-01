@@ -30,23 +30,26 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::{Arc, atomic::Ordering, RwLock};
 
+use rpfm_ipc::helpers::DataSource;
+
 use rpfm_lib::files::{ContainerPath, RFileDecoded};
 use rpfm_lib::integrations::log::*;
 
 use rpfm_ui_common::clone;
-use rpfm_ui_common::utils::show_dialog;
+use rpfm_ui_common::utils::{atomic_from_ptr, ref_from_atomic};
 
 use crate::app_ui::AppUI;
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::*;
 use crate::global_search_ui::GlobalSearchUI;
-use crate::packedfile_views::DataSource;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::utils::set_modified;
 use crate::references_ui::ReferencesUI;
-use crate::utils::log_to_status_bar;
+use crate::settings_helpers::settings_bool;
 use crate::UI_STATE;
+use crate::utils::{show_dialog, log_to_status_bar};
+
 use super::utils::*;
 use super::*;
 
@@ -141,7 +144,7 @@ impl TableViewSlots {
                         }
                     }
 
-                    if SETTINGS.read().unwrap().bool("diagnostics_trigger_on_table_edit") && diagnostics_ui.diagnostics_dock_widget().is_visible() {
+                    if settings_bool("diagnostics_trigger_on_table_edit") && diagnostics_ui.diagnostics_dock_widget().is_visible() {
                         for path in &paths_to_check {
                             let path_types = vec![ContainerPath::File(path.to_owned())];
                             DiagnosticsUI::check_on_path(&app_ui, &diagnostics_ui, path_types);
@@ -208,7 +211,7 @@ impl TableViewSlots {
                             let field = &fields_processed[item.column() as usize];
 
                             // Update the lookup data while the model is blocked.
-                            if SETTINGS.read().unwrap().bool("enable_lookups") {
+                            if settings_bool("enable_lookups") {
                                 let dependency_data = view.dependency_data.read().unwrap();
                                 if let Some(column_data) = dependency_data.get(&item.column()) {
                                     match column_data.data().get(&item.text().to_std_string()) {
@@ -251,7 +254,7 @@ impl TableViewSlots {
                             }
 
                             // If the edited column has icons we need to fetch the new icon from the backend and apply it.
-                            if SETTINGS.read().unwrap().bool("enable_icons") && field.is_filename(patches) {
+                            if settings_bool("enable_icons") && field.is_filename(patches) {
                                 let mut icons = BTreeMap::new();
                                 let data = vec![vec![get_field_from_view(&view.table_model.static_upcast(), field, item.row(), item.column())]];
 
@@ -315,7 +318,7 @@ impl TableViewSlots {
                     }
                 }
 
-                if SETTINGS.read().unwrap().bool("table_resize_on_edit") {
+                if settings_bool("table_resize_on_edit") {
                     view.table_view.horizontal_header().resize_sections(ResizeMode::ResizeToContents);
                 }
 
@@ -549,8 +552,8 @@ impl TableViewSlots {
                     if file_dialog.exec() == 1 {
                         let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
 
-                        let receiver = CENTRAL_COMMAND.send_background(Command::ImportTSV(packed_file_path.read().unwrap().to_owned(), path));
-                        let response = CENTRAL_COMMAND.recv_try(&receiver);
+                        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::ImportTSV(packed_file_path.read().unwrap().to_owned(), path));
+                        let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
                         match response {
                             Response::RFileDecoded(data) => {
                                 let data = match data {
@@ -655,8 +658,8 @@ impl TableViewSlots {
                             }
                         }
 
-                        let receiver = CENTRAL_COMMAND.send_background(Command::ExportTSV(packed_file_path.read().unwrap().to_string(), path, view.get_data_source()));
-                        let response = CENTRAL_COMMAND.recv_try(&receiver);
+                        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::ExportTSV(packed_file_path.read().unwrap().to_string(), path, view.get_data_source()));
+                        let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
                         match response {
                             Response::Success => (),
                             Response::Error(error) => show_dialog(&view.table_view, error, false),
@@ -670,7 +673,7 @@ impl TableViewSlots {
         // When we want to resize the columns depending on their contents...
         let resize_columns = SlotNoArgs::new(&view.table_view, clone!(view => move || {
             view.table_view.horizontal_header().resize_sections(ResizeMode::ResizeToContents);
-            if SETTINGS.read().unwrap().bool("extend_last_column_on_tables") {
+            if settings_bool("extend_last_column_on_tables") {
                 view.table_view.horizontal_header().set_stretch_last_section(false);
                 view.table_view.horizontal_header().set_stretch_last_section(true);
             }
@@ -744,8 +747,8 @@ impl TableViewSlots {
                                 references_ui.references_table_view().set_enabled(false);
 
                                 let selected_value = index.data_0a().to_string().to_std_string();
-                                let receiver = CENTRAL_COMMAND.send_background(Command::SearchReferences(reference_data.clone(), selected_value));
-                                let response = CENTRAL_COMMAND.recv_try(&receiver);
+                                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SearchReferences(reference_data.clone(), selected_value));
+                                let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
                                 match response {
                                     Response::VecDataSourceStringStringUsizeUsize(data) => {
                                         references_ui.load_references_to_ui(data);
@@ -817,7 +820,7 @@ impl TableViewSlots {
         let mut hide_show_columns = vec![];
         let mut freeze_columns = vec![];
 
-        let fields = view.table_definition().fields_processed_sorted(SETTINGS.read().unwrap().bool("tables_use_old_column_order"));
+        let fields = view.table_definition().fields_processed_sorted(settings_bool("tables_use_old_column_order"));
         let fields_processed = view.table_definition().fields_processed();
         for field in &fields {
             if let Some(index) = fields_processed.iter().position(|x| x == field) {
@@ -966,4 +969,3 @@ impl TableViewSlots {
         }
     }
 }
-

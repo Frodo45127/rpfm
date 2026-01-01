@@ -18,13 +18,11 @@ use qt_core::SlotNoArgs;
 use std::sync::Arc;
 
 use rpfm_ui_common::clone;
-use rpfm_ui_common::locale::tr;
-use rpfm_ui_common::utils::show_dialog;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
-use crate::utils::log_to_status_bar;
 use crate::views::debug::DebugView;
+use crate::utils::{log_to_status_bar, show_dialog, tr};
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -52,8 +50,8 @@ impl DebugViewSlots {
             view => move || {
             match view.save_view() {
                 Ok(decoded_packed_file) => {
-                    let receiver = CENTRAL_COMMAND.send_background(Command::SavePackedFileFromView(view.get_path(), decoded_packed_file));
-                    let response = CENTRAL_COMMAND.recv_try(&receiver);
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SavePackedFileFromView(view.get_path(), decoded_packed_file));
+                    let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
                     match response {
                         Response::Success => log_to_status_bar(&tr("debug_view_save_success")),
                         Response::Error(error) => show_dialog(&view.editor, error, false),

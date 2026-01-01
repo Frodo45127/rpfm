@@ -42,8 +42,8 @@ use getset::Getters;
 
 use std::rc::Rc;
 
-use rpfm_ui_common::locale::qtr;
-use rpfm_ui_common::SETTINGS;
+use rpfm_ipc::helpers::DataSource;
+
 use rpfm_ui_common::utils::*;
 
 use crate::app_ui::AppUI;
@@ -52,9 +52,11 @@ use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::new_tableview_filter_safe;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::pack_tree::PackTree;
-use crate::packedfile_views::{DataSource, View, ViewType};
+use crate::packedfile_views::{View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::UI_STATE;
+use crate::settings_helpers::settings_bool;
+use crate::utils::qtr;
 
 pub mod connections;
 pub mod slots;
@@ -105,7 +107,7 @@ impl ReferencesUI {
         references_table_filter.set_source_model(&references_table_model);
         references_table_view.set_model(&references_table_filter);
 
-        if SETTINGS.read().unwrap().bool("tight_table_mode") {
+        if settings_bool("tight_table_mode") {
             references_table_view.vertical_header().set_minimum_section_size(22);
             references_table_view.vertical_header().set_maximum_section_size(22);
             references_table_view.vertical_header().set_default_section_size(22);

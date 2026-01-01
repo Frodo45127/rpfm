@@ -53,13 +53,13 @@ use std::rc::Rc;
 
 use rpfm_extensions::diagnostics::{*, anim_fragment_battle::*, config::*, dependency::*, pack::*, portrait_settings::*, table::*, text::*};
 
+use rpfm_ipc::helpers::DataSource;
+
 use rpfm_lib::files::{ContainerPath, portrait_settings::Variant};
 use rpfm_lib::games::supported_games::*;
 use rpfm_lib::integrations::log::info;
 
-use rpfm_ui_common::locale::{qtr, qtre};
-use rpfm_ui_common::SETTINGS;
-use rpfm_ui_common::utils::*;
+use rpfm_ui_common::utils::{atomic_from_cpp_box, find_widget, load_template, ref_from_atomic};
 
 use crate::app_ui::AppUI;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
@@ -69,10 +69,11 @@ use crate::ffi::{new_tableview_filter_safe, scroll_to_pos_and_select_safe, trigg
 use crate::GAME_SELECTED;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::pack_tree::*;
-use crate::packedfile_views::{DataSource, FileView, View, ViewType, SpecialView};
+use crate::packedfile_views::{FileView, View, ViewType, SpecialView};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::UI_STATE;
 use crate::references_ui::ReferencesUI;
+use crate::settings_helpers::settings_bool;
 use crate::utils::*;
 use crate::views::table::{ITEM_HAS_ERROR, ITEM_HAS_WARNING, ITEM_HAS_INFO, utils::open_subtable};
 
@@ -281,7 +282,7 @@ impl DiagnosticsUI {
         diagnostics_table_filter.set_source_model(&diagnostics_table_model);
         diagnostics_table_view.set_model(&diagnostics_table_filter);
 
-        if SETTINGS.read().unwrap().bool("tight_table_mode") {
+        if settings_bool("tight_table_mode") {
             diagnostics_table_view.vertical_header().set_minimum_section_size(22);
             diagnostics_table_view.vertical_header().set_maximum_section_size(22);
             diagnostics_table_view.vertical_header().set_default_section_size(22);
@@ -525,8 +526,8 @@ impl DiagnosticsUI {
         app_ui.menu_bar_packfile().set_enabled(false);
         let diagnostics_ignored = diagnostics_ui.diagnostics_ignored();
         info!("Triggering check.");
-        let receiver = CENTRAL_COMMAND.send_background(Command::DiagnosticsCheck(diagnostics_ignored, diagnostics_ui.diagnostics_button_check_ak_only_refs().is_checked()));
-        let response = CENTRAL_COMMAND.recv_try(&receiver);
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::DiagnosticsCheck(diagnostics_ignored, diagnostics_ui.diagnostics_button_check_ak_only_refs().is_checked()));
+        let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
 
         match response {
             Response::Diagnostics(diagnostics) => {
@@ -554,8 +555,8 @@ impl DiagnosticsUI {
         let mut diagnostics = UI_STATE.get_diagnostics();
         *diagnostics.diagnostics_ignored_mut() = diagnostics_ui.diagnostics_ignored();
         info!("Triggering check update.");
-        let receiver = CENTRAL_COMMAND.send_background(Command::DiagnosticsUpdate(diagnostics, paths, diagnostics_ui.diagnostics_button_check_ak_only_refs().is_checked()));
-        let response = CENTRAL_COMMAND.recv_try(&receiver);
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::DiagnosticsUpdate(diagnostics, paths, diagnostics_ui.diagnostics_button_check_ak_only_refs().is_checked()));
+        let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
 
         match response {
             Response::Diagnostics(diagnostics) => {

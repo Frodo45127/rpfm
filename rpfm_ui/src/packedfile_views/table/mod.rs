@@ -12,7 +12,7 @@
 Module with all the code for managing the view for Table PackedFiles.
 !*/
 
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 
 use std::sync::Arc;
 use std::rc::Rc;
@@ -62,7 +62,7 @@ impl PackedFileTableView {
             Response::AtlasRFileInfo(table, _) => TableType::Atlas(From::from(table)),
             Response::DBRFileInfo(table, _) => TableType::DB(table),
             Response::LocRFileInfo(table, _) => TableType::Loc(table),
-            Response::Error(error) => return Err(error),
+            Response::Error(error) => return Err(anyhow!(error)),
             _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
         };
 

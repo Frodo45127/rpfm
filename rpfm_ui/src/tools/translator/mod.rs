@@ -49,15 +49,12 @@ use rpfm_lib::files::{Container, ContainerPath, FileType, pack::Pack, RFileDecod
 use rpfm_lib::games::{*, supported_games::*};
 use rpfm_lib::integrations::git::GitResponse;
 
-use rpfm_ui_common::locale::{tr, tre, qtr};
-use rpfm_ui_common::SETTINGS;
-use rpfm_ui_common::utils::show_dialog;
-
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::references_ui::ReferencesUI;
-use crate::settings_ui::backend::translations_local_path;
+use crate::settings_helpers::{settings_path_buf, settings_string, translations_local_path};
 use crate::views::table::{TableType, TableView, utils::get_table_from_view};
+use crate::utils::show_dialog;
 
 use self::slots::ToolTranslatorSlots;
 use super::*;
@@ -68,9 +65,6 @@ mod slots;
 /// Tool's ui template path.
 const VIEW_DEBUG: &str = "rpfm_ui/ui_templates/tool_translator_editor.ui";
 const VIEW_RELEASE: &str = "ui/tool_translator_editor.ui";
-
-pub const VANILLA_LOC_NAME: &str = "vanilla_english.tsv";
-pub const VANILLA_FIXES_NAME: &str = "vanilla_fixes_";
 
 /// List of games this tool supports.
 const TOOL_SUPPORTED_GAMES: [&str; 13] = [
@@ -251,7 +245,7 @@ impl ToolTranslator {
 
         // For language, we try to get it from the game folder. If we can't, we fallback to whatever local files we have.
         let game = GAME_SELECTED.read().unwrap().clone();
-        let game_path = SETTINGS.read().unwrap().path_buf(game.key());
+        let game_path = settings_path_buf(game.key());
         let locale = game.game_locale_from_file(&game_path)?;
         let language = match locale {
             Some(locale) => {
@@ -291,7 +285,7 @@ impl ToolTranslator {
 
         // Get the list of colours supported by the game. They're in the ui_colours table in the modern games.
         let mut colors = HashMap::new();
-        let receiver = CENTRAL_COMMAND.send_background(Command::GetRFilesFromAllSources(vec![ContainerPath::Folder("db/ui_colours_tables".to_owned())], false));
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetRFilesFromAllSources(vec![ContainerPath::Folder("db/ui_colours_tables".to_owned())], false));
         let response = CentralCommand::recv(&receiver);
         match response {
             Response::HashMapDataSourceHashMapStringRFile(mut files) => {
@@ -325,7 +319,7 @@ impl ToolTranslator {
 
         // Get the list of tagged images from the dbs.
         let mut tagged_images = HashMap::new();
-        let receiver = CENTRAL_COMMAND.send_background(Command::GetRFilesFromAllSources(vec![ContainerPath::Folder("db/ui_tagged_images_tables".to_owned())], false));
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetRFilesFromAllSources(vec![ContainerPath::Folder("db/ui_tagged_images_tables".to_owned())], false));
         let response = CentralCommand::recv(&receiver);
         match response {
             Response::HashMapDataSourceHashMapStringRFile(mut files) => {
@@ -358,16 +352,16 @@ impl ToolTranslator {
         };
 
         // Check if the repo needs updating, and update it if so.
-        let receiver = CENTRAL_COMMAND.send_network(Command::CheckTranslationsUpdates);
-        let response_thread = CENTRAL_COMMAND.recv_try(&receiver);
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::CheckTranslationsUpdates);
+        let response_thread = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
         match response_thread {
             Response::APIResponseGit(ref response) => {
                 match response {
                     GitResponse::NewUpdate |
                     GitResponse::NoLocalFiles |
                     GitResponse::Diverged => {
-                        let receiver = CENTRAL_COMMAND.send_background(Command::UpdateTranslations);
-                        let response_thread = CENTRAL_COMMAND.recv_try(&receiver);
+                        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::UpdateTranslations);
+                        let response_thread = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
 
                         // Show the error, but continue anyway.
                         if let Response::Error(error) = response_thread {
@@ -385,7 +379,7 @@ impl ToolTranslator {
         }
 
         // Unlike other tools, data is loaded here, because we need it to generate the table widget.
-        let receiver = CENTRAL_COMMAND.send_background(Command::GetPackTranslation(language));
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackTranslation(language));
         let response = CentralCommand::recv(&receiver);
         let data = if let Response::PackTranslation(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
 
@@ -451,7 +445,7 @@ impl ToolTranslator {
         import_from_translated_pack.set_tool_tip(&qtr("translator_import_from_translated_pack"));
 
         // Only allow AI translation if we have a key in settings. Ignore keys in env.
-        if SETTINGS.read().unwrap().string("ai_openai_api_key").is_empty() {
+        if settings_string("ai_openai_api_key").is_empty() {
             chatgpt_radio_button.set_enabled(false);
             context_text_edit.set_enabled(false);
             translate_with_chatgpt.set_enabled(false);
@@ -459,7 +453,7 @@ impl ToolTranslator {
             chatgpt_radio_button.set_checked(true);
         }
 
-        if SETTINGS.read().unwrap().string("deepl_api_key").is_empty() {
+        if settings_string("deepl_api_key").is_empty() {
             deepl_radio_button.set_enabled(false);
             translate_with_deepl.set_enabled(false);
         } else {
@@ -873,7 +867,7 @@ impl ToolTranslator {
 
         // Get the API key from the settings. If no API key is provided, it will use the OPENAI_API_KEY env variable.
         let api_key = {
-            let key = SETTINGS.read().unwrap().string("ai_openai_api_key");
+            let key = settings_string("ai_openai_api_key");
             if key.is_empty() {
                 None
             } else {
@@ -915,7 +909,7 @@ impl ToolTranslator {
 
     #[tokio::main]
     async fn ask_deepl(string: &str, language: Lang) -> Result<String> {
-        let api_key = SETTINGS.read().unwrap().string("deepl_api_key");
+        let api_key = settings_string("deepl_api_key");
         if api_key.is_empty() {
             return Err(anyhow!("Missing DeepL API Key."))
         };
@@ -1032,7 +1026,7 @@ impl ToolTranslator {
             // Get the list of tagged images from the dbs.
             let image_data = STANDARD.encode({
                 let mut d = vec![];
-                let receiver = CENTRAL_COMMAND.send_background(Command::GetRFilesFromAllSources(vec![ContainerPath::File(path.to_owned())], false));
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetRFilesFromAllSources(vec![ContainerPath::File(path.to_owned())], false));
                 let response = CentralCommand::recv(&receiver);
                 match response {
                     Response::HashMapDataSourceHashMapStringRFile(mut files) => {

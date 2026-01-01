@@ -57,14 +57,14 @@ use cpp_core::Ptr;
 
 #[cfg(feature = "support_model_renderer")] use rpfm_lib::integrations::log;
 #[cfg(feature = "support_model_renderer")] use rpfm_lib::files::ContainerPath;
-use rpfm_ui_common::locale::{qtr, tr};
-use rpfm_ui_common::SETTINGS;
 
 #[cfg(feature = "support_model_renderer")] use crate::CENTRAL_COMMAND;
 #[cfg(feature = "support_model_renderer")] use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 #[cfg(feature = "support_model_renderer")] use crate::GAME_SELECTED;
 #[cfg(feature = "support_model_renderer")] use crate::packedfile_views::DataSource;
 use crate::UI_STATE;
+use crate::settings_helpers::{settings_bool, settings_set_raw_data};
+use crate::utils::{qtr, tr};
 use crate::views::table::{ITEM_HAS_VANILLA_VALUE, ITEM_ICON_CACHE, ITEM_ICON_PATH, ITEM_VANILLA_VALUE, ITEM_SOURCE_VALUE};
 
 //---------------------------------------------------------------------------//
@@ -84,68 +84,68 @@ pub fn new_unit_variant_item_delegate_safe(table_view: &Ptr<QObject>, column: i3
 // This function replaces the default editor widget for reference columns with a combobox, so you can select the reference data.
 extern "C" { fn new_combobox_item_delegate(table_view: *mut QObject, column: i32, list: *const QStringList, lookup_list: *const QStringList, is_editable: bool, timer: *mut QTimer, is_dark_theme_enabled: bool, has_filter: bool, is_right_side_mark_enabled: bool, enable_diff_markers: bool); }
 pub fn new_combobox_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, list: Ptr<QStringList>, lookup_list: Ptr<QStringList>, is_editable: bool, timer: &Ptr<QTimer>, has_filter: bool) {
-    let is_dark_theme_enabled = SETTINGS.read().unwrap().bool("use_dark_theme");
-    let is_right_side_mark_enabled = SETTINGS.read().unwrap().bool("use_right_size_markers");
-    let enable_diff_markers = SETTINGS.read().unwrap().bool("enable_diff_markers");
+    let is_dark_theme_enabled = settings_bool("use_dark_theme");
+    let is_right_side_mark_enabled = settings_bool("use_right_size_markers");
+    let enable_diff_markers = settings_bool("enable_diff_markers");
     unsafe { new_combobox_item_delegate(table_view.as_mut_raw_ptr(), column, list.as_raw_ptr(), lookup_list.as_raw_ptr(), is_editable, timer.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter, is_right_side_mark_enabled, enable_diff_markers) }
 }
 
 // This function changes the default editor widget for I32 cells on tables with a numeric one.
 extern "C" { fn new_spinbox_item_delegate(table_view: *mut QObject, column: i32, integer_type: i32, timer: *mut QTimer, is_dark_theme_enabled: bool, has_filter: bool, is_right_side_mark_enabled: bool, enable_diff_markers: bool); }
 pub fn new_spinbox_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, integer_type: i32, timer: &Ptr<QTimer>, has_filter: bool) {
-    let is_dark_theme_enabled = SETTINGS.read().unwrap().bool("use_dark_theme");
-    let is_right_side_mark_enabled = SETTINGS.read().unwrap().bool("use_right_size_markers");
-    let enable_diff_markers = SETTINGS.read().unwrap().bool("enable_diff_markers");
+    let is_dark_theme_enabled = settings_bool("use_dark_theme");
+    let is_right_side_mark_enabled = settings_bool("use_right_size_markers");
+    let enable_diff_markers = settings_bool("enable_diff_markers");
     unsafe { new_spinbox_item_delegate(table_view.as_mut_raw_ptr(), column, integer_type, timer.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter, is_right_side_mark_enabled, enable_diff_markers) }
 }
 
 // This function changes the default editor widget for F32 cells on tables with a numeric one.
 extern "C" { fn new_doublespinbox_item_delegate(table_view: *mut QObject, column: i32, timer: *mut QTimer, is_dark_theme_enabled: bool, has_filter: bool, is_right_side_mark_enabled: bool, enable_diff_markers: bool); }
 pub fn new_doublespinbox_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, timer: &Ptr<QTimer>, has_filter: bool) {
-    let is_dark_theme_enabled = SETTINGS.read().unwrap().bool("use_dark_theme");
-    let is_right_side_mark_enabled = SETTINGS.read().unwrap().bool("use_right_size_markers");
-    let enable_diff_markers = SETTINGS.read().unwrap().bool("enable_diff_markers");
+    let is_dark_theme_enabled = settings_bool("use_dark_theme");
+    let is_right_side_mark_enabled = settings_bool("use_right_size_markers");
+    let enable_diff_markers = settings_bool("enable_diff_markers");
     unsafe { new_doublespinbox_item_delegate(table_view.as_mut_raw_ptr(), column, timer.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter, is_right_side_mark_enabled, enable_diff_markers) }
 }
 
 // This function changes the default editor widget for ColourRGB cells, to ensure the provided data is valid for the schema.
 extern "C" { fn new_colour_item_delegate(table_view: *mut QObject, column: i32, timer: *mut QTimer, is_dark_theme_enabled: bool, has_filter: bool, is_right_side_mark_enabled: bool, enable_diff_markers: bool); }
 pub fn new_colour_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, timer: &Ptr<QTimer>, has_filter: bool) {
-    let is_dark_theme_enabled = SETTINGS.read().unwrap().bool("use_dark_theme");
-    let is_right_side_mark_enabled = SETTINGS.read().unwrap().bool("use_right_size_markers");
-    let enable_diff_markers = SETTINGS.read().unwrap().bool("enable_diff_markers");
+    let is_dark_theme_enabled = settings_bool("use_dark_theme");
+    let is_right_side_mark_enabled = settings_bool("use_right_size_markers");
+    let enable_diff_markers = settings_bool("enable_diff_markers");
     unsafe { new_colour_item_delegate(table_view.as_mut_raw_ptr(), column, timer.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter, is_right_side_mark_enabled, enable_diff_markers) }
 }
 
 // This function changes the default editor widget for String cells, to ensure the provided data is valid for the schema.
 extern "C" { fn new_qstring_item_delegate(table_view: *mut QObject, column: i32, timer: *mut QTimer, is_dark_theme_enabled: bool, has_filter: bool, is_right_side_mark_enabled: bool, enable_diff_markers: bool); }
 pub fn new_qstring_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, timer: &Ptr<QTimer>, has_filter: bool) {
-    let is_dark_theme_enabled = SETTINGS.read().unwrap().bool("use_dark_theme");
-    let is_right_side_mark_enabled = SETTINGS.read().unwrap().bool("use_right_size_markers");
-    let enable_diff_markers = SETTINGS.read().unwrap().bool("enable_diff_markers");
+    let is_dark_theme_enabled = settings_bool("use_dark_theme");
+    let is_right_side_mark_enabled = settings_bool("use_right_size_markers");
+    let enable_diff_markers = settings_bool("enable_diff_markers");
     unsafe { new_qstring_item_delegate(table_view.as_mut_raw_ptr(), column, timer.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter, is_right_side_mark_enabled, enable_diff_markers) }
 }
 
 // This function changes the default delegate for all cell types that doesn't have a specific delegate already.
 extern "C" { fn new_generic_item_delegate(table_view: *mut QObject, column: i32, timer: *mut QTimer, is_dark_theme_enabled: bool, has_filter: bool, is_right_side_mark_enabled: bool, enable_diff_markers: bool); }
 pub fn new_generic_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, timer: &Ptr<QTimer>, has_filter: bool) {
-    let is_dark_theme_enabled = SETTINGS.read().unwrap().bool("use_dark_theme");
-    let is_right_side_mark_enabled = SETTINGS.read().unwrap().bool("use_right_size_markers");
-    let enable_diff_markers = SETTINGS.read().unwrap().bool("enable_diff_markers");
+    let is_dark_theme_enabled = settings_bool("use_dark_theme");
+    let is_right_side_mark_enabled = settings_bool("use_right_size_markers");
+    let enable_diff_markers = settings_bool("enable_diff_markers");
     unsafe { new_generic_item_delegate(table_view.as_mut_raw_ptr(), column, timer.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter, is_right_side_mark_enabled, enable_diff_markers) }
 }
 
 // This function changes the default delegate for all items in a Tips ListView.
 extern "C" { fn new_tips_item_delegate(tree_view: *mut QObject, is_dark_theme_enabled: bool, has_filter: bool); }
 pub fn new_tips_item_delegate_safe(tree_view: &Ptr<QObject>, has_filter: bool) {
-    let is_dark_theme_enabled = SETTINGS.read().unwrap().bool("use_dark_theme");
+    let is_dark_theme_enabled = settings_bool("use_dark_theme");
     unsafe { new_tips_item_delegate(tree_view.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter) }
 }
 
 // This function changes the default delegate for all items in a TreeView.
 extern "C" { fn new_tree_item_delegate(tree_view: *mut QObject, is_dark_theme_enabled: bool, has_filter: bool); }
 pub fn new_tree_item_delegate_safe(tree_view: &Ptr<QObject>, has_filter: bool) {
-    let is_dark_theme_enabled = SETTINGS.read().unwrap().bool("use_dark_theme");
+    let is_dark_theme_enabled = settings_bool("use_dark_theme");
     unsafe { new_tree_item_delegate(tree_view.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter) }
 }
 
@@ -224,7 +224,7 @@ pub fn new_packed_file_model_safe() -> QBox<QStandardItemModel> {
 // This function allow us to create a custom window.
 extern "C" { fn new_q_main_window_custom(are_you_sure: extern "C" fn(*mut QMainWindow, bool) -> bool, is_dark_theme_enabled: bool) -> *mut QMainWindow; }
 pub fn new_q_main_window_custom_safe(are_you_sure: extern "C" fn(*mut QMainWindow, bool) -> bool) -> QBox<QMainWindow> {
-    let is_dark_theme_enabled = SETTINGS.read().unwrap().bool("use_dark_theme");
+    let is_dark_theme_enabled = settings_bool("use_dark_theme");
     unsafe { QBox::from_raw(new_q_main_window_custom(are_you_sure, is_dark_theme_enabled)) }
 }
 
@@ -563,7 +563,7 @@ pub extern fn assets_request_callback(missing_files: *mut QListOfQString, out: *
 
         log::info!("Paths requested by model renderer: {:#?}", &paths.iter().map(|x| format!(" - {}", x.path_raw())).collect::<Vec<_>>());
 
-        let receiver = CENTRAL_COMMAND.send_background(Command::GetRFilesFromAllSources(paths.clone(), true));
+        let receiver = CENTRAL_COMMAND.read().unwrap().send_background(Command::GetRFilesFromAllSources(paths.clone(), true));
         let response = CentralCommand::recv(&receiver);
         match response {
             Response::HashMapDataSourceHashMapStringRFile(mut files) => {
@@ -613,7 +613,7 @@ pub extern fn anim_paths_by_skeleton_callback(skeleton_name: *mut QString, out: 
 
         log::info!("Anim Paths requested for skeleton: {}", &skeleton_name);
 
-        let receiver = CENTRAL_COMMAND.send_background(Command::GetAnimPathsBySkeletonName(skeleton_name));
+        let receiver = CENTRAL_COMMAND.read().unwrap().send_background(Command::GetAnimPathsBySkeletonName(skeleton_name));
         let response = CentralCommand::recv(&receiver);
         match response {
             Response::HashSetString(paths) => {
@@ -634,10 +634,8 @@ pub extern fn anim_paths_by_skeleton_callback(skeleton_name: *mut QString, out: 
 pub extern "C" fn are_you_sure(main_window: *mut QMainWindow, is_delete_my_mod: bool) -> bool {
     unsafe {
         if !is_delete_my_mod {
-            rpfm_ui_common::set_batch![
-                set_raw_data, "geometry", &main_window.as_ref().unwrap().save_geometry().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>(),
-                set_raw_data, "windowState", &main_window.as_ref().unwrap().save_state_0a().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>()
-            ];
+            settings_set_raw_data("geometry", &main_window.as_ref().unwrap().save_geometry().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>());
+            settings_set_raw_data("windowState", &main_window.as_ref().unwrap().save_state_0a().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>());
         }
     }
 

@@ -39,14 +39,16 @@ use getset::Getters;
 
 use std::sync::{Arc, RwLock};
 
+use rpfm_ipc::helpers::DataSource;
+
 use rpfm_lib::schema::{Field, FieldType};
 use rpfm_lib::utils::parse_str_as_bool;
 
-use rpfm_ui_common::SETTINGS;
-use rpfm_ui_common::utils::*;
+use rpfm_ui_common::utils::{find_widget, load_template};
 
-use crate::packedfile_views::DataSource;
+use crate::settings_helpers::settings_bool;
 use crate::views::table::utils::clean_column_names;
+use crate::utils::show_dialog;
 
 use self::slots::SearchViewSlots;
 use super::{TableOperations, TableView, update_undo_model};
@@ -148,7 +150,7 @@ impl SearchView {
         case_sensitive_button.set_tool_tip(&QString::from_std_str("Case Sensitive"));
         close_button.set_tool_tip(&QString::from_std_str("Close"));
 
-        let fields = view.table_definition.read().unwrap().fields_processed_sorted(SETTINGS.read().unwrap().bool("tables_use_old_column_order"));
+        let fields = view.table_definition.read().unwrap().fields_processed_sorted(settings_bool("tables_use_old_column_order"));
         for column in &fields {
             column_combobox.add_item_q_string(&QString::from_std_str(clean_column_names(column.name())));
         }
@@ -185,7 +187,7 @@ impl SearchView {
         self.column_combobox.clear();
         self.column_combobox.add_item_q_string(&QString::from_std_str("* (All Columns)"));
 
-        let fields = parent.table_definition.read().unwrap().fields_processed_sorted(SETTINGS.read().unwrap().bool("tables_use_old_column_order"));
+        let fields = parent.table_definition.read().unwrap().fields_processed_sorted(settings_bool("tables_use_old_column_order"));
         for column in &fields {
             self.column_combobox.add_item_q_string(&QString::from_std_str(clean_column_names(column.name())));
         }

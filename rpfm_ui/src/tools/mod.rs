@@ -37,7 +37,7 @@ use qt_core::WindowType;
 
 use cpp_core::{CastInto, DynamicCast, Ptr, StaticUpcast};
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use getset::*;
 use itertools::Itertools;
 use rayon::prelude::*;
@@ -48,6 +48,9 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use rpfm_extensions::dependencies::TableReferences;
+
+use rpfm_ipc::helpers::DataSource;
+
 use rpfm_lib::files::{ContainerPath, db::DB, loc::Loc, RFile, RFileDecoded, table::{DecodedData, Table}};
 use rpfm_lib::schema::{Definition, FieldType};
 
@@ -59,7 +62,6 @@ use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::*;
 use crate::GAME_SELECTED;
 use crate::global_search_ui::GlobalSearchUI;
-use crate::packedfile_views::DataSource;
 use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::SCHEMA;
@@ -182,7 +184,7 @@ impl Tool {
             return Err(ToolsError::SchemaNotFound.into());
         }
 
-        let receiver = CENTRAL_COMMAND.send_background(Command::IsThereADependencyDatabase(true));
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::IsThereADependencyDatabase(true));
         let response = CentralCommand::recv(&receiver);
         match response {
             Response::Bool(it_is) => if !it_is { return Err(ToolsError::DependenciesCacheNotGeneratedorOutOfDate.into()); },
@@ -248,7 +250,7 @@ impl Tool {
 
         // If either the PackFile exists, or it didn't but now it does, then me need to check, file by file, to see if we can merge
         // the data edited by the tool into the current files, or we have to insert the files as new.
-        let receiver = CENTRAL_COMMAND.send_background(Command::SavePackedFilesToPackFileAndClean(packed_files.to_vec(), self.optimize));
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SavePackedFilesToPackFileAndClean(packed_files.to_vec(), self.optimize));
         let response = CentralCommand::recv(&receiver);
         match response {
             Response::VecContainerPathVecContainerPath(paths_to_add, paths_to_delete) => {
@@ -260,7 +262,7 @@ impl Tool {
                 UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
             }
 
-            Response::Error(error) => return Err(error),
+            Response::Error(error) => return Err(anyhow!(error)),
             _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}")
         }
 
@@ -1207,11 +1209,11 @@ impl Tool {
 
     /// This function returns the last compatible definition for the provided table.
     pub fn get_table_definition(table_name: &str) -> Result<Definition> {
-        let receiver = CENTRAL_COMMAND.send_background(Command::GetTableDefinitionFromDependencyPackFile(table_name.to_owned()));
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetTableDefinitionFromDependencyPackFile(table_name.to_owned()));
         let response = CentralCommand::recv(&receiver);
         let definition = match response {
             Response::Definition(data) => data,
-            Response::Error(error) => return Err(error),
+            Response::Error(error) => return Err(anyhow!(error)),
             _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
         };
 

@@ -14,12 +14,13 @@ Module with extra functions for `FileView`.
 
 use std::rc::Rc;
 
+use rpfm_ipc::helpers::DataSource;
+
 use rpfm_lib::files::{pack::{RESERVED_NAME_DEPENDENCIES_MANAGER, RESERVED_NAME_DEPENDENCIES_MANAGER_V2, RESERVED_NAME_NOTES}, ContainerPath};
 use rpfm_lib::integrations::log::info;
 
 use crate::app_ui::AppUI;
 use crate::pack_tree::*;
-use crate::packedfile_views::DataSource;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::UI_STATE;
 

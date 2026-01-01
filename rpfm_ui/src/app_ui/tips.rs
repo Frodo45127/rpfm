@@ -14,9 +14,7 @@ Module with all the code to setup the tips (in the `StatusBar`) for the actions 
 
 use std::rc::Rc;
 
-use rpfm_ui_common::locale::qtr;
-
-use crate::app_ui::AppUI;
+use crate::{app_ui::AppUI, utils::qtr};
 
 /// This function sets the status bar tip for all the actions in the provided `AppUI`.
 pub unsafe fn set_tips(app_ui: &Rc<AppUI>) {

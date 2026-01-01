@@ -27,11 +27,10 @@ use std::sync::Arc;
 
 use rpfm_lib::files::FileType;
 
-use rpfm_ui_common::locale::qtr;
-
 use crate::app_ui::AppUI;
 use crate::packedfile_views::{FileView, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
+use crate::utils::qtr;
 use self::slots::PackedFileExternalViewSlots;
 
 mod connections;

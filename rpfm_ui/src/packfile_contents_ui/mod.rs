@@ -46,22 +46,22 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::rc::Rc;
 
+use rpfm_ipc::MYMOD_BASE_PATH;
+use rpfm_ipc::helpers::DataSource;
+
 use rpfm_lib::files::{ContainerPath, pack::RESERVED_NAME_NOTES};
 
-use rpfm_ui_common::locale::qtr;
-use rpfm_ui_common::SETTINGS;
-use rpfm_ui_common::utils::*;
+use rpfm_ui_common::utils::{find_widget, load_template};
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi::*;
-use crate::packedfile_views::DataSource;
 use crate::pack_tree::{PackTree, TreeViewOperation};
-use crate::settings_ui::backend::*;
-use crate::utils::*;
+use crate::settings_helpers::{settings_bool, settings_path_buf, settings_set_bool};
 use crate::ui_state::OperationalMode;
 use crate::UI_STATE;
+use crate::utils::{add_action_to_menu, qtr, show_dialog, show_message_info};
 
 pub mod connections;
 pub mod slots;
@@ -174,7 +174,7 @@ impl PackFileContentsUI {
         new_tree_item_delegate_safe(&packfile_contents_tree_view.static_upcast::<QObject>().as_ptr(), true);
 
         // Not yet working.
-        if SETTINGS.read().unwrap().bool("packfile_treeview_resize_to_fit") {
+        if settings_bool("packfile_treeview_resize_to_fit") {
             //packfile_contents_tree_view.set_size_adjust_policy(qt_widgets::q_abstract_scroll_area::SizeAdjustPolicy::AdjustToContents);
             //packfile_contents_tree_view.horizontal_scroll_bar().set_disabled(true);
             //packfile_contents_tree_view.set_horizontal_scroll_bar_policy(qt_core::ScrollBarPolicy::ScrollBarAlwaysOff);
@@ -185,7 +185,7 @@ impl PackFileContentsUI {
 
         }
 
-        packfile_contents_tree_view.set_drag_enabled(SETTINGS.read().unwrap().bool("enable_pack_contents_drag_and_drop"));
+        packfile_contents_tree_view.set_drag_enabled(settings_bool("enable_pack_contents_drag_and_drop"));
 
         // Create and configure the widgets to control the `TreeView`s filter.
         let filter_timer_delayed_updates = QTimer::new_1a(&packfile_contents_dock_widget);
@@ -327,7 +327,7 @@ impl PackFileContentsUI {
             app_ui.toggle_main_window(false);
         }
 
-        let receiver = CENTRAL_COMMAND.send_background(Command::AddPackedFiles(paths.to_vec(), paths_in_container.to_vec(), paths_to_ignore));
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::AddPackedFiles(paths.to_vec(), paths_in_container.to_vec(), paths_to_ignore));
         let response1 = CentralCommand::recv(&receiver);
         let response2 = CentralCommand::recv(&receiver);
         match response1 {
@@ -405,7 +405,7 @@ impl PackFileContentsUI {
         move_checkbox.set_text(&qtr("rename_move_checkbox"));
 
         // Remember the last status of the move checkbox.
-        move_checkbox.set_checked(SETTINGS.read().unwrap().bool("move_checkbox_status"));
+        move_checkbox.set_checked(settings_bool("move_checkbox_status"));
 
         match selected_items.len().cmp(&1) {
 
@@ -454,7 +454,7 @@ impl PackFileContentsUI {
 
         Ok(
             if dialog.exec() == 1 {
-                let _ = SETTINGS.write().unwrap().set_bool("move_checkbox_status", move_checkbox.is_checked());
+                let _ = settings_set_bool("move_checkbox_status", move_checkbox.is_checked());
 
                 let new_text = rewrite_sequence_line_edit.text().to_std_string();
                 if new_text.is_empty() {
@@ -482,7 +482,7 @@ impl PackFileContentsUI {
 
             // In MyMod mode we extract directly to the folder of the selected MyMod, keeping the folder structure.
             OperationalMode::MyMod(ref game_folder_name, ref mod_name) => {
-                let mymods_base_path = SETTINGS.read().unwrap().path_buf(MYMOD_BASE_PATH);
+                let mymods_base_path = settings_path_buf(MYMOD_BASE_PATH);
                 if mymods_base_path.is_dir() {
 
                     // We get the assets folder of our mod (without .pack extension). This mess removes the .pack.
@@ -528,9 +528,9 @@ impl PackFileContentsUI {
         else {
             let mut paths_by_source = BTreeMap::new();
             paths_by_source.insert(DataSource::PackFile, items_to_extract);
-            let receiver = CENTRAL_COMMAND.send_background(Command::ExtractPackedFiles(paths_by_source, extraction_path, extract_tables_as_tsv));
+            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::ExtractPackedFiles(paths_by_source, extraction_path, extract_tables_as_tsv));
             app_ui.toggle_main_window(false);
-            let response = CENTRAL_COMMAND.recv_try(&receiver);
+            let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
             match response {
                 Response::StringVecPathBuf(result, _) => show_message_info(app_ui.message_widget(), result),
                 Response::Error(error) => show_dialog(app_ui.main_window(), error, false),

@@ -41,20 +41,16 @@ use qt_core::QVariant;
 use cpp_core::CppBox;
 use cpp_core::CppDeletable;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use getset::*;
 
 use std::collections::BTreeMap;
 use std::rc::Rc;
-use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
 use rpfm_lib::files::{FileType, rigidmodel::{*, materials::{Texture, TextureType}}, table::{DecodedData, local::TableInMemory, Table}};
 use rpfm_lib::schema::{Definition, Field, FieldType};
 
-use rpfm_extensions::gltf::save_gltf_to_disk;
-
-use rpfm_ui_common::locale::qtr;
 use rpfm_ui_common::utils::{find_widget, load_template};
 #[cfg(feature = "support_model_renderer")] use rpfm_ui_common::settings::setting_bool;
 #[cfg(feature = "support_model_renderer")] use rpfm_ui_common::utils::show_dialog;
@@ -65,6 +61,7 @@ use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packedfile_views::{AppUI, DataSource, FileView, PackFileContentsUI, utils::set_modified, View, ViewType};
 use crate::references_ui::ReferencesUI;
+use crate::utils::qtr;
 use crate::views::table::{TableView, TableType, utils::get_table_from_view};
 
 use self::slots::RigidModelSlots;
@@ -243,7 +240,7 @@ impl RigidModelView {
             textures_table,
 
             #[cfg(feature = "support_model_renderer")] renderer: {
-                if SETTINGS.read().unwrap().bool("enable_renderer") {
+                if settings_bool("enable_renderer") {
                     match create_q_rendering_widget(&mut file_view.main_widget().as_ptr()) {
                         Ok(renderer) => {
 
@@ -568,25 +565,22 @@ impl RigidModelView {
     }
 
     unsafe fn export_to_gltf(&self) -> Result<()> {
-        let rigid = self.data.read().unwrap().clone();
-        let receiver = CENTRAL_COMMAND.send_background(Command::ExportRigidToGltf(rigid));
-        let response = CentralCommand::recv(&receiver);
-        match response {
-            Response::Gltf(gltf) => {
+        let extraction_path =  QFileDialog::get_save_file_name_2a(
+            self.detailed_view_groupbox(),
+            &qtr("extract_gltf"),
+        );
 
-                let extraction_path =  QFileDialog::get_save_file_name_2a(
-                    self.detailed_view_groupbox(),
-                    &qtr("extract_gltf"),
-                );
-
-                if !extraction_path.is_empty() {
-                    save_gltf_to_disk(&gltf, &PathBuf::from(extraction_path.to_std_string())).map_err(From::from)
-                } else {
-                    Ok(())
-                }
-            },
-            Response::Error(error) => return Err(error),
-            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+        if !extraction_path.is_empty() {
+            let rigid = self.data.read().unwrap().clone();
+            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::ExportRigidToGltf(rigid, extraction_path.to_std_string()));
+            let response = CentralCommand::recv(&receiver);
+            match response {
+                Response::Success => Ok(()),
+                Response::Error(error) => return Err(anyhow!(error)),
+                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+            }
+        } else {
+            Ok(())
         }
     }
 }

@@ -21,17 +21,15 @@ use std::sync::Arc;
 use rpfm_lib::files::ContainerPath;
 
 use rpfm_ui_common::clone;
-use rpfm_ui_common::SETTINGS;
-use rpfm_ui_common::utils::show_dialog;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
-use crate::packedfile_views::DataSource;
 use crate::packedfile_views::animpack::PackedFileAnimPackView;
 use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::UI_STATE;
+use crate::settings_helpers::settings_bool;
 use super::*;
 
 //-------------------------------------------------------------------------------//
@@ -96,7 +94,7 @@ impl PackedFileAnimPackViewSlots {
 
                     // Ask the Background Thread to copy the files, and send him the path.
                     app_ui.toggle_main_window(false);
-                    let receiver = CENTRAL_COMMAND.send_background(Command::AddPackedFilesFromPackFileToAnimpack(view.path().read().unwrap().to_owned(), item_types));
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::AddPackedFilesFromPackFileToAnimpack(view.path().read().unwrap().to_owned(), item_types));
                     let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::VecContainerPath(paths_ok) => {
@@ -139,7 +137,7 @@ impl PackedFileAnimPackViewSlots {
 
                     // Ask the Background Thread to copy the files, and send him the path.
                     app_ui.toggle_main_window(false);
-                    let receiver = CENTRAL_COMMAND.send_background(Command::AddPackedFilesFromAnimpack(*view.data_source.read().unwrap(), view.path().read().unwrap().to_owned(), item_types));
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::AddPackedFilesFromAnimpack(*view.data_source.read().unwrap(), view.path().read().unwrap().to_owned(), item_types));
                     let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::VecContainerPath(paths_ok) => {
@@ -184,13 +182,13 @@ impl PackedFileAnimPackViewSlots {
                     let item_types = view.anim_pack_tree_view.get_item_types_from_selection_filtered();
 
                     // Ask the backend to delete them.
-                    let receiver = CENTRAL_COMMAND.send_background(Command::DeleteFromAnimpack((view.path().read().unwrap().to_owned(), item_types.clone())));
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::DeleteFromAnimpack((view.path().read().unwrap().to_owned(), item_types.clone())));
                     let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::Success => {
 
                             // If it works, remove them from the view.
-                            view.anim_pack_tree_view.update_treeview(true, TreeViewOperation::Delete(item_types, SETTINGS.read().unwrap().bool("delete_empty_folders_on_delete")), DataSource::PackFile);
+                            view.anim_pack_tree_view.update_treeview(true, TreeViewOperation::Delete(item_types, settings_bool("delete_empty_folders_on_delete")), DataSource::PackFile);
 
                             // Mark the AnimPack in the PackFile as modified.
                             view.pack_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![ContainerPath::File(view.path().read().unwrap().to_owned()); 1]), DataSource::PackFile);
@@ -260,4 +258,3 @@ impl PackedFileAnimPackViewSlots {
         }
     }
 }
-

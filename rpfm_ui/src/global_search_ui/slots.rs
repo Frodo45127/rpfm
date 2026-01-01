@@ -20,7 +20,6 @@ use getset::*;
 use rpfm_lib::integrations::log::*;
 
 use rpfm_ui_common::clone;
-use rpfm_ui_common::SETTINGS;
 
 use std::rc::Rc;
 
@@ -30,6 +29,7 @@ use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::references_ui::ReferencesUI;
+use crate::settings_helpers::settings_set_i32;
 use crate::utils::check_regex as check_regex_string;
 
 //-------------------------------------------------------------------------------//
@@ -280,7 +280,7 @@ impl GlobalSearchSlots {
                     3
                 };
 
-                let _ = SETTINGS.write().unwrap().set_i32("global_search_source_status", value);
+                let _ = settings_set_i32("global_search_source_status", value);
         }));
 
         // And here... we return all the slots.

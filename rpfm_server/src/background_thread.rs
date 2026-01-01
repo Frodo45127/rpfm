@@ -4,7 +4,7 @@
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
 //
-// This file is licensed under the MIT license, &which can be &found here:
+// This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
@@ -15,13 +15,13 @@ Basically, this does the heavy load of the program.
 !*/
 
 use anyhow::anyhow;
-use crossbeam::channel::Sender;
+
 use itertools::Itertools;
 use open::that;
 use rayon::prelude::*;
 
 use std::collections::{BTreeMap, HashMap};
-#[cfg(any(feature = "enable_tools", feature = "support_model_renderer"))] use std::collections::HashSet;
+use std::collections::HashSet;
 use std::env::temp_dir;
 use std::fs::{DirBuilder, File};
 use std::io::{BufWriter, Cursor, Write};
@@ -32,39 +32,33 @@ use std::time::SystemTime;
 
 use rpfm_extensions::dependencies::*;
 use rpfm_extensions::diagnostics::Diagnostics;
-use rpfm_extensions::gltf::gltf_from_rigid;
+use rpfm_extensions::gltf::{gltf_from_rigid, save_gltf_to_disk};
 use rpfm_extensions::optimizer::OptimizableContainer;
-#[cfg(feature = "enable_tools")] use rpfm_extensions::translator::PackTranslation;
+use rpfm_extensions::translator::PackTranslation;
+
+use rpfm_ipc::{MYMOD_BASE_PATH, SECONDARY_PATH, helpers::*};
 
 use rpfm_lib::compression::CompressionFormat;
 use rpfm_lib::files::{animpack::AnimPack, Container, ContainerPath, db::DB, DecodeableExtraData, EncodeableExtraData, FileType, loc::Loc, pack::*, portrait_settings::PortraitSettings, RFile, RFileDecoded, table::{DecodedData, Table}, text::*};
 use rpfm_lib::games::{GameInfo, LUA_REPO, LUA_BRANCH, LUA_REMOTE, OLD_AK_REPO, OLD_AK_BRANCH, OLD_AK_REMOTE, pfh_file_type::PFHFileType, supported_games::*, VanillaDBTableNameLogic};
-#[cfg(feature = "enable_tools")] use rpfm_lib::games::{TRANSLATIONS_REPO, TRANSLATIONS_BRANCH, TRANSLATIONS_REMOTE};
+use rpfm_lib::games::{TRANSLATIONS_REPO, TRANSLATIONS_BRANCH, TRANSLATIONS_REMOTE};
 use rpfm_lib::integrations::{assembly_kit::*, git::*, log::*};
 use rpfm_lib::schema::*;
 use rpfm_lib::utils::*;
 
-use rpfm_ui_common::locale::tr;
-use rpfm_ui_common::PROGRAM_PATH;
-use rpfm_ui_common::SETTINGS;
+use crate::*;
+use crate::settings::*;
+use crate::updater;
 
-use crate::app_ui::NewFile;
-use crate::backend::*;
-use crate::CENTRAL_COMMAND;
-use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
-use crate::FIRST_GAME_CHANGE_DONE;
-use crate::GAME_SELECTED;
-use crate::packedfile_views::DataSource;
-use crate::SCHEMA;
-use crate::settings_ui::backend::*;
-use crate::SUPPORTED_GAMES;
-#[cfg(feature = "enable_tools")]use crate::tools::translator::*;
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
+pub const VANILLA_LOC_NAME: &str = "vanilla_english.tsv";
+pub const VANILLA_FIXES_NAME: &str = "vanilla_fixes_";
 
 /// This is the background loop that's going to be executed in a parallel thread to the UI. No UI or "Unsafe" stuff here.
 ///
 /// All communication between this and the UI thread is done use the `CENTRAL_COMMAND` static.
-pub fn background_loop() {
+pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Response>, Command)>) {
 
     //---------------------------------------------------------------------------------------//
     // Initializing stuff...
@@ -79,6 +73,11 @@ pub fn background_loop() {
     // Preload the default game's dependencies.
     let mut dependencies = Arc::new(RwLock::new(Dependencies::default()));
 
+    // Load settings from disk or use defaults.
+    let _ = init_config_path();
+    let mut settings = Settings::init(false).unwrap();
+    let mut backup_settings = settings.clone();
+
     // Load all the tips we have.
     //let mut tips = if let Ok(tips) = Tips::load() { tips } else { Tips::default() };
 
@@ -86,15 +85,109 @@ pub fn background_loop() {
     // Looping forever and ever...
     //---------------------------------------------------------------------------------------//
     info!("Background Thread looping around…");
-    'background_loop: loop {
-
-        // Wait until you get something through the channel. This hangs the thread until we got something,
-        // so it doesn't use processing power until we send it a message.
-        let (sender, response): (Sender<Response>, Command) = CENTRAL_COMMAND.recv_background();
+    'background_loop: while let Some((sender, response)) = receiver.recv().await {
         match response {
 
             // Command to close the thread.
             Command::Exit => break,
+
+            // When we want to check if there is an update available for RPFM...
+            Command::CheckUpdates => {
+                let sender = sender.clone();
+                let settings = settings.clone();
+                tokio::spawn(async move {
+                    let result = tokio::task::spawn_blocking(move || {
+                        updater::check_updates_rpfm(&settings)
+                    }).await.unwrap();
+
+                    match result {
+                        Ok(response) => CentralCommand::send_back(&sender, Response::APIResponse(response)),
+                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
+                    }
+                });
+            }
+
+            // When we want to check if there is a schema's update available...
+            Command::CheckSchemaUpdates => {
+                let sender = sender.clone();
+                tokio::spawn(async move {
+                    let result = tokio::task::spawn_blocking(|| {
+                        match schemas_path() {
+                            Ok(local_path) => {
+                                let git_integration = GitIntegration::new(&local_path, SCHEMA_REPO, SCHEMA_BRANCH, SCHEMA_REMOTE);
+                                git_integration.check_update().map_err(|e| e.into())
+                            }
+                            Err(error) => Err(error),
+                        }
+                    }).await.unwrap();
+
+                    match result {
+                        Ok(response) => CentralCommand::send_back(&sender, Response::APIResponseGit(response)),
+                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
+                    }
+                });
+            }
+
+            // When we want to check if there is a lua setup update available...
+            Command::CheckLuaAutogenUpdates => {
+                let sender = sender.clone();
+                tokio::spawn(async move {
+                    let result = tokio::task::spawn_blocking(|| {
+                        match lua_autogen_base_path() {
+                            Ok(local_path) => {
+                                let git_integration = GitIntegration::new(&local_path, LUA_REPO, LUA_BRANCH, LUA_REMOTE);
+                                git_integration.check_update().map_err(|e| e.into())
+                            },
+                            Err(error) => Err(error),
+                        }
+                    }).await.unwrap();
+
+                    match result {
+                        Ok(response) => CentralCommand::send_back(&sender, Response::APIResponseGit(response)),
+                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
+                    }
+                });
+            }
+
+            Command::CheckEmpireAndNapoleonAKUpdates => {
+                let sender = sender.clone();
+                tokio::spawn(async move {
+                    let result = tokio::task::spawn_blocking(|| {
+                        match old_ak_files_path() {
+                            Ok(local_path) => {
+                                let git_integration = GitIntegration::new(&local_path, OLD_AK_REPO, OLD_AK_BRANCH, OLD_AK_REMOTE);
+                                git_integration.check_update().map_err(|e| e.into())
+                            },
+                            Err(error) => Err(error),
+                        }
+                    }).await.unwrap();
+
+                    match result {
+                        Ok(response) => CentralCommand::send_back(&sender, Response::APIResponseGit(response)),
+                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
+                    }
+                });
+            }
+
+            Command::CheckTranslationsUpdates => {
+                let sender = sender.clone();
+                tokio::spawn(async move {
+                    let result = tokio::task::spawn_blocking(|| {
+                        match translations_remote_path() {
+                            Ok(local_path) => {
+                                let git_integration = GitIntegration::new(&local_path, TRANSLATIONS_REPO, TRANSLATIONS_BRANCH, TRANSLATIONS_REMOTE);
+                                git_integration.check_update().map_err(|e| e.into())
+                            }
+                            Err(error) => Err(error),
+                        }
+                    }).await.unwrap();
+
+                    match result {
+                        Ok(response) => CentralCommand::send_back(&sender, Response::APIResponseGit(response)),
+                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
+                    }
+                });
+            }
 
             // In case we want to reset the PackFile to his original state (dummy)...
             Command::ResetPackFile => pack_file_decoded = Pack::default(),
@@ -108,7 +201,7 @@ pub fn background_loop() {
                 let pack_version = game_selected.pfh_version_by_file_type(PFHFileType::Mod);
                 pack_file_decoded = Pack::new_with_name_and_version("unknown.pack", pack_version);
 
-                if let Some(version_number) = game_selected.game_version_number(&SETTINGS.read().unwrap().path_buf(game_selected.key())) {
+                if let Some(version_number) = game_selected.game_version_number(&settings.path_buf(game_selected.key())) {
                     pack_file_decoded.set_game_version(version_number);
                 }
             }
@@ -116,7 +209,7 @@ pub fn background_loop() {
             // In case we want to "Open one or more PackFiles"...
             Command::OpenPackFiles(paths) => {
                 let game_selected = GAME_SELECTED.read().unwrap().clone();
-                match Pack::read_and_merge(&paths, &game_selected, SETTINGS.read().unwrap().bool("use_lazy_loading"), false, false) {
+                match Pack::read_and_merge(&paths, &game_selected, settings.bool("use_lazy_loading"), false, false) {
                     Ok(pack) => {
                         pack_file_decoded = pack;
 
@@ -134,7 +227,7 @@ pub fn background_loop() {
 
                         CentralCommand::send_back(&sender, Response::ContainerInfo(ContainerInfo::from(&pack_file_decoded)));
                     }
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                 }
             }
 
@@ -148,7 +241,7 @@ pub fn background_loop() {
                             CentralCommand::send_back(&sender, Response::ContainerInfo(ContainerInfo::from(&pack)));
                             pack_files_decoded_extra.insert(path.to_path_buf(), pack);
                         }
-                        Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                     }
                 }
             }
@@ -156,7 +249,7 @@ pub fn background_loop() {
             // In case we want to "Load All CA PackFiles"...
             Command::LoadAllCAPackFiles => {
                 let game_selected = GAME_SELECTED.read().unwrap();
-                match Pack::read_and_merge_ca_packs(&game_selected, &SETTINGS.read().unwrap().path_buf(game_selected.key())) {
+                match Pack::read_and_merge_ca_packs(&game_selected, &settings.path_buf(game_selected.key())) {
                     Ok(pack) => {
                         pack_file_decoded = pack;
 
@@ -174,41 +267,41 @@ pub fn background_loop() {
 
                         CentralCommand::send_back(&sender, Response::ContainerInfo(ContainerInfo::from(&pack_file_decoded)));
                     }
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                 }
             }
 
             // In case we want to "Save a PackFile"...
             Command::SavePackFile => {
                 let game = GAME_SELECTED.read().unwrap();
-                let extra_data = Some(EncodeableExtraData::new_from_game_info_and_settings(&game, pack_file_decoded.compression_format(), SETTINGS.read().unwrap().bool("disable_uuid_regeneration_on_db_tables")));
+                let extra_data = Some(EncodeableExtraData::new_from_game_info_and_settings(&game, pack_file_decoded.compression_format(), settings.bool("disable_uuid_regeneration_on_db_tables")));
 
                 let pack_type = *pack_file_decoded.header().pfh_file_type();
-                if !SETTINGS.read().unwrap().bool("allow_editing_of_ca_packfiles") && pack_type != PFHFileType::Mod && pack_type != PFHFileType::Movie {
-                    CentralCommand::send_back(&sender, Response::Error(anyhow!("Pack cannot be saved due to being of CA-Only type. Either change the Pack Type or enable \"Allow Edition of CA Packs\" in the settings.")));
+                if !settings.bool("allow_editing_of_ca_packfiles") && pack_type != PFHFileType::Mod && pack_type != PFHFileType::Movie {
+                    CentralCommand::send_back(&sender, Response::Error(anyhow!("Pack cannot be saved due to being of CA-Only type. Either change the Pack Type or enable \"Allow Edition of CA Packs\" in the settings.").to_string()));
                     continue;
                 }
 
                 match pack_file_decoded.save(None, &game, &extra_data) {
                     Ok(_) => CentralCommand::send_back(&sender, Response::ContainerInfo(From::from(&pack_file_decoded))),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(anyhow!("Error while trying to save the currently open PackFile: {}", error))),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(anyhow!("Error while trying to save the currently open PackFile: {}", error).to_string())),
                 }
             }
 
             // In case we want to "Save a PackFile As"...
             Command::SavePackFileAs(path) => {
                 let game = GAME_SELECTED.read().unwrap();
-                let extra_data = Some(EncodeableExtraData::new_from_game_info_and_settings(&game, pack_file_decoded.compression_format(), SETTINGS.read().unwrap().bool("disable_uuid_regeneration_on_db_tables")));
+                let extra_data = Some(EncodeableExtraData::new_from_game_info_and_settings(&game, pack_file_decoded.compression_format(), settings.bool("disable_uuid_regeneration_on_db_tables")));
 
                 let pack_type = *pack_file_decoded.header().pfh_file_type();
-                if !SETTINGS.read().unwrap().bool("allow_editing_of_ca_packfiles") && pack_type != PFHFileType::Mod && pack_type != PFHFileType::Movie {
-                    CentralCommand::send_back(&sender, Response::Error(anyhow!("Pack cannot be saved due to being of CA-Only type. Either change the Pack Type or enable \"Allow Edition of CA Packs\" in the settings.")));
+                if !settings.bool("allow_editing_of_ca_packfiles") && pack_type != PFHFileType::Mod && pack_type != PFHFileType::Movie {
+                    CentralCommand::send_back(&sender, Response::Error(anyhow!("Pack cannot be saved due to being of CA-Only type. Either change the Pack Type or enable \"Allow Edition of CA Packs\" in the settings.").to_string()));
                     continue;
                 }
 
                 match pack_file_decoded.save(Some(&path), &game, &extra_data) {
                     Ok(_) => CentralCommand::send_back(&sender, Response::ContainerInfo(From::from(&pack_file_decoded))),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(anyhow!("Error while trying to save the currently open PackFile: {}", error))),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(anyhow!("Error while trying to save the currently open PackFile: {}", error).to_string())),
                 }
             }
 
@@ -217,10 +310,10 @@ pub fn background_loop() {
                 pack_file_decoded.clean_undecoded();
 
                 let game = GAME_SELECTED.read().unwrap();
-                let extra_data = Some(EncodeableExtraData::new_from_game_info_and_settings(&game, pack_file_decoded.compression_format(), SETTINGS.read().unwrap().bool("disable_uuid_regeneration_on_db_tables")));
+                let extra_data = Some(EncodeableExtraData::new_from_game_info_and_settings(&game, pack_file_decoded.compression_format(), settings.bool("disable_uuid_regeneration_on_db_tables")));
                 match pack_file_decoded.save(Some(&path), &game, &extra_data) {
                     Ok(_) => CentralCommand::send_back(&sender, Response::ContainerInfo(From::from(&pack_file_decoded))),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(anyhow!("Error while trying to save the currently open PackFile: {}", error))),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(anyhow!("Error while trying to save the currently open PackFile: {}", error).to_string())),
                 }
             }
 
@@ -244,7 +337,7 @@ pub fn background_loop() {
                         From::from(pack_file),
                         pack_file.files().par_iter().map(|(_, file)| From::from(file)).collect(),
                     ))),
-                    None => CentralCommand::send_back(&sender, Response::Error(anyhow!("Cannot find extra PackFile with path: {}", path.to_string_lossy()))),
+                    None => CentralCommand::send_back(&sender, Response::Error(anyhow!("Cannot find extra PackFile with path: {}", path.to_string_lossy()).to_string())),
                 }
             }
 
@@ -272,7 +365,7 @@ pub fn background_loop() {
                         let packed_files_info = RFileInfo::info_from_global_search(&global_search, &pack_file_decoded);
                         CentralCommand::send_back(&sender, Response::GlobalSearchVecRFileInfo(Box::new(global_search), packed_files_info));
                     }
-                    None => CentralCommand::send_back(&sender, Response::Error(anyhow!("Schema not found. Maybe you need to download it?"))),
+                    None => CentralCommand::send_back(&sender, Response::Error(anyhow!("Schema not found. Maybe you need to download it?").to_string())),
                 }
             }
 
@@ -292,8 +385,6 @@ pub fn background_loop() {
                     }
                 }
 
-                CentralCommand::send_back(&sender, Response::CompressionFormat(pack_file_decoded.compression_format()));
-
                 // Optimisation: If we know we need to rebuild the whole dependencies, load them in another thread
                 // while we load the schema. That way we can speed-up the entire game-switching process.
                 //
@@ -304,10 +395,13 @@ pub fn background_loop() {
                 if rebuild_dependencies {
                     info!("Branch 1.");
                     let pack_dependencies = pack_file_decoded.dependencies().iter().map(|x| x.1.clone()).collect::<Vec<_>>();
+                    // Get settings values before spawning thread since settings can't be moved into closure
+                    let game = GAME_SELECTED.read().unwrap().clone();
+                    let game_path = settings.path_buf(game.key());
+                    let secondary_path = settings.path_buf(SECONDARY_PATH);
+
                     let handle = thread::spawn(move || {
                         let game_selected = GAME_SELECTED.read().unwrap();
-                        let game_path = SETTINGS.read().unwrap().path_buf(game_selected.key());
-                        let secondary_path = SETTINGS.read().unwrap().path_buf(SECONDARY_PATH);
                         let file_path = dependencies_cache_path().unwrap().join(game_selected.dependencies_cache_file_name());
                         let file_path = if game_changed { Some(&*file_path) } else { None };
                         let _ = dependencies.write().unwrap().rebuild(&None, &pack_dependencies, file_path, &game_selected, &game_path, &secondary_path);
@@ -315,13 +409,13 @@ pub fn background_loop() {
                     });
 
                     // Load the new schemas.
-                    load_schemas(&sender, &mut pack_file_decoded, &game);
+                    load_schemas(&mut pack_file_decoded, &game, &settings);
 
                     // Get the dependencies that were loading in parallel and send their info to the UI.
                     dependencies = handle.join().unwrap();
-                    let dependencies_info = DependenciesInfo::from(&*dependencies.read().unwrap());
+                    let dependencies_info = DependenciesInfo::new(&*dependencies.read().unwrap(), &GAME_SELECTED.read().unwrap().vanilla_db_table_name_logic());
                     info!("Sending dependencies info after game selected change.");
-                    CentralCommand::send_back(&sender, Response::DependenciesInfo(dependencies_info));
+                    CentralCommand::send_back(&sender, Response::CompressionFormatDependenciesInfo(pack_file_decoded.compression_format(), Some(dependencies_info)));
 
                     // Decode the dependencies tables while the UI does its own thing.
                     dependencies.write().unwrap().decode_tables(&SCHEMA.read().unwrap());
@@ -332,7 +426,8 @@ pub fn background_loop() {
                     info!("Branch 2.");
 
                     // Load the new schemas.
-                    load_schemas(&sender, &mut pack_file_decoded, &game);
+                    load_schemas(&mut pack_file_decoded, &game, &settings);
+                    CentralCommand::send_back(&sender, Response::CompressionFormatDependenciesInfo(pack_file_decoded.compression_format(), None));
                 };
 
                 // If there is a Pack open, change his id to match the one of the new `Game Selected`.
@@ -340,7 +435,7 @@ pub fn background_loop() {
                     let pfh_file_type = *pack_file_decoded.header().pfh_file_type();
                     pack_file_decoded.header_mut().set_pfh_version(game.pfh_version_by_file_type(pfh_file_type));
 
-                    if let Some(version_number) = game.game_version_number(&SETTINGS.read().unwrap().path_buf(game.key())) {
+                    if let Some(version_number) = game.game_version_number(&settings.path_buf(game.key())) {
                         pack_file_decoded.set_game_version(version_number);
                     }
                 }
@@ -350,9 +445,9 @@ pub fn background_loop() {
             // In case we want to generate the dependencies cache for our Game Selected...
             Command::GenerateDependenciesCache => {
                 let game_selected = GAME_SELECTED.read().unwrap();
-                let game_path = SETTINGS.read().unwrap().path_buf(game_selected.key());
-                let ignore_game_files_in_ak = SETTINGS.read().unwrap().bool("ignore_game_files_in_ak");
-                let asskit_path = assembly_kit_path().ok();
+                let game_path = settings.path_buf(game_selected.key());
+                let ignore_game_files_in_ak = settings.bool("ignore_game_files_in_ak");
+                let asskit_path = settings.assembly_kit_path(&game_selected).ok();
 
                 if game_path.is_dir() {
                     let schema = SCHEMA.read().unwrap();
@@ -361,30 +456,30 @@ pub fn background_loop() {
                             let dependencies_path = dependencies_cache_path().unwrap().join(game_selected.dependencies_cache_file_name());
                             match cache.save(&dependencies_path) {
                                 Ok(_) => {
-                                    let secondary_path = SETTINGS.read().unwrap().path_buf(SECONDARY_PATH);
+                                    let secondary_path = settings.path_buf(SECONDARY_PATH);
                                     let pack_dependencies = pack_file_decoded.dependencies().iter().map(|x| x.1.clone()).collect::<Vec<_>>();
                                     let _ = dependencies.write().unwrap().rebuild(&schema, &pack_dependencies, Some(&dependencies_path), &game_selected, &game_path, &secondary_path);
-                                    let dependencies_info = DependenciesInfo::from(&*dependencies.read().unwrap());
+                                    let dependencies_info = DependenciesInfo::new(&*dependencies.read().unwrap(), &GAME_SELECTED.read().unwrap().vanilla_db_table_name_logic());
                                     CentralCommand::send_back(&sender, Response::DependenciesInfo(dependencies_info));
                                 },
-                                Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                                Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                             }
                         }
-                        Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                     }
                 } else {
-                    CentralCommand::send_back(&sender, Response::Error(anyhow!("Game Path not configured. Go to <i>'PackFile/Settings'</i> and configure it.")));
+                    CentralCommand::send_back(&sender, Response::Error(anyhow!("Game Path not configured. Go to <i>'PackFile/Settings'</i> and configure it.").to_string()));
                 }
             }
 
             // In case we want to update the Schema for our Game Selected...
             Command::UpdateCurrentSchemaFromAssKit => {
-                let ignore_game_files_in_ak = SETTINGS.read().unwrap().bool("ignore_game_files_in_ak");
+                let ignore_game_files_in_ak = settings.bool("ignore_game_files_in_ak");
 
                 if let Some(ref mut schema) = *SCHEMA.write().unwrap() {
-                    match assembly_kit_path() {
+                    let game_selected = GAME_SELECTED.read().unwrap();
+                    match settings.assembly_kit_path(&game_selected) {
                         Ok(asskit_path) => {
-                            let game_selected = GAME_SELECTED.read().unwrap();
                             let schema_path = schemas_path().unwrap().join(game_selected.schema_file_name());
 
                             let dependencies = dependencies.read().unwrap();
@@ -450,7 +545,7 @@ pub fn background_loop() {
 
                                                 match schema.save(&schemas_path().unwrap().join(GAME_SELECTED.read().unwrap().schema_file_name())) {
                                                     Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                                                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                                                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                                                 }
                                             } else {
                                                 CentralCommand::send_back(&sender, Response::Success)
@@ -459,14 +554,14 @@ pub fn background_loop() {
                                             CentralCommand::send_back(&sender, Response::Success)
                                         }
                                     },
-                                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                                 }
                             }
                         }
-                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                     }
                 } else {
-                    CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected.")));
+                    CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected.").to_string()));
                 }
             }
 
@@ -476,10 +571,10 @@ pub fn background_loop() {
                     let game_info = GAME_SELECTED.read().unwrap();
                     match pack_file_decoded.optimize(None, &mut dependencies.write().unwrap(), schema, &game_info, &options) {
                         Ok((paths_to_delete, paths_to_add)) => CentralCommand::send_back(&sender, Response::HashSetStringHashSetString(paths_to_delete, paths_to_add)),
-                        Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                     }
                 } else {
-                    CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected.")));
+                    CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected.").to_string()));
                 }
             }
 
@@ -487,7 +582,7 @@ pub fn background_loop() {
             Command::PatchSiegeAI => {
                 match pack_file_decoded.patch_siege_ai() {
                     Ok(result) => CentralCommand::send_back(&sender, Response::StringVecContainerPath(result.0, result.1)),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error)))
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string()))
                 }
             }
 
@@ -538,12 +633,12 @@ pub fn background_loop() {
                                     RFileDecoded::DB(file)
                                 }
                                 None => {
-                                    CentralCommand::send_back(&sender, Response::Error(anyhow!("No definitions found for the table `{}`, version `{}` in the currently loaded schema.", table, version)));
+                                    CentralCommand::send_back(&sender, Response::Error(format!("No definitions found for the table `{}`, version `{}` in the currently loaded schema.", table, version)));
                                     continue;
                                 }
                             }
                         } else {
-                            CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected.")));
+                            CentralCommand::send_back(&sender, Response::Error(format!("There is no Schema for the Game Selected.")));
                             continue;
                         }
                     },
@@ -601,7 +696,7 @@ pub fn background_loop() {
                 let file = RFile::new_from_decoded(&decoded, 0, &path);
                 match pack_file_decoded.insert(file) {
                     Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                 }
             }
 
@@ -623,7 +718,7 @@ pub fn background_loop() {
 
                     match destination_path {
                         ContainerPath::File(destination_path) => {
-                            match pack_file_decoded.insert_file(source_path, destination_path, &schema) {
+                            match pack_file_decoded.insert_file(source_path, &destination_path, &schema) {
                                 Ok(path) => if let Some(path) = path {
                                     added_paths.push(path);
                                 },
@@ -633,7 +728,7 @@ pub fn background_loop() {
 
                         // TODO: See what should we do with the ignored paths.
                         ContainerPath::Folder(destination_path) => {
-                            match pack_file_decoded.insert_folder(source_path, destination_path, &None, &schema, SETTINGS.read().unwrap().bool("include_base_folder_on_add_from_folder")) {
+                            match pack_file_decoded.insert_folder(source_path, &destination_path, &None, &schema, settings.bool("include_base_folder_on_add_from_folder")) {
                                 Ok(mut paths) => added_paths.append(&mut paths),
                                 Err(error) => it_broke = Some(error),
                             }
@@ -643,7 +738,7 @@ pub fn background_loop() {
 
                 if let Some(error) = it_broke {
                     CentralCommand::send_back(&sender, Response::VecContainerPath(added_paths.to_vec()));
-                    CentralCommand::send_back(&sender, Response::Error(From::from(error)));
+                    CentralCommand::send_back(&sender, Response::Error(error.to_string()));
                 } else {
                     CentralCommand::send_back(&sender, Response::VecContainerPath(added_paths.to_vec()));
                     CentralCommand::send_back(&sender, Response::Success);
@@ -696,7 +791,7 @@ pub fn background_loop() {
                             );
                         }
                     }
-                    None => CentralCommand::send_back(&sender, Response::Error(anyhow!("Cannot find extra PackFile with path: {}", pack_file_path.to_string_lossy()))),
+                    None => CentralCommand::send_back(&sender, Response::Error(format!("Cannot find extra PackFile with path: {}", pack_file_path.to_string_lossy()))),
                 }
             }
 
@@ -731,12 +826,12 @@ pub fn background_loop() {
 
                                     CentralCommand::send_back(&sender, Response::VecContainerPath(paths.to_vec()));
                                 }
-                                _ => CentralCommand::send_back(&sender, Response::Error(anyhow!("We expected {} to be of type {} but found {}. This is either a bug or you did weird things with the game selected.", anim_pack_path, FileType::AnimPack, FileType::from(&*decoded)))),
+                                _ => CentralCommand::send_back(&sender, Response::Error(format!("We expected {} to be of type {} but found {}. This is either a bug or you did weird things with the game selected.", anim_pack_path, FileType::AnimPack, FileType::from(&*decoded)))),
                             }
-                            _ => CentralCommand::send_back(&sender, Response::Error(anyhow!("Failed to decode the file at the following path: {}", anim_pack_path))),
+                            _ => CentralCommand::send_back(&sender, Response::Error(format!("Failed to decode the file at the following path: {}", anim_pack_path))),
                         }
                     }
-                    None => CentralCommand::send_back(&sender, Response::Error(anyhow!("File not found in the Pack: {}.", anim_pack_path))),
+                    None => CentralCommand::send_back(&sender, Response::Error(format!("File not found in the Pack: {}.", anim_pack_path))),
                 }
             }
 
@@ -763,18 +858,18 @@ pub fn background_loop() {
                             Ok(decoded) => match decoded {
                                 RFileDecoded::AnimPack(anim_pack) => anim_pack.files_by_paths(&paths, false).into_iter().cloned().collect::<Vec<RFile>>(),
                                 _ => {
-                                    CentralCommand::send_back(&sender, Response::Error(anyhow!("We expected {} to be of type {} but found {}. This is either a bug or you did weird things with the game selected.", anim_pack_path, FileType::AnimPack, FileType::from(&*decoded))));
+                                    CentralCommand::send_back(&sender, Response::Error(format!("We expected {} to be of type {} but found {}. This is either a bug or you did weird things with the game selected.", anim_pack_path, FileType::AnimPack, FileType::from(&*decoded))));
                                     continue;
                                 },
                             }
                             _ => {
-                                CentralCommand::send_back(&sender, Response::Error(anyhow!("Failed to decode the file at the following path: {}", anim_pack_path)));
+                                CentralCommand::send_back(&sender, Response::Error(format!("Failed to decode the file at the following path: {}", anim_pack_path)));
                                 continue;
                             },
                         }
                     }
                     None => {
-                        CentralCommand::send_back(&sender, Response::Error(anyhow!("The file with the path {} doesn't exists on the open Pack.", anim_pack_path)));
+                        CentralCommand::send_back(&sender, Response::Error(format!("The file with the path {} doesn't exists on the open Pack.", anim_pack_path)));
                         continue;
                     }
                 };
@@ -807,12 +902,12 @@ pub fn background_loop() {
 
                                     CentralCommand::send_back(&sender, Response::Success);
                                 }
-                                _ => CentralCommand::send_back(&sender, Response::Error(anyhow!("We expected {} to be of type {} but found {}. This is either a bug or you did weird things with the game selected.", anim_pack_path, FileType::AnimPack, FileType::from(&*decoded)))),
+                                _ => CentralCommand::send_back(&sender, Response::Error(format!("We expected {} to be of type {} but found {}. This is either a bug or you did weird things with the game selected.", anim_pack_path, FileType::AnimPack, FileType::from(&*decoded)))),
                             }
-                            _ => CentralCommand::send_back(&sender, Response::Error(anyhow!("Failed to decode the file at the following path: {}", anim_pack_path))),
+                            _ => CentralCommand::send_back(&sender, Response::Error(format!("Failed to decode the file at the following path: {}", anim_pack_path))),
                         }
                     }
-                    None => CentralCommand::send_back(&sender, Response::Error(anyhow!("File not found in the Pack: {}.", anim_pack_path))),
+                    None => CentralCommand::send_back(&sender, Response::Error(format!("File not found in the Pack: {}.", anim_pack_path))),
                 }
             }
 
@@ -834,23 +929,23 @@ pub fn background_loop() {
 
                             // Find the PackedFile we want and send back the response.
                             match pack_file_decoded.files_mut().get_mut(&path) {
-                                Some(file) => decode_and_send_file(file, &sender),
-                                None => CentralCommand::send_back(&sender, Response::Error(anyhow!("The file with the path {} hasn't been found on this Pack.", path))),
+                                Some(file) => decode_and_send_file(file, &sender, &settings),
+                                None => CentralCommand::send_back(&sender, Response::Error(format!("The file with the path {} hasn't been found on this Pack.", path))),
                             }
                         }
                     }
 
                     DataSource::ParentFiles => {
                         match dependencies.write().unwrap().file_mut(&path, false, true) {
-                            Ok(file) => decode_and_send_file(file, &sender),
-                            Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                            Ok(file) => decode_and_send_file(file, &sender, &settings),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                         }
                     }
 
                     DataSource::GameFiles => {
                         match dependencies.write().unwrap().file_mut(&path, true, false) {
-                            Ok(file) => decode_and_send_file(file, &sender),
-                            Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                            Ok(file) => decode_and_send_file(file, &sender, &settings),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                         }
                     }
 
@@ -859,10 +954,10 @@ pub fn background_loop() {
                         if path_split.len() > 2 {
                             match dependencies.read().unwrap().asskit_only_db_tables().get(path_split[1]) {
                                 Some(db) => CentralCommand::send_back(&sender, Response::DBRFileInfo(db.clone(), RFileInfo::default())),
-                                None => CentralCommand::send_back(&sender, Response::Error(anyhow!("Table {} not found on Assembly Kit files.", path))),
+                                None => CentralCommand::send_back(&sender, Response::Error(format!("Table {} not found on Assembly Kit files.", path))),
                             }
                         } else {
-                            CentralCommand::send_back(&sender, Response::Error(anyhow!("Path {} doesn't contain an identificable table name.", path)));
+                            CentralCommand::send_back(&sender, Response::Error(format!("Path {} doesn't contain an identificable table name.", path)));
                         }
                     }
 
@@ -879,7 +974,7 @@ pub fn background_loop() {
                 }
                 else if let Some(file) = pack_file_decoded.files_mut().get_mut(&path) {
                     if let Err(error) = file.set_decoded(file_decoded) {
-                        CentralCommand::send_back(&sender, Response::Error(From::from(error)));
+                        CentralCommand::send_back(&sender, Response::Error(error.to_string()));
                     }
                 }
                 CentralCommand::send_back(&sender, Response::Success);
@@ -895,13 +990,13 @@ pub fn background_loop() {
                 let mut errors = 0;
 
                 let game = GAME_SELECTED.read().unwrap();
-                let extra_data = Some(EncodeableExtraData::new_from_game_info_and_settings(&game, pack_file_decoded.compression_format(), SETTINGS.read().unwrap().bool("disable_uuid_regeneration_on_db_tables")));
+                let extra_data = Some(EncodeableExtraData::new_from_game_info_and_settings(&game, pack_file_decoded.compression_format(), settings.bool("disable_uuid_regeneration_on_db_tables")));
                 let mut extracted_paths = vec![];
 
                 // Pack extraction.
                 if let Some(container_paths) = container_paths.get(&DataSource::PackFile) {
                     for container_path in container_paths {
-                        match pack_file_decoded.extract(container_path.clone(), &path, true, schema, false, SETTINGS.read().unwrap().bool("tables_use_old_column_order_for_tsv"), &extra_data, true) {
+                        match pack_file_decoded.extract(container_path.clone(), &path, true, schema, false, settings.bool("tables_use_old_column_order_for_tsv"), &extra_data, true) {
                             Ok(mut extracted_path) => extracted_paths.append(&mut extracted_path),
                             Err(_) => {
                                 //error!("Error extracting {}: {}", container_path.path_raw(), error);
@@ -913,7 +1008,7 @@ pub fn background_loop() {
                     if errors == 0 {
                         CentralCommand::send_back(&sender, Response::StringVecPathBuf(tr("files_extracted_success"), extracted_paths));
                     } else {
-                        CentralCommand::send_back(&sender, Response::Error(anyhow!("There were {} errors while extracting.", errors)));
+                        CentralCommand::send_back(&sender, Response::Error(format!("There were {} errors while extracting.", errors)));
                     }
                 }
 
@@ -942,7 +1037,7 @@ pub fn background_loop() {
                         }
 
                         let container_path = ContainerPath::File(path_raw);
-                        match pack.extract(container_path, &path, true, schema, false, SETTINGS.read().unwrap().bool("tables_use_old_column_order_for_tsv"), &extra_data, true) {
+                        match pack.extract(container_path, &path, true, schema, false, settings.bool("tables_use_old_column_order_for_tsv"), &extra_data, true) {
                             Ok(mut extracted_path) => extracted_paths.append(&mut extracted_path),
                             Err(_) => errors += 1,
                         }
@@ -951,7 +1046,7 @@ pub fn background_loop() {
                     if errors == 0 {
                         CentralCommand::send_back(&sender, Response::StringVecPathBuf(tr("files_extracted_success"), extracted_paths));
                     } else {
-                        CentralCommand::send_back(&sender, Response::Error(anyhow!("There were {} errors while extracting.", errors)));
+                        CentralCommand::send_back(&sender, Response::Error(format!("There were {} errors while extracting.", errors)));
                     }
                 }
             }
@@ -960,7 +1055,7 @@ pub fn background_loop() {
             Command::RenamePackedFiles(renaming_data) => {
                 match pack_file_decoded.move_paths(&renaming_data) {
                     Ok(data) => CentralCommand::send_back(&sender, Response::VecContainerPathContainerPath(data)),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                 }
             }
 
@@ -989,7 +1084,7 @@ pub fn background_loop() {
                     ).map(|(key, _)| key.to_owned()).collect::<Vec<_>>();
                     CentralCommand::send_back(&sender, Response::VecString(tables));
                 }
-                None => CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected.")))
+                None => CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected.").to_string()))
             },
 
             Command::LocalArtSetIds => CentralCommand::send_back(&sender, Response::HashSetString(dependencies.read().unwrap().db_values_from_table_name_and_column_name(Some(&pack_file_decoded), "campaign_character_arts_tables", "art_set_id", false, false))),
@@ -1011,34 +1106,34 @@ pub fn background_loop() {
                                         match schema.definitions_by_table_name(&table_name) {
                                             Some(definitions) => {
                                                 if definitions.is_empty() {
-                                                    CentralCommand::send_back(&sender, Response::Error(anyhow!("There are no definitions for this specific table.")));
+                                                    CentralCommand::send_back(&sender, Response::Error(format!("There are no definitions for this specific table.")));
                                                 } else {
                                                     CentralCommand::send_back(&sender, Response::I32(*definitions.first().unwrap().version()));
                                                 }
                                             }
-                                            None => CentralCommand::send_back(&sender, Response::Error(anyhow!("There are no definitions for this specific table."))),
+                                            None => CentralCommand::send_back(&sender, Response::Error(format!("There are no definitions for this specific table."))),
                                         }
                                     }
-                                    None => CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected.")))
+                                    None => CentralCommand::send_back(&sender, Response::Error(format!("There is no Schema for the Game Selected.").to_string()))
                                 }
                             } else {
-                                CentralCommand::send_back(&sender, Response::Error(anyhow!("Table not found in the game files.")))
+                                CentralCommand::send_back(&sender, Response::Error(format!("Table not found in the game files.")))
                             }
                         },
                     }
-                } else { CentralCommand::send_back(&sender, Response::Error(anyhow!("Dependencies cache needs to be regenerated before this."))); }
+                } else { CentralCommand::send_back(&sender, Response::Error(format!("Dependencies cache needs to be regenerated before this.").to_string())); }
             }
 
-            #[cfg(feature = "enable_tools")] Command::GetTableDefinitionFromDependencyPackFile(table_name) => {
+            Command::GetTableDefinitionFromDependencyPackFile(table_name) => {
                 if dependencies.read().unwrap().is_vanilla_data_loaded(false) {
                     if let Some(ref schema) = *SCHEMA.read().unwrap() {
                         if let Some(version) = dependencies.read().unwrap().db_version(&table_name) {
                             if let Some(definition) = schema.definition_by_name_and_version(&table_name, version) {
                                 CentralCommand::send_back(&sender, Response::Definition(definition.clone()));
-                            } else { CentralCommand::send_back(&sender, Response::Error(anyhow!("No definition found for table {}.", table_name))); }
-                        } else { CentralCommand::send_back(&sender, Response::Error(anyhow!("Table version not found in dependencies for table {}.", table_name))); }
-                    } else { CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected."))); }
-                } else { CentralCommand::send_back(&sender, Response::Error(anyhow!("Dependencies cache needs to be regenerated before this."))); }
+                            } else { CentralCommand::send_back(&sender, Response::Error(format!("No definition found for table {}.", table_name).to_string())); }
+                        } else { CentralCommand::send_back(&sender, Response::Error(format!("Table version not found in dependencies for table {}.", table_name).to_string())); }
+                    } else { CentralCommand::send_back(&sender, Response::Error(format!("There is no Schema for the Game Selected.").to_string())); }
+                } else { CentralCommand::send_back(&sender, Response::Error(format!("Dependencies cache needs to be regenerated before this.").to_string())); }
             }
 
             // In case we want to merge DB or Loc Tables from a PackFile...
@@ -1057,7 +1152,7 @@ pub fn background_loop() {
 
                         CentralCommand::send_back(&sender, Response::String(merged_path.to_string()));
                     },
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                 }
             }
 
@@ -1068,10 +1163,10 @@ pub fn background_loop() {
                     if let Ok(decoded) = rfile.decoded_mut() {
                         match dependencies.write().unwrap().update_db(decoded) {
                             Ok((old_version, new_version, fields_deleted, fields_added)) => CentralCommand::send_back(&sender, Response::I32I32VecStringVecString(old_version, new_version, fields_deleted, fields_added)),
-                            Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                         }
-                    } else { CentralCommand::send_back(&sender, Response::Error(anyhow!("File with the following path undecoded: {}", path))); }
-                } else { CentralCommand::send_back(&sender, Response::Error(anyhow!("File not found in the open Pack: {}", path))); }
+                    } else { CentralCommand::send_back(&sender, Response::Error(anyhow!("File with the following path undecoded: {}", path).to_string())); }
+                } else { CentralCommand::send_back(&sender, Response::Error(anyhow!("File not found in the open Pack: {}", path).to_string())); }
             }
 
             // In case we want to replace all matches in a Global Search...
@@ -1083,10 +1178,10 @@ pub fn background_loop() {
                             let files_info = paths.iter().flat_map(|path| pack_file_decoded.files_by_path(path, false).iter().map(|file| RFileInfo::from(*file)).collect::<Vec<RFileInfo>>()).collect();
                             CentralCommand::send_back(&sender, Response::GlobalSearchVecRFileInfo(Box::new(global_search), files_info));
                         }
-                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error.into())),
+                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                     }
                 } else {
-                    CentralCommand::send_back(&sender, Response::Error(anyhow!("Schema not found. Maybe you need to download it?")));
+                    CentralCommand::send_back(&sender, Response::Error(anyhow!("Schema not found. Maybe you need to download it?").to_string()));
                 }
             }
 
@@ -1099,10 +1194,10 @@ pub fn background_loop() {
                             let files_info = paths.iter().flat_map(|path| pack_file_decoded.files_by_path(path, false).iter().map(|file| RFileInfo::from(*file)).collect::<Vec<RFileInfo>>()).collect();
                             CentralCommand::send_back(&sender, Response::GlobalSearchVecRFileInfo(Box::new(global_search), files_info));
                         }
-                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error.into())),
+                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                     }
                 } else {
-                    CentralCommand::send_back(&sender, Response::Error(anyhow!("Schema not found. Maybe you need to download it?")));
+                    CentralCommand::send_back(&sender, Response::Error(anyhow!("Schema not found. Maybe you need to download it?").to_string()));
                 }
             }
 
@@ -1133,10 +1228,10 @@ pub fn background_loop() {
                                 }
                                 // TODO: Put an error here.
                             }
-                            Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                         }
                     }
-                    None => CentralCommand::send_back(&sender, Response::Error(anyhow!("This Pack doesn't exists as a file in the disk."))),
+                    None => CentralCommand::send_back(&sender, Response::Error(format!("This Pack doesn't exists as a file in the disk."))),
                 }
             },
 
@@ -1147,7 +1242,7 @@ pub fn background_loop() {
                         *SCHEMA.write().unwrap() = Some(schema);
                         CentralCommand::send_back(&sender, Response::Success);
                     },
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                 }
             }
 
@@ -1156,7 +1251,7 @@ pub fn background_loop() {
                 let cf = pack_file_decoded.compression_format();
                 let mut files = pack_file_decoded.files_by_paths_mut(&paths, false);
                 let game = GAME_SELECTED.read().unwrap();
-                let extra_data = Some(EncodeableExtraData::new_from_game_info_and_settings(&game, cf, SETTINGS.read().unwrap().bool("disable_uuid_regeneration_on_db_tables")));
+                let extra_data = Some(EncodeableExtraData::new_from_game_info_and_settings(&game, cf, settings.bool("disable_uuid_regeneration_on_db_tables")));
 
                 files.iter_mut().for_each(|file| {
                     let _ = file.encode(&extra_data, true, true, false);
@@ -1174,23 +1269,23 @@ pub fn background_loop() {
                             DataSource::ParentFiles => dependencies.file_mut(&internal_path, false, true).ok(),
                             DataSource::GameFiles => dependencies.file_mut(&internal_path, true, false).ok(),
                             DataSource::AssKitFiles => {
-                                CentralCommand::send_back(&sender, Response::Error(anyhow!("Exporting a TSV from the Assembly Kit is not yet supported.")));
+                                CentralCommand::send_back(&sender, Response::Error(format!("Exporting a TSV from the Assembly Kit is not yet supported.")));
                                 continue;
                             },
                             DataSource::ExternalFile => {
-                                CentralCommand::send_back(&sender, Response::Error(anyhow!("Exporting a TSV from a external file is not yet supported.")));
+                                CentralCommand::send_back(&sender, Response::Error(format!("Exporting a TSV from a external file is not yet supported.")));
                                 continue;
                             },
                         };
                         match file {
-                            Some(file) => match file.tsv_export_to_path(&external_path, schema, SETTINGS.read().unwrap().bool("tables_use_old_column_order_for_tsv")) {
+                            Some(file) => match file.tsv_export_to_path(&external_path, schema, settings.bool("tables_use_old_column_order_for_tsv")) {
                                 Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                                Err(error) =>  CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                                Err(error) =>  CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                             }
-                            None => CentralCommand::send_back(&sender, Response::Error(anyhow!("File with the following path not found in the Pack: {}", internal_path))),
+                            None => CentralCommand::send_back(&sender, Response::Error(format!("File with the following path not found in the Pack: {}", internal_path).to_string())),
                         }
                     },
-                    None => CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected."))),
+                    None => CentralCommand::send_back(&sender, Response::Error(format!("There is no Schema for the Game Selected.").to_string())),
                 }
             }
 
@@ -1206,10 +1301,10 @@ pub fn background_loop() {
                                 file.set_decoded(decoded.clone()).unwrap();
                                 CentralCommand::send_back(&sender, Response::RFileDecoded(decoded.clone()))
                             },
-                            Err(error) =>  CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                            Err(error) =>  CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                         }
                     }
-                    None => CentralCommand::send_back(&sender, Response::Error(anyhow!("File with the following path not found in the Pack: {}", internal_path))),
+                    None => CentralCommand::send_back(&sender, Response::Error(anyhow!("File with the following path not found in the Pack: {}", internal_path).to_string())),
                 }
             }
 
@@ -1231,7 +1326,7 @@ pub fn background_loop() {
                     CentralCommand::send_back(&sender, Response::Success);
                 }
                 else {
-                    CentralCommand::send_back(&sender, Response::Error(anyhow!("This Pack doesn't exists as a file in the disk.")));
+                    CentralCommand::send_back(&sender, Response::Error(format!("This Pack doesn't exists as a file in the disk.")));
                 }
             },
 
@@ -1242,17 +1337,17 @@ pub fn background_loop() {
                         let folder = temp_dir().join(format!("rpfm_{}", pack_file_decoded.disk_file_name()));
                         let game = GAME_SELECTED.read().unwrap();
                         let cf = pack_file_decoded.compression_format();
-                        let extra_data = Some(EncodeableExtraData::new_from_game_info_and_settings(&game, cf, SETTINGS.read().unwrap().bool("disable_uuid_regeneration_on_db_tables")));
+                        let extra_data = Some(EncodeableExtraData::new_from_game_info_and_settings(&game, cf, settings.bool("disable_uuid_regeneration_on_db_tables")));
 
-                        match pack_file_decoded.extract(path.clone(), &folder, true, &SCHEMA.read().unwrap(), false, SETTINGS.read().unwrap().bool("tables_use_old_column_order_for_tsv"), &extra_data, true) {
+                        match pack_file_decoded.extract(path.clone(), &folder, true, &SCHEMA.read().unwrap(), false, settings.bool("tables_use_old_column_order_for_tsv"), &extra_data, true) {
                             Ok(extracted_path) => {
                                 let _ = that(&extracted_path[0]);
                                 CentralCommand::send_back(&sender, Response::PathBuf(extracted_path[0].to_owned()));
                             }
-                            Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                         }
                     }
-                    _ => CentralCommand::send_back(&sender, Response::Error(anyhow!("Opening dependencies files in external programs is not yet supported."))),
+                    _ => CentralCommand::send_back(&sender, Response::Error(anyhow!("Opening dependencies files in external programs is not yet supported.").to_string())),
                 }
             }
 
@@ -1262,9 +1357,9 @@ pub fn background_loop() {
                 match pack_file_decoded.file_mut(&path, false) {
                     Some(file) => match file.encode_from_external_data(&schema, &external_path) {
                         Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                        Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                     }
-                    None => CentralCommand::send_back(&sender, Response::Error(anyhow!("File not found"))),
+                    None => CentralCommand::send_back(&sender, Response::Error(anyhow!("File not found").to_string())),
                 }
             }
 
@@ -1282,7 +1377,7 @@ pub fn background_loop() {
                                 // Encode the decoded tables with the old schema, then re-decode them with the new one.
                                 let cf = pack_file_decoded.compression_format();
                                 let mut tables = pack_file_decoded.files_by_type_mut(&[FileType::DB]);
-                                let extra_data = Some(EncodeableExtraData::new_from_game_info_and_settings(&game, cf, SETTINGS.read().unwrap().bool("disable_uuid_regeneration_on_db_tables")));
+                                let extra_data = Some(EncodeableExtraData::new_from_game_info_and_settings(&game, cf, settings.bool("disable_uuid_regeneration_on_db_tables")));
 
                                 tables.par_iter_mut().for_each(|x| { let _ = x.encode(&extra_data, true, true, false); });
 
@@ -1299,14 +1394,14 @@ pub fn background_loop() {
 
                                     // Then rebuild the dependencies stuff.
                                     if dependencies.read().unwrap().is_vanilla_data_loaded(false) {
-                                        let game_path = SETTINGS.read().unwrap().path_buf(game.key());
-                                        let secondary_path = SETTINGS.read().unwrap().path_buf(SECONDARY_PATH);
+                                        let game_path = settings.path_buf(game.key());
+                                        let secondary_path = settings.path_buf(SECONDARY_PATH);
                                         let dependencies_file_path = dependencies_cache_path().unwrap().join(game.dependencies_cache_file_name());
                                         let pack_dependencies = pack_file_decoded.dependencies().iter().map(|x| x.1.clone()).collect::<Vec<_>>();
 
                                         match dependencies.write().unwrap().rebuild(&SCHEMA.read().unwrap(), &pack_dependencies, Some(&*dependencies_file_path), &game, &game_path, &secondary_path) {
                                             Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                                            Err(_) => CentralCommand::send_back(&sender, Response::Error(anyhow!("Schema updated, but dependencies cache rebuilding failed. You may need to regenerate it."))),
+                                            Err(_) => CentralCommand::send_back(&sender, Response::Error(format!("Schema updated, but dependencies cache rebuilding failed. You may need to regenerate it."))),
                                         }
                                     } else {
                                         CentralCommand::send_back(&sender, Response::Success)
@@ -1315,10 +1410,10 @@ pub fn background_loop() {
                                     CentralCommand::send_back(&sender, Response::Success)
                                 }
                             },
-                            Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                         }
                     },
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                 }
             }
 
@@ -1329,18 +1424,18 @@ pub fn background_loop() {
                         let git_integration = GitIntegration::new(&local_path, LUA_REPO, LUA_BRANCH, LUA_REMOTE);
                         match git_integration.update_repo() {
                             Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                            Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                         }
                     },
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                 }
             }
 
             // When we want to update our program...
             Command::UpdateMainProgram => {
-                match crate::updater_ui::update_main_program() {
+                match crate::updater::update_main_program(&settings) {
                     Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                 }
             }
 
@@ -1351,7 +1446,7 @@ pub fn background_loop() {
 
                 // Note: we no longer notify the UI of success or error to not hang it up.
                 let game_selected = GAME_SELECTED.read().unwrap();
-                let game_path = SETTINGS.read().unwrap().path_buf(game_selected.key());
+                let game_path = settings.path_buf(game_selected.key());
                 let ca_paths = game_selected.ca_packs_paths(&game_path)
                     .unwrap_or_default()
                     .iter()
@@ -1373,12 +1468,12 @@ pub fn background_loop() {
                     let date = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
                     let new_name = format!("{date}.pack");
                     let new_path = folder.join(new_name);
-                    let extra_data = Some(EncodeableExtraData::new_from_game_info_and_settings(&game_selected, pack_file_decoded.compression_format(), SETTINGS.read().unwrap().bool("disable_uuid_regeneration_on_db_tables")));
+                    let extra_data = Some(EncodeableExtraData::new_from_game_info_and_settings(&game_selected, pack_file_decoded.compression_format(), settings.bool("disable_uuid_regeneration_on_db_tables")));
                     let _ = pack_file_decoded.clone().save(Some(&new_path), &game_selected, &extra_data);
 
                     // If we have more than the limit, delete the older one.
                     if let Ok(files) = files_in_folder_from_newest_to_oldest(&folder) {
-                        let max_files = SETTINGS.read().unwrap().i32("autosave_amount") as usize;
+                        let max_files = settings.i32("autosave_amount") as usize;
                         for (index, file) in files.iter().enumerate() {
                             if index >= max_files {
                                 let _ = std::fs::remove_file(file);
@@ -1392,7 +1487,7 @@ pub fn background_loop() {
             Command::DiagnosticsCheck(diagnostics_ignored, check_ak_only_refs) => {
 
                 let game_selected = GAME_SELECTED.read().unwrap();
-                let game_path = SETTINGS.read().unwrap().path_buf(game_selected.key());
+                let game_path = settings.path_buf(game_selected.key());
 
                 let mut diagnostics = Diagnostics::default();
                 *diagnostics.diagnostics_ignored_mut() = diagnostics_ignored;
@@ -1411,7 +1506,7 @@ pub fn background_loop() {
 
             Command::DiagnosticsUpdate(mut diagnostics, path_types, check_ak_only_refs) => {
                 let game_selected = GAME_SELECTED.read().unwrap();
-                let game_path = SETTINGS.read().unwrap().path_buf(game_selected.key());
+                let game_path = settings.path_buf(game_selected.key());
 
                 if let Some(ref schema) = *SCHEMA.read().unwrap() {
                     if pack_file_decoded.pfh_file_type() == PFHFileType::Mod ||
@@ -1471,17 +1566,17 @@ pub fn background_loop() {
             Command::RebuildDependencies(rebuild_only_current_mod_dependencies) => {
                 if SCHEMA.read().unwrap().is_some() {
                     let game_selected = GAME_SELECTED.read().unwrap();
-                    let game_path = SETTINGS.read().unwrap().path_buf(game_selected.key());
+                    let game_path = settings.path_buf(game_selected.key());
                     let dependencies_file_path = dependencies_cache_path().unwrap().join(game_selected.dependencies_cache_file_name());
                     let file_path = if !rebuild_only_current_mod_dependencies { Some(&*dependencies_file_path) } else { None };
                     let pack_dependencies = pack_file_decoded.dependencies().iter().map(|x| x.1.clone()).collect::<Vec<_>>();
 
-                    let secondary_path = SETTINGS.read().unwrap().path_buf(SECONDARY_PATH);
+                    let secondary_path = settings.path_buf(SECONDARY_PATH);
                     let _ = dependencies.write().unwrap().rebuild(&SCHEMA.read().unwrap(), &pack_dependencies, file_path, &game_selected, &game_path, &secondary_path);
-                    let dependencies_info = DependenciesInfo::from(&*dependencies.read().unwrap());
+                    let dependencies_info = DependenciesInfo::new(&*dependencies.read().unwrap(), &GAME_SELECTED.read().unwrap().vanilla_db_table_name_logic());
                     CentralCommand::send_back(&sender, Response::DependenciesInfo(dependencies_info));
                 } else {
-                    CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected.")));
+                    CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected.").to_string()));
                 }
             },
 
@@ -1623,7 +1718,7 @@ pub fn background_loop() {
                 }
 
                 if !found {
-                    CentralCommand::send_back(&sender, Response::Error(anyhow!(tr("source_data_for_field_not_found"))));
+                    CentralCommand::send_back(&sender, Response::Error(tr("source_data_for_field_not_found")));
                 }
             },
 
@@ -1735,7 +1830,7 @@ pub fn background_loop() {
                 }
 
                 if !found {
-                    CentralCommand::send_back(&sender, Response::Error(anyhow!(tr("loc_key_not_found"))));
+                    CentralCommand::send_back(&sender, Response::Error(tr("loc_key_not_found")));
                 }
             },
 
@@ -1756,17 +1851,17 @@ pub fn background_loop() {
                                 //
                                 // NOTE: This fucks up the table decoder if the table was badly decoded.
                                 Err(_) =>  {
-                                    let extra_data = Some(EncodeableExtraData::new_from_game_info_and_settings(&game, cf, SETTINGS.read().unwrap().bool("disable_uuid_regeneration_on_db_tables")));
+                                    let extra_data = Some(EncodeableExtraData::new_from_game_info_and_settings(&game, cf, settings.bool("disable_uuid_regeneration_on_db_tables")));
                                     match rfile.encode(&extra_data, false, false, true) {
                                         Ok(data) => CentralCommand::send_back(&sender, Response::VecU8(data.unwrap())),
-                                        Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                                     }
                                 },
                             },
-                            Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                         }
                     }
-                    None => CentralCommand::send_back(&sender, Response::Error(anyhow!("This PackedFile no longer exists in the PackFile."))),
+                    None => CentralCommand::send_back(&sender, Response::Error(anyhow!("This PackedFile no longer exists in the PackFile.").to_string())),
                 }
             },
 
@@ -1781,7 +1876,7 @@ pub fn background_loop() {
                         DataSource::ParentFiles => dependencies.files_by_path(paths, false, true, false),
                         DataSource::AssKitFiles => HashMap::new(),
                         _ => {
-                            CentralCommand::send_back(&sender, Response::Error(anyhow!("You can't import files from this source.")));
+                            CentralCommand::send_back(&sender, Response::Error(format!("You can't import files from this source.")));
                             CentralCommand::send_back(&sender, Response::Success);
                             continue 'background_loop;
                         },
@@ -1869,7 +1964,7 @@ pub fn background_loop() {
 
                                                 // Any other situation is an error.
                                                 else {
-                                                    CentralCommand::send_back(&sender, Response::Error(anyhow!("No idea how you were able to trigger this.")));
+                                                    CentralCommand::send_back(&sender, Response::Error(format!("No idea how you were able to trigger this.")));
                                                     CentralCommand::send_back(&sender, Response::Success);
                                                     continue 'background_loop;
                                                 }
@@ -1879,7 +1974,7 @@ pub fn background_loop() {
                                                 let table_name = path.split('/').collect::<Vec<_>>()[1];
                                                 match dependencies.import_from_ak(table_name, schema) {
                                                     Ok(table) => {
-                                                        let file = RFile::new_from_decoded(&RFileDecoded::DB(table), 0, path);
+                                                        let file = RFile::new_from_decoded(&RFileDecoded::DB(table), 0, &path);
                                                         files.push(file);
                                                     },
                                                     Err(_) => not_added_paths.push(path.clone()),
@@ -1895,14 +1990,14 @@ pub fn background_loop() {
                                     }
                                 },
                                 None => {
-                                    CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected.")));
+                                    CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected.").to_string()));
                                     CentralCommand::send_back(&sender, Response::Success);
                                     continue 'background_loop;
                                 }
                             }
                         },
                         _ => {
-                            CentralCommand::send_back(&sender, Response::Error(anyhow!("You can't import files from this source.")));
+                            CentralCommand::send_back(&sender, Response::Error(format!("You can't import files from this source.")));
                             CentralCommand::send_back(&sender, Response::Success);
                             continue 'background_loop;
                         },
@@ -1956,7 +2051,7 @@ pub fn background_loop() {
                 CentralCommand::send_back(&sender, Response::HashMapDataSourceHashMapStringRFile(packed_files));
             },
 
-            #[cfg(feature = "support_model_renderer")] Command::GetAnimPathsBySkeletonName(skeleton_name) => {
+            Command::GetAnimPathsBySkeletonName(skeleton_name) => {
                 let mut paths = HashSet::new();
                 let mut dependencies = dependencies.write().unwrap();
 
@@ -1998,7 +2093,7 @@ pub fn background_loop() {
                 CentralCommand::send_back(&sender, Response::HashSetString(paths));
             },
 
-            #[cfg(feature = "enable_tools")] Command::GetPackedFilesNamesStartingWitPathFromAllSources(path) => {
+            Command::GetPackedFilesNamesStartingWitPathFromAllSources(path) => {
                 let mut files: HashMap<DataSource, HashSet<ContainerPath>> = HashMap::new();
                 let dependencies = dependencies.read().unwrap();
 
@@ -2021,7 +2116,7 @@ pub fn background_loop() {
                 CentralCommand::send_back(&sender, Response::HashMapDataSourceHashSetContainerPath(files));
             },
 
-            #[cfg(feature = "enable_tools")] Command::SavePackedFilesToPackFileAndClean(files, optimize) => {
+            Command::SavePackedFilesToPackFileAndClean(files, optimize) => {
                 let schema = SCHEMA.read().unwrap();
                 match &*schema {
                     Some(ref schema) => {
@@ -2042,7 +2137,7 @@ pub fn background_loop() {
                         if optimize {
 
                             // TODO: DO NOT CALL QT ON BACKEND.
-                            let options = init_optimizer_options();
+                            let options = settings.optimizer_options();
 
                             // Then, optimize the PackFile. This should remove any non-edited rows/files.
                             let game_info = GAME_SELECTED.read().unwrap();
@@ -2055,13 +2150,13 @@ pub fn background_loop() {
                                         .map(ContainerPath::File)
                                         .collect()));
                                 },
-                                Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                                Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                             }
                         } else {
                             CentralCommand::send_back(&sender, Response::VecContainerPathVecContainerPath(added_paths, vec![]));
                         }
                     },
-                    None => CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected."))),
+                    None => CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected.").to_string())),
                 }
             },
 
@@ -2073,21 +2168,21 @@ pub fn background_loop() {
                 let path = table_patches_path().unwrap().join(GAME_SELECTED.read().unwrap().schema_file_name());
                 match Schema::new_patch(&patches, &path) {
                     Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                 }
             }
             Command::RemoveLocalSchemaPatchesForTable(table_name) => {
                 let path = table_patches_path().unwrap().join(GAME_SELECTED.read().unwrap().schema_file_name());
                 match Schema::remove_patch_for_table(&table_name, &path) {
                     Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                 }
             }
             Command::RemoveLocalSchemaPatchesForTableAndField(table_name, field_name) => {
                 let path = table_patches_path().unwrap().join(GAME_SELECTED.read().unwrap().schema_file_name());
                 match Schema::remove_patch_for_field(&table_name, &field_name, &path) {
                     Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                 }
             }
             Command::ImportSchemaPatch(patch) => {
@@ -2096,17 +2191,17 @@ pub fn background_loop() {
                         Schema::add_patch_to_patch_set(schema.patches_mut(), &patch);
                         match schema.save(&schemas_path().unwrap().join(GAME_SELECTED.read().unwrap().schema_file_name())) {
                             Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                            Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                         }
                     }
-                    None => CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected."))),
+                    None => CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected.").to_string())),
                 }
             }
 
             Command::GenerateMissingLocData => {
                 match dependencies.read().unwrap().generate_missing_loc_data(&mut pack_file_decoded) {
                     Ok(path) => CentralCommand::send_back(&sender, Response::VecContainerPath(path)),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                 }
             }
 
@@ -2115,21 +2210,21 @@ pub fn background_loop() {
                     Some(ref schema) => {
                         let game = GAME_SELECTED.read().unwrap().clone();
                         let mut dependencies = dependencies.write().unwrap();
-                        let options = init_optimizer_options();
+                        let options = settings.optimizer_options();
                         match dependencies.add_tile_maps_and_tiles(&mut pack_file_decoded, &game, schema, options, tile_maps, tiles) {
                             Ok((paths_to_add, paths_to_delete)) => CentralCommand::send_back(&sender, Response::VecContainerPathVecContainerPath(paths_to_add, paths_to_delete)),
-                            Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                         }
                     }
-                    None => CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected."))),
+                    None => CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected.").to_string())),
                 }
             }
 
             // Initialize the folder for a MyMod, including the folder structure it needs.
             Command::InitializeMyModFolder(mod_name, mod_game, sublime_support, vscode_support, git_support)  => {
-                let mut mymod_path = SETTINGS.read().unwrap().path_buf(MYMOD_BASE_PATH);
+                let mut mymod_path = settings.path_buf(MYMOD_BASE_PATH);
                 if !mymod_path.is_dir() {
-                    CentralCommand::send_back(&sender, Response::Error(anyhow!("MyMod path is not configured. Configure it in the settings and try again.")));
+                    CentralCommand::send_back(&sender, Response::Error(format!("MyMod path is not configured. Configure it in the settings and try again.")));
                     continue;
                 }
 
@@ -2137,14 +2232,14 @@ pub fn background_loop() {
 
                 // Just in case the folder doesn't exist, we try to create it.
                 if let Err(error) = DirBuilder::new().recursive(true).create(&mymod_path) {
-                    CentralCommand::send_back(&sender, Response::Error(anyhow!("Error while creating the MyMod's Game folder: {}.", error.to_string())));
+                    CentralCommand::send_back(&sender, Response::Error(format!("Error while creating the MyMod's Game folder: {}.", error.to_string())));
                     continue;
                 }
 
                 // We need to create another folder inside the game's folder with the name of the new "MyMod", to store extracted files.
                 mymod_path.push(&mod_name);
                 if let Err(error) = DirBuilder::new().recursive(true).create(&mymod_path) {
-                    CentralCommand::send_back(&sender, Response::Error(anyhow!("Error while creating the MyMod's Assets folder: {}.", error.to_string())));
+                    CentralCommand::send_back(&sender, Response::Error(format!("Error while creating the MyMod's Assets folder: {}.", error.to_string())));
                     continue;
                 };
 
@@ -2152,12 +2247,12 @@ pub fn background_loop() {
                 if let Some(gitignore) = git_support {
                     let git_integration = GitIntegration::new(&mymod_path, "", "", "");
                     if let Err(error) = git_integration.init() {
-                        CentralCommand::send_back(&sender, Response::Error(From::from(error)));
+                        CentralCommand::send_back(&sender, Response::Error(error.to_string()));
                         continue
                     }
 
                     if let Err(error) = git_integration.add_gitignore(&gitignore) {
-                        CentralCommand::send_back(&sender, Response::Error(From::from(error)));
+                        CentralCommand::send_back(&sender, Response::Error(error.to_string()));
                         continue
                     }
                 }
@@ -2173,7 +2268,7 @@ pub fn background_loop() {
                             vscode_config_path.push(".vscode");
 
                             if let Err(error) = DirBuilder::new().recursive(true).create(&vscode_config_path) {
-                                CentralCommand::send_back(&sender, Response::Error(anyhow!("Error while creating the VSCode Config folder: {}.", error.to_string())));
+                                CentralCommand::send_back(&sender, Response::Error(format!("Error while creating the VSCode Config folder: {}.", error.to_string())));
                                 continue;
                             };
 
@@ -2250,13 +2345,12 @@ pub fn background_loop() {
 
             Command::LiveExport => {
                 let game = GAME_SELECTED.read().unwrap();
-                let game_path = SETTINGS.read().unwrap().path_buf(game.key());
-                let settings = SETTINGS.read().unwrap();
+                let game_path = settings.path_buf(game.key());
                 let disable_regen_table_guid = settings.bool("disable_uuid_regeneration_on_db_tables");
                 let keys_first = settings.bool("tables_use_old_column_order_for_tsv");
                 match pack_file_decoded.live_export(&*game, &game_path, disable_regen_table_guid, keys_first) {
                     Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                 }
             },
 
@@ -2274,14 +2368,13 @@ pub fn background_loop() {
                         let git_integration = GitIntegration::new(&local_path, OLD_AK_REPO, OLD_AK_BRANCH, OLD_AK_REMOTE);
                         match git_integration.update_repo() {
                             Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                            Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                         }
                     },
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                 }
             }
 
-            #[cfg(feature = "enable_tools")]
             Command::GetPackTranslation(language) => {
                 let game_key = GAME_SELECTED.read().unwrap().key();
                 match translations_local_path() {
@@ -2315,27 +2408,26 @@ pub fn background_loop() {
                                 let paths = vec![local_path, remote_path];
                                 match PackTranslation::new(&paths, &pack_file_decoded, game_key, &language, &dependencies, &base_english, &base_local_fixes) {
                                     Ok(tr) => CentralCommand::send_back(&sender, Response::PackTranslation(tr)),
-                                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                                 }
                             }
-                            Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                         }
                     },
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                 }
             }
 
-            #[cfg(feature = "enable_tools")]
             Command::UpdateTranslations => {
                 match translations_remote_path() {
                     Ok(local_path) => {
                         let git_integration = GitIntegration::new(&local_path, TRANSLATIONS_REPO, TRANSLATIONS_BRANCH, TRANSLATIONS_REMOTE);
                         match git_integration.update_repo() {
                             Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                            Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                         }
                     },
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                 }
             }
 
@@ -2352,14 +2444,13 @@ pub fn background_loop() {
                     ) {
                     CentralCommand::send_back(&sender, Response::Success);
                 } else {
-                    CentralCommand::send_back(&sender, Response::Error(anyhow!("Missing \"db/victory_objectives.txt\" file. Processing the startpos without this file will result in issues in campaign. Add the file to the pack and try again.")));
+                    CentralCommand::send_back(&sender, Response::Error(format!("Missing \"db/victory_objectives.txt\" file. Processing the startpos without this file will result in issues in campaign. Add the file to the pack and try again.")));
                 }
             }
 
             Command::BuildStarpos(campaign_id, process_hlp_spd_data) => {
                 let dependencies = dependencies.read().unwrap();
                 let game = GAME_SELECTED.read().unwrap();
-                let settings = SETTINGS.read().unwrap();
                 let game_path = settings.path_buf(game.key());
 
                 // 3K needs two passes, one per startpos, and there are two per campaign.
@@ -2367,14 +2458,14 @@ pub fn background_loop() {
                     match dependencies.build_starpos_pre(&mut pack_file_decoded, &game, &game_path, &campaign_id, process_hlp_spd_data, "historical") {
                         Ok(_) => match dependencies.build_starpos_pre(&mut pack_file_decoded, &game, &game_path, &campaign_id, false, "romance") {
                             Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                            Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                         }
-                        Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                     }
                 } else {
                     match dependencies.build_starpos_pre(&mut pack_file_decoded, &game, &game_path, &campaign_id, process_hlp_spd_data, "") {
                         Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                        Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                     }
                 }
             }
@@ -2382,11 +2473,10 @@ pub fn background_loop() {
             Command::BuildStarposPost(campaign_id, process_hlp_spd_data) => {
                 let dependencies = dependencies.read().unwrap();
                 let game = GAME_SELECTED.read().unwrap();
-                let settings = SETTINGS.read().unwrap();
                 let game_path = settings.path_buf(game.key());
                 let asskit_path = Some(settings.path_buf(&(game.key().to_owned() + "_assembly_kit")));
 
-                let sub_start_pos = if GAME_SELECTED.read().unwrap().key() == KEY_THREE_KINGDOMS {
+                let sub_start_pos = if game.key() == KEY_THREE_KINGDOMS {
                     vec!["historical".to_owned(), "romance".to_owned()]
                 } else {
                     vec![]
@@ -2394,18 +2484,17 @@ pub fn background_loop() {
 
                 match dependencies.build_starpos_post(&mut pack_file_decoded, &game, &game_path, asskit_path, &campaign_id, process_hlp_spd_data, false, &sub_start_pos) {
                     Ok(paths) => CentralCommand::send_back(&sender, Response::VecContainerPath(paths)),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                 }
             },
 
             Command::BuildStarposCleanup(campaign_id, process_hlp_spd_data) => {
                 let dependencies = dependencies.read().unwrap();
                 let game = GAME_SELECTED.read().unwrap();
-                let settings = SETTINGS.read().unwrap();
                 let game_path = settings.path_buf(game.key());
                 let asskit_path = Some(settings.path_buf(&(game.key().to_owned() + "_assembly_kit")));
 
-                let sub_start_pos = if GAME_SELECTED.read().unwrap().key() == KEY_THREE_KINGDOMS {
+                let sub_start_pos = if game.key() == KEY_THREE_KINGDOMS {
                     vec!["historical".to_owned(), "romance".to_owned()]
                 } else {
                     vec![]
@@ -2413,7 +2502,7 @@ pub fn background_loop() {
 
                 match dependencies.build_starpos_post(&mut pack_file_decoded, &game, &game_path, asskit_path, &campaign_id, process_hlp_spd_data, true, &sub_start_pos) {
                     Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                 }
             },
 
@@ -2421,7 +2510,7 @@ pub fn background_loop() {
                 let game = GAME_SELECTED.read().unwrap();
                 match pack_file_decoded.update_anim_ids(&game, starting_id, offset) {
                     Ok(paths) => CentralCommand::send_back(&sender, Response::VecContainerPath(paths)),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                 }
             }
 
@@ -2429,32 +2518,160 @@ pub fn background_loop() {
                 let dependencies = dependencies.read().unwrap();
                 match dependencies.db_data(&table_name, true, true) {
                     Ok(files) => CentralCommand::send_back(&sender, Response::VecRFile(files.iter().map(|x| (**x).clone()).collect::<Vec<_>>())),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                 }
             }
 
-            Command::ExportRigidToGltf(rigid) => {
+            Command::ExportRigidToGltf(rigid, path) => {
                 let mut dependencies = dependencies.write().unwrap();
                 match gltf_from_rigid(&rigid, &mut dependencies) {
-                    Ok(gltf) => CentralCommand::send_back(&sender, Response::Gltf(gltf)),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                    Ok(gltf) => match save_gltf_to_disk(&gltf, &PathBuf::from(path)) {
+                        Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
+                    },
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                 }
             }
 
-            // These two belong to the network thread, not to this one!!!!
-            Command::CheckUpdates | Command::CheckSchemaUpdates | Command::CheckLuaAutogenUpdates | Command::CheckEmpireAndNapoleonAKUpdates => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-            #[cfg(feature = "enable_tools")] Command::CheckTranslationsUpdates => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+            // Settings IPC handlers - all settings are now managed locally in background_loop
+            Command::SettingsGetBool(key) => {
+                CentralCommand::send_back(&sender, Response::SettingsBool(settings.bool(&key)));
+            }
+            Command::SettingsGetI32(key) => {
+                CentralCommand::send_back(&sender, Response::SettingsI32(settings.i32(&key)));
+            }
+            Command::SettingsGetF32(key) => {
+                CentralCommand::send_back(&sender, Response::SettingsF32(settings.f32(&key)));
+            }
+            Command::SettingsGetString(key) => {
+                CentralCommand::send_back(&sender, Response::SettingsString(settings.string(&key)));
+            }
+            Command::SettingsGetPathBuf(key) => {
+                CentralCommand::send_back(&sender, Response::SettingsPathBuf(settings.path_buf(&key)));
+            }
+            Command::SettingsGetVecString(key) => {
+                CentralCommand::send_back(&sender, Response::SettingsVecString(settings.vec_string(&key)));
+            }
+            Command::SettingsGetVecRaw(key) => {
+                CentralCommand::send_back(&sender, Response::SettingsVecRaw(settings.raw_data(&key)));
+            }
+            Command::SettingsSetBool(key, value) => {
+                match settings.set_bool(&key, value) {
+                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                    Err(e) => CentralCommand::send_back(&sender, Response::Error(e.to_string())),
+                }
+            }
+            Command::SettingsSetI32(key, value) => {
+                match settings.set_i32(&key, value) {
+                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                    Err(e) => CentralCommand::send_back(&sender, Response::Error(e.to_string())),
+                }
+            }
+            Command::SettingsSetF32(key, value) => {
+                match settings.set_f32(&key, value) {
+                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                    Err(e) => CentralCommand::send_back(&sender, Response::Error(e.to_string())),
+                }
+            }
+            Command::SettingsSetString(key, value) => {
+                match settings.set_string(&key, &value) {
+                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                    Err(e) => CentralCommand::send_back(&sender, Response::Error(e.to_string())),
+                }
+            }
+            Command::SettingsSetPathBuf(key, value) => {
+                match settings.set_path_buf(&key, &value) {
+                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                    Err(e) => CentralCommand::send_back(&sender, Response::Error(e.to_string())),
+                }
+            }
+            Command::SettingsSetVecString(key, value) => {
+                match settings.set_vec_string(&key, &value) {
+                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                    Err(e) => CentralCommand::send_back(&sender, Response::Error(e.to_string())),
+                }
+            }
+            Command::SettingsSetVecRaw(key, value) => {
+                match settings.set_raw_data(&key, &value) {
+                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                    Err(e) => CentralCommand::send_back(&sender, Response::Error(e.to_string())),
+                }
+            },
+            Command::ConfigPath => {
+                match config_path() {
+                    Ok(path) => CentralCommand::send_back(&sender, Response::PathBuf(path)),
+                    Err(e) => CentralCommand::send_back(&sender, Response::Error(e.to_string())),
+                }
+            },
+            Command::AssemblyKitPath => {
+                let game = GAME_SELECTED.read().unwrap();
+                match settings.assembly_kit_path(&game) {
+                    Ok(path) => CentralCommand::send_back(&sender, Response::PathBuf(path)),
+                    Err(e) => CentralCommand::send_back(&sender, Response::Error(e.to_string())),
+                }
+            },
+            Command::BackupAutosavePath => {
+                match backup_autosave_path() {
+                    Ok(path) => CentralCommand::send_back(&sender, Response::PathBuf(path)),
+                    Err(e) => CentralCommand::send_back(&sender, Response::Error(e.to_string())),
+                }
+            },
+            Command::OldAkDataPath => {
+                match old_ak_files_path() {
+                    Ok(path) => CentralCommand::send_back(&sender, Response::PathBuf(path)),
+                    Err(e) => CentralCommand::send_back(&sender, Response::Error(e.to_string())),
+                }
+            },
+            Command::SchemasPath => {
+                match schemas_path() {
+                    Ok(path) => CentralCommand::send_back(&sender, Response::PathBuf(path)),
+                    Err(e) => CentralCommand::send_back(&sender, Response::Error(e.to_string())),
+                }
+            },
+            Command::TableProfilesPath => {
+                match table_profiles_path() {
+                    Ok(path) => CentralCommand::send_back(&sender, Response::PathBuf(path)),
+                    Err(e) => CentralCommand::send_back(&sender, Response::Error(e.to_string())),
+                }
+            },
+            Command::TranslationsLocalPath => {
+                match translations_local_path() {
+                    Ok(path) => CentralCommand::send_back(&sender, Response::PathBuf(path)),
+                    Err(e) => CentralCommand::send_back(&sender, Response::Error(e.to_string())),
+                }
+            },
+            Command::DependenciesCachePath => {
+                match dependencies_cache_path() {
+                    Ok(path) => CentralCommand::send_back(&sender, Response::PathBuf(path)),
+                    Err(e) => CentralCommand::send_back(&sender, Response::Error(e.to_string())),
+                }
+            },
+            Command::SettingsClearPath(path) => {
+                match clear_config_path(&path) {
+                    Ok(()) => CentralCommand::send_back(&sender, Response::Success),
+                    Err(e) => CentralCommand::send_back(&sender, Response::Error(e.to_string())),
+                }
+            },
+            Command::BackupSettings => backup_settings = settings.clone(),
+            Command::ClearSettings => match Settings::init(true) {
+                Ok(set) => {
+                    settings = set;
+                    CentralCommand::send_back(&sender, Response::Success);},
+                Err(e) => CentralCommand::send_back(&sender, Response::Error(e.to_string())),
+            },
+            Command::RestoreBackupSettings => settings = backup_settings.clone(),
+            Command::OptimizerOptions => CentralCommand::send_back(&sender, Response::OptimizerOptions(settings.optimizer_options())),
         }
     }
 }
 
 /// Function to simplify logic for changing game selected.
-fn load_schemas(sender: &Sender<Response>, pack: &mut Pack, game: &GameInfo) {
+fn load_schemas(pack: &mut Pack, game: &GameInfo, settings: &Settings) {
     let cf = pack.compression_format();
 
     // Before loading the schema, make sure we don't have tables with definitions from the current schema.
     let mut files = pack.files_by_type_mut(&[FileType::DB]);
-    let extra_data = Some(EncodeableExtraData::new_from_game_info_and_settings(game, cf, SETTINGS.read().unwrap().bool("disable_uuid_regeneration_on_db_tables")));
+    let extra_data = Some(EncodeableExtraData::new_from_game_info_and_settings(game, cf, settings.bool("disable_uuid_regeneration_on_db_tables")));
 
     files.par_iter_mut().for_each(|file| {
         let _ = file.encode(&extra_data, true, true, false);
@@ -2475,13 +2692,9 @@ fn load_schemas(sender: &Sender<Response>, pack: &mut Pack, game: &GameInfo) {
             let _ = file.decode(&extra_data, true, false);
         });
     }
-
-    // Send a response, so the UI continues working while we finish things here.
-    info!("Sending success after game selected change.");
-    CentralCommand::send_back(sender, Response::Success);
 }
 
-fn decode_and_send_file(file: &mut RFile, sender: &Sender<Response>) {
+fn decode_and_send_file(file: &mut RFile, sender: &UnboundedSender<Response>, settings: &Settings) {
     let mut extra_data = DecodeableExtraData::default();
     let schema = SCHEMA.read().unwrap();
     extra_data.set_schema(schema.as_ref());
@@ -2503,7 +2716,7 @@ fn decode_and_send_file(file: &mut RFile, sender: &Sender<Response>) {
     ];
 
     // Do not even attempt to decode esf files if the editor is disabled.
-    if !SETTINGS.read().unwrap().bool("enable_esf_editor") {
+    if !settings.bool("enable_esf_editor") {
         ignored_file_types.push(FileType::ESF);
     }
 
@@ -2541,6 +2754,10 @@ fn decode_and_send_file(file: &mut RFile, sender: &Sender<Response>) {
         Ok(RFileDecoded::Video(data)) => CentralCommand::send_back(sender, Response::VideoInfoRFileInfo(From::from(&data), From::from(&*file))),
         Ok(RFileDecoded::VMD(data)) => CentralCommand::send_back(sender, Response::VMDRFileInfo(data, From::from(&*file))),
         Ok(RFileDecoded::WSModel(data)) => CentralCommand::send_back(sender, Response::WSModelRFileInfo(data, From::from(&*file))),
-        Err(error) => CentralCommand::send_back(sender, Response::Error(From::from(error))),
+        Err(error) => CentralCommand::send_back(sender, Response::Error(error.to_string())),
     }
+}
+
+fn tr(s: &str) -> String {
+    s.to_owned()
 }

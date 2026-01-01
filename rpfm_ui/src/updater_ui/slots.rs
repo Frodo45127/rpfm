@@ -20,12 +20,10 @@ use std::process::{Command as SystemCommand, exit};
 use std::rc::Rc;
 
 use rpfm_ui_common::clone;
-use rpfm_ui_common::locale::qtr;
-use rpfm_ui_common::utils::show_dialog;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
-
+use crate::utils::{qtr, show_dialog};
 use super::UpdaterUI;
 
 //-------------------------------------------------------------------------------//
@@ -50,11 +48,11 @@ impl UpdaterUISlots {
     pub unsafe fn new(ui: &Rc<UpdaterUI>) -> Self {
         let update_program = SlotNoArgs::new(ui.main_widget(), clone!(
             ui => move || {
-                let receiver = CENTRAL_COMMAND.send_background(Command::UpdateMainProgram);
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::UpdateMainProgram);
                 ui.update_program_button.set_text(&qtr("updater_update_program_updating"));
                 ui.update_program_button.set_enabled(false);
 
-                let response = CENTRAL_COMMAND.recv_try(&receiver);
+                let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
                 match response {
                     Response::Success => {
                         ui.update_program_button.set_text(&qtr("updater_update_program_updated"));
@@ -65,8 +63,8 @@ impl UpdaterUISlots {
                         ui.update_program_button.released().connect(&SlotNoArgs::new(ui.main_widget(), move || {
 
                             // Make sure we close both threads and the window. In windows the main window doesn't get closed for some reason.
-                            CENTRAL_COMMAND.send_background(Command::Exit);
-                            CENTRAL_COMMAND.send_network(Command::Exit);
+                            CENTRAL_COMMAND.read().unwrap().send(Command::Exit);
+                            CENTRAL_COMMAND.read().unwrap().send(Command::Exit);
                             QApplication::close_all_windows();
 
                             let exe_path = current_exe().unwrap();
@@ -85,11 +83,11 @@ impl UpdaterUISlots {
 
         let update_schemas = SlotNoArgs::new(ui.main_widget(), clone!(
             ui => move || {
-                let receiver = CENTRAL_COMMAND.send_background(Command::UpdateSchemas);
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::UpdateSchemas);
                 ui.update_schemas_button.set_text(&qtr("updater_update_schemas_updating"));
                 ui.update_schemas_button.set_enabled(false);
 
-                let response = CENTRAL_COMMAND.recv_try(&receiver);
+                let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
                 match response {
                     Response::Success => {
                         ui.update_schemas_button.set_text(&qtr("updater_update_schemas_updated"));
@@ -105,11 +103,11 @@ impl UpdaterUISlots {
 
         let update_twautogen = SlotNoArgs::new(ui.main_widget(), clone!(
             ui => move || {
-                let receiver = CENTRAL_COMMAND.send_background(Command::UpdateLuaAutogen);
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::UpdateLuaAutogen);
                 ui.update_twautogen_button.set_text(&qtr("updater_update_twautogen_updating"));
                 ui.update_twautogen_button.set_enabled(false);
 
-                let response = CENTRAL_COMMAND.recv_try(&receiver);
+                let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
                 match response {
                     Response::Success => {
                         ui.update_twautogen_button.set_text(&qtr("updater_update_twautogen_updated"));
@@ -125,11 +123,11 @@ impl UpdaterUISlots {
 
         let update_old_ak = SlotNoArgs::new(ui.main_widget(), clone!(
             ui => move || {
-                let receiver = CENTRAL_COMMAND.send_background(Command::UpdateEmpireAndNapoleonAK);
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::UpdateEmpireAndNapoleonAK);
                 ui.update_old_ak_button.set_text(&qtr("updater_update_old_ak_updating"));
                 ui.update_old_ak_button.set_enabled(false);
 
-                let response = CENTRAL_COMMAND.recv_try(&receiver);
+                let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
                 match response {
                     Response::Success => {
                         ui.update_old_ak_button.set_text(&qtr("updater_update_old_ak_updated"));

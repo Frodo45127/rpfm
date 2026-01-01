@@ -12,14 +12,14 @@
 Module with all the code for managing the view for the Dependencies Manager.
 !*/
 
-use std::sync::Arc;
-
-use std::rc::Rc;
-
 use anyhow::Result;
 
+use std::rc::Rc;
+use std::sync::Arc;
+
+use rpfm_ipc::helpers::RFileInfo;
+
 use rpfm_lib::files::table::DecodedData;
-use crate::backend::RFileInfo;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
@@ -60,7 +60,7 @@ impl DependenciesManagerView {
     ) -> Result<Option<RFileInfo>> {
 
         // Get the decoded Table.
-        let receiver = CENTRAL_COMMAND.send_background(Command::GetDependencyPackFilesList);
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetDependencyPackFilesList);
         let response = CentralCommand::recv(&receiver);
         let table_data = match response {
             Response::VecBoolString(table) => TableType::DependencyManager(table.iter()

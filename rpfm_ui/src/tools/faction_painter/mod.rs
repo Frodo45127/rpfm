@@ -49,8 +49,6 @@ use std::collections::HashMap;
 use rpfm_lib::files::{ContainerPath, db::DB, RFileDecoded, table::DecodedData};
 use rpfm_lib::games::supported_games::*;
 
-use rpfm_ui_common::locale::{tr, qtr};
-
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi::*;
@@ -265,7 +263,7 @@ impl ToolFactionPainter {
     unsafe fn load_data(&self) -> Result<()> {
 
         // Note: this data is HashMap<DataSource, HashMap<Path, RFile>>.
-        let receiver = CENTRAL_COMMAND.send_background(Command::GetRFilesFromAllSources(self.tool.used_paths.to_vec(), false));
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetRFilesFromAllSources(self.tool.used_paths.to_vec(), false));
         let response = CentralCommand::recv(&receiver);
         let mut data = if let Response::HashMapDataSourceHashMapStringRFile(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
 
@@ -289,7 +287,7 @@ impl ToolFactionPainter {
             .filter_map(|x| if !x.is_empty() { Some(ContainerPath::File(x.to_owned())) } else { None })
             .collect::<Vec<ContainerPath>>();
 
-        let receiver = CENTRAL_COMMAND.send_background(Command::GetRFilesFromAllSources(paths_to_use, false));
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetRFilesFromAllSources(paths_to_use, false));
         let response = CentralCommand::recv(&receiver);
         let images_data = if let Response::HashMapDataSourceHashMapStringRFile(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
 

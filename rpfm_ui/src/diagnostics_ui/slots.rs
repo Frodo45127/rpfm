@@ -8,9 +8,7 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*!
-Module with all the code related to the main `DiagnosticsUISlots`.
-!*/
+//! Module with all the code related to the main `DiagnosticsUISlots`.
 
 use qt_widgets::SlotOfQPoint;
 
@@ -25,6 +23,7 @@ use getset::Getters;
 
 use std::rc::Rc;
 
+use rpfm_ipc::helpers::DataSource;
 use rpfm_lib::integrations::log::*;
 use rpfm_lib::files::ContainerPath;
 use rpfm_ui_common::clone;
@@ -35,7 +34,6 @@ use crate::communications::Command;
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
-use crate::packedfile_views::DataSource;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::references_ui::ReferencesUI;
 use crate::UI_STATE;
@@ -192,7 +190,7 @@ impl DiagnosticsUISlots {
                 }
 
                 if !string.is_empty() {
-                    CENTRAL_COMMAND.send_background(Command::AddLineToPackIgnoredDiagnostics(format!("\n{string}")));
+                    CENTRAL_COMMAND.read().unwrap().send(Command::AddLineToPackIgnoredDiagnostics(format!("\n{string}")));
                 }
             }
         ));
@@ -219,7 +217,7 @@ impl DiagnosticsUISlots {
                 }
 
                 if !string.is_empty() {
-                    CENTRAL_COMMAND.send_background(Command::AddLineToPackIgnoredDiagnostics(format!("\n{string}")));
+                    CENTRAL_COMMAND.read().unwrap().send(Command::AddLineToPackIgnoredDiagnostics(format!("\n{string}")));
                 }
             }
         ));
@@ -238,7 +236,7 @@ impl DiagnosticsUISlots {
                 }
 
                 if !string.is_empty() {
-                    CENTRAL_COMMAND.send_background(Command::AddLineToPackIgnoredDiagnostics(format!("\n{string}")));
+                    CENTRAL_COMMAND.read().unwrap().send(Command::AddLineToPackIgnoredDiagnostics(format!("\n{string}")));
                 }
             }
         ));
@@ -264,7 +262,7 @@ impl DiagnosticsUISlots {
                 }
 
                 if !string.is_empty() {
-                    CENTRAL_COMMAND.send_background(Command::AddLineToPackIgnoredDiagnostics(format!("\n{string}")));
+                    CENTRAL_COMMAND.read().unwrap().send(Command::AddLineToPackIgnoredDiagnostics(format!("\n{string}")));
                 }
             }
         ));
@@ -286,7 +284,7 @@ impl DiagnosticsUISlots {
                 }
 
                 if !string.is_empty() {
-                    CENTRAL_COMMAND.send_background(Command::AddLineToPackIgnoredDiagnostics(format!("\n{string}")));
+                    CENTRAL_COMMAND.read().unwrap().send(Command::AddLineToPackIgnoredDiagnostics(format!("\n{string}")));
                 }
             }
         ));
@@ -314,7 +312,7 @@ impl DiagnosticsUISlots {
                 }
 
                 if !string.is_empty() {
-                    CENTRAL_COMMAND.send_background(Command::AddLineToPackIgnoredDiagnostics(format!("\n{string}")));
+                    CENTRAL_COMMAND.read().unwrap().send(Command::AddLineToPackIgnoredDiagnostics(format!("\n{string}")));
                 }
             }
         ));
@@ -334,7 +332,7 @@ impl DiagnosticsUISlots {
                 }
 
                 if !string.is_empty() {
-                    CENTRAL_COMMAND.send_background(Command::AddLineToPackIgnoredDiagnostics(format!("\n{string}")));
+                    CENTRAL_COMMAND.read().unwrap().send(Command::AddLineToPackIgnoredDiagnostics(format!("\n{string}")));
                 }
             }
         ));
@@ -361,7 +359,7 @@ impl DiagnosticsUISlots {
                 }
 
                 if !string.is_empty() {
-                    CENTRAL_COMMAND.send_background(Command::AddLineToPackIgnoredDiagnostics(format!("\n{string}")));
+                    CENTRAL_COMMAND.read().unwrap().send(Command::AddLineToPackIgnoredDiagnostics(format!("\n{string}")));
                 }
             }
         ));
@@ -380,7 +378,7 @@ impl DiagnosticsUISlots {
                 }
 
                 if !string.is_empty() {
-                    CENTRAL_COMMAND.send_background(Command::AddLineToPackIgnoredDiagnostics(format!("\n{string}")));
+                    CENTRAL_COMMAND.read().unwrap().send(Command::AddLineToPackIgnoredDiagnostics(format!("\n{string}")));
                 }
             }
         ));

@@ -20,12 +20,14 @@ use anyhow::Result;
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 
+use rpfm_ipc::helpers::DataSource;
+
 use rpfm_lib::files::{FileType, bmd::*};
 
 use crate::app_ui::AppUI;
 use crate::ffi::{cursor_row_safe, new_text_editor_safe, scroll_to_row_safe, set_text_safe};
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::packedfile_views::{DataSource, FileView, View, ViewType};
+use crate::packedfile_views::{FileView, View, ViewType};
 
 use self::slots::FileBMDViewSlots;
 

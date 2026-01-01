@@ -8,21 +8,20 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*!
-Module with all the code that can be considered "backend" of the UI, but should not be on the libs.
-!*/
+//! Module with all the code that can be considered "backend" of the UI, but should not be on the libs.
 
-use rayon::prelude::*;
 use getset::Getters;
+use rayon::prelude::*;
+use serde_derive::{Serialize, Deserialize};
+
+use std::fmt::{self, Display};
 
 use rpfm_extensions::dependencies::Dependencies;
 use rpfm_extensions::search::{GlobalSearch, SearchSource};
 
 use rpfm_lib::compression::CompressionFormat;
 use rpfm_lib::games::{*, pfh_file_type::PFHFileType, pfh_version::PFHVersion};
-use rpfm_lib::files::{animpack::*, Container, ContainerPath, db::*, FileType, pack::*, RFile, video::*};
-
-use crate::GAME_SELECTED;
+use rpfm_lib::files::{animpack::*, Container, ContainerPath, db::*, FileType, pack::*, RFile, text::TextFormat, video::*};
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -31,7 +30,7 @@ use crate::GAME_SELECTED;
 /// This struct is a reduced version of the `PackFile` one, used to pass just the needed data to an UI.
 ///
 /// Don't create this one manually. Get it `From` the `PackFile` one, and use it as you need it.
-#[derive(Clone, Debug, Default, Getters)]
+#[derive(Clone, Debug, Default, Getters, Serialize, Deserialize)]
 #[getset(get = "pub")]
 pub struct ContainerInfo {
 
@@ -58,7 +57,7 @@ pub struct ContainerInfo {
 }
 
 /// This struct represents the detailed info about the `PackedFile` we can provide to whoever request it.
-#[derive(Clone, Debug, Default, Getters)]
+#[derive(Clone, Debug, Default, Getters, Serialize, Deserialize)]
 #[getset(get = "pub")]
 pub struct RFileInfo {
 
@@ -87,7 +86,7 @@ pub struct RFileInfo {
 }
 
 /// This struct represents the detailed info about the `PackedFile` we can provide to whoever request it.
-#[derive(Clone, Debug, Default, Getters)]
+#[derive(Clone, Debug, Default, Getters, Serialize, Deserialize)]
 #[getset(get = "pub")]
 pub struct VideoInfo {
 
@@ -117,7 +116,7 @@ pub struct VideoInfo {
 ///
 /// NOTE: As this is intended to be a "Just use it and discard it" struct, we allow public members to make operations
 /// where we can move out of here faster.
-#[derive(Debug, Clone, Default, Getters)]
+#[derive(Debug, Clone, Default, Getters, Serialize, Deserialize)]
 #[getset(get = "pub")]
 pub struct DependenciesInfo {
 
@@ -129,6 +128,72 @@ pub struct DependenciesInfo {
 
     /// Full list of parent PackedFile paths.
     pub parent_packed_files: Vec<RFileInfo>,
+}
+
+/// This enum represents the source of the data in the view.
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, Ord, PartialOrd, Serialize, Deserialize)]
+pub enum DataSource {
+
+    /// This means the data is from somewhere in our PackFile.
+    PackFile,
+
+    /// This means the data is from one of the game files.
+    GameFiles,
+
+    /// This means the data comes from a parent PackFile.
+    ParentFiles,
+
+    /// This means the data comes from the AssKit files.
+    AssKitFiles,
+
+    /// This means the data comes from an external file.
+    ExternalFile,
+}
+
+/// This enum contains the data needed to create a new PackedFile.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum NewFile {
+
+    /// Name of the file.
+    AnimPack(String),
+
+    /// Name of the file, Name of the Table, Version of the Table.
+    DB(String, String, i32),
+
+    /// Name of the Table.
+    Loc(String),
+
+    /// Name of the file, version of the file, and a list of entries that must be cloned from existing values in vanilla files (from, to).
+    PortraitSettings(String, u32, Vec<(String, String)>),
+
+    /// Name of the file and its format.
+    Text(String, TextFormat),
+
+    /// Name of the file.
+    VMD(String),
+
+    /// Name of the file.
+    WSModel(String),
+}
+
+/// This enum controls the possible responses from the server when checking for an update.
+#[derive(Debug, serde_derive::Serialize, serde_derive::Deserialize)]
+pub enum APIResponse {
+
+    /// This means a beta update was found.
+    NewBetaUpdate(String),
+
+    /// This means a major stable update was found.
+    NewStableUpdate(String),
+
+    /// This means a minor stable update was found.
+    NewUpdateHotfix(String),
+
+    /// This means no update was found.
+    NoUpdate,
+
+    /// This means don't know if there was an update or not, because the version we got was invalid.
+    UnknownVersion,
 }
 
 //-------------------------------------------------------------------------------//
@@ -212,10 +277,8 @@ impl From<&Video> for VideoInfo {
     }
 }
 
-impl From<&Dependencies> for DependenciesInfo {
-    fn from(dependencies: &Dependencies) -> Self {
-        let table_name_logic = GAME_SELECTED.read().unwrap().vanilla_db_table_name_logic();
-
+impl DependenciesInfo {
+    pub fn new(dependencies: &Dependencies, table_name_logic: &VanillaDBTableNameLogic) -> Self {
         let asskit_tables = dependencies.asskit_only_db_tables().values().map(|table| {
             let table_name = match table_name_logic {
                 VanillaDBTableNameLogic::DefaultName(ref name) => name,
@@ -226,11 +289,15 @@ impl From<&Dependencies> for DependenciesInfo {
         }).collect::<Vec<RFileInfo>>();
 
         let vanilla_packed_files = dependencies.vanilla_loose_files()
-                                    .par_iter()
-                                    .chain(dependencies.vanilla_files().par_iter())
-                                    .map(|(_, value)| From::from(value)).collect::<Vec<RFileInfo>>();
+            .par_iter()
+            .chain(dependencies.vanilla_files().par_iter())
+            .map(|(_, value)| From::from(value))
+            .collect::<Vec<RFileInfo>>();
 
-        let parent_packed_files = dependencies.parent_files().par_iter().map(|(_, value)| From::from(value)).collect::<Vec<RFileInfo>>();
+        let parent_packed_files = dependencies.parent_files()
+            .par_iter()
+            .map(|(_, value)| From::from(value))
+            .collect::<Vec<RFileInfo>>();
 
         Self {
             asskit_tables,
@@ -268,6 +335,31 @@ impl RFileInfo {
             container_name: None,
             timestamp: None,
             file_type: FileType::DB,
+        }
+    }
+}
+
+impl Display for DataSource {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        Display::fmt(match self {
+            Self::PackFile => "PackFile",
+            Self::GameFiles => "GameFiles",
+            Self::ParentFiles => "ParentFiles",
+            Self::AssKitFiles => "AssKitFiles",
+            Self::ExternalFile => "ExternalFile",
+        }, f)
+    }
+}
+
+impl From<&str> for DataSource {
+    fn from(value: &str) -> Self {
+        match value {
+            "PackFile" => Self::PackFile,
+            "GameFiles" => Self::GameFiles,
+            "ParentFiles" => Self::ParentFiles,
+            "AssKitFiles" => Self::AssKitFiles,
+            "ExternalFile" => Self::ExternalFile,
+            _ => unreachable!("from data source {}", value)
         }
     }
 }

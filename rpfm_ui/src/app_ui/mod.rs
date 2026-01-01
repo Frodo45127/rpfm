@@ -62,7 +62,6 @@ use anyhow::{anyhow, Result};
 use getset::Getters;
 use itertools::Itertools;
 use self_update::cargo_crate_version;
-use serde_derive::{Deserialize, Serialize};
 use time::OffsetDateTime;
 
 use std::cell::RefCell;
@@ -72,21 +71,22 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::{atomic::Ordering, RwLock};
 
+use rpfm_ipc::MYMOD_BASE_PATH;
+use rpfm_ipc::SECONDARY_PATH;
+use rpfm_ipc::helpers::{ContainerInfo, DataSource, NewFile};
+
 use rpfm_lib::compression::CompressionFormat;
 use rpfm_lib::files::{animpack, ContainerPath, FileType, loc, text, pack::*, portrait_settings, text::TextFormat};
 use rpfm_lib::games::{pfh_file_type::*, pfh_version::*, supported_games::*};
 use rpfm_lib::integrations::log::*;
 use rpfm_lib::utils::*;
 
+use rpfm_ui_common::utils::{create_grid_layout, find_widget, load_template};
 use rpfm_ui_common::ASSETS_PATH;
 use rpfm_ui_common::clone;
 use rpfm_ui_common::FULL_DATE_FORMAT;
 use rpfm_ui_common::icons::IconType;
-use rpfm_ui_common::locale::{qtr, tre};
-use rpfm_ui_common::SETTINGS;
-use rpfm_ui_common::utils::*;
 
-use crate::backend::*;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::dependencies_ui::DependenciesUI;
@@ -97,15 +97,15 @@ use crate::GAME_SELECTED;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::NEW_FILE_VIEW_CREATED;
 use crate::pack_tree::{BuildData, new_pack_file_tooltip, PackTree, TreeViewOperation};
-use crate::packedfile_views::{anim_fragment_battle::*, animpack::*, anims_table::*, audio::FileAudioView, bmd::FileBMDView, DataSource, decoder::*, dependencies_manager::*, esf::*, external::*, group_formations::*, image::*, matched_combat::*, FileView, packfile::PackFileExtraView, packfile_settings::*, portrait_settings::PortraitSettingsView, rigidmodel::*, SpecialView, table::*, text::*, unit_variant::*, video::*, vmd::*};
+use crate::packedfile_views::{anim_fragment_battle::*, animpack::*, anims_table::*, audio::FileAudioView, bmd::FileBMDView, decoder::*, dependencies_manager::*, esf::*, external::*, group_formations::*, image::*, matched_combat::*, FileView, packfile::PackFileExtraView, packfile_settings::*, portrait_settings::PortraitSettingsView, rigidmodel::*, SpecialView, table::*, text::*, unit_variant::*, video::*, vmd::*};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::references_ui::ReferencesUI;
 use crate::SCHEMA;
-use crate::settings_ui::backend::*;
 use crate::STATUS_BAR;
 use crate::SUPPORTED_GAMES;
 use crate::TREEVIEW_ICONS;
 use crate::UI_STATE;
+use crate::settings_helpers::*;
 use crate::ui::GameSelectedIcons;
 use crate::ui_state::OperationalMode;
 use crate::utils::*;
@@ -383,28 +383,6 @@ pub struct AppUI {
 
     focused_widget: Rc<RwLock<Option<QPtr<QWidget>>>>,
     disabled_counter: Rc<RwLock<u32>>,
-}
-
-/// This enum contains the data needed to create a new PackedFile.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum NewFile {
-
-    /// Name of the PackedFile.
-    AnimPack(String),
-
-    /// Name of the PackedFile, Name of the Table, Version of the Table.
-    DB(String, String, i32),
-
-    /// Name of the Table.
-    Loc(String),
-
-    /// Name of the file and its format.
-    Text(String, TextFormat),
-    VMD(String),
-    WSModel(String),
-
-    /// Name of the file, version of the file, and a list of entries that must be cloned from existing values in vanilla files (from, to).
-    PortraitSettings(String, u32, Vec<(String, String)>),
 }
 
 //-------------------------------------------------------------------------------//
@@ -811,7 +789,7 @@ impl AppUI {
         let tools_faction_painter = menu_bar_tools.add_action_q_string(&qtr("tools_faction_painter"));
         let tools_unit_editor = menu_bar_tools.add_action_q_string(&qtr("tools_unit_editor"));
         let tools_translator = menu_bar_tools.add_action_q_string(&qtr("tools_translator"));
-        if !SETTINGS.read().unwrap().bool("enable_unit_editor") {
+        if !settings_bool("enable_unit_editor") {
             tools_unit_editor.set_enabled(false);
         }
 
@@ -1342,12 +1320,11 @@ impl AppUI {
 
         // Tell the Background Thread to create a new PackFile with the data of one or more from the disk.
         app_ui.toggle_main_window(false);
-        let receiver = CENTRAL_COMMAND.send_background(Command::OpenPackFiles(pack_file_paths.to_vec()));
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::OpenPackFiles(pack_file_paths.to_vec()));
 
         // If it's only one packfile, store it in the recent file list.
         if pack_file_paths.len() == 1 {
-            let mut settings = SETTINGS.write().unwrap();
-            let mut paths = settings.vec_string("recentFileList");
+            let mut paths = settings_vec_string("recentFileList");
 
             if let Some(pos) = paths.iter().position(|x| x == pack_file_paths[0].to_str().unwrap()) {
                 paths.remove(pos);
@@ -1362,17 +1339,17 @@ impl AppUI {
             }
 
             // Ignore failures to save this setting.
-            let _ = settings.set_vec_string("recentFileList", &paths);
+            let _ = settings_set_vec_string("recentFileList", &paths);
         }
 
-        let timer = SETTINGS.read().unwrap().i32("autosave_interval");
+        let timer = settings_i32("autosave_interval");
         if timer > 0 {
             app_ui.timer_backup_autosave.set_interval(timer * 60 * 1000);
             app_ui.timer_backup_autosave.start_0a();
         }
 
         // Check what response we got.
-        let response = CENTRAL_COMMAND.recv_try(&receiver);
+        let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
         match response {
 
             // If it's success...
@@ -1536,7 +1513,7 @@ impl AppUI {
             // If we got an error...
             Response::Error(error) => {
                 app_ui.toggle_main_window(true);
-                return Err(error)
+                return Err(anyhow!(error))
             }
 
             // In ANY other situation, it's a message problem.
@@ -1559,7 +1536,7 @@ impl AppUI {
         optimize: bool
     ) -> Result<()> {
 
-        let mut result = Ok(());
+        let mut result: Result<()> = Ok(());
         app_ui.toggle_main_window(false);
 
         // First, we need to save all open `PackedFiles` to the backend. If one fails, we want to know what one.
@@ -1568,9 +1545,9 @@ impl AppUI {
         if optimize {
             let _ = AppUI::purge_them_all(app_ui, pack_file_contents_ui, true);
 
-            let options = init_optimizer_options();
-            let receiver = CENTRAL_COMMAND.send_background(Command::OptimizePackFile(options));
-            let response = CENTRAL_COMMAND.recv_try(&receiver);
+            let options = optimizer_options();
+            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::OptimizePackFile(options));
+            let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
             match response {
                 Response::HashSetStringHashSetString(response_1, response_2) => {
                     let response_1 = response_1.iter().map(|x| ContainerPath::File(x.to_owned())).collect::<Vec<ContainerPath>>();
@@ -1583,7 +1560,7 @@ impl AppUI {
             }
         }
 
-        let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFilePath);
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackFilePath);
         let response = CentralCommand::recv(&receiver);
         let mut path = if let Response::PathBuf(path) = response { path } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}") };
         if !path.is_file() || save_as {
@@ -1607,7 +1584,7 @@ impl AppUI {
 
             // In case we have a default path for the Game Selected and that path is valid,
             // we use his data folder as base path for saving our PackFile.
-            else if let Ok(ref path) = GAME_SELECTED.read().unwrap().local_mods_path(&SETTINGS.read().unwrap().path_buf(GAME_SELECTED.read().unwrap().key())) {
+            else if let Ok(ref path) = GAME_SELECTED.read().unwrap().local_mods_path(&settings_path_buf(GAME_SELECTED.read().unwrap().key())) {
                 if path.is_dir() { file_dialog.set_directory_q_string(&QString::from_std_str(path.to_string_lossy().as_ref())); }
             }
 
@@ -1615,8 +1592,8 @@ impl AppUI {
             if file_dialog.exec() == 1 {
                 let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
                 let file_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
-                let receiver = CENTRAL_COMMAND.send_background(Command::SavePackFileAs(path));
-                let response = CENTRAL_COMMAND.recv_try(&receiver);
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SavePackFileAs(path));
+                let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
                 match response {
                     Response::ContainerInfo(pack_file_info) => {
                         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile);
@@ -1627,7 +1604,7 @@ impl AppUI {
                         UI_STATE.set_operational_mode(app_ui, None);
                         UI_STATE.set_is_modified(false, app_ui, pack_file_contents_ui);
                     }
-                    Response::Error(error) => result = Err(error),
+                    Response::Error(error) => result = Err(anyhow!(error)),
 
                     // In ANY other situation, it's a message problem.
                     _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
@@ -1636,8 +1613,8 @@ impl AppUI {
         }
 
         else {
-            let receiver = CENTRAL_COMMAND.send_background(Command::SavePackFile);
-            let response = CENTRAL_COMMAND.recv_try(&receiver);
+            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SavePackFile);
+            let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
             match response {
                 Response::ContainerInfo(pack_file_info) => {
                     pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile);
@@ -1645,7 +1622,7 @@ impl AppUI {
                     packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
                     UI_STATE.set_is_modified(false, app_ui, pack_file_contents_ui);
                 }
-                Response::Error(error) => result = Err(error),
+                Response::Error(error) => result = Err(anyhow!(error)),
 
                 // In ANY other situation, it's a message problem.
                 _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
@@ -1696,13 +1673,13 @@ impl AppUI {
 
             // Ensure it's a file and it's not in data before proceeding.
             let enable_install = if !pack_path.is_file() { false }
-            else if let Ok(game_data_path) = GAME_SELECTED.read().unwrap().local_mods_path(&SETTINGS.read().unwrap().path_buf(GAME_SELECTED.read().unwrap().key())) {
+            else if let Ok(game_data_path) = GAME_SELECTED.read().unwrap().local_mods_path(&settings_path_buf(GAME_SELECTED.read().unwrap().key())) {
                 game_data_path.is_dir() && !pack_path.starts_with(&game_data_path)
             } else { false };
             app_ui.packfile_install.set_enabled(enable_install);
 
             let enable_uninstall = if !pack_path.is_file() { false }
-            else if let Ok(mut game_data_path) = GAME_SELECTED.read().unwrap().local_mods_path(&SETTINGS.read().unwrap().path_buf(GAME_SELECTED.read().unwrap().key())) {
+            else if let Ok(mut game_data_path) = GAME_SELECTED.read().unwrap().local_mods_path(&settings_path_buf(GAME_SELECTED.read().unwrap().key())) {
                 if !game_data_path.is_dir() || pack_path.starts_with(&game_data_path) { false }
                 else {
                     game_data_path.push(pack_path.file_name().unwrap().to_string_lossy().to_string());
@@ -1712,7 +1689,7 @@ impl AppUI {
             app_ui.packfile_uninstall.set_enabled(enable_uninstall);
 
             // If there is a "MyMod" path set in the settings...
-            let path = PathBuf::from(SETTINGS.read().unwrap().string(MYMOD_BASE_PATH));
+            let path = settings_path_buf(MYMOD_BASE_PATH);
             if path.is_dir() { app_ui.mymod_new.set_enabled(true); }
             else { app_ui.mymod_new.set_enabled(false); }
         }
@@ -1950,7 +1927,7 @@ impl AppUI {
         //---------------------------------------------------------------------------------------//
 
         // Recent PackFiles.
-        let recent_file_paths = SETTINGS.read().unwrap().vec_string("recentFileList");
+        let recent_file_paths = settings_vec_string("recentFileList");
         if !recent_file_paths.is_empty() {
 
             for path_str in recent_file_paths {
@@ -1973,7 +1950,7 @@ impl AppUI {
                                 return show_dialog(&app_ui.main_window, error, false);
                             }
 
-                            if SETTINGS.read().unwrap().bool("diagnostics_trigger_on_open") {
+                            if settings_bool("diagnostics_trigger_on_open") {
 
                                 // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
                                 app_ui.menu_bar_packfile.set_enabled(false);
@@ -1992,7 +1969,7 @@ impl AppUI {
         }
 
         // Get the path of every PackFile in the content folder (if the game's path it's configured) and make an action for each one of them.
-        let mut content_paths = GAME_SELECTED.read().unwrap().content_packs_paths(&SETTINGS.read().unwrap().path_buf(GAME_SELECTED.read().unwrap().key()));
+        let mut content_paths = GAME_SELECTED.read().unwrap().content_packs_paths(&settings_path_buf(GAME_SELECTED.read().unwrap().key()));
         if let Some(ref mut paths) = content_paths {
             paths.sort_unstable_by_key(|x| x.file_name().unwrap().to_string_lossy().as_ref().to_owned());
             for path in paths {
@@ -2013,7 +1990,7 @@ impl AppUI {
                             return show_dialog(&app_ui.main_window, error, false);
                         }
 
-                        if SETTINGS.read().unwrap().bool("diagnostics_trigger_on_open") {
+                        if settings_bool("diagnostics_trigger_on_open") {
 
                             // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
                             app_ui.menu_bar_packfile.set_enabled(false);
@@ -2031,7 +2008,7 @@ impl AppUI {
         }
 
         // Get the path of every PackFile in the secondary folder (if it's configured) and make an action for each one of them.
-        let mut secondary_paths = GAME_SELECTED.read().unwrap().secondary_packs_paths(&SETTINGS.read().unwrap().path_buf(SECONDARY_PATH));
+        let mut secondary_paths = GAME_SELECTED.read().unwrap().secondary_packs_paths(&settings_path_buf(SECONDARY_PATH));
         if let Some(ref mut paths) = secondary_paths {
             paths.sort_unstable_by_key(|x| x.file_name().unwrap().to_string_lossy().as_ref().to_owned());
             for path in paths {
@@ -2052,7 +2029,7 @@ impl AppUI {
                             return show_dialog(&app_ui.main_window, error, false);
                         }
 
-                        if SETTINGS.read().unwrap().bool("diagnostics_trigger_on_open") {
+                        if settings_bool("diagnostics_trigger_on_open") {
 
                             // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
                             app_ui.menu_bar_packfile.set_enabled(false);
@@ -2070,7 +2047,7 @@ impl AppUI {
         }
 
         // Get the path of every PackFile in the data folder (if the game's path it's configured) and make an action for each one of them.
-        let mut data_paths = GAME_SELECTED.read().unwrap().data_packs_paths(&SETTINGS.read().unwrap().path_buf(GAME_SELECTED.read().unwrap().key()));
+        let mut data_paths = GAME_SELECTED.read().unwrap().data_packs_paths(&settings_path_buf(GAME_SELECTED.read().unwrap().key()));
         if let Some(ref mut paths) = data_paths {
             paths.sort_unstable_by_key(|x| x.file_name().unwrap().to_string_lossy().as_ref().to_owned());
             for path in paths {
@@ -2091,7 +2068,7 @@ impl AppUI {
                             return show_dialog(&app_ui.main_window, error, false);
                         }
 
-                        if SETTINGS.read().unwrap().bool("diagnostics_trigger_on_open") {
+                        if settings_bool("diagnostics_trigger_on_open") {
 
                             // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
                             app_ui.menu_bar_packfile.set_enabled(false);
@@ -2138,7 +2115,7 @@ impl AppUI {
                                                 return show_dialog(&app_ui.main_window, error, false);
                                             }
 
-                                            if SETTINGS.read().unwrap().bool("diagnostics_trigger_on_open") {
+                                            if settings_bool("diagnostics_trigger_on_open") {
 
                                                 // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
                                                 app_ui.menu_bar_packfile.set_enabled(false);
@@ -2206,7 +2183,7 @@ impl AppUI {
         app_ui.mymod_open_empire.clear();
 
         // If we have the "MyMod" path configured, get all the packfiles under the `MyMod` folder, separated by supported game.
-        let mymod_base_path = SETTINGS.read().unwrap().path_buf(MYMOD_BASE_PATH);
+        let mymod_base_path = settings_path_buf(MYMOD_BASE_PATH);
         if mymod_base_path.is_dir() {
             if let Ok(game_folder_list) = mymod_base_path.read_dir() {
                 for game_folder in game_folder_list.flatten() {
@@ -2254,7 +2231,7 @@ impl AppUI {
                                                 return show_dialog(&app_ui.main_window, error, false);
                                             }
 
-                                            if SETTINGS.read().unwrap().bool("diagnostics_trigger_on_open") {
+                                            if settings_bool("diagnostics_trigger_on_open") {
 
                                                 // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
                                                 app_ui.menu_bar_mymod.set_enabled(false);
@@ -2418,7 +2395,7 @@ impl AppUI {
                 tab.set_data_source(data_source);
 
                 if !is_external {
-                    let receiver = CENTRAL_COMMAND.send_background(Command::DecodePackedFile(path.to_string(), tab.data_source()));
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::DecodePackedFile(path.to_string(), tab.data_source()));
 
                     tab.set_is_preview(is_preview);
                     let icon_type = IconType::File(path.to_owned());
@@ -2603,15 +2580,15 @@ impl AppUI {
                                     app_ui.tab_bar_packed_file.remove_tab(tab_index);
 
                                     // Try to get the data of the table to send it for decoding.
-                                    let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFileRawData(path.to_owned()));
+                                    /*let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackedFileRawData(path.to_owned()));
                                     let response = CentralCommand::recv(&receiver);
                                     let data = match response {
                                         Response::VecU8(data) => data,
                                         Response::Error(_) => return show_dialog(&app_ui.main_window, error, false),
                                         _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-                                    };
+                                    };*/
 
-                                    return show_dialog_decode_button(app_ui.main_window.static_upcast::<qt_widgets::QWidget>().as_ptr(), error, file_info.table_name().unwrap(), &data);
+                                    return show_dialog_decode_button(app_ui.main_window.static_upcast::<qt_widgets::QWidget>().as_ptr(), error);
                                 },
                             }
                         }
@@ -2828,7 +2805,7 @@ impl AppUI {
                         }
 
                         Response::UnitVariantRFileInfo(mut data, file_info) => {
-                            if SETTINGS.read().unwrap().bool("use_debug_view_unit_variant") {
+                            if settings_bool("use_debug_view_unit_variant") {
                                 match UnitVariantDebugView::new_view(&mut tab, data.clone()) {
                                     Ok(_) => {
 
@@ -2969,7 +2946,7 @@ impl AppUI {
                     let icon_type = IconType::File(path.to_owned());
                     let icon = TREEVIEW_ICONS.icon(icon_type);
 
-                    let receiver = CENTRAL_COMMAND.send_background(Command::OpenPackedFileInExternalProgram(DataSource::PackFile, ContainerPath::File(path.to_owned())));
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::OpenPackedFileInExternalProgram(DataSource::PackFile, ContainerPath::File(path.to_owned())));
                     let path = Rc::new(RefCell::new(path.to_owned()));
 
                     let response = CentralCommand::recv(&receiver);
@@ -3130,7 +3107,7 @@ impl AppUI {
                 return show_dialog(&app_ui.main_window, "There is no Schema for the Game Selected.", false);
             }
 
-            let receiver = CENTRAL_COMMAND.send_background(Command::IsThereADependencyDatabase(false));
+            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::IsThereADependencyDatabase(false));
             let response = CentralCommand::recv(&receiver);
             match response {
                 Response::Bool(it_is) => if !it_is { return show_dialog(&app_ui.main_window, "The dependencies cache for the Game Selected is either missing, outdated, or it was generated without the Assembly Kit. Please, re-generate it and try again.", false); },
@@ -3193,7 +3170,7 @@ impl AppUI {
                     };
 
                     // Check if the File already exists, and report it if so.
-                    let receiver = CENTRAL_COMMAND.send_background(Command::PackedFileExists(full_path.to_owned()));
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::PackedFileExists(full_path.to_owned()));
                     let response = CentralCommand::recv(&receiver);
                     let exists = if let Response::Bool(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
                     if exists {
@@ -3201,7 +3178,7 @@ impl AppUI {
                     }
 
                     // Get the response, just in case it failed.
-                    let receiver = CENTRAL_COMMAND.send_background(Command::NewPackedFile(full_path.to_owned(), new_file));
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::NewPackedFile(full_path.to_owned(), new_file));
                     let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::Success => {
@@ -3245,7 +3222,7 @@ impl AppUI {
                     let new_path = format!("{path}/{name}");
                     let table = path_split[1];
 
-                    let receiver = CENTRAL_COMMAND.send_background(Command::GetTableVersionFromDependencyPackFile(table.to_owned()));
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetTableVersionFromDependencyPackFile(table.to_owned()));
                     let response = CentralCommand::recv(&receiver);
                     let version = match response {
                         Response::I32(data) => data,
@@ -3305,13 +3282,13 @@ impl AppUI {
                 };
 
                 // Check if the PackedFile already exists, and report it if so.
-                let receiver = CENTRAL_COMMAND.send_background(Command::PackedFileExists(new_path.to_owned()));
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::PackedFileExists(new_path.to_owned()));
                 let response = CentralCommand::recv(&receiver);
                 let exists = if let Response::Bool(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
                 if exists { return show_dialog(&app_ui.main_window, "The provided file/s already exists in the current path.", false)}
 
                 // Create the PackFile.
-                let receiver = CENTRAL_COMMAND.send_background(Command::NewPackedFile(new_path.to_owned(), new_packed_file));
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::NewPackedFile(new_path.to_owned(), new_packed_file));
                 let response = CentralCommand::recv(&receiver);
                 match response {
                     Response::Success => {
@@ -3409,7 +3386,7 @@ impl AppUI {
         // The default file name is the Pack name.
         //
         // That's because usually modders name many of the mod files like that.
-        let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFileName);
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackFileName);
         let response = CentralCommand::recv(&receiver);
         let pack_name = if let Response::String(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
         let pack_name = if pack_name.to_lowercase().ends_with(".pack") {
@@ -3425,14 +3402,14 @@ impl AppUI {
         match file_type {
             FileType::AnimPack => name_line_edit.set_text(&QString::from_std_str(format!("{pack_name}.animpack"))),
             FileType::DB => {
-                let receiver = CENTRAL_COMMAND.send_background(Command::GetTableListFromDependencyPackFile);
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetTableListFromDependencyPackFile);
                 let response = CentralCommand::recv(&receiver);
                 let mut tables = if let Response::VecString(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
 
                 // Also get the custom tables (start_pos) if there's any supported for the game selected.
                 //
                 // These may come duplicated, so we need to dedup them later.
-                let receiver = CENTRAL_COMMAND.send_background(Command::GetCustomTableList);
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetCustomTableList);
                 let response = CentralCommand::recv(&receiver);
                 let mut custom_tables = if let Response::VecString(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
 
@@ -3447,11 +3424,11 @@ impl AppUI {
             FileType::Loc => name_line_edit.set_text(&QString::from_std_str(format!("{pack_name}.loc"))),
             FileType::Text => name_line_edit.set_text(&QString::from_std_str(format!("{pack_name}.txt"))),
             FileType::PortraitSettings => {
-                let receiver = CENTRAL_COMMAND.send_background(Command::LocalArtSetIds);
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::LocalArtSetIds);
                 let response = CentralCommand::recv(&receiver);
                 let local_art_set_ids = if let Response::HashSetString(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
 
-                let receiver = CENTRAL_COMMAND.send_background(Command::DependenciesArtSetIds);
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::DependenciesArtSetIds);
                 let response = CentralCommand::recv(&receiver);
                 let dependencies_art_set_ids = if let Response::HashSetString(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
 
@@ -3503,11 +3480,11 @@ impl AppUI {
 
                 FileType::DB => {
                     let table = table_dropdown.current_text().to_std_string();
-                    let receiver = CENTRAL_COMMAND.send_background(Command::GetTableVersionFromDependencyPackFile(table.to_owned()));
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetTableVersionFromDependencyPackFile(table.to_owned()));
                     let response = CentralCommand::recv(&receiver);
                     let version = match response {
                         Response::I32(data) => data,
-                        Response::Error(error) => return Err(error),
+                        Response::Error(error) => return Err(anyhow!(error)),
                         _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                     };
                     Ok(Some(NewFile::DB(file_name, table, version)))
@@ -3575,7 +3552,7 @@ impl AppUI {
         let name_line_edit = QLineEdit::new();
         let accept_button = QPushButton::from_q_string(&qtr("gen_loc_accept"));
 
-        let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFileName);
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackFileName);
         let response = CentralCommand::recv(&receiver);
         let packfile_name = if let Response::String(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
         let packfile_name = if packfile_name.to_lowercase().ends_with(".pack") {
@@ -3612,7 +3589,7 @@ impl AppUI {
         let main_grid = create_grid_layout(dialog.static_upcast());
         let name_line_edit = QLineEdit::new();
 
-        let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFileName);
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackFileName);
         let response = CentralCommand::recv(&receiver);
         let packfile_name = if let Response::String(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
         let packfile_name = if packfile_name.to_lowercase().ends_with(".pack") {
@@ -3703,7 +3680,7 @@ impl AppUI {
 
         // Populate the lists with the available tile maps and tiles from the assembly kit.
         let game_key = GAME_SELECTED.read().unwrap().key();
-        let ak_path = SETTINGS.read().unwrap().path_buf(&format!("{game_key}_assembly_kit"));
+        let ak_path = settings_path_buf(&format!("{game_key}_assembly_kit"));
 
         let tile_maps_path = ak_path.join("working_data/terrain/battles");
         let tile_maps = final_folders_from_subdir(&tile_maps_path, true)?;
@@ -3716,8 +3693,8 @@ impl AppUI {
             item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(tile_map.to_string_lossy())), 20);
             item.set_editable(false);
 
-            let receiver = CENTRAL_COMMAND.send_background(Command::FolderExists(format!("terrain/battles/{tile_map_name}")));
-            let response = CENTRAL_COMMAND.recv_try(&receiver);
+            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::FolderExists(format!("terrain/battles/{tile_map_name}")));
+            let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
             match response {
                 Response::Bool(exists) => if exists {
                     tile_maps_to_add_model.append_row_q_standard_item(item.into_ptr());
@@ -3741,8 +3718,8 @@ impl AppUI {
                 item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(tile.to_string_lossy())), 20);
                 item.set_editable(false);
 
-                let receiver = CENTRAL_COMMAND.send_background(Command::FolderExists(format!("terrain/tiles/battle/{tile_name}")));
-                let response = CENTRAL_COMMAND.recv_try(&receiver);
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::FolderExists(format!("terrain/tiles/battle/{tile_name}")));
+                let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
                 match response {
                     Response::Bool(exists) => if exists {
                         tiles_to_add_model.append_row_q_standard_item(item.into_ptr());
@@ -3946,22 +3923,21 @@ impl AppUI {
         pts_remove_empty_file_label.set_text(&qtr("optimizer_pts_remove_empty_file"));
 
         {
-            let settings = SETTINGS.read().unwrap();
-            pack_remove_itm_files_checkbox.set_checked(settings.bool("pack_remove_itm_files"));
-            db_import_datacores_into_twad_key_deletes_checkbox.set_checked(settings.bool("db_import_datacores_into_twad_key_deletes"));
-            db_optimize_datacored_tables_checkbox.set_checked(settings.bool("db_optimize_datacored_tables"));
-            table_remove_duplicated_entries_checkbox.set_checked(settings.bool("table_remove_duplicated_entries"));
-            table_remove_itm_entries_checkbox.set_checked(settings.bool("table_remove_itm_entries"));
-            table_remove_itnr_entries_checkbox.set_checked(settings.bool("table_remove_itnr_entries"));
-            table_remove_empty_file_checkbox.set_checked(settings.bool("table_remove_empty_file"));
-            text_remove_unused_xml_map_folders_checkbox.set_checked(settings.bool("text_remove_unused_xml_map_folders"));
-            text_remove_unused_xml_prefab_folder_checkbox.set_checked(settings.bool("text_remove_unused_xml_prefab_folder"));
-            text_remove_agf_files_checkbox.set_checked(settings.bool("text_remove_agf_files"));
-            text_remove_model_statistics_files_checkbox.set_checked(settings.bool("text_remove_model_statistics_files"));
-            pts_remove_unused_art_sets_checkbox.set_checked(settings.bool("pts_remove_unused_art_sets"));
-            pts_remove_unused_variants_checkbox.set_checked(settings.bool("pts_remove_unused_variants"));
-            pts_remove_empty_masks_checkbox.set_checked(settings.bool("pts_remove_empty_masks"));
-            pts_remove_empty_file_checkbox.set_checked(settings.bool("pts_remove_empty_file"));
+            pack_remove_itm_files_checkbox.set_checked(settings_bool("pack_remove_itm_files"));
+            db_import_datacores_into_twad_key_deletes_checkbox.set_checked(settings_bool("db_import_datacores_into_twad_key_deletes"));
+            db_optimize_datacored_tables_checkbox.set_checked(settings_bool("db_optimize_datacored_tables"));
+            table_remove_duplicated_entries_checkbox.set_checked(settings_bool("table_remove_duplicated_entries"));
+            table_remove_itm_entries_checkbox.set_checked(settings_bool("table_remove_itm_entries"));
+            table_remove_itnr_entries_checkbox.set_checked(settings_bool("table_remove_itnr_entries"));
+            table_remove_empty_file_checkbox.set_checked(settings_bool("table_remove_empty_file"));
+            text_remove_unused_xml_map_folders_checkbox.set_checked(settings_bool("text_remove_unused_xml_map_folders"));
+            text_remove_unused_xml_prefab_folder_checkbox.set_checked(settings_bool("text_remove_unused_xml_prefab_folder"));
+            text_remove_agf_files_checkbox.set_checked(settings_bool("text_remove_agf_files"));
+            text_remove_model_statistics_files_checkbox.set_checked(settings_bool("text_remove_model_statistics_files"));
+            pts_remove_unused_art_sets_checkbox.set_checked(settings_bool("pts_remove_unused_art_sets"));
+            pts_remove_unused_variants_checkbox.set_checked(settings_bool("pts_remove_unused_variants"));
+            pts_remove_empty_masks_checkbox.set_checked(settings_bool("pts_remove_empty_masks"));
+            pts_remove_empty_file_checkbox.set_checked(settings_bool("pts_remove_empty_file"));
         }
 
         db_optimize_datacored_tables_checkbox.set_visible(false);
@@ -3970,30 +3946,28 @@ impl AppUI {
         button_box.button(StandardButton::Ok).released().connect(dialog.slot_accept());
 
         if dialog.exec() == 1 {
-            rpfm_ui_common::set_batch![
-                set_bool, "pack_remove_itm_files", pack_remove_itm_files_checkbox.is_checked(),
-                set_bool, "db_import_datacores_into_twad_key_deletes", db_import_datacores_into_twad_key_deletes_checkbox.is_checked(),
-                set_bool, "db_optimize_datacored_tables", db_optimize_datacored_tables_checkbox.is_checked(),
-                set_bool, "table_remove_duplicated_entries", table_remove_duplicated_entries_checkbox.is_checked(),
-                set_bool, "table_remove_itm_entries", table_remove_itm_entries_checkbox.is_checked(),
-                set_bool, "table_remove_itnr_entries", table_remove_itnr_entries_checkbox.is_checked(),
-                set_bool, "table_remove_empty_file", table_remove_empty_file_checkbox.is_checked(),
-                set_bool, "text_remove_unused_xml_map_folders", text_remove_unused_xml_map_folders_checkbox.is_checked(),
-                set_bool, "text_remove_unused_xml_prefab_folder", text_remove_unused_xml_prefab_folder_checkbox.is_checked(),
-                set_bool, "text_remove_agf_files", text_remove_agf_files_checkbox.is_checked(),
-                set_bool, "text_remove_model_statistics_files", text_remove_model_statistics_files_checkbox.is_checked(),
-                set_bool, "pts_remove_unused_art_sets", pts_remove_unused_art_sets_checkbox.is_checked(),
-                set_bool, "pts_remove_unused_variants", pts_remove_unused_variants_checkbox.is_checked(),
-                set_bool, "pts_remove_empty_masks", pts_remove_empty_masks_checkbox.is_checked(),
-                set_bool, "pts_remove_empty_file", pts_remove_empty_file_checkbox.is_checked()
-            ];
+            settings_set_bool("pack_remove_itm_files", pack_remove_itm_files_checkbox.is_checked());
+            settings_set_bool("db_import_datacores_into_twad_key_deletes", db_import_datacores_into_twad_key_deletes_checkbox.is_checked());
+            settings_set_bool("db_optimize_datacored_tables", db_optimize_datacored_tables_checkbox.is_checked());
+            settings_set_bool("table_remove_duplicated_entries", table_remove_duplicated_entries_checkbox.is_checked());
+            settings_set_bool("table_remove_itm_entries", table_remove_itm_entries_checkbox.is_checked());
+            settings_set_bool("table_remove_itnr_entries", table_remove_itnr_entries_checkbox.is_checked());
+            settings_set_bool("table_remove_empty_file", table_remove_empty_file_checkbox.is_checked());
+            settings_set_bool("text_remove_unused_xml_map_folders", text_remove_unused_xml_map_folders_checkbox.is_checked());
+            settings_set_bool("text_remove_unused_xml_prefab_folder", text_remove_unused_xml_prefab_folder_checkbox.is_checked());
+            settings_set_bool("text_remove_agf_files", text_remove_agf_files_checkbox.is_checked());
+            settings_set_bool("text_remove_model_statistics_files", text_remove_model_statistics_files_checkbox.is_checked());
+            settings_set_bool("pts_remove_unused_art_sets", pts_remove_unused_art_sets_checkbox.is_checked());
+            settings_set_bool("pts_remove_unused_variants", pts_remove_unused_variants_checkbox.is_checked());
+            settings_set_bool("pts_remove_empty_masks", pts_remove_empty_masks_checkbox.is_checked());
+            settings_set_bool("pts_remove_empty_file", pts_remove_empty_file_checkbox.is_checked());
 
             AppUI::purge_them_all(app_ui, pack_file_contents_ui, true)?;
             GlobalSearchUI::clear(global_search_ui);
 
-            let options = init_optimizer_options();
-            let receiver = CENTRAL_COMMAND.send_background(Command::OptimizePackFile(options));
-            let response = CENTRAL_COMMAND.recv_try(&receiver);
+            let options = optimizer_options();
+            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::OptimizePackFile(options));
+            let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
             match response {
                 Response::HashSetStringHashSetString(response_1, response_2) => {
                     let response_1 = response_1.iter().map(|x| ContainerPath::File(x.to_owned())).collect::<Vec<ContainerPath>>();
@@ -4003,27 +3977,25 @@ impl AppUI {
                     pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(response_2), DataSource::PackFile);
                     Ok(Some(()))
                 }
-                Response::Error(error) => Err(error),
+                Response::Error(error) => Err(anyhow!(error)),
                 _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
             }
         } else {
-            rpfm_ui_common::set_batch![
-                set_bool, "pack_remove_itm_files", pack_remove_itm_files_checkbox.is_checked(),
-                set_bool, "db_import_datacores_into_twad_key_deletes", db_import_datacores_into_twad_key_deletes_checkbox.is_checked(),
-                set_bool, "db_optimize_datacored_tables", db_optimize_datacored_tables_checkbox.is_checked(),
-                set_bool, "table_remove_duplicated_entries", table_remove_duplicated_entries_checkbox.is_checked(),
-                set_bool, "table_remove_itm_entries", table_remove_itm_entries_checkbox.is_checked(),
-                set_bool, "table_remove_itnr_entries", table_remove_itnr_entries_checkbox.is_checked(),
-                set_bool, "table_remove_empty_file", table_remove_empty_file_checkbox.is_checked(),
-                set_bool, "text_remove_unused_xml_map_folders", text_remove_unused_xml_map_folders_checkbox.is_checked(),
-                set_bool, "text_remove_unused_xml_prefab_folder", text_remove_unused_xml_prefab_folder_checkbox.is_checked(),
-                set_bool, "text_remove_agf_files", text_remove_agf_files_checkbox.is_checked(),
-                set_bool, "text_remove_model_statistics_files", text_remove_model_statistics_files_checkbox.is_checked(),
-                set_bool, "pts_remove_unused_art_sets", pts_remove_unused_art_sets_checkbox.is_checked(),
-                set_bool, "pts_remove_unused_variants", pts_remove_unused_variants_checkbox.is_checked(),
-                set_bool, "pts_remove_empty_masks", pts_remove_empty_masks_checkbox.is_checked(),
-                set_bool, "pts_remove_empty_file", pts_remove_empty_file_checkbox.is_checked()
-            ];
+            settings_set_bool("pack_remove_itm_files", pack_remove_itm_files_checkbox.is_checked());
+            settings_set_bool("db_import_datacores_into_twad_key_deletes", db_import_datacores_into_twad_key_deletes_checkbox.is_checked());
+            settings_set_bool("db_optimize_datacored_tables", db_optimize_datacored_tables_checkbox.is_checked());
+            settings_set_bool("table_remove_duplicated_entries", table_remove_duplicated_entries_checkbox.is_checked());
+            settings_set_bool("table_remove_itm_entries", table_remove_itm_entries_checkbox.is_checked());
+            settings_set_bool("table_remove_itnr_entries", table_remove_itnr_entries_checkbox.is_checked());
+            settings_set_bool("table_remove_empty_file", table_remove_empty_file_checkbox.is_checked());
+            settings_set_bool("text_remove_unused_xml_map_folders", text_remove_unused_xml_map_folders_checkbox.is_checked());
+            settings_set_bool("text_remove_unused_xml_prefab_folder", text_remove_unused_xml_prefab_folder_checkbox.is_checked());
+            settings_set_bool("text_remove_agf_files", text_remove_agf_files_checkbox.is_checked());
+            settings_set_bool("text_remove_model_statistics_files", text_remove_model_statistics_files_checkbox.is_checked());
+            settings_set_bool("pts_remove_unused_art_sets", pts_remove_unused_art_sets_checkbox.is_checked());
+            settings_set_bool("pts_remove_unused_variants", pts_remove_unused_variants_checkbox.is_checked());
+            settings_set_bool("pts_remove_empty_masks", pts_remove_empty_masks_checkbox.is_checked());
+            settings_set_bool("pts_remove_empty_file", pts_remove_empty_file_checkbox.is_checked());
 
             Ok(None)
         }
@@ -4125,7 +4097,7 @@ impl AppUI {
 
                         let path_split = path.split('/').collect::<Vec<_>>();
                         let path = path_split[1..].join("/");
-                        let _ = CENTRAL_COMMAND.send_background(Command::RemovePackFileExtra(PathBuf::from(&path)));
+                        let _ = CENTRAL_COMMAND.read().unwrap().send(Command::RemovePackFileExtra(PathBuf::from(&path)));
                     }
                     else if path.ends_with(DECODER_EXTENSION) {
                         purge_on_delete.push(path.to_owned());
@@ -4157,7 +4129,7 @@ impl AppUI {
 
         // Optimization: get this before starting the entire game change. Otherwise, we'll hang the thread near the end.
         // Mutable because we reuse this variable to store the other receiver we need to generate down below.
-        let mut receiver = CENTRAL_COMMAND.send_background(Command::GetPackFilePath);
+        let mut receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackFilePath);
         let response = CentralCommand::recv(&receiver);
         let pack_path = if let Response::PathBuf(pack_path) = response { pack_path } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}") };
 
@@ -4166,6 +4138,7 @@ impl AppUI {
         if let Some(index) = new_game_selected.find('&') { new_game_selected.remove(index); }
         let new_game_selected = new_game_selected.replace(' ', "_").to_lowercase();
         let mut game_changed = false;
+        let mut dep_info = None;
 
         // Due to how the backend is optimised, we need to back our files before triggering the proper game change.
         let _ = AppUI::purge_them_all(app_ui, pack_file_contents_ui, true);
@@ -4179,10 +4152,13 @@ impl AppUI {
             // Send the command to the background thread to set the new `Game Selected`. We expect two responses:
             // - New compression format.
             // - Success.
-            receiver = CENTRAL_COMMAND.send_background(Command::SetGameSelected(new_game_selected, rebuild_dependencies));
+            receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SetGameSelected(new_game_selected.to_owned(), rebuild_dependencies));
             let response = CentralCommand::recv(&receiver);
             match response {
-                Response::CompressionFormat(cf) => {
+                Response::CompressionFormatDependenciesInfo(cf, dependencies_info) => {
+                    *GAME_SELECTED.write().unwrap() = SUPPORTED_GAMES.game(&new_game_selected).unwrap();
+                    dep_info = dependencies_info;
+
                     app_ui.compression_format_group.block_signals(true);
                     match cf {
                         CompressionFormat::None => app_ui.compression_format_none.set_checked(true),
@@ -4191,30 +4167,24 @@ impl AppUI {
                         CompressionFormat::Zstd => app_ui.compression_format_zstd.set_checked(true),
                     }
                     app_ui.compression_format_group.block_signals(false);
+
+                    // If we have a pack open, set the current "Operational Mode" to `Normal` (In case we were in `MyMod` mode).
+                    // We do not really support changing game selected while keep treating a mymod as a mymod.
+                    if pack_file_contents_ui.packfile_contents_tree_model().row_count_0a() > 0 {
+                        UI_STATE.set_operational_mode(app_ui, None);
+                        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![ContainerPath::Folder(String::new())]), DataSource::PackFile);
+                        UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
+                    }
+
+                    // Change the GameSelected Icon.
+                    GameSelectedIcons::set_game_selected_icon(app_ui);
+
+                    // Set this at the end, because the backend need to check if it's our first initialization or not first.
+                    FIRST_GAME_CHANGE_DONE.store(true, Ordering::SeqCst);
+                    game_changed = true;
                 },
                 _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
             }
-
-            let response = CentralCommand::recv(&receiver);
-            match response {
-                Response::Success => {}
-                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-            }
-
-            // If we have a pack open, set the current "Operational Mode" to `Normal` (In case we were in `MyMod` mode).
-            // We do not really support changing game selected while keep treating a mymod as a mymod.
-            if pack_file_contents_ui.packfile_contents_tree_model().row_count_0a() > 0 {
-                UI_STATE.set_operational_mode(app_ui, None);
-                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![ContainerPath::Folder(String::new())]), DataSource::PackFile);
-                UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
-            }
-
-            // Change the GameSelected Icon.
-            GameSelectedIcons::set_game_selected_icon(app_ui);
-
-            // Set this at the end, because the backend need to check if it's our first initialization or not first.
-            FIRST_GAME_CHANGE_DONE.store(true, Ordering::SeqCst);
-            game_changed = true;
         }
 
         // Reenable the main window once everything is reloaded, regardless of if we disabled it here or not.
@@ -4230,48 +4200,33 @@ impl AppUI {
         // The backend already differentiates between the two and acts accordingly.
         if rebuild_dependencies {
 
-            // If the game didn't change, we need to make sure we generate a receiver for this.
-            let receiver = if game_changed {
-                info!("Reusing receiver.");
-                receiver
-            } else {
-                info!("New receiver.");
-                CENTRAL_COMMAND.send_background(Command::RebuildDependencies(!force_full_dependency_reload))
-            };
-
             if force_full_dependency_reload {
                 app_ui.toggle_main_window(false);
             }
 
-            let response = CENTRAL_COMMAND.recv_try(&receiver);
-            match response {
-                Response::DependenciesInfo(response) => {
-                    let mut parent_build_data = BuildData::new();
-                    parent_build_data.data = Some((ContainerInfo::default(), response.parent_packed_files().to_vec()));
-                    dependencies_ui.dependencies_tree_view().update_treeview(true, TreeViewOperation::Build(parent_build_data), DataSource::ParentFiles);
+            if let Some(dep_info) = dep_info {
+                let mut parent_build_data = BuildData::new();
+                parent_build_data.data = Some((ContainerInfo::default(), dep_info.parent_packed_files().to_vec()));
+                dependencies_ui.dependencies_tree_view().update_treeview(true, TreeViewOperation::Build(parent_build_data), DataSource::ParentFiles);
 
-                    // While the backend returns the data of the entire dependencies, game and asskit data only change on game change, so we don't need to
-                    // rebuild them the game didn't change.
-                    if game_changed || force_full_dependency_reload {
+                // While the backend returns the data of the entire dependencies, game and asskit data only change on game change, so we don't need to
+                // rebuild them the game didn't change.
+                if game_changed || force_full_dependency_reload {
 
-                        // NOTE: We're MOVING, not copying nor referencing the RFileInfo. This info is big and moving it makes it faster.
-                        let mut game_build_data = BuildData::new();
-                        game_build_data.data = Some((ContainerInfo::default(), response.vanilla_packed_files));
+                    // NOTE: We're MOVING, not copying nor referencing the RFileInfo. This info is big and moving it makes it faster.
+                    let mut game_build_data = BuildData::new();
+                    game_build_data.data = Some((ContainerInfo::default(), dep_info.vanilla_packed_files));
 
-                        let mut asskit_build_data = BuildData::new();
-                        asskit_build_data.data = Some((ContainerInfo::default(), response.asskit_tables));
-                        dependencies_ui.dependencies_tree_view().update_treeview(true, TreeViewOperation::Build(game_build_data), DataSource::GameFiles);
-                        dependencies_ui.dependencies_tree_view().update_treeview(true, TreeViewOperation::Build(asskit_build_data), DataSource::AssKitFiles);
-                    }
+                    let mut asskit_build_data = BuildData::new();
+                    asskit_build_data.data = Some((ContainerInfo::default(), dep_info.asskit_tables));
+                    dependencies_ui.dependencies_tree_view().update_treeview(true, TreeViewOperation::Build(game_build_data), DataSource::GameFiles);
+                    dependencies_ui.dependencies_tree_view().update_treeview(true, TreeViewOperation::Build(asskit_build_data), DataSource::AssKitFiles);
                 }
-                Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
-                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
             }
 
             if force_full_dependency_reload {
                 app_ui.toggle_main_window(true);
             }
-
         }
 
         // Disable the pack-related actions and, if we have a pack open, re-enable them.
@@ -4281,8 +4236,8 @@ impl AppUI {
         }
 
         // If we have the setting enabled, ask the backend to generate the missing definition list.
-        if SETTINGS.read().unwrap().bool("check_for_missing_table_definitions") {
-            let _ = CENTRAL_COMMAND.send_background(Command::GetMissingDefinitions);
+        if settings_bool("check_for_missing_table_definitions") {
+            let _ = CENTRAL_COMMAND.read().unwrap().send(Command::GetMissingDefinitions);
         }
     }
 
@@ -4296,10 +4251,10 @@ impl AppUI {
     ) {
 
         // Tell the Background Thread to create a new PackFile.
-        let _ = CENTRAL_COMMAND.send_background(Command::NewPackFile);
+        let _ = CENTRAL_COMMAND.read().unwrap().send(Command::NewPackFile);
 
         // Reset the autosave timer.
-        let timer = SETTINGS.read().unwrap().i32("autosave_interval");
+        let timer = settings_i32("autosave_interval");
         if timer > 0 {
             app_ui.timer_backup_autosave.set_interval(timer * 60 * 1000);
             app_ui.timer_backup_autosave.start_0a();
@@ -4341,8 +4296,8 @@ impl AppUI {
         UI_STATE.set_is_modified(false, app_ui, pack_file_contents_ui);
 
         // Force a dependency rebuild.
-        let receiver = CENTRAL_COMMAND.send_background(Command::RebuildDependencies(true));
-        let response = CENTRAL_COMMAND.recv_try(&receiver);
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::RebuildDependencies(true));
+        let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
         match response {
             Response::DependenciesInfo(response) => {
                 let mut parent_build_data = BuildData::new();
@@ -4370,7 +4325,7 @@ impl AppUI {
 
             // If we have a "MyMod" selected...
             OperationalMode::MyMod(ref game_folder_name, ref mod_name) => {
-                let mymods_base_path = SETTINGS.read().unwrap().path_buf("mymods_base_path");
+                let mymods_base_path = settings_path_buf("mymods_base_path");
                 if mymods_base_path.is_dir() {
 
                     // We get the assets folder of our mod (without .pack extension). This mess removes the .pack.
@@ -4401,7 +4356,7 @@ impl AppUI {
                         paths_packedfile.push(ContainerPath::File(filtered_path.to_string_lossy().to_string()));
                     }
 
-                    let receiver = CENTRAL_COMMAND.send_background(Command::GetPackSettings);
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackSettings);
                     let response = CentralCommand::recv(&receiver);
                     let settings = match response {
                         Response::PackSettings(settings) => settings,
@@ -4477,8 +4432,8 @@ impl AppUI {
             process_hlp_spd_data_checkbox.set_enabled(false);
         }
 
-        let receiver = CENTRAL_COMMAND.send_background(Command::BuildStarposGetCampaingIds);
-        let response = CENTRAL_COMMAND.recv_try(&receiver);
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::BuildStarposGetCampaingIds);
+        let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
         match response {
             Response::HashSetString(ids) => {
                 let mut ids = ids.into_iter().collect::<Vec<_>>();
@@ -4497,11 +4452,11 @@ impl AppUI {
             _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
         }
 
-        let receiver = CENTRAL_COMMAND.send_background(Command::BuildStarposCheckVictoryConditions);
-        let response = CENTRAL_COMMAND.recv_try(&receiver);
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::BuildStarposCheckVictoryConditions);
+        let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
         match response {
             Response::Success => {}
-            Response::Error(error) => return Err(error),
+            Response::Error(error) => return Err(anyhow!(error)),
 
             // In ANY other situation, it's a message problem.
             _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
@@ -4518,8 +4473,8 @@ impl AppUI {
 
             let campaign_id = campaign_id_combobox_ptr.current_text().to_std_string();
             let process_hlp_spd_data = process_hlp_spd_data_checkbox_ptr.is_checked();
-            let receiver = CENTRAL_COMMAND.send_background(Command::BuildStarpos(campaign_id, process_hlp_spd_data));
-            let response = CENTRAL_COMMAND.recv_try(&receiver);
+            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::BuildStarpos(campaign_id, process_hlp_spd_data));
+            let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
             match response {
                 Response::Success => games_closed_button_ptr.set_enabled(true),
                 Response::Error(error) => show_dialog(dialog_ptr, error, false),
@@ -4536,8 +4491,8 @@ impl AppUI {
         if dialog.exec() == 1 {
             let campaign_id = campaign_id_combobox.current_text().to_std_string();
             let process_hlp_spd_data = process_hlp_spd_data_checkbox.is_checked();
-            let receiver = CENTRAL_COMMAND.send_background(Command::BuildStarposPost(campaign_id, process_hlp_spd_data));
-            let response = CENTRAL_COMMAND.recv_try(&receiver);
+            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::BuildStarposPost(campaign_id, process_hlp_spd_data));
+            let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
             match response {
                 Response::VecContainerPath(paths) => {
                     if !paths.is_empty() {
@@ -4547,7 +4502,7 @@ impl AppUI {
 
                     Ok(())
                 },
-                Response::Error(error) => Err(error),
+                Response::Error(error) => Err(anyhow!(error)),
 
                 // In ANY other situation, it's a message problem.
                 _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
@@ -4557,11 +4512,11 @@ impl AppUI {
             // If the user did not properly followed the procedure, do a post-cleanup pass anyway to avoid the idiot's stupidity causing problems.
             let campaign_id = campaign_id_combobox.current_text().to_std_string();
             let process_hlp_spd_data = process_hlp_spd_data_checkbox.is_checked();
-            let receiver = CENTRAL_COMMAND.send_background(Command::BuildStarposCleanup(campaign_id, process_hlp_spd_data));
-            let response = CENTRAL_COMMAND.recv_try(&receiver);
+            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::BuildStarposCleanup(campaign_id, process_hlp_spd_data));
+            let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
             match response {
                 Response::Success => Ok(()),
-                Response::Error(error) => Err(error),
+                Response::Error(error) => Err(anyhow!(error)),
 
                 // In ANY other situation, it's a message problem.
                 _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
@@ -4602,8 +4557,8 @@ impl AppUI {
         if dialog.exec() == 1 {
             let starting_id = starting_id_spinbox.value();
             let offset = offset_spinbox.value();
-            let receiver = CENTRAL_COMMAND.send_background(Command::UpdateAnimIds(starting_id, offset));
-            let response = CENTRAL_COMMAND.recv_try(&receiver);
+            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::UpdateAnimIds(starting_id, offset));
+            let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
             match response {
                 Response::VecContainerPath(paths) => {
                     if !paths.is_empty() {
@@ -4614,7 +4569,7 @@ impl AppUI {
 
                     Ok(())
                 },
-                Response::Error(error) => Err(error),
+                Response::Error(error) => Err(anyhow!(error)),
 
                 // In ANY other situation, it's a message problem.
                 _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),

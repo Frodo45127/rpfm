@@ -32,7 +32,6 @@ use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::pack_tree::PackTree;
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::packedfile_views::DataSource;
 use crate::QString;
 use crate::references_ui::ReferencesUI;
 use crate::utils::*;

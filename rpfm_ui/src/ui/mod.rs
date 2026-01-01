@@ -35,14 +35,14 @@ use std::rc::Rc;
 use std::fs::{read_dir, remove_dir_all};
 use std::sync::atomic::AtomicPtr;
 
+use rpfm_ipc::helpers::DataSource;
+
 use rpfm_lib::games::supported_games::*;
 use rpfm_lib::integrations::log::*;
 
 use rpfm_ui_common::ASSETS_PATH;
-use rpfm_ui_common::locale::qtr;
 use rpfm_ui_common::PROGRAM_PATH;
-use rpfm_ui_common::SETTINGS;
-use rpfm_ui_common::utils::*;
+use rpfm_ui_common::utils::{atomic_from_cpp_box, ref_from_atomic};
 
 use crate::VERSION;
 use crate::app_ui;
@@ -63,10 +63,10 @@ use crate::references_ui;
 use crate::references_ui::ReferencesUI;
 use crate::references_ui::slots::ReferencesUISlots;
 use crate::SUPPORTED_GAMES;
-use crate::packedfile_views::DataSource;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packfile_contents_ui;
 use crate::packfile_contents_ui::slots::PackFileContentsSlots;
+use crate::settings_helpers::*;
 use crate::settings_ui::backend::*;
 use crate::UI_STATE;
 use crate::updater_ui::UpdaterUI;
@@ -114,8 +114,6 @@ impl UI {
 
     /// This function initialize the entire `UI`.
     pub unsafe fn new() -> Result<Self> {
-        let _ = init_settings();
-
         let app_ui = Rc::new(AppUI::new());
         let global_search_ui = Rc::new(GlobalSearchUI::new(app_ui.main_window())?);
         let pack_file_contents_ui = Rc::new(PackFileContentsUI::new(&app_ui)?);
@@ -148,15 +146,15 @@ impl UI {
         references_ui::connections::set_connections(&references_ui, &references_slots);
 
         // Initialize settings. Ignore errors here, as we have no way to show them yet.
-        init_app_exclusive_settings(&mut *SETTINGS.write().unwrap(), &app_ui);
+        init_app_exclusive_settings(&app_ui);
 
         // Apply last ui state.
-        app_ui.main_window().restore_geometry(&QByteArray::from_slice(&SETTINGS.read().unwrap().raw_data("geometry")));
-        app_ui.main_window().restore_state_1a(&QByteArray::from_slice(&SETTINGS.read().unwrap().raw_data("windowState")));
+        app_ui.main_window().restore_geometry(&QByteArray::from_slice(&settings_raw_data("geometry")));
+        app_ui.main_window().restore_state_1a(&QByteArray::from_slice(&settings_raw_data("windowState")));
 
         // Apply the font.
-        let font_name = SETTINGS.read().unwrap().string("font_name");
-        let font_size = SETTINGS.read().unwrap().i32("font_size");
+        let font_name = settings_string("font_name");
+        let font_size = settings_i32("font_size");
         let font = QFont::from_q_string_int(&QString::from_std_str(font_name), font_size);
         QApplication::set_font_1a(&font);
 
@@ -165,7 +163,7 @@ impl UI {
         UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
 
         // If we want the window to start maximized...
-        if SETTINGS.read().unwrap().bool("start_maximized") {
+        if settings_bool("start_maximized") {
             app_ui.main_window().set_window_state(QFlags::from(WindowState::WindowMaximized));
         }
 
@@ -177,7 +175,7 @@ impl UI {
 
         // Do not trigger the automatic game changed signal here, as that will trigger an expensive and useless dependency rebuild.
         info!("Setting initial Game Selected…");
-        match &*SETTINGS.read().unwrap().string("default_game") {
+        match &*settings_string("default_game") {
             KEY_PHARAOH_DYNASTIES => app_ui.game_selected_pharaoh_dynasties().set_checked(true),
             KEY_PHARAOH => app_ui.game_selected_pharaoh().set_checked(true),
             KEY_WARHAMMER_3 => app_ui.game_selected_warhammer_3().set_checked(true),
@@ -199,7 +197,7 @@ impl UI {
         }
 
         AppUI::change_game_selected(&app_ui, &pack_file_contents_ui, &dependencies_ui, true, false);
-        info!("Initial Game Selected set to {}.", SETTINGS.read().unwrap().string("default_game"));
+        info!("Initial Game Selected set to {}.", settings_string("default_game"));
 
         // We get all the Arguments provided when starting RPFM, just in case we passed it a path,
         // in which case, we automatically try to open it.
@@ -241,7 +239,7 @@ impl UI {
                         }
                     }
 
-                    if SETTINGS.read().unwrap().bool("diagnostics_trigger_on_open") {
+                    if settings_bool("diagnostics_trigger_on_open") {
                         DiagnosticsUI::check(&app_ui, &diagnostics_ui);
                     }
                 }
@@ -267,7 +265,7 @@ impl UI {
         // Show the "only for the brave" alert for specially unstable builds.
         #[cfg(feature = "only_for_the_brave")] {
             let first_boot_setting = "firstBoot".to_owned() + VERSION;
-            if !SETTINGS.read().unwrap().bool(&first_boot_setting) {
+            if !settings_bool(&first_boot_setting) {
 
                 let title = qtr("title_only_for_the_brave");
                 let message = qtr("message_only_for_the_brave");
@@ -280,7 +278,7 @@ impl UI {
                 ).exec();
 
                 // Set it so it doesn't popup again for this version.
-                set_SETTINGS.read().unwrap().bool(&first_boot_setting, true);
+                set_settings_bool(&first_boot_setting, true);
             }
         }
 
@@ -290,7 +288,7 @@ impl UI {
         if cfg!(target_os = "windows") {
             let first_boot_setting = "firstBootCheckDarkTheme".to_owned() + VERSION;
             let dark_stylesheet_customized = dark_stylesheet_is_customized().unwrap_or(true);
-            if !SETTINGS.read().unwrap().bool(&first_boot_setting) && dark_stylesheet_customized {
+            if !settings_bool(&first_boot_setting) && dark_stylesheet_customized {
 
                 let title = qtr("title_changes_detected_in_dark_theme_config");
                 let message = qtr("message_changes_detected_in_dark_theme_config");
@@ -307,7 +305,7 @@ impl UI {
                 }
 
                 // Set it so it doesn't popup again for this version.
-                let _ = SETTINGS.write().unwrap().set_bool(&first_boot_setting, true);
+                let _ = settings_set_bool(&first_boot_setting, true);
             }
         }
 
@@ -369,7 +367,7 @@ impl GameSelectedIcons {
         // Fix due to windows paths.
         let big_icon = if cfg!(target_os = "windows") {  big_icon.replace('\\', "/") } else { big_icon.to_owned() };
 
-        if !SETTINGS.read().unwrap().bool("hide_background_icon") {
+        if !settings_bool("hide_background_icon") {
             if app_ui.tab_bar_packed_file().count() == 0 {
 
                 // WTF of the day: without the border line, this doesn't work on windows. Who knows why...?

@@ -14,7 +14,7 @@ Module with all the code to setup the tips (in the `StatusBar`) for the actions 
 
 use std::rc::Rc;
 
-use rpfm_ui_common::locale::qtr;
+use crate::utils::qtr;
 
 use super::DependenciesUI;
 

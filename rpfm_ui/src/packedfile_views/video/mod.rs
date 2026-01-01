@@ -24,14 +24,14 @@ use qt_core::QPtr;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex, RwLock};
 
+use rpfm_ipc::helpers::VideoInfo;
+
 use rpfm_lib::files::{video::*, FileType};
 
-use rpfm_ui_common::locale::qtr;
-
 use crate::app_ui::AppUI;
-use crate::backend::VideoInfo;
 use crate::packedfile_views::{DataSource, FileView, View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
+use crate::utils::qtr;
 
 use self::slots::PackedFileVideoViewSlots;
 

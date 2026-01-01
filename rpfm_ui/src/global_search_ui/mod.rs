@@ -66,12 +66,13 @@ use rpfm_extensions::search::{GlobalSearch, MatchHolder,
     unit_variant::{UnitVariantMatches, UnitVariantMatch},
     unknown::{UnknownMatches, UnknownMatch}
 };
+
+use rpfm_ipc::helpers::DataSource;
+
 use rpfm_lib::files::FileType;
 use rpfm_lib::utils::closest_valid_char_byte;
 
-use rpfm_ui_common::locale::qtr;
-use rpfm_ui_common::SETTINGS;
-use rpfm_ui_common::utils::*;
+use rpfm_ui_common::utils::{atomic_from_cpp_box, find_widget, load_template, ptr_from_atomic, ref_from_atomic};
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
@@ -81,10 +82,12 @@ use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::{kline_edit_configure_safe, new_treeview_filter_safe, scroll_to_row_safe, trigger_treeview_filter_safe};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::{PackTree, TreeViewOperation};
-use crate::packedfile_views::{DataSource, View, ViewType};
+use crate::packedfile_views::{View, ViewType};
 use crate::references_ui::ReferencesUI;
 use crate::TREEVIEW_ICONS;
 use crate::UI_STATE;
+use crate::settings_helpers::settings_i32;
+use crate::utils::{qtr, show_dialog};
 use crate::views::table::utils::open_subtable;
 
 pub mod connections;
@@ -241,7 +244,7 @@ impl GlobalSearchUI {
         search_source_game.set_checked(true);
 
         // Remember the last status of the source radio.
-        match SETTINGS.read().unwrap().i32("global_search_source_status") {
+        match settings_i32("global_search_source_status") {
             0 => search_source_packfile.set_checked(true),
             1 => search_source_parent.set_checked(true),
             2 => search_source_game.set_checked(true),
@@ -447,7 +450,7 @@ impl GlobalSearchUI {
 
         // Create the global search and populate it with all the settings for the search.
         let receiver = match self.search_data_from_ui(true, false) {
-            Some(global_search) => CENTRAL_COMMAND.send_background(Command::GlobalSearch(global_search)),
+            Some(global_search) => CENTRAL_COMMAND.read().unwrap().send(Command::GlobalSearch(global_search)),
             None => return,
         };
 
@@ -503,7 +506,7 @@ impl GlobalSearchUI {
                 }
 
                 let matches = self.matches_from_selection();
-                CENTRAL_COMMAND.send_background(Command::GlobalSearchReplaceMatches(global_search, matches.to_vec()))
+                CENTRAL_COMMAND.read().unwrap().send(Command::GlobalSearchReplaceMatches(global_search, matches.to_vec()))
             },
             None => return,
         };
@@ -578,7 +581,7 @@ impl GlobalSearchUI {
                     return show_dialog(app_ui.main_window(), "The dependencies are read-only. You cannot do a Global Replace over them.", false);
                 }
 
-                CENTRAL_COMMAND.send_background(Command::GlobalSearchReplaceAll(global_search))
+                CENTRAL_COMMAND.read().unwrap().send(Command::GlobalSearchReplaceAll(global_search))
             },
             None => return,
         };

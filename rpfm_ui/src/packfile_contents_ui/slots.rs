@@ -33,16 +33,15 @@ use std::fs::DirBuilder;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
+use rpfm_ipc::{MYMOD_BASE_PATH, helpers::DataSource};
+
 use rpfm_lib::files::{ContainerPath, FileType, pack::*};
 use rpfm_lib::integrations::log::*;
 use rpfm_lib::utils::*;
 
 use rpfm_ui_common::clone;
-use rpfm_ui_common::locale::{qtr, tre};
-use rpfm_ui_common::utils::show_dialog;
-use rpfm_ui_common::SETTINGS;
 
-use crate::app_ui::AppUI;
+use crate::{app_ui::AppUI, settings_helpers::{settings_bool, settings_path_buf}, utils::{qtr, show_dialog, tre}};
 use crate::CENTRAL_COMMAND;
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
@@ -50,7 +49,7 @@ use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICA
 use crate::global_search_ui::GlobalSearchUI;
 use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::packedfile_views::{DataSource, SpecialView};
+use crate::packedfile_views::SpecialView;
 use crate::references_ui::ReferencesUI;
 use crate::SCHEMA;
 use crate::UI_STATE;
@@ -185,7 +184,7 @@ impl PackFileContentsSlots {
                 }
 
                 // Send the renaming data to the Background Thread, wait for a response.
-                let receiver = CENTRAL_COMMAND.send_background(Command::RenamePackedFiles(renaming_data_background.to_vec()));
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::RenamePackedFiles(renaming_data_background.to_vec()));
                 let response = CentralCommand::recv(&receiver);
                 match response {
                     Response::VecContainerPathContainerPath(renamed_items) => {
@@ -536,7 +535,7 @@ impl PackFileContentsSlots {
                 }
 
                 // Ask the other thread if there is a Dependency Database and a Schema loaded.
-                let receiver = CENTRAL_COMMAND.send_background(Command::IsThereADependencyDatabase(false));
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::IsThereADependencyDatabase(false));
                 let response = CentralCommand::recv(&receiver);
                 let is_there_a_dependency_database = match response {
                     Response::Bool(it_is) => it_is,
@@ -568,7 +567,7 @@ impl PackFileContentsSlots {
                     OperationalMode::MyMod(ref game_folder_name, ref mod_name) => {
 
                         // In theory, if we reach this line this should always exist. In theory I should be rich.
-                        let mymods_base_path = SETTINGS.read().unwrap().path_buf("mymods_base_path");
+                        let mymods_base_path = settings_path_buf(MYMOD_BASE_PATH);
                         if mymods_base_path.is_dir() {
 
                             // We get the assets folder of our mod (without .pack extension).
@@ -669,7 +668,7 @@ impl PackFileContentsSlots {
                 file_dialog.set_file_mode(FileMode::DirectoryOnly);
 
                 // Wonky workaround to allow multiple folder selection.
-                if SETTINGS.read().unwrap().bool("enable_multifolder_filepicker") {
+                if settings_bool("enable_multifolder_filepicker") {
                     file_dialog.set_options(QFlags::from(FileDialogOption::DontUseNativeDialog.to_int() | file_dialog.options().to_int()));
 
                     if let Ok(list_view) = file_dialog.find_child::<QListView>("listView") {
@@ -687,7 +686,7 @@ impl PackFileContentsSlots {
                     OperationalMode::MyMod(ref game_folder_name, ref mod_name) => {
 
                         // In theory, if we reach this line this should always exist. In theory I should be rich.
-                        let mymods_base_path = SETTINGS.read().unwrap().path_buf("mymods_base_path");
+                        let mymods_base_path = settings_path_buf(MYMOD_BASE_PATH);
                         if mymods_base_path.is_dir() {
 
                             // We get the assets folder of our mod (without .pack extension).
@@ -830,7 +829,7 @@ impl PackFileContentsSlots {
                     let path_str = file_dialog.selected_files().at(0).to_std_string();
 
                     // DON'T ALLOW TO LOAD THE SAME PACKFILE WE HAVE ALREADY OPEN!!!!
-                    let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFileDataForTreeView);
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackFileDataForTreeView);
                     let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::ContainerInfoVecRFileInfo((pack_file_info, _)) => {
@@ -859,14 +858,14 @@ impl PackFileContentsSlots {
 
                     let mut selected_items = <QPtr<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
 
-                    let receiver = CENTRAL_COMMAND.send_background(Command::DeletePackedFiles(selected_items.clone()));
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::DeletePackedFiles(selected_items.clone()));
                     let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::VecContainerPath(items) => {
 
                             selected_items.extend_from_slice(&items);
                             let items = ContainerPath::dedup(&selected_items);
-                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(items.to_vec(), SETTINGS.read().unwrap().bool("delete_empty_folders_on_delete")), DataSource::PackFile);
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(items.to_vec(), settings_bool("delete_empty_folders_on_delete")), DataSource::PackFile);
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(items.to_vec()), DataSource::PackFile);
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
 
@@ -958,7 +957,7 @@ impl PackFileContentsSlots {
                             }
 
                             // Send the renaming data to the Background Thread, wait for a response.
-                            let receiver = CENTRAL_COMMAND.send_background(Command::RenamePackedFiles(renaming_data_background.to_vec()));
+                            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::RenamePackedFiles(renaming_data_background.to_vec()));
                             let response = CentralCommand::recv(&receiver);
                             match response {
                                 Response::VecContainerPathContainerPath(renamed_items) => {
@@ -1091,7 +1090,7 @@ impl PackFileContentsSlots {
                         complete_path.push_str(&new_folder_name);
 
                         // Check if the folder exists.
-                        let receiver = CENTRAL_COMMAND.send_background(Command::FolderExists(complete_path.to_owned()));
+                        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::FolderExists(complete_path.to_owned()));
                         let response = CentralCommand::recv(&receiver);
                         let folder_exists = if let Response::Bool(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
 
@@ -1142,7 +1141,7 @@ impl PackFileContentsSlots {
         // What happens when we trigger the "Open Containing Folder" Action.
         let contextual_menu_open_containing_folder = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui => move |_| {
-            let receiver = CENTRAL_COMMAND.send_background(Command::OpenContainingFolder);
+            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::OpenContainingFolder);
             let response = CentralCommand::recv(&receiver);
             match response {
                 Response::Success => {}
@@ -1266,7 +1265,7 @@ impl PackFileContentsSlots {
                     path_to_add.push_str(&name);
 
                     let selected_paths_cont = selected_paths.iter().map(|x| ContainerPath::File(x.to_owned())).collect::<Vec<_>>();
-                    let receiver = CENTRAL_COMMAND.send_background(Command::MergeFiles(selected_paths_cont.to_vec(), path_to_add, delete_source_files));
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::MergeFiles(selected_paths_cont.to_vec(), path_to_add, delete_source_files));
                     let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::String(path_to_add) => {
@@ -1316,7 +1315,7 @@ impl PackFileContentsSlots {
                         }
                     }
 
-                    let receiver = CENTRAL_COMMAND.send_background(Command::UpdateTable(item_type.clone()));
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::UpdateTable(item_type.clone()));
                     let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::I32I32VecStringVecString(old_version, new_version, fields_deleted, fields_added) => {
@@ -1353,7 +1352,7 @@ impl PackFileContentsSlots {
             // Make sure the backend has all the data updated.
             let _ = AppUI::back_to_back_end_all(&app_ui, &pack_file_contents_ui);
 
-            let receiver = CENTRAL_COMMAND.send_background(Command::GenerateMissingLocData);
+            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GenerateMissingLocData);
             let response = CentralCommand::recv(&receiver);
             match response {
                 Response::VecContainerPath(paths_to_add) => {

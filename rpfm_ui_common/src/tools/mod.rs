@@ -15,9 +15,7 @@ use serde_json::to_string_pretty;
 
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Write};
-use std::path::PathBuf;
-
-use crate::settings::config_path;
+use std::path::{Path, PathBuf};
 
 const TOOLS_FILE: &str = "tools.json";
 
@@ -45,10 +43,10 @@ pub struct Tool {
 
 impl Tools {
 
-    pub fn load(custom_config_path: &Option<PathBuf>) -> Result<Self> {
+    pub fn load(custom_config_path: &Option<PathBuf>, fallback_config_path: &Path) -> Result<Self> {
         let path = match custom_config_path {
             Some(path) => path.to_path_buf(),
-            None => config_path()?,
+            None => fallback_config_path.to_path_buf(),
         }.join(TOOLS_FILE);
 
         let mut file = BufReader::new(File::open(path)?);
@@ -61,10 +59,10 @@ impl Tools {
         Ok(order)
     }
 
-    pub fn save(&self, custom_config_path: &Option<PathBuf>) -> Result<()> {
+    pub fn save(&self, custom_config_path: &Option<PathBuf>, fallback_config_path: &Path) -> Result<()> {
         let path = match custom_config_path {
             Some(path) => path.to_path_buf(),
-            None => config_path()?,
+            None => fallback_config_path.to_path_buf(),
         }.join(TOOLS_FILE);
 
         let mut file = BufWriter::new(File::create(path)?);

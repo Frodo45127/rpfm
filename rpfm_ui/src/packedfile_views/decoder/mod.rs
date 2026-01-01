@@ -60,16 +60,14 @@ use std::io::{Cursor, Seek, SeekFrom};
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 
-use rpfm_ui_common::SETTINGS;
-use rpfm_ui_common::utils::*;
-
 use rpfm_lib::binary::ReadBytes;
 use rpfm_lib::integrations::assembly_kit::{get_raw_definition_paths, table_definition::RawDefinition, table_data::RawTable, localisable_fields::RawLocalisableFields};
 use rpfm_lib::files::{ContainerPath, db::DB, Decodeable, DecodeableExtraData, table::DecodedData};
 use rpfm_lib::schema::*;
 
+use rpfm_ui_common::utils::{create_grid_layout, ref_from_atomic};
+
 use crate::app_ui::AppUI;
-use crate::assembly_kit_path;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::ffi::{new_combobox_item_delegate_safe, new_spinbox_item_delegate_safe, new_qstring_item_delegate_safe};
@@ -78,6 +76,7 @@ use crate::GAME_SELECTED;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::{FileView, View, ViewType};
 use crate::SCHEMA;
+use crate::settings_helpers::{assembly_kit_path, settings_bool};
 use crate::utils::*;
 
 use self::slots::PackedFileDecoderViewSlots;
@@ -183,11 +182,11 @@ impl PackedFileDecoderView {
         let table_name = container_path.db_table_name_from_path()
             .ok_or_else(|| anyhow!("The decoder cannot be use for this file."))?;
 
-        let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFileRawData(path.to_owned()));
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackedFileRawData(path.to_owned()));
         let response = CentralCommand::recv(&receiver);
         let mut data = match response {
             Response::VecU8(data) => Cursor::new(data),
-            Response::Error(error) => return Err(error),
+            Response::Error(error) => return Err(anyhow!(error)),
             _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
         };
 
@@ -596,7 +595,7 @@ impl PackedFileDecoderView {
         // Header Marking section.
         //---------------------------------------------//
 
-        let use_dark_theme = SETTINGS.read().unwrap().bool("use_dark_theme");
+        let use_dark_theme = settings_bool("use_dark_theme");
         let brush = QBrush::from_global_color(if use_dark_theme { GlobalColor::DarkRed } else { GlobalColor::Red });
         let header_format = QTextCharFormat::new();
         header_format.set_background(&brush);
@@ -754,7 +753,7 @@ impl PackedFileDecoderView {
         //---------------------------------------------//
 
         // Prepare to paint the changes in the hex data views.
-        let use_dark_theme = SETTINGS.read().unwrap().bool("use_dark_theme");
+        let use_dark_theme = settings_bool("use_dark_theme");
         let index_format = QTextCharFormat::new();
         let decoded_format = QTextCharFormat::new();
         let neutral_format = QTextCharFormat::new();

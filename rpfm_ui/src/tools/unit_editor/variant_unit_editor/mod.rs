@@ -45,8 +45,6 @@ use std::collections::HashMap;
 
 use rpfm_lib::files::{ContainerPath, FileType};
 
-use rpfm_ui_common::locale::tr;
-
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::views::table::utils::get_reference_data;
@@ -380,7 +378,7 @@ impl SubToolVariantUnitEditor {
 
     /// This function loads all available icon paths to the UI.
     unsafe fn load_icon_paths(&self) -> Result<()> {
-        let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFilesNamesStartingWitPathFromAllSources(ContainerPath::Folder(UNIT_ICONS_PATH.to_owned())));
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackedFilesNamesStartingWitPathFromAllSources(ContainerPath::Folder(UNIT_ICONS_PATH.to_owned())));
         let response = CentralCommand::recv(&receiver);
         let icon_keys = if let Response::HashMapDataSourceHashSetContainerPath(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
         let icon_keys_sorted = icon_keys.values()
@@ -401,7 +399,7 @@ impl SubToolVariantUnitEditor {
 
     /// This function loads all available variantmesh paths to the UI.
     unsafe fn load_variant_mesh_paths(&self) -> Result<()> {
-        let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFilesNamesStartingWitPathFromAllSources(ContainerPath::Folder(VARIANT_MESH_PATH.to_owned())));
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackedFilesNamesStartingWitPathFromAllSources(ContainerPath::Folder(VARIANT_MESH_PATH.to_owned())));
         let response = CentralCommand::recv(&receiver);
         let variant_keys = if let Response::HashMapDataSourceHashSetContainerPath(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
         let variant_keys_sorted = variant_keys.values()
@@ -543,7 +541,7 @@ impl SubToolVariantUnitEditor {
                 ContainerPath::File(icon_path_tga_lowres.to_owned()),
             ];
 
-            let receiver = CENTRAL_COMMAND.send_background(Command::GetRFilesFromAllSources(icon_paths, false));
+            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetRFilesFromAllSources(icon_paths, false));
             let response = CentralCommand::recv(&receiver);
             let images_data = if let Response::HashMapDataSourceHashMapStringRFile(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
             let image_file = if let Some(image_file) = Tool::get_most_relevant_file(&images_data, &icon_path_png_lowres) {
@@ -594,7 +592,7 @@ impl SubToolVariantUnitEditor {
                 ContainerPath::File(variant_path.to_owned()),
             ];
 
-            let receiver = CENTRAL_COMMAND.send_background(Command::GetRFilesFromAllSources(variant_paths, false));
+            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetRFilesFromAllSources(variant_paths, false));
             let response = CentralCommand::recv(&receiver);
             let variant_data = if let Response::HashMapDataSourceHashMapStringRFile(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
             let file = Tool::get_most_relevant_file(&variant_data, &variant_path);

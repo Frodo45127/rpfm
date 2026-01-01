@@ -52,13 +52,13 @@ use rpfm_lib::binary::WriteBytes;
 use rpfm_lib::files::{ContainerPath, RFileDecoded, rigidmodel::materials::TextureType, table::Table};
 use rpfm_lib::schema::{Definition, DefinitionPatch, Field, FieldType};
 
-use rpfm_ui_common::locale::{qtr, tr, tre};
-use rpfm_ui_common::SETTINGS;
+use rpfm_ui_common::utils::{atomic_from_ptr, create_grid_layout, ptr_from_atomic, ref_from_atomic};
 
 use crate::ffi::*;
-use crate::packedfile_views::DataSource;
 use crate::QVARIANT_TRUE;
 use crate::QVARIANT_FALSE;
+use crate::settings_helpers::{schemas_path, settings_bool};
+use crate::utils::show_dialog;
 
 use super::*;
 
@@ -451,8 +451,8 @@ pub unsafe fn load_data(
         let fields_processed = definition.fields_processed();
         let patches = Some(definition.patches());
         let keys = fields_processed.iter().enumerate().filter_map(|(x, y)| if y.is_key(patches) { Some(x as i32) } else { None }).collect::<Vec<i32>>();
-        let enable_lookups = SETTINGS.read().unwrap().bool("enable_lookups");
-        let enable_icons = SETTINGS.read().unwrap().bool("enable_icons");
+        let enable_lookups = settings_bool("enable_lookups");
+        let enable_icons = settings_bool("enable_icons");
 
         let icons: BTreeMap<i32, (String, HashMap<String, AtomicPtr<QIcon>>)> = if enable_icons {
             let mut map = BTreeMap::new();
@@ -755,13 +755,13 @@ pub unsafe fn build_columns(
 
     let patches = Some(definition.patches());
     let tooltips = get_column_tooltips(&schema, &fields_processed, loc_fields, patches, table_name);
-    let adjust_columns = SETTINGS.read().unwrap().bool("adjust_columns_to_content");
+    let adjust_columns = settings_bool("adjust_columns_to_content");
     let header = table_view.horizontal_header();
 
     let mut columns_to_hide = vec![];
     let hide_unused_columns = false; //setting_bool("hide_unused_columns");
 
-    let description_icon = if SETTINGS.read().unwrap().bool("use_dark_theme") {
+    let description_icon = if settings_bool("use_dark_theme") {
         QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/description_icon_dark.png", ASSETS_PATH.to_string_lossy())))
     }  else {
         QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/description_icon_light.png", ASSETS_PATH.to_string_lossy())))
@@ -776,7 +776,7 @@ pub unsafe fn build_columns(
             if !field.description(patches).is_empty() {
                 item.set_icon(&description_icon);
             }
-        }   
+        }
 
         model.set_horizontal_header_item(index as i32, item.into_ptr());
 
@@ -916,7 +916,7 @@ pub unsafe fn build_columns(
     }
 
     // Now the order. If we have a sort order from the schema, we use that one.
-    if !SETTINGS.read().unwrap().bool("tables_use_old_column_order") && do_we_have_ca_order {
+    if !settings_bool("tables_use_old_column_order") && do_we_have_ca_order {
         let mut fields = fields_processed.iter()
             .enumerate()
             .map(|(x, y)| (x, y.ca_order()))
@@ -1093,7 +1093,7 @@ pub unsafe fn get_vanilla_hashed_tables(file_type: FileType, table_name: &str) -
         FileType::DB => {
 
             // Call the backend passing it the files we have open (so we don't get them from the backend too), and get the frontend data while we wait for it to finish.
-            let receiver = CENTRAL_COMMAND.send_background(Command::GetTablesFromDependencies(table_name.to_owned()));
+            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetTablesFromDependencies(table_name.to_owned()));
             let response = CentralCommand::recv(&receiver);
             match response {
                 Response::VecRFile(files) => {
@@ -1121,7 +1121,7 @@ pub unsafe fn get_vanilla_hashed_tables(file_type: FileType, table_name: &str) -
 
                     Ok(data)
                 },
-                Response::Error(error) => Err(error),
+                Response::Error(error) => Err(anyhow!(error)),
                 _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
             }
         }
@@ -1139,11 +1139,11 @@ pub unsafe fn get_reference_data(file_type: FileType, table_name: &str, definiti
         FileType::DB => {
 
             // Call the backend passing it the files we have open (so we don't get them from the backend too), and get the frontend data while we wait for it to finish.
-            let receiver = CENTRAL_COMMAND.send_background(Command::GetReferenceDataFromDefinition(table_name.to_owned(), definition.clone(), force_regen));
+            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetReferenceDataFromDefinition(table_name.to_owned(), definition.clone(), force_regen));
             let response = CentralCommand::recv(&receiver);
             match response {
                 Response::HashMapI32TableReferences(dependency_data) => Ok(dependency_data),
-                Response::Error(error) => Err(error),
+                Response::Error(error) => Err(anyhow!(error)),
                 _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
             }
         }
@@ -1188,13 +1188,13 @@ pub unsafe fn setup_item_delegates(
     timer: &QBox<QTimer>
 ) {
     let table_object = table_view.static_upcast::<QObject>().as_ptr();
-    let enable_lookups = SETTINGS.read().unwrap().bool("enable_lookups");
+    let enable_lookups = settings_bool("enable_lookups");
 
     for (column, field) in definition.fields_processed().iter().enumerate() {
         let references = table_references.get(&(column as i32));
 
         // Combos are a bit special, as they may or may not replace other delegates. If we disable them, use the normal delegates.
-        if !SETTINGS.read().unwrap().bool("disable_combos_on_tables") && references.is_some() || !field.enum_values().is_empty() {
+        if !settings_bool("disable_combos_on_tables") && references.is_some() || !field.enum_values().is_empty() {
             let values = QStringList::new();
             let lookups = QStringList::new();
             if let Some(data) = references {
@@ -1448,7 +1448,7 @@ pub unsafe fn request_backend_files(data: &[Vec<DecodedData>], column: usize, fi
         ).collect::<Vec<_>>();
 
     if !paths.is_empty() {
-        let receiver = CENTRAL_COMMAND.send_background(Command::GetRFilesFromAllSources(paths, true));
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetRFilesFromAllSources(paths, true));
         let response = CentralCommand::recv(&receiver);
         match response {
             Response::HashMapDataSourceHashMapStringRFile(mut files) => {

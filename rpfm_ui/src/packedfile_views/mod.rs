@@ -20,17 +20,17 @@ use qt_core::{CheckState, QBox};
 
 use anyhow::{anyhow, Result};
 use getset::Getters;
-use serde_derive::{Deserialize, Serialize};
 
-use std::{fmt, fmt::Display};
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 
+use rpfm_ipc::helpers::DataSource;
+
 use rpfm_lib::integrations::log::*;
 use rpfm_lib::files::{atlas::Atlas, ContainerPath, db::DB, loc::Loc, FileType, RFileDecoded, table::Table, text::Text};
 
-use rpfm_ui_common::utils::{create_grid_layout, show_dialog};
+use rpfm_ui_common::utils::create_grid_layout;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
@@ -39,6 +39,7 @@ use crate::ffi::get_text_safe;
 use crate::pack_tree::*;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::UI_STATE;
+use crate::utils::show_dialog;
 use crate::views::table::utils::get_table_from_view;
 use crate::views::table::TableType;
 
@@ -127,26 +128,6 @@ pub enum ViewType {
 
     // This means the PackFile has been saved to a file on disk, so no internal view is shown.
     External(Arc<PackedFileExternalView>)
-}
-
-/// This enum represents the source of the data in the view.
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, Ord, PartialOrd, Serialize, Deserialize)]
-pub enum DataSource {
-
-    /// This means the data is from somewhere in our PackFile.
-    PackFile,
-
-    /// This means the data is from one of the game files.
-    GameFiles,
-
-    /// This means the data comes from a parent PackFile.
-    ParentFiles,
-
-    /// This means the data comes from the AssKit files.
-    AssKitFiles,
-
-    /// This means the data comes from an external file.
-    ExternalFile,
 }
 
 /// This enum is used to hold in a common way all the view types we have.
@@ -360,7 +341,7 @@ impl FileView {
                                     }
 
                                     // Save the new list and return Ok.
-                                    let _ = CENTRAL_COMMAND.send_background(Command::SetDependencyPackFilesList(entries));
+                                    let _ = CENTRAL_COMMAND.read().unwrap().send(Command::SetDependencyPackFilesList(entries));
 
                                     // Set the packfile as modified. This one is special, as this is a "simulated PackedFile", so we have to mark the PackFile manually.
                                     pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![ContainerPath::Folder(String::new())]), DataSource::PackFile);
@@ -374,7 +355,7 @@ impl FileView {
                             View::MatchedCombatDebug(_) => return Ok(()),
                             View::PackFile(_) => return Ok(()),
                             View::PackSettings(view) => {
-                                let _ = CENTRAL_COMMAND.send_background(Command::SetPackSettings(view.save_view()));
+                                let _ = CENTRAL_COMMAND.read().unwrap().send(Command::SetPackSettings(view.save_view()));
                                 return Ok(())
                             },
 
@@ -423,7 +404,7 @@ impl FileView {
                             View::UnitVariant(view) => RFileDecoded::UnitVariant(view.save_view()),
                             View::UnitVariantDebug(_) => return Ok(()),
                             View::Video(view) => {
-                                let _ = CENTRAL_COMMAND.send_background(Command::SetVideoFormat(self.path_copy(), view.get_current_format()));
+                                let _ = CENTRAL_COMMAND.read().unwrap().send(Command::SetVideoFormat(self.path_copy(), view.get_current_format()));
                                 return Ok(());
                             }
                             View::VMD(view) => {
@@ -444,8 +425,8 @@ impl FileView {
                         };
 
                         // Save the PackedFile, and trigger the stuff that needs to be triggered after a save.
-                        let receiver = CENTRAL_COMMAND.send_background(Command::SavePackedFileFromView(self.path_copy(), data));
-                        let response = CENTRAL_COMMAND.recv_try(&receiver);
+                        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SavePackedFileFromView(self.path_copy(), data));
+                        let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
                         match response {
                             Response::Success => {
                                 Ok(())
@@ -456,8 +437,8 @@ impl FileView {
                         }
                     },
                     ViewType::External(view) => {
-                        let receiver = CENTRAL_COMMAND.send_background(Command::SavePackedFileFromExternalView(self.path_copy(), view.get_external_path()));
-                        let response = CENTRAL_COMMAND.recv_try(&receiver);
+                        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SavePackedFileFromExternalView(self.path_copy(), view.get_external_path()));
+                        let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
                         match response {
                             Response::Success => {},
                             Response::Error(error) => show_dialog(pack_file_contents_ui.packfile_contents_tree_view(), error, false),
@@ -486,7 +467,7 @@ impl FileView {
         if data_source != DataSource::ExternalFile {
             match self.view_type_mut() {
                 ViewType::Internal(view) => {
-                    let receiver = CENTRAL_COMMAND.send_background(Command::DecodePackedFile(path.to_owned(), data_source));
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::DecodePackedFile(path.to_owned(), data_source));
                     let response = CentralCommand::recv(&receiver);
 
                     match response {
@@ -703,7 +684,7 @@ impl FileView {
                             }
                         },
 
-                        Response::Error(error) => return Err(error),
+                        Response::Error(error) => return Err(anyhow!(error)),
                         Response::Unknown => return Err(anyhow!("File Type Unknown.")),
                         _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                     }
@@ -740,31 +721,6 @@ impl FileView {
                     }
                 }
             }
-        }
-    }
-}
-
-impl Display for DataSource {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        Display::fmt(match self {
-            Self::PackFile => "PackFile",
-            Self::GameFiles => "GameFiles",
-            Self::ParentFiles => "ParentFiles",
-            Self::AssKitFiles => "AssKitFiles",
-            Self::ExternalFile => "ExternalFile",
-        }, f)
-    }
-}
-
-impl From<&str> for DataSource {
-    fn from(value: &str) -> Self {
-        match value {
-            "PackFile" => Self::PackFile,
-            "GameFiles" => Self::GameFiles,
-            "ParentFiles" => Self::ParentFiles,
-            "AssKitFiles" => Self::AssKitFiles,
-            "ExternalFile" => Self::ExternalFile,
-            _ => unreachable!("from data source {}", value)
         }
     }
 }

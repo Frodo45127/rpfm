@@ -19,7 +19,7 @@ use rpfm_lib::integrations::log::*;
 
 use rpfm_ui_common::clone;
 
-use crate::show_dialog;
+use crate::utils::show_dialog;
 
 use super::*;
 

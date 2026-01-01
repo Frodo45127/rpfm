@@ -23,11 +23,11 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use rpfm_ui_common::clone;
-use rpfm_ui_common::utils::show_dialog;
 
 use crate::app_ui::AppUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::{DataSource, PackedFileExternalView};
+use crate::utils::show_dialog;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -77,4 +77,3 @@ impl PackedFileExternalViewSlots {
         }
     }
 }
-

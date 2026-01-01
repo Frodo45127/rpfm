@@ -18,6 +18,7 @@ use qt_widgets::QWidget;
 
 use qt_core::QBox;
 use qt_core::QPtr;
+use qt_core::QString;
 
 use anyhow::Result;
 
@@ -25,12 +26,9 @@ use std::sync::{Arc, RwLock};
 
 use rpfm_lib::files::{FileType, RFileDecoded};
 
-use rpfm_ui_common::locale::qtr;
-
 use crate::ffi::{new_text_editor_safe, set_text_safe, get_text_safe};
+use crate::utils::qtr;
 use crate::views::debug::slots::DebugViewSlots;
-
-use crate::QString;
 
 const JSON: &str = "JSON";
 

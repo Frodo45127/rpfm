@@ -35,20 +35,19 @@ use std::cmp::Ordering;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
+use rpfm_ipc::helpers::{ContainerInfo, DataSource, RFileInfo};
+
 use rpfm_lib::files::{ContainerPath, FileType, pack::PFHFlags};
 use rpfm_lib::utils::*;
 
 use rpfm_ui_common::FULL_DATE_FORMAT;
-use rpfm_ui_common::locale::qtr;
-use rpfm_ui_common::SETTINGS;
-use rpfm_ui_common::utils::*;
+use rpfm_ui_common::utils::{atomic_from_cpp_box, atomic_from_ptr, ref_from_atomic};
 
-use crate::backend::*;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
-use crate::packedfile_views::DataSource;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::TREEVIEW_ICONS;
+use crate::settings_helpers::settings_bool;
 use crate::utils::*;
 
 /// This const is the key of the QVariant that holds the type of each StandardItem in a `TreeView`.
@@ -860,13 +859,13 @@ impl PackTree for QPtr<QTreeView> {
                             data
                         }
                         else if let Some(ref path) = build_data.path {
-                            let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFileExtraDataForTreeView(path.to_path_buf()));
+                            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackFileExtraDataForTreeView(path.to_path_buf()));
                             let response = CentralCommand::recv(&receiver);
                             if let Response::ContainerInfoVecRFileInfo(data) = response { data }
                             else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); }
                         }
                         else {
-                            let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFileDataForTreeView);
+                            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackFileDataForTreeView);
                             let response = CentralCommand::recv(&receiver);
                             if let Response::ContainerInfoVecRFileInfo(data) = response { data }
                             else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}") }
@@ -1135,7 +1134,7 @@ impl PackTree for QPtr<QTreeView> {
 
                 // Get the `RFileInfo` of each of the new paths, so we can later build their tooltip.
                 let item_paths = item_types.par_iter().map(|item| item.path_raw().to_owned()).collect::<Vec<_>>();
-                let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFilesInfo(item_paths));
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackedFilesInfo(item_paths));
                 let response = CentralCommand::recv(&receiver);
                 let files_info = if let Response::VecRFileInfo(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
 
@@ -1297,7 +1296,7 @@ impl PackTree for QPtr<QTreeView> {
                         }
                     }
 
-                    if SETTINGS.read().unwrap().bool("expand_treeview_when_adding_items") {
+                    if settings_bool("expand_treeview_when_adding_items") {
                         self.expand_treeview_to_item(path, source);
                     }
                 }
@@ -1460,7 +1459,7 @@ impl PackTree for QPtr<QTreeView> {
 
                     // If its a file, we get his new info and put it in a tooltip.
                     if path_type.is_file() {
-                        let receiver = CENTRAL_COMMAND.send_background(Command::GetRFileInfo(path.to_owned()));
+                        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetRFileInfo(path.to_owned()));
                         let response = CentralCommand::recv(&receiver);
                         let packed_file_info = if let Response::OptionRFileInfo(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
                         if let Some(info) = packed_file_info {
@@ -1505,7 +1504,7 @@ impl PackTree for QPtr<QTreeView> {
                     .filter_map(|(_, y)| if let ContainerPath::File(path) = y { Some(path.to_owned()) } else { None })
                     .collect::<Vec<String>>();
 
-                let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFilesInfo(new_paths));
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackedFilesInfo(new_paths));
                 let response = CentralCommand::recv(&receiver);
                 let files_info = if let Response::VecRFileInfo(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
 
@@ -1524,7 +1523,7 @@ impl PackTree for QPtr<QTreeView> {
                 }
 
                 // Remove the now empty folders.
-                self.update_treeview(has_filter, TreeViewOperation::Delete(base_folders, SETTINGS.read().unwrap().bool("delete_empty_folders_on_delete")), source);
+                self.update_treeview(has_filter, TreeViewOperation::Delete(base_folders, settings_bool("delete_empty_folders_on_delete")), source);
             },
 
             // If you want to mark an item so it can't lose his modified state...
@@ -1552,7 +1551,7 @@ impl PackTree for QPtr<QTreeView> {
 
                                 // If its a file, we get his new info and put it in a tooltip.
                                 if let ContainerPath::File(_) = item_type {
-                                    let receiver = CENTRAL_COMMAND.send_background(Command::GetRFileInfo(path.to_owned()));
+                                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetRFileInfo(path.to_owned()));
                                     let response = CentralCommand::recv(&receiver);
                                     let packed_file_info = if let Response::OptionRFileInfo(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
                                     if let Some(info) = packed_file_info {
@@ -1914,7 +1913,7 @@ fn sort_folders_before_files_alphabetically_paths(a_path: &str, b_path: &str) ->
 }
 
 pub unsafe fn get_color_correct() -> String {
-    if SETTINGS.read().unwrap().bool("use_dark_theme") {
+    if settings_bool("use_dark_theme") {
         GREEN_DARK.to_owned()
     } else {
         GREEN_BRIGHT.to_owned()
@@ -1922,7 +1921,7 @@ pub unsafe fn get_color_correct() -> String {
 }
 
 pub unsafe fn get_color_wrong() -> String {
-    if SETTINGS.read().unwrap().bool("use_dark_theme") {
+    if settings_bool("use_dark_theme") {
         RED_DARK.to_owned()
     } else {
         RED_BRIGHT.to_owned()
@@ -1930,7 +1929,7 @@ pub unsafe fn get_color_wrong() -> String {
 }
 
 pub unsafe fn get_color_clean() -> String {
-    if SETTINGS.read().unwrap().bool("use_dark_theme") {
+    if settings_bool("use_dark_theme") {
         MEDIUM_DARKER_GREY.to_owned()
     } else {
         TRANSPARENT_BRIGHT.to_owned()
@@ -1938,7 +1937,7 @@ pub unsafe fn get_color_clean() -> String {
 }
 
 pub unsafe fn get_color_info() -> String {
-    if SETTINGS.read().unwrap().bool("use_dark_theme") {
+    if settings_bool("use_dark_theme") {
         INFO_UNPRESSED_DARK.to_owned()
     } else {
         INFO_UNPRESSED_LIGHT.to_owned()
@@ -1946,7 +1945,7 @@ pub unsafe fn get_color_info() -> String {
 }
 
 pub unsafe fn get_color_warning() -> String {
-    if SETTINGS.read().unwrap().bool("use_dark_theme") {
+    if settings_bool("use_dark_theme") {
         WARNING_UNPRESSED_DARK.to_owned()
     } else {
         WARNING_UNPRESSED_LIGHT.to_owned()
@@ -1954,7 +1953,7 @@ pub unsafe fn get_color_warning() -> String {
 }
 
 pub unsafe fn get_color_error() -> String {
-    if SETTINGS.read().unwrap().bool("use_dark_theme") {
+    if settings_bool("use_dark_theme") {
         ERROR_UNPRESSED_DARK.to_owned()
     } else {
         ERROR_UNPRESSED_LIGHT.to_owned()
@@ -1962,7 +1961,7 @@ pub unsafe fn get_color_error() -> String {
 }
 
 pub unsafe fn get_color_info_pressed() -> String {
-    if SETTINGS.read().unwrap().bool("use_dark_theme") {
+    if settings_bool("use_dark_theme") {
         INFO_PRESSED_DARK.to_owned()
     } else {
         INFO_PRESSED_LIGHT.to_owned()
@@ -1970,7 +1969,7 @@ pub unsafe fn get_color_info_pressed() -> String {
 }
 
 pub unsafe fn get_color_warning_pressed() -> String {
-    if SETTINGS.read().unwrap().bool("use_dark_theme") {
+    if settings_bool("use_dark_theme") {
         WARNING_PRESSED_DARK.to_owned()
     } else {
         WARNING_PRESSED_LIGHT.to_owned()
@@ -1978,7 +1977,7 @@ pub unsafe fn get_color_warning_pressed() -> String {
 }
 
 pub unsafe fn get_color_error_pressed() -> String {
-    if SETTINGS.read().unwrap().bool("use_dark_theme") {
+    if settings_bool("use_dark_theme") {
         ERROR_PRESSED_DARK.to_owned()
     } else {
         ERROR_PRESSED_LIGHT.to_owned()

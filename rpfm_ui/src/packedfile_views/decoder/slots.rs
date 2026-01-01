@@ -31,7 +31,6 @@ use rpfm_lib::files::{ContainerPath, Decodeable, DecodeableExtraData, db::DB};
 use rpfm_lib::schema::{Definition, FieldType};
 
 use rpfm_ui_common::clone;
-use rpfm_ui_common::utils::*;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
@@ -588,8 +587,8 @@ impl PackedFileDecoderViewSlots {
                     }
                 }
 
-                let _ = CENTRAL_COMMAND.send_background(Command::CleanCache(packed_files_to_save));
-                let receiver = CENTRAL_COMMAND.send_background(Command::SaveSchema(schema));
+                let _ = CENTRAL_COMMAND.read().unwrap().send(Command::CleanCache(packed_files_to_save));
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SaveSchema(schema));
                 let response = CentralCommand::recv(&receiver);
                 match response {
                     Response::Success => show_dialog(&view.table_view, "Schema successfully saved.", true),

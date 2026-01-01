@@ -45,7 +45,6 @@ use std::io::{BufReader, Read};
 use std::sync::atomic::{AtomicPtr, Ordering};
 
 use crate::ASSETS_PATH;
-use crate::locale::qtr;
 
 //----------------------------------------------------------------------------//
 //              Utility functions (helpers and stuff like that)
@@ -89,12 +88,13 @@ pub fn log_to_status_bar_2<T: Display>(status_bar: QPtr<QStatusBar>, text: T) {
 ///
 /// It requires:
 /// - parent: a pointer to the widget that'll be the parent of the dialog.
+/// - title: something that implements the trait `Display`, to put as title of the dialog window.
 /// - text: something that implements the trait `Display`, to put in the dialog window.
 /// - is_success: true for `Success` Dialog, false for `Error` Dialog.
-pub unsafe fn show_dialog<T: Display>(parent: impl cpp_core::CastInto<Ptr<QWidget>>, text: T, is_success: bool) {
+pub unsafe fn show_dialog<T: Display, U: Display>(parent: impl cpp_core::CastInto<Ptr<QWidget>>, title: T, text: U, is_success: bool) {
 
     // Depending on the type of the dialog, set everything specific here.
-    let title = if is_success { qtr("title_success") } else { qtr("title_error") };
+    let title = QString::from_std_str(title.to_string());
     let icon = if is_success { Icon::Information } else { Icon::Critical };
 
     // Create and run the dialog.
