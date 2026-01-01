@@ -103,7 +103,8 @@ impl Settings {
         settings.initialize_string(MYMOD_BASE_PATH, "");
         settings.initialize_string(SECONDARY_PATH, "");
 
-        for game in &SUPPORTED_GAMES.games() {
+        let supported_games = SupportedGames::default();
+        for game in &supported_games.games() {
             let game_key = game.key();
 
             // Fix unsanitized paths.
@@ -452,7 +453,7 @@ pub fn config_path() -> Result<PathBuf> {
     if cfg!(debug_assertions) {
         std::env::current_dir().map_err(From::from)
     } else {
-        match ProjectDirs::from(&ORG_DOMAIN.read().unwrap(), &ORG_NAME.read().unwrap(), &APP_NAME.read().unwrap()) {
+        match ProjectDirs::from(&ORG_DOMAIN, &ORG_NAME, &APP_NAME) {
             Some(proj_dirs) => Ok(proj_dirs.config_dir().to_path_buf()),
             None => Err(anyhow!("Failed to get the config path."))
         }

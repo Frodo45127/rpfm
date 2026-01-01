@@ -105,7 +105,7 @@ impl Logger {
             // Initialize Sentry's logger, so anything logged goes to the breadcrumbs too.
             let logger = SentryLogger::with_dest(combined_logger);
             log::set_max_level(log_level);
-            log::set_boxed_logger(Box::new(logger))?;
+            log::set_boxed_logger(Box::new(logger));
         }
 
         // Initialize Sentry's guard, for remote reporting. Only for release mode.

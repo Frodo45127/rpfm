@@ -8,28 +8,25 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*!
-This module defines the code used for thread communication.
-!*/
+//! This module defines the controls for inter-thread communication between
+//! the main thread receiving requests and the background thread processing them.
 
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
-use std::sync::Mutex;
 
 use std::fmt::Debug;
+use std::sync::Mutex;
 
 use rpfm_ipc::messages::Command;
 
 /// This const is the standard message in case of message communication error. If this happens, crash the program.
-pub const THREADS_COMMUNICATION_ERROR: &str =
-    "Error in thread communication system. Response received: ";
-pub const THREADS_SENDER_ERROR: &str =
-    "Error in thread communication system. Sender failed to send message.";
+pub const THREADS_COMMUNICATION_ERROR: &str = "Error in thread communication system. Response received: ";
+pub const THREADS_SENDER_ERROR: &str = "Error in thread communication system. Sender failed to send message.";
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
-/// This struct contains the senders and receivers necessary to communicate both, backend and frontend threads.
+/// This struct contains the senders and receivers necessary to communicate between both threads.
 ///
 /// You can use them by using the send/recv functions implemented for it.
 pub struct CentralCommand<T: Send + Sync + Debug> {
@@ -41,7 +38,6 @@ pub struct CentralCommand<T: Send + Sync + Debug> {
 //                              Implementations
 //-------------------------------------------------------------------------------//
 
-/// Default implementation of `CentralCommand`.
 impl<T: Send + Sync + Debug> Default for CentralCommand<T> {
     fn default() -> Self {
         let (sender, receiver) = unbounded_channel();
@@ -52,12 +48,15 @@ impl<T: Send + Sync + Debug> Default for CentralCommand<T> {
     }
 }
 
-/// Implementation of `CentralCommand`.
 impl<T: Send + Sync + Debug> CentralCommand<T> {
+
     /// This function serves as a generic way for commands to be sent to the backend.
     ///
     /// It returns the receiver which will receive the answers for the command, if any.
-    fn send_raw<S: Send + Sync + Debug>(sender: &UnboundedSender<(UnboundedSender<T>, S)>, data: S) -> UnboundedReceiver<T> {
+    fn send_raw<S: Send + Sync + Debug>(
+        sender: &UnboundedSender<(UnboundedSender<T>, S)>,
+        data: S,
+    ) -> UnboundedReceiver<T> {
         let (sender_back, receiver_back) = unbounded_channel();
         if let Err(error) = sender.send((sender_back, data)) {
             panic!("{THREADS_SENDER_ERROR}: {error}");
