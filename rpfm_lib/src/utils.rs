@@ -1,5 +1,5 @@
 //---------------------------------------------------------------------------//
-// Copyright (c) 2017-2024 Ismael Gutiérrez González. All rights reserved.
+// Copyright (c) 2017-2026 Ismael Gutiérrez González. All rights reserved.
 //
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
@@ -388,20 +388,20 @@ pub fn sanitize_path(path: &Path) -> PathBuf {
 /// Windows doesn't allow: <, >, :, ", /, \, |, ?, *
 pub fn sanitize_filename(filename: &str) -> String {
     let mut sanitized = filename.to_string();
-    
+
     // Replace invalid characters with underscores.
     for &ch in &INVALID_CHARACTERS_WINDOWS {
         sanitized = sanitized.replace(ch, "_");
     }
-    
+
     // Remove leading/trailing spaces and dots.
     sanitized = sanitized.trim().trim_matches('.').to_string();
-    
+
     // If the filename becomes empty after sanitization, use a default name.
     if sanitized.is_empty() {
         sanitized = DEFAULT_FILENAME.to_string();
     }
-    
+
     sanitized
 }
 

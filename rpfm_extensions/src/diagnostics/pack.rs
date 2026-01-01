@@ -1,5 +1,5 @@
 //---------------------------------------------------------------------------//
-// Copyright (c) 2017-2024 Ismael Gutiérrez González. All rights reserved.
+// Copyright (c) 2017-2026 Ismael Gutiérrez González. All rights reserved.
 //
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
@@ -146,7 +146,7 @@ impl PackDiagnostic {
                 let has_whitespace_issues = filename.starts_with(' ') || filename.ends_with(' ');
                 // Check for files that are only dots.
                 let is_only_dots = !filename.is_empty() && filename.chars().all(|c| c == '.');
-                
+
                 has_invalid_chars || has_whitespace_issues || is_only_dots
             })
             .filter_map(|(_, _, real_paths)| real_paths.first())

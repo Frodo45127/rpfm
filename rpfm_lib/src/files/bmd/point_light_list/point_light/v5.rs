@@ -1,5 +1,5 @@
 //---------------------------------------------------------------------------//
-// Copyright (c) 2017-2024 Ismael Gutiérrez González. All rights reserved.
+// Copyright (c) 2017-2026 Ismael Gutiérrez González. All rights reserved.
 //
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
@@ -58,4 +58,3 @@ impl PointLight {
         Ok(())
     }
 }
-

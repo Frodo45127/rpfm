@@ -1,5 +1,5 @@
 //---------------------------------------------------------------------------//
-// Copyright (c) 2017-2024 Ismael Gutiérrez González. All rights reserved.
+// Copyright (c) 2017-2026 Ismael Gutiérrez González. All rights reserved.
 //
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
@@ -23,17 +23,17 @@ fn test_sanitize_filename() {
     assert_eq!(sanitize_filename("file\\name"), "file_name");
     assert_eq!(sanitize_filename("file|name"), "file_name");
     assert_eq!(sanitize_filename("file?name"), "file_name");
-    
+
     // Test leading/trailing spaces and dots.
     assert_eq!(sanitize_filename("  filename  "), "filename");
     assert_eq!(sanitize_filename("...filename..."), "filename");
-    
+
     // Test empty result after sanitization.
     assert_eq!(sanitize_filename("***"), "___");
     assert_eq!(sanitize_filename(""), "unnamed_file");
     assert_eq!(sanitize_filename("   "), "unnamed_file");
     assert_eq!(sanitize_filename("..."), "unnamed_file");
-    
+
     // Test valid filenames (should remain unchanged).
     assert_eq!(sanitize_filename("valid_filename"), "valid_filename");
     assert_eq!(sanitize_filename("file.name"), "file.name");
