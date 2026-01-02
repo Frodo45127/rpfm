@@ -26,12 +26,15 @@ pub const THREADS_SENDER_ERROR: &str = "Error in thread communication system. Se
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
+/// Custom type for the thread receiver, so clippy doesn't complain about long types.
+type ThreadReceiver<T> = Mutex<Option<UnboundedReceiver<(UnboundedSender<T>, Command)>>>;
+
 /// This struct contains the senders and receivers necessary to communicate between both threads.
 ///
 /// You can use them by using the send/recv functions implemented for it.
 pub struct CentralCommand<T: Send + Sync + Debug> {
     sender: UnboundedSender<(UnboundedSender<T>, Command)>,
-    receiver: Mutex<Option<UnboundedReceiver<(UnboundedSender<T>, Command)>>>,
+    receiver: ThreadReceiver<T>,
 }
 
 //-------------------------------------------------------------------------------//

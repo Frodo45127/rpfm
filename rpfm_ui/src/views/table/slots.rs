@@ -580,11 +580,7 @@ impl TableViewSlots {
                                     let table_name = if let Some(name) = view.table_name() { name.to_owned() } else { "".to_owned() };
 
                                     // Get the reference data for this table, to speedup reference searching.
-                                    *view.reference_map.write().unwrap() = if let Some(schema) = &*SCHEMA.read().unwrap() {
-                                        schema.referencing_columns_for_table(&table_name, &definition)
-                                    } else {
-                                        HashMap::new()
-                                    };
+                                    *view.reference_map.write().unwrap() = referencing_columns_for_table(&table_name, &definition).unwrap_or_default();
 
                                     // Regenerate the references for this table, as we may have different columns with new references.
                                     if let Ok(data) = get_reference_data(*view.packed_file_type, &table_name, &definition, true) {

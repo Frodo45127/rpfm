@@ -379,6 +379,13 @@ pub enum Command {
     ClearSettings,
     RestoreBackupSettings,
     OptimizerOptions,
+
+    IsSchemaLoaded,
+    DefinitionsByTableName(String),
+    ReferencingColumnsForDefinition(String, Definition),
+    Schema,
+    DefinitionByTableNameAndVersion(String, i32),
+    DeleteDefinition(String, i32)
 }
 
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.
@@ -551,4 +558,7 @@ pub enum Response {
     SettingsVecRaw(Vec<u8>),
 
     OptimizerOptions(OptimizerOptions),
+    VecDefinition(Vec<Definition>),
+    HashMapStringHashMapStringVecString(HashMap<String, HashMap<String, Vec<String>>>),
+    Schema(Schema),
 }

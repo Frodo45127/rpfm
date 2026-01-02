@@ -140,7 +140,7 @@ impl<T: Send + Sync + Debug + for<'a> serde::Deserialize<'a>> CentralCommand<T> 
 
 /// This function is the one that actually handles the WebSocket communication with the server.
 pub async fn websocket_loop(mut receiver: UnboundedReceiver<(IpcMessage<Command>, Sender<Response>)>) {
-    let url = "ws://127.0.0.1:3030/ws";
+    let url = "ws://127.0.0.1:45127/ws";
     info!("Connecting to WebSocket server at {}...", url);
 
     let mut response_channels = HashMap::new();

@@ -105,7 +105,6 @@ use crate::pack_tree::*;
 use crate::QVARIANT_FALSE;
 use crate::QVARIANT_TRUE;
 use crate::references_ui::ReferencesUI;
-use crate::SCHEMA;
 use crate::UI_STATE;
 use crate::settings_helpers::*;
 use crate::utils::*;
@@ -616,14 +615,10 @@ impl TableView {
             HashMap::new()
         } else if let TableType::RigidTexturesTable(_) = table_data {
             HashMap::new()
-        } else if let Some(schema) = &*SCHEMA.read().unwrap() {
-            if let Some(table_name) = table_name {
-                schema.referencing_columns_for_table(table_name, &table_definition)
-            } else {
-                HashMap::new()
-            }
+        } else if let Some(table_name) = table_name {
+            referencing_columns_for_table(&table_name, &table_definition)?
         } else {
-            return Err(anyhow!("There is no Schema for the Game Selected."));
+            HashMap::new()
         };
 
         // Create the raw Struct and begin

@@ -744,8 +744,6 @@ pub unsafe fn build_columns(
 ) -> bool {
     let filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
     let model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
-
-    let schema = SCHEMA.read().unwrap();
     let mut do_we_have_ca_order = false;
     let mut resize_after_data = false;
     let mut keys = vec![];
@@ -754,6 +752,9 @@ pub unsafe fn build_columns(
     model.set_column_count(fields_processed.len() as i32);
 
     let patches = Some(definition.patches());
+
+    // TODO: Temp fix. This has to go and tooltips should be requested from the backend.
+    let schema = schema().ok();
     let tooltips = get_column_tooltips(&schema, &fields_processed, loc_fields, patches, table_name);
     let adjust_columns = settings_bool("adjust_columns_to_content");
     let header = table_view.horizontal_header();

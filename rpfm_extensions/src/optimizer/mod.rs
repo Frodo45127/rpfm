@@ -182,7 +182,7 @@ impl OptimizableContainer for Pack {
         // If we're importing the datacored deletions, create the file for them if it doesn't exist.
         if options.db_import_datacores_into_twad_key_deletes && game.key() == KEY_WARHAMMER_3 {
             if let Some(def) = schema.definitions_by_table_name(KEY_DELETES_TABLE_NAME) {
-                if def.len() >= 1 {
+                if !def.is_empty() {
                     let table = DB::new(&def[0], None, KEY_DELETES_TABLE_NAME);
                     let _ = self.insert(RFile::new_from_decoded(&RFileDecoded::DB(table), 0, DEFAULT_KEY_DELETES_FILE));
                     files_to_add.insert(DEFAULT_KEY_DELETES_FILE.to_owned());
@@ -266,10 +266,8 @@ impl OptimizableContainer for Pack {
                         // as those are probably intended to overwrite vanilla files, not to be optimized.
                         if options.db_optimize_datacored_tables || !dependencies.file_exists(&path, true, true, true) {
                             if let Ok(RFileDecoded::DB(db)) = rfile.decoded_mut() {
-                                if db.optimize(dependencies, Some(&mut self_copy), options) {
-                                    if options.table_remove_empty_file {
-                                        return Some(path);
-                                    }
+                                if db.optimize(dependencies, Some(&mut self_copy), options) && options.table_remove_empty_file {
+                                    return Some(path);
                                 }
                             }
                         }
@@ -280,10 +278,8 @@ impl OptimizableContainer for Pack {
                         // Same as with tables, don't optimize them if they're overwriting.
                         if options.db_optimize_datacored_tables || !dependencies.file_exists(&path, true, true, true) {
                             if let Ok(RFileDecoded::Loc(loc)) = rfile.decoded_mut() {
-                                if loc.optimize(dependencies, Some(&mut self_copy), options) {
-                                    if options.table_remove_empty_file {
-                                        return Some(path);
-                                    }
+                                if loc.optimize(dependencies, Some(&mut self_copy), options) && options.table_remove_empty_file {
+                                    return Some(path);
                                 }
                             }
                         }
@@ -333,10 +329,8 @@ impl OptimizableContainer for Pack {
                         // In portrait settings file we look to cleanup variants and art sets that are not referenced by the game tables.
                         // Meaning they are not used by the game.
                         if let Ok(RFileDecoded::PortraitSettings(ps)) = rfile.decoded_mut() {
-                            if ps.optimize(dependencies, Some(&mut self_copy), options) {
-                                if options.pts_remove_empty_file {
-                                    return Some(path);
-                                }
+                            if ps.optimize(dependencies, Some(&mut self_copy), options) && options.pts_remove_empty_file {
+                                return Some(path);
                             }
                         }
                     }

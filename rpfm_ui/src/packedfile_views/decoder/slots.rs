@@ -37,8 +37,8 @@ use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::packedfile_views::DataSource;
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::SCHEMA;
 use crate::UI_STATE;
+use crate::settings_helpers::*;
 use crate::utils::*;
 
 use super::PackedFileDecoderView;
@@ -460,17 +460,14 @@ impl PackedFileDecoderViewSlots {
                     }
 
                     // Get the new definition.
-                    let schema = SCHEMA.read().unwrap();
-                    if let Some(ref schema) = *schema {
-                        let definition = schema.definition_by_name_and_version(view.table_name(), version).unwrap();
+                    let definition = definition_by_table_name_and_version(view.table_name(), version).unwrap();
 
-                        // Reset the definition we have.
-                        view.table_model.clear();
-                        let _ = view.data.write().unwrap().seek(SeekFrom::Start(view.header_size));
+                    // Reset the definition we have.
+                    view.table_model.clear();
+                    let _ = view.data.write().unwrap().seek(SeekFrom::Start(view.header_size));
 
-                        // Update the decoder view.
-                        let _ = view.update_view(definition.fields(), true);
-                    }
+                    // Update the decoder view.
+                    let _ = view.update_view(definition.fields(), true);
                 }
 
                 let _ = view.update_rows_decoded(None, None);
@@ -487,9 +484,7 @@ impl PackedFileDecoderViewSlots {
                     let model_index = indexes.at(0);
                     let version = view.table_model_old_versions.item_from_index(model_index).text().to_std_string().parse::<i32>().unwrap();
 
-                    if let Some(ref mut schema) = *SCHEMA.write().unwrap() {
-                        schema.remove_definition(view.table_name(), version);
-                    }
+                    delete_definition(view.table_name(), version);
 
                     view.load_versions_list();
                 }
@@ -527,25 +522,29 @@ impl PackedFileDecoderViewSlots {
         let test_definition = SlotNoArgs::new(&view.table_view, clone!(
             app_ui,
             view => move || {
-                let schema = view.add_definition_to_schema();
+                match view.add_definition_to_schema() {
+                    Ok(schema) => {
 
-                let mut extra_data = DecodeableExtraData::default();
-                extra_data.set_schema(Some(&schema));
-                extra_data.set_return_incomplete(true);
-                extra_data.set_table_name(Some(view.table_name()));
-                let extra_data = Some(extra_data);
-                let mut data = view.data.read().unwrap().clone();
-                let _ = data.rewind();
+                        let mut extra_data = DecodeableExtraData::default();
+                        extra_data.set_schema(Some(&schema));
+                        extra_data.set_return_incomplete(true);
+                        extra_data.set_table_name(Some(view.table_name()));
+                        let extra_data = Some(extra_data);
+                        let mut data = view.data.read().unwrap().clone();
+                        let _ = data.rewind();
 
-                 match DB::decode(&mut data, &extra_data) {
-                    Ok(_) => show_dialog(&view.table_view, "Seems ok.", true),
-                    Err(error) => {
-                        if let RLibError::DecodingTableIncomplete(error, _) = error {
-                            show_debug_dialog(app_ui.main_window(), error);
-                        } else {
-                            show_dialog(app_ui.main_window(), error, true);
+                        match DB::decode(&mut data, &extra_data) {
+                            Ok(_) => show_dialog(&view.table_view, "Seems ok.", true),
+                            Err(error) => {
+                                if let RLibError::DecodingTableIncomplete(error, _) = error {
+                                    show_debug_dialog(app_ui.main_window(), error);
+                                } else {
+                                    show_dialog(app_ui.main_window(), error, true);
+                                }
+                            }
                         }
-                    }
+                    },
+                    Err(error) => show_dialog(&view.table_view, error, false),
                 }
             }
         ));
@@ -560,43 +559,51 @@ impl PackedFileDecoderViewSlots {
         ));
 
         // Slot for the "Finish it!" button.
+        //
+        // TODO: Rework this into a backend call. No reason to do it in the view.
         let save_definition = SlotNoArgs::new(&view.table_view, clone!(
             app_ui,
             pack_file_contents_ui,
             view => move || {
                 let schema = view.add_definition_to_schema();
 
-                // Save and close all PackedFiles that use our definition.
-                let mut packed_files_to_save = vec![];
-                let table_path = view.packed_file_path().replace(DECODER_EXTENSION, "");
-                for open_path in UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).map(|x| x.path_read()) {
-                    if *open_path == table_path {
-                        packed_files_to_save.push(ContainerPath::File(open_path.to_owned()));
-                    }
-                }
+                match view.add_definition_to_schema() {
+                    Ok(schema) => {
 
-                for path in &packed_files_to_save {
-                    if let Err(error) = AppUI::purge_that_one_specifically(
-                        &app_ui,
-                        &pack_file_contents_ui,
-                        path.path_raw(),
-                        DataSource::PackFile,
-                        true,
-                    ) {
-                        show_dialog(&view.table_view, error, false);
-                    }
-                }
+                        // Save and close all PackedFiles that use our definition.
+                        let mut packed_files_to_save = vec![];
+                        let table_path = view.packed_file_path().replace(DECODER_EXTENSION, "");
+                        for open_path in UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).map(|x| x.path_read()) {
+                            if *open_path == table_path {
+                                packed_files_to_save.push(ContainerPath::File(open_path.to_owned()));
+                            }
+                        }
 
-                let _ = CENTRAL_COMMAND.read().unwrap().send(Command::CleanCache(packed_files_to_save));
-                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SaveSchema(schema));
-                let response = CentralCommand::recv(&receiver);
-                match response {
-                    Response::Success => show_dialog(&view.table_view, "Schema successfully saved.", true),
-                    Response::Error(error) => show_dialog(&view.table_view, error, false),
-                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-                }
+                        for path in &packed_files_to_save {
+                            if let Err(error) = AppUI::purge_that_one_specifically(
+                                &app_ui,
+                                &pack_file_contents_ui,
+                                path.path_raw(),
+                                DataSource::PackFile,
+                                true,
+                            ) {
+                                show_dialog(&view.table_view, error, false);
+                            }
+                        }
 
-                view.load_versions_list();
+                        let _ = CENTRAL_COMMAND.read().unwrap().send(Command::CleanCache(packed_files_to_save));
+                        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SaveSchema(schema));
+                        let response = CentralCommand::recv(&receiver);
+                        match response {
+                            Response::Success => show_dialog(&view.table_view, "Schema successfully saved.", true),
+                            Response::Error(error) => show_dialog(&view.table_view, error, false),
+                            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                        }
+
+                        view.load_versions_list();
+                    },
+                    Err(error) => show_dialog(&view.table_view, error, false),
+                }
             }
         ));
 

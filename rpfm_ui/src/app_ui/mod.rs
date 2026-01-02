@@ -100,7 +100,6 @@ use crate::pack_tree::{BuildData, new_pack_file_tooltip, PackTree, TreeViewOpera
 use crate::packedfile_views::{anim_fragment_battle::*, animpack::*, anims_table::*, audio::FileAudioView, bmd::FileBMDView, decoder::*, dependencies_manager::*, esf::*, external::*, group_formations::*, image::*, matched_combat::*, FileView, packfile::PackFileExtraView, packfile_settings::*, portrait_settings::PortraitSettingsView, rigidmodel::*, SpecialView, table::*, text::*, unit_variant::*, video::*, vmd::*};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::references_ui::ReferencesUI;
-use crate::SCHEMA;
 use crate::STATUS_BAR;
 use crate::SUPPORTED_GAMES;
 use crate::TREEVIEW_ICONS;
@@ -2998,7 +2997,7 @@ impl AppUI {
                 SpecialView::Decoder(ref path) => {
 
                     // If we don't have an schema, don't even try it.
-                    if SCHEMA.read().unwrap().is_none() {
+                    if !is_schema_loaded() {
                         return show_dialog(&app_ui.main_window, "No schema found. You need one to open the decoder.", false);
                     }
 
@@ -3103,7 +3102,7 @@ impl AppUI {
         // DB Files require the dependencies cache to be generated, and the schemas to be downloaded.
         if file_type == FileType::DB {
 
-            if SCHEMA.read().unwrap().is_none() {
+            if !is_schema_loaded() {
                 return show_dialog(&app_ui.main_window, "There is no Schema for the Game Selected.", false);
             }
 

@@ -64,7 +64,7 @@ use crate::GAME_SELECTED;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::SCHEMA;
+use crate::settings_helpers::is_schema_loaded;
 use crate::utils::*;
 use crate::UI_STATE;
 use crate::views::table::utils::clean_column_names;
@@ -180,7 +180,7 @@ impl Tool {
             return Err(ToolsError::GameSelectedNotSupportedForTool.into());
         }
 
-        if SCHEMA.read().unwrap().is_none() {
+        if !is_schema_loaded() {
             return Err(ToolsError::SchemaNotFound.into());
         }
 

@@ -75,8 +75,7 @@ use crate::FONT_MONOSPACE;
 use crate::GAME_SELECTED;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::{FileView, View, ViewType};
-use crate::SCHEMA;
-use crate::settings_helpers::{assembly_kit_path, settings_bool};
+use crate::settings_helpers::{assembly_kit_path, definition_by_table_name_and_version, definitions_by_table_name, schema, settings_bool};
 use crate::utils::*;
 
 use self::slots::PackedFileDecoderViewSlots;
@@ -1185,13 +1184,12 @@ impl PackedFileDecoderView {
     /// This function is used to update the list of "Versions" of the currently open table decoded.
     unsafe fn load_versions_list(&self) {
         self.table_model_old_versions.clear();
-        if let Some(ref schema) = *SCHEMA.read().unwrap() {
-            if let Some(definitions) = schema.definitions_by_table_name(&self.table_name) {
-                definitions.iter().for_each(|definition| {
-                    let item = QStandardItem::from_q_string(&QString::from_std_str(definition.version().to_string()));
-                    self.table_model_old_versions.append_row_q_standard_item(item.into_ptr());
-                })
-            }
+
+        if let Ok(definitions) = definitions_by_table_name(&self.table_name) {
+            definitions.iter().for_each(|definition| {
+                let item = QStandardItem::from_q_string(&QString::from_std_str(definition.version().to_string()));
+                self.table_model_old_versions.append_row_q_standard_item(item.into_ptr());
+            })
         }
 
         self.table_model_old_versions.set_header_data_3a(0, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Versions Decoded")));
@@ -1208,7 +1206,6 @@ impl PackedFileDecoderView {
         self.update_view(&[], false)?;
         self.update_rows_decoded(None, None)
     }
-
 
     /// This function gets the data from the decoder's table and returns it, so we can save it to a Definition.
     pub unsafe fn get_fields_from_view(&self, model_index: Option<CppBox<QModelIndex>>) -> Vec<Field> {
@@ -1315,13 +1312,13 @@ impl PackedFileDecoderView {
     }
 
     /// This function adds the definition currently in the view to a temporal schema, and returns it.
-    unsafe fn add_definition_to_schema(&self) -> Schema {
-        let mut schema = SCHEMA.read().unwrap().clone().unwrap();
+    unsafe fn add_definition_to_schema(&self) -> Result<Schema> {
+        let mut schema = schema()?;
         let mut definition = Definition::new(self.version, None);
         *definition.fields_mut() = self.get_fields_from_view(None);
         schema.add_definition(&self.table_name, &definition);
 
-        schema
+        Ok(schema)
     }
 
     /// This function generates a valid definition using the assembly kit as reference. To stop decoding manually.
@@ -1644,10 +1641,7 @@ impl PackedFileDecoderView {
 
     /// This function returns the definition corresponding to the decoded Packedfile, if exists.
     fn definition(&self) -> Option<Definition> {
-        if let Some(ref schema) = *SCHEMA.read().unwrap() {
-            return schema.definition_by_name_and_version(&self.table_name, self.version).cloned();
-        }
-        None
+        definition_by_table_name_and_version(&self.table_name, self.version).ok()
     }
 }
 

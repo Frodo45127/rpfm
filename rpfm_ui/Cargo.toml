@@ -90,7 +90,7 @@ tokio-tungstenite = "^0.26"
 self_update.workspace = true
 reqwest.workspace = true
 
-# Translator libraries
+# Translator libraries.
 chat-gpt-lib-rs = "^0"
 base64.workspace = true
 deepl = "^0"

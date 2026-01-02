@@ -2083,7 +2083,7 @@ impl Dependencies {
             }
         }
 
-        pack.generate_missing_loc_data(&existing_locs).map_err(From::from)
+        pack.generate_missing_loc_data(&existing_locs)
     }
 
     /// This function bruteforces the order in which multikeyed tables get their keys together for loc entries.
@@ -2793,7 +2793,7 @@ impl Dependencies {
             }
         }
 
-        let (paths_to_delete, paths_to_add) = pack.optimize(Some(added_paths.clone()), self, schema, &game, &options)?;
+        let (paths_to_delete, paths_to_add) = pack.optimize(Some(added_paths.clone()), self, schema, game, &options)?;
 
         let paths_to_delete = paths_to_delete.iter()
             .map(|path| ContainerPath::File(path.to_string()))
@@ -2838,7 +2838,7 @@ impl Dependencies {
         ));
 
         // Games may fail to launch if we don't have this path created, which is done the first time we start the game.
-        let game_data_path = game.data_path(&game_path)?;
+        let game_data_path = game.data_path(game_path)?;
         if !game_path.is_dir() {
             return Err(RLibError::BuildStartposError("Game path incorrect. Fix it in the settings and try again.".to_owned()));
         }
@@ -2857,7 +2857,7 @@ impl Dependencies {
             pack_file.extract(ContainerPath::File(VICTORY_OBJECTIVES_FILE_NAME.to_owned()), &game_campaign_path, false, &None, true, false, &None, true)?;
         }
 
-        let config_path = game.config_path(&game_path).ok_or(RLibError::BuildStartposError("Error getting the game's config path.".to_owned()))?;
+        let config_path = game.config_path(game_path).ok_or(RLibError::BuildStartposError("Error getting the game's config path.".to_owned()))?;
         let scripts_path = config_path.join("scripts");
         DirBuilder::new().recursive(true).create(&scripts_path)?;
 
@@ -3013,7 +3013,7 @@ impl Dependencies {
 
         // Then launch the game. 3K needs to be launched manually and in a blocking manner to make sure it does each pass it has to do correctly.
         if game.key() == KEY_THREE_KINGDOMS {
-            let exe_path = game.executable_path(&game_path).ok_or_else(|| RLibError::BuildStartposError("Game exe path not found.".to_owned()))?;
+            let exe_path = game.executable_path(game_path).ok_or_else(|| RLibError::BuildStartposError("Game exe path not found.".to_owned()))?;
             let exe_name = exe_path.file_name().ok_or_else(|| RLibError::BuildStartposError("Game exe name not found.".to_owned()))?.to_string_lossy();
 
             // NOTE: This uses a non-existant load order file on purpouse, so no mod in the load order interferes with generating the startpos.
@@ -3042,7 +3042,7 @@ impl Dependencies {
 
         // Rome 2 needs to be launched manually through the cmd with params. The rest can be launched through their regular launcher.
         } else if game.key() == KEY_ROME_2 {
-            let exe_path = game.executable_path(&game_path).ok_or_else(|| RLibError::BuildStartposError("Game exe path not found.".to_owned()))?;
+            let exe_path = game.executable_path(game_path).ok_or_else(|| RLibError::BuildStartposError("Game exe path not found.".to_owned()))?;
             let exe_name = exe_path.file_name().ok_or_else(|| RLibError::BuildStartposError("Game exe name not found.".to_owned()))?.to_string_lossy();
 
             // NOTE: This uses a non-existant load order file on purpouse, so no mod in the load order interferes with generating the startpos.
@@ -3065,7 +3065,7 @@ impl Dependencies {
 
             command.spawn()?;
         } else {
-            match game.game_launch_command(&game_path) {
+            match game.game_launch_command(game_path) {
                 Ok(command) => { let _ = open::that(command); },
                 _ => return Err(RLibError::BuildStartposError("The currently selected game cannot be launched from Steam.".to_owned())),
             }
@@ -3100,7 +3100,7 @@ impl Dependencies {
             return Err(RLibError::BuildStartposError("Game path incorrect. Fix it in the settings and try again.".to_owned()));
         }
 
-        let game_data_path = game.data_path(&game_path)?;
+        let game_data_path = game.data_path(game_path)?;
 
         // Warhammer 3 doesn't use this folder.
         if GAMES_NEEDING_VICTORY_OBJECTIVES.contains(&game.key()) {
@@ -3113,7 +3113,7 @@ impl Dependencies {
             }
         }
 
-        let config_path = game.config_path(&game_path).ok_or(RLibError::BuildStartposError("Error getting the game's config path.".to_owned()))?;
+        let config_path = game.config_path(game_path).ok_or(RLibError::BuildStartposError("Error getting the game's config path.".to_owned()))?;
         let scripts_path = config_path.join("scripts");
         if !scripts_path.is_dir() {
             DirBuilder::new().recursive(true).create(&scripts_path)?;

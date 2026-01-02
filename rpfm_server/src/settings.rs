@@ -90,10 +90,7 @@ impl Settings {
 
     pub fn init(as_new: bool) -> Result<Self> {
         let mut settings = if !as_new {
-            match Settings::read() {
-                Ok(settings) => settings,
-                Err(_) => Settings::default(),
-            }
+            Settings::read().unwrap_or_default()
         } else {
             Settings::default()
         };
@@ -291,15 +288,15 @@ impl Settings {
     }
 
     pub fn bool(&self, setting: &str) -> bool {
-        self.bool.get(setting).map(|x| *x).unwrap_or_default()
+        self.bool.get(setting).copied().unwrap_or_default()
     }
 
     pub fn i32(&self, setting: &str) -> i32 {
-        self.i32.get(setting).map(|x| *x).unwrap_or_default()
+        self.i32.get(setting).copied().unwrap_or_default()
     }
 
     pub fn f32(&self, setting: &str) -> f32 {
-        self.f32.get(setting).map(|x| *x).unwrap_or_default()
+        self.f32.get(setting).copied().unwrap_or_default()
     }
 
     pub fn string(&self, setting: &str) -> String {
@@ -307,7 +304,7 @@ impl Settings {
     }
 
     pub fn path_buf(&self, setting: &str) -> PathBuf {
-        self.string.get(setting).map(|x| PathBuf::from(x)).unwrap_or_default()
+        self.string.get(setting).map(PathBuf::from).unwrap_or_default()
     }
 
     pub fn raw_data(&self, setting: &str) -> Vec<u8> {
@@ -354,43 +351,43 @@ impl Settings {
     }
 
     pub fn initialize_bool(&mut self, setting: &str, value: bool) {
-        if self.bool.get(setting).is_none() {
+        if !self.bool.contains_key(setting) {
             self.bool.insert(setting.to_owned(), value);
         }
     }
 
     pub fn initialize_i32(&mut self, setting: &str, value: i32) {
-        if self.i32.get(setting).is_none() {
+        if !self.i32.contains_key(setting) {
             self.i32.insert(setting.to_owned(), value);
         }
     }
 
     pub fn initialize_f32(&mut self, setting: &str, value: f32) {
-        if self.f32.get(setting).is_none() {
+        if !self.f32.contains_key(setting) {
             self.f32.insert(setting.to_owned(), value);
         }
     }
 
     pub fn initialize_string(&mut self, setting: &str, value: &str) {
-        if self.string.get(setting).is_none() {
+        if !self.string.contains_key(setting) {
             self.string.insert(setting.to_owned(), value.to_owned());
         }
     }
 
     pub fn initialize_path_buf(&mut self, setting: &str, value: &Path) {
-        if self.string.get(setting).is_none() {
+        if !self.string.contains_key(setting) {
             self.string.insert(setting.to_owned(), value.to_string_lossy().to_string());
         }
     }
 
     pub fn initialize_raw_data(&mut self, setting: &str, value: &[u8]) {
-        if self.raw_data.get(setting).is_none() {
+        if !self.raw_data.contains_key(setting) {
             self.raw_data.insert(setting.to_owned(), value.to_vec());
         }
     }
 
     pub fn initialize_vec_string(&mut self, setting: &str, value: &[String]) {
-        if self.vec_string.get(setting).is_none() {
+        if !self.vec_string.contains_key(setting) {
             self.vec_string.insert(setting.to_owned(), value.to_vec());
         }
     }
@@ -453,7 +450,7 @@ pub fn config_path() -> Result<PathBuf> {
     if cfg!(debug_assertions) {
         std::env::current_dir().map_err(From::from)
     } else {
-        match ProjectDirs::from(&ORG_DOMAIN, &ORG_NAME, &APP_NAME) {
+        match ProjectDirs::from(ORG_DOMAIN, ORG_NAME, APP_NAME) {
             Some(proj_dirs) => Ok(proj_dirs.config_dir().to_path_buf()),
             None => Err(anyhow!("Failed to get the config path."))
         }

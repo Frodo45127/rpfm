@@ -41,7 +41,7 @@ use rpfm_lib::utils::*;
 
 use rpfm_ui_common::clone;
 
-use crate::{app_ui::AppUI, settings_helpers::{settings_bool, settings_path_buf}, utils::{qtr, show_dialog, tre}};
+use crate::{app_ui::AppUI, settings_helpers::{is_schema_loaded, settings_bool, settings_path_buf}, utils::{qtr, show_dialog, tre}};
 use crate::CENTRAL_COMMAND;
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
@@ -51,7 +51,6 @@ use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::SpecialView;
 use crate::references_ui::ReferencesUI;
-use crate::SCHEMA;
 use crate::UI_STATE;
 use crate::ui_state::OperationalMode;
 use crate::utils::check_regex;
@@ -543,7 +542,7 @@ impl PackFileContentsSlots {
                 };
 
                 // If there is no dependency_database or schema for our GameSelected, ALWAYS disable creating new DB Tables and exporting them.
-                if !is_there_a_dependency_database || SCHEMA.read().unwrap().is_none() {
+                if !is_there_a_dependency_database || !is_schema_loaded() {
                     pack_file_contents_ui.context_menu_update_table.set_enabled(false);
                 }
             }

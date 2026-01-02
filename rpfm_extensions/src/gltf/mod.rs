@@ -298,7 +298,7 @@ pub fn gltf_from_rigid(value: &RigidModel, dependencies: &mut Dependencies) -> R
                             extensions: Default::default(),
                             extras: Default::default(),
                             name: None,
-                            uri: Some(format!("data:application/octet-stream;base64,{}", STANDARD.encode(&image.data()))),
+                            uri: Some(format!("data:application/octet-stream;base64,{}", STANDARD.encode(image.data()))),
                         });
 
                         let image_buffer_view = root.push(json::buffer::View {

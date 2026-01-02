@@ -54,7 +54,6 @@ use std::sync::{Arc, atomic::{AtomicBool, AtomicPtr}, RwLock};
 
 use rpfm_lib::games::{GameInfo, supported_games::{SupportedGames, KEY_WARHAMMER_3}};
 use rpfm_lib::integrations::log::*;
-use rpfm_lib::schema::Schema;
 
 use rpfm_ui_common::APP_NAME;
 use rpfm_ui_common::ASSETS_PATH;
@@ -100,9 +99,6 @@ static GAME_SELECTED: LazyLock<Arc<RwLock<&'static GameInfo>>> = LazyLock::new(|
         None => SUPPORTED_GAMES.game(KEY_WARHAMMER_3).unwrap(),
     }
 )));
-
-/// Currently loaded schema.
-static SCHEMA: LazyLock<Arc<RwLock<Option<Schema>>>> = LazyLock::new(|| Arc::new(RwLock::new(None)));
 
 /// Icons for the PackFile TreeView.
 static TREEVIEW_ICONS: LazyLock<Icons> = LazyLock::new(|| unsafe { Icons::new() });
@@ -207,7 +203,7 @@ fn main() {
     let tokio_runtime = Runtime::new().unwrap();
     let _tokio_guard = tokio_runtime.enter();
 
-    // This needs to be initialised before anything else.
+    // This needs to be initialized before anything else.
     unsafe {
 
         // Settings stuff.

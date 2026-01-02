@@ -13,11 +13,15 @@
 //! These functions provide a clean interface for the UI to access settings
 //! from the server.
 
-use std::path::{Path, PathBuf};
-
 use anyhow::{Result, anyhow};
+
+use std::{collections::HashMap, path::{Path, PathBuf}};
+
 use rpfm_extensions::optimizer::OptimizerOptions;
+
 use rpfm_ipc::messages::{Command, Response};
+
+use rpfm_lib::schema::{Definition, Schema};
 
 use crate::{CENTRAL_COMMAND, communications::CentralCommand};
 
@@ -225,4 +229,52 @@ pub fn optimizer_options() -> OptimizerOptions {
         Response::OptimizerOptions(value) => value,
         _ => panic!("Error getting optimizer options"),
     }
+}
+
+pub fn is_schema_loaded() -> bool {
+    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::IsSchemaLoaded);
+    match CentralCommand::recv(&receiver) {
+        Response::Bool(value) => value,
+        _ => panic!("Error getting schema status"),
+    }
+}
+
+pub fn definitions_by_table_name(name: &str) -> Result<Vec<Definition>> {
+    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::DefinitionsByTableName(name.to_owned()));
+    match CentralCommand::recv(&receiver) {
+        Response::VecDefinition(value) => Ok(value),
+        Response::Error(error) => Err(anyhow!(error)),
+        _ => panic!("Error getting definitions by table name"),
+    }
+}
+
+pub fn referencing_columns_for_table(name: &str, definition: &Definition) -> Result<HashMap<String, HashMap<String, Vec<String>>>> {
+    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::ReferencingColumnsForDefinition(name.to_owned(), definition.clone()));
+    match CentralCommand::recv(&receiver) {
+        Response::HashMapStringHashMapStringVecString(value) => Ok(value),
+        Response::Error(error) => Err(anyhow!(error)),
+        _ => panic!("Error getting definition by table name and index"),
+    }
+}
+
+pub fn schema() -> Result<Schema> {
+    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::Schema);
+    match CentralCommand::recv(&receiver) {
+        Response::Schema(value) => Ok(value),
+        Response::Error(error) => Err(anyhow!(error)),
+        _ => panic!("Error getting schema"),
+    }
+}
+
+pub fn definition_by_table_name_and_version(name: &str, version: i32) -> Result<Definition> {
+    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::DefinitionByTableNameAndVersion(name.to_owned(), version));
+    match CentralCommand::recv(&receiver) {
+        Response::Definition(value) => Ok(value),
+        Response::Error(error) => Err(anyhow!(error)),
+        _ => panic!("Error getting definition by table name and index"),
+    }
+}
+
+pub fn delete_definition(name: &str, version: i32) {
+    let _ = CENTRAL_COMMAND.read().unwrap().send(Command::DefinitionByTableNameAndVersion(name.to_owned(), version));
 }
