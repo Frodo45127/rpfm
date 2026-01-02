@@ -21,7 +21,7 @@ use tokio::net::TcpListener;
 use tokio::sync::mpsc;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use std::{net::SocketAddr, path::PathBuf};
+use std::{i32, net::SocketAddr, path::PathBuf};
 use std::sync::Arc;
 
 use rpfm_ipc::messages::{Command, Message as IpcMessage, Response};
@@ -98,7 +98,9 @@ async fn main() {
 
 /// WebSocket handler to upgrade the connection and handle messages.
 async fn ws_handler(State(central): State<Arc<CentralCommand<Response>>>, ws: WebSocketUpgrade) -> impl IntoResponse {
-    ws.on_upgrade(move |socket| handle_socket(socket, central))
+    ws.max_message_size(usize::MAX)
+        .max_frame_size(usize::MAX)
+        .on_upgrade(move |socket| handle_socket(socket, central))
 }
 
 /// Function to handle a WebSocket connection.
@@ -111,7 +113,7 @@ async fn handle_socket(socket: WebSocket, central: Arc<CentralCommand<Response>>
         while let Some(response_msg) = rx.recv().await {
             match serde_json::to_string(&response_msg) {
                 Ok(json) => {
-                    if sink.send(Message::Text(json)).await.is_err() {
+                    if sink.send(Message::Text(json.into())).await.is_err() {
                         break;
                     }
                 }
@@ -120,8 +122,9 @@ async fn handle_socket(socket: WebSocket, central: Arc<CentralCommand<Response>>
                         id: response_msg.id,
                         data: Response::Error(format!("Serialization error: {}", error)),
                     };
+
                     if let Ok(json) = serde_json::to_string(&error_msg) {
-                        let _ = sink.send(Message::Text(json)).await;
+                        let _ = sink.send(Message::Text(json.into())).await;
                     }
                 }
             }

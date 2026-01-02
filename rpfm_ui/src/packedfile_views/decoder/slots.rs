@@ -565,8 +565,6 @@ impl PackedFileDecoderViewSlots {
             app_ui,
             pack_file_contents_ui,
             view => move || {
-                let schema = view.add_definition_to_schema();
-
                 match view.add_definition_to_schema() {
                     Ok(schema) => {
 

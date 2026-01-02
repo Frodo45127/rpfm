@@ -64,7 +64,7 @@ thiserror = "^2"
 tempfile = "^3.1"
 time = { version = "^0.3", features = ["formatting"] }
 toml = "^0.8"
-tokio = { version = "=1.47.1", features = ["full"] }
+tokio = { version = "^1", features = ["full"] }
 winres = "^0.1"
 zip-extract = "^0.2"
 fs_extra = "^1.3"

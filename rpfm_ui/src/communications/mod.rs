@@ -17,7 +17,7 @@ use qt_core::QEventLoop;
 use crossbeam::channel::{Receiver, Sender, unbounded};
 use futures::{SinkExt, StreamExt};
 use tokio::sync::mpsc::{unbounded_channel, UnboundedSender, UnboundedReceiver};
-use tokio_tungstenite::{connect_async, tungstenite::protocol::Message as WsMessage};
+use tokio_tungstenite::{connect_async_with_config, tungstenite::protocol::{Message as WsMessage, WebSocketConfig}};
 
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -146,10 +146,13 @@ pub async fn websocket_loop(mut receiver: UnboundedReceiver<(IpcMessage<Command>
     let mut response_channels = HashMap::new();
 
     loop {
-        match connect_async(url).await {
+        let config = WebSocketConfig::default()
+            .max_message_size(Some(67108864 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2))   // 16GB
+            .max_frame_size(Some(67108864 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2));    // 16GB
+
+        match connect_async_with_config(url, Some(config), false).await {
             Ok((mut ws_stream, _)) => {
                 info!("WebSocket connected!");
-
                 loop {
                     tokio::select! {
 

@@ -4139,7 +4139,7 @@ impl AppUI {
         let mut game_changed = false;
         let mut dep_info = None;
 
-        // Due to how the backend is optimised, we need to back our files before triggering the proper game change.
+        // Due to how the backend is optimized, we need to back our files before triggering the proper game change.
         let _ = AppUI::purge_them_all(app_ui, pack_file_contents_ui, true);
 
         // If the game changed or we're initializing the program, change the game selected.
