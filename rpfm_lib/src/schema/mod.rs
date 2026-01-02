@@ -1319,7 +1319,7 @@ impl Field {
     }
 
     pub fn is_numeric(&self, _schema_patches: Option<&DefinitionPatch>) -> bool {
-        return false;
+        false
         /*
         if let Some(schema_patches) = schema_patches {
             if let Some(patch) = schema_patches.get(self.name()) {

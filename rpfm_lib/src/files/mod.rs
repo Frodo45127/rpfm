@@ -2172,7 +2172,7 @@ impl RFile {
     /// Sanitizes a destination path and creates a file with the sanitized path.
     /// Logs a message if the filename was changed due to invalid Windows characters.
     pub fn sanitize_and_create_file(&mut self, destination_path: &Path, extra_data: &Option<EncodeableExtraData>) -> Result<PathBuf> {
-        let sanitized_destination_path = sanitize_path(&destination_path);
+        let sanitized_destination_path = sanitize_path(destination_path);
 
         if sanitized_destination_path != destination_path {
             #[cfg(feature = "integration_log")] {
@@ -2202,7 +2202,7 @@ impl RFile {
         match external_path.extension() {
             Some(extension) => {
                 if extension.to_string_lossy() == "tsv" {
-                    match RFile::tsv_import_from_path(external_path, &schema) {
+                    match RFile::tsv_import_from_path(external_path, schema) {
                         Ok(rfile) => self.set_decoded(rfile.decoded()?.clone())?,
                         Err(_) => self.set_cached(&data),
                     }

@@ -324,7 +324,7 @@ impl DecodedData {
                 FieldType::I16 => if let Ok(value) = default_value.parse::<i16>() { DecodedData::I16(value) } else { DecodedData::I16(0) },
                 FieldType::I32 => if let Ok(value) = default_value.parse::<i32>() { DecodedData::I32(value) } else { DecodedData::I32(0) },
                 FieldType::I64 => if let Ok(value) = default_value.parse::<i64>() { DecodedData::I64(value) } else { DecodedData::I64(0) },
-                FieldType::ColourRGB => if u32::from_str_radix(&default_value, 16).is_ok() {
+                FieldType::ColourRGB => if u32::from_str_radix(default_value, 16).is_ok() {
                     DecodedData::ColourRGB(default_value.to_owned())
                 } else {
                     DecodedData::ColourRGB("000000".to_owned())

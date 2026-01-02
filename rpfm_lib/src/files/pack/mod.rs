@@ -1199,8 +1199,8 @@ impl Pack {
             return Err(RLibError::LiveExportNoFilesToExport);
         }
 
-        let extra_data = Some(EncodeableExtraData::new_from_game_info_and_settings(&game, self.compression_format(), disable_regen_table_guid));
-        let data_path = game.data_path(&game_path)?;
+        let extra_data = Some(EncodeableExtraData::new_from_game_info_and_settings(game, self.compression_format(), disable_regen_table_guid));
+        let data_path = game.data_path(game_path)?;
 
         // We're interested in lua and xml files only, not those entire folders.
         let files = self.files_by_type_and_paths(&[FileType::Text], &[ContainerPath::Folder("script/".to_string()), ContainerPath::Folder("ui/".to_string())], true)
@@ -1254,7 +1254,7 @@ impl Pack {
 
         // First, do a pass over sparse files.
         let mut extra_data = DecodeableExtraData::default();
-        extra_data.set_game_info(Some(&game));
+        extra_data.set_game_info(Some(game));
         let extra_data = Some(extra_data);
 
         let mut files = self.files_by_type_mut(&[FileType::AnimFragmentBattle]);
