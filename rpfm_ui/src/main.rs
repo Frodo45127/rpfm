@@ -260,7 +260,7 @@ fn main() {
 fn spawn_server() {
 
     // First, check if the server is already running.
-    if std::net::TcpStream::connect_timeout(&"127.0.0.1:3030".parse().unwrap(), std::time::Duration::from_millis(100)).is_ok() {
+    if std::net::TcpStream::connect_timeout(&"127.0.0.1:45127".parse().unwrap(), std::time::Duration::from_millis(100)).is_ok() {
         info!("rpfm_server already running. Skipping spawn.");
         return;
     }
