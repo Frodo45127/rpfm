@@ -12,9 +12,9 @@
 This module defines the code used for thread communication.
 !*/
 
-use anyhow::{Result, anyhow};
 use qt_core::QEventLoop;
 
+use anyhow::{Result, anyhow};
 use crossbeam::channel::{Receiver, Sender, unbounded};
 use futures::{SinkExt, StreamExt};
 use tokio::sync::mpsc::{unbounded_channel, UnboundedSender, UnboundedReceiver};
@@ -66,6 +66,10 @@ impl<T: Send + Sync + Debug> Default for CentralCommand<T> {
 }
 
 impl<T: Send + Sync + Debug> CentralCommand<T> {
+
+    /// This function initializes a new central command, and returns the sender to send messages to it.
+    ///
+    /// Use it to replace the default one on runtime.
     pub fn init() -> (Self, UnboundedReceiver<(IpcMessage<Command>, Sender<T>)>) {
         let (sender, receiver) = unbounded_channel();
         let try_lock = AtomicBool::new(false);
@@ -153,6 +157,20 @@ where
     }
 }
 
+/// Function to send a command to the backend and receive a result. Use it for commands that can fail.
+///
+/// This version of the function is for calls that must keep the ui alive.
+pub fn send_ipc_command_result_async<T, F>(command: Command, extractor: F) -> Result<T>
+where
+    F: FnOnce(Response) -> T,
+{
+    let receiver = CENTRAL_COMMAND.read().unwrap().send(command);
+    match CENTRAL_COMMAND.read().unwrap().recv_try(&receiver) {
+        Response::Error(error) => Err(anyhow!(error)),
+        response => Ok(extractor(response)),
+    }
+}
+
 /// Function to send a command to the backend. Use it for commands that can't fail.
 pub fn send_ipc_command<T, F>(command: Command, extractor: F) -> T
 where
@@ -160,6 +178,19 @@ where
 {
     let receiver = CENTRAL_COMMAND.read().unwrap().send(command);
     match CentralCommand::recv(&receiver) {
+        response => extractor(response),
+    }
+}
+
+/// Function to send a command to the backend. Use it for commands that can't fail.
+///
+/// This version of the function is for calls that must keep the ui alive.
+pub fn send_ipc_command_async<T, F>(command: Command, extractor: F) -> T
+where
+    F: FnOnce(Response) -> T,
+{
+    let receiver = CENTRAL_COMMAND.read().unwrap().send(command);
+    match CENTRAL_COMMAND.read().unwrap().recv_try(&receiver) {
         response => extractor(response),
     }
 }
