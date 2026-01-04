@@ -39,7 +39,6 @@ use rpfm_ui_common::clone;
 use crate::CENTRAL_COMMAND;
 use crate::app_ui::AppUI;
 use crate::ffi;
-use crate::settings_helpers::*;
 use crate::settings_ui::{backend::*, SettingsUI};
 use crate::utils::{show_dialog, tr};
 

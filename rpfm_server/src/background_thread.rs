@@ -2504,25 +2504,25 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
 
             // Settings IPC handlers - all settings are now managed locally in background_loop
             Command::SettingsGetBool(key) => {
-                CentralCommand::send_back(&sender, Response::SettingsBool(settings.bool(&key)));
+                CentralCommand::send_back(&sender, Response::Bool(settings.bool(&key)));
             }
             Command::SettingsGetI32(key) => {
-                CentralCommand::send_back(&sender, Response::SettingsI32(settings.i32(&key)));
+                CentralCommand::send_back(&sender, Response::I32(settings.i32(&key)));
             }
             Command::SettingsGetF32(key) => {
-                CentralCommand::send_back(&sender, Response::SettingsF32(settings.f32(&key)));
+                CentralCommand::send_back(&sender, Response::F32(settings.f32(&key)));
             }
             Command::SettingsGetString(key) => {
-                CentralCommand::send_back(&sender, Response::SettingsString(settings.string(&key)));
+                CentralCommand::send_back(&sender, Response::String(settings.string(&key)));
             }
             Command::SettingsGetPathBuf(key) => {
-                CentralCommand::send_back(&sender, Response::SettingsPathBuf(settings.path_buf(&key)));
+                CentralCommand::send_back(&sender, Response::PathBuf(settings.path_buf(&key)));
             }
             Command::SettingsGetVecString(key) => {
-                CentralCommand::send_back(&sender, Response::SettingsVecString(settings.vec_string(&key)));
+                CentralCommand::send_back(&sender, Response::VecString(settings.vec_string(&key)));
             }
             Command::SettingsGetVecRaw(key) => {
-                CentralCommand::send_back(&sender, Response::SettingsVecRaw(settings.raw_data(&key)));
+                CentralCommand::send_back(&sender, Response::VecU8(settings.raw_data(&key)));
             }
             Command::SettingsSetBool(key, value) => {
                 match settings.set_bool(&key, value) {

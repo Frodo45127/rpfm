@@ -63,7 +63,7 @@ use cpp_core::Ptr;
 #[cfg(feature = "support_model_renderer")] use crate::GAME_SELECTED;
 #[cfg(feature = "support_model_renderer")] use crate::packedfile_views::DataSource;
 use crate::UI_STATE;
-use crate::settings_helpers::{settings_bool, settings_set_raw_data};
+use crate::settings_ui::backend::{settings_bool, settings_set_raw_data};
 use crate::utils::{qtr, tr};
 use crate::views::table::{ITEM_HAS_VANILLA_VALUE, ITEM_ICON_CACHE, ITEM_ICON_PATH, ITEM_VANILLA_VALUE, ITEM_SOURCE_VALUE};
 

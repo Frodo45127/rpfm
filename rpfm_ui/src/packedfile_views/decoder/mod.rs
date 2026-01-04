@@ -75,7 +75,7 @@ use crate::FONT_MONOSPACE;
 use crate::GAME_SELECTED;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::{FileView, View, ViewType};
-use crate::settings_helpers::{assembly_kit_path, definition_by_table_name_and_version, definitions_by_table_name, schema, settings_bool};
+use crate::settings_ui::backend::{assembly_kit_path, definition_by_table_name_and_version, definitions_by_table_name, schema, settings_bool};
 use crate::utils::*;
 
 use self::slots::PackedFileDecoderViewSlots;

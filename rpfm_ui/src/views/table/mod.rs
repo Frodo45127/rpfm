@@ -106,7 +106,7 @@ use crate::QVARIANT_FALSE;
 use crate::QVARIANT_TRUE;
 use crate::references_ui::ReferencesUI;
 use crate::UI_STATE;
-use crate::settings_helpers::*;
+use crate::settings_ui::backend::*;
 use crate::utils::*;
 
 use self::filter::*;

@@ -14,7 +14,8 @@ Module with all the code to connect `PackFileContentsUI` signals with their corr
 This module is, and should stay, private, as it's only glue between the `PackFileContentsUI` and `PackFileContentsSlots` structs.
 !*/
 
-use crate::{ffi::draggable_file_tree_view_drop_signal, settings_helpers::settings_bool};
+use crate::ffi::draggable_file_tree_view_drop_signal;
+use crate::settings_ui::backend::settings_bool;
 
 use super::{PackFileContentsUI, slots::PackFileContentsSlots};
 

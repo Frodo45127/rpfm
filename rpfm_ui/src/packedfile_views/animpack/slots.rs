@@ -29,7 +29,7 @@ use crate::packedfile_views::animpack::PackedFileAnimPackView;
 use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::UI_STATE;
-use crate::settings_helpers::settings_bool;
+use crate::settings_ui::backend::settings_bool;
 use super::*;
 
 //-------------------------------------------------------------------------------//

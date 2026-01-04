@@ -58,7 +58,7 @@ use rpfm_ui_common::utils::create_grid_layout;
 use crate::app_ui::AppUI;
 use crate::ffi::*;
 use crate::SUPPORTED_GAMES;
-use crate::settings_helpers::{config_path, settings_bool, settings_i32, settings_set_bool, settings_set_i32, settings_set_string, settings_string};
+use crate::settings_ui::backend::{config_path, settings_bool, settings_i32, settings_set_bool, settings_set_i32, settings_set_string, settings_string};
 use crate::updater_ui::{BETA, STABLE, update_channel, UpdateChannel};
 use crate::utils::{qtr, qtre};
 

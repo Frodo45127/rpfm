@@ -31,7 +31,7 @@ use rpfm_ui_common::utils::*;
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
-use crate::settings_helpers::{settings_bool, settings_string};
+use crate::settings_ui::backend::{settings_bool, settings_string};
 use crate::updater_ui::slots::UpdaterUISlots;
 use crate::utils::{qtr, qtre};
 

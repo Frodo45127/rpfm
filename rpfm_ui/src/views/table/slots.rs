@@ -46,7 +46,7 @@ use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::utils::set_modified;
 use crate::references_ui::ReferencesUI;
-use crate::settings_helpers::settings_bool;
+use crate::settings_ui::backend::settings_bool;
 use crate::UI_STATE;
 use crate::utils::{show_dialog, log_to_status_bar};
 

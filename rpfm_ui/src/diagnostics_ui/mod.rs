@@ -73,7 +73,7 @@ use crate::packedfile_views::{FileView, View, ViewType, SpecialView};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::UI_STATE;
 use crate::references_ui::ReferencesUI;
-use crate::settings_helpers::settings_bool;
+use crate::settings_ui::backend::settings_bool;
 use crate::utils::*;
 use crate::views::table::{ITEM_HAS_ERROR, ITEM_HAS_WARNING, ITEM_HAS_INFO, utils::open_subtable};
 

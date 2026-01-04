@@ -12,6 +12,7 @@
 This module defines the code used for thread communication.
 !*/
 
+use anyhow::{Result, anyhow};
 use qt_core::QEventLoop;
 
 use crossbeam::channel::{Receiver, Sender, unbounded};
@@ -26,6 +27,8 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 pub use rpfm_ipc::messages::{Command, Response, Message as IpcMessage};
 
 use rpfm_lib::integrations::log::*;
+
+use crate::CENTRAL_COMMAND;
 
 /// Atomic counter for generating unique message IDs.
 static MESSAGE_ID_COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -135,6 +138,29 @@ impl<T: Send + Sync + Debug + for<'a> serde::Deserialize<'a>> CentralCommand<T> 
             info!("Race condition avoided? Two items calling recv_try on the same execution crashes.");
             Self::recv(receiver)
         }
+    }
+}
+
+/// Function to send a command to the backend and receive a result. Use it for commands that can fail.
+pub fn send_ipc_command_result<T, F>(command: Command, extractor: F) -> Result<T>
+where
+    F: FnOnce(Response) -> T,
+{
+    let receiver = CENTRAL_COMMAND.read().unwrap().send(command);
+    match CentralCommand::recv(&receiver) {
+        Response::Error(error) => Err(anyhow!(error)),
+        response => Ok(extractor(response)),
+    }
+}
+
+/// Function to send a command to the backend. Use it for commands that can't fail.
+pub fn send_ipc_command<T, F>(command: Command, extractor: F) -> T
+where
+    F: FnOnce(Response) -> T,
+{
+    let receiver = CENTRAL_COMMAND.read().unwrap().send(command);
+    match CentralCommand::recv(&receiver) {
+        response => extractor(response),
     }
 }
 

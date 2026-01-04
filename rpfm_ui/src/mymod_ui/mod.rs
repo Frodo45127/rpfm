@@ -39,7 +39,7 @@ use rpfm_ui_common::utils::{find_widget, load_template};
 use crate::app_ui::AppUI;
 use crate::ffi::*;
 use crate::GAME_SELECTED;
-use crate::settings_helpers::settings_path_buf;
+use crate::settings_ui::backend::settings_path_buf;
 use crate::SUPPORTED_GAMES;
 use crate::utils::*;
 

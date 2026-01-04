@@ -404,6 +404,7 @@ pub enum Response {
 
     /// Response to return (i32).
     I32(i32),
+    F32(f32),
 
     /// Response to return (PathBuf).
     PathBuf(PathBuf),
@@ -548,14 +549,6 @@ pub enum Response {
     I32I32VecStringVecString(i32, i32, Vec<String>, Vec<String>),
     CompressionFormatDependenciesInfo(CompressionFormat, Option<DependenciesInfo>),
 
-    // Settings responses - for returning settings values to the UI
-    SettingsBool(bool),
-    SettingsI32(i32),
-    SettingsF32(f32),
-    SettingsString(String),
-    SettingsPathBuf(PathBuf),
-    SettingsVecString(Vec<String>),
-    SettingsVecRaw(Vec<u8>),
 
     OptimizerOptions(OptimizerOptions),
     VecDefinition(Vec<Definition>),

@@ -41,7 +41,7 @@ use rpfm_lib::utils::*;
 
 use rpfm_ui_common::clone;
 
-use crate::{app_ui::AppUI, settings_helpers::{is_schema_loaded, settings_bool, settings_path_buf}, utils::{qtr, show_dialog, tre}};
+use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
@@ -51,9 +51,10 @@ use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::SpecialView;
 use crate::references_ui::ReferencesUI;
+use crate::settings_ui::backend::{is_schema_loaded, settings_bool, settings_path_buf};
 use crate::UI_STATE;
 use crate::ui_state::OperationalMode;
-use crate::utils::check_regex;
+use crate::utils::{check_regex, qtr, show_dialog, tre};
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs

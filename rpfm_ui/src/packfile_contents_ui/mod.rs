@@ -58,7 +58,7 @@ use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi::*;
 use crate::pack_tree::{PackTree, TreeViewOperation};
-use crate::settings_helpers::{settings_bool, settings_path_buf, settings_set_bool};
+use crate::settings_ui::backend::{settings_bool, settings_path_buf, settings_set_bool};
 use crate::ui_state::OperationalMode;
 use crate::UI_STATE;
 use crate::utils::{add_action_to_menu, qtr, show_dialog, show_message_info};

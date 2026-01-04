@@ -47,7 +47,7 @@ use rpfm_ui_common::utils::*;
 use crate::LOCALE;
 use crate::LOCALE_FALLBACK;
 use crate::app_ui::AppUI;
-use crate::settings_helpers::settings_bool;
+use crate::settings_ui::backend::settings_bool;
 use crate::{DARK_PALETTE, LIGHT_PALETTE, LIGHT_STYLE_SHEET};
 use crate::ffi::*;
 use crate::STATUS_BAR;

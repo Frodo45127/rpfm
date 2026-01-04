@@ -52,7 +52,7 @@ use rpfm_lib::integrations::git::GitResponse;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::references_ui::ReferencesUI;
-use crate::settings_helpers::{settings_path_buf, settings_string, translations_local_path};
+use crate::settings_ui::backend::{settings_path_buf, settings_string, translations_local_path};
 use crate::views::table::{TableType, TableView, utils::get_table_from_view};
 use crate::utils::show_dialog;
 

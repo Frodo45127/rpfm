@@ -31,7 +31,7 @@ use std::sync::Arc;
 
 use rpfm_ui_common::utils::*;
 
-use crate::settings_helpers::settings_bool;
+use crate::settings_ui::backend::settings_bool;
 use crate::utils::{qtr, tr};
 use crate::views::table::clean_column_names;
 

@@ -46,7 +46,7 @@ use rpfm_lib::utils::parse_str_as_bool;
 
 use rpfm_ui_common::utils::{find_widget, load_template};
 
-use crate::settings_helpers::settings_bool;
+use crate::settings_ui::backend::settings_bool;
 use crate::views::table::utils::clean_column_names;
 use crate::utils::show_dialog;
 

@@ -104,7 +104,7 @@ use crate::STATUS_BAR;
 use crate::SUPPORTED_GAMES;
 use crate::TREEVIEW_ICONS;
 use crate::UI_STATE;
-use crate::settings_helpers::*;
+use crate::settings_ui::backend::*;
 use crate::ui::GameSelectedIcons;
 use crate::ui_state::OperationalMode;
 use crate::utils::*;

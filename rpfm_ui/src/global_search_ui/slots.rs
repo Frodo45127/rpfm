@@ -29,7 +29,7 @@ use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::references_ui::ReferencesUI;
-use crate::settings_helpers::settings_set_i32;
+use crate::settings_ui::backend::settings_set_i32;
 use crate::utils::check_regex as check_regex_string;
 
 //-------------------------------------------------------------------------------//

@@ -67,6 +67,20 @@ use crate::communications::{CentralCommand, Command, Response, websocket_loop};
 use crate::ui::*;
 use crate::ui_state::UIState;
 
+//-------------------------------------------------------------------------------//
+//                                  Macros
+//-------------------------------------------------------------------------------//
+
+/// This macro is used to create the extractor argument for the `send_ipc_command_result` and `send_ipc_command` functions.
+macro_rules! response_extractor {
+    ($panic_msg:expr) => {
+        |response| if let Response::Success = response { () } else { panic!("{}", $panic_msg) }
+    };
+    ($variant:path, $panic_msg:expr) => {
+        |response| if let $variant(value) = response { value } else { panic!("{}", $panic_msg) }
+    };
+}
+
 mod app_ui;
 mod communications;
 mod dependencies_ui;
@@ -78,7 +92,6 @@ mod pack_tree;
 mod packfile_contents_ui;
 mod packedfile_views;
 mod references_ui;
-mod settings_helpers;
 mod settings_ui;
 #[cfg(feature = "enable_tools")]mod tools;
 mod ui;
@@ -94,7 +107,7 @@ static SUPPORTED_GAMES: LazyLock<SupportedGames> = LazyLock::new(SupportedGames:
 
 /// The current GameSelected. If invalid, it uses WH3 as default.
 static GAME_SELECTED: LazyLock<Arc<RwLock<&'static GameInfo>>> = LazyLock::new(|| Arc::new(RwLock::new(
-    match SUPPORTED_GAMES.game(&settings_helpers::settings_string("default_game")) {
+    match SUPPORTED_GAMES.game(&settings_ui::backend::settings_string("default_game")) {
         Some(game) => game,
         None => SUPPORTED_GAMES.game(KEY_WARHAMMER_3).unwrap(),
     }

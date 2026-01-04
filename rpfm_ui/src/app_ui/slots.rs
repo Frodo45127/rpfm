@@ -74,7 +74,7 @@ use crate::packedfile_views::{View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::PATREON_URL;
 use crate::references_ui::ReferencesUI;
-use crate::settings_helpers::*;
+use crate::settings_ui::backend::*;
 use crate::settings_ui::SettingsUI;
 #[cfg(feature = "enable_tools")]use crate::tools::{faction_painter::ToolFactionPainter, translator::ToolTranslator, unit_editor::ToolUnitEditor};
 use crate::ui::GameSelectedIcons;

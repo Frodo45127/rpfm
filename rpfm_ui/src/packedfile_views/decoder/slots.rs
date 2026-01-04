@@ -38,7 +38,7 @@ use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICA
 use crate::packedfile_views::DataSource;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::UI_STATE;
-use crate::settings_helpers::*;
+use crate::settings_ui::backend::*;
 use crate::utils::*;
 
 use super::PackedFileDecoderView;

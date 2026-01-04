@@ -55,7 +55,7 @@ use crate::pack_tree::PackTree;
 use crate::packedfile_views::{View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::UI_STATE;
-use crate::settings_helpers::settings_bool;
+use crate::settings_ui::backend::settings_bool;
 use crate::utils::qtr;
 
 pub mod connections;

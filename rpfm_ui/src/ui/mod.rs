@@ -66,7 +66,6 @@ use crate::SUPPORTED_GAMES;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packfile_contents_ui;
 use crate::packfile_contents_ui::slots::PackFileContentsSlots;
-use crate::settings_helpers::*;
 use crate::settings_ui::backend::*;
 use crate::UI_STATE;
 use crate::updater_ui::UpdaterUI;

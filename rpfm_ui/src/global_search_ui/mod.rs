@@ -86,7 +86,7 @@ use crate::packedfile_views::{View, ViewType};
 use crate::references_ui::ReferencesUI;
 use crate::TREEVIEW_ICONS;
 use crate::UI_STATE;
-use crate::settings_helpers::settings_i32;
+use crate::settings_ui::backend::settings_i32;
 use crate::utils::{qtr, show_dialog};
 use crate::views::table::utils::open_subtable;
 

@@ -47,7 +47,7 @@ use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::TREEVIEW_ICONS;
-use crate::settings_helpers::settings_bool;
+use crate::settings_ui::backend::settings_bool;
 use crate::utils::*;
 
 /// This const is the key of the QVariant that holds the type of each StandardItem in a `TreeView`.

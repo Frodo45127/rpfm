@@ -57,7 +57,7 @@ use rpfm_ui_common::utils::{atomic_from_ptr, create_grid_layout, ptr_from_atomic
 use crate::ffi::*;
 use crate::QVARIANT_TRUE;
 use crate::QVARIANT_FALSE;
-use crate::settings_helpers::{schemas_path, settings_bool};
+use crate::settings_ui::backend::{schemas_path, settings_bool};
 use crate::utils::show_dialog;
 
 use super::*;
