@@ -46,6 +46,10 @@ serde_json.workspace = true
 serde_derive.workspace = true
 ron.workspace = true
 
+# MCP support.
+rmcp.workspace = true
+schemars.workspace = true
+
 # Windows resources support.
 [target.'cfg(windows)'.build-dependencies]
 winres.workspace = true

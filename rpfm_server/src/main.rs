@@ -17,6 +17,7 @@ use axum::{
 };
 use futures::stream::StreamExt;
 use futures::sink::SinkExt;
+use rmcp::transport::streamable_http_server::{session::local::LocalSessionManager, StreamableHttpService};
 use tokio::net::TcpListener;
 use tokio::sync::mpsc;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -29,10 +30,13 @@ use rpfm_ipc::messages::{Command, Message as IpcMessage, Response};
 use rpfm_lib::games::GameInfo;
 use rpfm_lib::integrations::log::{Logger, SENTRY_DSN, error, info, release_name};
 
-use crate::{comms::CentralCommand, settings::{error_path, init_config_path}};
+use crate::comms::CentralCommand;
+use crate::mcp_server::RpfmServer;
+use crate::settings::{error_path, init_config_path};
 
 pub mod background_thread;
 pub mod comms;
+pub mod mcp_server;
 pub mod settings;
 pub mod updater;
 
@@ -58,9 +62,9 @@ async fn main() {
 
     // TODO: Migrate logging to tracing.
 
-    // Setup tracing subscriber for logging.
+    // Setup tracing subscriber for logging, redirecting to stderr to avoid interfering with MCP.
     tracing_subscriber::registry()
-        .with(tracing_subscriber::fmt::layer())
+        .with(tracing_subscriber::fmt::layer().with_writer(std::io::stderr))
         .init();
 
     // Sentry client guard, so we can reuse it later on and keep it in scope for the entire duration of the program.
@@ -68,7 +72,7 @@ async fn main() {
     let guard = Logger::init(&{
         init_config_path().expect("Error while trying to initialize config path. We're fucked.");
         error_path().unwrap_or_else(|_| PathBuf::from("."))
-    }, true, true, release_name!()).expect("Failed to initialize logging system.");
+    }, true, false, release_name!()).expect("Failed to initialize logging system.");
 
     let sentry_enabled = guard.is_enabled();
     if sentry_enabled {
@@ -84,9 +88,17 @@ async fn main() {
         background_thread::background_loop(receiver).await;
     });
 
+    let central_clone = central.clone();
+    let http_service = StreamableHttpService::new(
+        move || Ok(RpfmServer::new(central_clone.clone())),
+        LocalSessionManager::default().into(),
+        Default::default(),
+    );
+
     // Setup the endpoint for the WebSocket server.
     let app = Router::new()
         .route("/ws", get(ws_handler))
+        .nest_service("/mcp", http_service)
         .with_state(central.clone());
 
     let addr = SocketAddr::from((DEFAULT_ADDRESS, DEFAULT_PORT));

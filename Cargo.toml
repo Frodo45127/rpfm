@@ -6,12 +6,12 @@ members = [
     "rpfm_lib",
     "rpfm_extensions",
     "rpfm_ipc",
-    "rpfm_ui_common",
+    #"rpfm_ui_common",
 
     # Executables
     "rpfm_cli",
     "rpfm_server",
-    "rpfm_ui",
+    #"rpfm_ui",
 ]
 
 [workspace.package]
@@ -32,7 +32,7 @@ debug = true
 # Internal workspace dependencies.
 rpfm_lib = { path = "rpfm_lib", version = "4.7.3" }
 rpfm_extensions = { path = "rpfm_extensions", version = "4.7.3" }
-rpfm_ui_common = { path = "rpfm_ui_common" }
+#rpfm_ui_common = { path = "rpfm_ui_common" }
 rpfm_ipc = { path = "rpfm_ipc" }
 
 # Common dependencies.
@@ -70,6 +70,8 @@ zip-extract = "^0.2"
 fs_extra = "^1.3"
 caseless = "^0.2"
 half = "^2"
+rmcp = { version = "0.12", features = ["server", "transport-io", "transport-streamable-http-server", "macros"] }
+schemars = "1.0"
 
 # Windows resources support.
 [workspace.target.'cfg(windows)'.build-dependencies]
