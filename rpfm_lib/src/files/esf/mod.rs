@@ -27,12 +27,13 @@ use crate::error::{Result, RLibError};
 use crate::files::{DecodeableExtraData, Decodeable, EncodeableExtraData, Encodeable};
 
 /// Extensions used by ESF files.
-pub const EXTENSIONS: [&str; 5] = [
-    ".csc",         // CSC files.
-    ".ccd",         // CEO files.
-    ".esf",         // ESF files.
-    ".save",        // Game save files.
-    ".twc",         // Character save files.
+pub const EXTENSIONS: [&str; 6] = [
+    ".csc",                 // CSC files.
+    ".ccd",                 // CEO files.
+    ".esf",                 // ESF files.
+    ".save",                // Game save files.
+    ".save_multiplayer",    // Game save files, multiplayer.
+    ".twc",                 // Character save files.
 ];
 
 /// Signatured/Magic Numbers/Whatever of a ESF file.
@@ -419,7 +420,7 @@ impl Decodeable for ESF {
 
         match esf.signature {
             ESFSignature::CAAB => Self::read_caab(&mut esf, data)?,
-            //ESFSignature::CBAB => Self::read_cbab(&mut esf, data)?,
+            ESFSignature::CBAB => Self::read_cbab(&mut esf, data)?,
             _ => return Err(RLibError::DecodingESFUnsupportedSignature(sig_bytes[0], sig_bytes[1])),
         };
 
@@ -440,7 +441,7 @@ impl Encodeable for ESF {
 
         match self.signature {
             ESFSignature::CAAB => self.save_caab(buffer, extra_data),
-            //ESFSignature::CBAB => self.save_cbab(buffer, extra_data),
+            ESFSignature::CBAB => self.save_cbab(buffer, extra_data),
             _ => Err(RLibError::EncodingESFUnsupportedSignature(self.signature.to_string())),
         }
     }

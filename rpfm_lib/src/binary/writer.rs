@@ -482,6 +482,24 @@ pub trait WriteBytes: Write {
         self.write_string_u8(string)
     }
 
+    /// This function tries to write an UTF-8 String to `self` as a Sized UTF-8 String, with a 4 byte size.
+    ///
+    /// It may fail if `self` cannot be written to.
+    ///
+    /// ```rust
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::WriteBytes;
+    ///
+    /// let mut data = vec![];
+    /// assert!(data.write_sized_string_u8_u32("Wahaha").is_ok());
+    /// assert_eq!(data, vec![6, 0, 0, 0, 87, 97, 104, 97, 104, 97]);
+    /// ```
+    fn write_sized_string_u8_u32(&mut self, string: &str) -> Result<()> {
+        self.write_u32(string.len() as u32)?;
+        self.write_string_u8(string)
+    }
+
     /// This function tries to write an UTF-8 String to `self` as an Optional UTF-8 String.
     ///
     /// It may fail if `self` cannot be written to.
@@ -570,6 +588,24 @@ pub trait WriteBytes: Write {
     /// ```
     fn write_sized_string_u16(&mut self, string: &str) -> Result<()> {
         self.write_u16(string.encode_utf16().count() as u16)?;
+        self.write_string_u16(string)
+    }
+
+    /// This function tries to write an UTF-8 String to `self` as a Sized UTF-16 String, with a four-byte size.
+    ///
+    /// It may fail if `self` cannot be written to.
+    ///
+    /// ```rust
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::WriteBytes;
+    ///
+    /// let mut data = vec![];
+    /// assert!(data.write_sized_string_u16_u32("¡Bebes mejor de lo que luchas, Zhang Fei!").is_ok());
+    /// assert_eq!(data, vec![0x29, 0x00, 0x00, 0x00, 0xA1, 0x00, 0x42, 0x00, 0x65, 0x00, 0x62, 0x00, 0x65, 0x00, 0x73, 0x00, 0x20, 0x00, 0x6D, 0x00, 0x65, 0x00, 0x6A, 0x00, 0x6F, 0x00, 0x72, 0x00, 0x20, 0x00, 0x64, 0x00, 0x65, 0x00, 0x20, 0x00, 0x6C, 0x00, 0x6F, 0x00, 0x20, 0x00, 0x71, 0x00, 0x75, 0x00, 0x65, 0x00, 0x20, 0x00, 0x6C, 0x00, 0x75, 0x00, 0x63, 0x00, 0x68, 0x00, 0x61, 0x00, 0x73, 0x00, 0x2C, 0x00, 0x20, 0x00, 0x5A, 0x00, 0x68, 0x00, 0x61, 0x00, 0x6E, 0x00, 0x67, 0x00, 0x20, 0x00, 0x46, 0x00, 0x65, 0x00, 0x69, 0x00, 0x21, 0x00]);
+    /// ```
+    fn write_sized_string_u16_u32(&mut self, string: &str) -> Result<()> {
+        self.write_u32(string.encode_utf16().count() as u32)?;
         self.write_string_u16(string)
     }
 
@@ -858,4 +894,3 @@ pub trait WriteBytes: Write {
 
 // Automatic implementation for everything that implements `Write`.
 impl<W: Write> WriteBytes for W {}
-

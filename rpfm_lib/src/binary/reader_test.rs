@@ -328,6 +328,23 @@ fn read_sized_string_u8() {
     assert!(ReadBytes::read_sized_string_u8(&mut Cursor::new([11, 0, 87, 97, 104, 97, 255, 104, 97, 104, 97, 104, 97])).is_err());
 }
 
+/// Test to `ReadBytes::read_sized_string_u8_u32()`.
+#[test]
+fn read_sized_string_u8_u32() {
+
+    // Check the reader works for a proper encoded string.
+    assert_eq!(ReadBytes::read_sized_string_u8_u32(&mut Cursor::new([10, 0, 0, 0, 87, 97, 104, 97, 104, 97, 104, 97, 104, 97])).unwrap(), "Wahahahaha".to_owned());
+
+    // Check the reader returns an error for a slice with less than four bytes.
+    assert!(ReadBytes::read_sized_string_u8_u32(&mut Cursor::new([5])).is_err());
+
+    // Check the reader returns an error for a slice shorter than it's specified length.
+    assert!(ReadBytes::read_sized_string_u8_u32(&mut Cursor::new([4, 0, 0, 0, 2])).is_err());
+
+    // Check the reader returns an error for a slice with non-UTF8 characters (255).
+    assert!(ReadBytes::read_sized_string_u8_u32(&mut Cursor::new([11, 0, 0, 0, 87, 97, 104, 97, 255, 104, 97, 104, 97, 104, 97])).is_err());
+}
+
 /// Test to `ReadBytes::read_optional_string_u8()`.
 #[test]
 fn read_optional_string_u8() {
@@ -408,6 +425,20 @@ fn read_sized_string_u16() {
 
     // Check the reader returns an error for a slice shorter than it's specified length.
     assert!(ReadBytes::read_sized_string_u16(&mut Cursor::new([4, 0, 2])).is_err());
+}
+
+/// Test to `ReadBytes::read_sized_string_u16_u32()`.
+#[test]
+fn read_sized_string_u16_u32() {
+
+    // Check the reader works for a proper encoded string.
+    assert_eq!(ReadBytes::read_sized_string_u16_u32(&mut Cursor::new([4, 0, 0, 0, 87, 0, 97, 0, 104, 0, 97, 0])).unwrap(), "Waha".to_owned());
+
+    // Check the reader returns an error for a slice with less than four bytes.
+    assert!(ReadBytes::read_sized_string_u16_u32(&mut Cursor::new([5])).is_err());
+
+    // Check the reader returns an error for a slice shorter than it's specified length.
+    assert!(ReadBytes::read_sized_string_u16_u32(&mut Cursor::new([4, 0, 0, 0, 2])).is_err());
 }
 
 /// Test to `ReadBytes::read_optional_string_u16()`.

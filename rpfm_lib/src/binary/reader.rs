@@ -691,6 +691,36 @@ pub trait ReadBytes: Read + Seek {
         }
     }
 
+    /// This function tries to read a Sized UTF-8 String value from `self`.
+    ///
+    /// In these particular Sized Strings, the first four values of the data are the size in Characters of the string,
+    /// followed by the String itself.
+    ///
+    /// It may fail if there are not enough bytes to read the value, the value contains invalid
+    /// characters for an UTF-8 String, or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![10, 0, 0, 0, 87, 97, 104, 97, 104, 97, 104, 97, 104, 97];
+    /// let mut cursor = Cursor::new(data);
+    /// let data = cursor.read_sized_string_u8_u32().unwrap();
+    ///
+    /// assert_eq!(data, "Wahahahaha");
+    /// assert_eq!(cursor.read_sized_string_u8_u32().is_err(), true);
+    /// ```
+    fn read_sized_string_u8_u32(&mut self) -> Result<String> {
+        if let Ok(size) = self.read_u32() {
+            // TODO: check if we have to restore cursor pos on failure.
+            self.read_string_u8(size as usize)
+        }
+        else {
+            Err(RLibError::DecodingStringSizeError("UTF-8 String".to_owned()))
+        }
+    }
+
     /// This function tries to read an Optional UTF-8 String value from `self`.
     ///
     /// In Optional Strings, the first byte is a boolean. If true, it's followed by a Sized String.
@@ -868,6 +898,36 @@ pub trait ReadBytes: Read + Seek {
     /// ```
     fn read_sized_string_u16(&mut self) -> Result<String> {
         if let Ok(size) = self.read_u16() {
+            // TODO: check if we have to restore cursor pos on failure.
+            self.read_string_u16(size.wrapping_mul(2) as usize)
+        }
+        else {
+            Err(RLibError::DecodingStringSizeError("UTF-16 String".to_owned()))
+        }
+    }
+
+    /// This function tries to read a Sized UTF-16 String value from `self`.
+    ///
+    /// In these particular Sized Strings, the first four values of the data are the size in Characters of the string,
+    /// followed by the String itself.
+    ///
+    /// It may fail if there are not enough bytes to read the value, the value contains invalid
+    /// characters for an UTF-16 String, or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![4, 0, 0, 0, 87, 0, 97, 0, 104, 0, 97, 0];
+    /// let mut cursor = Cursor::new(data);
+    /// let data = cursor.read_sized_string_u16_u32().unwrap();
+    ///
+    /// assert_eq!(data, "Waha");
+    /// assert_eq!(cursor.read_sized_string_u16_u32().is_err(), true);
+    /// ```
+    fn read_sized_string_u16_u32(&mut self) -> Result<String> {
+        if let Ok(size) = self.read_u32() {
             // TODO: check if we have to restore cursor pos on failure.
             self.read_string_u16(size.wrapping_mul(2) as usize)
         }

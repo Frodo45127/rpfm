@@ -49,7 +49,7 @@ impl ESF {
         let strings_count_utf16 = data.read_u32()?;
         let mut strings_utf16 = BTreeMap::new();
         for _ in 0..strings_count_utf16 {
-            let name = data.read_sized_string_u16()?;
+            let name = data.read_sized_string_u16_u32()?;
             let index = data.read_u32()?;
             strings_utf16.insert(index, name);
         }
@@ -58,7 +58,7 @@ impl ESF {
         let strings_count_utf8 = data.read_u32()?;
         let mut strings_utf8 = BTreeMap::new();
         for _ in 0..strings_count_utf8 {
-            let name = data.read_sized_string_u8()?;
+            let name = data.read_sized_string_u8_u32()?;
             let index = data.read_u32()?;
             strings_utf8.insert(index, name);
         }
@@ -223,14 +223,14 @@ impl ESF {
         // Then UTF-16 Strings.
         strings_data.write_u32(strings_utf16.len() as u32)?;
         for (index, string) in strings_utf16.iter().enumerate() {
-            strings_data.write_sized_string_u16(string)?;
+            strings_data.write_sized_string_u16_u32(string)?;
             strings_data.write_u32(index as u32)?;
         }
 
         // Then UTF-8 Strings.
         strings_data.write_u32(strings_utf8.len() as u32)?;
         for (index, string) in strings_utf8.iter().enumerate() {
-            strings_data.write_sized_string_u8(string)?;
+            strings_data.write_sized_string_u8_u32(string)?;
             strings_data.write_u32(index as u32)?;
         }
 

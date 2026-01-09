@@ -37,3 +37,24 @@ fn test_encode_esf_caab() {
     // We have to compare the decoded files due to weird padding issues in cauleb128-encoded fields.
     assert_eq!(data, data_2);
 }
+
+#[test]
+fn test_encode_esf_cbab() {
+    let path_1 = "../test_files/test_decode_esf_cbab.esf";
+    let path_2 = "../test_files/test_encode_esf_cbab.esf";
+    let mut reader = BufReader::new(File::open(path_1).unwrap());
+    let mut writer = BufWriter::new(File::create(path_2).unwrap());
+
+    let mut data = ESF::decode(&mut reader, &None).unwrap();
+    let mut after = vec![];
+    data.encode(&mut after, &None).unwrap();
+    writer.write_all(&after).unwrap();
+
+    let mut reader_2 = BufReader::new(File::open(path_2).unwrap());
+    let mut data_2 = ESF::decode(&mut reader_2, &None).unwrap();
+    let mut after = vec![];
+    data_2.encode(&mut after, &None).unwrap();
+
+    // We have to compare the decoded files due to weird padding issues in cauleb128-encoded fields.
+    assert_eq!(data, data_2);
+}
