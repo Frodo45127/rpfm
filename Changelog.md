@@ -8,7 +8,7 @@ If you're looking for the changes included in the latest beta (against the lates
 
 ## [4.7.4]
 ### Added
-- Implemented support for CBAB ESF files (thanks @xADDBx for the research).
+- Implemented support for CBAB ESF files (thanks [@ADDB](https://github.com/xADDBx) for the research).
 
 ## [4.7.3]
 ### Changed
