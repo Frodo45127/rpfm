@@ -6,6 +6,10 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [4.7.4]
+### Added
+- Implemented support for CBAB ESF files (thanks @xADDBx for the research).
+
 ## [4.7.3]
 ### Changed
 - When using the "Uninstall" action, the associated png file will also be deleted if the file is present in both, /data and the folder where the pack is located, as it's assumed the png was installed with the pack and should be uninstalled with it.
@@ -1785,7 +1789,9 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.7.2...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v4.7.4...HEAD
+[4.7.4]: https://github.com/Frodo45127/rpfm/compare/v4.7.3...v4.7.4
+[4.7.3]: https://github.com/Frodo45127/rpfm/compare/v4.7.2...v4.7.3
 [4.7.2]: https://github.com/Frodo45127/rpfm/compare/v4.7.1...v4.7.2
 [4.7.1]: https://github.com/Frodo45127/rpfm/compare/v4.7.0...v4.7.1
 [4.7.0]: https://github.com/Frodo45127/rpfm/compare/v4.6.4...v4.7.0
