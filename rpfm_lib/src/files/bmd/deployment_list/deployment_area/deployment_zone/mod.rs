@@ -29,7 +29,9 @@ mod v1;
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct DeploymentZone {
+    #[serde(rename = "@serialise_version")]
     serialise_version: u16,
+    #[serde(rename = "DEPLOYMENT_REGIONS")]
     deployment_regions: Vec<DeploymentRegion>,
 }
 

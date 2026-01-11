@@ -119,13 +119,17 @@ mod v27;
 /// This holds an entire `Bmd` file decoded in memory.
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
+#[serde(rename = "BATTLE_MAP_DEFINITION_DATA")]
 pub struct Bmd {
+    #[serde(rename = "@serialise_version")]
     serialise_version: u16,
 
     battlefield_building_list: BattlefieldBuildingList,
     battlefield_building_list_far: BattlefieldBuildingListFar,
+    #[serde(rename = "CAPTURE_LOCATION_SET")]
     capture_location_set: CaptureLocationSet,
     ef_line_list: EFLineList,
+    #[serde(rename = "GO_OUTLINES")]
     go_outlines: GoOutlines,
     non_terrain_outlines: NonTerrainOutlines,
     zones_template_list: ZonesTemplateList,
@@ -143,13 +147,16 @@ pub struct Bmd {
     terrain_stencil_triangle_list: TerrainStencilTriangleList,
     point_light_list: PointLightList,
     building_projectile_emitter_list: BuildingProjectileEmitterList,
+    #[serde(rename = "PLAYABLE_AREA")]
     playable_area: PlayableArea,
     custom_material_mesh_list: CustomMaterialMeshList,
     terrain_stencil_blend_triangle_list: TerrainStencilBlendTriangleList,
     spot_light_list: SpotLightList,
     sound_shape_list: SoundShapeList,
     composite_scene_list: CompositeSceneList,
+    #[serde(rename = "DEPLOYMENT_LIST")]
     deployment_list: DeploymentList,
+    #[serde(rename = "BMD_CATCHMENT_AREA_LIST")]
     bmd_catchment_area_list: BmdCatchmentAreaList,
     toggleable_buildings_slot_list: ToggleableBuildingsSlotList,
     terrain_decal_list: TerrainDecalList,

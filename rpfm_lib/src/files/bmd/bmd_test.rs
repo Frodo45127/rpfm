@@ -13,10 +13,12 @@
 use std::io::{BufReader, BufWriter, Write};
 use std::fs::File;
 
+use quick_xml::{events::Event, Reader, Writer};
+
 use crate::binary::ReadBytes;
 use crate::files::*;
 
-use super::Bmd;
+use super::{Bmd, ToLayer};
 
 #[test]
 fn test_encode_bmd_prefab() {
@@ -172,8 +174,99 @@ fn test_encode_bmd_to_layer() {
     data.export_prefab_to_raw_data("test", None, &PathBuf::from("../test_files/fastbin/prefabs")).unwrap();
 }
 
-/*
+pub fn prettify_xml(xml: &str) -> String {
+    let mut reader = Reader::from_str(xml);
+    reader.config_mut().trim_text(true);
+
+    let mut writer = Writer::new_with_indent(Vec::new(), b' ', 4);
+
+
+    loop {
+        let ev = reader.read_event();
+
+        match ev {
+            Ok(Event::Eof) => break, // exits the loop when reaching end of file
+            Ok(event) => writer.write_event(event),
+            Err(e) => panic!("Error at position {}: {:?}", reader.buffer_position(), e),
+        }
+            .expect("Failed to parse XML");
+    }
+
+    let result = std::str::from_utf8(&*writer.into_inner())
+        .expect("Failed to convert a slice of bytes to a string slice")
+        .to_string();
+
+    result
+}
 #[test]
+fn test_custom_klissan() {
+    println!("");
+    // let folder_path = "/media/user/990Plus/terrain/tiles/battle/multiplayer/schwartzhafen_mp/";
+    let folder_path = "/media/user/990Plus/ffa/terrain/tiles/battle/domination/ffacapture/";
+    let paths = files_from_subdir(&PathBuf::from(folder_path), true).unwrap();
+    let mut failures = 0;
+    // let mut heigh_modes = HashSet::new();
+    let decodeable_extra_data = Some(DecodeableExtraData::default());
+    for path in &paths {
+        if path.extension().unwrap() == "bin" && path.file_name().unwrap().to_str().unwrap().contains("bmd_data") {
+            println!("{:?}", path);
+            let mut reader = BufReader::new(File::open(path).unwrap());
+            match Bmd::decode(&mut reader, &decodeable_extra_data) {
+                Ok(mut data) => {
+                    let mut buffer = String::new();
+                    dbg!(&data);
+                    // buffer.push_str(&data.capture_location_set.to_layer(&data));
+                    match data.capture_location_set.to_layer(&data) {
+                        Ok(layer_string) => buffer.push_str(&layer_string),
+                        Err(e) => panic!("Failed to convert to layer: {}", e),
+                    }
+/*                    match data.ai_hints.to_layer(&data) {
+                        Ok(layer_string) => buffer.push_str(&layer_string),
+                        Err(e) => panic!("Failed to convert to layer: {}", e),
+                    }*/
+/*                    match data.playable_area.to_layer(&data) {
+                        Ok(layer_string) => buffer.push_str(&layer_string),
+                        Err(e) => panic!("Failed to convert to layer: {}", e),
+                    }*/
+                    // println!("{}", buffer);
+/*                    for building in data.battlefield_building_list().buildings() {
+                        heigh_modes.insert(building.height_mode().to_owned());
+                    }
+
+                    for prop in data.prop_list().props() {
+                        heigh_modes.insert(prop.height_mode().to_owned());
+                    }*/
+                    let mut reader_test = BufReader::new(File::open(path).unwrap());
+                    let data_len = reader_test.len().unwrap();
+                    let before = reader_test.read_slice(data_len as usize, true).unwrap();
+                    let mut after = vec![];
+                    data.encode(&mut after, &None).unwrap();
+                    assert_eq!(before, after);
+
+                    let xml_data = quick_xml::se::to_string(&data).expect("Failed to serialize data to XML");
+                    let pretty_data = prettify_xml(&xml_data);
+                    println!("{}", pretty_data);
+
+                    let mut writer = BufWriter::new(File::create(folder_path.to_owned() + "pretty.xml").unwrap());
+                    writer.write_all(pretty_data.as_bytes()).unwrap();
+
+                    data.export_prefab_to_raw_data("export", None, &PathBuf::from("/media/user/990Plus/terrain/tiles/battle/multiplayer/schwartzhafen_mp/")).unwrap();
+                },
+                Err(error) => {
+                    println!("\t{}:", error);
+                    println!("\t\t - {}", path.to_string_lossy());
+                    failures += 1;
+                    //break;
+                }
+            }
+        }
+    }
+
+    println!("Total errors: {}", failures);
+    // dbg!(heigh_modes);
+}
+
+/*#[test]
 fn test_mass_decode() {
     let folder_path = "/home/frodo45127/Proyectos/rpfm_test_files2/prefabs/";
     let paths = files_from_subdir(&PathBuf::from(folder_path), true).unwrap();
@@ -205,5 +298,5 @@ fn test_mass_decode() {
 
     println!("Total errors: {}", failures);
     dbg!(heigh_modes);
-}
-*/
+}*/
+
