@@ -3692,6 +3692,7 @@ dependencies = [
  "rayon",
  "rpfm_extensions",
  "rpfm_lib",
+ "schemars",
  "serde",
  "serde_derive",
 ]

@@ -12,8 +12,6 @@ use rmcp::ErrorData as McpError;
 use rmcp::handler::server::{tool::ToolRouter, wrapper::Parameters};
 use rmcp::model::{CallToolResult, Content, ServerCapabilities, ServerInfo};
 use rmcp::schemars::JsonSchema;
-use rmcp::service::ServiceExt;
-use rmcp::transport::stdio;
 use rmcp::{tool, tool_handler, tool_router};
 use serde::{Deserialize, Serialize};
 
@@ -72,6 +70,12 @@ pub struct TsvImportArgs {
     pub table_path: String,
 }
 
+#[derive(Debug, Deserialize, JsonSchema, Serialize)]
+pub struct DecodePackedFile {
+    pub path: String,
+    pub source: DataSource,
+}
+
 //-------------------------------------------------------------------------------//
 //                             Implementations
 //-------------------------------------------------------------------------------//
@@ -107,7 +111,7 @@ impl RpfmServer {
         Ok(CallToolResult::success(vec![Content::text(serde_json::to_string(&response).unwrap())]))
     }
 
-    #[tool(description = "Open one or more PackFiles.")]
+    #[tool(description = "Open one or more PackFiles. Returns the info about the open pack.")]
     pub async fn open_packfiles(&self, params: Parameters<OpenPackfilesArgs>) -> Result<CallToolResult, McpError> {
         let mut receiver = self.central.send(Command::OpenPackFiles(params.0.paths));
         let response = CentralCommand::recv(&mut receiver).await;
@@ -115,7 +119,7 @@ impl RpfmServer {
         Ok(CallToolResult::success(vec![Content::text(serde_json::to_string(&response).unwrap())]))
     }
 
-    #[tool(description = "Set the current game selected.")]
+    #[tool(description = "Set the current game selected. You need to set this to one of the valid games after opening a pack.")]
     pub async fn set_game_selected(&self, params: Parameters<SetGameSelectedArgs>) -> Result<CallToolResult, McpError> {
         let mut receiver = self.central.send(Command::SetGameSelected(params.0.game_name, params.0.rebuild_dependencies));
         let response = CentralCommand::recv(&mut receiver).await;
@@ -142,6 +146,22 @@ impl RpfmServer {
     #[tool(description = "Import a TSV file to a table.")]
     pub async fn import_tsv(&self, params: Parameters<TsvImportArgs>) -> Result<CallToolResult, McpError> {
         let mut receiver = self.central.send(Command::ImportTSV(params.0.table_path, params.0.tsv_path));
+        let response = CentralCommand::recv(&mut receiver).await;
+
+        Ok(CallToolResult::success(vec![Content::text(serde_json::to_string(&response).unwrap())]))
+    }
+
+    #[tool(description = "Decode a file from the open data source you want. The parameters are the path of the file inside the data source, and in what data source it is.")]
+    pub async fn decode_packed_file(&self, params: Parameters<DecodePackedFile>) -> Result<CallToolResult, McpError> {
+        let mut receiver = self.central.send(Command::DecodePackedFile(params.0.path, params.0.source));
+        let response = CentralCommand::recv(&mut receiver).await;
+
+        Ok(CallToolResult::success(vec![Content::text(serde_json::to_string(&response).unwrap())]))
+    }
+
+    #[tool(description = "Get the info about the currently open pack and the list of files it contains.")]
+    pub async fn open_pack_info(&self) -> Result<CallToolResult, McpError> {
+        let mut receiver = self.central.send(Command::GetPackFileDataForTreeView);
         let response = CentralCommand::recv(&mut receiver).await;
 
         Ok(CallToolResult::success(vec![Content::text(serde_json::to_string(&response).unwrap())]))

@@ -12,6 +12,7 @@
 
 use getset::Getters;
 use rayon::prelude::*;
+use schemars::JsonSchema;
 use serde_derive::{Serialize, Deserialize};
 
 use std::fmt::{self, Display};
@@ -131,7 +132,7 @@ pub struct DependenciesInfo {
 }
 
 /// This enum represents the source of the data in the view.
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, Ord, PartialOrd, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, Ord, PartialOrd, JsonSchema, Serialize, Deserialize)]
 pub enum DataSource {
 
     /// This means the data is from somewhere in our PackFile.

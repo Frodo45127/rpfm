@@ -19,3 +19,6 @@ rayon.workspace = true
 
 # Basic get/set support.
 getset.workspace = true
+
+# MCP support.
+schemars.workspace = true
