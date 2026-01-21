@@ -88,7 +88,7 @@ impl Encodeable for TreeList {
 impl Default for BattleTreeItem {
     fn default() -> Self {
         Self {
-            id: rand::thread_rng().gen::<u64>(),
+            id: rand::rng().random::<u64>(),
             x: f32::default(),
             y: f32::default(),
             z: f32::default(),

@@ -221,7 +221,7 @@ impl ToLayer for CaptureLocationSet {
 impl Default for CaptureLocation {
     fn default() -> Self {
         Self {
-            id: rand::thread_rng().gen::<u64>(),
+            id: rand::rng().random::<u64>(),
             location: Point2d::default(),
             radius: f32::default(),
             valid_for_min_num_players: u32::default(),

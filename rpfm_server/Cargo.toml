@@ -34,7 +34,6 @@ open.workspace = true
 # Self update support.
 self_update.workspace = true
 tempfile.workspace = true
-zip-extract.workspace = true
 reqwest.workspace = true
 
 # Config support.

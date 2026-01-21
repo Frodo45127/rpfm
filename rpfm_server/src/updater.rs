@@ -10,7 +10,7 @@
 
 use anyhow::{anyhow, Result};
 use itertools::Itertools;
-use self_update::{backends::github::ReleaseList, Download, get_target, cargo_crate_version, Move, update::Release};
+use self_update::{backends::github::ReleaseList, Download, Extract, get_target, cargo_crate_version, Move, update::Release};
 use tempfile::Builder;
 
 use std::env::current_exe;
@@ -78,8 +78,7 @@ pub fn update_main_program(settings: &Settings) -> Result<()> {
             .download_to(&tmp_zip)?;
 
         // self_update extractor doesn't work. It fails on every-single-test I did. So we use another one.
-        let tmp_zip = File::open(&tmp_zip_path)?;
-        zip_extract::extract(tmp_zip, tmp_dir.path(), true).map_err(|_| anyhow!("There was an error while extracting the update. This means either I uploaded a broken file, or your download was incomplete. In any case, no changes have been done so… try again later."))?;
+        Extract::from_source(&tmp_zip_path).extract_into(tmp_dir.path()).map_err(|_| anyhow!("There was an error while extracting the update. This means either I uploaded a broken file, or your download was incomplete. In any case, no changes have been done so… try again later."))?;
     }
 
     let mut dest_base_path = current_exe()?;
