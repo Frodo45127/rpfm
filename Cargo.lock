@@ -3652,7 +3652,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_cli"
-version = "4.7.3"
+version = "4.7.4"
 dependencies = [
  "anyhow",
  "clap",
@@ -3666,7 +3666,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_extensions"
-version = "4.7.3"
+version = "4.7.4"
 dependencies = [
  "base64 0.22.1",
  "bincode",
@@ -3699,7 +3699,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_lib"
-version = "4.7.3"
+version = "4.7.4"
 dependencies = [
  "backtrace",
  "base64 0.22.1",
@@ -3749,7 +3749,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_server"
-version = "4.7.3"
+version = "4.7.4"
 dependencies = [
  "anyhow",
  "axum",
