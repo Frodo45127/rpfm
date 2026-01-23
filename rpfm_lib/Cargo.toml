@@ -118,5 +118,5 @@ r2d2 = { version = "^0.8", optional = true }
 half.workspace = true
 
 # Support for converting dds files to png.
-image = "^0.25"
+image.workspace = true
 dds = "^0.2"
