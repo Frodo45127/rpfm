@@ -63,7 +63,7 @@ use rpfm_ui_common::ORG_DOMAIN;
 use rpfm_ui_common::ORG_NAME;
 use rpfm_ui_common::utils::*;
 
-use crate::communications::{CentralCommand, Command, Response, websocket_loop};
+use crate::communications::{CentralCommand, Response, websocket_loop};
 use crate::ui::*;
 use crate::ui_state::UIState;
 
@@ -256,19 +256,14 @@ fn main() {
             Ok(ui) => {
 
                 // If we closed the window BEFORE executing, exit the app.
-                let exit_code = if unsafe { ui.app_ui.main_window().is_visible() } {
+                if unsafe { ui.app_ui.main_window().is_visible() } {
                     unsafe { QApplication::exec() }
-                } else { 0 };
-
-                // Close and rejoin the threads on exit, so we don't leave a rogue thread running.
-                CENTRAL_COMMAND.read().unwrap().send(Command::Exit);
-                exit_code
+                } else {
+                    0
+                }
             }
             Err(error) => {
                 error!("{error}");
-
-                // Close and rejoin the threads on exit, so we don't leave a rogue thread running.
-                CENTRAL_COMMAND.read().unwrap().send(Command::Exit);
                 55
             }
         }

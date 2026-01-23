@@ -63,8 +63,6 @@ impl UpdaterUISlots {
                         ui.update_program_button.released().connect(&SlotNoArgs::new(ui.main_widget(), move || {
 
                             // Make sure we close both threads and the window. In windows the main window doesn't get closed for some reason.
-                            CENTRAL_COMMAND.read().unwrap().send(Command::Exit);
-                            CENTRAL_COMMAND.read().unwrap().send(Command::Exit);
                             QApplication::close_all_windows();
 
                             let exe_path = current_exe().unwrap();
