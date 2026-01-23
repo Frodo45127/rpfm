@@ -8,6 +8,9 @@ rust-version.workspace = true
 
 [dependencies]
 
+# Memory allocator.
+mimalloc = { version = "^0", features = ["v3"] }
+
 # Network comms.
 axum = { version = "^0.8", features = ["ws"] }
 tokio.workspace = true

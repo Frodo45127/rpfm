@@ -40,6 +40,11 @@ pub mod mcp_server;
 pub mod settings;
 pub mod updater;
 
+use mimalloc::MiMalloc;
+
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
+
 //-------------------------------------------------------------------------------//
 //                                  Constants
 //-------------------------------------------------------------------------------//
