@@ -22,7 +22,7 @@ use crate::files::matched_combat::*;
 
 impl MatchedCombat {
 
-    pub fn read_v1_3k<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
+    pub(crate) fn read_v1_3k<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
         let count = data.read_u32()?;
 
         // Entries
@@ -77,7 +77,7 @@ impl MatchedCombat {
         Ok(())
     }
 
-    pub fn write_v1_3k<W: WriteBytes>(&self, buffer: &mut W) -> Result<()> {
+    pub(crate) fn write_v1_3k<W: WriteBytes>(&self, buffer: &mut W) -> Result<()> {
         buffer.write_u32(self.entries.len() as u32)?;
         for entry in &self.entries {
             buffer.write_sized_string_u8(&entry.id)?;

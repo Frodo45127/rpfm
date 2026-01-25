@@ -8,44 +8,94 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
+//! PackFile type classification for load order control.
+//!
+//! This module defines the different types of PackFiles and their loading behavior
+//! in Total War games.
+//!
+//! # PackFile Types
+//!
+//! Total War games recognize five PackFile types that control loading order and behavior:
+//!
+//! 1. **Boot** (0): Core game files, loaded first
+//! 2. **Release** (1): Main game data, loaded second
+//! 3. **Patch** (2): Official patches and updates, loaded third
+//! 4. **Mod** (3): User mods, only loaded if enabled in launcher, loaded fourth
+//! 5. **Movie** (4): Cinematic files and special data, always loaded, loaded last
+//!
+//! # Load Order
+//!
+//! The game loads PackFiles in the order shown above. Within each type, files are
+//! loaded alphabetically. This means:
+//! - Boot/Release/Patch files always override each other in type order
+//! - Mod files only load if enabled in the game's mod manager
+//! - Movie files always load and can override everything else
+//!
+//! # Usage for Modding
+//!
+//! For normal mod creation, use [`PFHFileType::Mod`]. This ensures:
+//! - Users can enable/disable the mod via the launcher
+//! - The mod doesn't interfere with other mod types
+//! - Standard load order behavior
+//!
+//! [`PFHFileType::Movie`] can be used for mods that should always load, but this
+//! bypasses the mod manager and should be used sparingly.
+
 use serde_derive::{Serialize, Deserialize};
 
 use std::{fmt, fmt::Display};
 
 use crate::error::RLibError;
 
-/// These are the types the PackFiles can have.
-const FILE_TYPE_BOOT: isize = 0;
-const FILE_TYPE_RELEASE: isize = 1;
-const FILE_TYPE_PATCH: isize = 2;
-const FILE_TYPE_MOD: isize = 3;
-const FILE_TYPE_MOVIE: isize = 4;
-
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
-/// This enum represents the **Type** of a PackFile.
+/// PackFile type determining load order and behavior.
 ///
-/// The types here are sorted in the same order they'll load when the game starts.
-/// The number in their docs is their numeric value when read from a PackFile.
+/// This enum represents the classification of a PackFile, which controls when and
+/// how the game loads it. Types are listed in load order.
+///
+/// The numeric values in parentheses are the values stored in the PackFile header.
+///
+/// # Ordering
+///
+/// The enum implements [`Ord`] and [`PartialOrd`] based on load order, so
+/// `Boot < Release < Patch < Mod < Movie`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[repr(u32)]
 pub enum PFHFileType {
 
-    /// **(0)**: Used in CA PackFiles, not useful for modding.
-    Boot = FILE_TYPE_BOOT,
+    /// Core game boot files **(0)**.
+    ///
+    /// Contains essential game startup data. Used only by Creative Assembly.
+    /// Not useful for modding.
+    Boot = 0,
 
-    /// **(1)**: Used in CA PackFiles, not useful for modding.
-    Release = FILE_TYPE_RELEASE,
+    /// Main game data files **(1)**.
+    ///
+    /// Contains the base game content. Used only by Creative Assembly.
+    /// Not useful for modding.
+    Release = 1,
 
-    /// **(2)**: Used in CA PackFiles, not useful for modding.
-    Patch = FILE_TYPE_PATCH,
+    /// Official patch and update files **(2)**.
+    ///
+    /// Contains patches and official updates. Used only by Creative Assembly.
+    /// Not useful for modding.
+    Patch = 2,
 
-    /// **(3)**: Used for mods. PackFiles of this type are only loaded in the game if they are enabled in the Mod Manager/Launcher.
-    Mod = FILE_TYPE_MOD,
+    /// User mod files **(3)**.
+    ///
+    /// Standard type for player-created mods. Only loaded if enabled in the
+    /// game's mod manager or launcher. **Use this for normal mod creation.**
+    Mod = 3,
 
-    /// **(4)** Used in CA PackFiles and for some special mods. Unlike `Mod` PackFiles, these ones always get loaded.
-    Movie = FILE_TYPE_MOVIE
+    /// Cinematic and always-loaded files **(4)**.
+    ///
+    /// Used for movies and special data that should always load. Unlike Mod
+    /// files, these always load regardless of launcher settings. Can be used
+    /// for mods but bypasses mod manager control.
+    Movie = 4
 }
 
 //-------------------------------------------------------------------------------//
@@ -55,8 +105,23 @@ pub enum PFHFileType {
 /// Implementation of `PFHFileType`.
 impl PFHFileType {
 
-    /// This function returns the PackFile's **Type** in `u32` format.
-    /// To know what value corresponds with what type, check their definition's comment.
+    /// Returns the numeric value of this PackFile type.
+    ///
+    /// This is the value stored in the PackFile header to identify its type.
+    ///
+    /// # Returns
+    ///
+    /// The type value as `u32` (0-4).
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// use rpfm_lib::games::pfh_file_type::PFHFileType;
+    ///
+    /// assert_eq!(PFHFileType::Boot.value(), 0);
+    /// assert_eq!(PFHFileType::Mod.value(), 3);
+    /// assert_eq!(PFHFileType::Movie.value(), 4);
+    /// ```
     pub fn value(&self) -> u32 {
         *self as u32
     }

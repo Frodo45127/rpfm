@@ -8,6 +8,11 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
+//! Tile link target definitions for the tile database.
+//!
+//! This module contains the [`TileLinkTarget`] struct, which specifies the destination
+//! of a tile link. It identifies which tile set and position a link points to.
+
 use getset::*;
 use serde_derive::{Serialize, Deserialize};
 
@@ -23,13 +28,21 @@ mod v1;
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
+/// Target destination for a tile link.
+///
+/// Identifies the tile set and coordinates that a [`TileLink`](super::tile_link::TileLink)
+/// connects to. This allows the terrain system to resolve link references to actual tiles.
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct TileLinkTarget {
+    /// Serialization version for this structure.
     serialise_version: u16,
 
+    /// Name of the tile set containing the target tile.
     tile_set: String,
+    /// X coordinate of the target tile within the tile set.
     x: i32,
+    /// Y coordinate of the target tile within the tile set.
     y: i32,
 }
 

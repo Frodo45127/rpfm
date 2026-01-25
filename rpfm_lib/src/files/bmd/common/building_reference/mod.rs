@@ -8,6 +8,25 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
+//! Building reference data structure for BMD files.
+//!
+//! This module defines the [`BuildingReference`] structure which provides a reference
+//! to a building in the battlefield building list by its index.
+//!
+//! # Supported Versions
+//!
+//! - **Version 1**: Current format
+//!
+//! # Usage
+//!
+//! ```ignore
+//! use rpfm_lib::files::bmd::common::building_reference::BuildingReference;
+//! use rpfm_lib::files::Decodeable;
+//!
+//! let reference = BuildingReference::decode(&mut reader, &None)?;
+//! println!("Building index: {}", reference.building_index());
+//! ```
+
 use getset::*;
 use serde_derive::{Serialize, Deserialize};
 
@@ -23,10 +42,33 @@ mod v1;
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
+/// Reference to a building by its index in the building list.
+///
+/// Provides a simple index-based reference to a building instance in the
+/// battlefield building list. Used by building links and other structures
+/// to refer to specific buildings.
+///
+/// # Fields
+///
+/// - `serialise_version`: Format version (currently only version 1)
+/// - `building_index`: Index of the referenced building
+///
+/// # Example
+///
+/// ```ignore
+/// use rpfm_lib::files::bmd::common::building_reference::BuildingReference;
+///
+/// let mut reference = BuildingReference::default();
+/// reference.set_serialise_version(1);
+/// reference.set_building_index(42);
+/// ```
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct BuildingReference {
+    /// Format version number (currently only version 1).
     serialise_version: u16,
+
+    /// Index of the referenced building in the building list.
     building_index: i32,
 }
 

@@ -8,20 +8,61 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*!
-Module with all the code to interact with the Assembly Kit's DB Files and Schemas.
-
-This module contains all the code related with the *schema integration* with the Assembly Kit.
-And by *integration* I mean the code that parses Assembly Kit tables and schemas to a format we can actually read.
-
-Also, here is the code responsible for the creation of fake schemas from Assembly Kit files, and for putting them into PAK (Processed Assembly Kit) files.
-For more information about PAK files, check the `generate_pak_file()` function. There are multiple types of Assembly Kit table files due to CA changing their format:
-- `0`: Empire and Napoleon.
-- `1`: Shogun 2.
-- `2`: Anything since Rome 2.
-
-Currently, due to the complexity of parsing the table type `0`, we don't have support for PAK files in Empire and Napoleon.
-!*/
+//! Assembly Kit table definition parsing and schema generation.
+//!
+//! This module handles the parsing of Assembly Kit schema files (table structure definitions)
+//! and their conversion to RPFM's internal schema format. It supports three different Assembly
+//! Kit versions used across Total War games.
+//!
+//! # Assembly Kit Schema Formats
+//!
+//! Different Total War games use different schema file formats:
+//!
+//! - **Version 0** (Empire, Napoleon): `.xsd` XML schema files with basic type and constraint information
+//! - **Version 1** (Shogun 2): `TWaD_*.xml` files with enhanced metadata
+//! - **Version 2** (Rome 2+): `TWaD_*.xml` files with full relationship data and field descriptions
+//!
+//! # Main Types
+//!
+//! ## Version 1 & 2 Formats
+//!
+//! - [`RawDefinition`]: Represents a complete table definition with all fields
+//! - [`RawField`]: Individual field definition with type, constraints, and relationship info
+//! - [`RawRelationshipsTable`]: Foreign key relationships between tables
+//! - [`RawRelationship`]: Single foreign key relationship
+//!
+//! ## Version 0 Format (Legacy)
+//!
+//! - [`RawDefinitionV0`]: XSD schema root structure
+//! - [`Element`]: XSD element with type and constraint information
+//! - [`Index`]: Database index definition (used to derive relationships)
+//!
+//! # Functionality
+//!
+//! The main operations this module provides:
+//!
+//! 1. **Batch Reading**: [`RawDefinition::read_all()`] reads all table definitions from a directory
+//! 2. **Individual Reading**: [`RawDefinition::read()`] parses a single definition file
+//! 3. **Field Filtering**: [`RawDefinition::get_non_localisable_fields()`] separates translatable fields
+//! 4. **Schema Conversion**: `From<&RawDefinition>` for [`Definition`] converts to RPFM format
+//!
+//! # Version 0 Processing
+//!
+//! Version 0 (Empire/Napoleon) uses a two-pass approach:
+//! 1. First pass: Parse XSD files and extract basic field information and primary keys
+//! 2. Second pass: Analyze index definitions to derive foreign key relationships
+//!
+//! This is necessary because Version 0 uses database-style indexes rather than explicit
+//! foreign key declarations.
+//!
+//! # Type Mapping
+//!
+//! Assembly Kit types are mapped to RPFM field types:
+//! - `yesno` → `Boolean`
+//! - `single` → `F32`, `double` → `F64`
+//! - `integer` → `I32`, `autonumber`/`card64` → `I64`
+//! - `colour` → `ColourRGB`
+//! - `text`/`expression` → `StringU8`/`StringU16` (or optional variants)
 
 use itertools::Itertools;
 use rayon::prelude::*;
@@ -44,182 +85,357 @@ use super::table_data::RawTableRow;
 // Types for parsing the Assembly Kit Schema Files into.
 //---------------------------------------------------------------------------//
 
-/// This is the raw equivalent to a `Definition` struct. In files, this is the equivalent to a `TWaD_` file.
+/// Raw table definition parsed from Assembly Kit schema files.
 ///
-/// It contains a vector with all the fields that forms it.
+/// This is the raw equivalent to RPFM's [`Definition`] struct. In Assembly Kit files,
+/// this corresponds to a `TWaD_*.xml` file (versions 1-2) or `.xsd` file (version 0).
+///
+/// # Fields
+///
+/// * `name` - Table name with `.xml` extension (e.g., `"units_tables.xml"`)
+/// * `fields` - All field definitions for this table
+///
+/// # Example Structure
+///
+/// A `TWaD_units_tables.xml` file contains field definitions like:
+/// ```xml
+/// <root>
+///   <field primary_key="1" name="key" field_type="text" required="1"/>
+///   <field primary_key="0" name="category" field_type="text" required="0"
+///          column_source_table="unit_categories_tables"
+///          column_source_column="key"/>
+/// </root>
+/// ```
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename = "root")]
 pub struct RawDefinition {
+
+    /// Table name with `.xml` extension (e.g., `"units_tables.xml"`) and without the 'TWaD_' prefix.
     pub name: Option<String>,
 
+    /// All the field definitions within this table definition.
     #[serde(rename = "field")]
     pub fields: Vec<RawField>,
 }
 
-/// This is the raw equivalent to a `Field` struct.
+/// Individual field definition from Assembly Kit schema.
+///
+/// This is the raw equivalent to RPFM's [`Field`] struct, containing all metadata
+/// about a single table column.
+///
+/// # Type Information
+///
+/// Assembly Kit uses string-based type names:
+/// - `"yesno"` - Boolean value
+/// - `"single"`, `"double"` - Floating point numbers
+/// - `"integer"` - 32-bit integer
+/// - `"autonumber"`, `"card64"` - 64-bit integer (often auto-incrementing)
+/// - `"text"`, `"expression"` - String data
+/// - `"colour"` - RGB color value
+///
+/// # Foreign Key Relationships
+///
+/// Relationships are defined via `column_source_table` and `column_source_column`:
+/// - First element in `column_source_column` is the referenced primary key
+/// - Additional elements (if present) are lookup columns for concatenated display
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename = "field")]
 pub struct RawField {
 
-    /// Ìf the field is primary key. `1` for `true`, `0` for false.
+    /// Primary key flag (`"1"` = true, `"0"` = false).
     pub primary_key: String,
 
-    /// The name of the field.
+    /// Field name (column name in the table).
     pub name: String,
 
-    /// The type of the field in the Assembly Kit.
+    /// Assembly Kit type name (see struct documentation for type mapping).
     pub field_type: String,
 
-    /// If the field is required or can be blank.
+    /// Required field flag (`"1"` = required, `"0"` = optional).
     pub required: String,
 
-    /// The default value of the field.
+    /// Default value for this field when creating new rows.
     pub default_value: Option<String>,
 
-    /// The max allowed length for the data in the field.
+    /// Maximum allowed string length for text fields.
     pub max_length: Option<String>,
 
-    /// If the field's data corresponds to a filename.
+    /// Filename flag - indicates this field contains a game file path.
     pub is_filename: Option<String>,
 
-    /// Path where the file in the data of the field can be, if it's restricted to one path.
+    /// Relative path where referenced files should be located.
+    ///
+    /// Multiple paths can be specified, separated by semicolons.
     pub filename_relative_path: Option<String>,
 
-    /// No idea, but for what I saw, it's not useful for modders.
+    /// Fragment path (internal use, not useful for modders).
     pub fragment_path: Option<String>,
 
-    /// Reference source column. First one is the referenced column, the rest, if exists, are the lookup columns concatenated.
+    /// Referenced column names for foreign key relationships.
+    ///
+    /// First element is the referenced primary key column.
+    /// Additional elements are lookup columns for composite display.
     pub column_source_column: Option<Vec<String>>,
 
-    /// Reference source table.
+    /// Referenced table name for foreign key relationships.
     pub column_source_table: Option<String>,
 
-    /// Description of what the field does.
+    /// Human-readable description of the field's purpose.
     pub field_description: Option<String>,
 
-    /// If it has to be exported for the encyclopaedia? No idea really. `1` for `true`, `0` for false.
+    /// Encyclopaedia export flag (`"1"` = export, `"0"` = don't export).
+    ///
+    /// Indicates if this field should be included in game encyclopaedia exports.
     pub encyclopaedia_export: Option<String>,
 
-    /// Used by Warhammer 3 to mark unused fields. #c8c8c8 means unused.
+    /// Highlight color flag for marking unused/deprecated fields.
+    ///
+    /// `"#c8c8c8"` (gray) indicates an unused field in Warhammer 3.
     pub highlight_flag: Option<String>,
 
-    /// This one is custom. Is for marking fields of old games (napoleon and shogun 2) to use proper types.
+    /// Custom flag for old game (Empire/Napoleon/Shogun 2) type handling.
+    ///
+    /// When true, uses UTF-16 strings instead of UTF-8.
     pub is_old_game: Option<bool>,
 }
 
+/// Version 0 (Empire/Napoleon) XSD schema root structure.
+///
+/// Empire and Napoleon use `.xsd` XML Schema Definition files instead of
+/// the `TWaD_` format used in later games. This struct represents the root
+/// of such a schema file.
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename = "xsd_schema")]
 pub struct RawDefinitionV0 {
+    /// XSD elements defining the table structure.
     pub xsd_element: Vec<Element>,
 }
 
+/// Represents an XSD element definition from Assembly Kit v0 schema files.
+///
+/// Elements are the core building blocks of XSD schemas, representing individual
+/// fields in database tables. Each element can have type constraints (via `SimpleType`),
+/// nested structures (via `ComplexType`), and metadata annotations.
+///
+/// # Field Mapping
+///
+/// - `name`: Column name in the database table
+/// - `jet_type`: Microsoft Jet database type (e.g., "Text", "Long", "Boolean")
+/// - `min_occurs`: Minimum occurrences (0 = optional, 1 = required)
+/// - `xsd_annotation`: Contains metadata like index definitions
+/// - `xsd_simple_type`: Type constraints (e.g., string max length)
+/// - `xsd_complex_type`: Nested element sequences for complex types
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename = "xsd_element")]
 pub struct Element {
+    /// The name of this element (field/column name).
     pub name: Option<String>,
 
+    /// Microsoft Jet database type identifier.
+    ///
+    /// Common values: "Text" (string), "Long" (i32), "Boolean", "Single" (f32), "Double" (f64).
     #[serde(rename = "od_jetType")]
     pub jet_type: Option<String>,
 
+    /// Minimum number of occurrences for this element.
+    ///
+    /// - `0`: Field is optional
+    /// - `1` or higher: Field is required
     #[serde(rename = "minOccurs")]
     pub min_occurs: Option<i32>,
 
+    /// Annotation containing metadata like index definitions.
     #[serde(rename = "xsd_annotation")]
     pub xsd_annotation: Option<Annotation>,
 
+    /// Simple type definition with constraints (e.g., max string length).
     #[serde(rename = "xsd_simpleType")]
     pub xsd_simple_type: Option<Vec<SimpleType>>,
 
+    /// Complex type definition for nested element sequences.
     #[serde(rename = "xsd_complexType")]
     pub xsd_complex_type: Option<Vec<ComplexType>>,
 }
 
+/// Defines a simple type with restrictions in XSD schemas.
+///
+/// Simple types are used to apply constraints to basic data types, such as
+/// limiting the maximum length of a string field.
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename = "xsd_simpleType")]
 pub struct SimpleType {
+    /// The restriction applied to this simple type (e.g., max length).
     pub xsd_restriction: Option<Restriction>,
 }
 
+/// Defines a complex type containing nested element sequences.
+///
+/// Complex types are used when a field contains multiple sub-elements organized
+/// in a specific order. In Assembly Kit schemas, these are typically used for
+/// nested table structures, though most tables use simple flat structures.
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename = "xsd_complexType")]
 pub struct ComplexType {
-
+    /// The ordered sequence of elements within this complex type.
     #[serde(rename = "xsd_sequence")]
     pub xsd_sequence: Sequence,
 }
 
+/// Represents an ordered sequence of XSD elements.
+///
+/// Sequences define the order in which child elements must appear within
+/// a complex type. Each element in the sequence can itself be a simple or
+/// complex type.
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename = "xsd_sequence")]
 pub struct Sequence {
+    /// The ordered list of elements in this sequence.
     pub xsd_element: Vec<Element>,
 }
 
-
+/// Defines restrictions/constraints on an XSD simple type.
+///
+/// Restrictions are used to constrain the values of a simple type, such as
+/// limiting the maximum length of a string. The `base` field specifies which
+/// base type the restriction applies to.
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename = "xsd_restriction")]
 pub struct Restriction {
+    /// The base XSD type being restricted (e.g., "xsd:string", "xsd:int").
     pub base: String,
 
+    /// Maximum length constraint for string types.
     #[serde(rename = "xsd_maxLength")]
     pub max_lenght: Option<MaxLength>
 }
 
+/// Specifies the maximum length constraint for a string field.
+///
+/// This constraint limits how many characters a string field can contain.
+/// Used in XSD restrictions to define database column size limits.
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename = "xsd_maxLength")]
 pub struct MaxLength {
+    /// The maximum number of characters allowed.
     pub value: i32
 }
 
+/// Contains annotation metadata for XSD elements.
+///
+/// Annotations provide additional information about schema elements that isn't
+/// part of the core validation rules. In Assembly Kit schemas, annotations are
+/// primarily used to store database index definitions via the `AppInfo` structure.
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename = "xsd_annotation")]
 pub struct Annotation {
-
+    /// Application-specific information, containing index definitions.
     #[serde(rename = "xsd_appinfo")]
     pub xsd_appinfo: Option<AppInfo>
 }
 
+/// Contains application-specific information within XSD annotations.
+///
+/// This structure holds database-specific metadata that extends the base XSD schema.
+/// In Assembly Kit schemas, it primarily contains index definitions that describe
+/// primary keys, foreign keys, and unique constraints on table columns.
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename = "xsd_appinfo")]
 pub struct AppInfo {
-
+    /// List of database index definitions for this element.
     #[serde(rename = "od_index")]
     pub od_index: Option<Vec<Index>>
 }
 
+/// Defines a database index on a table column.
+///
+/// Indexes are used to derive foreign key relationships in Assembly Kit v0 schemas.
+/// Since v0 schemas don't explicitly define relationships between tables, RPFM
+/// infers them by matching index names across tables.
+///
+/// # Relationship Inference
+///
+/// When an index name appears in multiple tables, RPFM creates a foreign key
+/// relationship between them. For example:
+///
+/// - Table A has index "fk_building" on column "building_key"
+/// - Table B has index "fk_building" on column "key"
+/// - RPFM infers: A.building_key → B.key
+///
+/// # Boolean String Fields
+///
+/// The `primary`, `unique`, and `clustered` fields use string values "true"/"false"
+/// instead of booleans due to the XSD format.
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename = "od_index")]
 pub struct Index {
-
+    /// The name of this index.
+    ///
+    /// Index names are used to match relationships across tables. Identical names
+    /// in different tables indicate a foreign key relationship.
     #[serde(rename = "index-name")]
     pub name: String,
 
+    /// The column(s) this index applies to.
+    ///
+    /// Multiple columns are separated by semicolons (e.g., "col1;col2").
     #[serde(rename = "index-key")]
     pub key: String,
 
+    /// Whether this is a primary key index ("true"/"false").
     #[serde(rename = "primary")]
     pub primary: String,
 
+    /// Whether this index enforces uniqueness ("true"/"false").
     #[serde(rename = "unique")]
     pub unique: String,
 
+    /// Whether this is a clustered index ("true"/"false").
     #[serde(rename = "clustered")]
     pub clustered: String,
 }
 
+/// Foreign key relationships table from Assembly Kit.
+///
+/// This corresponds to the `TWaD_relationships.xml` file found in Version 2
+/// Assembly Kits (Rome 2+). It defines all foreign key relationships between tables.
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename = "root")]
 pub struct RawRelationshipsTable {
+    /// Table name (should be "relationships").
     pub name: Option<String>,
 
+    /// All foreign key relationships defined in the Assembly Kit.
     #[serde(rename = "relationship")]
     pub relationships: Vec<RawRelationship>,
 }
 
+/// Single foreign key relationship definition.
+///
+/// Defines a foreign key constraint from one table's column to another table's column.
+///
+/// # Example
+///
+/// A relationship from `units_tables.category` to `unit_categories_tables.key`:
+/// ```xml
+/// <relationship>
+///   <table_name>units_tables</table_name>
+///   <column_name>category</column_name>
+///   <foreign_table_name>unit_categories_tables</foreign_table_name>
+///   <foreign_column_name>key</foreign_column_name>
+/// </relationship>
+/// ```
 #[derive(Clone, Debug, Default, Deserialize)]
 pub struct RawRelationship {
+    /// Source table name containing the foreign key column.
     pub table_name: String,
+
+    /// Source column name (the foreign key field).
     pub column_name: String,
+
+    /// Referenced table name.
     pub foreign_table_name: String,
+
+    /// Referenced column name (typically a primary key).
     pub foreign_column_name: String
 }
 
@@ -230,9 +446,43 @@ pub struct RawRelationship {
 /// Implementation of `RawDefinition`.
 impl RawDefinition {
 
-    /// This function reads the provided folder and tries to parse all the Raw Assembly Kit Definitions inside it.
+    /// Reads all table definitions from an Assembly Kit directory.
     ///
-    /// This function returns two vectors: one with the read files, and another with the errors during parsing.
+    /// This function scans the provided directory for Assembly Kit definition files
+    /// and parses them into [`RawDefinition`] structs. The parsing logic varies
+    /// significantly by version.
+    ///
+    /// # Version-Specific Behavior
+    ///
+    /// ## Version 1 & 2 (Shogun 2, Rome 2+)
+    /// - Reads `TWaD_*.xml` files directly
+    /// - Each file is a complete, self-contained definition
+    ///
+    /// ## Version 0 (Empire, Napoleon)
+    /// - Reads `.xsd` XML Schema files
+    /// - Uses two-pass processing:
+    ///   1. Parse all XSD files and extract field info + primary keys
+    ///   2. Analyze index definitions to derive foreign key relationships
+    /// - This is necessary because Version 0 uses database-style indexes rather than
+    ///   explicit foreign key declarations
+    ///
+    /// # Arguments
+    ///
+    /// * `raw_definitions_folder` - Directory containing Assembly Kit definition files
+    /// * `version` - Assembly Kit version (0 = Empire/Napoleon, 1 = Shogun 2, 2 = Rome 2+)
+    /// * `tables_to_skip` - Table names (without extension) to exclude from parsing
+    ///
+    /// # Returns
+    ///
+    /// Returns a vector of successfully parsed table definitions. Tables in the
+    /// blacklist or skip list are excluded.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The version is unsupported (not 0, 1, or 2)
+    /// - The directory cannot be read
+    /// - Any definition file has malformed XML
     pub fn read_all(raw_definitions_folder: &Path, version: i16, tables_to_skip: &[&str]) -> Result<Vec<Self>> {
         let definitions = get_raw_definition_paths(raw_definitions_folder, version)?;
         match version {
@@ -354,7 +604,31 @@ impl RawDefinition {
         }
     }
 
-    /// This function tries to parse a Raw Assembly Kit Definition to memory.
+    /// Parses a single Assembly Kit definition file.
+    ///
+    /// Reads and parses one table definition file from the Assembly Kit.
+    ///
+    /// # Arguments
+    ///
+    /// * `raw_definition_path` - Path to the definition file (e.g., `TWaD_units_tables.xml`)
+    /// * `version` - Assembly Kit version (1 = Shogun 2, 2 = Rome 2+)
+    ///
+    /// # Returns
+    ///
+    /// Returns the parsed [`RawDefinition`] with the table name set to the filename
+    /// without the `TWaD_` prefix (e.g., `"units_tables.xml"`).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The version is not 1 or 2 (use [`RawDefinitionV0::read()`] for version 0)
+    /// - The file cannot be opened (returns [`RLibError::AssemblyKitNotFound`])
+    /// - The XML is malformed
+    ///
+    /// # Note
+    ///
+    /// For Version 0 (Empire/Napoleon), use [`RawDefinitionV0::read()`] instead as the
+    /// file format is completely different (.xsd vs .xml).
     pub fn read(raw_definition_path: &Path, version: i16) -> Result<Self> {
         match version {
             2 | 1 => {
@@ -368,7 +642,28 @@ impl RawDefinition {
         }
     }
 
-    /// This function returns the fields without the localisable ones.
+    /// Filters out localisable fields from the definition.
+    ///
+    /// Returns only the fields that are not marked as localisable (translatable) and
+    /// are present in the test row data. This is used when processing Assembly Kit
+    /// table data to separate regular fields from translation fields.
+    ///
+    /// # Arguments
+    ///
+    /// * `raw_localisable_fields` - List of all localisable fields from `TExc_LocalisableFields.xml`
+    /// * `test_row` - Sample row data used to verify field presence
+    ///
+    /// # Returns
+    ///
+    /// Returns a vector of [`Field`] instances for non-localisable fields that exist
+    /// in the test data.
+    ///
+    /// # Note
+    ///
+    /// Fields are excluded if:
+    /// - They're listed in `raw_localisable_fields` for this table
+    /// - They don't appear in the test row
+    /// - They have a "state" attribute (marked as modified/deprecated)
     pub fn get_non_localisable_fields(&self, raw_localisable_fields: &[RawLocalisableField], test_row: &RawTableRow) -> Vec<Field> {
         let raw_table_name = &self.name.as_ref().unwrap()[..self.name.as_ref().unwrap().len() - 4];
         let localisable_fields_names = raw_localisable_fields.iter()
@@ -468,7 +763,32 @@ impl From<&RawField> for Field {
 
 impl RawDefinitionV0 {
 
-    /// This function tries to parse a Raw Assembly Kit Definition to memory.
+    /// Parses a Version 0 (Empire/Napoleon) XSD schema file.
+    ///
+    /// Reads and parses an XSD (XML Schema Definition) file from the Empire or
+    /// Napoleon Assembly Kit. The XSD format is significantly different from the
+    /// `TWaD_` format used in later games.
+    ///
+    /// # Arguments
+    ///
+    /// * `raw_definition_path` - Path to the `.xsd` file
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(Some(definition))` if the file was parsed successfully, `Ok(None)`
+    /// if the file was empty, or an error if parsing failed.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The file cannot be opened (returns [`RLibError::AssemblyKitNotFound`])
+    /// - The XML/XSD is malformed
+    ///
+    /// # Implementation Note
+    ///
+    /// Due to limitations in `serde_xml_rs`, this function performs extensive string
+    /// replacements on the XSD content before parsing to normalize XML namespace
+    /// prefixes (`xsd:` and `xs:` → `xsd_`, `od:` → `od_`).
     pub fn read(raw_definition_path: &Path) -> Result<Option<Self>> {
         let mut definition_file = BufReader::new(File::open(raw_definition_path).map_err(|_| RLibError::AssemblyKitNotFound)?);
 

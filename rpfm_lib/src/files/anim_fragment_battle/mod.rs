@@ -8,11 +8,78 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! This is a module to read/write anim fragment battle files.
+//! Animation fragment battle file format support.
 //!
-//! These are the old anim tables in binary format.
+//! This module handles animation fragment files (`.bin`/`.frg`) which define battle animations
+//! for units in Total War games. These files replaced the older text-based animation tables
+//! with a more efficient binary format.
 //!
-//! Support is complete for all games since Warhammer 2. Older games are not supported.
+//! # File Format
+//!
+//! Animation fragments use game-specific binary formats with different versions:
+//! - **Version 2 (Warhammer 2)**: Basic animation metadata with file references
+//! - **Version 2 (Three Kingdoms)**: Enhanced with mount/unmount tables and locomotion graphs
+//! - **Version 4 (Warhammer 3)**: Advanced format with animation references and cavalry tech flags
+//!
+//! # File Extensions
+//!
+//! - `.bin` - Modern binary animation fragment files (Warhammer 2+)
+//! - `.frg` - Legacy fragment file extension (older games)
+//!
+//! # File Organization
+//!
+//! Animation fragments are stored in:
+//! ```text
+//! animations/{skeleton_name}/battle/{animation_type}.bin
+//! ```
+//!
+//! # Supported Games
+//!
+//! Full support for:
+//! - Total War: Warhammer II (version 2)
+//! - Total War: Three Kingdoms (version 2, enhanced)
+//! - A Total War Saga: Troy (version 2)
+//! - Total War: Warhammer III (version 4)
+//! - Total War: Pharaoh / Pharaoh Dynasties (version 2)
+//!
+//! Older games (pre-Warhammer 2) are not supported.
+//!
+//! # Animation Entry Structure
+//!
+//! Each entry contains:
+//! - Animation ID and metadata (blend time, selection weight)
+//! - Weapon bone flags (for weapon attachment points)
+//! - File references to animation data and metadata
+//! - Optional single-frame variant flag
+//!
+//! # Table Conversion
+//!
+//! Animation fragments can be converted to/from [`TableInMemory`]
+//! for editing as TSV files.
+//!
+//! [`TableInMemory`]: crate::files::table::local::TableInMemory
+//!
+//! # Usage
+//!
+//! ```ignore
+//! use rpfm_lib::files::anim_fragment_battle::AnimFragmentBattle;
+//! use rpfm_lib::files::Decodeable;
+//!
+//! // Decode an animation fragment
+//! let fragment = AnimFragmentBattle::decode(&mut data, &Some(extra_data))?;
+//!
+//! // Access entries
+//! for entry in fragment.entries() {
+//!     println!("Animation {}: blend={}, weight={}",
+//!         entry.animation_id(),
+//!         entry.blend_in_time(),
+//!         entry.selection_weight()
+//!     );
+//! }
+//!
+//! // Convert to table for TSV export
+//! let table = fragment.to_table()?;
+//! ```
 
 use bitflags::bitflags;
 use getset::*;
@@ -28,10 +95,16 @@ use crate::games::supported_games::{KEY_PHARAOH, KEY_PHARAOH_DYNASTIES, KEY_THRE
 use crate::schema::*;
 use crate::utils::check_size_mismatch;
 
+/// Base directory path for animation files.
 pub const BASE_PATH: &str = "animations/";
+
+/// Middle path component for battle animations.
 pub const MID_PATH: &str = "/battle/";
 
+/// Modern file extension for animation fragment files.
 pub const EXTENSION_NEW: &str = ".bin";
+
+/// Legacy file extension for animation fragment files.
 pub const EXTENSION_OLD: &str = ".frg";
 
 mod versions;
@@ -42,75 +115,181 @@ mod versions;
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
+/// Represents a battle animation fragment file.
+///
+/// Contains animation entries and metadata for a specific skeleton type.
+/// The structure varies by game version, with newer games supporting more features.
+///
+/// # Version Differences
+///
+/// - **Version 2 (Warhammer 2/Troy/Pharaoh)**: Basic structure with min/max IDs
+/// - **Version 2 (Three Kingdoms)**: Adds mount tables and locomotion graph support
+/// - **Version 4 (Warhammer 3)**: Enhanced with subversion and cavalry tech flags
 #[derive(PartialEq, Clone, Debug, Default, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct AnimFragmentBattle {
+    // Common fields across all versions
 
-    // Common stuff.
+    /// File format version (2 or 4).
     version: u32,
+
+    /// List of animation entries in this fragment.
     entries: Vec<Entry>,
+
+    /// Name of the skeleton this animation fragment applies to.
     skeleton_name: String,
 
-    // Wh3 stuff.
+    // Warhammer 3 specific (version 4)
+
+    /// Format subversion (version 4 only).
     subversion: u32,
 
-    // Wh3/3k stuff.
+    // Warhammer 3 / Three Kingdoms specific
+
+    /// Name of the animation table.
     table_name: String,
+
+    /// Name of the mount animation table.
     mount_table_name: String,
+
+    /// Name of the unmount animation table.
     unmount_table_name: String,
+
+    /// Locomotion graph identifier.
     locomotion_graph: String,
+
+    /// Whether this uses simple flight mechanics.
     is_simple_flight: bool,
+
+    /// Whether this uses new cavalry technology.
     is_new_cavalry_tech: bool,
 
-    // Wh2 stuff.
+    // Warhammer 2 specific (version 2)
+
+    /// Minimum animation ID in this fragment (version 2 only).
     min_id: u32,
+
+    /// Maximum animation ID in this fragment (version 2 only).
     max_id: u32,
 }
 
+/// Represents a single animation entry within a fragment.
+///
+/// Contains all metadata and file references for one animation. The structure
+/// varies between version 2 and version 4 formats.
+///
+/// # Version Differences
+///
+/// - **Version 2**: Uses direct filename and metadata strings
+/// - **Version 4**: Uses `anim_refs` for multiple animation file references
 #[derive(PartialEq, Clone, Debug, Default, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Entry {
+    // Common fields across all versions
 
-    // Common stuff.
+    /// Unique animation identifier.
     animation_id: u32,
+
+    /// Blend-in time in seconds for smooth transitions.
     blend_in_time: f32,
+
+    /// Selection weight for animation variation selection (higher = more likely).
     selection_weight: f32,
+
+    /// Weapon attachment bone flags.
     weapon_bone: WeaponBone,
 
-    // Wh3 stuff
+    // Warhammer 3 specific (version 4)
+
+    /// Animation file references (version 4 only).
+    ///
+    /// Contains paths to animation data, metadata, and sound files.
     anim_refs: Vec<AnimRef>,
 
-    // Wh2 stuff.
+    // Warhammer 2 specific (version 2)
+
+    /// Slot identifier (version 2 only).
     slot_id: u32,
+
+    /// Animation filename (version 2 only).
     filename: String,
+
+    /// Metadata file path (version 2 only).
     metadata: String,
+
+    /// Sound metadata file path (version 2 only).
     metadata_sound: String,
+
+    /// Skeleton type identifier (version 2 only).
     skeleton_type: String,
+
+    /// Unknown field (purpose not identified, version 2 only).
     uk_3: u32,
+
+    /// Unknown field (purpose not identified, version 2 only).
     uk_4: String,
 
-    // Wh2/Wh3
+    // Common to version 2 and 4
+
+    /// Whether this is a single-frame animation variant.
     single_frame_variant: bool,
 }
 
+/// Animation file reference (version 4 only).
+///
+/// Contains paths to the three files that make up an animation:
+/// - Animation data file (skeletal animation)
+/// - Metadata file (timing, events, etc.)
+/// - Sound file (audio cues and effects)
 #[derive(PartialEq, Clone, Debug, Default, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct AnimRef {
+    /// Path to the animation data file.
     file_path: String,
+
+    /// Path to the animation metadata file.
     meta_file_path: String,
+
+    /// Path to the sound file.
     snd_file_path: String,
 }
 
 bitflags! {
-
-    /// This represents the bitmasks of weapon_bone values.
+    /// Weapon attachment bone flags.
+    ///
+    /// Defines which bones (attachment points) on the skeleton are used for
+    /// weapon positioning during this animation. Multiple bones can be active
+    /// simultaneously (e.g., for dual-wielding).
+    ///
+    /// # Bone Mapping
+    ///
+    /// Each bit corresponds to a specific weapon attachment point:
+    /// - `WEAPON_BONE_1`: Primary weapon hand (typically right hand)
+    /// - `WEAPON_BONE_2`: Secondary weapon hand (typically left hand)
+    /// - `WEAPON_BONE_3`: Back-mounted weapon (holstered)
+    /// - `WEAPON_BONE_4`: Additional attachment point
+    /// - `WEAPON_BONE_5`: Additional attachment point
+    /// - `WEAPON_BONE_6`: Additional attachment point
+    ///
+    /// The exact bone mapping depends on the skeleton definition.
     #[derive(PartialEq, Clone, Copy, Debug, Default, Serialize, Deserialize)]
     pub struct WeaponBone: u32 {
+        /// Primary weapon bone (bit 0).
         const WEAPON_BONE_1 = 0b0000_0000_0000_0001;
+        
+        /// Secondary weapon bone (bit 1).
         const WEAPON_BONE_2 = 0b0000_0000_0000_0010;
+        
+        /// Tertiary weapon bone (bit 2).
         const WEAPON_BONE_3 = 0b0000_0000_0000_0100;
+        
+        /// Fourth weapon bone (bit 3).
         const WEAPON_BONE_4 = 0b0000_0000_0000_1000;
+        
+        /// Fifth weapon bone (bit 4).
         const WEAPON_BONE_5 = 0b0000_0000_0001_0000;
+        
+        /// Sixth weapon bone (bit 5).
         const WEAPON_BONE_6 = 0b0000_0000_0010_0000;
     }
 }
@@ -121,6 +300,20 @@ bitflags! {
 
 impl AnimFragmentBattle {
 
+    /// Returns table schema definitions for animation fragments.
+    ///
+    /// Provides two [`Definition`]s:
+    /// 1. Main entry definition with all animation entry fields
+    /// 2. Animation reference sub-definition (for version 4 `anim_refs` field)
+    ///
+    /// These definitions are used when converting animation fragments to/from
+    /// [`TableInMemory`] for TSV export/import.
+    ///
+    /// [`TableInMemory`]: crate::files::table::local::TableInMemory
+    ///
+    /// # Returns
+    ///
+    /// A tuple of `(entry_definition, anim_ref_definition)`.
     pub fn definitions() -> (Definition, Definition) {
         let mut anim_refs_definition = Definition::default();
         anim_refs_definition.fields_mut().push(Field::new("file_path".to_string(), FieldType::StringU8, false, None, false, None, None, None, String::new(), -1, 0, BTreeMap::new(), None));
@@ -145,6 +338,25 @@ impl AnimFragmentBattle {
         (definition, anim_refs_definition)
     }
 
+    /// Converts a table to a list of animation entries.
+    ///
+    /// Parses a [`TableInMemory`] (typically loaded from TSV)
+    /// and extracts animation entry data.
+    ///
+    /// [`TableInMemory`]: crate::files::table::local::TableInMemory
+    ///
+    /// # Parameters
+    ///
+    /// - `table`: The table containing animation entry data
+    ///
+    /// # Returns
+    ///
+    /// A vector of [`Entry`] structs parsed from the table rows.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the table structure doesn't match the expected schema
+    /// or if data conversion fails.
     pub fn from_table(table: &TableInMemory) -> Result<Vec<Entry>> {
         let mut entries = vec![];
 
@@ -255,6 +467,20 @@ impl AnimFragmentBattle {
         Ok(entries)
     }
 
+    /// Converts this animation fragment to a table.
+    ///
+    /// Creates a [`TableInMemory`] from the animation entries, which can then be
+    /// exported as TSV for editing.
+    ///
+    /// [`TableInMemory`]: crate::files::table::local::TableInMemory
+    ///
+    /// # Returns
+    ///
+    /// A table containing all animation entries with the appropriate schema.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if table construction or data conversion fails.
     pub fn to_table(&self) -> Result<TableInMemory> {
         let (definition, anim_refs_definition) = Self::definitions();
         let mut table = TableInMemory::new(&definition, None, "");

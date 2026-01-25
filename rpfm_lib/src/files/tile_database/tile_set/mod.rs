@@ -8,6 +8,11 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
+//! Tile set groupings for terrain organisation.
+//!
+//! Tile sets group related tiles together and define shared properties
+//! like linking behaviour and geometry references.
+
 use getset::*;
 use serde_derive::{Serialize, Deserialize};
 
@@ -23,18 +28,31 @@ mod v1;
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
+/// A group of related terrain tiles.
+///
+/// Tile sets organise tiles and define shared behaviours for linking,
+/// geometry sharing, and placement rules.
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct TileSet {
+    /// Serialisation format version.
     serialise_version: u16,
 
+    /// Tile set identifier name.
     name: String,
+    /// Tile used for linking edges.
     linking_tile: String,
+    /// Reference to shared geometry data.
     shared_geometry: String,
+    /// Additional tile set to place alongside.
     also_place_tile_set: String,
+    /// Tile set to use for linking rules.
     link_as_set: String,
+    /// Red colour component (0.0-1.0).
     red: f32,
+    /// Green colour component (0.0-1.0).
     green: f32,
+    /// Blue colour component (0.0-1.0).
     blue: f32,
 }
 

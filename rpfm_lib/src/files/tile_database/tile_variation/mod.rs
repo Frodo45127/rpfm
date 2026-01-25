@@ -8,6 +8,12 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
+//! Tile variation definitions for the tile database.
+//!
+//! This module contains the [`TileVariation`] struct, which defines visual and rendering
+//! variations for tiles. Variations allow the terrain system to add diversity to terrain
+//! appearance through different textures, colors, and rendering parameters.
+
 use getset::*;
 use serde_derive::{Serialize, Deserialize};
 
@@ -23,23 +29,42 @@ mod v2;
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
+/// A visual variation for terrain tiles.
+///
+/// Tile variations define different appearances for tiles, including height,
+/// scale, normal mapping, blending, and color tinting. This allows for more
+/// diverse and natural-looking terrain.
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct TileVariation {
+    /// Serialization version for this structure.
     serialise_version: u16,
 
+    /// Path or identifier for this variation's location.
     location: String,
+    /// Minimum height at which this variation appears.
     min_height: f32,
+    /// Scale factor for this variation.
     scale: f32,
+    /// Strength of normal mapping for surface detail.
     normal_strength: f32,
+    /// Size of the overlap border for blending with adjacent tiles.
     overlap_border_size: f32,
+    /// Triangle density for raw terrain data.
     raw_data_tri_density: u32,
+    /// Path to the common blend texture.
     blend_common: String,
+    /// Path to the common index texture.
     index_common: String,
+    /// Path to the common normal map texture.
     normal_common: String,
+    /// Red component of the color tint (0.0-1.0).
     red: f32,
+    /// Green component of the color tint (0.0-1.0).
     green: f32,
+    /// Blue component of the color tint (0.0-1.0).
     blue: f32,
+    /// Whether this variation uses the "barbarian" terrain style.
     barbarian: bool,
 }
 

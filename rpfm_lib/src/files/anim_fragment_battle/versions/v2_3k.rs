@@ -8,7 +8,17 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! This is a module to read/write binary Anim Fragment files, v2 for Three Kingdoms.
+//! Version 2 format decoder/encoder (Three Kingdoms).
+//!
+//! This module implements the version 2 animation fragment format specifically for
+//! Total War: Three Kingdoms. This variant includes:
+//! - Table name field (main animation table)
+//! - Mount and unmount table name fields
+//! - Simple flight flag
+//! - Direct filename references (no `anim_refs` list)
+//!
+//! This differs from the standard v2 format (Warhammer 2) by including additional
+//! table references and the locomotion-related flags.
 //!
 //! For internal use only.
 
@@ -22,7 +32,7 @@ use crate::files::anim_fragment_battle::*;
 
 impl AnimFragmentBattle {
 
-    pub fn read_v2_3k<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
+    pub(crate) fn read_v2_3k<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
         self.table_name = data.read_sized_string_u8()?;
         self.mount_table_name = data.read_sized_string_u8()?;
         self.unmount_table_name = data.read_sized_string_u8()?;
@@ -66,7 +76,7 @@ impl AnimFragmentBattle {
         Ok(())
     }
 
-    pub fn write_v2_3k<W: WriteBytes>(&self, buffer: &mut W) -> Result<()> {
+    pub(crate) fn write_v2_3k<W: WriteBytes>(&self, buffer: &mut W) -> Result<()> {
         buffer.write_sized_string_u8(&self.table_name)?;
         buffer.write_sized_string_u8(&self.mount_table_name)?;
         buffer.write_sized_string_u8(&self.unmount_table_name)?;

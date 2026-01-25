@@ -8,6 +8,11 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
+//! Conversion parameters for tile processing.
+//!
+//! Contains settings for converting and processing terrain tiles including
+//! triangle density and decimation factors.
+
 use getset::*;
 use serde_derive::{Serialize, Deserialize};
 
@@ -23,24 +28,43 @@ mod v1;
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
+/// Parameters for tile conversion and mesh generation.
+///
+/// Controls triangle density and decimation factors used when
+/// converting terrain data to renderable mesh formats.
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct ConversionParams {
+    /// Serialisation format version.
     serialise_version: u16,
 
+    /// Target triangle density.
     triangle_density: i32,
+    /// Maximum low-frequency heights per pixel.
     max_lf_heights_per_pixel: i32,
+    /// Size decimation factor (LOD level 0).
     triangle_decimation_size_factors0: f32,
+    /// Size decimation factor (LOD level 1).
     triangle_decimation_size_factors1: f32,
+    /// Size decimation factor (LOD level 2).
     triangle_decimation_size_factors2: f32,
+    /// Size decimation factor (LOD level 3).
     triangle_decimation_size_factors3: f32,
+    /// Size decimation factor (LOD level 4).
     triangle_decimation_size_factors4: f32,
+    /// Size decimation factor (LOD level 5).
     triangle_decimation_size_factors5: f32,
+    /// Angle decimation factor (LOD level 0).
     triangle_decimation_angle_factors0: f32,
+    /// Angle decimation factor (LOD level 1).
     triangle_decimation_angle_factors1: f32,
+    /// Angle decimation factor (LOD level 2).
     triangle_decimation_angle_factors2: f32,
+    /// Angle decimation factor (LOD level 3).
     triangle_decimation_angle_factors3: f32,
+    /// Angle decimation factor (LOD level 4).
     triangle_decimation_angle_factors4: f32,
+    /// Angle decimation factor (LOD level 5).
     triangle_decimation_angle_factors5: f32,
 }
 

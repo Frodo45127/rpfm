@@ -8,7 +8,18 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! This is a module to read/write binary Anim Fragment files, v2 for Warhammer 2.
+//! Version 2 format decoder/encoder (Warhammer 2, Troy, Pharaoh).
+//!
+//! This module implements the version 2 animation fragment format used in:
+//! - Total War: Warhammer II
+//! - A Total War Saga: Troy
+//! - Total War: Pharaoh / Pharaoh Dynasties
+//!
+//! This version uses:
+//! - Direct filename references (no `anim_refs` list)
+//! - Min/max animation ID range fields
+//! - Mount table name field
+//! - Simpler structure than version 4
 //!
 //! For internal use only.
 
@@ -22,7 +33,7 @@ use crate::files::anim_fragment_battle::*;
 
 impl AnimFragmentBattle {
 
-    pub fn read_v2_wh2<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
+    pub(crate) fn read_v2_wh2<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
         self.skeleton_name = data.read_sized_string_u8()?;
         self.mount_table_name = data.read_sized_string_u8()?;
 
@@ -64,7 +75,7 @@ impl AnimFragmentBattle {
         Ok(())
     }
 
-    pub fn write_v2_wh2<W: WriteBytes>(&self, buffer: &mut W) -> Result<()> {
+    pub(crate) fn write_v2_wh2<W: WriteBytes>(&self, buffer: &mut W) -> Result<()> {
         buffer.write_sized_string_u8(&self.skeleton_name)?;
         buffer.write_sized_string_u8(&self.mount_table_name)?;
         buffer.write_u32(self.min_id)?;

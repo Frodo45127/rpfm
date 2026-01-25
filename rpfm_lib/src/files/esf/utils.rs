@@ -8,7 +8,17 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! Module with generic utils for esf files.
+//! Shared utility functions for ESF node reading and writing.
+//!
+//! This module contains format-agnostic functions used by both CAAB and CBAB
+//! implementations. The primary functions handle recursive node tree traversal
+//! for both decoding and encoding operations.
+//!
+//! # Key Functions
+//!
+//! - [`ESF::read_node`]: Recursively decodes a node and all its children from binary data
+//! - [`ESF::save_node`]: Recursively encodes a node and all its children to binary data
+//! - [`ESF::read_string_from_node`]: Collects all strings from a node tree for string table generation
 
 use std::collections::BTreeMap;
 use std::io::SeekFrom;
@@ -24,7 +34,43 @@ use super::*;
 
 impl ESF {
 
-    /// This function takes care of reading a node's data into the appropriate NodeType.
+    /// Recursively decodes a node and all its children from binary ESF data.
+    ///
+    /// This is the core parsing function that handles all 40+ node types in the ESF format.
+    /// It reads the type marker byte and dispatches to the appropriate decoding logic.
+    ///
+    /// # Arguments
+    ///
+    /// * `data` - Reader positioned at the start of a node
+    /// * `is_root_node` - True if this is the root node (affects record header encoding)
+    /// * `record_names` - Pre-loaded table of record names for index lookup
+    /// * `strings_utf8` - Pre-loaded table of UTF-8 strings for index lookup
+    /// * `strings_utf16` - Pre-loaded table of UTF-16 strings for index lookup
+    ///
+    /// # Node Type Detection
+    ///
+    /// The first byte determines the node type:
+    /// - `0x80+`: Record node (high bit set indicates record)
+    /// - `0x01-0x10`: Primitive types
+    /// - `0x12-0x1d`: Optimized primitives
+    /// - `0x21-0x26`: Unknown types
+    /// - `0x41-0x50`: Arrays
+    /// - `0x52-0x5d`: Optimized arrays
+    ///
+    /// # Record Node Parsing
+    ///
+    /// Record nodes have complex header encoding:
+    /// - Root nodes and nodes with `HAS_NON_OPTIMIZED_INFO` use 3-byte headers
+    /// - Other nodes use 2-byte optimized headers with packed version/name index
+    /// - Block sizes are CAULEB128-encoded
+    /// - Nested blocks have individual size prefixes per group
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - Unknown node type marker encountered
+    /// - String/record name index out of bounds
+    /// - Block size mismatch (didn't consume expected bytes)
     pub(crate) fn read_node<R: ReadBytes>(
         data: &mut R,
         is_root_node: bool,
@@ -591,7 +637,38 @@ impl ESF {
         Ok(node_type)
     }
 
-    /// This function takes care of reading a node's data into the appropriate NodeType.
+    /// Recursively encodes a node and all its children to binary ESF data.
+    ///
+    /// This is the core encoding function that handles all node types, applying
+    /// appropriate optimizations based on the node's `optimized` flag where applicable.
+    ///
+    /// # Arguments
+    ///
+    /// * `buffer` - Output buffer to write encoded data to
+    /// * `node_type` - The node to encode
+    /// * `is_root_node` - True if this is the root node (affects record header encoding)
+    /// * `record_names` - String table for record name index lookup
+    /// * `strings_utf8` - String table for UTF-8 string index lookup
+    /// * `strings_utf16` - String table for UTF-16 string index lookup
+    ///
+    /// # Optimization Behavior
+    ///
+    /// For node types with optimization tracking (`BoolNode`, `I32Node`, `U32Node`, etc.):
+    /// - If `optimized` is true, selects the smallest encoding that fits the value
+    /// - If `optimized` is false, uses the standard full-size encoding
+    ///
+    /// This preserves encoding fidelity during round-trip operations.
+    ///
+    /// # Record Node Encoding
+    ///
+    /// Record nodes use different header formats:
+    /// - Root nodes: Always use 3-byte headers (flags + u16 name index + u8 version)
+    /// - Non-root with `HAS_NON_OPTIMIZED_INFO`: Same 3-byte header
+    /// - Non-root optimized: 2-byte packed header
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if write operations fail or string lookups fail.
     pub(crate) fn save_node<W: WriteBytes>(buffer: &mut W, node_type: &NodeType, is_root_node: bool, record_names: &[String], strings_utf8: &[String], strings_utf16: &[String]) -> Result<()> {
         match node_type {
 
@@ -1029,12 +1106,33 @@ impl ESF {
     }
 
     //---------------------------------------------------------------------------//
-    //                       Utility functions for CAAB
+    //                       Utility functions for encoding
     //---------------------------------------------------------------------------//
 
-    /// This function reads the strings from the provided node and all its children.
+    /// Recursively collects all strings from a node tree for string table generation.
     ///
-    /// This function is recursive: if you pass it the root node, it'll read all the strings in the ESF file.
+    /// This function traverses the entire node tree starting from the given node,
+    /// collecting unique strings into separate vectors for use during encoding.
+    /// Strings are deduplicated to avoid redundant entries in the string tables.
+    ///
+    /// # Arguments
+    ///
+    /// * `node_type` - The node to collect strings from (typically the root node)
+    /// * `record_names` - Output vector for record node names
+    /// * `strings_utf8` - Output vector for ASCII/UTF-8 strings
+    /// * `strings_utf16` - Output vector for UTF-16 strings
+    ///
+    /// # String Categories
+    ///
+    /// - **Record names**: Names of record nodes (e.g., "FACTION", "CAMPAIGN_SAVE_GAME")
+    /// - **UTF-8 strings**: Values from `Ascii` and `AsciiArray` nodes
+    /// - **UTF-16 strings**: Values from `Utf16` and `Utf16Array` nodes
+    ///
+    /// # Usage
+    ///
+    /// Called during encoding to build string tables before node serialization.
+    /// The resulting vectors are used to look up string indices when encoding
+    /// string nodes.
     pub(crate) fn read_string_from_node(node_type: &NodeType, record_names: &mut Vec<String>, strings_utf8: &mut Vec<String>, strings_utf16: &mut Vec<String>) {
         match node_type {
             NodeType::Utf16(value) => if !strings_utf16.contains(value) { strings_utf16.push(value.to_owned()) },

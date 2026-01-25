@@ -8,6 +8,51 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
+//! glTF export support for RigidModel 3D models.
+//!
+//! This module provides functionality to convert Total War's proprietary RigidModel
+//! format (`.rigid_model_v2`) to the standard glTF 2.0 format. glTF is widely supported
+//! by 3D modeling software like Blender, Maya, and 3ds Max.
+//!
+//! # Features
+//!
+//! - **Mesh Export**: Vertex positions, normals, and texture coordinates
+//! - **Material Support**: Basic material properties and texture references
+//! - **LOD Levels**: Each LOD (Level of Detail) is exported as a separate scene
+//! - **Embedded Data**: Binary data is base64-encoded inline (no external files)
+//!
+//! # Limitations
+//!
+//! - Animations are not exported (RigidModel doesn't contain animation data)
+//! - Some advanced material properties may not translate directly to glTF
+//! - Skeleton/rigging data export is limited
+//!
+//! # Usage Example
+//!
+//! ```ignore
+//! use rpfm_extensions::gltf::gltf_from_rigid;
+//!
+//! // Convert RigidModel to glTF
+//! let gltf = gltf_from_rigid(&rigid_model, &mut dependencies)?;
+//!
+//! // Write to file
+//! let file = File::create("output.gltf")?;
+//! gltf.to_writer(file)?;
+//! ```
+//!
+//! # Output Format
+//!
+//! The exported glTF uses the JSON format (`.gltf`) with embedded binary data
+//! rather than the binary format (`.glb`). This makes the files larger but
+//! easier to inspect and debug.
+//!
+//! # Dependencies Integration
+//!
+//! The export process can optionally use the [`Dependencies`] cache to resolve
+//! texture references and include texture data in the export.
+//!
+//! [`Dependencies`]: crate::dependencies::Dependencies
+
 use base64::{Engine, engine::general_purpose::STANDARD};
 pub use gltf::{Document, Gltf, json};
 use gltf_json::{image::MimeType, validation::{Checked::Valid, USize64}};
@@ -28,6 +73,39 @@ use crate::dependencies::Dependencies;
 //                              Implementations
 //---------------------------------------------------------------------------//
 
+/// Converts a RigidModel to glTF format.
+///
+/// This function takes a Total War RigidModel and produces a glTF document
+/// that can be saved to disk or further processed.
+///
+/// # Arguments
+///
+/// * `value` - The RigidModel to convert
+/// * `dependencies` - Dependencies cache for resolving texture references
+///
+/// # Returns
+///
+/// A `Gltf` document containing the converted model data.
+///
+/// # LOD Handling
+///
+/// Since glTF doesn't natively support LOD levels, each LOD from the RigidModel
+/// is exported as a separate scene within the glTF document. The first scene
+/// (index 0) contains LOD 0 (highest detail).
+///
+/// # Mesh Data
+///
+/// For each mesh, the following data is exported:
+/// - Vertex positions (vec3)
+/// - Texture coordinates (vec2, up to 2 sets)
+/// - Vertex normals (vec3) - reconstructed from tangent/bitangent if needed
+///
+/// # Materials
+///
+/// Materials are created for each mesh with:
+/// - Base color texture (diffuse map)
+/// - Normal map
+/// - Metallic-roughness properties
 pub fn gltf_from_rigid(value: &RigidModel, dependencies: &mut Dependencies) -> Result<Gltf> {
     let mut root = gltf_json::Root::default();
 

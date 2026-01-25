@@ -8,7 +8,56 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! This module contains the code for the limited Git support.
+//! Basic Git repository management for schema updates and version control.
+//!
+//! This module provides minimal Git functionality needed by RPFM to:
+//! - Clone and update remote repositories (primarily for schema updates)
+//! - Check for updates without downloading
+//! - Handle branch switching and stashing
+//!
+//! # Limitations
+//!
+//! This is **not** a full Git client. It provides only the essential operations needed
+//! for RPFM's schema update system. For comprehensive Git operations, use a dedicated Git client.
+//!
+//! # Main Use Case
+//!
+//! RPFM uses this integration to keep schemas synchronized with the official schema repository.
+//! The typical workflow is:
+//!
+//! 1. Check if updates are available ([`GitIntegration::check_update()`])
+//! 2. If available, download updates ([`GitIntegration::update_repo()`])
+//! 3. Schema files are now up-to-date and can be loaded
+//!
+//! # Example
+//!
+//! ```no_run
+//! use rpfm_lib::integrations::git::{GitIntegration, GitResponse};
+//! use std::path::Path;
+//!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let git = GitIntegration::new(
+//!     Path::new("schemas"),
+//!     "https://github.com/Frodo45127/rpfm-schemas",
+//!     "master",
+//!     "origin"
+//! );
+//!
+//! match git.check_update()? {
+//!     GitResponse::NewUpdate => {
+//!         println!("Update available, downloading...");
+//!         git.update_repo()?;
+//!     }
+//!     GitResponse::NoUpdate => println!("Already up to date"),
+//!     GitResponse::NoLocalFiles => {
+//!         println!("No local copy, cloning...");
+//!         git.update_repo()?;
+//!     }
+//!     GitResponse::Diverged => println!("Local changes conflict with remote"),
+//! }
+//! # Ok(())
+//! # }
+//! ```
 
 use git2::{Reference, ReferenceFormat, Repository, Signature, StashFlags, build::CheckoutBuilder};
 use serde::{Deserialize, Serialize};
@@ -24,29 +73,43 @@ use crate::error::{RLibError, Result};
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
-/// Struct containing the data needed to perform a fetch/pull from a repo.
+/// Configuration for Git repository operations.
+///
+/// This struct holds all the information needed to perform fetch/pull operations
+/// on a Git repository. Create an instance with [`GitIntegration::new()`] and use it
+/// to check for or download updates.
 #[derive(Debug)]
 pub struct GitIntegration {
 
-    /// Local Path of the repo.
+    /// Local filesystem path where the repository is (or will be) cloned.
     local_path: PathBuf,
 
-    /// URL of the repo.
+    /// Remote repository URL (e.g., `"https://github.com/user/repo"`).
     url: String,
 
-    /// Branch to fetch/pull.
+    /// Branch name to track (e.g., `"master"`, `"main"`).
     branch: String,
 
-    /// Remote to fetch/pull from.
+    /// Remote name (typically `"origin"`).
     remote: String,
 }
 
-/// Possible responses we can get from a fetch/pull.
+/// Result of checking for repository updates.
+///
+/// Returned by [`GitIntegration::check_update()`] to indicate the repository's state
+/// relative to the remote.
 #[derive(Debug, Serialize, Deserialize)]
 pub enum GitResponse {
+    /// A new update is available on the remote.
     NewUpdate,
+
+    /// The local repository is up-to-date with the remote.
     NoUpdate,
+
+    /// No local copy of the repository exists (needs cloning).
     NoLocalFiles,
+
+    /// Local and remote branches have diverged (conflicting changes).
     Diverged,
 }
 
@@ -56,7 +119,18 @@ pub enum GitResponse {
 
 impl GitIntegration {
 
-    /// This function creates a new GitIntegration struct with data for a git operation.
+    /// Creates a new Git integration configuration.
+    ///
+    /// # Arguments
+    ///
+    /// * `local_path` - Local directory for the repository
+    /// * `url` - Remote repository URL
+    /// * `branch` - Branch name to track
+    /// * `remote` - Remote name (usually `"origin"`)
+    ///
+    /// # Returns
+    ///
+    /// Returns a configured [`GitIntegration`] instance ready for operations.
     pub fn new(local_path: &Path, url: &str, branch: &str, remote: &str) -> Self {
         Self {
             local_path: local_path.to_owned(),
@@ -66,20 +140,46 @@ impl GitIntegration {
         }
     }
 
-    /// This function tries to initializes a git repo.
+    /// Initializes a new Git repository at the configured local path.
+    ///
+    /// Creates a `.git` directory and initializes Git metadata. Use this to create
+    /// a new repository from scratch.
+    ///
+    /// # Returns
+    ///
+    /// Returns the initialized repository handle, or an error if initialization fails.
     pub fn init(&self) -> Result<Repository> {
         Repository::init(&self.local_path).map_err(From::from)
     }
 
-    /// This function generates a gitignore file for the git repo.
+    /// Creates or replaces a `.gitignore` file in the repository.
     ///
-    /// If it already exists, it'll replace the existing file.
+    /// # Arguments
+    ///
+    /// * `contents` - The complete contents of the `.gitignore` file
+    ///
+    /// # Returns
+    ///
+    /// Returns [`Ok`] if the file was written successfully, or an error if file I/O fails.
+    ///
+    /// # Note
+    ///
+    /// This will overwrite any existing `.gitignore` file.
     pub fn add_gitignore(&self, contents: &str) -> Result<()> {
         let mut file = BufWriter::new(File::create(self.local_path.join(".gitignore"))?);
         file.write_all(contents.as_bytes()).map_err(From::from)
     }
 
-    /// This function switches the branch of a `GitIntegration` to the provided refspec.
+    /// Switches the repository to a different branch.
+    ///
+    /// # Arguments
+    ///
+    /// * `repo` - The repository to operate on
+    /// * `refs` - Full reference name (e.g., `"refs/heads/master"`)
+    ///
+    /// # Returns
+    ///
+    /// Returns [`Ok`] if the checkout succeeds, or an error if the operation fails.
     pub fn checkout_branch(&self, repo: &Repository, refs: &str) -> Result<()> {
         let head = repo.head().unwrap();
         let oid = head.target().unwrap();
@@ -93,7 +193,27 @@ impl GitIntegration {
         Ok(())
     }
 
-    /// This function checks if there is a new update for the current repo.
+    /// Checks if updates are available without downloading them.
+    ///
+    /// This function fetches metadata from the remote and compares it with the local
+    /// repository state to determine if new commits are available. Local changes are
+    /// temporarily stashed and the branch is restored after checking.
+    ///
+    /// # Returns
+    ///
+    /// Returns a [`GitResponse`] indicating:
+    /// - [`GitResponse::NewUpdate`]: Remote has new commits
+    /// - [`GitResponse::NoUpdate`]: Already up-to-date
+    /// - [`GitResponse::NoLocalFiles`]: Repository hasn't been cloned yet
+    /// - [`GitResponse::Diverged`]: Local and remote branches have conflicting changes
+    ///
+    /// # Behavior
+    ///
+    /// 1. Stashes any local changes
+    /// 2. Switches to the tracked branch if needed
+    /// 3. Fetches remote metadata
+    /// 4. Compares local and remote states
+    /// 5. Restores original branch and unstashes changes
     pub fn check_update(&self) -> Result<GitResponse> {
         let mut repo = match Repository::open(&self.local_path) {
             Ok(repo) => repo,
@@ -147,7 +267,33 @@ impl GitIntegration {
         }
     }
 
-    /// This function downloads the latest revision of the current repository.
+    /// Downloads and applies updates from the remote repository.
+    ///
+    /// This function performs a full update of the repository:
+    /// - If the repository doesn't exist locally, it clones it
+    /// - If it exists, it pulls the latest changes from the tracked branch
+    /// - Handles diverged branches by re-cloning if necessary
+    ///
+    /// # Returns
+    ///
+    /// Returns [`Ok`] if the update succeeds, or an error if:
+    /// - The repository cannot be cloned
+    /// - There are no updates available (returns [`RLibError::GitErrorNoUpdatesAvailable`])
+    /// - The download fails
+    ///
+    /// # Behavior
+    ///
+    /// 1. Opens or clones the repository
+    /// 2. Stashes local changes
+    /// 3. Switches to the tracked branch
+    /// 4. Fetches and merges remote changes (fast-forward when possible)
+    /// 5. If branches have diverged, re-clones the repository from scratch
+    /// 6. Restores original branch and unstashes changes
+    ///
+    /// # Platform-Specific Behavior
+    ///
+    /// On Windows, this function removes read-only flags before deleting directories
+    /// to avoid permission errors.
     pub fn update_repo(&self) -> Result<()> {
         let mut new_repo = false;
         let mut repo = match Repository::open(&self.local_path) {

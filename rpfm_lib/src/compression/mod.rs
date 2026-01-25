@@ -13,7 +13,12 @@
 //! The traits [`Compressible`] and [`Decompressible`] within this module contain functions to compress and decompress
 //! data from/to CA's different supported compression formats. Implementations of these two traits for &[[`u8`]] are provided within this module.
 //!
-//! Also, a couple of things to take into account:
+//! # Supported Formats
+//!
+//! See [`CompressionFormat`] for details on the supported compression formats (LZMA1, Lz4, Zstd) and their file structure.
+//!
+//! # Important Notes
+//!
 //! * Due to an game bug, compressing tables tends to cause crashes when starting for some people. This bug seems to have been fixed in WH3, but all other games before WH3
 //!   may still suffer from it, so unless manually forced to, this lib will not compress tables in those games. Tables will only be compressed in WH3 and newer games.
 //!
@@ -52,18 +57,35 @@ const MAGIC_NUMBER_ZSTD: u32 = 0xfd2fb528;
 //---------------------------------------------------------------------------//
 
 /// Internal trait to implement compression over a data type.
+///
+/// See also [`Decompressible`] for the reverse operation.
 pub trait Compressible {
 
     /// This function compress the data of a file, returning the compressed data.
+    ///
+    /// # Arguments
+    ///
+    /// * `format` - The [`CompressionFormat`] to use for compression.
+    ///
+    /// # Returns
+    ///
+    /// A [`Vec<u8>`] containing the compressed data, or an error if compression failed.
     fn compress(&self, format: CompressionFormat) -> Result<Vec<u8>>;
 }
 
 /// Internal trait to implement decompression over a data type.
+///
+/// See also [`Compressible`] for the reverse operation.
 pub trait Decompressible {
 
     /// This function decompress the provided data, returning the decompressed data, or an error if the decompression failed.
     ///
-    /// Compression format is auto-detected using each format's magic numbers.
+    /// Compression format is auto-detected using each format's magic numbers. See [`CompressionFormat`] for details
+    /// on the supported formats.
+    ///
+    /// # Returns
+    ///
+    /// A [`Vec<u8>`] containing the decompressed data, or an error if decompression failed.
     fn decompress(&self) -> Result<Vec<u8>>;
 }
 
@@ -80,19 +102,19 @@ pub enum CompressionFormat {
     ///
     /// Specifically, Total War games use the Non-Streamed LZMA1 format with the following custom header:
     ///
-    /// | Bytes | Type  | Data                                                                                |
-    /// | ----- | ----- | ----------------------------------------------------------------------------------- |
-    /// |  4    | [u32] | Uncompressed size (as u32, max at 4GB).                                             |
-    /// |  1    | [u8]  | LZMA model properties (lc, lp, pb) in encoded form... I think. Usually it's `0x5D`. |
-    /// |  4    | [u32] | Dictionary size (as u32)... I think. It's usually `[0x00, 0x00, 0x40, 0x00]`.       |
+    /// | Bytes | Type     | Data                                                                                |
+    /// | ----- | -------- | ----------------------------------------------------------------------------------- |
+    /// |  4    | [`u32`]  | Uncompressed size (as u32, max at 4GB).                                             |
+    /// |  1    | [`u8`]   | LZMA model properties (lc, lp, pb) in encoded form... I think. Usually it's `0x5D`. |
+    /// |  4    | [`u32`]  | Dictionary size (as u32)... I think. It's usually `[0x00, 0x00, 0x40, 0x00]`.       |
     ///
     /// For reference, a normal Non-Streamed LZMA1 header (from the original spec) contains:
     ///
-    /// | Bytes | Type          | Data                                                        |
-    /// | ----- | ------------- | ----------------------------------------------------------- |
-    /// |  1    | [u8]          | LZMA model properties (lc, lp, pb) in encoded form.         |
-    /// |  4    | [u32]         | Dictionary size (32-bit unsigned integer, little-endian).   |
-    /// |  8    | [prim@u64]    | Uncompressed size (64-bit unsigned integer, little-endian). |
+    /// | Bytes | Type     | Data                                                        |
+    /// | ----- | -------- | ----------------------------------------------------------- |
+    /// |  1    | [`u8`]   | LZMA model properties (lc, lp, pb) in encoded form.         |
+    /// |  4    | [`u32`]  | Dictionary size (32-bit unsigned integer, little-endian).   |
+    /// |  8    | [`u64`]  | Uncompressed size (64-bit unsigned integer, little-endian). |
     ///
     /// This means one has to move the uncompressed size to the correct place in order for a compressed file to be readable,
     /// and one has to remove the uncompressed size and prepend it to the file in order for the game to read the compressed file.
@@ -104,7 +126,7 @@ pub enum CompressionFormat {
     ///
     /// | Bytes | Type      | Data                                          |
     /// | ----- | --------- | --------------------------------------------- |
-    /// |  4    | [u32]     | Uncompressed size (as u32, max at 4GB).       |
+    /// |  4    | [`u32`]   | Uncompressed size (as u32, max at 4GB).       |
     /// |  *    | &[[`u8`]] | Lz4 data, starting with the Lz4 Magic Number. |
     Lz4,
 
@@ -114,7 +136,7 @@ pub enum CompressionFormat {
     ///
     /// | Bytes | Type      | Data                                            |
     /// | ----- | --------- | ----------------------------------------------- |
-    /// |  4    | [u32]     | Uncompressed size (as u32, max at 4GB).         |
+    /// |  4    | [`u32`]   | Uncompressed size (as u32, max at 4GB).         |
     /// |  *    | &[[`u8`]] | Zstd data, starting with the Zstd Magic Number. |
     ///
     /// By default the Zstd compression is done with the checksum and content size flags enabled.

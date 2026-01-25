@@ -8,7 +8,15 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! This is a module to read/write binary Anim Fragment files, v4.
+//! Version 4 format decoder/encoder (Warhammer 3).
+//!
+//! This module implements the version 4 animation fragment format used in
+//! Total War: Warhammer III. This version introduces:
+//! - Subversion field for minor format variations
+//! - Animation reference lists (`anim_refs`) instead of single filenames
+//! - Enhanced cavalry and flight mechanics flags
+//! - Table names for mount/unmount animations
+//! - Locomotion graph support
 //!
 //! For internal use only.
 
@@ -22,7 +30,7 @@ use crate::files::anim_fragment_battle::*;
 
 impl AnimFragmentBattle {
 
-    pub fn read_v4<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
+    pub(crate) fn read_v4<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
         self.subversion = data.read_u32()?;
         self.table_name = data.read_sized_string_u8()?;
         self.mount_table_name = data.read_sized_string_u8()?;
@@ -70,7 +78,7 @@ impl AnimFragmentBattle {
         Ok(())
     }
 
-    pub fn write_v4<W: WriteBytes>(&self, buffer: &mut W) -> Result<()> {
+    pub(crate) fn write_v4<W: WriteBytes>(&self, buffer: &mut W) -> Result<()> {
         buffer.write_u32(self.subversion)?;
         buffer.write_sized_string_u8(&self.table_name)?;
         buffer.write_sized_string_u8(&self.mount_table_name)?;

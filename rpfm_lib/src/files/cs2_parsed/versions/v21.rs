@@ -19,7 +19,7 @@ use super::*;
 
 impl Cs2Parsed {
 
-    pub fn read_v21<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
+    pub(crate) fn read_v21<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
         self.ui_flag.name = data.read_sized_string_u8()?;
         self.ui_flag.transform = Transform4x4::decode(data, &None)?;
 
@@ -185,7 +185,7 @@ impl Cs2Parsed {
         Ok(())
     }
 
-    pub fn write_v21<W: WriteBytes>(&mut self, buffer: &mut W) -> Result<()> {
+    pub(crate) fn write_v21<W: WriteBytes>(&mut self, buffer: &mut W) -> Result<()> {
         buffer.write_sized_string_u8(&self.ui_flag.name)?;
         self.ui_flag.transform.encode(buffer, &None)?;
 

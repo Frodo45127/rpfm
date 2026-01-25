@@ -416,7 +416,7 @@ pub trait WriteBytes: Write {
 
     /// This function tries to write an UTF-8 String to `self` as a 00-Padded UTF-8 String with a max size of `size`.
     ///
-    /// It may fail if `self` cannot be written to. Ìf `crop` is true, in case the string is longer than the size
+    /// It may fail if `self` cannot be written to. If `crop` is true, in case the string is longer than the size
     /// the string will be cropped to fit in the size we have. If it's false, an error will be returned.
     ///
     /// ```rust
@@ -543,7 +543,7 @@ pub trait WriteBytes: Write {
 
     /// This function tries to write an UTF-8 String to `self` as a 00-Padded UTF-16 String with a max size of `size`.
     ///
-    /// It may fail if `self` cannot be written to. Ìf `crop` is true, in case the string is longer than the size
+    /// It may fail if `self` cannot be written to. If `crop` is true, in case the string is longer than the size
     /// the string will be cropped to fit in the size we have. If it's false, an error will be returned.
     ///
     /// ```rust

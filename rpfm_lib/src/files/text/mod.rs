@@ -8,64 +8,100 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! This is a module to read/write Text files.
+//! Plain text file handling with encoding detection and format recognition.
 //!
-//! Text files are any kind of plain-text files, really. Encodings supported by this lib are:
-//! - `ISO-8859-15`
-//! - `UTF-8`
-//! - `UTF-16` (LittleEndian)
+//! This module provides the [`Text`] type for working with plain text files in Total War
+//! PackFiles. It supports multiple encodings and automatically detects file formats based
+//! on extensions to enable syntax highlighting and validation in editors.
 //!
-//! Also, the module automatically tries to guess the language of a Text file, so programs
-//! can query the guess language format and apply extended functionality.
+//! # Supported Encodings
 //!
-//! The full list of file extension this lib supports as `Text` files is:
+//! - **ISO-8859-15**: Western European character set (legacy support)
+//! - **UTF-8**: Modern Unicode encoding (default)
+//! - **UTF-8 with BOM**: UTF-8 with Byte Order Mark
+//! - **UTF-16 LE**: UTF-16 Little Endian with BOM
 //!
-//! | ------------------------ | ---------- | ------------------------------------------- |
-//! | Extension                | Language   | Description                                 |
-//! | ------------------------ | ---------- | ------------------------------------------- |
-//! | `.agf`                   | `Plain`    |                                             |
-//! | `.battle_speech_camera`  | `Plain`    | Camera settings file for battle speeches.   |
-//! | `.benchmark`             | `Xml`      | Benchmark settings.                         |
-//! | `.bob`                   | `Plain`    | BoB settings file.                          |
-//! | `.cindyscene`            | `Xml`      | Cutscene editor data.                       |
-//! | `.cindyscenemanager`     | `Xml`      | Cutscene editor data.                       |
-//! | `.code-snippets`         | `Json`     | VSCode snippet file.                        |
-//! | `.code-workspace`        | `Json`     | VSCode workspace file.                      |
-//! | `.csv`                   | `Plain`    | Normal CSV file.                            |
-//! | `.css`                   | `Css`      | Normal CSS file.                            |
-//! | `.environment`           | `Xml`      |                                             |
-//! | `.glsl`                  | `Cpp`      | GLSL shader source file.                    |
-//! | `.htm`                   | `Html`     | Normal HTML file.                           |
-//! | `.html`                  | `Html`     | Normal HTML file.                           |
-//! | `.inl`                   | `Cpp`      |                                             |
-//! | `.json`                  | `Json`     | Normal JSON file.                           |
-//! | `.js`                    | `Js`       | Normal Javascript file.                     |
-//! | `.kfa`                   | `Xml`      | Battle Audio Event file.                    |
-//! | `.kfe`                   | `Xml`      | Battle Effect file.                         |
-//! | `.kfl`                   | `Xml`      | Battle Point Light file.                    |
-//! | `.kfsl`                  | `Xml`      | Battle Spot Light file.                     |
-//! | `.kfp`                   | `Xml`      | Battle Prop file.                           |
-//! | `.kfcs`                  | `Xml`      | Battle Composite Scene file.                |
-//! | `.lighting`              | `Xml`      |                                             |
-//! | `.log`                   | `Plain`    | Generic log file.                           |
-//! | `.lua`                   | `Lua`      | LUA Script file.                            |
-//! | `.material`              | `Xml`      |                                             |
-//! | `.md`                    | `Markdown` | Markdown files, for readmes.                |
-//! | `.model_statistics`      | `Xml`      |                                             |
-//! | `.tai`                   | `Plain`    |                                             |
-//! | `.technique`             | `Xml`      |                                             |
-//! | `.texture_array`         | `Plain`    | List of Campaign Map textures.              |
-//! | `.tsv`                   | `Plain`    | Normal TSV file.                            |
-//! | `.twui`                  | `Lua`      | TWui file, in lua format.                   |
-//! | `.txt`                   | `Plain`    | Plain TXT file.                             |
-//! | `.variantmeshdefinition` | `Xml`      |                                             |
-//! | `.wsmodel`               | `Xml`      |                                             |
-//! | `.xml`                   | `Xml`      | Normal XML file.                            |
-//! | `.xml.shader`            | `Xml`      | Shader setup metadata.                      |
-//! | `.xml.material`          | `Xml`      |                                             |
-//! | `.xt`                    | `Plain`    | Txt, but with a typo?                       |
-//! | `.yaml`                  | `Yaml`     | Yaml file.                                  |
-//! | `.yml`                   | `Yaml`     | Yaml file.                                  |
+//! Encoding is automatically detected by examining Byte Order Marks (BOMs) and attempting
+//! to decode the data. When encoding, the original encoding is preserved.
+//!
+//! # Format Detection
+//!
+//! The module automatically detects file formats based on file extensions, enabling appropriate
+//! syntax highlighting and validation. Supported formats include Lua scripts, XML configuration,
+//! JSON data, shader code, and more.
+//!
+//! # Supported File Extensions
+//!
+//! The following table lists all file extensions recognized as text files:
+//!
+//! | ----------------------------- | ---------- | ------------------------------------------- |
+//! | Extension                     | Format     | Description                                 |
+//! | ----------------------------- | ---------- | ------------------------------------------- |
+//! | `.agf`                        | `Plain`    |                                             |
+//! | `.bat`                        | `Bat`      | Windows batch script.                       |
+//! | `.battle_script`              | `Lua`      | Battle script in Lua.                       |
+//! | `.battle_speech_camera`       | `Plain`    | Camera settings for battle speeches.        |
+//! | `.benchmark`                  | `Xml`      | Benchmark settings.                         |
+//! | `.bob`                        | `Plain`    | BoB settings file.                          |
+//! | `.cco`                        | `Plain`    |                                             |
+//! | `.cindyscene`                 | `Xml`      | Cutscene editor data.                       |
+//! | `.cindyscenemanager`          | `Xml`      | Cutscene manager data.                      |
+//! | `.code-snippets`              | `Json`     | VSCode snippet file.                        |
+//! | `.code-workspace`             | `Json`     | VSCode workspace file.                      |
+//! | `.css`                        | `Css`      | CSS stylesheet.                             |
+//! | `.csv`                        | `Plain`    | Comma-separated values file.                |
+//! | `.environment`                | `Xml`      | Environment settings.                       |
+//! | `.environment_group`          | `Xml`      | Environment group settings.                 |
+//! | `.environment_group.override` | `Xml`      | Environment group overrides.                |
+//! | `.fbx`                        | `Plain`    | Autodesk FBX (text format).                 |
+//! | `.fx`                         | `Cpp`      | DirectX effect file.                        |
+//! | `.fx_fragment`                | `Cpp`      | DirectX effect fragment.                    |
+//! | `.glsl`                       | `Cpp`      | OpenGL shader source.                       |
+//! | `.h`                          | `Cpp`      | C/C++ header file.                          |
+//! | `.hlsl`                       | `Hlsl`     | High Level Shading Language.                |
+//! | `.htm`                        | `Html`     | HTML document.                              |
+//! | `.html`                       | `Html`     | HTML document.                              |
+//! | `.inl`                        | `Cpp`      | C++ inline file.                            |
+//! | `.json`                       | `Json`     | JSON data file.                             |
+//! | `.js`                         | `Js`       | JavaScript file.                            |
+//! | `.kfa`                        | `Xml`      | Battle Audio Event file.                    |
+//! | `.kfc`                        | `Xml`      | Battle Camera file.                         |
+//! | `.kfe`                        | `Xml`      | Battle Effect file.                         |
+//! | `.kfe_temp`                   | `Xml`      | Battle Effect (temporary).                  |
+//! | `.kfl`                        | `Xml`      | Battle Point Light file.                    |
+//! | `.kfl_temp`                   | `Xml`      | Battle Point Light (temporary).             |
+//! | `.kfsl`                       | `Xml`      | Battle Spot Light file.                     |
+//! | `.kfp`                        | `Xml`      | Battle Prop file.                           |
+//! | `.kfcs`                       | `Xml`      | Battle Composite Scene file.                |
+//! | `.kfcs_temp`                  | `Xml`      | Battle Composite Scene (temporary).         |
+//! | `.ktr`                        | `Xml`      | Battle Tracker file.                        |
+//! | `.ktr_temp`                   | `Xml`      | Battle Tracker (temporary).                 |
+//! | `.lighting`                   | `Xml`      | Lighting configuration.                     |
+//! | `.log`                        | `Plain`    | Log file.                                   |
+//! | `.lua`                        | `Lua`      | Lua script file.                            |
+//! | `.material`                   | `Xml`      | Material definition.                        |
+//! | `.md`                         | `Markdown` | Markdown documentation.                     |
+//! | `.model_statistics`           | `Xml`      | Model statistics data.                      |
+//! | `.mvscene`                    | `Xml`      | Movie scene file.                           |
+//! | `.py`                         | `Python`   | Python script.                              |
+//! | `.sbs`                        | `Xml`      | Substance Designer file.                    |
+//! | `.shader`                     | `Xml`      | Shader definition.                          |
+//! | `.sql`                        | `Sql`      | SQL query file.                             |
+//! | `.tai`                        | `Plain`    |                                             |
+//! | `.technique`                  | `Xml`      | Rendering technique definition.             |
+//! | `.texture_array`              | `Plain`    | List of campaign map textures.              |
+//! | `.tsv`                        | `Plain`    | Tab-separated values file.                  |
+//! | `.twui`                       | `Lua`      | Total War UI file (Lua format).             |
+//! | `.txt`                        | `Plain`    | Plain text file.                            |
+//! | `.xml`                        | `Xml`      | XML file.                                   |
+//! | `.xml_temp`                   | `Xml`      | XML (temporary).                            |
+//! | `.xml.shader`                 | `Xml`      | Shader metadata (XML).                      |
+//! | `.xml.material`               | `Xml`      | Material metadata (XML).                    |
+//! | `.xt`                         | `Plain`    | Text file (typo variant).                   |
+//! | `.yml`                        | `Yaml`     | YAML configuration file.                    |
+//! | `.yaml`                       | `Yaml`     | YAML configuration file.                    |
+//!
+//! Note: `.variantmeshdefinition` and `.wsmodel` are also supported but listed separately in the code.
 
 use getset::*;
 use serde_derive::{Serialize, Deserialize};
@@ -151,7 +187,10 @@ pub const EXTENSIONS: [(&str, TextFormat); 63] = [
     (".material", TextFormat::Xml),     // This has to be under xml.material
 ];
 
+/// Extension for VMD, or Variant Mesh Definitions.
 pub const EXTENSION_VMD: (&str, TextFormat) = (".variantmeshdefinition", TextFormat::Xml);
+
+/// Extension for WS Models.
 pub const EXTENSION_WSMODEL: (&str, TextFormat) = (".wsmodel", TextFormat::Xml);
 
 #[cfg(test)] mod text_test;
@@ -160,46 +199,134 @@ pub const EXTENSION_WSMODEL: (&str, TextFormat) = (".wsmodel", TextFormat::Xml);
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
-/// This holds an entire `Text` file decoded in memory.
+/// In-memory representation of a decoded text file.
+///
+/// Stores the text contents along with encoding and format metadata. The encoding
+/// is preserved when re-encoding to maintain file compatibility.
+///
+/// # Fields
+///
+/// * `encoding` - Character encoding detected or specified for the file
+/// * `format` - File format detected from extension (for syntax highlighting)
+/// * `contents` - Decoded text contents as a UTF-8 Rust string
+///
+/// # Getters/Setters
+///
+/// All fields have public getters, mutable getters, and setters via the `getset` crate:
+/// - `encoding()`, `encoding_mut()`, `set_encoding()`
+/// - `format()`, `format_mut()`, `set_format()`
+/// - `contents()`, `contents_mut()`, `set_contents()`
+///
+/// # Example
+///
+/// ```ignore
+/// use rpfm_lib::files::{Decodeable, text::Text, DecodeableExtraData};
+/// use std::io::Cursor;
+///
+/// let data = b"Hello, World!";
+/// let mut reader = Cursor::new(data);
+/// let text = Text::decode(&mut reader, &None).unwrap();
+///
+/// assert_eq!(text.contents(), "Hello, World!");
+/// ```
 #[derive(Default, PartialEq, Eq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Text {
 
-    /// The encoding used by the file.
+    /// Character encoding of the file.
     encoding: Encoding,
 
-    /// The format of the file.
+    /// Detected file format based on extension.
     format: TextFormat,
 
-    /// The text inside the file.
+    /// Decoded text contents.
     contents: String
 }
 
-/// This enum represents the multiple encodings we can read/write to.
+/// Character encoding types supported for text files.
+///
+/// Different Total War games and file types use different encodings. This enum
+/// represents all encodings that rpfm_lib can read and write.
+///
+/// # Encoding Detection
+///
+/// Encodings are detected in the following order:
+/// 1. Check for UTF-8 BOM (`0xEF 0xBB 0xBF`)
+/// 2. Check for UTF-16 LE BOM (`0xFF 0xFE`)
+/// 3. Attempt UTF-8 decode without BOM
+/// 4. Attempt ISO-8859-1 decode
+///
+/// # Re-encoding
+///
+/// When a text file is saved, the original encoding is preserved to maintain
+/// compatibility with the game engine.
 #[derive(PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum Encoding {
+    /// ISO-8859-1 encoding (Western European, legacy support).
     Iso8859_1,
+
+    /// UTF-8 encoding without BOM (default for new files).
     Utf8,
+
+    /// UTF-8 encoding with BOM marker.
     Utf8Bom,
+
+    /// UTF-16 Little Endian encoding with BOM marker.
     Utf16Le,
 }
 
-/// This enum represents the formats we know.
+/// File format types for syntax highlighting and validation.
+///
+/// Based on file extension, text files are classified into different formats.
+/// This allows text editors to apply appropriate syntax highlighting, code
+/// completion, and validation rules.
+///
+/// # Format Detection
+///
+/// Format is determined by matching the file extension against the [`EXTENSIONS`]
+/// table. If no match is found, defaults to [`TextFormat::Plain`].
 #[derive(PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum TextFormat {
+    /// Windows batch script (`.bat`).
     Bat,
+
+    /// C++ code or GLSL shaders (`.cpp`, `.h`, `.glsl`, `.inl`, `.fx`).
     Cpp,
+
+    /// HTML documents (`.html`, `.htm`).
     Html,
+
+    /// HLSL shader code (`.hlsl`).
     Hlsl,
+
+    /// JSON data files (`.json`, `.code-snippets`, `.code-workspace`).
     Json,
+
+    /// JavaScript code (`.js`).
     Js,
+
+    /// CSS stylesheets (`.css`).
     Css,
+
+    /// Lua scripts (`.lua`, `.twui`, `.battle_script`).
     Lua,
+
+    /// Markdown documentation (`.md`).
     Markdown,
+
+    /// Plain text with no specific format (`.txt`, `.csv`, `.tsv`, `.log`, etc.).
     Plain,
+
+    /// Python scripts (`.py`).
     Python,
+
+    /// SQL queries (`.sql`).
     Sql,
+
+    /// XML configuration and data files (`.xml`, `.kf*`, `.cindyscene`, etc.).
     Xml,
+
+    /// YAML configuration files (`.yaml`, `.yml`).
     Yaml,
 }
 
@@ -227,6 +354,37 @@ impl Default for TextFormat {
 
 impl Text {
 
+    /// Detects the character encoding of text data.
+    ///
+    /// Examines the data stream to determine its encoding by checking for Byte Order Marks
+    /// (BOMs) and attempting to decode as different encodings.
+    ///
+    /// # Detection Algorithm
+    ///
+    /// 1. **UTF-8 BOM**: Checks for `0xEF 0xBB 0xBF` at the start
+    /// 2. **UTF-16 LE BOM**: Checks for `0xFF 0xFE` at the start
+    /// 3. **UTF-8 without BOM**: Attempts to decode entire file as UTF-8
+    /// 4. **ISO-8859-1**: Attempts to decode as ISO-8859-1
+    ///
+    /// # Arguments
+    ///
+    /// * `data` - Reader positioned at the start of the text data
+    ///
+    /// # Returns
+    ///
+    /// The detected [`Encoding`], or an error if no supported encoding matches.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RLibError::DecodingTextUnsupportedEncodingOrNotATextFile`] if:
+    /// - The data cannot be decoded as any supported encoding
+    /// - The file is not actually a text file
+    ///
+    /// # Side Effects
+    ///
+    /// After detection, the reader is repositioned:
+    /// - After the BOM if one was found
+    /// - At the start if no BOM was found
     pub fn detect_encoding<R: ReadBytes>(data: &mut R) -> Result<Encoding> {
         let len = data.len()?;
 

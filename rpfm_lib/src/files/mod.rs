@@ -10,45 +10,100 @@
 
 //! This module contains the definition of RFile, the file abstraction used by this lib to decode/encode files.
 //!
-//! # Known file types
-//!
-//! | File Type             | Decoding Supported | Encoding Supported |
-//! | --------------------- | ------------------ | ------------------ |
-//! | [`Anim`]              | Limited            | Limited            |
-//! | [`AnimFragmentBattle`]| Limited            | Limited            |
-//! | [`AnimPack`]          | Yes                | Yes                |
-//! | [`AnimsTable`]        | Yes                | Yes                |
-//! | [`Atlas`]             | Yes                | Yes                |
-//! | [`Audio`]             | No                 | No                 |
-//! | [`BMD`]               | Limited            | Limited            |
-//! | [`BMD_Vegetation`]    | Limited            | Limited            |
-//! | [`CS2_Collision`]     | Limited            | Limited            |
-//! | [`CS2_Parsed`]        | Limited            | Limited            |
-//! | [`Dat`]               | Limited            | Limited            |
-//! | [`DB`]                | Yes                | Yes                |
-//! | [`ESF`]               | Limited            | Limited            |
-//! | [`Font`]              | Limited            | Limited            |
-//! | [`GroupFormations`]   | Limited            | Limited            |
-//! | [`HLSL_Compiled`]     | Limited            | Limited            |
-//! | [`Image`]             | Limited            | Limited            |
-//! | [`Loc`]               | Yes                | Yes                |
-//! | [`MatchedCombat`]     | Yes                | Yes                |
-//! | [`Pack`]              | Yes                | Yes                |
-//! | [`PortraitSettings`]  | Yes                | Yes                |
-//! | [`RigidModel`]        | No                 | No                 |
-//! | [`SoundBank`]         | No                 | No                 |
-//! | [`SoundEvents`]       | No                 | No                 |
-//! | [`Text`]              | Yes                | Yes                |
-//! | [`TileDatabase`]      | Yes                | Yes                |
-//! | [`UIC`]               | No                 | No                 |
-//! | [`UnitVariant`]       | Yes                | Yes                |
-//! | [`Video`]             | Yes                | Yes                |
-//!
 //! There is an additional type: [`Unknown`]. This type is used as a wildcard,
 //! so you can get the raw data of any non-supported file type and manipulate it yourself in a safe way.
 //!
 //! For more information about specific file types, including their binary format spec, please
 //! **check their respective documentation**.
+//!
+//! # Core Abstractions
+//!
+//! ## RFile
+//!
+//! The [`RFile`] struct is the central abstraction for all files in rpfm_lib. It can represent:
+//! - Files within PackFiles (or any [`Container`])
+//! - Files on the filesystem
+//! - Files in memory only
+//!
+//! Key features:
+//! - **Lazy Loading**: Files can be loaded on-demand to reduce memory usage
+//! - **Type Detection**: Automatically identifies file types based on path and content
+//! - **Caching**: Supports caching decoded data or raw bytes
+//! - **Metadata**: Tracks path, timestamp, container name, and file type
+//!
+//! ## File States
+//!
+//! Files can be in one of three internal states:
+//! - **OnDisk**: Data not yet loaded (lazy loading)
+//! - **Cached**: Raw bytes loaded but not decoded
+//! - **Decoded**: Fully parsed into a type-specific structure
+//!
+//! ## Decoding/Encoding
+//!
+//! All file types implement the [`Decodeable`] and [`Encodeable`] traits:
+//! - **Decodeable**: Parse binary data into structured format
+//! - **Encodeable**: Serialize structured format back to binary
+//!
+//! Extra data can be passed via [`DecodeableExtraData`] and [`EncodeableExtraData`]
+//! to provide context like schemas, game info, or file names.
+//!
+//! # Known file types
+//!
+//! | File Type              | Decoding Supported | Encoding Supported |
+//! | ---------------------- | ------------------ | ------------------ |
+//! | [`Anim`]               | Limited            | Limited            |
+//! | [`AnimFragmentBattle`] | Limited            | Limited            |
+//! | [`AnimPack`]           | Yes                | Yes                |
+//! | [`AnimsTable`]         | Yes                | Yes                |
+//! | [`Atlas`]              | Yes                | Yes                |
+//! | [`Audio`]              | No                 | No                 |
+//! | [`BMD`]                | Limited            | Limited            |
+//! | [`BMD_Vegetation`]     | Limited            | Limited            |
+//! | [`CS2_Collision`]      | Limited            | Limited            |
+//! | [`CS2_Parsed`]         | Limited            | Limited            |
+//! | [`Dat`]                | Limited            | Limited            |
+//! | [`DB`]                 | Yes                | Yes                |
+//! | [`ESF`]                | Limited            | Limited            |
+//! | [`Font`]               | Limited            | Limited            |
+//! | [`GroupFormations`]    | Limited            | Limited            |
+//! | [`HLSL_Compiled`]      | Limited            | Limited            |
+//! | [`Image`]              | Limited            | Limited            |
+//! | [`Loc`]                | Yes                | Yes                |
+//! | [`MatchedCombat`]      | Yes                | Yes                |
+//! | [`Pack`]               | Yes                | Yes                |
+//! | [`PortraitSettings`]   | Yes                | Yes                |
+//! | [`RigidModel`]         | No                 | No                 |
+//! | [`SoundBank`]          | No                 | No                 |
+//! | SoundBankDatabase      | Limited            | Limited            |
+//! | SoundEvents            | Limited            | Limited            |
+//! | [`Text`]               | Yes                | Yes                |
+//! | [`TileDatabase`]       | Yes                | Yes                |
+//! | [`UIC`]                | No                 | No                 |
+//! | [`UnitVariant`]        | Yes                | Yes                |
+//! | [`Video`]              | Yes                | Yes                |
+//! | VMD                    | Yes                | Yes                |
+//! | WSModel                | Yes                | Yes                |
+//!
+//! # Example Usage
+//!
+//! ```ignore
+//! use rpfm_lib::files::{RFile, Decodeable, db::DB, DecodeableExtraData, table::Table};
+//! use rpfm_lib::schema::Schema;
+//! use std::path::Path;
+//!
+//! // Load a DB table from disk
+//! let schema = Schema::load(Path::new("path/to/schema.ron"), None).unwrap();
+//! let mut extra = DecodeableExtraData::default();
+//! extra.set_schema(Some(&schema));
+//! extra.set_table_name(Some("units_tables"));
+//!
+//! let rfile = RFile::from_disk(Path::new("units"), &extra).unwrap();
+//!
+//! // Access the decoded data
+//! if let Some(db) = rfile.decoded().and_then(|d| d.db()) {
+//!     println!("Table has {} rows", db.table().len());
+//! }
+//! ```
 //!
 //! [`Anim`]: crate::files::anim::Anim
 //! [`AnimFragmentBattle`]: crate::files::anim_fragment_battle::AnimFragmentBattle
@@ -80,7 +135,6 @@
 //! [`UnitVariant`]: crate::files::unit_variant::UnitVariant
 //! [`Unknown`]: crate::files::unknown::Unknown
 //! [`Video`]: crate::files::video::Video
-
 
 use crc_fast::{checksum, CrcAlgorithm};
 use csv::{QuoteStyle, ReaderBuilder, WriterBuilder};
@@ -171,48 +225,111 @@ pub mod video;
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
-/// This struct represents an individual file, including the metadata associated with it.
+/// Central file abstraction for rpfm_lib.
 ///
-/// It can represent both, a file within a Pack (or anything implementing [Container] really), or a single
-/// file on disk.
+/// Represents a file that can exist in multiple locations and states:
+/// - Inside a PackFile or other container
+/// - On the filesystem
+/// - In memory only
 ///
-/// It supports Lazy-Loading to reduce RAM usage.
+/// # Lazy Loading
+///
+/// RFile supports lazy loading to minimize memory usage. Files can remain on disk
+/// until their data is actually needed, at which point they're loaded into memory
+/// automatically.
+///
+/// # File States
+///
+/// Internally, RFile can be in three states:
+/// - **OnDisk**: Metadata loaded, data still on disk (minimal memory)
+/// - **Cached**: Raw bytes loaded, not yet decoded
+/// - **Decoded**: Fully parsed into type-specific structure
+///
+/// # Type Detection
+///
+/// File types are detected based on:
+/// - File extension and path patterns
+/// - Magic numbers and header bytes
+/// - Container metadata
+///
+/// # Metadata
+///
+/// Each RFile tracks:
+/// - **path**: Location within container or filesystem (may be empty for memory-only files)
+/// - **timestamp**: Last modified time (optional)
+/// - **file_type**: Detected or specified file type
+/// - **container_name**: Source container name if from a container
+///
+/// # Example
+///
+/// ```ignore
+/// use rpfm_lib::files::{RFile, FileType};
+/// use std::path::Path;
+///
+/// // Load a file from disk
+/// let rfile = RFile::from_disk(Path::new("units.loc"), &None).unwrap();
+///
+/// // Check file type
+/// assert_eq!(*rfile.file_type(), FileType::Loc);
+///
+/// // Decode the file
+/// let decoded = rfile.decode(&None, false, false).unwrap();
+/// ```
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct RFile {
 
-    /// Path of the file, either within a [`Container`] or in the FileSystem.
+    /// Path of the file within a container or filesystem.
     ///
-    /// It may be an empty string if the file exists only in memory.
+    /// Empty string for memory-only files.
     path: String,
 
-    /// Last modified date of the file. Optional.
+    /// Last modified timestamp (Unix epoch).
     timestamp: Option<u64>,
 
-    /// The type of this file.
+    /// Detected or specified file type.
     file_type: FileType,
 
-    /// Name of the container this [`RFile`] is from, if it's in a contanier.
+    /// Name of the source container, if applicable.
     container_name: Option<String>,
 
-    /// Inner data of the file.
+    /// Internal data storage (OnDisk, Cached, or Decoded).
     ///
-    /// Internal only. Users should use the [`RFile`] methods instead of using this directly.
+    /// Use RFile methods instead of accessing directly.
     data: RFileInnerData,
 }
 
-/// This enum contains the data of each [`RFile`].
+/// Internal data storage states for RFile.
 ///
-/// This is internal only.
+/// Represents the three possible states of file data in memory:
+/// - **Decoded**: Fully parsed into structured format (highest memory, fastest access)
+/// - **Cached**: Raw bytes in memory (medium memory, requires decoding)
+/// - **OnDisk**: Metadata only, data on disk (lowest memory, requires loading + decoding)
+///
+/// This enum is internal and should not be used directly. Use RFile's public methods instead.
+///
+/// # State Transitions
+///
+/// ```text
+/// OnDisk → load() → Cached → decode() → Decoded
+///                     ↑                     ↓
+///                     └───── encode() ──────┘
+/// ```
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 enum RFileInnerData {
 
-    /// This variant represents a file whose data has been loaded to memory and decoded.
+    /// File data loaded and decoded into type-specific structure.
+    ///
+    /// Ready for immediate use. Highest memory usage.
     Decoded(Box<RFileDecoded>),
 
-    /// This variant represents a file whose data has been loaded to memory, but it hasn't been decoded.
+    /// Raw bytes loaded into memory but not decoded.
+    ///
+    /// Requires decoding before use. Medium memory usage.
     Cached(Vec<u8>),
 
-    /// This variant represents a file whose data hasn't been loaded to memory yet.
+    /// File data still on disk, only metadata in memory.
+    ///
+    /// Requires loading and decoding before use. Lowest memory usage.
     OnDisk(OnDisk)
 }
 
@@ -283,11 +400,31 @@ pub enum RFileDecoded {
     WSModel(Text),
 }
 
-/// This enum specifies the known types of files we can find in a Total War game.
+/// Known file types in Total War games.
 ///
-/// This list is not exhaustive and it may get bigger in the future as more files are added.
+/// Categorizes files by their format and purpose. Each variant corresponds to a dedicated
+/// submodule that implements parsing and encoding for that file type.
 ///
-/// For each file info, please check their dedicated submodule if exists.
+/// # Type Detection
+///
+/// File types are determined by:
+/// - **Extension matching**: Primary method for most file types
+/// - **Path patterns**: For files with special naming (e.g., DB tables)
+/// - **Magic numbers**: For format disambiguation when needed
+///
+/// # Support Levels
+///
+/// - **Full**: Complete decoding and encoding support
+/// - **Partial**: Read support with limitations
+/// - **Passthrough**: Raw data only (use [`Unknown`] for custom handling)
+///
+/// See the module-level documentation for a complete support matrix.
+///
+/// # Unknown Type
+///
+/// [`FileType::Unknown`] is the default fallback for unrecognized files. These files
+/// can still be read and written using the [`Unknown`] file type, which provides
+/// access to raw bytes.
 #[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub enum FileType {
     Anim,
@@ -335,9 +472,41 @@ pub enum ContainerPath {
     Folder(String),
 }
 
-/// This is a generic struct to easily pass additional data to a [Decodeable::decode] method.
+/// Additional context data for [`Decodeable::decode()`] operations.
 ///
-/// To know what you need to provide to each file type, please check their documentation.
+/// This structure provides optional configuration and metadata that decoders may need
+/// to properly interpret binary data. Different file types use different subsets of
+/// these fields.
+///
+/// # Field Categories
+///
+/// - **Configuration toggles**: Control decoder behavior (lazy loading, encryption status, etc.)
+/// - **OnDisk-related data**: File location and timestamp information
+/// - **Table-related data**: Database table-specific context
+/// - **Image-related data**: Image format detection flags
+/// - **General-purpose data**: Game info, file names, sizes
+///
+/// # Usage
+///
+/// ```ignore
+/// use rpfm_lib::files::DecodeableExtraData;
+///
+/// // For decoding a DB table
+/// let extra_data = DecodeableExtraData::default()
+///     .set_schema(Some(&schema))
+///     .set_game_info(Some(&game_info))
+///     .set_table_name(Some("units_tables"))
+///     .set_return_incomplete(true);
+/// ```
+///
+/// # Required Fields by Type
+///
+/// - **DB Tables**: Require `schema` and optionally `table_name` for fragments
+/// - **Containers (PackFiles)**: Use `lazy_load`, `disk_file_path`, `disk_file_offset`
+/// - **Images**: Use `is_dds` to enable DDS-specific decoding
+/// - **Generic files**: May use `game_info`, `file_name`, `data_size`
+///
+/// For specific requirements, consult each file type's documentation.
 #[derive(Clone, Debug, Default, Getters, Setters)]
 #[getset(get = "pub", set = "pub")]
 pub struct DecodeableExtraData<'a> {
@@ -346,65 +515,138 @@ pub struct DecodeableExtraData<'a> {
     // Configuration toggles //
     //-----------------------//
 
-    /// For [Container] implementors, if they should use LazyLoading for their files.
+    /// Enable lazy loading for container files.
+    ///
+    /// When `true`, [`Container`] implementors will defer loading file data until accessed,
+    /// storing only metadata initially. This reduces memory usage for large containers.
     lazy_load: bool,
 
-    /// If the data was encrypted (all data that reach the decode functions should be already decrypted).
+    /// Indicates whether the source data was encrypted.
+    ///
+    /// This is informational only - data reaching decode functions should already be decrypted.
+    /// Used for metadata tracking and logging.
     is_encrypted: bool,
 
-    /// If the decoder should return incomplete data on failure (only for tables).
+    /// Allow returning partial data on decode errors (DB tables only).
+    ///
+    /// When `true`, table decoders will return successfully decoded rows even if later
+    /// rows fail to decode. When `false`, any decode error fails the entire operation.
     return_incomplete: bool,
 
-    /// Schema for the decoder to use. Mainly for tables.
+    /// Schema definition for decoding DB tables and Loc files.
+    ///
+    /// Required for decoding database tables, as the schema defines the table structure,
+    /// column types, and versioning information.
     schema: Option<&'a Schema>,
 
     //----------------------------//
     // OnDisk-related config data //
     //----------------------------//
 
-    /// Path of a file on disk, if any.
+    /// Absolute path to the file on disk.
+    ///
+    /// Used by lazy-loading containers to know where to read data from when needed.
+    /// Should be `None` for in-memory data.
     disk_file_path: Option<&'a str>,
 
-    /// Offset of a file on disk where the data we're interested on starts.
+    /// Byte offset within the disk file where this file's data begins.
+    ///
+    /// Used for files embedded within larger containers (e.g., individual files in a PackFile).
+    /// Set to `0` for standalone files.
     disk_file_offset: u64,
 
-    /// Timestamp of a file on disk.
+    /// File modification timestamp (Unix epoch seconds).
+    ///
+    /// Preserved from the original file for metadata tracking.
     timestamp: u64,
 
     //----------------------------//
     // Table-related config data  //
     //----------------------------//
 
-    /// Name of the folder that contains a table fragment.
+    /// Name of the table (without extension or path).
+    ///
+    /// Used when decoding table fragments that don't have the full path context.
+    /// For example, when decoding a table from a loose file or unnamed buffer.
     table_name: Option<&'a str>,
 
     //----------------------------//
     // Image-Related config data  //
     //----------------------------//
 
-    /// If an image is a dds, so we know we have to use special code to deal with it.
+    /// Flag indicating the image is in DDS (DirectDraw Surface) format.
+    ///
+    /// When `true`, enables DDS-specific decoding and conversion to PNG for display.
     is_dds: bool,
 
     //------------------------------//
-    // General-purpouse config data //
+    // General-purpose config data //
     //------------------------------//
 
-    /// Full info of the game we're going to decode the file from.
+    /// Complete game information context.
+    ///
+    /// Provides game-specific settings, version info, and feature flags that may
+    /// affect decoding behavior (e.g., format variations between game versions).
     game_info: Option<&'a GameInfo>,
 
-    /// Name of the file we're trying to decode.
+    /// Original filename (with extension).
+    ///
+    /// Used for file type detection, logging, and error messages.
     file_name: Option<&'a str>,
 
-    /// Size of the data in a file, either on disk or in memory.
+    /// Total size of the file data in bytes.
+    ///
+    /// May differ from buffer size if dealing with partial data or compressed streams.
     data_size: u64,
 
-    /// Flag to skip path cache generation on containers. Be aware that if you skip it, you need to manually do it later or stuff will not work.
+    /// Skip automatic path cache generation for containers.
+    ///
+    /// When `true`, container decoders won't build the lowercase path cache automatically.
+    /// You must manually call [`Container::paths_cache_generate()`] after decoding or
+    /// case-insensitive lookups will fail.
+    ///
+    /// This is an optimization for bulk operations where you'll rebuild the cache once
+    /// at the end instead of incrementally.
     skip_path_cache_generation: bool,
 }
 
-/// This is a generic struct to easily pass additional data to a [Encodeable::encode] method.
+/// Additional context data for [`Encodeable::encode()`] operations.
 ///
-/// To know what you need to provide to each file type, please check their documentation.
+/// This structure provides optional configuration and metadata that encoders may need
+/// to properly serialize structured data to binary format. Different file types use
+/// different subsets of these fields.
+///
+/// # Field Categories
+///
+/// - **Configuration toggles**: Control encoder behavior (test mode, date handling, GUIDs)
+/// - **Optional config data**: Game info, compression settings
+///
+/// # Usage
+///
+/// ```ignore
+/// use rpfm_lib::files::EncodeableExtraData;
+/// use rpfm_lib::compression::CompressionFormat;
+///
+/// // For encoding a DB table with GUID
+/// let extra_data = EncodeableExtraData::default()
+///     .set_game_info(Some(&game_info))
+///     .set_table_has_guid(true)
+///     .set_regenerate_table_guid(true);
+///
+/// // For encoding with compression
+/// let extra_data = EncodeableExtraData::default()
+///     .set_compression_format(CompressionFormat::Lz4)
+///     .set_game_info(Some(&game_info));
+/// ```
+///
+/// # Common Configurations
+///
+/// - **DB Tables**: Use `table_has_guid` and `regenerate_table_guid` to control GUID handling
+/// - **Containers (PackFiles)**: Use `compression_format` to enable compression
+/// - **Testing**: Use `test_mode` and `nullify_dates` for deterministic output
+/// - **ESF Files**: Use `disable_compression` for nested encoding
+///
+/// For specific requirements, consult each file type's documentation.
 #[derive(Clone, Default, Getters, Setters)]
 #[getset(get = "pub", set = "pub")]
 pub struct EncodeableExtraData<'a> {
@@ -413,29 +655,59 @@ pub struct EncodeableExtraData<'a> {
     // Configuration toggles //
     //-----------------------//
 
-    /// If we're running the encode method on test mode.
+    /// Enable test mode for deterministic output.
+    ///
+    /// When `true`, encoders may skip randomization or use fixed values for fields
+    /// that would normally vary (like auto-generated IDs), making output reproducible
+    /// for testing purposes.
     test_mode: bool,
 
-    /// If we want to set any date or timestamp to 0.
+    /// Zero out all date and timestamp fields.
+    ///
+    /// When `true`, any date or timestamp fields are written as `0` instead of their
+    /// actual values. Used in conjunction with `test_mode` for reproducible output,
+    /// or when dates should be reset.
     nullify_dates: bool,
 
-    /// Only for tables. If we should add a GUID to its header or not.
+    /// Include a GUID in the DB table header.
+    ///
+    /// When `true`, table encoders will write a GUID (Globally Unique Identifier) in
+    /// the table header. Required for Shogun 2 and newer games. Must be `false` for Empire
+    /// and Napoleon, as including a GUID crashes those games on load.
     table_has_guid: bool,
 
-    /// Only for tables. If we should regenerate the GUID of the table (if it even has one) or keep the current one.
+    /// Generate a new GUID for the table instead of preserving the existing one.
+    ///
+    /// When `true`, a fresh random GUID is generated. When `false`, the existing GUID
+    /// (if any) is preserved. Only meaningful when `table_has_guid` is also `true`.
     regenerate_table_guid: bool,
 
     //-----------------------//
     // Optional config data  //
     //-----------------------//
 
-    /// Full info of the game we're trying to encode to.
+    /// Complete game information context.
+    ///
+    /// Provides game-specific settings, version info, and feature flags that may
+    /// affect encoding behavior (e.g., format variations between game versions).
     game_info: Option<&'a GameInfo>,
 
-    /// The format we're trying to compress to, if we're compressing the files.
+    /// Compression format to use when writing files.
+    ///
+    /// Specifies which compression algorithm to apply. Common formats include:
+    /// - [`CompressionFormat::None`]: No compression
+    /// - [`CompressionFormat::Lz4`]: Fast compression
+    /// - [`CompressionFormat::Zstd`]: Modern compression (best ratio)
+    /// - [`CompressionFormat::Lzma1`]: Legacy compression (older games)
+    ///
+    /// The game info may override this based on what the target game supports.
     compression_format: CompressionFormat,
 
-    /// For recursive encodings in ESF due to compression.
+    /// Disable compression for nested encoding operations.
+    ///
+    /// When `true`, prevents compression even if `compression_format` is set. Used for
+    /// ESF (Empire Save File) encoding where the outer container handles compression
+    /// and inner structures should remain uncompressed to avoid double-compression.
     disable_compression: bool
 }
 
@@ -443,40 +715,178 @@ pub struct EncodeableExtraData<'a> {
 //                           Trait Definitions
 //---------------------------------------------------------------------------//
 
-/// A generic trait to implement decoding logic from anything implementing [ReadBytes]
-/// into structured types.
+/// Generic trait for decoding binary data into structured types.
+///
+/// This trait provides a standardized interface for deserializing binary data from any
+/// source implementing [`ReadBytes`]. All Total War file types
+/// in RPFM implement this trait to enable consistent decoding behavior.
+///
+/// # Type Parameters
+///
+/// The trait is object-safe and requires `Send + Sync` to enable concurrent decoding operations.
+///
+/// # Examples
+///
+/// ```ignore
+/// use rpfm_lib::files::{Decodeable, DecodeableExtraData};
+/// use rpfm_lib::binary::ReadBytes;
+///
+/// let data = &[0x01, 0x02, 0x03, 0x04];
+/// let extra_data = None;
+/// let decoded = MyType::decode(&mut data.as_slice(), &extra_data)?;
+/// ```
 pub trait Decodeable: Send + Sync {
 
-    /// This method provides a generic and expandable way to decode anything implementing [ReadBytes]
-    /// into the implementor's structure.
+    /// Decodes binary data into the implementing type.
     ///
-    /// The parameter `extra_data` contains arguments that can be used to provide additional data needed for the decoding process.
+    /// This method reads from any source implementing [`ReadBytes`]
+    /// and constructs an instance of the implementing type.
+    ///
+    /// # Parameters
+    ///
+    /// - `data`: A mutable reference to a type implementing [`ReadBytes`]
+    /// - `extra_data`: Optional additional context needed for decoding (schemas, game version, etc.)
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(Self)` on successful decoding, or an error if the data is malformed or
+    /// insufficient context was provided.
+    ///
+    /// # Errors
+    ///
+    /// This function may return errors if:
+    /// - The binary data is corrupted or malformed
+    /// - Required schema information is missing from `extra_data`
+    /// - The data stream ends unexpectedly
     fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> where Self: Sized;
 }
 
-/// A generic trait to implement encoding logic from structured types into anything implementing [WriteBytes].
+/// Generic trait for encoding structured types into binary data.
+///
+/// This trait provides a standardized interface for serializing structured data to any
+/// destination implementing [`WriteBytes`]. All Total War file types
+/// in RPFM implement this trait to enable consistent encoding behavior.
+///
+/// # Type Parameters
+///
+/// The trait is object-safe and requires `Send + Sync` to enable concurrent encoding operations.
+///
+/// # Examples
+///
+/// ```ignore
+/// use rpfm_lib::files::{Encodeable, EncodeableExtraData};
+/// use rpfm_lib::binary::WriteBytes;
+///
+/// let mut buffer = Vec::new();
+/// let extra_data = None;
+/// my_instance.encode(&mut buffer, &extra_data)?;
+/// ```
 pub trait Encodeable: Send + Sync {
 
-    /// This method provides a generic and expandable way to encode any implementor's structure into anything
-    /// implementing [WriteBytes]
+    /// Encodes the implementing type into binary data.
     ///
-    /// The parameter `extra_data` contains arguments that can be used to provide additional data needed for the encoding process.
+    /// This method writes to any destination implementing [`WriteBytes`],
+    /// serializing the instance's data in the appropriate Total War file format.
+    ///
+    /// # Parameters
+    ///
+    /// - `buffer`: A mutable reference to a type implementing [`WriteBytes`]
+    /// - `extra_data`: Optional additional context needed for encoding (schemas, game version, etc.)
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` on successful encoding, or an error if the encoding process fails.
+    ///
+    /// # Errors
+    ///
+    /// This function may return errors if:
+    /// - Writing to the buffer fails
+    /// - Required schema information is missing from `extra_data`
+    /// - The data contains invalid values that cannot be serialized
     fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()>;
 }
 
-/// An interface to easily work with container-like files.
+/// Interface for working with container-like files.
 ///
-/// This trait allow any implementor to provide methods to manipulate them like [RFile] Containers.
+/// This trait provides a unified API for manipulating file containers such as PackFiles,
+/// allowing implementors to store, retrieve, and manage collections of [`RFile`]s with
+/// hierarchical path structures.
+///
+/// # Implementors
+///
+/// - `Pack`: Total War PackFile containers (`.pack` files)
+/// - Other container formats that store multiple files
+///
+/// # Core Operations
+///
+/// The trait provides several categories of operations:
+///
+/// - **File access**: Get references to files by path, type, or pattern
+/// - **Insertion**: Add files from disk or [`RFile`] instances
+/// - **Extraction**: Write files to disk, optionally as TSV for DB/Loc files
+/// - **Removal**: Delete files or folders by path
+/// - **Queries**: Check existence, list folders, filter by type
+///
+/// # Path Handling
+///
+/// All paths use forward slashes (`/`) as separators, regardless of OS. Paths starting
+/// with `/` are automatically normalized by removing the leading slash.
 pub trait Container {
 
-    /// This method allow us to extract anything on a [ContainerPath] from a Container to disk, replacing any old file
-    /// with the same path, in case it already existed one.
+    /// Extracts files from the container to disk.
     ///
-    /// If `keep_container_path_structure` is true, the folder structure the file in question has within the container will be replicated on disk.
+    /// This method writes files matching the provided [`ContainerPath`] to the filesystem,
+    /// optionally preserving the container's folder structure.
     ///
-    /// The case-insensitive option only works when extracting folders. Individual file extractions are always case sensitive.
+    /// # Parameters
     ///
-    /// If a schema is provided, this function will try to extract any DB/Loc file as a TSV. If it fails to decode them, it'll extract them as binary files.
+    /// - `container_path`: Path to file or folder within the container to extract
+    /// - `destination_path`: Target directory on disk where files will be written
+    /// - `keep_container_path_structure`: If `true`, preserves the container's folder hierarchy
+    /// - `schema`: If provided, attempts to export DB/Loc files as TSV (falls back to binary on error)
+    /// - `case_insensitive`: Enable case-insensitive folder matching (file extraction is always case-sensitive)
+    /// - `keys_first`: When exporting to TSV, place key columns first
+    /// - `extra_data`: Optional encoding context for binary files
+    /// - `keep_data_in_memory`: If `true`, loads disk-backed files to memory before extraction
+    ///
+    /// # Returns
+    ///
+    /// Returns a list of paths to the extracted files on disk.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The specified container path doesn't exist
+    /// - Disk I/O operations fail
+    /// - File decoding fails (for TSV export)
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// // Extract a single file, preserving structure
+    /// let paths = container.extract(
+    ///     ContainerPath::File("db/units_tables/units.bin".to_string()),
+    ///     Path::new("./output"),
+    ///     true,  // Keep structure
+    ///     &Some(schema),
+    ///     false, // Case-sensitive
+    ///     true,  // Keys first
+    ///     &None,
+    ///     false
+    /// )?;
+    ///
+    /// // Extract entire folder as TSV
+    /// let paths = container.extract(
+    ///     ContainerPath::Folder("db/".to_string()),
+    ///     Path::new("./output"),
+    ///     false, // Flat extraction
+    ///     &Some(schema),
+    ///     true,  // Case-insensitive
+    ///     true,
+    ///     &None,
+    ///     false
+    /// )?;
+    /// ```
     fn extract(&mut self,
         container_path: ContainerPath,
         destination_path: &Path,
@@ -635,17 +1045,38 @@ pub trait Container {
         Ok(extracted_paths)
     }
 
-    /// This method allows us to extract the metadata associated to the provided container as `.json` files.
+    /// Extracts container metadata as `.json` files.
     ///
-    /// Default implementation does nothing.
+    /// This method writes any metadata associated with the container (such as pack settings,
+    /// notes, or configuration) to the specified destination directory.
+    ///
+    /// # Parameters
+    ///
+    /// - `destination_path`: Directory where metadata files will be written
+    ///
+    /// # Returns
+    ///
+    /// Returns a list of paths to the extracted metadata files.
+    ///
+    /// # Default Implementation
+    ///
+    /// The default implementation does nothing and returns an empty list. Container types
+    /// with metadata should override this method.
     fn extract_metadata(&mut self, _destination_path: &Path) -> Result<Vec<PathBuf>> {
         Ok(vec![])
     }
 
-    /// This method allow us to insert an [RFile] within a Container, replacing any old [RFile]
-    /// with the same path, in case it already existed one.
+    /// Inserts an [`RFile`] into the container.
     ///
-    /// Returns the [ContainerPath] of the inserted [RFile].
+    /// If a file with the same path already exists, it will be replaced.
+    ///
+    /// # Parameters
+    ///
+    /// - `file`: The [`RFile`] to insert
+    ///
+    /// # Returns
+    ///
+    /// Returns the [`ContainerPath`] of the inserted file, or `None` if insertion failed.
     fn insert(&mut self, file: RFile) -> Result<Option<ContainerPath>> {
         let path = file.path_in_container();
         let path_raw = file.path_in_container_raw();
@@ -655,13 +1086,37 @@ pub trait Container {
         Ok(Some(path))
     }
 
-    /// This method allow us to insert a file from disk into an specific path within a Container,
-    /// replacing any old [RFile] with the same path, in case it already existed one.
+    /// Inserts a file from disk into the container.
     ///
-    /// If a [Schema] is provided, this function will attempt to import any tsv files it finds into binary files.
-    /// If it fails to convert a file, it'll import it as a normal file instead.
+    /// This method reads a file from the filesystem and inserts it at the specified path
+    /// within the container. If a file already exists at that path, it will be replaced.
     ///
-    /// Returns the [ContainerPath] of the inserted [RFile].
+    /// # TSV Import
+    ///
+    /// If a [`Schema`] is provided and the source file has a `.tsv` extension, this method
+    /// will attempt to import it as a binary DB/Loc file. If the conversion fails, it falls
+    /// back to importing it as a plain text file.
+    ///
+    /// # Parameters
+    ///
+    /// - `source_path`: Path to the file on disk to import
+    /// - `container_path_folder`: Target path within the container (folder or full path)
+    /// - `schema`: Optional schema for TSV-to-binary conversion
+    ///
+    /// # Returns
+    ///
+    /// Returns the [`ContainerPath`] of the inserted file, or `None` if insertion failed.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The source file cannot be read
+    /// - File type detection fails
+    ///
+    /// # Path Behavior
+    ///
+    /// - If `container_path_folder` ends with `/` or is empty, the source filename is appended
+    /// - Otherwise, `container_path_folder` is used as the full target path
     fn insert_file(&mut self, source_path: &Path, container_path_folder: &str, schema: &Option<Schema>) -> Result<Option<ContainerPath>> {
         let mut container_path_folder = container_path_folder.replace('\\', "/");
         if container_path_folder.starts_with('/') {
@@ -713,17 +1168,60 @@ pub trait Container {
         self.insert(rfile)
     }
 
-    /// This method allow us to insert an entire folder from disk, including subfolders and files,
-    /// into an specific path within a Container, replacing any old [RFile] in a path collision.
+    /// Inserts an entire folder from disk into the container recursively.
     ///
-    /// By default it doesn't insert the folder itself, but its contents. If you want to include the folder, pass include_base_folder as true.
+    /// This method recursively scans a directory and imports all files, preserving
+    /// the folder structure. Files with identical paths in the container are replaced.
     ///
-    /// If a [Schema] is provided, this function will attempt to import any tsv files it finds into binary files.
-    /// If it fails to convert a file, it'll import it as a normal file instead.
+    /// # TSV Import
     ///
-    /// If ignored paths are provided, paths that match them (as in relative path with the Container as root) will not be included in the Container.
+    /// If a [`Schema`] is provided, `.tsv` files will be converted to binary DB/Loc format.
+    /// If conversion fails, they're imported as plain text files.
     ///
-    /// Returns the list of [ContainerPath] inserted.
+    /// # Parameters
+    ///
+    /// - `source_path`: Path to the folder on disk to import
+    /// - `container_path_folder`: Target folder path within the container
+    /// - `ignored_paths`: Optional list of relative paths to exclude from import
+    /// - `schema`: Optional schema for TSV-to-binary conversion
+    /// - `include_base_folder`: If `true`, includes the source folder name in container paths
+    ///
+    /// # Returns
+    ///
+    /// Returns a list of all [`ContainerPath`]s that were inserted.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The source directory cannot be read
+    /// - Any file read or type detection fails
+    ///
+    /// # Folder Inclusion Behavior
+    ///
+    /// - `include_base_folder = false`: Contents of `source_path` go directly into `container_path_folder`
+    /// - `include_base_folder = true`: A subfolder with the source folder's name is created first
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// // Import folder contents directly into "data/"
+    /// container.insert_folder(
+    ///     Path::new("./my_mod"),
+    ///     "data/",
+    ///     &None,
+    ///     &Some(schema),
+    ///     false  // Don't include "my_mod" folder name
+    /// )?;
+    ///
+    /// // Import with ignored paths
+    /// container.insert_folder(
+    ///     Path::new("./my_mod"),
+    ///     "data/",
+    ///     &Some(vec![".git/", "node_modules/"]),
+    ///     &None,
+    ///     true  // Include "my_mod" folder name
+    /// )?;
+    /// ```
     fn insert_folder(&mut self, source_path: &Path, container_path_folder: &str, ignored_paths: &Option<Vec<&str>>, schema: &Option<Schema>, include_base_folder: bool) -> Result<Vec<ContainerPath>> {
         let mut container_path_folder = container_path_folder.replace('\\', "/");
         if !container_path_folder.is_empty() && !container_path_folder.ends_with('/') {
@@ -798,12 +1296,36 @@ pub trait Container {
         Ok(inserted_paths)
     }
 
-    /// This method allow us to remove any [RFile] matching the provided [ContainerPath] from a Container.
+    /// Removes files matching the provided [`ContainerPath`] from the container.
     ///
-    /// An special situation is passing `ContainerPath::Folder("")`. This represents the root of the container,
-    /// meaning passing this will delete all the RFiles within the container.
+    /// This method deletes files or entire folder hierarchies from the container.
     ///
-    /// Returns the list of removed [ContainerPath], always using the [File](ContainerPath::File) variant.
+    /// # Parameters
+    ///
+    /// - `path`: The container path to remove (file or folder)
+    ///
+    /// # Returns
+    ///
+    /// Returns a list of removed [`ContainerPath`]s, always using the [`File`](ContainerPath::File) variant.
+    ///
+    /// # Special Cases
+    ///
+    /// - `ContainerPath::Folder("")`: Represents the container root, deletes **all** files
+    /// - `ContainerPath::File(...)`: Deletes a single file
+    /// - `ContainerPath::Folder(...)`: Deletes all files under that folder (recursive)
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// // Remove a single file
+    /// container.remove(&ContainerPath::File("data/units.bin".to_string()));
+    ///
+    /// // Remove entire folder
+    /// container.remove(&ContainerPath::Folder("db/".to_string()));
+    ///
+    /// // Clear entire container
+    /// container.remove(&ContainerPath::Folder("".to_string()));
+    /// ```
     fn remove(&mut self, path: &ContainerPath) -> Vec<ContainerPath> {
         match path {
             ContainerPath::File(path) => {
@@ -860,27 +1382,62 @@ pub trait Container {
         }
     }
 
-    /// This method returns the path on disk of the provided Container.
+    /// Returns the full path on disk where this container is stored.
     ///
-    /// Implementors should return `""` if the provided Container is not from a disk file.
+    /// # Returns
+    ///
+    /// The absolute file path, or an empty string if the container is not backed by a disk file.
     fn disk_file_path(&self) -> &str;
 
-    /// This method returns the file name on disk of the provided Container.
+    /// Returns the filename of the container on disk.
+    ///
+    /// Extracts just the filename portion from [`disk_file_path()`](Self::disk_file_path).
+    ///
+    /// # Returns
+    ///
+    /// The filename as a string, or an empty string if no disk path is set.
     fn disk_file_name(&self) -> String {
        PathBuf::from(self.disk_file_path()).file_name().unwrap_or_default().to_string_lossy().to_string()
     }
 
-    /// This method returns the offset of the data of this Container in its disk file.
+    /// Returns the byte offset of this container's data within its disk file.
     ///
-    /// Implementors should return `0` if the provided Container is not within another Container.
+    /// This is used for nested containers (e.g., a container embedded within another file).
+    ///
+    /// # Returns
+    ///
+    /// The offset in bytes, or `0` if the container starts at the beginning of the file.
     fn disk_file_offset(&self) -> u64;
 
-    /// This function checks if a file with a certain path exists in the provided Container.
+    /// Checks if a file with the specified path exists in the container.
+    ///
+    /// # Parameters
+    ///
+    /// - `path`: The file path to check (case-sensitive)
+    ///
+    /// # Returns
+    ///
+    /// `true` if the file exists, `false` otherwise.
     fn has_file(&self, path: &str) -> bool {
         self.files().get(path).is_some()
     }
 
-    /// This function checks if a folder with files in it exists in the provided Container.
+    /// Checks if a non-empty folder exists at the specified path.
+    ///
+    /// A folder is considered to exist if there is at least one file whose path starts
+    /// with the provided folder path.
+    ///
+    /// # Parameters
+    ///
+    /// - `path`: The folder path to check
+    ///
+    /// # Returns
+    ///
+    /// `true` if the folder exists and contains files, `false` otherwise.
+    ///
+    /// # Note
+    ///
+    /// Empty string always returns `false`. Paths are normalized to end with `/` for matching.
     fn has_folder(&self, path: &str) -> bool {
         if path.is_empty() {
            false
@@ -899,7 +1456,16 @@ pub trait Container {
         }
     }
 
-    /// This method returns a reference to a RFile in the Container, if the file exists.
+    /// Returns a reference to an [`RFile`] in the container by path.
+    ///
+    /// # Parameters
+    ///
+    /// - `path`: The file path to look up
+    /// - `case_insensitive`: If `true`, performs case-insensitive matching
+    ///
+    /// # Returns
+    ///
+    /// `Some(&RFile)` if the file exists, `None` otherwise.
     fn file(&self, path: &str, case_insensitive: bool) -> Option<&RFile> {
         if case_insensitive {
             let lower = path.to_lowercase();
@@ -909,7 +1475,16 @@ pub trait Container {
         }
     }
 
-    /// This method returns a mutable reference to a RFile in the Container, if the file exists.
+    /// Returns a mutable reference to an [`RFile`] in the container by path.
+    ///
+    /// # Parameters
+    ///
+    /// - `path`: The file path to look up
+    /// - `case_insensitive`: If `true`, performs case-insensitive matching
+    ///
+    /// # Returns
+    ///
+    /// `Some(&mut RFile)` if the file exists, `None` otherwise.
     fn file_mut(&mut self, path: &str, case_insensitive: bool) -> Option<&mut RFile> {
         if case_insensitive {
             let lower = path.to_lowercase();
@@ -919,26 +1494,56 @@ pub trait Container {
         }
     }
 
-    /// This method returns a reference to the RFiles inside the provided Container.
+    /// Returns a reference to the internal file map.
+    ///
+    /// The map uses file paths as keys and [`RFile`]s as values.
     fn files(&self) -> &HashMap<String, RFile>;
 
-    /// This method returns a mutable reference to the RFiles inside the provided Container.
+    /// Returns a mutable reference to the internal file map.
+    ///
+    /// The map uses file paths as keys and [`RFile`]s as values.
     fn files_mut(&mut self) -> &mut HashMap<String, RFile>;
 
-    /// This method returns a reference to the RFiles inside the provided Container of the provided FileTypes.
+    /// Returns references to all files of the specified types.
+    ///
+    /// # Parameters
+    ///
+    /// - `file_types`: Slice of [`FileType`]s to filter by
+    ///
+    /// # Returns
+    ///
+    /// A vector of references to matching files.
     fn files_by_type(&self, file_types: &[FileType]) -> Vec<&RFile> {
         self.files().par_iter().filter(|(_, file)| file_types.contains(&file.file_type)).map(|(_, file)| file).collect()
     }
 
-    /// This method returns a mutable reference to the RFiles inside the provided Container of the provided FileTypes.
+    /// Returns mutable references to all files of the specified types.
+    ///
+    /// # Parameters
+    ///
+    /// - `file_types`: Slice of [`FileType`]s to filter by
+    ///
+    /// # Returns
+    ///
+    /// A vector of mutable references to matching files.
     fn files_by_type_mut(&mut self, file_types: &[FileType]) -> Vec<&mut RFile> {
         self.files_mut().par_iter_mut().filter(|(_, file)| file_types.contains(&file.file_type)).map(|(_, file)| file).collect()
     }
 
-    /// This method returns a reference to the RFiles inside the provided Container that match the provided [ContainerPath].
+    /// Returns references to files matching the provided [`ContainerPath`].
     ///
-    /// An special situation is passing `ContainerPath::Folder("")`. This represents the root of the container,
-    /// meaning passing this will return all RFiles within the container.
+    /// # Parameters
+    ///
+    /// - `path`: The container path to match (file or folder)
+    /// - `case_insensitive`: Enable case-insensitive matching
+    ///
+    /// # Returns
+    ///
+    /// A vector of references to matching files.
+    ///
+    /// # Special Cases
+    ///
+    /// `ContainerPath::Folder("")` represents the container root and returns **all** files.
     fn files_by_path(&self, path: &ContainerPath, case_insensitive: bool) -> Vec<&RFile> {
         match path {
             ContainerPath::File(path) => self.file(path, case_insensitive).map(|file| vec![file]).unwrap_or(vec![]),
@@ -969,10 +1574,20 @@ pub trait Container {
         }
     }
 
-    /// This method returns a mutable reference to the RFiles inside the provided Container that match the provided [ContainerPath].
+    /// Returns mutable references to files matching the provided [`ContainerPath`].
     ///
-    /// An special situation is passing `ContainerPath::Folder("")`. This represents the root of the container,
-    /// meaning passing this will return all RFiles within the container.
+    /// # Parameters
+    ///
+    /// - `path`: The container path to match (file or folder)
+    /// - `case_insensitive`: Enable case-insensitive matching
+    ///
+    /// # Returns
+    ///
+    /// A vector of mutable references to matching files.
+    ///
+    /// # Special Cases
+    ///
+    /// `ContainerPath::Folder("")` represents the container root and returns **all** files.
     fn files_by_path_mut(&mut self, path: &ContainerPath, case_insensitive: bool) -> Vec<&mut RFile> {
         match path {
             ContainerPath::File(path) => self.file_mut(path, case_insensitive).map(|file| vec![file]).unwrap_or(vec![]),
@@ -1000,16 +1615,36 @@ pub trait Container {
         }
     }
 
-    /// This method returns a reference to the RFiles inside the provided Container that match one of the provided [ContainerPath].
+    /// Returns references to files matching any of the provided [`ContainerPath`]s.
+    ///
+    /// # Parameters
+    ///
+    /// - `paths`: Slice of container paths to match
+    /// - `case_insensitive`: Enable case-insensitive matching
+    ///
+    /// # Returns
+    ///
+    /// A vector of references to all matching files (may contain duplicates if paths overlap).
     fn files_by_paths(&self, paths: &[ContainerPath], case_insensitive: bool) -> Vec<&RFile> {
         paths.iter()
             .flat_map(|path| self.files_by_path(path, case_insensitive))
             .collect()
     }
 
-    /// This method returns a mutable reference to the RFiles inside the provided Container that match the provided [ContainerPath].
+    /// Returns mutable references to files matching any of the provided [`ContainerPath`]s.
     ///
-    /// Use this instead of [files_by_path_mut](Self::files_by_path_mut) if you need to get mutable references to multiple files on different [ContainerPath].
+    /// This method should be used instead of [`files_by_path_mut()`](Self::files_by_path_mut)
+    /// when you need mutable references to files across multiple different paths, as it
+    /// properly handles the borrowing requirements.
+    ///
+    /// # Parameters
+    ///
+    /// - `paths`: Slice of container paths to match
+    /// - `case_insensitive`: Enable case-insensitive matching
+    ///
+    /// # Returns
+    ///
+    /// A vector of mutable references to all matching files (no duplicates).
     fn files_by_paths_mut(&mut self, paths: &[ContainerPath], case_insensitive: bool) -> Vec<&mut RFile> {
         self.files_mut()
             .iter_mut()
@@ -1037,8 +1672,20 @@ pub trait Container {
             .collect()
     }
 
-    /// This method returns a reference to the RFiles inside the provided Container that match the provided [ContainerPath]
-    /// and are of one of the provided [FileType].
+    /// Returns references to files matching both type and path criteria.
+    ///
+    /// This is a filtered combination of [`files_by_type()`](Self::files_by_type) and
+    /// [`files_by_paths()`](Self::files_by_paths).
+    ///
+    /// # Parameters
+    ///
+    /// - `file_types`: Slice of [`FileType`]s to filter by
+    /// - `paths`: Slice of [`ContainerPath`]s to match
+    /// - `case_insensitive`: Enable case-insensitive path matching
+    ///
+    /// # Returns
+    ///
+    /// A vector of references to files matching both the type and path criteria.
     fn files_by_type_and_paths(&self, file_types: &[FileType], paths: &[ContainerPath], case_insensitive: bool) -> Vec<&RFile> {
         paths.iter()
             .flat_map(|path| self.files_by_path(path, case_insensitive)
@@ -1048,13 +1695,29 @@ pub trait Container {
             ).collect()
     }
 
-    /// This method returns a mutable reference to the RFiles inside the provided Container that match the provided [ContainerPath]
-    /// and are of one of the provided [FileType].
+    /// Returns mutable references to files matching both type and path criteria.
+    ///
+    /// This is a filtered combination of [`files_by_type_mut()`](Self::files_by_type_mut) and
+    /// [`files_by_paths_mut()`](Self::files_by_paths_mut).
+    ///
+    /// # Parameters
+    ///
+    /// - `file_types`: Slice of [`FileType`]s to filter by
+    /// - `paths`: Slice of [`ContainerPath`]s to match
+    /// - `case_insensitive`: Enable case-insensitive path matching
+    ///
+    /// # Returns
+    ///
+    /// A vector of mutable references to files matching both the type and path criteria.
     fn files_by_type_and_paths_mut(&mut self, file_types: &[FileType], paths: &[ContainerPath], case_insensitive: bool) -> Vec<&mut RFile> {
         self.files_by_paths_mut(paths, case_insensitive).into_iter().filter(|file| file_types.contains(&file.file_type())).collect()
     }
 
-    /// This method generate the paths cache of the container.
+    /// Regenerates the internal paths cache from the current file list.
+    ///
+    /// The paths cache maps lowercase paths to their actual casing variants, enabling
+    /// efficient case-insensitive lookups. This method should be called after bulk
+    /// modifications to the file list.
     fn paths_cache_generate(&mut self) {
         self.paths_cache_mut().clear();
 
@@ -1070,7 +1733,13 @@ pub trait Container {
         *self.paths_cache_mut() = cache;
     }
 
-    /// This method adds a path to the paths cache.
+    /// Adds a single path to the paths cache.
+    ///
+    /// This is more efficient than regenerating the entire cache when adding individual files.
+    ///
+    /// # Parameters
+    ///
+    /// - `path`: The file path to add (with original casing)
     fn paths_cache_insert_path(&mut self, path: &str) {
         let path_lower = path.to_lowercase();
         match self.paths_cache_mut().get_mut(&path_lower) {
@@ -1081,7 +1750,17 @@ pub trait Container {
         }
     }
 
-    /// This method removes a path from the paths cache.
+    /// Removes a single path from the paths cache.
+    ///
+    /// This is more efficient than regenerating the entire cache when removing individual files.
+    ///
+    /// # Parameters
+    ///
+    /// - `path`: The file path to remove (with original casing)
+    ///
+    /// # Note
+    ///
+    /// Reserved paths (notes, settings) are automatically skipped.
     fn paths_cache_remove_path(&mut self, path: &str) {
         let path_lower = path.to_lowercase();
 
@@ -1108,17 +1787,31 @@ pub trait Container {
         }
     }
 
-    /// This method returns the cache of paths (lowecased -> cased variants) conntained within the Container.
+    /// Returns the paths cache mapping lowercase paths to their original-cased variants.
     ///
-    /// Please keep in mind if you manipulate the file list in any way, you NEED to update this cache too.
+    /// This cache enables efficient case-insensitive file lookups. The map structure is:
+    /// `lowercase_path -> vec![OriginalCased1, OriginalCased2, ...]`
+    ///
+    /// # Important
+    ///
+    /// If you manipulate the file list directly (via [`files_mut()`](Self::files_mut)),
+    /// you **must** update this cache using [`paths_cache_insert_path()`](Self::paths_cache_insert_path),
+    /// [`paths_cache_remove_path()`](Self::paths_cache_remove_path), or
+    /// [`paths_cache_generate()`](Self::paths_cache_generate).
     fn paths_cache(&self) -> &HashMap<String, Vec<String>>;
 
-    /// This method returns the cache of paths (lowecased -> cased variants) conntained within the Container.
+    /// Returns a mutable reference to the paths cache.
     ///
-    /// Please keep in mind if you manipulate the file list in any way, you NEED to update this cache too.
+    /// See [`paths_cache()`](Self::paths_cache) for details on cache structure and maintenance.
     fn paths_cache_mut(&mut self) -> &mut HashMap<String, Vec<String>>;
 
-    /// This method returns the list of folders conntained within the Container.
+    /// Returns a set of all folder paths contained within the container.
+    ///
+    /// This method analyzes file paths to extract unique folder hierarchies.
+    ///
+    /// # Returns
+    ///
+    /// A set of folder paths (without trailing slashes). Root-level files contribute no entries.
     fn paths_folders_raw(&self) -> HashSet<String> {
         self.files()
             .par_iter()
@@ -2551,6 +3244,7 @@ impl<'a> EncodeableExtraData<'a> {
         extra_data
     }
 
+    /// This functions generates an EncodeableExtraData for a specific game and settings.
     pub fn new_from_game_info_and_settings(game_info: &'a GameInfo, cf: CompressionFormat, disable_regen_table_guid: bool) -> EncodeableExtraData<'a> {
         let mut extra_data = EncodeableExtraData::new_from_game_info(game_info);
         extra_data.set_regenerate_table_guid(!disable_regen_table_guid);

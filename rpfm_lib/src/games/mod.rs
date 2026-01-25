@@ -8,7 +8,97 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! Module that contains the GameInfo definition and stuff related with it.
+//! Game-specific configuration and metadata for Total War games.
+//!
+//! This module provides comprehensive information about supported Total War games,
+//! including file formats, installation locations, and game-specific behaviors.
+//!
+//! # Overview
+//!
+//! RPFM supports multiple Total War games, each with different:
+//! - PackFile (PFH) format versions
+//! - Installation types (Steam/Epic/Wargaming, Windows/Linux)
+//! - File locations (/data, /content, config paths)
+//! - Assembly Kit versions and schemas
+//! - Localization and language support
+//! - Workshop tags and Steam integration
+//!
+//! # Main Types
+//!
+//! - [`GameInfo`]: Complete game configuration including paths, versions, and features
+//! - [`SupportedGames`]: Registry of all games supported by RPFM
+//! - [`InstallType`]: Platform and store variant (Steam/Epic/Wargaming, Windows/Linux)
+//! - [`InstallData`]: Installation-specific paths and identifiers
+//! - [`Manifest`]: Game manifest file parser for vanilla PackFile lists
+//! - [`PFHFileType`]: Type of PackFile (Boot, Release, Patch, Mod, Movie)
+//! - [`PFHVersion`]: PackFile format version
+//!
+//! # Usage Patterns
+//!
+//! ## Getting Game Information
+//!
+//! ```ignore
+//! use rpfm_lib::games::supported_games::{SupportedGames, KEY_WARHAMMER_3};
+//!
+//! # fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! let supported_games = SupportedGames::default();
+//! let game = supported_games.game(&KEY_WARHAMMER_3).unwrap();
+//!
+//! println!("Game: {}", game.display_name());
+//! println!("Schema: {}", game.schema_file_name());
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ## Working with Game Paths
+//!
+//! ```ignore
+//! # use rpfm_lib::games::supported_games::{SupportedGames, KEY_WARHAMMER_3};
+//! # use std::path::Path;
+//! # fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! # let supported_games = SupportedGames::default();
+//! # let game = supported_games.game(&KEY_WARHAMMER_3).unwrap();
+//! let game_path = Path::new("/path/to/game");
+//!
+//! // Get various game-specific paths
+//! let data_path = game.data_path(game_path)?;
+//! let content_path = game.content_path(game_path)?;
+//! let local_mods_path = game.local_mods_path(game_path)?;
+//!
+//! // Get vanilla PackFiles
+//! let ca_packs = game.ca_packs_paths(game_path)?;
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ## Detecting Installation Type
+//!
+//! ```ignore
+//! # use rpfm_lib::games::supported_games::{SupportedGames, KEY_WARHAMMER_3};
+//! # use rpfm_lib::games::InstallType;
+//! # use std::path::Path;
+//! # fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! # let supported_games = SupportedGames::default();
+//! # let game = supported_games.game(&KEY_WARHAMMER_3).unwrap();
+//! # let game_path = Path::new("/path/to/game");
+//! let install_type = game.install_type(game_path)?;
+//!
+//! match install_type {
+//!     InstallType::WinSteam => println!("Windows Steam version"),
+//!     InstallType::LnxSteam => println!("Linux Steam version"),
+//!     InstallType::WinEpic => println!("Windows Epic version"),
+//!     InstallType::WinWargaming => println!("Windows Wargaming version"),
+//! }
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! # Submodules
+//!
+//! - [`supported_games`]: Game registry with all supported Total War titles
+//! - [`manifest`]: Manifest file parsing for game PackFile lists
+//! - [`pfh_file_type`]: PackFile type classifications
+//! - [`pfh_version`]: PackFile format version definitions
 
 use directories::ProjectDirs;
 use getset::*;
@@ -36,174 +126,324 @@ pub mod manifest;
 pub mod pfh_file_type;
 pub mod pfh_version;
 
+/// Language code: Brazilian Portuguese
 pub const BRAZILIAN: &str = "br";
+/// Language code: Simplified Chinese
 pub const SIMPLIFIED_CHINESE: &str = "cn";
+/// Language code: Czech
 pub const CZECH: &str = "cz";
+/// Language code: English
 pub const ENGLISH: &str = "en";
+/// Language code: French
 pub const FRENCH: &str = "fr";
+/// Language code: German
 pub const GERMAN: &str = "ge";
+/// Language code: Italian
 pub const ITALIAN: &str = "it";
+/// Language code: Korean
 pub const KOREAN: &str = "kr";
+/// Language code: Polish
 pub const POLISH: &str = "pl";
+/// Language code: Russian
 pub const RUSSIAN: &str = "ru";
+/// Language code: Spanish
 pub const SPANISH: &str = "sp";
+/// Language code: Turkish
 pub const TURKISH: &str = "tr";
+/// Language code: Traditional Chinese
 pub const TRADITIONAL_CHINESE: &str = "zh";
 
+/// Local folder name for Lua autogen files
 pub const LUA_AUTOGEN_FOLDER: &str = "tw_autogen";
+/// Git repository URL for Lua autogen type definitions
 pub const LUA_REPO: &str = "https://github.com/chadvandy/tw_autogen";
+/// Git remote name for Lua autogen repository
 pub const LUA_REMOTE: &str = "origin";
+/// Git branch name for Lua autogen repository
 pub const LUA_BRANCH: &str = "main";
 
+/// Git repository URL for old (pre-Shogun 2) Assembly Kit files
 pub const OLD_AK_REPO: &str = "https://github.com/Frodo45127/total_war_ak_files_pre_shogun_2";
+/// Git remote name for old Assembly Kit repository
 pub const OLD_AK_REMOTE: &str = "origin";
+/// Git branch name for old Assembly Kit repository
 pub const OLD_AK_BRANCH: &str = "master";
 
+/// Git repository URL for community translation hub
 pub const TRANSLATIONS_REPO: &str = "https://github.com/Frodo45127/total_war_translation_hub";
+/// Git remote name for translations repository
 pub const TRANSLATIONS_REMOTE: &str = "origin";
+/// Git branch name for translations repository
 pub const TRANSLATIONS_BRANCH: &str = "master";
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
-/// This struct holds all the info needed for a game to be "supported" by RPFM.
+/// Complete configuration and metadata for a supported Total War game.
+///
+/// This struct contains all information needed for RPFM to work with a specific
+/// Total War game, including file formats, paths, features, and game-specific behaviors.
+///
+/// # Organization
+///
+/// The struct can be organized into several logical groups:
+/// - **Identity**: Key, display name
+/// - **File Formats**: PFH versions, schema files, compression formats
+/// - **Features**: Editing support, GUID requirements, portrait settings
+/// - **Assembly Kit**: Raw DB version, lost fields list
+/// - **Paths & Installation**: Install data per platform/store
+/// - **Localization**: Language file, locale support
+/// - **Tools**: Lua autogen, tool variables
+/// - **Restrictions**: Banned files, validation logic
+///
+/// # Access Patterns
+///
+/// Most fields are accessed through getters provided by the `Getters` derive macro.
+/// Some methods provide computed values based on installation detection:
+/// - [`GameInfo::install_type()`] - Detects the installation variant
+/// - [`GameInfo::data_path()`] - Resolves game-specific /data path
+/// - [`GameInfo::ca_packs_paths()`] - Lists vanilla PackFiles
+///
+/// # Installation Detection
+///
+/// The struct supports multiple installation types per game and automatically
+/// detects which one is present by examining executables and DLL files in the
+/// game directory. See [`GameInfo::install_type()`] for details.
 #[derive(Getters, Clone, Debug)]
 #[getset(get = "pub")]
 pub struct GameInfo {
 
-    /// This is the internal key of the game.
+    /// Internal game identifier key (e.g., `"warhammer_3"`).
+    ///
+    /// Used for directory names, file lookups, and programmatic identification.
     #[getset(skip)]
     key: &'static str,
 
-    /// This is the name it'll show up for the user. The *pretty name*. For example, in a dropdown (Warhammer 2).
+    /// User-friendly display name (e.g., `"Warhammer 3"`).
+    ///
+    /// Shown in UI dropdowns and messages.
     display_name: &'static str,
 
-    /// This is the PFHVersion used at the start of every PackFile for that game.
-    /// It's in a hashmap of PFHFileType => PFHVersion, so we can have different PackFile versions depending on their type.
+    /// PackFile header versions by file type.
+    ///
+    /// Maps [`PFHFileType`] (Boot, Release, Patch, Mod, Movie) to the appropriate
+    /// [`PFHVersion`] for this game. If a type isn't in the map, defaults to Mod type.
     pfh_versions: HashMap<PFHFileType, PFHVersion>,
 
-    /// This is the full name of the schema file used for the game. For example: `schema_wh2.ron`.
+    /// Schema file name for this game (e.g., `"schema_wh3.ron"`).
+    ///
+    /// Used to load table definitions for decoding DB files.
     schema_file_name: String,
 
-    /// This is the name of the file containing the dependencies cache for this game.
+    /// Dependencies cache file name for this game.
+    ///
+    /// Stores cached dependency tree for faster pack loading.
     dependencies_cache_file_name: String,
 
-    /// This is the **type** of raw files the game uses. -1 is "Don't have Assembly Kit". 0 is Empire/Nappy. 1 is Shogun 2. 2 is anything newer than Shogun 2.
+    /// Assembly Kit version for raw database files.
+    ///
+    /// - `-1`: No Assembly Kit available
+    /// - `0`: Empire/Napoleon format
+    /// - `1`: Shogun 2 format
+    /// - `2`: Rome 2 and later format
     raw_db_version: i16,
 
-    /// This is the version used when generating PortraitSettings files for each game.
+    /// Portrait settings file version for this game.
+    ///
+    /// `None` if the game doesn't use portrait settings files.
     portrait_settings_version: Option<u32>,
 
-    /// If we can save `PackFile` files for the game.
+    /// Whether PackFiles can be saved for this game.
+    ///
+    /// Some very old games are read-only.
     supports_editing: bool,
 
-    /// If the db tables should have a GUID in their headers.
+    /// Whether DB table headers include GUIDs.
+    ///
+    /// Newer games include a GUID in the table header for identification.
     db_tables_have_guid: bool,
 
-    /// If the game has locales for all languages, and we only need to load our own locales. Contains the name of the locale file.
+    /// Language/locale file name (e.g., `"language.txt"`).
+    ///
+    /// `None` if the game doesn't use a language file, or if all locales are loaded.
     locale_file_name: Option<String>,
 
-    /// List of tables (table_name) which the program should NOT EDIT UNDER ANY CIRCUnSTANCE.
+    /// Paths to files that RPFM should never edit.
+    ///
+    /// Contains table names or file paths that are protected by the game's integrity
+    /// checks to prevent bypassing DLC ownership validation.
     banned_packedfiles: Vec<String>,
 
-    /// Name of the icon used to display the game as `Game Selected`, in an UI.
+    /// Small icon file name for UI display.
     icon_small: String,
 
-    /// Name of the big icon used to display the game as `Game Selected`, in an UI.
+    /// Large icon file name for UI display.
     icon_big: String,
 
-    /// Logic used to name vanilla tables.
+    /// Logic for naming vanilla DB table files.
+    ///
+    /// Some games name tables after their folder, others use a default name.
     vanilla_db_table_name_logic: VanillaDBTableNameLogic,
 
-    /// Installation-dependant data.
+    /// Installation data per platform/store combination.
+    ///
+    /// Contains paths, executables, and store IDs for different installation types.
+    /// Not exposed by getters - use [`GameInfo::install_data()`] instead.
     #[getset(skip)]
     install_data: HashMap<InstallType, InstallData>,
 
-    /// Tool-specific vars for each game.
+    /// Game-specific tool variables.
+    ///
+    /// Key-value pairs for tool-specific configuration.
     tool_vars: HashMap<String, String>,
 
-    /// Subfolder under Lua Autogen's folder where the files for this game are, if it's supported.
+    /// Subdirectory name in Lua autogen repository for this game.
+    ///
+    /// `None` if Lua autogen doesn't support this game.
     lua_autogen_folder: Option<String>,
 
-    /// Table/fields ignored on the assembly kit integration for this game. These are fields that are "lost" when exporting the tables from Dave.
+    /// Assembly Kit fields that are lost during export.
+    ///
+    /// List of `table_name.field_name` entries that exist in vanilla data
+    /// but don't appear in Assembly Kit exports because they are either unused
+    /// or separated from the tables on export.
     ak_lost_fields: Vec<String>,
 
-    /// Internal cache to speedup operations related with the install type.
+    /// Internal cache for install type detection.
+    ///
+    /// Speeds up repeated calls to [`GameInfo::install_type()`].
     #[getset(skip)]
     install_type_cache: Arc<RwLock<HashMap<PathBuf, InstallType>>>,
 
-    /// List of compression formats supported by the game, sorted from newer to older.
+    /// Supported compression formats, newest to oldest.
+    ///
+    /// Used to determine which compression to use when saving files.
     compression_formats_supported: Vec<CompressionFormat>,
 
-    /// Max version of the cs2.parsed format this game supports, for supporting between-game conversion of models.
+    /// Maximum CS2.parsed format version supported.
+    ///
+    /// Used for cross-game model conversion compatibility.
     max_cs2_parsed_version: u32,
 }
 
-/// This enum holds the info about each game approach at naming db tables.
+/// Strategy for naming vanilla DB table files.
+///
+/// Different Total War games use different conventions for naming their
+/// database table files in vanilla PackFiles.
 #[derive(Clone, Debug)]
 pub enum VanillaDBTableNameLogic {
 
-    /// This variant is for games where the table name is their folder's name.
+    /// Table files are named after their containing folder.
+    ///
+    /// Example: `db/units_tables/` contains file named `units_tables`
     FolderName,
 
-    /// This variant is for games where all tables are called the same.
+    /// All table files use the same default name.
+    ///
+    /// Example: All tables are named `data` or similar
     DefaultName(String),
 }
 
-/// This enum represents the different installations of games the game support.
+/// Game installation platform and store variant.
+///
+/// Represents the different ways a Total War game can be installed,
+/// which affects executable names, DLL dependencies, and paths.
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub enum InstallType {
 
-    /// Windows - Steam variant.
+    /// Windows installation from Steam.
+    ///
+    /// Identified by presence of `steam_api.dll` or `steam_api64.dll`.
     WinSteam,
 
-    /// Linux - Steam variant.
+    /// Linux installation from Steam.
+    ///
+    /// Identified by Linux executable names.
     LnxSteam,
 
-    /// Windows - Epic Store Variant.
+    /// Windows installation from Epic Games Store.
+    ///
+    /// Identified by presence of `EOSSDK-Win64-Shipping.dll`.
     WinEpic,
 
-    /// Windows - Wargaming Variant.
+    /// Windows installation from Wargaming/Netease platform.
+    ///
+    /// Used for Arena and similar special distributions.
     WinWargaming,
 }
 
-/// This struct contains installation-dependant data about each game.
+/// Installation-specific paths and identifiers.
 ///
-/// NOTE: All PackFile paths contained in this struct are RELATIVE, either to the data folder, or to the game's folder.
+/// Contains all the data that varies between different installation types of
+/// the same game (Steam vs Epic, Windows vs Linux, etc.).
+///
+/// # Path Relativity
+///
+/// **Important**: All paths in this struct are RELATIVE paths, either to:
+/// - The game's root directory (most paths)
+/// - The data directory (`vanilla_packs`)
+///
+/// This allows the same configuration to work across different installation
+/// locations by combining with the actual game path at runtime.
 #[derive(Getters, Clone, Debug)]
 #[getset(get = "pub")]
 pub struct InstallData {
 
-    /// List of vanilla packs, to be use as reference for knowing what PackFiles are vanilla in games without a manifest file.
-    /// Currently only used for Empire and Napoleon. Relative to data_path.
+    /// Vanilla PackFile names (without paths).
+    ///
+    /// Used as fallback when no manifest file exists (Empire, Napoleon).
+    /// Paths are relative to the `data_path`.
     vanilla_packs: Vec<String>,
 
-    /// If the manifest of the game should be used to get the vanilla PackFile list, or should we use the hardcoded list.
+    /// Whether to use the game's manifest file for vanilla PackFile discovery.
+    ///
+    /// `true`: Read manifest file (most games)
+    /// `false`: Use hardcoded `vanilla_packs` list
     use_manifest: bool,
 
-    /// StoreID of the game.
+    /// Steam/store ID for the game.
+    ///
+    /// Used for Steam integration and auto-detection.
     store_id: u64,
 
-    /// StoreID of the AK.
+    /// Steam/store ID for the game's Assembly Kit.
+    ///
+    /// `0` if no Assembly Kit is available on Steam.
     store_id_ak: u64,
 
-    /// Name of the executable of the game, including extension if it has it.
+    /// Game executable file name (with extension).
+    ///
+    /// Used to detect installation type and for launching the game.
+    /// Examples: `"Warhammer3.exe"`, `"Shogun2.exe"`
     executable: String,
 
-    /// /data path of the game, or equivalent. Relative to the game's path.
+    /// Data directory path relative to game root.
+    ///
+    /// Where PackFiles are stored. Usually `"data"` but varies.
     data_path: String,
 
-    /// Path where the language.txt file of the game is expected to be. Usually /data, but it's different on linux builds. Relative to the game's path.
+    /// Language file directory path relative to game root.
+    ///
+    /// Where `language.txt` or equivalent is located.
+    /// May be different from `data_path` on Linux builds.
     language_path: String,
 
-    /// Folder where local (your own) mods are stored. Relative to the game's path.
+    /// Local mods directory path relative to game root.
+    ///
+    /// Where the game loads locally-installed mods from.
     local_mods_path: String,
 
-    /// Folder where downloaded (other peoples's) mods are stored. Relative to the game's path.
+    /// Downloaded mods directory path relative to game root.
+    ///
+    /// Where Steam Workshop and other downloaded mods are stored.
+    /// Empty string if the game doesn't support downloadable mods.
     downloaded_mods_path: String,
 
-    /// Name of the folder where the config for this specific game installation are stored.
+    /// Config directory name (not full path).
+    ///
+    /// Used with platform-specific config locations (AppData on Windows,
+    /// .config on Linux). `None` if game doesn't store config externally.
     config_folder: Option<String>,
 }
 
@@ -229,12 +469,53 @@ impl GameInfo {
     // Getters.
     //---------------------------------------------------------------------------//
 
-    /// This function returns the "Key" name of the Game, meaning in lowercase and without spaces.
+    /// Returns the game's unique identifier key.
+    ///
+    /// The key is the game name in lowercase without spaces (e.g., `"warhammer_3"`, `"troy"`).
+    /// This is used for configuration files, file paths, and internal identification.
+    ///
+    /// # Returns
+    ///
+    /// A static string slice containing the game's key identifier.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// use rpfm_lib::games::supported_games::{SupportedGames, KEY_WARHAMMER_3};
+    ///
+    /// let supported_games = SupportedGames::default();
+    /// let game_info = supported_games.game(&KEY_WARHAMMER_3).unwrap();
+    /// assert_eq!(game_info.key(), KEY_WARHAMMER_3);
+    /// ```
     pub fn key(&self) -> &str {
         self.key
     }
 
-    /// This function returns the PFHVersion corresponding to the provided PackFile type. If it's not found, it defaults to the one used by mods.
+    /// Returns the PackFile format version for a specific file type.
+    ///
+    /// Different PackFile types (Boot, Release, Patch, Mod, Movie) may use different format
+    /// versions within the same game. This method looks up the appropriate [`PFHVersion`]
+    /// for the given [`PFHFileType`].
+    ///
+    /// # Arguments
+    ///
+    /// * `pfh_file_type` - The type of PackFile to look up
+    ///
+    /// # Returns
+    ///
+    /// The [`PFHVersion`] used for the specified file type. If no specific version is
+    /// configured for the file type, returns the version used for Mod PackFiles.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// use rpfm_lib::games::supported_games::{SupportedGames, KEY_WARHAMMER_3};
+    /// use rpfm_lib::games::pfh_file_type::PFHFileType;
+    ///
+    /// let supported_games = SupportedGames::default();
+    /// let game_info = supported_games.game(&KEY_WARHAMMER_3).unwrap();
+    /// let mod_version = game_info.pfh_version_by_file_type(PFHFileType::Mod);
+    /// ```
     pub fn pfh_version_by_file_type(&self, pfh_file_type: PFHFileType) -> PFHVersion {
         match self.pfh_versions.get(&pfh_file_type) {
             Some(pfh_version) => *pfh_version,
@@ -246,7 +527,48 @@ impl GameInfo {
     // Advanced getters.
     //---------------------------------------------------------------------------//
 
-    /// This function tries to get the correct InstallType for the currently configured installation of the game.
+    /// Detects the installation type (Steam, Epic, Wargaming, etc.) for a game installation.
+    ///
+    /// This method analyzes the game's directory structure and files to determine which
+    /// platform or distribution the game was installed from. The result is cached to avoid
+    /// repeated filesystem scans.
+    ///
+    /// # Detection Strategy
+    ///
+    /// 1. Checks for platform-specific executable names
+    /// 2. For Windows installations with multiple possible types:
+    ///    - Looks for `steam_api.dll` or `steam_api64.dll` for Steam
+    ///    - Looks for `EOSSDK-Win64-Shipping.dll` for Epic Games Store
+    ///    - Falls back to Wargaming/Netease if neither found
+    /// 3. Assumes Linux Steam for Linux installations
+    ///
+    /// # Arguments
+    ///
+    /// * `game_path` - Absolute path to the game's installation directory
+    ///
+    /// # Returns
+    ///
+    /// Returns the detected [`InstallType`], or an error if the path is invalid.
+    ///
+    /// # Performance
+    ///
+    /// Results are cached internally. First call takes ~10ms, subsequent calls are instant.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// use rpfm_lib::games::supported_games::{SupportedGames, KEY_WARHAMMER_3};
+    /// use std::path::Path;
+    ///
+    /// let supported_games = SupportedGames::default();
+    /// let game_info = supported_games.game(&KEY_WARHAMMER_3).unwrap();
+    /// let game_path = Path::new("/path/to/game");
+    ///
+    /// match game_info.install_type(game_path) {
+    ///     Ok(install_type) => println!("Detected: {:?}", install_type),
+    ///     Err(e) => eprintln!("Detection failed: {}", e),
+    /// }
+    /// ```
     pub fn install_type(&self, game_path: &Path) -> Result<InstallType> {
 
         // This function takes 10ms to execute. In a few places, it's executed 2-5 times, and quickly adds up.
@@ -313,28 +635,97 @@ impl GameInfo {
         }
     }
 
-    /// This function gets the install data for the game, if it's a supported installation.
+    /// Returns the installation-specific data for a game.
+    ///
+    /// After detecting the installation type, this method retrieves the corresponding
+    /// configuration data (executable names, paths, Steam IDs, etc.) for that installation.
+    ///
+    /// # Arguments
+    ///
+    /// * `game_path` - Absolute path to the game's installation directory
+    ///
+    /// # Returns
+    ///
+    /// Returns a reference to the [`InstallData`] for the detected installation type.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The installation type cannot be detected
+    /// - The detected installation type is not supported for this game
     pub fn install_data(&self, game_path: &Path) -> Result<&InstallData> {
         let install_type = self.install_type(game_path)?;
         let install_data = self.install_data.get(&install_type).ok_or_else(|| RLibError::GameInstallTypeNotSupported(self.display_name.to_string(), install_type.to_string()))?;
         Ok(install_data)
     }
 
-    /// This function gets the `/data` path or equivalent of the game selected, if said game it's configured in the settings.
+    /// Returns the path to the game's `/data` directory.
+    ///
+    /// The `/data` directory contains the game's vanilla PackFiles and is the primary
+    /// location for game content. The exact directory name may vary by game and platform.
+    ///
+    /// # Arguments
+    ///
+    /// * `game_path` - Absolute path to the game's installation directory
+    ///
+    /// # Returns
+    ///
+    /// Absolute path to the `/data` directory (or platform-specific equivalent).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the installation type cannot be detected or is not supported.
     pub fn data_path(&self, game_path: &Path) -> Result<PathBuf> {
         let install_type = self.install_type(game_path)?;
         let install_data = self.install_data.get(&install_type).ok_or_else(|| RLibError::GameInstallTypeNotSupported(self.display_name.to_string(), install_type.to_string()))?;
         Ok(game_path.join(install_data.data_path()))
     }
 
-    /// This function gets the `/contents` path or equivalent of the game selected, if said game it's configured in the settings.
+    /// Returns the path to the downloaded mods directory.
+    ///
+    /// This is the directory where Steam Workshop or other platform mods are downloaded to.
+    /// Not all games support downloaded mods through official platforms.
+    ///
+    /// # Arguments
+    ///
+    /// * `game_path` - Absolute path to the game's installation directory
+    ///
+    /// # Returns
+    ///
+    /// Absolute path to the downloaded mods directory.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the installation type cannot be detected or is not supported.
     pub fn content_path(&self, game_path: &Path) -> Result<PathBuf> {
         let install_type = self.install_type(game_path)?;
         let install_data = self.install_data.get(&install_type).ok_or_else(|| RLibError::GameInstallTypeNotSupported(self.display_name.to_string(), install_type.to_string()))?;
         Ok(game_path.join(install_data.downloaded_mods_path()))
     }
 
-    /// This function gets the `language.txt` path of the game selected, if said game uses it and it's configured in the settings.
+    /// Returns the directory containing the game's language configuration file.
+    ///
+    /// The language configuration file (typically `language.txt` or similar) stores the
+    /// player's selected interface language. The file location varies by game and may be
+    /// nested inside a language-specific subdirectory.
+    ///
+    /// # Behavior
+    ///
+    /// If the language file is in the base directory, returns that directory. Otherwise,
+    /// searches through language-specific subdirectories (brazilian, chinese, english, etc.)
+    /// and returns the first one found.
+    ///
+    /// # Arguments
+    ///
+    /// * `game_path` - Absolute path to the game's installation directory
+    ///
+    /// # Returns
+    ///
+    /// Absolute path to the directory containing the language file.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the installation type cannot be detected or is not supported.
     pub fn language_path(&self, game_path: &Path) -> Result<PathBuf> {
 
         // For games that don't support
@@ -409,14 +800,51 @@ impl GameInfo {
         }
     }
 
-    /// This function gets the `/data` path or equivalent (the folder local mods are installed during development) of the game selected, if said game it's configured in the settings
+    /// Returns the path to the local mods directory.
+    ///
+    /// This is where locally-installed mods are loaded from by the game. The location
+    /// varies by game:
+    /// - **Troy**: A separate directory from `/data` to avoid polluting the data folder
+    /// - **Other games**: Points to the `/data` directory
+    ///
+    /// Mods placed in this directory are loaded by the game without requiring workshop
+    /// or platform distribution.
+    ///
+    /// # Arguments
+    ///
+    /// * `game_path` - Absolute path to the game's installation directory
+    ///
+    /// # Returns
+    ///
+    /// Absolute path to the local mods directory.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the installation type cannot be detected or is not supported.
     pub fn local_mods_path(&self, game_path: &Path) -> Result<PathBuf> {
         let install_type = self.install_type(game_path)?;
         let install_data = self.install_data.get(&install_type).ok_or_else(|| RLibError::GameInstallTypeNotSupported(self.display_name.to_string(), install_type.to_string()))?;
         Ok(game_path.join(install_data.local_mods_path()))
     }
 
-    /// This function gets the `/mods` path or equivalent of the game selected, if said game it's configured in the settings.
+    /// Returns paths to all PackFiles in the downloaded mods directory.
+    ///
+    /// Recursively scans the downloaded mods directory (Steam Workshop, etc.) and returns
+    /// paths to all `.pack` and `.bin` files found. Returns `None` if the game doesn't
+    /// support downloaded mods or the directory doesn't exist.
+    ///
+    /// # Arguments
+    ///
+    /// * `game_path` - Absolute path to the game's installation directory
+    ///
+    /// # Returns
+    ///
+    /// A sorted vector of absolute paths to PackFiles, or `None` if not applicable.
+    ///
+    /// # File Extensions
+    ///
+    /// Searches for both `.pack` and `.bin` extensions as some games use `.bin` for
+    /// certain mod types.
     pub fn content_packs_paths(&self, game_path: &Path) -> Option<Vec<PathBuf>> {
         let install_type = self.install_type(game_path).ok()?;
         let install_data = self.install_data.get(&install_type)?;
@@ -441,9 +869,28 @@ impl GameInfo {
         Some(paths)
     }
 
-    /// This function gets the paths of the Packs from the `/secondary` path or equivalent of the game selected, if it's configured in the settings.
+    /// Returns paths to all PackFiles in a secondary mods directory.
     ///
-    /// Secondary path must be absolute.
+    /// Some users keep additional mod collections in custom directories outside the game
+    /// installation. This method scans a user-specified secondary path for PackFiles.
+    ///
+    /// The secondary path should contain a subdirectory named after the game's key
+    /// (e.g., `secondary_path/warhammer_3/`), which is then scanned for `.pack` files.
+    ///
+    /// # Arguments
+    ///
+    /// * `secondary_path` - Absolute path to the base secondary mods directory
+    ///
+    /// # Returns
+    ///
+    /// A sorted vector of absolute paths to PackFiles, or `None` if:
+    /// - The path is not absolute, doesn't exist, or isn't a directory
+    /// - The game-specific subdirectory doesn't exist
+    /// - No `.pack` files are found
+    ///
+    /// # Path Structure
+    ///
+    /// Expected structure: `secondary_path/{game_key}/*.pack`
     pub fn secondary_packs_paths(&self, secondary_path: &Path) -> Option<Vec<PathBuf>> {
         if !secondary_path.is_dir() || !secondary_path.exists() || !secondary_path.is_absolute() {
             return None;
@@ -469,7 +916,22 @@ impl GameInfo {
         Some(paths)
     }
 
-    /// This function gets the `/data` path or equivalent of the game selected, if said game it's configured in the settings.
+    /// Returns paths to all PackFiles in the game's `/data` directory.
+    ///
+    /// Scans the game's main data directory (non-recursively) for all `.pack` files.
+    /// This typically includes vanilla game PackFiles and any mods installed directly
+    /// in the data directory.
+    ///
+    /// # Arguments
+    ///
+    /// * `game_path` - Absolute path to the game's installation directory
+    ///
+    /// # Returns
+    ///
+    /// A sorted vector of absolute paths to PackFiles, or `None` if:
+    /// - The data directory cannot be determined
+    /// - The directory doesn't exist or cannot be read
+    /// - No `.pack` files are found
     pub fn data_packs_paths(&self, game_path: &Path) -> Option<Vec<PathBuf>> {
         let game_path = self.data_path(game_path).ok()?;
         let mut paths = vec![];
@@ -486,7 +948,21 @@ impl GameInfo {
     }
 
 
-    /// This function gets the destination folder for MyMod packs.
+    /// Returns the installation path for "MyMod" PackFiles.
+    ///
+    /// Returns the directory where mods created with RPFM's "MyMod" feature should be
+    /// installed. This is typically the local mods directory. Creates the directory
+    /// if it doesn't exist.
+    ///
+    /// # Arguments
+    ///
+    /// * `game_path` - Absolute path to the game's installation directory
+    ///
+    /// # Returns
+    ///
+    /// Absolute path to the MyMod installation directory, or `None` if:
+    /// - The installation type cannot be detected
+    /// - The directory cannot be created
     pub fn mymod_install_path(&self, game_path: &Path) -> Option<PathBuf> {
         let install_type = self.install_type(game_path).ok()?;
         let install_data = self.install_data.get(&install_type)?;
@@ -498,7 +974,29 @@ impl GameInfo {
         Some(path)
     }
 
-    /// This function returns if we should use the manifest of the game (if found) to get the vanilla PackFiles, or if we should get them from out hardcoded list.
+    /// Returns whether to use the game's manifest file for discovering vanilla PackFiles.
+    ///
+    /// Some games have a `manifest.txt` file that lists all official PackFiles. This method
+    /// determines whether RPFM should use that manifest or fall back to a hardcoded list
+    /// of PackFile names.
+    ///
+    /// # Decision Logic
+    ///
+    /// Returns `false` (don't use manifest) if:
+    /// - The installation is Linux (manifests may be unreliable)
+    /// - A hardcoded PackFile list exists for this game/install type
+    ///
+    /// # Arguments
+    ///
+    /// * `game_path` - Absolute path to the game's installation directory
+    ///
+    /// # Returns
+    ///
+    /// `true` if the manifest should be used, `false` if the hardcoded list should be used.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the installation type cannot be detected or is not supported.
     pub fn use_manifest(&self, game_path: &Path) -> Result<bool> {
         let install_type = self.install_type(game_path)?;
         let install_data = self.install_data.get(&install_type).ok_or_else(|| RLibError::GameInstallTypeNotSupported(self.display_name.to_string(), install_type.to_string()))?;
@@ -507,7 +1005,25 @@ impl GameInfo {
         Ok(*install_data.use_manifest())
     }
 
-    /// This function returns the steam id for a specific game installation.
+    /// Returns the Steam App ID for the game installation.
+    ///
+    /// The Steam App ID is used for launching games via Steam, checking workshop content,
+    /// and other Steam-specific integrations.
+    ///
+    /// # Arguments
+    ///
+    /// * `game_path` - Absolute path to the game's installation directory
+    ///
+    /// # Returns
+    ///
+    /// The Steam App ID as a 64-bit unsigned integer.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The installation type cannot be detected
+    /// - The installation is not a Steam installation (Windows or Linux)
+    /// - The installation type is not supported for this game
     pub fn steam_id(&self, game_path: &Path) -> Result<u64> {
         let install_type = self.install_type(game_path)?;
         let install_data = match install_type {
@@ -519,11 +1035,39 @@ impl GameInfo {
         Ok(*install_data.store_id())
     }
 
-    /// This function is used to get the paths of all CA PackFiles on the data folder of the game selected.
+    /// Returns paths to all Creative Assembly (vanilla) PackFiles.
     ///
-    /// If it fails to find a manifest, it falls back to all non-mod files!
+    /// Discovers all official game PackFiles in the data directory. Uses the game's manifest
+    /// file if available and configured, otherwise falls back to a hardcoded list or scanning
+    /// all PackFiles.
     ///
-    /// NOTE: For WH3, this is language-sensitive. Meaning, if you have the game on spanish, it'll try to load the spanish localization files ONLY.
+    /// # Language Filtering
+    ///
+    /// For games with multiple language packs (e.g., Warhammer 3), only returns PackFiles
+    /// matching the configured game language. This prevents loading multiple language
+    /// localizations simultaneously.
+    ///
+    /// Language-specific PackFiles typically have `local_{language}` in their names
+    /// (e.g., `local_en.pack`, `local_es.pack`).
+    ///
+    /// # Arguments
+    ///
+    /// * `game_path` - Absolute path to the game's installation directory
+    ///
+    /// # Returns
+    ///
+    /// A sorted vector of absolute paths to vanilla PackFiles.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The game language cannot be determined
+    /// - The data directory cannot be accessed
+    /// - The installation type is not supported
+    ///
+    /// # Fallback Behavior
+    ///
+    /// If manifest reading fails, automatically falls back to `ca_packs_paths_no_manifest()`.
     pub fn ca_packs_paths(&self, game_path: &Path) -> Result<Vec<PathBuf>> {
 
         // Check if we have to filter by language, to avoid overwriting our language with another one.
@@ -573,7 +1117,31 @@ impl GameInfo {
         }
     }
 
-    /// This function tries to get the ca PackFiles without depending on a Manifest. For internal use only.
+    /// Returns vanilla PackFiles without using a manifest (internal fallback).
+    ///
+    /// This is an internal method used by [`ca_packs_paths`] when no manifest is available
+    /// or manifest reading fails. Uses a hardcoded list of PackFile names if available,
+    /// otherwise returns all `.pack` files in the data directory.
+    ///
+    /// # Language Filtering
+    ///
+    /// Like [`ca_packs_paths`], filters language-specific PackFiles to only include the
+    /// configured game language.
+    ///
+    /// # Arguments
+    ///
+    /// * `game_path` - Absolute path to the game's installation directory
+    /// * `language` - Optional language code to filter localization PackFiles
+    ///
+    /// # Returns
+    ///
+    /// A vector of absolute paths to vanilla PackFiles.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The data directory cannot be accessed
+    /// - The installation type is not supported
     fn ca_packs_paths_no_manifest(&self, game_path: &Path, language: &Option<String>) -> Result<Vec<PathBuf>> {
         let data_path = self.data_path(game_path)?;
         let install_type = self.install_type(game_path)?;
@@ -615,7 +1183,30 @@ impl GameInfo {
         }
     }
 
-    /// This command returns the "launch" command for executing this game's installation.
+    /// Returns the launch URI for starting the game.
+    ///
+    /// Generates a platform-specific URI or command that can be used to launch the game
+    /// from external applications or scripts.
+    ///
+    /// # Platform Support
+    ///
+    /// Currently only supports Steam installations (Windows and Linux), which use Steam URIs
+    /// in the format `steam://rungameid/{app_id}`.
+    ///
+    /// # Arguments
+    ///
+    /// * `game_path` - Absolute path to the game's installation directory
+    ///
+    /// # Returns
+    ///
+    /// A string containing the launch URI or command.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The installation type cannot be detected
+    /// - The installation platform doesn't support programmatic launching (e.g., Epic, Wargaming)
+    /// - The installation type is not supported for this game
     pub fn game_launch_command(&self, game_path: &Path) -> Result<String> {
         let install_type = self.install_type(game_path)?;
 
@@ -629,7 +1220,17 @@ impl GameInfo {
         }
     }
 
-    /// This command returns the "Executable" path for the game's installation.
+    /// Returns the path to the game's executable file.
+    ///
+    /// # Arguments
+    ///
+    /// * `game_path` - Absolute path to the game's installation directory
+    ///
+    /// # Returns
+    ///
+    /// Absolute path to the game executable, or `None` if:
+    /// - The installation type cannot be detected
+    /// - The installation type is not supported
     pub fn executable_path(&self, game_path: &Path) -> Option<PathBuf> {
         let install_type = self.install_type(game_path).ok()?;
         let install_data = self.install_data.get(&install_type)?;
@@ -638,7 +1239,21 @@ impl GameInfo {
         Some(executable_path)
     }
 
-    /// This command returns the "config" path for the game's installation.
+    /// Returns the path to the game's configuration directory.
+    ///
+    /// Total War games store user configuration, preferences, and save files in a
+    /// platform-specific configuration directory (e.g., AppData on Windows, ~/.config on Linux).
+    ///
+    /// # Arguments
+    ///
+    /// * `game_path` - Absolute path to the game's installation directory
+    ///
+    /// # Returns
+    ///
+    /// Absolute path to the game's configuration directory, or `None` if:
+    /// - The installation type cannot be detected
+    /// - The game doesn't have a defined configuration folder
+    /// - The platform-specific configuration path cannot be determined
     pub fn config_path(&self, game_path: &Path) -> Option<PathBuf> {
         let install_type = self.install_type(game_path).ok()?;
         let install_data = self.install_data.get(&install_type)?;
@@ -651,18 +1266,68 @@ impl GameInfo {
         })
     }
 
-    /// Check if a specific file is banned.
+    /// Checks if a file path is banned from modification.
+    ///
+    /// Some game files are protected by integrity checks to prevent bypassing DLC
+    /// ownership validation. This method checks if a file path matches any banned
+    /// path prefixes.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The file path to check (typically a PackFile-relative path)
+    ///
+    /// # Returns
+    ///
+    /// `true` if the file is banned and should not be modified, `false` otherwise.
+    ///
+    /// # Comparison
+    ///
+    /// The comparison is case-insensitive and uses prefix matching.
     pub fn is_file_banned(&self, path: &str) -> bool {
         let path = path.to_lowercase();
         self.banned_packedfiles.iter().any(|x| path.starts_with(x))
     }
 
-    /// Tries to retrieve a tool var for the game.
+    /// Retrieves a game-specific tool variable.
+    ///
+    /// Tool variables are key-value pairs used to configure tool behavior for specific
+    /// games. Examples might include special file paths, version numbers, or feature flags.
+    ///
+    /// # Arguments
+    ///
+    /// * `var` - The variable name to look up
+    ///
+    /// # Returns
+    ///
+    /// The variable value if found, or `None` if the variable is not defined for this game.
     pub fn tool_var(&self, var: &str) -> Option<&String> {
         self.tool_vars.get(var)
     }
 
-    /// This function tries to get the language of the game. Defaults to english if not found.
+    /// Reads the game's configured language from its configuration file.
+    ///
+    /// Attempts to read the game's language setting from its `language.txt` or equivalent
+    /// configuration file. This determines which localization PackFiles should be loaded.
+    ///
+    /// # Language Codes
+    ///
+    /// The file typically contains a 2-letter code (e.g., "EN", "ES", "DE") which is
+    /// mapped to the full language name used in PackFile names.
+    ///
+    /// # Arguments
+    ///
+    /// * `game_path` - Absolute path to the game's installation directory
+    ///
+    /// # Returns
+    ///
+    /// - `Ok(Some(language))` - Language successfully read and mapped
+    /// - `Ok(Some("english"))` - File missing/unreadable, defaulted to English
+    /// - `Ok(None)` - Game doesn't use a language configuration file
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the language file path cannot be determined due to
+    /// installation type detection failures.
     pub fn game_locale_from_file(&self, game_path: &Path) -> Result<Option<String>> {
         match self.locale_file_name() {
             Some(locale_file) => {
@@ -707,7 +1372,31 @@ impl GameInfo {
         }
     }
 
-    /// This function gets the version number of the exe for the current GameSelected, if it exists.
+    /// Extracts the version number from the game's executable.
+    ///
+    /// Reads version information embedded in the game's executable file. Currently only
+    /// implemented for Troy; returns `None` for other games.
+    ///
+    /// # Version Encoding
+    ///
+    /// The version is encoded as a 32-bit integer:
+    /// - Bits 24-31: Major version
+    /// - Bits 16-23: Minor version
+    /// - Bits 8-15: Patch version
+    /// - Bits 0-7: Build number
+    ///
+    /// For example, version 1.3.0.5 would be encoded as `0x01030005`.
+    ///
+    /// # Arguments
+    ///
+    /// * `game_path` - Absolute path to the game's installation directory
+    ///
+    /// # Returns
+    ///
+    /// The encoded version number, or `None` if:
+    /// - Version extraction is not implemented for this game
+    /// - The executable doesn't exist
+    /// - The executable version info cannot be read
     pub fn game_version_number(&self, game_path: &Path) -> Option<u32> {
         match self.key() {
             KEY_TROY => {
@@ -745,9 +1434,29 @@ impl GameInfo {
         }
     }
 
-    /// This function searches for installed total war games.
+    /// Automatically discovers the game's installation directory.
     ///
-    /// NOTE: Only works for steam-installed games.
+    /// Searches for the game installation using platform-specific methods. Currently only
+    /// supports Steam installations via the Steam library folders system.
+    ///
+    /// # Platform Support
+    ///
+    /// - **Windows Steam**: Searches via Steam library folders
+    /// - **Linux Steam**: Searches via Steam library folders
+    /// - **Other platforms**: Not supported (returns `Ok(None)`)
+    ///
+    /// # Arguments
+    ///
+    /// None - uses the game's configured Steam App ID
+    ///
+    /// # Returns
+    ///
+    /// - `Ok(Some(path))` - Game installation found at the returned path
+    /// - `Ok(None)` - Game not found or platform not supported
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if Steam library folder parsing fails.
     pub fn find_game_install_location(&self) -> Result<Option<PathBuf>> {
 
         // Steam install data. We don't care if it's windows or linux, as the data we want is the same in both.
@@ -778,9 +1487,30 @@ impl GameInfo {
         Ok(None)
     }
 
-    /// This function searches for installed total war Assembly Kits.
+    /// Automatically discovers the Assembly Kit installation directory.
     ///
-    /// NOTE: Only works for steam-installed games.
+    /// Assembly Kits are official modding tools distributed separately from the games.
+    /// This method searches for the Assembly Kit using platform-specific methods,
+    /// currently only supporting Steam installations.
+    ///
+    /// # Platform Support
+    ///
+    /// - **Windows Steam**: Searches via Steam library folders
+    /// - **Linux Steam**: Searches via Steam library folders
+    /// - **Other platforms**: Not supported (returns `Ok(None)`)
+    ///
+    /// # Arguments
+    ///
+    /// None - uses the game's configured Assembly Kit Steam App ID
+    ///
+    /// # Returns
+    ///
+    /// - `Ok(Some(path))` - Assembly Kit found at the returned path
+    /// - `Ok(None)` - Assembly Kit not found, not available for this game, or platform not supported
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if Steam library folder parsing fails.
     pub fn find_assembly_kit_install_location(&self) -> Result<Option<PathBuf>> {
 
         // Steam install data. We don't care if it's windows or linux, as the data we want is the same in both.
@@ -811,7 +1541,27 @@ impl GameInfo {
         Ok(None)
     }
 
-    /// This function returns the list of public tags available in the workshop for each game.
+    /// Returns the list of Steam Workshop tags available for this game.
+    ///
+    /// Steam Workshop allows mod creators to tag their mods with categories like "graphical",
+    /// "campaign", "units", etc. This method returns the official list of tags recognized
+    /// by the Steam Workshop for this specific game.
+    ///
+    /// # Tag Categories
+    ///
+    /// Common tags across games include:
+    /// - Content types: "graphical", "campaign", "units", "battle"
+    /// - Scope: "overhaul", "ui", "maps"
+    /// - Collections: "compilation", "mod manager"
+    /// - Languages: "English", "Spanish", etc. (in some games)
+    ///
+    /// # Returns
+    ///
+    /// A vector of tag strings recognized by Steam Workshop for this game.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the game doesn't support Steam Workshop.
     pub fn steam_workshop_tags(&self) -> Result<Vec<String>> {
         Ok(match self.key() {
             KEY_PHARAOH_DYNASTIES => vec![
@@ -966,7 +1716,33 @@ impl GameInfo {
         })
     }
 
-    /// This function returns the game that corresponds to the provided Steam ID, if any.
+    /// Looks up a game by its Steam App ID.
+    ///
+    /// Given a Steam App ID, searches through all supported games to find the matching game.
+    /// This is useful when you have a Steam App ID (e.g., from Steam library or launch parameters)
+    /// and need to identify which Total War game it corresponds to.
+    ///
+    /// # Arguments
+    ///
+    /// * `steam_id` - The Steam App ID to search for
+    ///
+    /// # Returns
+    ///
+    /// The [`GameInfo`] for the matching game.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if no known game matches the provided Steam App ID.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rpfm_lib::games::GameInfo;
+    ///
+    /// // Look up Warhammer 3 by its Steam App ID
+    /// let game_info = GameInfo::game_by_steam_id(1142710).unwrap();
+    /// assert_eq!(game_info.key(), "warhammer_3");
+    /// ```
     pub fn game_by_steam_id(steam_id: u64) -> Result<Self> {
         let games = SupportedGames::default();
         for game in games.games() {

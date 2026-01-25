@@ -8,7 +8,53 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! Packs are a container-type file, used to contain Total War game files.
+//! PackFile (`.pack`) container format for Total War games.
+//!
+//! This module handles reading and writing PackFiles, the primary container format used by
+//! Total War games to store game assets. PackFiles bundle multiple files into a single archive
+//! with optional compression and encryption support.
+//!
+//! # Overview
+//!
+//! PackFiles have evolved through multiple versions since Empire: Total War, with each version
+//! adding features like timestamps, compression, and encryption. This module supports all
+//! known PackFile versions (PFH0 through PFH6).
+//!
+//! # Pack Types
+//!
+//! Packs have different types that determine load order and behavior:
+//! - **Boot**: Core game files loaded first
+//! - **Release**: Official game content
+//! - **Patch**: Official patches
+//! - **Mod**: User-created modifications
+//! - **Movie**: Video content packs
+//!
+//! # Features
+//!
+//! - **Lazy Loading**: Files can be loaded on-demand to reduce memory usage
+//! - **Compression**: PFH5+ supports LZ4, Zlib, and LZMA compression (game-dependent)
+//! - **Encryption**: Packs support index and data encryption
+//! - **Timestamps**: Track when files were last modified
+//! - **Dependencies**: Packs can declare dependencies on other packs
+//! - **Metadata**: Store notes and settings within the pack itself
+//!
+//! # Example
+//!
+//! ```no_run
+//! use rpfm_lib::files::pack::Pack;
+//! use rpfm_lib::files::{Container, Decodeable, DecodeableExtraData};
+//! use std::fs::File;
+//! use std::io::BufReader;
+//!
+//! // Open and read a pack file
+//! let file = File::open("my_mod.pack").unwrap();
+//! let mut reader = BufReader::new(file);
+//! let mut extra_data = DecodeableExtraData::default();
+//! extra_data.set_lazy_load(true);
+//!
+//! let pack = Pack::decode(&mut reader, &Some(extra_data)).unwrap();
+//! println!("Pack contains {} files", pack.files().len());
+//! ```
 
 use bitflags::bitflags;
 use getset::*;
@@ -37,42 +83,57 @@ use crate::utils::{current_time, last_modified_time_from_file};
 mod pack_test;
 mod pack_versions;
 
-/// Extension used by Packs.
+/// File extension used by PackFiles.
 pub const EXTENSION: &str = ".pack";
 
-/// Special Preamble/Id prefixing steam workshop files, for some reason.
-const MFH_PREAMBLE: &str = "MFH"; // Weird format of some packs downloaded from Steam.
+/// Special preamble found in some Steam Workshop downloaded packs.
+const MFH_PREAMBLE: &str = "MFH";
 
-/// Path where Terry-generated map files end up.
+/// Path where Terry (map editor) exports map files within a pack.
 const TERRY_MAP_PATH: &str = "terrain/tiles/battle/_assembly_kit";
 
-/// This one is the name of the main BMD data file used by maps exported from Terry.
+/// Default filename for Battle Map Data files exported from Terry.
 const DEFAULT_BMD_DATA: &str = "bmd_data.bin";
 
-// Const for the missing locs paths.
+/// Path prefix for missing loc entries that override existing translations.
 const MISSING_LOCS_PATH_START_EXISTING: &str = "text/aaa_missing_locs_";
+/// Path prefix for missing loc entries that are new translations.
 const MISSING_LOCS_PATH_START_NEW: &str = "text/zzz_missing_locs_";
 
-/// These three hints are necessary for the map patching function.
+// Binary markers used by the Siege AI patching function.
 const FORT_PERIMETER_HINT: &[u8; 18] = b"AIH_FORT_PERIMETER";
 const DEFENSIVE_HILL_HINT: &[u8; 18] = b"AIH_DEFENSIVE_HILL";
 const SIEGE_AREA_NODE_HINT: &[u8; 19] = b"AIH_SIEGE_AREA_NODE";
 
+/// Reserved filename for legacy dependency manager data.
 pub const RESERVED_NAME_DEPENDENCIES_MANAGER: &str = "dependencies_manager.rpfm_reserved";
+/// Reserved filename for dependency manager data (current version).
 pub const RESERVED_NAME_DEPENDENCIES_MANAGER_V2: &str = "dependencies_manager_v2.rpfm_reserved";
+/// Reserved filename for extra packfile references.
 pub const RESERVED_NAME_EXTRA_PACKFILE: &str = "extra_packfile.rpfm_reserved";
+/// Reserved filename for pack settings data.
 pub const RESERVED_NAME_SETTINGS: &str = "settings.rpfm_reserved";
+/// Reserved filename for extracted pack settings (JSON format).
 pub const RESERVED_NAME_SETTINGS_EXTRACTED: &str = "settings.rpfm_reserved.json";
+/// Reserved filename for pack notes data.
 pub const RESERVED_NAME_NOTES: &str = "notes.rpfm_reserved";
+/// Reserved filename for extracted pack notes (Markdown format).
 pub const RESERVED_NAME_NOTES_EXTRACTED: &str = "notes.rpfm_reserved.md";
 
-/// This is the list of ***Reserved File Names***. They're file names used by RPFM for special purposes.
+/// List of reserved filenames used by RPFM for internal purposes.
+///
+/// These files are automatically handled during pack read/write operations
+/// and should not be manually manipulated.
 pub const RESERVED_RFILE_NAMES: [&str; 3] = [RESERVED_NAME_EXTRA_PACKFILE, RESERVED_NAME_SETTINGS, RESERVED_NAME_NOTES];
 
+/// Authoring tool identifier for Creative Assembly tools.
 const AUTHORING_TOOL_CA: &str = "CA_TOOL";
+/// Authoring tool identifier for RPFM.
 const AUTHORING_TOOL_RPFM: &str = "RPFM";
+/// Maximum size in bytes for the authoring tool string.
 const AUTHORING_TOOL_SIZE: u32 = 8;
 
+/// Settings key for the compression format used by this pack.
 pub const SETTING_KEY_CF: &str = "compression_format";
 
 bitflags! {
@@ -208,7 +269,6 @@ pub struct Pack {
 /// | 4     | u32                | Build number of the game version this Pack was done for.                                     |
 /// | 8     | 00-Padded StringU8 | Tool that made this Pack.                                                                    |
 /// | 256   | `Vec<u8>`          | Unused bytes.                                                                                |
-///
 #[derive(Debug, Clone, PartialEq, Eq, Getters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", set = "pub")]
 pub struct PackHeader {
@@ -238,38 +298,52 @@ pub struct PackHeader {
     extra_subheader_data: Vec<u8>,
 }
 
-/// This struct hold Pack-specific settings.
+/// Pack-specific settings stored within the pack itself.
 ///
-/// Pack Settings are settings that are baked into a file in the Pack when saving,
-/// so they can be shared across multiple instances.
+/// These settings are serialized to a reserved file within the pack, allowing them
+/// to be shared when the pack is distributed. Common settings include compression
+/// format, diagnostic ignore lists, and import configurations.
+///
+/// # Built-in Settings
+///
+/// - `compression_format`: The compression format to use (None, Lz4, Zlib)
+/// - `diagnostics_files_to_ignore`: Files/diagnostics to skip during validation
+/// - `import_files_to_ignore`: Files to skip during folder imports
+/// - `disable_autosaves`: Disable automatic saving
+/// - `do_not_generate_existing_locs`: Skip generating loc entries that already exist
 #[derive(Clone, Debug, PartialEq, Eq, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct PackSettings {
 
-    /// For multi-line text.
+    /// Multi-line text settings (e.g., file ignore lists).
     settings_text: BTreeMap<String, String>,
 
-    /// For single-line text.
+    /// Single-line string settings (e.g., compression format).
     settings_string: BTreeMap<String, String>,
 
-    /// For bool values.
+    /// Boolean flag settings (e.g., disable_autosaves).
     settings_bool: BTreeMap<String, bool>,
 
-    /// For integer values.
+    /// Integer settings (e.g., thresholds, limits).
     settings_number: BTreeMap<String, i32>,
 }
 
-/// This struct hold Pack-specific notes, including both, Pack notes and file-specific notes.
+/// Pack notes for documentation and collaboration.
 ///
-/// These notes are baked into a file in the Pack when saving, so they can be shared across multiple instances.
+/// Notes are stored within the pack and include both pack-level notes (general
+/// documentation) and file-specific notes (annotations on individual files or tables).
+/// Notes are serialized as JSON and can be shared when the pack is distributed.
 #[derive(Clone, Debug, PartialEq, Eq, Default, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct PackNotes {
 
-    /// Pack-specific notes. The're just a markdown text.
+    /// General notes for the entire pack (Markdown format).
     pack_notes: String,
 
-    /// File-specific notes.
+    /// File-specific notes, keyed by lowercase file path.
+    ///
+    /// For DB tables, notes are shared across all tables of the same type
+    /// (path is truncated to `db/table_name/`).
     file_notes: HashMap<String, Vec<Note>>,
 }
 
@@ -1470,7 +1544,9 @@ impl PackSettings {
         self.settings_number.insert(key.to_owned(), value);
     }
 
-    // TODO: Move this to rpfm_extensions.
+    /// This function returns the list of paths which the diagnostic tool should ignore.
+    ///
+    /// TODO: Move this to rpfm_extensions.
     pub fn diagnostics_files_to_ignore(&self) -> Option<Vec<(String, Vec<String>, Vec<String>)>> {
         self.settings_text.get("diagnostics_files_to_ignore").map(|files_to_ignore| {
             let files = files_to_ignore.split('\n').collect::<Vec<&str>>();

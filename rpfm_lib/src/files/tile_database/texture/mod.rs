@@ -8,6 +8,11 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
+//! Texture definitions for terrain rendering.
+//!
+//! Textures define the visual properties of terrain surfaces including
+//! reflectivity, smoothness, and blending parameters.
+
 use getset::*;
 use serde_derive::{Serialize, Deserialize};
 
@@ -23,22 +28,39 @@ mod v4;
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
+/// A terrain texture with material properties.
+///
+/// Defines surface rendering properties including reflectivity and smoothness
+/// values at different interpolation points.
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Texture {
+    /// Serialisation format version.
     serialise_version: u16,
 
+    /// Texture identifier name.
     name: String,
+    /// Mid-distance detail strength.
     mid_distance_strength: f32,
+    /// Reflectivity at lerp point 0.
     lerp_reflectivity0: f32,
+    /// Smoothness at lerp point 0.
     lerp_smoothness0: f32,
+    /// Reflectivity at lerp point 1.
     lerp_reflectivity1: f32,
+    /// Smoothness at lerp point 1.
     lerp_smoothness1: f32,
+    /// Reflectivity at lerp point 2.
     lerp_reflectivity2: f32,
+    /// Smoothness at lerp point 2.
     lerp_smoothness2: f32,
+    /// Reflectivity at lerp point 3.
     lerp_reflectivity3: f32,
+    /// Smoothness at lerp point 3.
     lerp_smoothness3: f32,
+    /// Pixel scale for texture blending.
     blend_pixel_scale: f32,
+    /// Pixel scale for outfield blending.
     outfield_blend_pixel_scale: f32,
 }
 

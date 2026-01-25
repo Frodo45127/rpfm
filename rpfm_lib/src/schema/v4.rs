@@ -8,60 +8,25 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*!
-Module with all the code to interact with Schemas.
-
-This module contains all the code related with the schemas used by this lib to decode many PackedFile types.
-
-The basic structure of an `Schema` is:
-```ignore
-(
-    version: 3,
-    versioned_files: [
-        DB("_kv_battle_ai_ability_usage_variables_tables", [
-            (
-                version: 0,
-                fields: [
-                    (
-                        name: "key",
-                        field_type: StringU8,
-                        is_key: true,
-                        default_value: None,
-                        max_length: 0,
-                        is_filename: false,
-                        filename_relative_path: None,
-                        is_reference: None,
-                        lookup: None,
-                        description: "",
-                        ca_order: -1,
-                        is_bitwise: 0,
-                        enum_values: {},
-                    ),
-                    (
-                        name: "value",
-                        field_type: F32,
-                        is_key: false,
-                        default_value: None,
-                        max_length: 0,
-                        is_filename: false,
-                        filename_relative_path: None,
-                        is_reference: None,
-                        lookup: None,
-                        description: "",
-                        ca_order: -1,
-                        is_bitwise: 0,
-                        enum_values: {},
-                    ),
-                ],
-                localised_fields: [],
-            ),
-        ]),
-    ],
-)
-```
-
-Inside the schema there are `VersionedFile` variants of different types, with a Vec of `Definition`, one for each version of that PackedFile supported.
-!*/
+//! Legacy schema version 4 support module.
+//!
+//! This module provides backward compatibility for loading and upgrading schema files
+//! from the version 4 format to the current version 5 format. It contains the old type
+//! definitions and conversion logic needed to migrate existing schema files.
+//!
+//! # Purpose
+//!
+//! When RPFM's schema format changes in backwards-incompatible ways, legacy modules
+//! like this are kept to allow automatic migration of existing schema files. This ensures
+//! users can seamlessly upgrade their schemas without manual intervention.
+//!
+//! # Migration Process
+//!
+//! The [`SchemaV4::update()`] function handles the migration:
+//! 1. Load the old v4 schema
+//! 2. Convert to the new v5 format using [`From`] implementations
+//! 3. Load and merge any existing patches
+//! 4. Save the upgraded schema
 
 use rayon::prelude::*;
 use ron::de::from_bytes;
@@ -82,131 +47,176 @@ use crate::schema::Field as FieldV5;
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
-/// This struct represents a Schema File in memory, ready to be used to decode versioned PackedFiles.
+/// Legacy version 4 schema structure.
+///
+/// This struct represents the schema file format used before version 5.
+/// It is kept for backward compatibility and migration purposes only.
+///
+/// # Differences from Version 5
+///
+/// - Used a `versioned_files` vec instead of a `definitions` hashmap
+/// - Had different file type variants (AnimFragment, AnimTable, etc.)
+/// - Patches were stored in separate files, not integrated into the schema
+///
+/// See [`Schema`](crate::schema::Schema) for the current format.
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct SchemaV4 {
 
-    /// It stores the structural version of the Schema.
+    /// The structural version (always 3 or 4 for this format).
     version: u16,
 
-    /// It stores the versioned files inside the Schema.
+    /// List of versioned file definitions grouped by type.
     versioned_files: Vec<VersionedFileV4>
 }
 
-/// This enum defines all types of versioned files that the schema system supports.
+/// Legacy versioned file type enumeration.
+///
+/// In version 4 schemas, different file types had their own enum variants.
+/// Version 5 simplified this to just use DB tables.
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub enum VersionedFileV4 {
 
-    /// It stores a `Vec<Definition>` with the definitions for each version of AnimFragment files decoded.
+    /// AnimFragment file definitions (no longer used in v5).
     AnimFragment(Vec<DefinitionV4>),
 
-    /// It stores a `Vec<Definition>` with the definitions for each version of AnomTable files decoded.
+    /// AnimTable file definitions (no longer used in v5).
     AnimTable(Vec<DefinitionV4>),
 
-    /// It stores the name of the table, and a `Vec<Definition>` with the definitions for each version of that table decoded.
+    /// Database table definitions.
+    ///
+    /// Format: `(table_name, definitions_for_each_version)`
     DB(String, Vec<DefinitionV4>),
 
-    /// It stores a `Vec<Definition>` to decode the dependencies of a PackFile.
+    /// Dependency manager definitions (no longer used in v5).
     DepManager(Vec<DefinitionV4>),
 
-    /// It stores a `Vec<Definition>` with the definitions for each version of Loc files decoded (currently, only version `1`).
+    /// Localisation file definitions (no longer used in v5).
     Loc(Vec<DefinitionV4>),
 
-    /// It stores a `Vec<Definition>` with the definitions for each version of MatchedCombat files decoded.
+    /// Matched combat file definitions (no longer used in v5).
     MatchedCombat(Vec<DefinitionV4>),
 }
 
-/// This struct contains all the data needed to decode a specific version of a versioned PackedFile.
+/// Legacy version 4 table definition.
+///
+/// Defines the structure of one version of a table in the v4 schema format.
+/// Converted to [`Definition`](crate::schema::Definition) during migration.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Debug, Default, Serialize, Deserialize)]
 pub struct DefinitionV4 {
 
-    /// The version of the PackedFile the definition is for. These versions are:
-    /// - `-1`: for fake `Definition`, used for dependency resolving stuff.
-    /// - `0`: for unversioned PackedFiles.
-    /// - `1+`: for versioned PackedFiles.
+    /// Version number of this definition.
+    ///
+    /// - `-1`: Fake definition for dependency resolution
+    /// - `0`: Unversioned files
+    /// - `1+`: Versioned files
     version: i32,
 
-    /// This is a collection of all `Field`s the PackedFile uses, in the order it uses them.
+    /// List of fields in binary order.
     fields: Vec<FieldV4>,
 
-    /// This is a list of all the fields from this definition that are moved to a Loc PackedFile on exporting.
+    /// Fields extracted to LOC files.
     localised_fields: Vec<FieldV4>,
 }
 
-/// This struct holds all the relevant data do properly decode a field from a versioned PackedFile.
+/// Legacy version 4 field definition.
+///
+/// Defines a single field in the v4 schema format. All fields are public for
+/// easy conversion. Converted to [`Field`](crate::schema::Field) during migration.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Debug, Serialize, Deserialize)]
 pub struct FieldV4 {
 
-    /// Name of the field. Should contain no spaces, using `_` instead.
+    /// Field name (must match Assembly Kit definition).
     pub name: String,
 
-    /// Type of the field.
+    /// Field data type.
     pub field_type: FieldTypeV4,
 
-    /// `True` if the field is a `Key` field of a table. `False` otherwise.
+    /// Whether this field is a primary key.
     pub is_key: bool,
 
-    /// The default value of the field.
+    /// Default value for new rows.
     pub default_value: Option<String>,
 
-    /// If the field's data corresponds to a filename.
+    /// Whether this field contains a filename.
     pub is_filename: bool,
 
-    /// Path where the file in the data of the field can be, if it's restricted to one path.
+    /// Relative path(s) where files can be found.
     pub filename_relative_path: Option<String>,
 
-    /// `Some(referenced_table, referenced_column)` if the field is referencing another table/column. `None` otherwise.
+    /// Foreign key reference `(table, column)`.
     pub is_reference: Option<(String, String)>,
 
-    /// `Some(referenced_columns)` if the field is using another column/s from the referenced table for lookup values.
+    /// Lookup columns from referenced table.
     pub lookup: Option<Vec<String>>,
 
-    /// Aclarative description of what the field is for.
+    /// Human-readable description.
     pub description: String,
 
-    /// Visual position in CA's Table. `-1` means we don't know its position.
+    /// Position in Assembly Kit (-1 if unknown).
     pub ca_order: i16,
 
-    /// Variable to tell if this column is a bitwise column (spanned accross multiple columns) or not. Only applicable to numeric fields.
+    /// Number of boolean columns to expand into.
     pub is_bitwise: i32,
 
-    /// Variable that specifies the "Enum" values for each value in this field.
+    /// Enum value mappings.
     pub enum_values: BTreeMap<i32, String>,
 
-    /// If the field is part of a 3-part RGB column set, and which one (R, G or B) it is.
+    /// RGB colour group index.
     pub is_part_of_colour: Option<u8>,
 }
 
-/// This enum defines every type of field the lib can encode/decode.
+/// Legacy version 4 field type enumeration.
+///
+/// Defines the data types available in v4 schemas. Nearly identical to v5,
+/// but missing the Optional integer types (OptionalI16, OptionalI32, OptionalI64).
 #[derive(Clone, PartialEq, Eq, PartialOrd, Debug, Serialize, Deserialize)]
 pub enum FieldTypeV4 {
+    /// 1-byte boolean.
     Boolean,
+    /// 32-bit float.
     F32,
+    /// 64-bit float.
     F64,
+    /// 16-bit signed integer.
     I16,
+    /// 32-bit signed integer.
     I32,
+    /// 64-bit signed integer.
     I64,
+    /// RGB colour (hex string).
     ColourRGB,
+    /// UTF-8 encoded string with [`u16`] length prefix.
     StringU8,
+    /// UTF-16 encoded string with [`u16`] length prefix.
     StringU16,
+    /// Optional UTF-8 encoded string.
     OptionalStringU8,
+    /// Optional UTF-16 encoded string.
     OptionalStringU16,
+    /// Array with u16 count.
     SequenceU16(Box<DefinitionV4>),
+    /// Array with u32 count.
     SequenceU32(Box<DefinitionV4>)
 }
 
-/// This struct represents a bunch of Schema Patches in memory.
+/// Legacy version 4 patches container.
+///
+/// In v4, patches were stored separately from schemas and organized by game.
+/// In v5, patches are integrated directly into the schema.
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize, Default)]
 pub struct SchemaPatches {
 
-    /// It stores the patches split by games.
+    /// Patches organized by game name.
     patches: HashMap<String, SchemaPatch>
 }
 
+/// Legacy version 4 per-game patches.
+///
+/// Contains all table patches for a specific game.
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize, Default)]
 pub struct SchemaPatch{
 
-    /// It stores a list of per-table, per-column patches.
+    /// Table patches in the format: `table_name -> column_name -> patch_key -> patch_value`.
     tables: HashMap<String, HashMap<String, HashMap<String, String>>>,
 }
 
@@ -214,10 +224,18 @@ pub struct SchemaPatch{
 //                       Enum & Structs Implementations
 //---------------------------------------------------------------------------//
 
-/// Implementation of `SchemaV4`.
+/// Implementation of [`SchemaV4`].
 impl SchemaV4 {
 
-    /// This function loads a `Schema` to memory from a file in the `schemas/` folder.
+    /// Loads a v4 schema from a RON file.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Path to the v4 schema file
+    ///
+    /// # Returns
+    ///
+    /// Returns the loaded v4 schema, or an error if loading fails.
     pub fn load(path: &Path) -> Result<Self> {
         let mut file = BufReader::new(File::open(path)?);
         let mut data = Vec::with_capacity(file.get_ref().metadata()?.len() as usize);
@@ -225,7 +243,24 @@ impl SchemaV4 {
         from_bytes(&data).map_err(From::from)
     }
 
-    /// This function tries to update the Schema at the provided Path to a more recent format.
+    /// Upgrades a v4 schema file to the current v5 format.
+    ///
+    /// This function:
+    /// 1. Loads the v4 schema
+    /// 2. Converts it to v5 format
+    /// 3. Loads and merges patches from the patches file
+    /// 4. Cleans up invalid references
+    /// 5. Saves the upgraded v5 schema
+    ///
+    /// # Arguments
+    ///
+    /// * `schema_path` - Path to the v4 schema file (will be overwritten with v5)
+    /// * `patches_path` - Path to the v4 patches file
+    /// * `game_name` - Name of the game to extract patches for
+    ///
+    /// # Returns
+    ///
+    /// Returns [`Ok`] if the upgrade succeeds, or an error otherwise.
     pub fn update(schema_path: &Path, patches_path: &Path, game_name: &str) -> Result<()> {
         let schema_legacy = Self::load(schema_path)?;
         let mut schema = SchemaV5::from(&schema_legacy);
@@ -252,16 +287,23 @@ impl SchemaV4 {
             }
         }
 
-        // Disable saving until 4.0 releases.
         schema.save(schema_path)?;
         Ok(())
     }
 }
 
-/// Implementation of `Definition`.
+/// Implementation of [`DefinitionV4`].
 impl DefinitionV4 {
 
-    /// This function creates a new empty `Definition` for the version provided.
+    /// Creates a new empty v4 definition.
+    ///
+    /// # Arguments
+    ///
+    /// * `version` - Version number for this definition
+    ///
+    /// # Returns
+    ///
+    /// Returns a new empty definition.
     pub fn new(version: i32) -> DefinitionV4 {
         DefinitionV4 {
             version,
@@ -270,24 +312,24 @@ impl DefinitionV4 {
         }
     }
 
-    /// This function returns the version of the provided definition.
+    /// Returns the version number.
     pub fn version(&self) -> i32 {
         self.version
     }
 
-    /// This function returns a mutable reference to the list of fields in the definition.
+    /// Returns a mutable reference to the fields list.
     pub fn fields_mut(&mut self) -> &mut Vec<FieldV4> {
         &mut self.fields
     }
 
-    /// This function returns the localised fields of the provided definition
+    /// Returns a mutable reference to the localised fields list.
     pub fn localised_fields_mut(&mut self) -> &mut Vec<FieldV4> {
         &mut self.localised_fields
     }
 
 }
 
-/// Default implementation of `FieldType`.
+/// Default implementation for [`FieldV4`].
 impl Default for FieldV4 {
     fn default() -> Self {
         Self {
@@ -308,7 +350,7 @@ impl Default for FieldV4 {
     }
 }
 
-/// Default implementation of `SchemaV4`.
+/// Default implementation for [`SchemaV4`].
 impl Default for SchemaV4 {
     fn default() -> Self {
         Self {
@@ -319,6 +361,7 @@ impl Default for SchemaV4 {
 }
 
 
+/// Converts a v4 schema to the current v5 format.
 impl From<&SchemaV4> for SchemaV5 {
     fn from(legacy_schema: &SchemaV4) -> Self {
         let mut schema = Self::default();
@@ -333,6 +376,7 @@ impl From<&SchemaV4> for SchemaV5 {
     }
 }
 
+/// Converts a v4 definition to the current v5 format.
 impl From<&DefinitionV4> for DefinitionV5 {
     fn from(legacy_table_definition: &DefinitionV4) -> Self {
         let mut definition = Self::new(legacy_table_definition.version, None);
@@ -347,6 +391,7 @@ impl From<&DefinitionV4> for DefinitionV5 {
     }
 }
 
+/// Converts a v4 field to the current v5 format.
 impl From<&FieldV4> for FieldV5 {
     fn from(legacy_field: &FieldV4) -> Self {
         Self {
@@ -365,6 +410,7 @@ impl From<&FieldV4> for FieldV5 {
     }
 }
 
+/// Converts a v4 field type to the current v5 format.
 impl From<&FieldTypeV4> for FieldTypeV5 {
     fn from(legacy_field_type: &FieldTypeV4) -> Self {
         match legacy_field_type {
@@ -385,9 +431,18 @@ impl From<&FieldTypeV4> for FieldTypeV5 {
     }
 }
 
+/// Implementation of [`SchemaPatches`].
 impl SchemaPatches {
 
-    /// This function loads a `SchemaPatches` to memory from a file in the `schemas/` folder.
+    /// Loads v4 patches from a RON file.
+    ///
+    /// # Arguments
+    ///
+    /// * `file_path` - Path to the patches file
+    ///
+    /// # Returns
+    ///
+    /// Returns the loaded patches, or an error if loading fails.
     pub fn load(file_path: &Path) -> Result<Self> {
         let mut file = BufReader::new(File::open(file_path)?);
         let mut data = Vec::with_capacity(file.get_ref().metadata()?.len() as usize);

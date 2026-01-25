@@ -8,6 +8,83 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
+//! CS2 Parsed file format support.
+//!
+//! CS2 Parsed files (`.cs2.parsed`) define gameplay logic and interaction data for 3D
+//! building models in Total War games. These files contain information about unit
+//! placement, pathfinding, collision, defense positions, and various building-specific
+//! behaviors.
+//!
+//! # File Format
+//!
+//! CS2 Parsed files are binary files containing:
+//! - Version header
+//! - UI flag position for minimap display
+//! - Building pieces with destruction states
+//! - Gameplay logic: platforms, pipes, gates, EF lines, etc.
+//! - Legacy collision data (moved to separate `.cs2.collision` files in newer games)
+//! - Projectile emitters (moved to map data in newer games)
+//!
+//! # Supported Versions
+//!
+//! - **Version 0**: Legacy format (Empire/Napoleon)
+//! - **Version 8**: Legacy format
+//! - **Version 9**: Legacy format
+//! - **Version 10**: Legacy format
+//! - **Version 11**: Legacy format
+//! - **Version 12**: Legacy format
+//! - **Version 13**: Legacy format
+//! - **Version 18**: Older format (Three Kingdoms)
+//! - **Version 20**: Older format (Troy/Warhammer II)
+//! - **Version 21**: Current format (Warhammer III)
+//!
+//! # Key Components
+//!
+//! ## Platforms
+//! Define walkable surfaces where units can stand and fight.
+//!
+//! ## Pipes
+//! Define paths for unit movement between platforms (stairs, ladders, doors, etc.).
+//!
+//! ## EF Lines (Entity Formation Lines)
+//! Define positions where units form up for specific actions (firing lines, boarding
+//! positions, officer spawn points, etc.).
+//!
+//! ## Gates
+//! Define entrance/exit collision for wall gates.
+//!
+//! ## Docking Lines
+//! Define where siege equipment can attach to walls.
+//!
+//! # Usage
+//!
+//! ```rust,ignore
+//! use rpfm_lib::files::cs2_parsed::Cs2Parsed;
+//! use rpfm_lib::files::Decodeable;
+//!
+//! // Decode from binary data
+//! let parsed = Cs2Parsed::decode(&mut data, &None)?;
+//!
+//! // Access building pieces
+//! for piece in parsed.pieces() {
+//!     println!("Piece: {}", piece.name());
+//!
+//!     // Access destructs (damage states)
+//!     for destruct in piece.destructs() {
+//!         println!("  Destruct: {} ({} platforms, {} pipes)",
+//!             destruct.name(),
+//!             destruct.platforms().len(),
+//!             destruct.pipes().len()
+//!         );
+//!     }
+//! }
+//! ```
+//!
+//! # File Location
+//!
+//! These files are typically found at:
+//! - `rigidmodels/buildings/*/*.cs2.parsed`
+
 use getset::*;
 use serde_derive::{Serialize, Deserialize};
 
@@ -18,326 +95,714 @@ use crate::files::bmd::common::*;
 use crate::games::GameInfo;
 use crate::utils::check_size_mismatch;
 
+/// File extension for CS2 Parsed files.
 pub const EXTENSION: &str = ".cs2.parsed";
 
 #[cfg(test)] mod cs2_parsed_test;
 
 mod versions;
 
-//PT_WALL_CLIMB,
-//PT_DESTROYED_WALL_CLIMB,
-//PT_WOOD_WALL_CLIMB,
-//PT_DESTROYED_WOOD_WALL_CLIMB,
-//PT_CLIMB_LADDER
-//PT_SHIP_GRAPPLE
-//PT_JUMP_DISEMBARK
-//PT_JUMP_ANIM
-
-const SHIP_STAIRCASE: i32 = 1;
-const SHIP_WALK: i32 = 2;
-const SHIP_LADDER: i32 = 3;
-const SIEGE_LADDER1: i32 = 8;
-const STAIRS: i32 = 9;
-const ROPE: i32 = 10;
-const UNKNOWN_SAMBUCA_PIPE: i32 = 11;
-const DOOR_NO_TELEPORT: i32 = 13;
-const JUMP: i32 = 14;                   // PT_JUMP
-const WALL_DOOR_TELEPORT: i32 = 30;     // PT_WALL_DOOR
-const JUMP_RAMP: i32 = 32;              // PT_JUMP_RAMP
-const LADDER_LEFT: i32 = 33;
-const LADDER_RIGHT: i32 = 34;
-const SIEGE_LADDER2: i32 = 35;
-const GROUND_TELEPORT: i32 = 38;
-
-const LOW_WALL: i32 = 0;
-const HIGH_WALL: i32 = 1;
-const WINDOW: i32 = 2;
-const OVERFLOW: i32 = 3;
-const MARINES: i32 = 4;
-const SEAMEN: i32 = 5;
-const GUNNERS_OVERFLOW: i32 = 6;
-const CAPTAIN: i32 = 7;
-const OFFICER1: i32 = 8;
-const BOARDING: i32 = 9;
-const NAVAL_FIRING_POSITION_STAND: i32 = 10;
-const NAVAL_FIRING_POSITION_CROUCH: i32 = 11;
-const NAVAL_FIRING_POSITION_STAND360: i32 = 12;
-const NAVAL_PERIMETER_POSITION: i32 = 13;
-const TREE: i32 = 14;
-const ENTRANCE_DEFENSE: i32 = 15;
-const OFFICER2: i32 = 16;
-const OFFICER3: i32 = 17;
-const CRENEL_LEFT_OUTER: i32 = 18;
-const CRENEL_LEFT_INNER: i32 = 19;
-const CRENEL_RIGHT_INNER: i32 = 20;
-const CRENEL_RIGHT_OUTER: i32 = 21;
-const ENGINE_PLACEMENT: i32 = 22;
-const SECONDARY_ENGINE_PLACEMENT: i32 = 23;
-const DISEMBARK_LEFT: i32 = 24;
-const DISEMBARK_RIGHT: i32 = 25;
-const NUM_PURPOSES: i32 = 26;
-const INVALID_PURPOSES: i32 = 27;
-
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
+/// Represents a CS2 Parsed file decoded in memory.
+///
+/// Contains all gameplay logic data for a building model, including unit placement,
+/// pathfinding, collision, and various building-specific behaviors.
+///
+/// # Fields
+///
+/// * `version` - File format version (0, 8-13, 18, 20, or 21)
+/// * `ui_flag` - Flag position shown on minimap
+/// * `bounding_box` - Overall bounds (not present in v20 onwards)
+/// * `int_1` - Unknown field
+/// * `pieces` - List of building pieces with destruction states
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// let parsed = Cs2Parsed::decode(&mut data, &None)?;
+/// println!("Version: {}", parsed.version());
+/// println!("Pieces: {}", parsed.pieces().len());
+/// ```
 #[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
 pub struct Cs2Parsed {
+    /// File format version number.
     version: u32,
+
+    /// Flag position for minimap display.
     ui_flag: UiFlag,
-    bounding_box: Cube,         // Not present in v20 onwards.
+
+    /// Overall bounding box (not present in v20 onwards).
+    bounding_box: Cube,
+
+    /// Unknown field.
     int_1: i32,
+
+    /// List of building pieces.
     pieces: Vec<Piece>,
 }
 
-/// Logic data of a piece of a model.
+/// A piece of a building model with multiple destruction states.
+///
+/// Buildings are composed of multiple pieces, each with one or more destruction
+/// states (destructs). As a building takes damage, it transitions between these states.
+///
+/// # Fields
+///
+/// * `name` - Name identifier for this piece
+/// * `node_name` - Scene node name for attachment
+/// * `node_transform` - Transformation matrix for positioning
+/// * `int_3` - Unknown field
+/// * `int_4` - Unknown field (only in v21)
+/// * `destructs` - List of destruction states for this piece
+/// * `f_6` - Unknown field
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// for piece in parsed.pieces() {
+///     println!("Piece: {} ({} destructs)", piece.name(), piece.destructs().len());
+/// }
+/// ```
 #[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
 pub struct Piece {
+    /// Name identifier for this piece.
     name: String,
+
+    /// Scene node name for attachment.
     node_name: String,
+
+    /// Transformation matrix for positioning.
     node_transform: Transform4x4,
+
+    /// Unknown field.
     int_3: i32,
-    int_4: i32,                 // Only in v21. Array.
+
+    /// Unknown field (only in v21).
+    int_4: i32,
+
+    /// List of destruction states for this piece.
     destructs: Vec<Destruct>,
+
+    /// Unknown field.
     f_6: f32,
 }
 
-/// Logic data of a destruct of a piece of a model.
+/// A destruction state of a building piece.
+///
+/// Each piece can have multiple destructs representing different damage states.
+/// Destructs contain all the gameplay logic for that damage state: platforms,
+/// pipes, gates, EF lines, collision, etc.
+///
+/// # Fields
+///
+/// * `name` - Name identifier for this destruction state
+/// * `index` - Index of this destruct
+/// * `collision_3d` - Collision mesh (legacy, moved to `.cs2.collision` in newer games)
+/// * `collision_outlines` - 2D collision outlines
+/// * `windows` - Number of window positions
+/// * `doors` - Number of door positions
+/// * `gates` - Gate collision data for wall gates
+/// * `pipes` - Unit movement paths (stairs, ladders, doors, etc.)
+/// * `orange_thingies` - Unknown (possibly no-go zones)
+/// * `platforms` - Walkable surfaces for units
+/// * `uk_2` - Unknown field
+/// * `bounding_box` - Bounding box for this destruct
+/// * `cannon_emitters` - Projectile emitter count for cannons (legacy)
+/// * `arrow_emitters` - Projectile emitters for arrows (legacy)
+/// * `docking_points` - Number of docking points
+/// * `soft_collisions` - Soft collision data
+/// * `uk_7` - Unknown field
+/// * `file_refs` - Attached model references (e.g., torches)
+/// * `ef_lines` - Entity Formation lines for unit positioning
+/// * `docking_lines` - Lines where siege equipment can attach
+/// * `f_1` - Unknown field
+/// * `action_vfx` - VFX for actions
+/// * `action_vfx_attachments` - VFX attachment points
+/// * `bin_data` - Unknown binary data (correlates with VFX count)
+/// * `bin_data_2` - Unknown binary data (present in some Three Kingdoms gates)
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// for destruct in piece.destructs() {
+///     println!("Destruct '{}': {} platforms, {} pipes",
+///         destruct.name(),
+///         destruct.platforms().len(),
+///         destruct.pipes().len()
+///     );
+/// }
+/// ```
 #[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
 pub struct Destruct {
+    /// Name identifier for this destruction state.
     name: String,
+
+    /// Index of this destruct.
     index: u32,
 
-    /// Collision data. Used in Thrones and older games. Newer games have this logic in a separate cs2.collision file.
+    /// Collision mesh (legacy, moved to separate `.cs2.collision` files in newer games).
     collision_3d: Collision3d,
+
+    /// 2D collision outlines.
     collision_outlines: Vec<CollisionOutline>,
+
+    /// Number of window positions.
     windows: i32,
+
+    /// Number of door positions.
     doors: i32,
+
+    /// Gate collision data for wall gates.
     gates: Vec<Gate>,
+
+    /// Unit movement paths between platforms.
     pipes: Vec<Pipe>,
-    orange_thingies: Vec<Vec<OrangeThingy>>,    // Nogos?
+
+    /// Unknown (possibly no-go zones).
+    orange_thingies: Vec<Vec<OrangeThingy>>,
+
+    /// Walkable platform surfaces.
     platforms: Vec<Platform>,
+
+    /// Unknown field.
     uk_2: i32,
+
+    /// Bounding box for this destruct.
     bounding_box: Cube,
 
-    /// Projectile emitters for cannons. Used in Thrones and older games. Newer games have this logic moved to the map itself.
+    /// Projectile emitter count for cannons (legacy, moved to map in newer games).
     cannon_emitters: i32,
 
-    /// Projectile emitters for arrows. Used in Thrones and older games. Newer games have this logic moved to the map itself.
+    /// Projectile emitters for arrows (legacy, moved to map in newer games).
     arrow_emitters: Vec<ProjectileEmitter>,
+
+    /// Number of docking points.
     docking_points: i32,
+
+    /// Soft collision data.
     soft_collisions: Vec<SoftCollisions>,
+
+    /// Unknown field.
     uk_7: i32,
+
+    /// Attached model references (e.g., torches).
     file_refs: Vec<FileRef>,
+
+    /// Entity Formation lines for unit positioning.
     ef_lines: Vec<EFLine>,
+
+    /// Lines where siege equipment can attach.
     docking_lines: Vec<DockingLine>,
-    f_1: f32,                               // Another array
+
+    /// Unknown field.
+    f_1: f32,
+
+    /// VFX for actions.
     action_vfx: Vec<Vfx>,
+
+    /// VFX attachment points.
     action_vfx_attachments: Vec<Vfx>,
-    bin_data: Vec<Vec<i16>>,                // No idea, but looks like a list of values and the amount correlates with the mount of vfx.
-    bin_data_2: Vec<Vec<i16>>,              // And no idea. Present in one destruct in 3k gates.
+
+    /// Unknown binary data (correlates with VFX count).
+    bin_data: Vec<Vec<i16>>,
+
+    /// Unknown binary data (present in some Three Kingdoms gates).
+    bin_data_2: Vec<Vec<i16>>,
 }
 
+/// UI flag position shown on the minimap.
+///
+/// Defines where the building's flag icon appears on the tactical map.
+///
+/// # Fields
+///
+/// * `name` - Name identifier for the flag
+/// * `transform` - Transformation matrix for flag position and orientation
 #[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
 pub struct UiFlag {
+    /// Name identifier for the flag.
     name: String,
+
+    /// Transformation matrix for flag position.
     transform: Transform4x4,
 }
 
-/// Gate pieces on wall gates, where units go in and out of the city.
+/// Gate collision data for wall gates.
+///
+/// Defines the collision geometry for gates where units enter and exit cities.
+/// Contains two collision meshes, possibly for open and closed states.
+///
+/// # Fields
+///
+/// * `collision_1` - First collision mesh
+/// * `collision_2` - Second collision mesh
+/// * `uk_1` - Unknown field
+/// * `uk_2` - Unknown field
 #[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
 pub struct Gate {
+    /// First collision mesh.
     collision_1: Collision3d,
+
+    /// Second collision mesh.
     collision_2: Collision3d,
+
+    /// Unknown field.
     uk_1: u32,
+
+    /// Unknown field.
     uk_2: u32,
 }
 
+/// A 3D collision outline.
+///
+/// Defines a named 3D outline used for collision detection.
+///
+/// # Fields
+///
+/// * `name` - Name identifier for this collision outline
+/// * `vertices` - 3D polyline defining the outline
+/// * `uk_1` - Unknown field
 #[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
 pub struct CollisionOutline {
+    /// Name identifier for this collision outline.
     name: String,
+
+    /// 3D polyline vertices.
     vertices: Outline3d,
+
+    /// Unknown field.
     uk_1: u32,
 }
 
+/// Soft collision data.
+///
+/// Defines soft collision zones with transforms and positions.
+///
+/// # Fields
+///
+/// * `name` - Name identifier
+/// * `transform` - Transformation matrix
+/// * `uk_1` - Unknown field
+/// * `point_1` - 2D point position
 #[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
 pub struct SoftCollisions {
+    /// Name identifier.
     name: String,
+
+    /// Transformation matrix.
     transform: Transform4x4,
+
+    /// Unknown field.
     uk_1: i16,
+
+    /// 2D point position.
     point_1: Point2d,
 }
 
-/// Projectile Emitter, used by buildings to define where their projectiles are shot from.
+/// Projectile emitter position for building-based ranged attacks.
+///
+/// Defines where projectiles (arrows/cannonballs) are fired from on a building.
+/// Legacy feature used in Thrones of Britannia and older games. Newer games
+/// moved this logic to the map itself.
+///
+/// # Fields
+///
+/// * `name` - Name identifier for this emitter
+/// * `transform` - Transformation matrix for emitter position and orientation
 #[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
 pub struct ProjectileEmitter {
+    /// Name identifier for this emitter.
     name: String,
+
+    /// Transformation matrix for position and orientation.
     transform: Transform4x4,
 }
 
-/// File References, used to attach building models to other building models (like the torches in Attila's walls).
+/// Reference to an attached building model.
+///
+/// Used to attach additional models to buildings (e.g., torches on Attila's walls,
+/// decorative elements).
+///
+/// # Fields
+///
+/// * `key` - Path to the model file to attach
+/// * `name` - Name identifier for this attachment
+/// * `transform` - Transformation matrix for attachment position
+/// * `uk_1` - Unknown field (possibly unique ID within the file)
 #[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
 pub struct FileRef {
+    /// Path to the model file to attach.
     key: String,
+
+    /// Name identifier for this attachment.
     name: String,
+
+    /// Transformation matrix for attachment position.
     transform: Transform4x4,
 
-    /// Ids? They seem to be unique within the same file, not even colliding between destructs.
+    /// Unknown field (possibly unique ID within the file).
     uk_1: i16,
 }
 
+/// Unknown vertex data (possibly no-go zones).
+///
+/// # Fields
+///
+/// * `vertex` - 2D vertex position
+/// * `vertex_type` - Type identifier for this vertex
 #[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
 pub struct OrangeThingy {
+    /// 2D vertex position.
     vertex: Point2d,
+
+    /// Type identifier for this vertex.
     vertex_type: u32,
 }
 
+/// A walkable platform surface where units can stand and fight.
+///
+/// Platforms define the areas where units can be placed within a building.
+/// Different flags control how the pathfinder treats the platform.
+///
+/// # Fields
+///
+/// * `normal` - Surface normal vector
+/// * `vertices` - 3D outline defining the platform boundary
+/// * `flag_1` - Unknown behavior flag
+/// * `flag_2` - Treats platform as ground if true (units can walk freely)
+/// * `flag_3` - Unknown flag (set in siege tower ramp platforms)
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// for platform in destruct.platforms() {
+///     if *platform.flag_2() {
+///         println!("Platform '{}' is treated as ground", /* no name field */);
+///     }
+/// }
+/// ```
 #[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
 pub struct Platform {
+    /// Surface normal vector.
     normal: Point3d,
+
+    /// 3D polyline defining platform boundary.
     vertices: Outline3d,
+
+    /// Unknown behavior flag.
     flag_1: bool,
 
-    /// No idea what's exactly, but if it's true, the pathfinder treats the platform as "ground" and units can just walk over it.
+    /// Treats platform as ground if true (units can walk freely).
     flag_2: bool,
 
-    /// No idea, but it's set in the platforms for siege tower ramps.
+    /// Unknown flag (set in siege tower ramp platforms).
     flag_3: bool,
 }
 
-/// Pipes used for moving units between platforms.
+/// A path for unit movement between platforms.
 ///
-/// Note that on ships, pipes' vertices must align with a vertex from the decks they're moving units from and into.
+/// Pipes define how units move between different platform levels (stairs, ladders,
+/// doors, teleports, etc.). On ships, pipe vertices must align with deck vertices.
+///
+/// # Fields
+///
+/// * `name` - Name identifier for this pipe
+/// * `line` - 3D polyline defining the movement path
+/// * `line_type` - Type of pipe (stairs, ladder, door, etc.)
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// for pipe in destruct.pipes() {
+///     println!("Pipe '{}': {:?}", pipe.name(), pipe.line_type());
+/// }
+/// ```
 #[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
 pub struct Pipe {
+    /// Name identifier for this pipe.
     name: String,
+
+    /// 3D polyline defining the movement path.
     line: Outline3d,
+
+    /// Type of pipe (stairs, ladder, door, etc.).
     line_type: PipeType,
 }
 
-/// Entity Formation Lines, for units to form for specific actions in specific places.
+/// Entity Formation line for unit positioning and actions.
 ///
-/// Check [EFLineType] documentation to know what types you can use. Some may not work in certain games, and it's possible the list doesn't match older games.
+/// EF Lines define where units should form up for specific actions like firing,
+/// boarding, defending, or spawning. Different types serve different purposes.
+/// See `EFLineType` for available types and their uses.
+///
+/// # Fields
+///
+/// * `name` - Name identifier for this line
+/// * `action` - Type of action/formation for this line
+/// * `start` - Starting point of the line
+/// * `end` - Ending point of the line
+/// * `direction` - Direction vector for unit orientation
+/// * `parent_index` - Parent index for hierarchical relationships
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// for ef_line in destruct.ef_lines() {
+///     println!("EF Line '{}': {:?}", ef_line.name(), ef_line.action());
+/// }
+/// ```
 #[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
 pub struct EFLine {
+    /// Name identifier for this line.
     name: String,
+
+    /// Type of action/formation for this line.
     action: EFLineType,
+
+    /// Starting point of the line.
     start: Point3d,
+
+    /// Ending point of the line.
     end: Point3d,
+
+    /// Direction vector for unit orientation.
     direction: Point3d,
+
+    /// Parent index for hierarchical relationships.
     parent_index: u32,
 }
 
-/// Line where siege equipment will be docked. Needed on walls for siege towers/ladders to be able to dock on them.
+/// Line where siege equipment can attach to walls.
+///
+/// Docking lines are required on walls for siege towers and ladders to attach.
+/// Without these, siege equipment cannot dock to the wall.
+///
+/// # Fields
+///
+/// * `key` - Key identifier for this docking line
+/// * `start` - Starting point of the line
+/// * `end` - Ending point of the line
+/// * `direction` - Direction vector for docking orientation
 #[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
 pub struct DockingLine {
+    /// Key identifier for this docking line.
     key: String,
+
+    /// Starting point of the line.
     start: Point2d,
+
+    /// Ending point of the line.
     end: Point2d,
+
+    /// Direction vector for docking orientation.
     direction: Point2d,
 }
 
+/// Visual effects attachment point.
+///
+/// Defines where VFX (particle effects, animations, etc.) are attached to the building.
+///
+/// # Fields
+///
+/// * `key` - Path to the VFX resource
+/// * `matrix_1` - Transformation matrix for VFX position and orientation
 #[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
 pub struct Vfx {
+    /// Path to the VFX resource.
     key: String,
+
+    /// Transformation matrix for VFX position and orientation.
     matrix_1: Transform4x4,
 }
 
-#[derive(PartialEq, Copy, Clone, Debug, Default, Serialize, Deserialize)]
+/// Type of pipe for unit movement.
+///
+/// Defines the movement behavior for a pipe. Different types handle different
+/// movement scenarios like stairs, ladders, doors, teleportation, etc.
+///
+/// # Variants by Use Case
+///
+/// ## Naval Movement (Ships)
+/// - [`ShipStaircase`](Self::ShipStaircase) - Movement through ship staircases
+/// - [`ShipWalk`](Self::ShipWalk) - Walking movement on ships (unconfirmed)
+/// - [`ShipLadder`](Self::ShipLadder) - Climbing ship ladders
+///
+/// ## Wall Climbing
+/// - [`SiegeLadder1`](Self::SiegeLadder1) - Wall ladders in Empire/Napoleon
+/// - [`SiegeLadder2`](Self::SiegeLadder2) - Wall ladders in Warhammer games
+/// - [`Rope`](Self::Rope) - Rope climbing in Three Kingdoms
+///
+/// ## Siege Equipment
+/// - [`LadderLeft`](Self::LadderLeft) - Left ladder in siege towers
+/// - [`LadderRight`](Self::LadderRight) - Right ladder in siege towers
+/// - [`JumpRamp`](Self::JumpRamp) - Jumping from siege tower ramps
+///
+/// ## Doors and Entry
+/// - [`DoorNoTeleport`](Self::DoorNoTeleport) - Door threshold for garrisonable buildings
+/// - [`WallDoorTeleport`](Self::WallDoorTeleport) - Teleport between ends (Warhammer walls)
+/// - [`GroundTeleport`](Self::GroundTeleport) - Barricade teleportation (Warhammer III)
+///
+/// ## Other
+/// - [`Stairs`](Self::Stairs) - Interior wall stairs (Three Kingdoms)
+/// - [`Jump`](Self::Jump) - Jumping onto walls
+/// - [`UnknownSambucaPipe`](Self::UnknownSambucaPipe) - Sambuca-related (Thrones of Britannia)
+#[derive(PartialEq, Copy, Clone, Debug, Serialize, Deserialize)]
+#[repr(i32)]
 enum PipeType {
-    #[default]
-    /// For ships. For units to travel through staircases.
-    ShipStaircase,
-    /// For ships? This is not confirmed.
-    ShipWalk,
-    /// For ships. For units to travel through ladders.
-    ShipLadder,
-    /// Ladders used to climb walls in old games (ETW/NTW).
-    SiegeLadder1,
-    /// Stairs used to climb a specific wall from the inside in 3K.
-    Stairs,
-    /// Rope used to climb walls in 3K.
-    Rope,
-    /// Pipe used in thrones, in sambucas cs2.
-    UnknownSambucaPipe,
-    /// Door threshold to enter garrisonable buildings.
-    DoorNoTeleport,
-    /// Alternative pipe for units to jump into walls.
-    Jump,
-    /// Teleportation pipes, to teleport from one extreme to the other. Used in Warhammer walls to climb from the inside.
-    WallDoorTeleport,
-    /// Pipe used for units to jump from siege tower ramps into walls.
-    JumpRamp,
-    /// Ladder used in siege towers.
-    LadderLeft,
-    /// Ladder used in siege towers.
-    LadderRight,
-    /// Ladders used to climb walls in at least the WH games.
-    SiegeLadder2,
-    /// Used in WH3 barricades to teleport units from one side of a barricade to the other.
-    GroundTeleport,
+    /// Ship staircase movement.
+    ShipStaircase = 1,
+    /// Ship walking movement (unconfirmed).
+    ShipWalk = 2,
+    /// Ship ladder climbing.
+    ShipLadder = 3,
+    /// Wall climbing ladders (Empire/Napoleon).
+    SiegeLadder1 = 8,
+    /// Interior wall stairs (Three Kingdoms).
+    Stairs = 9,
+    /// Rope wall climbing (Three Kingdoms).
+    Rope = 10,
+    /// Sambuca pipe (Thrones of Britannia).
+    UnknownSambucaPipe = 11,
+    /// Door entry threshold for garrisonable buildings.
+    DoorNoTeleport = 13,
+    /// Jumping onto walls (PT_JUMP).
+    Jump = 14,
+    /// Teleportation between pipe ends (Warhammer walls, PT_WALL_DOOR).
+    WallDoorTeleport = 30,
+    /// Jumping from siege tower ramps to walls (PT_JUMP_RAMP).
+    JumpRamp = 32,
+    /// Left ladder in siege towers.
+    LadderLeft = 33,
+    /// Right ladder in siege towers.
+    LadderRight = 34,
+    /// Wall climbing ladders (Warhammer).
+    SiegeLadder2 = 35,
+    /// Barricade teleportation (Warhammer III).
+    GroundTeleport = 38,
 }
 
-#[derive(PartialEq, Copy, Clone, Debug, Default, Serialize, Deserialize)]
+impl Default for PipeType {
+    fn default() -> Self {
+        Self::ShipStaircase
+    }
+}
+
+/// Type of Entity Formation line.
+///
+/// Defines the purpose of an EF line - where units should position themselves
+/// for specific actions like firing, boarding, defending, or spawning.
+///
+/// # Variants by Use Case
+///
+/// ## Wall Defense
+/// - [`LowWall`](Self::LowWall) - Mid-size walls, first row in Warhammer
+/// - [`HighWall`](Self::HighWall) - Full-size walls
+/// - [`Overflow`](Self::Overflow) - Rows behind the second, waiting positions
+/// - [`CrenelLeftOuter`](Self::CrenelLeftOuter) - Crenellation positions (likely)
+/// - [`CrenelLeftInner`](Self::CrenelLeftInner) - Crenellation positions (likely)
+/// - [`CrenelRightInner`](Self::CrenelRightInner) - Crenellation positions (likely)
+/// - [`CrenelRightOuter`](Self::CrenelRightOuter) - Crenellation positions (likely)
+///
+/// ## Building Defense
+/// - [`Window`](Self::Window) - Window firing positions
+/// - [`EntranceDefense`](Self::EntranceDefense) - Melee defense at building entrances
+///
+/// ## Naval - Spawn Points
+/// - [`Marines`](Self::Marines) - Marine spawn locations and gun placements
+/// - [`Seamen`](Self::Seamen) - Seamen spawn locations
+/// - [`Captain`](Self::Captain) - Captain spawn point
+/// - [`Officer1`](Self::Officer1) - First officer spawn point
+/// - [`Officer2`](Self::Officer2) - Second officer spawn point
+/// - [`Officer3`](Self::Officer3) - Third officer spawn point
+///
+/// ## Naval - Combat Positions
+/// - [`NavalFiringPositionStand`](Self::NavalFiringPositionStand) - Standing firing positions
+/// - [`NavalFiringPositionCrouch`](Self::NavalFiringPositionCrouch) - Crouching firing positions
+/// - [`NavalFiringPositionStand360`](Self::NavalFiringPositionStand360) - 360° standing fire
+/// - [`NavalPerimeterPosition`](Self::NavalPerimeterPosition) - Perimeter positions (unknown)
+///
+/// ## Naval - Boarding and Disembark
+/// - [`Boarding`](Self::Boarding) - Boarding rope launch/entry points (required for boarding)
+/// - [`DisembarkLeft`](Self::DisembarkLeft) - Left-side disembarkation point
+/// - [`DisembarkRight`](Self::DisembarkRight) - Right-side disembarkation point
+///
+/// ## Equipment and Other
+/// - [`EnginePlacement`](Self::EnginePlacement) - Engine placement (unknown)
+/// - [`SecondaryEnginePlacement`](Self::SecondaryEnginePlacement) - Secondary engine (unknown)
+/// - [`GunnersOverflow`](Self::GunnersOverflow) - Gunner overflow (unknown)
+/// - [`Tree`](Self::Tree) - Unknown purpose
+///
+/// ## Invalid/Reserved
+/// - [`NumPurposes`](Self::NumPurposes) - Probably invalid
+/// - [`InvalidPurposes`](Self::InvalidPurposes) - Probably invalid
+#[derive(PartialEq, Copy, Clone, Debug, Serialize, Deserialize)]
+#[repr(i32)]
 enum EFLineType {
-    #[default]
-    /// For mid-size walls. Also used for the first row in Warhammer walls.
-    LowWall,
-    /// For full size walls.
-    HighWall,
-    /// For windows in garrisonable buildings.
-    Window,
-    /// For the each row behind the second one. Also used for units standing waiting for the firing line to die and take their place.
-    Overflow,
-    /// For ships. Marines spawn here, and in gun placements.
-    Marines,
-    /// For ships. Seamen spawn here.
-    Seamen,
-    /// No idea.
-    GunnersOverflow,
-    /// For ships. Spawn point for the captain.
-    Captain,
-    /// For ships. Spawn point for the first officer.
-    Officer1,
-    /// For ships. Positions from where ropes will be launched to board other ships, and where other ship's soldiers will enter when boarding. Ships are unboardable without these.
-    Boarding,
-    /// For ships. Firing position for units standing.
-    NavalFiringPositionStand,
-    /// For ships. Firing position for units crouching.
-    NavalFiringPositionCrouch,
-    /// For ships. Firing position for units standing, allowing 360º fire.
-    NavalFiringPositionStand360,
-    /// For ships? No idea.
-    NavalPerimeterPosition,
-    /// No idea.
-    Tree,
-    /// For the entrance to garrisonable buildings. Units will defend this position in melee.
-    EntranceDefense,
-    /// For ships. Spawn point for the second officer.
-    Officer2,
-    /// For ships. Spawn point for the third officer.
-    Officer3,
-    /// No idea. I suspect is for position around crenelations.
-    CrenelLeftOuter,
-    /// No idea. I suspect is for position around crenelations.
-    CrenelLeftInner,
-    /// No idea. I suspect is for position around crenelations.
-    CrenelRightInner,
-    /// No idea. I suspect is for position around crenelations.
-    CrenelRightOuter,
-    /// No idea.
-    EnginePlacement,
-    /// No idea.
-    SecondaryEnginePlacement,
-    /// For ships. Point from where units will jump to land, on the left of the ship.
-    DisembarkLeft,
-    /// For ships. Point from where units will jump to land, on the right of the ship.
-    DisembarkRight,
-    /// No idea. Probably invalid.
-    NumPurposes,
-    /// No idea. Probably invalid.
-    InvalidPurposes,
+    /// Mid-size walls, first row in Warhammer walls.
+    LowWall = 0,
+    /// Full-size walls.
+    HighWall = 1,
+    /// Window firing positions in garrisonable buildings.
+    Window = 2,
+    /// Rows behind the second one, waiting positions.
+    Overflow = 3,
+    /// Naval: Marine spawn locations and gun placements.
+    Marines = 4,
+    /// Naval: Seamen spawn locations.
+    Seamen = 5,
+    /// Naval: Gunner overflow (unknown).
+    GunnersOverflow = 6,
+    /// Naval: Captain spawn point.
+    Captain = 7,
+    /// Naval: First officer spawn point.
+    Officer1 = 8,
+    /// Naval: Boarding rope launch/entry points (required for boarding).
+    Boarding = 9,
+    /// Naval: Standing firing positions.
+    NavalFiringPositionStand = 10,
+    /// Naval: Crouching firing positions.
+    NavalFiringPositionCrouch = 11,
+    /// Naval: 360° standing firing positions.
+    NavalFiringPositionStand360 = 12,
+    /// Naval: Perimeter positions (unknown).
+    NavalPerimeterPosition = 13,
+    /// Unknown purpose.
+    Tree = 14,
+    /// Melee defense at building entrances.
+    EntranceDefense = 15,
+    /// Naval: Second officer spawn point.
+    Officer2 = 16,
+    /// Naval: Third officer spawn point.
+    Officer3 = 17,
+    /// Crenellation positions (likely).
+    CrenelLeftOuter = 18,
+    /// Crenellation positions (likely).
+    CrenelLeftInner = 19,
+    /// Crenellation positions (likely).
+    CrenelRightInner = 20,
+    /// Crenellation positions (likely).
+    CrenelRightOuter = 21,
+    /// Engine placement (unknown).
+    EnginePlacement = 22,
+    /// Secondary engine placement (unknown).
+    SecondaryEnginePlacement = 23,
+    /// Naval: Left-side disembarkation point.
+    DisembarkLeft = 24,
+    /// Naval: Right-side disembarkation point.
+    DisembarkRight = 25,
+    /// Probably invalid.
+    NumPurposes = 26,
+    /// Probably invalid.
+    InvalidPurposes = 27,
+}
+
+impl Default for EFLineType {
+    fn default() -> Self {
+        Self::LowWall
+    }
 }
 
 //---------------------------------------------------------------------------//
@@ -399,34 +864,34 @@ impl TryFrom<i32> for EFLineType {
 
     fn try_from(value: i32) -> Result<Self, Self::Error> {
         match value {
-            LOW_WALL => Ok(Self::LowWall),
-            HIGH_WALL => Ok(Self::HighWall),
-            WINDOW => Ok(Self::Window),
-            OVERFLOW => Ok(Self::Overflow),
-            MARINES => Ok(Self::Marines),
-            SEAMEN => Ok(Self::Seamen),
-            GUNNERS_OVERFLOW => Ok(Self::GunnersOverflow),
-            CAPTAIN => Ok(Self::Captain),
-            OFFICER1 => Ok(Self::Officer1),
-            BOARDING => Ok(Self::Boarding),
-            NAVAL_FIRING_POSITION_STAND => Ok(Self::NavalFiringPositionStand),
-            NAVAL_FIRING_POSITION_CROUCH => Ok(Self::NavalFiringPositionCrouch),
-            NAVAL_FIRING_POSITION_STAND360 => Ok(Self::NavalFiringPositionStand360),
-            NAVAL_PERIMETER_POSITION => Ok(Self::NavalPerimeterPosition),
-            TREE => Ok(Self::Tree),
-            ENTRANCE_DEFENSE => Ok(Self::EntranceDefense),
-            OFFICER2 => Ok(Self::Officer2),
-            OFFICER3 => Ok(Self::Officer3),
-            CRENEL_LEFT_OUTER => Ok(Self::CrenelLeftOuter),
-            CRENEL_LEFT_INNER => Ok(Self::CrenelLeftInner),
-            CRENEL_RIGHT_INNER => Ok(Self::CrenelRightInner),
-            CRENEL_RIGHT_OUTER => Ok(Self::CrenelRightOuter),
-            ENGINE_PLACEMENT => Ok(Self::EnginePlacement),
-            SECONDARY_ENGINE_PLACEMENT => Ok(Self::SecondaryEnginePlacement),
-            DISEMBARK_LEFT => Ok(Self::DisembarkLeft),
-            DISEMBARK_RIGHT => Ok(Self::DisembarkRight),
-            NUM_PURPOSES => Ok(Self::NumPurposes),
-            INVALID_PURPOSES => Ok(Self::InvalidPurposes),
+            _ if value == Self::LowWall as i32 => Ok(Self::LowWall),
+            _ if value == Self::HighWall as i32 => Ok(Self::HighWall),
+            _ if value == Self::Window as i32 => Ok(Self::Window),
+            _ if value == Self::Overflow as i32 => Ok(Self::Overflow),
+            _ if value == Self::Marines as i32 => Ok(Self::Marines),
+            _ if value == Self::Seamen as i32 => Ok(Self::Seamen),
+            _ if value == Self::GunnersOverflow as i32 => Ok(Self::GunnersOverflow),
+            _ if value == Self::Captain as i32 => Ok(Self::Captain),
+            _ if value == Self::Officer1 as i32 => Ok(Self::Officer1),
+            _ if value == Self::Boarding as i32 => Ok(Self::Boarding),
+            _ if value == Self::NavalFiringPositionStand as i32 => Ok(Self::NavalFiringPositionStand),
+            _ if value == Self::NavalFiringPositionCrouch as i32 => Ok(Self::NavalFiringPositionCrouch),
+            _ if value == Self::NavalFiringPositionStand360 as i32 => Ok(Self::NavalFiringPositionStand360),
+            _ if value == Self::NavalPerimeterPosition as i32 => Ok(Self::NavalPerimeterPosition),
+            _ if value == Self::Tree as i32 => Ok(Self::Tree),
+            _ if value == Self::EntranceDefense as i32 => Ok(Self::EntranceDefense),
+            _ if value == Self::Officer2 as i32 => Ok(Self::Officer2),
+            _ if value == Self::Officer3 as i32 => Ok(Self::Officer3),
+            _ if value == Self::CrenelLeftOuter as i32 => Ok(Self::CrenelLeftOuter),
+            _ if value == Self::CrenelLeftInner as i32 => Ok(Self::CrenelLeftInner),
+            _ if value == Self::CrenelRightInner as i32 => Ok(Self::CrenelRightInner),
+            _ if value == Self::CrenelRightOuter as i32 => Ok(Self::CrenelRightOuter),
+            _ if value == Self::EnginePlacement as i32 => Ok(Self::EnginePlacement),
+            _ if value == Self::SecondaryEnginePlacement as i32 => Ok(Self::SecondaryEnginePlacement),
+            _ if value == Self::DisembarkLeft as i32 => Ok(Self::DisembarkLeft),
+            _ if value == Self::DisembarkRight as i32 => Ok(Self::DisembarkRight),
+            _ if value == Self::NumPurposes as i32 => Ok(Self::NumPurposes),
+            _ if value == Self::InvalidPurposes as i32 => Ok(Self::InvalidPurposes),
             _ => Err(RLibError::UnknownEFLineType(value.to_string())),
         }
     }
@@ -434,36 +899,7 @@ impl TryFrom<i32> for EFLineType {
 
 impl From<EFLineType> for i32 {
     fn from(value: EFLineType) -> Self {
-        match value {
-            EFLineType::LowWall => LOW_WALL,
-            EFLineType::HighWall => HIGH_WALL,
-            EFLineType::Window => WINDOW,
-            EFLineType::Overflow => OVERFLOW,
-            EFLineType::Marines => MARINES,
-            EFLineType::Seamen => SEAMEN,
-            EFLineType::GunnersOverflow => GUNNERS_OVERFLOW,
-            EFLineType::Captain => CAPTAIN,
-            EFLineType::Officer1 => OFFICER1,
-            EFLineType::Boarding => BOARDING,
-            EFLineType::NavalFiringPositionStand => NAVAL_FIRING_POSITION_STAND,
-            EFLineType::NavalFiringPositionCrouch => NAVAL_FIRING_POSITION_CROUCH,
-            EFLineType::NavalFiringPositionStand360 => NAVAL_FIRING_POSITION_STAND360,
-            EFLineType::NavalPerimeterPosition => NAVAL_PERIMETER_POSITION,
-            EFLineType::Tree => TREE,
-            EFLineType::EntranceDefense => ENTRANCE_DEFENSE,
-            EFLineType::Officer2 => OFFICER2,
-            EFLineType::Officer3 => OFFICER3,
-            EFLineType::CrenelLeftOuter => CRENEL_LEFT_OUTER,
-            EFLineType::CrenelLeftInner => CRENEL_LEFT_INNER,
-            EFLineType::CrenelRightInner => CRENEL_RIGHT_INNER,
-            EFLineType::CrenelRightOuter => CRENEL_RIGHT_OUTER,
-            EFLineType::EnginePlacement => ENGINE_PLACEMENT,
-            EFLineType::SecondaryEnginePlacement => SECONDARY_ENGINE_PLACEMENT,
-            EFLineType::DisembarkLeft => DISEMBARK_LEFT,
-            EFLineType::DisembarkRight => DISEMBARK_RIGHT,
-            EFLineType::NumPurposes => NUM_PURPOSES,
-            EFLineType::InvalidPurposes => INVALID_PURPOSES
-        }
+        value as i32
     }
 }
 
@@ -472,21 +908,21 @@ impl TryFrom<i32> for PipeType {
 
     fn try_from(value: i32) -> Result<Self, Self::Error> {
         match value {
-            SHIP_STAIRCASE => Ok(Self::ShipStaircase),
-            SHIP_WALK => Ok(Self::ShipWalk),
-            SHIP_LADDER => Ok(Self::ShipLadder),
-            SIEGE_LADDER1 => Ok(Self::SiegeLadder1),
-            STAIRS => Ok(Self::Stairs),
-            ROPE => Ok(Self::Rope),
-            UNKNOWN_SAMBUCA_PIPE => Ok(Self::UnknownSambucaPipe),
-            DOOR_NO_TELEPORT => Ok(Self::DoorNoTeleport),
-            JUMP => Ok(Self::Jump),
-            WALL_DOOR_TELEPORT => Ok(Self::WallDoorTeleport),
-            JUMP_RAMP => Ok(Self::JumpRamp),
-            LADDER_LEFT => Ok(Self::LadderLeft),
-            LADDER_RIGHT => Ok(Self::LadderRight),
-            SIEGE_LADDER2 => Ok(Self::SiegeLadder2),
-            GROUND_TELEPORT => Ok(Self::GroundTeleport),
+            _ if value == Self::ShipStaircase as i32 => Ok(Self::ShipStaircase),
+            _ if value == Self::ShipWalk as i32 => Ok(Self::ShipWalk),
+            _ if value == Self::ShipLadder as i32 => Ok(Self::ShipLadder),
+            _ if value == Self::SiegeLadder1 as i32 => Ok(Self::SiegeLadder1),
+            _ if value == Self::Stairs as i32 => Ok(Self::Stairs),
+            _ if value == Self::Rope as i32 => Ok(Self::Rope),
+            _ if value == Self::UnknownSambucaPipe as i32 => Ok(Self::UnknownSambucaPipe),
+            _ if value == Self::DoorNoTeleport as i32 => Ok(Self::DoorNoTeleport),
+            _ if value == Self::Jump as i32 => Ok(Self::Jump),
+            _ if value == Self::WallDoorTeleport as i32 => Ok(Self::WallDoorTeleport),
+            _ if value == Self::JumpRamp as i32 => Ok(Self::JumpRamp),
+            _ if value == Self::LadderLeft as i32 => Ok(Self::LadderLeft),
+            _ if value == Self::LadderRight as i32 => Ok(Self::LadderRight),
+            _ if value == Self::SiegeLadder2 as i32 => Ok(Self::SiegeLadder2),
+            _ if value == Self::GroundTeleport as i32 => Ok(Self::GroundTeleport),
             _ => Err(RLibError::UnknownPipeType(value.to_string())),
         }
     }
@@ -494,28 +930,34 @@ impl TryFrom<i32> for PipeType {
 
 impl From<PipeType> for i32 {
     fn from(value: PipeType) -> Self {
-        match value {
-            PipeType::ShipStaircase => SHIP_STAIRCASE,
-            PipeType::ShipWalk => SHIP_WALK,
-            PipeType::ShipLadder => SHIP_LADDER,
-            PipeType::SiegeLadder1 => SIEGE_LADDER1,
-            PipeType::Stairs => STAIRS,
-            PipeType::Rope => ROPE,
-            PipeType::UnknownSambucaPipe => UNKNOWN_SAMBUCA_PIPE,
-            PipeType::DoorNoTeleport => DOOR_NO_TELEPORT,
-            PipeType::Jump => JUMP,
-            PipeType::WallDoorTeleport => WALL_DOOR_TELEPORT,
-            PipeType::JumpRamp => JUMP_RAMP,
-            PipeType::LadderLeft => LADDER_LEFT,
-            PipeType::LadderRight => LADDER_RIGHT,
-            PipeType::SiegeLadder2 => SIEGE_LADDER2,
-            PipeType::GroundTeleport => GROUND_TELEPORT
-        }
+        value as i32
     }
 }
 
 impl Cs2Parsed {
 
+    /// Migrates this CS2 Parsed file to be compatible with a specific game.
+    ///
+    /// Converts the file version to the maximum version supported by the target game.
+    /// Games generally support all previous format versions, so migration only occurs
+    /// if the current file version is newer than the game's maximum supported version.
+    ///
+    /// # Arguments
+    ///
+    /// * `game` - Target game information containing maximum supported version
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` - Migration successful or not needed
+    /// * `Err(RLibError::GameDoesntSupportCs2Migration)` - Game doesn't support CS2 files
+    ///
+    /// # Examples
+    ///
+    /// ```rust,ignore
+    /// let mut parsed = Cs2Parsed::decode(&mut data, &None)?;
+    /// parsed.migrate_game(&game_info)?;
+    /// // File is now compatible with the target game
+    /// ```
     pub fn migrate_game(&mut self, game: &GameInfo) -> Result<()> {
 
         if *game.max_cs2_parsed_version() == 0 {

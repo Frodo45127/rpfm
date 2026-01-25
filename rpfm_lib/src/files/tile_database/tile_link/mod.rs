@@ -8,6 +8,12 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
+//! Tile link definitions for the tile database.
+//!
+//! This module contains the [`TileLink`] struct, which defines connections between
+//! tiles within the terrain system. Links allow tiles to reference and blend with
+//! other tiles, creating seamless transitions across terrain boundaries.
+
 use getset::*;
 use serde_derive::{Serialize, Deserialize};
 
@@ -23,20 +29,35 @@ mod v1;
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
+/// A link definition connecting tiles within the terrain system.
+///
+/// Tile links define how tiles connect to and blend with other tiles in link sets.
+/// They specify position, blending parameters, and entry points for tile transitions.
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct TileLink {
+    /// Serialization version for this structure.
     serialise_version: u16,
 
+    /// Name of the link set this tile link belongs to.
     link_set: String,
+    /// X coordinate of this link.
     x: i32,
+    /// Y coordinate of this link.
     y: i32,
+    /// Base X coordinate for the link origin.
     base_x: i32,
+    /// Base Y coordinate for the link origin.
     base_y: i32,
+    /// Whether this link serves as an entry point.
     is_entry: bool,
+    /// Blend quad indices for texture blending.
     blend_quads: Vec<u32>,
+    /// Size of the blend area.
     blend_size: u32,
+    /// If true, disables offline blending for this link.
     no_offline_blend: bool,
+    /// Test string field (purpose unclear).
     test: String,
 }
 

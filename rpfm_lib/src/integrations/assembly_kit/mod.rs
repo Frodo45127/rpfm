@@ -8,13 +8,82 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! Module with all the code to interact with the Assembly Kit's Files.
+//! Assembly Kit integration for importing official table definitions.
 //!
-//! This module contains all the code related with the integrations with the Assembly Kit.
-//! To differentiate between the different types of Assembly Kit, there are multiple versions:
-//! - `0`: Empire and Napoleon.
-//! - `1`: Shogun 2.
-//! - `2`: Anything since Rome 2.
+//! This module provides functionality to parse and import table structure information from
+//! Creative Assembly's official Assembly Kit tools. This allows RPFM's schemas to stay
+//! synchronized with the official game data formats.
+//!
+//! # Assembly Kit Versions
+//!
+//! Different Total War games use different Assembly Kit formats:
+//!
+//! - **Version 0**: Empire Total War and Napoleon Total War
+//!   - Uses `.xsd` XML schema files
+//!   - Simpler structure without relationship metadata
+//!
+//! - **Version 1**: Shogun 2 Total War
+//!   - Uses XML files with `TWaD_` prefix
+//!   - Includes localisable field information
+//!
+//! - **Version 2**: Rome 2 and later (including Warhammer series, Three Kingdoms, Troy, etc.)
+//!   - Enhanced XML format with full relationship metadata
+//!   - Separate relationship and localisable fields files
+//!   - Field-level metadata (descriptions, highlight flags for unused fields)
+//!
+//! # Main Functionality
+//!
+//! ## Schema Updates
+//!
+//! The primary function [`update_schema_from_raw_files()`] processes Assembly Kit files to:
+//! - Update field types, keys, and default values
+//! - Import foreign key relationships
+//! - Detect localisable (translatable) fields
+//! - Mark unused fields (via highlight flags)
+//! - Extract hardcoded lookup data from description fields
+//!
+//! ## File Parsing
+//!
+//! The module can parse several Assembly Kit file types:
+//! - **Table definitions** (`TWaD_*.xml` or `*.xsd`): Field structure and types
+//! - **Localisable fields** (`TExc_LocalisableFields.xml`): Translation-ready fields
+//! - **Relationships** (`TWaD_relationships.xml`): Foreign key relationships
+//! - **Table data**: Sample data for generating hardcoded lookups
+//!
+//! # Submodules
+//!
+//! - [`table_definition`]: XML parsing for table structure definitions
+//! - [`table_data`]: XML parsing for table sample data
+//! - [`localisable_fields`]: XML parsing for localisable field lists
+//!
+//! # Example Usage
+//!
+//! ```ignore
+//! use rpfm_lib::integrations::assembly_kit::update_schema_from_raw_files;
+//! use rpfm_lib::schema::Schema;
+//! use rpfm_lib::games::supported_games::{SupportedGames, KEY_WARHAMMER_3};
+//! use std::path::Path;
+//! use std::collections::HashMap;
+//!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let mut schema = Schema::load(Path::new("schemas/warhammer_3.ron"), None)?;
+//! let supported_games = SupportedGames::default();
+//! let game_info = supported_games.game(&KEY_WARHAMMER_3).unwrap();
+//! let ass_kit_path = Path::new("C:/Program Files/Steam/steamapps/common/Total War WARHAMMER III/assembly_kit");
+//! let schema_path = Path::new("schemas/warhammer_3.ron");
+//! let tables_to_check = HashMap::new(); // Load vanilla tables here
+//!
+//! let unfound_fields = update_schema_from_raw_files(
+//!     &mut schema,
+//!     game_info,
+//!     ass_kit_path,
+//!     schema_path,
+//!     &[],
+//!     &tables_to_check,
+//! )?;
+//! # Ok(())
+//! # }
+//! ```
 
 use rayon::prelude::*;
 use serde_xml_rs::from_reader;
@@ -38,9 +107,13 @@ pub mod localisable_fields;
 pub mod table_data;
 pub mod table_definition;
 
+/// Filename of the localisable fields XML file in Assembly Kit v2+.
 const LOCALISABLE_FILES_FILE_NAME_V2: &str = "TExc_LocalisableFields";
 
+/// File prefix for table definition XMLs in Assembly Kit v2+.
 const RAW_DEFINITION_NAME_PREFIX_V2: &str = "TWaD_";
+
+/// Definition files to ignore (metadata files, not actual tables).
 const RAW_DEFINITION_IGNORED_FILES_V2: [&str; 5] = [
     "TWaD_schema_validation",
     "TWaD_relationships",
@@ -49,31 +122,93 @@ const RAW_DEFINITION_IGNORED_FILES_V2: [&str; 5] = [
     "TWaD_queries",
 ];
 
-//const RAW_DEFINITION_EXTENSION_V2: &str = ".xml";
-//const RAW_DATA_EXTENSION_V2: &str = RAW_DEFINITION_EXTENSION_V2;
-
+/// File extension for table definition files in Assembly Kit v0 (Empire/Napoleon).
 const RAW_DEFINITION_EXTENSION_V0: &str = "xsd";
-//const RAW_DATA_EXTENSION_V0: &str = RAW_DATA_EXTENSION_V2;
 
-
-/// Theses tables are blacklisted because:
-/// - "translated_texts.xml": just translations.
-/// - "TWaD_form_descriptions.xml": it's not a table.
+/// Files that should not be processed as tables.
+///
+/// These are excluded because:
+/// - `translated_texts.xml`: Contains only translation data, not table structure
+/// - `TWaD_form_descriptions.xml`: UI form description, not a data table
+/// - `GroupFormation.xsd`: Special formation data
+/// - `TExc_Effects.xsd`: Effects metadata
 const BLACKLISTED_TABLES: [&str; 4] = ["translated_texts.xml", "TWaD_form_descriptions.xml", "GroupFormation.xsd", "TExc_Effects.xsd"];
 
-/// Special table containing what I will never have: relationships.
+/// Filename for the extra relationships metadata file.
+///
+/// This file contains foreign key relationships not embedded in the table definitions.
 const EXTRA_RELATIONSHIPS_TABLE_NAME: &str = "TWaD_relationships";
 
 //---------------------------------------------------------------------------//
 // Functions to process the Raw DB Tables from the Assembly Kit.
 //---------------------------------------------------------------------------//
 
-/// This function updates the current Schema with the information of the provided Assembly Kit.
+/// Updates an existing schema with metadata from Assembly Kit files.
 ///
-/// Some notes:
-/// - This works only over already decoded tables (no new definitions are created).
-/// - This decodes localisable fields as proper localisable fiels, separating them from the rest.
-/// - This only updates the current versions of the tables, not older ones.
+/// This function parses Assembly Kit XML files and updates the provided schema with:
+/// - Field types, keys, and constraints
+/// - Foreign key relationships
+/// - Localisable field information
+/// - Unused field markers (via highlight flags)
+/// - Hardcoded lookup data extracted from description columns
+///
+/// # Arguments
+///
+/// * `schema` - The schema to update (modified in place)
+/// * `game_info` - Game-specific information (includes Assembly Kit version)
+/// * `ass_kit_path` - Path to the Assembly Kit installation directory
+/// * `schema_path` - Path where the updated schema should be saved
+/// * `tables_to_skip` - List of table names to ignore during import
+/// * `tables_to_check` - Map of table names to vanilla DB files for version detection
+///
+/// # Returns
+///
+/// Returns `Some(HashMap)` containing tables and fields that couldn't be matched,
+/// or `None` if all fields were successfully imported.
+///
+/// # Important Notes
+///
+/// - This function **does not create new table definitions**, it only updates existing ones
+/// - Only the current version of each table is updated (not historical versions)
+/// - Localisable fields are properly separated into the `localised_fields` list
+/// - The schema is automatically saved to disk after updates
+/// - Fields listed in the game's `ak_lost_fields` are not reported as unfound
+///
+/// # Errors
+///
+/// Returns an error if:
+/// - The Assembly Kit version is unsupported
+/// - XML files cannot be parsed
+/// - The schema cannot be saved
+///
+/// # Example
+///
+/// ```ignore
+/// # use rpfm_lib::integrations::assembly_kit::update_schema_from_raw_files;
+/// # use rpfm_lib::schema::Schema;
+/// # use rpfm_lib::games::supported_games::{SupportedGames, KEY_WARHAMMER_3};
+/// # use std::path::Path;
+/// # use std::collections::HashMap;
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let mut schema = Schema::load(Path::new("schemas/warhammer_3.ron"), None)?;
+/// let supported_games = SupportedGames::default();
+/// let game_info = supported_games.game(&KEY_WARHAMMER_3).unwrap();
+///
+/// let unfound = update_schema_from_raw_files(
+///     &mut schema,
+///     game_info,
+///     Path::new("C:/Program Files/Steam/.../assembly_kit"),
+///     Path::new("schemas/warhammer_3.ron"),
+///     &[], // No tables to skip
+///     &HashMap::new(), // Vanilla tables
+/// )?;
+///
+/// if let Some(unfound_fields) = unfound {
+///     println!("Could not match {} tables", unfound_fields.len());
+/// }
+/// # Ok(())
+/// # }
+/// ```
 pub fn update_schema_from_raw_files(
     schema: &mut Schema,
     game_info: &GameInfo,
@@ -258,9 +393,24 @@ pub fn update_schema_from_raw_files(
 // Utility functions to process raw files from the Assembly Kit.
 //---------------------------------------------------------------------------//
 
-/// This function returns all the raw Assembly Kit Table Definition files from the provided folder.
+/// Returns paths to all table definition files in an Assembly Kit directory.
 ///
-/// Yoy must provide it the folder with the definitions inside, and the version of the game to process.
+/// This function scans the provided directory and returns paths to XML files containing
+/// table structure definitions, filtering by Assembly Kit version.
+///
+/// # Arguments
+///
+/// * `current_path` - Directory containing Assembly Kit definition files
+/// * `version` - Assembly Kit version (0, 1, or 2)
+///
+/// # Returns
+///
+/// Returns a sorted vector of paths to definition files, or an error if the directory cannot be read.
+///
+/// # File Selection
+///
+/// - **Version 0** (Empire/Napoleon): `.xsd` files
+/// - **Version 1/2** (Shogun 2+): Files starting with `TWaD_` (excluding ignored metadata files)
 pub fn get_raw_definition_paths(current_path: &Path, version: i16) -> Result<Vec<PathBuf>> {
 
     let mut file_list: Vec<PathBuf> = vec![];
@@ -298,9 +448,23 @@ pub fn get_raw_definition_paths(current_path: &Path, version: i16) -> Result<Vec
 }
 
 
-/// This function returns all the raw Assembly Kit Table Data files from the provided folder.
+/// Returns paths to all table data files in an Assembly Kit directory.
 ///
-/// Yoy must provide it the folder with the tables inside, and the version of the game to process.
+/// This function scans for XML files containing sample table data (as opposed to definitions).
+///
+/// # Arguments
+///
+/// * `current_path` - Directory containing Assembly Kit data files
+/// * `version` - Assembly Kit version (0, 1, or 2)
+///
+/// # Returns
+///
+/// Returns a sorted vector of paths to data files, or an error if the directory cannot be read.
+///
+/// # File Selection
+///
+/// - **Version 0** (Empire/Napoleon): XML files without `.xsd` extension
+/// - **Version 1/2** (Shogun 2+): XML files that don't start with `TWaD_`
 pub fn get_raw_data_paths(current_path: &Path, version: i16) -> Result<Vec<PathBuf>> {
 
     let mut file_list: Vec<PathBuf> = vec![];
@@ -335,10 +499,23 @@ pub fn get_raw_data_paths(current_path: &Path, version: i16) -> Result<Vec<PathB
     Ok(file_list)
 }
 
-/// This function returns the path of the raw Assembly Kit `Localisable Fields` table from the provided folder.
+/// Returns the path to the localisable fields metadata file.
 ///
-/// Yoy must provide it the folder with the table inside, and the version of the game to process.
-/// NOTE: Version 0 is not yet supported.
+/// This file (`TExc_LocalisableFields.xml`) contains the list of fields that should be
+/// extracted to `.loc` translation files.
+///
+/// # Arguments
+///
+/// * `current_path` - Directory containing Assembly Kit files
+/// * `version` - Assembly Kit version (1 or 2; version 0 is not supported)
+///
+/// # Returns
+///
+/// Returns the path to the localisable fields file, or an error if not found.
+///
+/// # Note
+///
+/// This file is optional in some Assembly Kits (notably absent in Warhammer 2).
 pub fn get_raw_localisable_fields_path(current_path: &Path, version: i16) -> Result<PathBuf> {
     match read_dir(current_path) {
         Ok(files_in_current_path) => {
@@ -362,6 +539,23 @@ pub fn get_raw_localisable_fields_path(current_path: &Path, version: i16) -> Res
     Err(RLibError::AssemblyKitLocalisableFieldsNotFound)
 }
 
+/// Returns the path to the extra relationships metadata file.
+///
+/// This file (`TWaD_relationships.xml`) contains foreign key relationship information
+/// that isn't embedded in the table definition files themselves.
+///
+/// # Arguments
+///
+/// * `current_path` - Directory containing Assembly Kit files
+/// * `version` - Assembly Kit version (1 or 2; version 0 is not supported)
+///
+/// # Returns
+///
+/// Returns the path to the relationships file, or an error if not found.
+///
+/// # Note
+///
+/// This file is optional and may not be present in all Assembly Kits.
 pub fn get_raw_extra_relationships_path(current_path: &Path, version: i16) -> Result<PathBuf> {
     match read_dir(current_path) {
         Ok(files_in_current_path) => {

@@ -8,7 +8,91 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! This module contains a dependencies system implementation, used to manage dependencies between packs.
+//! Dependencies management system for Total War modding.
+//!
+//! This module provides a comprehensive system for managing and querying dependencies
+//! between mods and vanilla game files. It serves as a central cache for all reference
+//! data needed when editing DB tables, running diagnostics, or performing other
+//! operations that require knowledge of game data.
+//!
+//! # Overview
+//!
+//! The [`Dependencies`] struct is the core of this module. It manages three categories
+//! of data:
+//!
+//! 1. **Vanilla Files**: Data from the game's official PackFiles, cached on disk for
+//!    fast loading. This includes all DB tables, Loc files, and other resources.
+//!
+//! 2. **Vanilla Loose Files**: Files in the game's `/data` folder that aren't packed,
+//!    such as user-placed mods or extracted files.
+//!
+//! 3. **Parent Mod Files**: Files from mods that the current pack depends on,
+//!    loaded recursively based on the pack's dependency list.
+//!
+//! # Cache Structure
+//!
+//! The dependencies cache is stored on disk in three `.pak` files for efficient
+//! parallel loading:
+//!
+//! - `.pak1`: Build metadata and half of the vanilla files
+//! - `.pak2`: Other half of vanilla files
+//! - `.pak3`: Table/Loc indices, folder structure, and Assembly Kit tables
+//!
+//! The cache is versioned and includes a build date to automatically invalidate
+//! when game files change or RPFM is updated.
+//!
+//! # Reference Data
+//!
+//! A key feature is building reference data for DB table foreign key relationships.
+//! When a column references another table (e.g., `unit_key` referencing `main_units`),
+//! the dependencies system provides:
+//!
+//! - All valid values for the referenced column
+//! - Lookup data for displaying human-readable names
+//! - Detection of Assembly Kit-only tables
+//! - Localised column value resolution
+//!
+//! # Assembly Kit Integration
+//!
+//! Some tables exist only in the Assembly Kit and not in game files. These are
+//! processed separately and stored in the cache as "asskit-only" tables. They're
+//! useful for reference lookups but shouldn't be used as templates for new tables.
+//!
+//! # Usage Example
+//!
+//! ```ignore
+//! use rpfm_extensions::dependencies::Dependencies;
+//! use rpfm_lib::schema::Schema;
+//!
+//! // Load or generate dependencies cache
+//! let mut deps = Dependencies::default();
+//! deps.rebuild(
+//!     &Some(schema),
+//!     &["parent_mod.pack".to_string()],
+//!     Some(cache_path),
+//!     &game_info,
+//!     game_path,
+//!     secondary_path,
+//! )?;
+//!
+//! // Query a specific file
+//! let file = deps.file("db/units_tables/data__", true, true, false)?;
+//!
+//! // Get all DB tables of a specific type
+//! let units = deps.db_data("units_tables", true, true)?;
+//! ```
+//!
+//! # Startpos Generation
+//!
+//! This module provides functions to build startpos files for campaign mods:
+//!
+//! - `build_starpos_pre`: Prepares and launches the game with a user script that
+//!   triggers startpos generation for the specified campaign
+//! - `build_starpos_post`: Called after the game closes to import the generated
+//!   startpos file back into the pack
+//!
+//! The process handles game-specific quirks like different output paths, victory
+//! objectives extraction, and HLP/SPD data generation.
 
 use getset::{Getters, MutGetters};
 use itertools::{Either, Itertools};
@@ -37,12 +121,26 @@ use crate::optimizer::{OptimizableContainer, OptimizerOptions};
 use crate::START_POS_WORKAROUND_THREAD;
 use crate::VERSION;
 
+/// Table name for the key deletes table used in datacoring.
+///
+/// The `twad_key_deletes` table is used to remove specific rows from vanilla tables
+/// without replacing the entire table. This is the preferred method for removing
+/// vanilla content as it's more compatible with other mods.
 pub const KEY_DELETES_TABLE_NAME: &str = "twad_key_deletes_tables";
 
+/// Filename for the user script file used in startpos generation.
 pub const USER_SCRIPT_FILE_NAME: &str = "user.script.txt";
+
+/// Path to the victory objectives file within a pack.
 pub const VICTORY_OBJECTIVES_FILE_NAME: &str = "db/victory_objectives.txt";
+
+/// Extracted filename for victory objectives.
 pub const VICTORY_OBJECTIVES_EXTRACTED_FILE_NAME: &str = "victory_objectives.txt";
 
+/// List of games that require victory objectives file handling.
+///
+/// These games need special processing for the `victory_objectives.txt` file
+/// during startpos generation.
 pub const GAMES_NEEDING_VICTORY_OBJECTIVES: [&str; 9] = [
     KEY_PHARAOH_DYNASTIES,
     KEY_PHARAOH,
@@ -59,29 +157,41 @@ pub const GAMES_NEEDING_VICTORY_OBJECTIVES: [&str; 9] = [
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
-/// This struct represents a dependencies manager for all dependencies relevant of a Pack.
+/// Central dependencies manager for all reference data relevant to a Pack.
 ///
-/// As even I am getting a bit confused by how this works (and it has caused a few bugs):
-/// - First, these ones are serialized to disk and do not change unless we regenerate the dependencies:
-///     - asskit_only_db_tables.
-///     - vanilla_files.
-///     - vanilla_tables.
-///     - vanilla_locs.
-/// - Then, we have the ones that gets regenerated on rebuild:
-///     - vanilla_loose_files.
-///     - vanilla_loose_tables.
-///     - vanilla_loose_locs.
-///     - vanilla_loose_folders.
-///     - vanilla_loose_paths.
-///     - parent_files.
-///     - parent_tables.
-///     - parent_locs.
-///     - parent_folders.
-///     - parent_paths.
-///     - local_tables_references.
+/// This struct caches and manages all data needed for reference lookups, diagnostics,
+/// and other operations that require knowledge of vanilla game data or parent mods.
 ///
-/// - Then, on runtime, we add decoded table's reference data to this one, so we don't need to recalculate it again.
-///     - local_tables_references,
+/// # Data Categories
+///
+/// The dependencies are organized into three persistence levels:
+///
+/// ## Serialized to Disk (cached)
+///
+/// These fields are saved to `.pak` files and only regenerated when the game
+/// files change or RPFM is updated:
+///
+/// - `vanilla_files` - All files from CA's official PackFiles
+/// - `vanilla_tables` - Index of DB table paths by table name
+/// - `vanilla_locs` - Set of Loc file paths
+/// - `vanilla_folders` - Set of folder paths for existence checks
+/// - `vanilla_paths` - Case-insensitive path lookup map
+/// - `asskit_only_db_tables` - Tables only present in Assembly Kit
+///
+/// ## Regenerated on Rebuild
+///
+/// These fields are rebuilt each time `rebuild()` is called, as they depend
+/// on the current environment:
+///
+/// - `vanilla_loose_*` - Files from the game's `/data` folder (not in packs)
+/// - `parent_*` - Files from parent mods the current pack depends on
+///
+/// ## Runtime Cache
+///
+/// Built on-demand during editing and not persisted:
+///
+/// - `local_tables_references` - Cached reference data for edited tables
+/// - `localisation_data` - Merged Loc data for quick lookups
 #[derive(Default, Debug, Clone, Getters, Serialize, Deserialize)]
 #[getset(get = "pub")]
 pub struct Dependencies {
@@ -171,21 +281,46 @@ pub struct Dependencies {
     asskit_only_db_tables: HashMap<String, DB>,
 }
 
-/// This holds the reference data for a table's column.
+/// Reference data for a single column in a DB table.
+///
+/// When a column has a foreign key reference to another table (or lookup data
+/// for display purposes), this struct holds the valid values and their
+/// human-readable representations.
+///
+/// # Example
+///
+/// For a column referencing `main_units_tables.key`:
+/// - `data` would contain entries like `("wh_main_emp_inf_swordsmen", "Empire Swordsmen")`
+/// - The key is the actual value stored in the DB
+/// - The value is the lookup/display text (if available)
 #[derive(Eq, PartialEq, Clone, Default, Debug, Getters, MutGetters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub")]
 pub struct TableReferences {
 
-    /// Name of the column these references are for. Only for debugging, do not rely on it for anything.
+    /// Name of the column these references are for.
+    ///
+    /// This is primarily for debugging purposes. Do not rely on it for
+    /// programmatic column identification.
     field_name: String,
 
-    /// If the table is only present in the Ak. Useful to identify unused tables on diagnostics checks.
+    /// Whether the referenced table exists only in the Assembly Kit.
+    ///
+    /// When `true`, the reference data comes from Assembly Kit tables rather
+    /// than game files. This is useful for diagnostics to identify references
+    /// to tables that may not be fully supported.
     referenced_table_is_ak_only: bool,
 
-    /// If the referenced column has been moved into a loc file while exporting it from Dave.
+    /// Whether the referenced column has been localised.
+    ///
+    /// Some columns that originally contained text are moved to Loc files
+    /// when exported from the Assembly Kit (Dave). This flag indicates that
+    /// the lookup values should be fetched from localisation data.
     referenced_column_is_localised: bool,
 
-    /// The data itself, as in "key, lookup" format.
+    /// The reference data mapping keys to display values.
+    ///
+    /// - **Key**: The actual value that can be stored in the column
+    /// - **Value**: Human-readable lookup text (may be empty if no lookup defined)
     data: HashMap<String, String>,
 }
 
@@ -2748,7 +2883,7 @@ impl Dependencies {
             }
         }
 
-        Schema::add_patch_to_patch_set(current_patches, &new_patches);
+        Schema::add_patches_to_patch_set(current_patches, &new_patches);
 
         Ok(())
     }

@@ -8,60 +8,73 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*!
-Module with all the code to interact with Schemas.
-
-This module contains all the code related with the schemas used by this lib to decode many PackedFile types.
-
-The basic structure of an `Schema` is:
-```ignore
-(
-    version: 3,
-    versioned_files: [
-        DB("_kv_battle_ai_ability_usage_variables_tables", [
-            (
-                version: 0,
-                fields: [
-                    (
-                        name: "key",
-                        field_type: StringU8,
-                        is_key: true,
-                        default_value: None,
-                        is_filename: false,
-                        filename_relative_path: None,
-                        is_reference: None,
-                        lookup: None,
-                        description: "",
-                        ca_order: -1,
-                        is_bitwise: 0,
-                        enum_values: {},
-                        is_part_of_colour: None,
-                    ),
-                    (
-                        name: "value",
-                        field_type: F32,
-                        is_key: false,
-                        default_value: None,
-                        is_filename: false,
-                        filename_relative_path: None,
-                        is_reference: None,
-                        lookup: None,
-                        description: "",
-                        ca_order: -1,
-                        is_bitwise: 0,
-                        enum_values: {},
-                        is_part_of_colour: None,
-                    ),
-                ],
-                localised_fields: [],
-            ),
-        ]),
-    ],
-)
-```
-
-Inside the schema there are `VersionedFile` variants of different types, with a Vec of `Definition`, one for each version of that PackedFile supported.
-!*/
+//! Schema system for defining Total War file formats.
+//!
+//! This module provides the infrastructure for defining and managing schemas that describe the binary
+//! structure of Total War game files, primarily database tables and localization files.
+//!
+//! # Overview
+//!
+//! A [`Schema`] contains [`Definition`]s that specify the exact binary layout of different file types.
+//! Each table can have multiple definitions to support different versions across game patches. The schema
+//! system also supports runtime patches to override field properties without modifying the base schema.
+//!
+//! # Key Components
+//!
+//! - [`Schema`]: The main container holding all table definitions and patches for a game
+//! - [`Definition`]: Describes one version of a table's structure (fields, types, constraints)
+//! - [`Field`]: Represents a single column in a table with its type and metadata
+//! - [`FieldType`]: The data type of a field (integers, strings, booleans, sequences, etc.)
+//! - [`DefinitionPatch`]: Runtime modifications to field properties
+//!
+//! # Schema Versioning
+//!
+//! - Each game has its own schema file (e.g., `warhammer_3.ron`)
+//! - The schema format version (currently v5) is tracked separately from table versions
+//! - Legacy schema formats (like v4) can be automatically upgraded via [`Schema::update()`]
+//!
+//! # Loading and Saving
+//!
+//! Schemas are typically stored in RON format but can also be exported to JSON:
+//!
+//! ```no_run
+//! use rpfm_lib::schema::Schema;
+//! use std::path::Path;
+//!
+//! // Load a schema
+//! let schema_path = Path::new("schemas/warhammer_3.ron");
+//! let schema = Schema::load(schema_path, None)?;
+//!
+//! // Access table definitions
+//! if let Some(defs) = schema.definitions_by_table_name("units_tables") {
+//!     for def in defs {
+//!         println!("Version {}: {} fields", def.version(), def.fields().len());
+//!     }
+//! }
+//! # Ok::<(), rpfm_lib::error::RLibError>(())
+//! ```
+//!
+//! # Patches
+//!
+//! Patches allow modifying field properties at runtime without changing the schema:
+//!
+//! ```no_run
+//! use rpfm_lib::schema::Schema;
+//! use std::path::Path;
+//!
+//! let schema = Schema::load(Path::new("schema.ron"), Some(Path::new("patches.ron")))?;
+//!
+//! // Check if a field has a patched value
+//! if let Some(value) = schema.patch_value("units_tables", "key", "is_key") {
+//!     println!("Patched is_key value: {}", value);
+//! }
+//! # Ok::<(), rpfm_lib::error::RLibError>(())
+//! ```
+//!
+//! # Schema Repository
+//!
+//! Schemas are maintained in a separate Git repository and can be updated independently from RPFM itself.
+//! The repository URL and branch are defined as constants in this module.
 
 use getset::*;
 use itertools::Itertools;
@@ -92,25 +105,50 @@ use crate::games::supported_games::SupportedGames;
 pub(crate) mod v4;
 
 /// Name of the folder containing all the schemas.
+///
+/// This folder is located within the application's config directory and stores schema files
+/// for each supported Total War game.
 pub const SCHEMA_FOLDER: &str = "schemas";
 
-//const BINARY_EXTENSION: &str = ".bin";
-
+/// URL of the remote Git repository containing the schema files.
+///
+/// This repository is used to fetch and update schema definitions for all supported games.
 pub const SCHEMA_REPO: &str = "https://github.com/Frodo45127/rpfm-schemas";
+
+/// Name of the Git remote to use when fetching schemas.
 pub const SCHEMA_REMOTE: &str = "origin";
+
+/// Name of the Git branch to use when fetching schemas.
 pub const SCHEMA_BRANCH: &str = "master";
 
 /// Current structural version of the Schema, for compatibility purposes.
+///
+/// This version number is incremented when the schema format itself changes
+/// in a backwards-incompatible way.
 const CURRENT_STRUCTURAL_VERSION: u16 = 5;
+
+/// Invalid version marker for internal use.
+///
+/// This value is used for temporary or fake [`Definition`] instances that don't
+/// represent actual file versions.
 const INVALID_VERSION: i32 = -100;
 
-/// Name for unamed colour groups.
+/// Name for unnamed colour groups.
+///
+/// When RGB colour fields are merged but have no common prefix, this name is used
+/// as the base name for the combined field.
 pub const MERGE_COLOUR_NO_NAME: &str = "Unnamed Colour Group";
 
-/// Ending for named colour groups.
+/// Suffix for merged colour field names.
+///
+/// This string is appended to the base name when creating a merged RGB colour field.
+/// For example, `banner_colour` fields would become `banner_colour_hex`.
 pub const MERGE_COLOUR_POST: &str = "_hex";
 
 /// Fields that can be ignored in missing field checks.
+///
+/// These fields are legacy fields from older Assembly Kit versions that are not
+/// actually used by the games and can be safely ignored during schema updates.
 const IGNORABLE_FIELDS: [&str; 4] = ["s_ColLineage", "s_Generation", "s_GUID", "s_Lineage"];
 
 //---------------------------------------------------------------------------//
@@ -119,122 +157,352 @@ const IGNORABLE_FIELDS: [&str; 4] = ["s_ColLineage", "s_Generation", "s_GUID", "
 
 /// This type defines patches for specific table definitions, in a ColumnName -> [key -> value] format.
 ///
-/// Note: for table-wide patches, we use column name "-1".
+/// Patches allow runtime modification of schema fields without changing the base schema files.
+/// They are stored separately and applied when loading definitions.
+///
+/// # Structure
+///
+/// The outer [`HashMap`] maps column names to their patches. The inner [`HashMap`] maps patch keys
+/// to their values. For table-wide patches (not specific to a column), use the special column name `"-1"`.
+///
+/// # Example Patch Keys
+///
+/// - `"is_key"`: Override whether a field is a key field
+/// - `"default_value"`: Override the default value
+/// - `"is_filename"`: Override whether a field is a filename
+/// - `"filename_relative_path"`: Override the relative filename path
+/// - `"is_reference"`: Override reference information
+/// - `"lookup"`: Override lookup columns
+/// - `"lookup_hardcoded"`: Add hardcoded lookup values
+/// - `"description"`: Override the field description
+/// - `"not_empty"`: Mark the field as "cannot be empty"
+/// - `"unused"`: Mark a field as unused
 pub type DefinitionPatch = HashMap<String, HashMap<String, String>>;
 
-/// This struct represents a Schema File in memory, ready to be used to decode versioned PackedFiles.
+/// Represents a complete schema file containing table definitions for a Total War game.
+///
+/// A [`Schema`] stores the structural definitions for all database tables in a Total War game.
+/// Each table can have multiple [`Definition`] versions, allowing the schema to support
+/// different versions of the same table across game patches.
+///
+/// # Structure
+///
+/// - `version`: The structural version of the schema format itself (currently 5)
+/// - `definitions`: A map of table names to their version history
+/// - `patches`: Runtime modifications to field properties
+///
+/// # Usage
+///
+/// ```no_run
+/// use rpfm_lib::schema::Schema;
+/// use std::path::Path;
+///
+/// let schema_path = Path::new("schemas/warhammer_3.ron");
+/// let schema = Schema::load(schema_path, None)?;
+///
+/// // Get definitions for a specific table
+/// if let Some(definitions) = schema.definitions_by_table_name("units_tables") {
+///     println!("Found {} versions of units_tables", definitions.len());
+/// }
+/// # Ok::<(), rpfm_lib::error::RLibError>(())
+/// ```
 #[derive(Clone, PartialEq, Eq, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Schema {
 
-    /// It stores the structural version of the Schema.
+    /// The structural version of the schema format.
+    ///
+    /// This is incremented when the schema format itself changes in backwards-incompatible ways.
     version: u16,
 
-    /// It stores the versioned files inside the Schema.
+    /// Map of table names to their version definitions.
+    ///
+    /// Each table can have multiple versions, stored as a [`Vec`] of [`Definition`] instances.
+    /// Serialization orders this map alphabetically for consistent output.
     #[serde(serialize_with = "ordered_map_definitions")]
     definitions: HashMap<String, Vec<Definition>>,
 
-    /// It stores a list of per-table, per-column patches.
+    /// Map of table names to their patches.
+    ///
+    /// Patches allow runtime modification of field properties without changing the base schema.
+    /// See [`DefinitionPatch`] for the patch structure.
     #[serde(serialize_with = "ordered_map_patches")]
     patches: HashMap<String, DefinitionPatch>,
 }
 
-/// This struct contains all the data needed to decode a specific version of a versioned PackedFile.
+/// Defines the structure of a specific version of a database table.
+///
+/// A [`Definition`] specifies the exact binary layout and field properties for one version
+/// of a table. Tables can have multiple definitions in a schema to support different versions
+/// across game patches.
+///
+/// # Version Numbers
+///
+/// - `-1`: Fake definition used internally for dependency resolution
+/// - `0`: Unversioned files (tables without version markers in their binary format)
+/// - `1+`: Versioned files with explicit version numbers
+///
+/// # Fields Processing
+///
+/// The raw [`fields`] list may undergo processing when accessed via [`fields_processed()`]:
+/// - Bitwise fields are expanded into multiple boolean fields
+/// - Enum fields are converted to string fields
+/// - RGB colour triplets are merged into single ColourRGB fields
+///
+/// Unless you have a specific reason to do so, it is recommended to use [`fields_processed()`] instead of [`fields`].
+///
+/// # Localisation
+///
+/// Some tables have fields that are moved to separate LOC files during export:
+/// - [`localised_fields`] lists these fields
+/// - [`localised_key_order`] defines the key field order for LOC keys
+///
+/// [`fields_processed()`]: Definition::fields_processed
+/// [`fields`]: Definition::fields
+/// [`localised_fields`]: Definition::localised_fields
+/// [`localised_key_order`]: Definition::localised_key_order
 #[derive(Clone, PartialEq, Eq, Debug, Default, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Definition {
 
-    /// The version of the file the definition is for. These versions are:
-    /// - `-1`: for fake `Definition`, used for dependency resolving stuff.
-    /// - `0`: for unversioned PackedFiles.
-    /// - `1+`: for versioned PackedFiles.
+    /// The version number of this table definition.
+    ///
+    /// See type-level documentation for version number meanings.
     version: i32,
 
-    /// This is a collection of all `Field`s the PackedFile uses, in the order it uses them.
+    /// List of fields in the order they appear in the binary format.
+    ///
+    /// This is the raw field list. For the processed version (with bitwise expansion,
+    /// enum conversion, etc.), use [`fields_processed()`].
+    ///
+    /// [`fields_processed()`]: Definition::fields_processed
     fields: Vec<Field>,
 
-    /// This is a list of all the fields from this definition that are moved to a Loc PackedFile on exporting.
+    /// Fields that are extracted to LOC files during export.
+    ///
+    /// These fields contain localisable text that gets separated from the main table data
+    /// when exporting said table to binary format.
     localised_fields: Vec<Field>,
 
-    /// This is the order in which key fields are ordered when used as part of a localisation key.
+    /// Order of key fields when constructing localisation keys.
     ///
-    /// Note: this order is only applicable to the processed fields, not the raw fields.
+    /// This specifies the order in which key fields should be concatenated when
+    /// creating LOC entry keys. Only applies to processed fields.
     localised_key_order: Vec<u32>,
 
-    /// Patches that apply to this definition.
+    /// Runtime patches applied to this definition.
     ///
-    /// Not serialized. Populated when getting the definition.
+    /// These are loaded from the schema's patch set and applied when retrieving
+    /// the definition. Not serialized - they come from the schema's patches field.
     #[serde(skip)]
     patches: DefinitionPatch
 }
 
-/// This struct holds all the relevant data do properly decode a field from a versioned PackedFile.
+/// Defines a single field within a table definition.
+///
+/// A [`Field`] describes one column in a database table, including its data type, constraints,
+/// and metadata. Fields can be modified at runtime via schema patches.
+///
+/// # Field Types
+///
+/// See [`FieldType`] for the supported data types (integers, strings, sequences, etc.).
+///
+/// # Field Attributes and Constraints
+///
+/// - **Key Fields**: When `is_key` is true, the field is part of the table's primary key
+/// - **References**: Fields can reference columns in other tables for foreign key relationships
+/// - **Lookups**: Additional columns from referenced tables to display in the UI
+/// - **Filenames**: Fields that contain file paths within the game's VFS
+/// - **Bitwise**: Numeric fields that should be split into multiple boolean columns
+/// - **Enums**: Numeric fields with named values
+/// - **Colours**: Fields that are part of an RGB triplet
+///
+/// # Patching
+///
+/// Most field properties can be overridden via schema patches. Use the accessor methods
+/// (e.g., [`is_key()`], [`default_value()`]) rather than direct field access to ensure
+/// patches are applied.
+///
+/// [`is_key()`]: Field::is_key
+/// [`default_value()`]: Field::default_value
 #[derive(Clone, PartialEq, Eq, Debug, Setters, Serialize, Deserialize)]
 #[getset(set = "pub")]
 pub struct Field {
 
-    /// Name of the field. Should contain no spaces, using `_` instead.
+    /// Name of the field.
+    ///
+    /// Must match the field name from the Assembly Kit table definition (usually snake_case, but not always).
     name: String,
 
-    /// Type of the field.
+    /// Data type of the field.
+    ///
+    /// Determines how the field's binary data is interpreted.
     field_type: FieldType,
 
-    /// `True` if the field is a `Key` field of a table. `False` otherwise.
+    /// Whether this field is part of the table's primary key.
+    ///
+    /// Can be overridden via patches. Use [`is_key()`] to get the patched value.
+    ///
+    /// [`is_key()`]: Field::is_key
     is_key: bool,
 
-    /// The default value of the field.
+    /// Default value for this field when creating new rows.
+    ///
+    /// Can be overridden via patches. Use [`default_value()`] to get the patched value.
+    ///
+    /// [`default_value()`]: Field::default_value
     default_value: Option<String>,
 
-    /// If the field's data corresponds to a filename.
+    /// Whether this field contains a filename/path.
+    ///
+    /// Can be overridden via patches. Use [`is_filename()`] to get the patched value.
+    ///
+    /// [`is_filename()`]: Field::is_filename
     is_filename: bool,
 
-    /// Path where the file in the data of the field can be, if it's restricted to one path.
+    /// Semicolon-separated list of relative paths where files for this field can be found.
+    ///
+    /// Only applicable when `is_filename` is true. Can be overridden via patches.
+    /// Use [`filename_relative_path()`] to get the parsed, patched value.
+    ///
+    /// [`filename_relative_path()`]: Field::filename_relative_path
     filename_relative_path: Option<String>,
 
-    /// `Some(referenced_table, referenced_column)` if the field is referencing another table/column. `None` otherwise.
+    /// Foreign key reference to another table.
+    ///
+    /// Format: `Some((table_name, column_name))` where `table_name` doesn't include
+    /// the `_tables` suffix. Can be overridden via patches.
+    /// Use [`is_reference()`] to get the patched value.
+    ///
+    /// [`is_reference()`]: Field::is_reference
     is_reference: Option<(String, String)>,
 
-    /// `Some(referenced_columns)` if the field is using another column/s from the referenced table for lookup values.
+    /// Additional columns from the referenced table to show in lookups.
+    ///
+    /// Only applicable when `is_reference` is Some. Can be overridden via patches.
+    /// Use [`lookup()`] to get the patched value.
+    ///
+    /// [`lookup()`]: Field::lookup
     lookup: Option<Vec<String>>,
 
-    /// Aclarative description of what the field is for.
+    /// Human-readable description of the field's purpose.
+    ///
+    /// Can be overridden via patches. Use [`description()`] to get the patched value.
+    ///
+    /// [`description()`]: Field::description
     description: String,
 
-    /// Visual position in CA's Table. `-1` means we don't know its position.
+    /// Visual position in CA's Assembly Kit table editor.
+    ///
+    /// `-1` means the position is unknown. This is used to maintain column order
+    /// consistency with the Assembly Kit.
     ca_order: i16,
 
-    /// Variable to tell if this column is a bitwise column (spanned accross multiple columns) or not. Only applicable to numeric fields.
+    /// Number of boolean columns this field should be split into.
+    ///
+    /// Only applicable to numeric fields. A value > 1 means the field should be
+    /// expanded into that many boolean columns when processed.
     is_bitwise: i32,
 
-    /// Variable that specifies the "Enum" values for each value in this field.
+    /// Named values for this field when treated as an enum.
+    ///
+    /// Maps integer values to their string names. When non-empty, the field
+    /// is treated as a string enum in processed fields.
+    ///
+    /// NOTE: When possible, prefer using lookups instead of enum_values.
     enum_values: BTreeMap<i32, String>,
 
-    /// If the field is part of a 3-part RGB column set, and which one (R, G or B) it is.
+    /// Index of the RGB colour group this field belongs to.
+    ///
+    /// When set, this field is part of a 3-field RGB triplet that should be
+    /// merged into a single ColourRGB field when processed.
     is_part_of_colour: Option<u8>,
 
-    /// If the field is not used by the game. This one is set through patches, so we don't serialize it.
+    /// Whether this field is unused by the game.
+    ///
+    /// Not serialized - determined via patches at runtime.
+    /// Use [`unused()`] to get the patched value.
+    ///
+    /// [`unused()`]: Field::unused
     #[serde(skip_serializing, skip_deserializing)]
     unused: bool,
 }
 
-/// This enum defines every type of field the lib can encode/decode.
+/// Supported data types for table fields.
+///
+/// This enum defines all field types that can be encoded/decoded from Total War database tables.
+/// Each variant corresponds to a specific binary representation in the game files.
+///
+/// # Basic Types
+///
+/// - **Boolean**: 1-byte boolean value
+/// - **Integers**: Signed integers of various sizes (I16, I32, I64)
+/// - **Floats**: Floating-point numbers (F32, F64)
+/// - **Strings**: Length-prefixed strings with [`u8`] or [`u16`] length markers
+///
+/// # Optional Types
+///
+/// Optional types use a 1-byte flag followed by the value if present:
+/// - **OptionalI16**, **OptionalI32**, **OptionalI64**: Optional integers
+/// - **OptionalStringU8**, **OptionalStringU16**: Optional strings
+///
+/// # Complex Types
+///
+/// - **ColourRGB**: 6-character hexadecimal RGB colour (e.g., "FF0000" for red)
+/// - **SequenceU16**, **SequenceU32**: Arrays with [`u16`] or [`u32`] length prefix
+///
+/// # Sequences
+///
+/// Sequence types contain a nested [`Definition`] that describes the structure of each
+/// array element. The length prefix determines how many elements follow.
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub enum FieldType {
+    /// 1-byte boolean value (0 = false, 1 = true).
     Boolean,
+
+    /// 32-bit floating-point number.
     F32,
+
+    /// 64-bit floating-point number.
     F64,
+
+    /// 16-bit signed integer.
     I16,
+
+    /// 32-bit signed integer.
     I32,
+
+    /// 64-bit signed integer.
     I64,
+
+    /// RGB colour as a 6-character hexadecimal string (e.g., "FF0000").
     ColourRGB,
+
+    /// UTF-8 encoded string with [`u16`] length prefix (max 65535 bytes).
     StringU8,
+
+    /// UTF-16 encoded string with [`u16`] length prefix (max 65535 characters).
     StringU16,
+
+    /// Optional 16-bit signed integer (1-byte flag + value if present).
     OptionalI16,
+
+    /// Optional 32-bit signed integer (1-byte flag + value if present).
     OptionalI32,
+
+    /// Optional 64-bit signed integer (1-byte flag + value if present).
     OptionalI64,
+
+    /// Optional UTF-8 encoded string (1-byte flag + [`u16`] length prefix + string if present).
     OptionalStringU8,
+
+    /// Optional UTF-16 encoded string (1-byte flag + [`u16`] length prefix + string if present).
     OptionalStringU16,
+
+    /// Array with [`u16`] element count followed by elements matching the nested definition.
     SequenceU16(Box<Definition>),
+
+    /// Array with [`u32`] element count followed by elements matching the nested definition.
     SequenceU32(Box<Definition>)
 }
 
@@ -242,17 +510,45 @@ pub enum FieldType {
 //                       Enum & Structs Implementations
 //---------------------------------------------------------------------------//
 
-/// Implementation of `Schema`.
+/// Implementation of [`Schema`].
 impl Schema {
 
-    /// This function will save a new patch to the local patches list.
-    pub fn new_patch(patches: &HashMap<String, DefinitionPatch>, path: &Path) -> Result<()> {
+    /// Saves patches to a local patches file, merging with existing patches.
+    ///
+    /// This function loads existing patches from the file, merges the provided patches with them,
+    /// and writes the combined patch set back to the file in RON format.
+    ///
+    /// # Arguments
+    ///
+    /// * `patches` - The patches to add or update
+    /// * `path` - Path to the local patches file (must exist)
+    ///
+    /// # Returns
+    ///
+    /// Returns [`Ok`] if successful, or an error if:
+    /// - The file cannot be read or written
+    /// - The file contains invalid patch data
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use std::collections::HashMap;
+    /// use std::path::Path;
+    /// use rpfm_lib::schema::{Schema, DefinitionPatch};
+    ///
+    /// let mut patches: HashMap<String, DefinitionPatch> = HashMap::new();
+    /// // Add patches...
+    ///
+    /// Schema::save_patches(&patches, Path::new("my_patches.ron"))?;
+    /// # Ok::<(), rpfm_lib::error::RLibError>(())
+    /// ```
+    pub fn save_patches(patches: &HashMap<String, DefinitionPatch>, path: &Path) -> Result<()> {
         let mut file = BufReader::new(File::open(path)?);
         let mut data = Vec::with_capacity(file.get_ref().metadata()?.len() as usize);
         file.read_to_end(&mut data)?;
         let mut local_patches: HashMap<String, DefinitionPatch> = from_bytes(&data)?;
 
-        Self::add_patch_to_patch_set(&mut local_patches, patches);
+        Self::add_patches_to_patch_set(&mut local_patches, patches);
 
         let mut file = BufWriter::new(File::create(path)?);
         let config = PrettyConfig::default();
@@ -261,8 +557,21 @@ impl Schema {
         Ok(())
     }
 
-    /// This function will remove the local patches for the specified table.
-    pub fn remove_patch_for_table(table_name: &str, path: &Path) -> Result<()> {
+    /// Removes all local patches for a specific table.
+    ///
+    /// This function loads the patches file, removes all patches for the specified table,
+    /// and writes the updated patch set back to the file.
+    ///
+    /// # Arguments
+    ///
+    /// * `table_name` - Name of the table to remove patches for
+    /// * `path` - Path to the local patches file
+    ///
+    /// # Returns
+    ///
+    /// Returns [`Ok`] if successful, even if no there were no patches to remove, or an error
+    /// if file I/O fails.
+    pub fn remove_patches_for_table(table_name: &str, path: &Path) -> Result<()> {
         let mut file = BufReader::new(File::open(path)?);
         let mut data = Vec::with_capacity(file.get_ref().metadata()?.len() as usize);
         file.read_to_end(&mut data)?;
@@ -277,8 +586,22 @@ impl Schema {
         Ok(())
     }
 
-    /// This function will remove the local patches for the specified table and field.
-    pub fn remove_patch_for_field(table_name: &str, field_name: &str, path: &Path) -> Result<()> {
+    /// Removes all local patches for a specific field in a table.
+    ///
+    /// This function loads the patches file, removes all patches for the specified table's field,
+    /// and writes the updated patch set back to the file. Other fields in the table are unaffected.
+    ///
+    /// # Arguments
+    ///
+    /// * `table_name` - Name of the table containing the field
+    /// * `field_name` - Name of the field to remove patches for
+    /// * `path` - Path to the local patches file
+    ///
+    /// # Returns
+    ///
+    /// Returns [`Ok`] if successful, even if no there were no patches to remove, or an error
+    /// if file I/O fails.
+    pub fn remove_patches_for_table_and_field(table_name: &str, field_name: &str, path: &Path) -> Result<()> {
         let mut file = BufReader::new(File::open(path)?);
         let mut data = Vec::with_capacity(file.get_ref().metadata()?.len() as usize);
         file.read_to_end(&mut data)?;
@@ -295,20 +618,50 @@ impl Schema {
         Ok(())
     }
 
-    /// This function retrieves a value from a patch for a specific table, column and key.
+    /// Retrieves a specific patch value for a table's column.
+    ///
+    /// # Arguments
+    ///
+    /// * `table_name` - Name of the table
+    /// * `column_name` - Name of the column
+    /// * `key` - Patch key (e.g., "is_key", "default_value")
+    ///
+    /// # Returns
+    ///
+    /// Returns the patch value if found, or [`None`] otherwise.
     pub fn patch_value(&self, table_name: &str, column_name: &str, key: &str) -> Option<&String> {
         self.patches.get(table_name)?.get(column_name)?.get(key)
     }
 
-    /// This function retrieves all patches that affect a specific table.
+    /// Retrieves all patches for a specific table.
+    ///
+    /// # Arguments
+    ///
+    /// * `table_name` - Name of the table
+    ///
+    /// # Returns
+    ///
+    /// Returns the table's patches if found, or [`None`] otherwise.
     pub fn patches_for_table(&self, table_name: &str) -> Option<&DefinitionPatch> {
         self.patches.get(table_name)
     }
 
-    /// This function adds a list of patches into the currently loaded schema.
+    /// Merges patches into an existing patch set.
     ///
-    /// Note: if you add a patch, you'll need to re-retrieve any definition you retrieved before in order for them to get patched.
-    pub fn add_patch_to_patch_set(patch_set: &mut HashMap<String, DefinitionPatch>, patches: &HashMap<String, DefinitionPatch>) {
+    /// This function adds the provided patches to the patch set, merging them with any
+    /// existing patches. If a patch already exists for a table/column/key combination,
+    /// it will be extended with the new values.
+    ///
+    /// # Arguments
+    ///
+    /// * `patch_set` - The patch set to merge into (modified in place)
+    /// * `patches` - The patches to add
+    ///
+    /// # Note
+    ///
+    /// After adding patches, you must re-retrieve any definitions you've already retrieved
+    /// for the patches to take effect, as patches are applied when retrieving definitions.
+    pub fn add_patches_to_patch_set(patch_set: &mut HashMap<String, DefinitionPatch>, patches: &HashMap<String, DefinitionPatch>) {
         patches.iter().for_each(|(table_name, column_patch)| {
             match patch_set.get_mut(table_name) {
                 Some(column_patch_current) => {
@@ -328,7 +681,15 @@ impl Schema {
         });
     }
 
-    /// This function adds a definition for a table into the currently loaded schema.
+    /// Adds or updates a table definition in the schema.
+    ///
+    /// If a definition with the same version already exists for this table, it will be replaced.
+    /// Otherwise, the definition is added to the table's version list.
+    ///
+    /// # Arguments
+    ///
+    /// * `table_name` - Name of the table
+    /// * `definition` - The definition to add or update
     pub fn add_definition(&mut self, table_name: &str, definition: &Definition) {
         match self.definitions.get_mut(table_name) {
             Some(definitions) => {
@@ -341,7 +702,12 @@ impl Schema {
         }
     }
 
-    /// This function removes a definition for a table from the currently loaded schema.
+    /// Removes a specific table definition version from the schema.
+    ///
+    /// # Arguments
+    ///
+    /// * `table_name` - Name of the table
+    /// * `version` - Version number of the definition to remove
     pub fn remove_definition(&mut self, table_name: &str, version: i32) {
         if let Some(definitions) = self.definitions.get_mut(table_name) {
             let mut index_to_delete = vec![];
@@ -355,25 +721,59 @@ impl Schema {
         }
     }
 
-    /// This function returns a copy of a specific `VersionedFile` of DB Type from the provided `Schema`.
+    /// Returns a cloned copy of all definitions for a table.
+    ///
+    /// # Arguments
+    ///
+    /// * `table_name` - Name of the table
+    ///
+    /// # Returns
+    ///
+    /// Returns a cloned vector of all definitions for the table, or [`None`] if not found.
     pub fn definitions_by_table_name_cloned(&self, table_name: &str) -> Option<Vec<Definition>> {
         self.definitions.get(table_name).cloned()
     }
 
-    /// This function returns a reference to a specific `VersionedFile` of DB Type from the provided `Schema`.
+    /// Returns a reference to all definitions for a table.
+    ///
+    /// # Arguments
+    ///
+    /// * `table_name` - Name of the table
+    ///
+    /// # Returns
+    ///
+    /// Returns a reference to the vector of definitions, or [`None`] if not found.
     pub fn definitions_by_table_name(&self, table_name: &str) -> Option<&Vec<Definition>>  {
         self.definitions.get(table_name)
     }
 
-    /// This function returns a mutable reference to a specific `VersionedFile` of DB Type from the provided `Schema`.
+    /// Returns a mutable reference to all definitions for a table.
+    ///
+    /// # Arguments
+    ///
+    /// * `table_name` - Name of the table
+    ///
+    /// # Returns
+    ///
+    /// Returns a mutable reference to the vector of definitions, or [`None`] if not found.
     pub fn definitions_by_table_name_mut(&mut self, table_name: &str) -> Option<&mut Vec<Definition>>  {
         self.definitions.get_mut(table_name)
     }
 
-    /// This function returns the last compatible definition of a DB Table.
+    /// Returns the newest compatible definition for a table based on candidate versions.
     ///
-    /// As we may have versions from other games, we first need to check for the last definition in the dependency database.
-    /// If that fails, we try to get it from the schema.
+    /// This function first tries to find a definition matching the highest version number
+    /// from the candidates (typically from a dependency database). If that fails, it
+    /// falls back to the first (newest) definition in the schema.
+    ///
+    /// # Arguments
+    ///
+    /// * `table_name` - Name of the table
+    /// * `candidates` - List of candidate definitions (typically from dependencies)
+    ///
+    /// # Returns
+    ///
+    /// Returns the best matching definition, or [`None`] if the table is not found.
     pub fn definition_newer(&self, table_name: &str, candidates: &[Definition]) -> Option<&Definition> {
 
         // Version is... complicated. We don't really want the last one, but the last one compatible with our game.
@@ -389,15 +789,48 @@ impl Schema {
         }
     }
 
+    /// Returns a reference to a specific table definition by name and version.
+    ///
+    /// # Arguments
+    ///
+    /// * `table_name` - Name of the table
+    /// * `table_version` - Version number of the definition
+    ///
+    /// # Returns
+    ///
+    /// Returns the definition if found, or [`None`] otherwise.
     pub fn definition_by_name_and_version(&self, table_name: &str, table_version: i32) -> Option<&Definition>  {
         self.definitions.get(table_name)?.iter().find(|definition| *definition.version() == table_version)
     }
 
+    /// Returns a mutable reference to a specific table definition by name and version.
+    ///
+    /// # Arguments
+    ///
+    /// * `table_name` - Name of the table
+    /// * `table_version` - Version number of the definition
+    ///
+    /// # Returns
+    ///
+    /// Returns the definition if found, or [`None`] otherwise.
     pub fn definition_by_name_and_version_mut(&mut self, table_name: &str, table_version: i32) -> Option<&mut Definition>  {
         self.definitions.get_mut(table_name)?.iter_mut().find(|definition| *definition.version() == table_version)
     }
 
-    /// This function loads a [Schema] to memory from a provided `.ron` file.
+    /// Loads a [`Schema`] from a RON file, optionally merging local patches.
+    ///
+    /// This function loads a schema from a `.ron` file and applies any patches from both
+    /// the schema itself and an optional local patches file. Patches from the local file
+    /// are merged with schema patches and applied to all definitions.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Path to the schema `.ron` file
+    /// * `local_patches` - Optional path to a local patches file
+    ///
+    /// # Returns
+    ///
+    /// Returns the loaded schema with all patches applied, or an error if loading fails.
     pub fn load(path: &Path, local_patches: Option<&Path>) -> Result<Self> {
         let mut file = BufReader::new(File::open(path)?);
         let mut data = Vec::with_capacity(file.get_ref().metadata()?.len() as usize);
@@ -415,7 +848,7 @@ impl Schema {
                 let mut data = Vec::with_capacity(file.get_ref().metadata()?.len() as usize);
                 file.read_to_end(&mut data)?;
                 if let Ok(local_patches) = from_bytes::<HashMap<String, DefinitionPatch>>(&data) {
-                    Self::add_patch_to_patch_set(&mut patches, &local_patches);
+                    Self::add_patches_to_patch_set(&mut patches, &local_patches);
                 }
             }
         }
@@ -432,7 +865,20 @@ impl Schema {
         Ok(schema)
     }
 
-    /// This function loads a [Schema] to memory from a provided `.json` file.
+    /// Loads a [`Schema`] from a JSON file.
+    ///
+    /// Similar to [`load()`], but reads from a JSON file instead of RON. Applies all
+    /// patches from the schema to the definitions.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Path to the schema `.json` file
+    ///
+    /// # Returns
+    ///
+    /// Returns the loaded schema with patches applied, or an error if loading fails.
+    ///
+    /// [`load()`]: Schema::load
     pub fn load_json(path: &Path) -> Result<Self> {
         let mut file = BufReader::new(File::open(path)?);
         let mut data = Vec::with_capacity(file.get_ref().metadata()?.len() as usize);
@@ -451,7 +897,21 @@ impl Schema {
         Ok(schema)
     }
 
-    /// This function saves a [Schema] from memory to a `.ron` file with the provided path.
+    /// Saves the schema to a RON file.
+    ///
+    /// This function saves the schema to a `.ron` file, automatically:
+    /// - Creating parent directories if needed
+    /// - Sorting definitions by version (newest first)
+    /// - Cleaning up invalid references
+    /// - Moving certain patches from definitions to schema patches
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Path where the schema file should be saved
+    ///
+    /// # Returns
+    ///
+    /// Returns [`Ok`] if saved successfully, or an error if file I/O fails.
     pub fn save(&mut self, path: &Path) -> Result<()> {
 
         // Make sure the path exists to avoid problems with updating schemas.
@@ -500,13 +960,27 @@ impl Schema {
             })
         });
 
-        Self::add_patch_to_patch_set(self.patches_mut(), &patches);
+        Self::add_patches_to_patch_set(self.patches_mut(), &patches);
 
         file.write_all(to_string_pretty(&self, config)?.as_bytes())?;
         Ok(())
     }
 
-    /// This function saves a [Schema] from memory to a `.json` file with the provided path.
+    /// Saves the schema to a JSON file.
+    ///
+    /// This function saves the schema to a `.json` file at the specified path, automatically:
+    /// - Creating parent directories if needed
+    /// - Changing the extension to `.json`
+    /// - Sorting definitions by version (newest first)
+    /// - Pretty-printing the JSON output
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Path where the schema file should be saved (extension will be changed to `.json`)
+    ///
+    /// # Returns
+    ///
+    /// Returns [`Ok`] if saved successfully, or an error if file I/O or serialization fails.
     pub fn save_json(&mut self, path: &Path) -> Result<()> {
         let mut path = path.to_path_buf();
         path.set_extension("json");
@@ -527,9 +1001,23 @@ impl Schema {
         Ok(())
     }
 
-    /// This function exports all the schema files from the provided folder to `.json`.
+    /// Exports all schema files in a folder to JSON format.
     ///
-    /// For compatibility purposes.
+    /// This function loads all schema files (`.ron`) for supported games from the specified folder
+    /// and saves them as `.json` files in the same location. This is primarily used for
+    /// compatibility with external tools that prefer JSON.
+    ///
+    /// # Arguments
+    ///
+    /// * `schema_folder_path` - Path to the folder containing schema `.ron` files
+    ///
+    /// # Returns
+    ///
+    /// Returns [`Ok`] if all schemas are successfully exported, or an error if any operation fails.
+    ///
+    /// # Note
+    ///
+    /// This function processes schemas in parallel for better performance.
     pub fn export_to_json(schema_folder_path: &Path) -> Result<()> {
         let games = SupportedGames::default();
 
@@ -544,33 +1032,52 @@ impl Schema {
         })
     }
 
-    /*
-    /// This function exports all the schema files from the `schemas/` folder to `.xml`.
+    /// Updates a schema from a legacy format to the current format.
     ///
-    /// For compatibility purposes.
-    pub fn export_to_xml() -> Result<()> {
-        for schema_file in SUPPORTED_GAMES.get_games().iter().map(|x| x.get_schema_name()) {
-            let schema = Schema::load(schema_file)?;
-
-            let mut file_path = get_config_path()?.join(SCHEMA_FOLDER);
-            file_path.push(schema_file);
-            file_path.set_extension("xml");
-
-            let mut file = File::create(&file_path)?;
-            file.write_all(quick_xml::se::to_string(&schema)?.as_bytes())?;
-        }
-        Ok(())
-    }
-*/
-
-    /// This function allow us to update the provided Schema from a legacy format into the current one.
+    /// This function handles migration of schema files from older structural versions (e.g., v4)
+    /// to the current structural version (v5). It automatically detects the schema version and
+    /// applies the necessary transformations.
+    ///
+    /// # Arguments
+    ///
+    /// * `schema_path` - Path to the schema file to update
+    /// * `schema_patches_path` - Path to the schema patches file
+    /// * `game_name` - Name of the game this schema is for
+    ///
+    /// # Returns
+    ///
+    /// Returns [`Ok`] if the update succeeds, or an error if the update process fails.
     pub fn update(schema_path: &Path, schema_patches_path: &Path, game_name: &str) -> Result<()>{
         v4::SchemaV4::update(schema_path, schema_patches_path, game_name)
     }
 
-    /// This function returns all columns that reference the columns on our specific table within the DB Tables of our Schema.
+    /// Returns all columns that reference fields in the specified table.
     ///
-    /// Returns a list of (local_column_name, vec<(remote_table_name, remote_column_name)>).
+    /// This function searches through all table definitions in the schema to find fields
+    /// that have foreign key references pointing to the provided table's fields.
+    ///
+    /// # Arguments
+    ///
+    /// * `table_name` - Name of the table to find references to
+    /// * `definition` - Definition of the table (used to get the field list)
+    ///
+    /// # Returns
+    ///
+    /// Returns a map where:
+    /// - Keys are local field names from the provided definition
+    /// - Values are maps of `table_name -> Vec<field_name>` containing all referencing fields
+    ///
+    /// # Example
+    ///
+    /// For a `factions_tables` table, this might return:
+    /// ```text
+    /// {
+    ///   "key": {
+    ///     "units_tables": ["faction_key"],
+    ///     "characters_tables": ["faction_key", "home_faction_key"]
+    ///   }
+    /// }
+    /// ```
     pub fn referencing_columns_for_table(&self, table_name: &str, definition: &Definition) -> HashMap<String, HashMap<String, Vec<String>>> {
 
         // Iterate over all definitions and find the ones referencing our table/field.
@@ -612,10 +1119,28 @@ impl Schema {
         }).collect()
     }
 
-    /// This function returns the list of table/columns that reference the provided columns,
-    /// and if there may be a loc entry that changing our column may need a change.
+    /// Returns all tables and columns that reference the specified column, and whether LOC files may be affected.
     ///
-    /// This supports more than one reference level, except for locs.
+    /// This function performs a recursive search to find all fields that reference the specified column,
+    /// including indirect references (fields that reference fields that reference the target column).
+    /// It also checks if changing the column would affect localisation keys.
+    ///
+    /// # Arguments
+    ///
+    /// * `table_name` - Name of the table containing the column (with or without `_tables` suffix)
+    /// * `column_name` - Name of the column to find references to
+    /// * `fields` - The table's field list
+    /// * `localised_fields` - The table's localised field list
+    ///
+    /// # Returns
+    ///
+    /// Returns a tuple of:
+    /// - A map of `table_name -> Vec<field_name>` containing all referencing fields (recursively)
+    /// - A boolean indicating if LOC files may need updates (true if the column is a key field and the table has localised fields)
+    ///
+    /// # Note
+    ///
+    /// Recursion is supported for table references, but not for LOC field detection.
     pub fn tables_and_columns_referencing_our_own(
         &self,
         table_name: &str,
@@ -673,31 +1198,78 @@ impl Schema {
 
         (tables, has_loc_fields)
     }
-    /// This function tries to load multiple patches from a str.
+    /// Loads patches from a RON-formatted string.
+    ///
+    /// # Arguments
+    ///
+    /// * `patch` - RON-formatted string containing patches
+    ///
+    /// # Returns
+    ///
+    /// Returns the parsed patches, or an error if the string is not valid RON.
     pub fn load_patches_from_str(patch: &str) -> Result<HashMap<String, DefinitionPatch>> {
         from_str(patch).map_err(From::from)
     }
 
-    /// This function tries to load multiple definitions from a str.
+    /// Loads definitions from a RON-formatted string.
+    ///
+    /// # Arguments
+    ///
+    /// * `definition` - RON-formatted string containing table definitions
+    ///
+    /// # Returns
+    ///
+    /// Returns the parsed definitions, or an error if the string is not valid RON.
     pub fn load_definitions_from_str(definition: &str) -> Result<HashMap<String, Definition>> {
         from_str(definition).map_err(From::from)
     }
 
-    /// This function tries to export a list of patches to a ron string.
+    /// Exports patches to a RON-formatted string.
+    ///
+    /// # Arguments
+    ///
+    /// * `patches` - The patches to export
+    ///
+    /// # Returns
+    ///
+    /// Returns the RON-formatted string, or an error if serialization fails.
     pub fn export_patches_to_str(patches: &HashMap<String, DefinitionPatch>) -> Result<String> {
         let config = PrettyConfig::default();
         ron::ser::to_string_pretty(&patches, config).map_err(From::from)
     }
 
-    /// This function tries to export a list of definitions to a ron string.
+    /// Exports definitions to a RON-formatted string.
+    ///
+    /// # Arguments
+    ///
+    /// * `definitions` - The definitions to export
+    ///
+    /// # Returns
+    ///
+    /// Returns the RON-formatted string, or an error if serialization fails.
     pub fn export_definitions_to_str(definitions: &HashMap<String, Definition>) -> Result<String> {
         let config = PrettyConfig::default();
         ron::ser::to_string_pretty(&definitions, config).map_err(From::from)
     }
 
-    /// This function tries to upload a bunch of [DefinitionPatch] to Sentry's service.
+    /// Uploads patches to Sentry for debugging/analysis.
     ///
-    /// It requires the **integration_log** feature.
+    /// This function serializes the patches to RON format and sends them to Sentry as an
+    /// informational event for tracking schema changes and debugging purposes.
+    ///
+    /// # Arguments
+    ///
+    /// * `sentry_guard` - The Sentry client guard
+    /// * `game_name` - Name of the game the patches are for
+    /// * `patches` - The patches to upload
+    ///
+    /// # Returns
+    ///
+    /// Returns [`Ok`] if the upload succeeds, or an error if serialization or upload fails.
+    ///
+    /// # Feature
+    ///
+    /// This function requires the `integration_log` feature.
     #[cfg(feature = "integration_log")]
     pub fn upload_patches(sentry_guard: &ClientInitGuard, game_name: &str, patches: HashMap<String, DefinitionPatch>) -> Result<()> {
         let level = Level::Info;
@@ -710,9 +1282,24 @@ impl Schema {
         Logger::send_event(sentry_guard, level, &message, Some((file_name, &data)))
     }
 
-    /// This function tries to upload a bunch of [Definition] to Sentry's service.
+    /// Uploads definitions to Sentry for debugging/analysis.
     ///
-    /// It requires the **integration_log** feature.
+    /// This function serializes the definitions to RON format and sends them to Sentry as an
+    /// informational event for tracking schema changes and debugging purposes.
+    ///
+    /// # Arguments
+    ///
+    /// * `sentry_guard` - The Sentry client guard
+    /// * `game_name` - Name of the game the definitions are for
+    /// * `definitions` - The definitions to upload
+    ///
+    /// # Returns
+    ///
+    /// Returns [`Ok`] if the upload succeeds, or an error if serialization or upload fails.
+    ///
+    /// # Feature
+    ///
+    /// This function requires the `integration_log` feature.
     #[cfg(feature = "integration_log")]
     pub fn upload_definitions(sentry_guard: &ClientInitGuard, game_name: &str, definitions: HashMap<String, Definition>) -> Result<()> {
         let level = Level::Info;
@@ -726,9 +1313,19 @@ impl Schema {
     }
 }
 
+/// Implementation of [`Definition`].
 impl Definition {
 
-    /// This function creates a new empty `Definition` for the version provided.
+    /// Creates a new empty definition for a specific version.
+    ///
+    /// # Arguments
+    ///
+    /// * `version` - The version number for this definition
+    /// * `schema_patches` - Optional patches to apply to this definition
+    ///
+    /// # Returns
+    ///
+    /// Returns a new empty definition with no fields.
     pub fn new(version: i32, schema_patches: Option<&DefinitionPatch>) -> Definition {
         Definition {
             version,
@@ -739,7 +1336,18 @@ impl Definition {
         }
     }
 
-    /// This function creates a new empty `Definition` for the version provided, with the fields provided.
+    /// Creates a new definition with the specified fields.
+    ///
+    /// # Arguments
+    ///
+    /// * `version` - The version number for this definition
+    /// * `fields` - The table's field list
+    /// * `loc_fields` - The localised fields list
+    /// * `schema_patches` - Optional patches to apply to this definition
+    ///
+    /// # Returns
+    ///
+    /// Returns a new definition with the provided fields.
     pub fn new_with_fields(version: i32, fields: &[Field], loc_fields: &[Field], schema_patches: Option<&DefinitionPatch>) -> Definition {
         Definition {
             version,
@@ -750,7 +1358,18 @@ impl Definition {
         }
     }
 
-    /// This function returns the reference and lookup data of a definition.
+    /// Returns reference and lookup information for all fields with foreign key references.
+    ///
+    /// This function extracts foreign key information from all fields in the definition
+    /// that have a reference to another table.
+    ///
+    /// # Returns
+    ///
+    /// Returns a map where:
+    /// - Keys are field indices (as [`i32`])
+    /// - Values are tuples of `(referenced_table, referenced_column, optional_lookup_columns)`
+    ///
+    /// Only fields with `is_reference` set are included in the result.
     pub fn reference_data(&self) -> BTreeMap<i32, (String, String, Option<Vec<String>>)> {
         self.fields.iter()
             .enumerate()
@@ -759,7 +1378,19 @@ impl Definition {
             .collect()
     }
 
-    /// This function returns the list of fields a table contains, after it has been expanded/changed due to the attributes of each field.
+    /// Returns the processed field list with transformations applied.
+    ///
+    /// This function processes the raw field list and applies various transformations:
+    /// - **Bitwise fields**: Expanded into multiple boolean fields (e.g., `flags` → `flags_1`, `flags_2`, etc.)
+    /// - **Enum fields**: Converted to StringU8 fields
+    /// - **Colour fields**: RGB triplets merged into single ColourRGB fields
+    /// - **Numeric fields**: Converted to I32 fields (with patches)
+    ///
+    /// This is the field list that should be used for UI display and data editing.
+    ///
+    /// # Returns
+    ///
+    /// Returns the processed field list with all transformations applied.
     pub fn fields_processed(&self) -> Vec<Field> {
         let mut split_colour_fields: BTreeMap<u8, Field> = BTreeMap::new();
         let patches = Some(self.patches());
@@ -872,7 +1503,28 @@ impl Definition {
         fields
     }
 
-    /// Note, this doesn't work with combined fields.
+    /// Returns the original raw field corresponding to a processed field index.
+    ///
+    /// This function maps a field from the processed field list back to its original
+    /// raw field definition. This is useful when you need to access the underlying
+    /// field data before transformations like bitwise expansion.
+    ///
+    /// # Arguments
+    ///
+    /// * `index` - Index in the processed field list
+    ///
+    /// # Returns
+    ///
+    /// Returns the original field from the raw field list.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the field is not found (which should never happen for valid indices).
+    ///
+    /// # Note
+    ///
+    /// This function does not work correctly with combined colour fields, as they don't
+    /// have a direct 1:1 mapping to a single raw field.
     pub fn original_field_from_processed(&self, index: usize) -> Field {
         let fields = self.fields();
         let processed = self.fields_processed();
@@ -887,7 +1539,18 @@ impl Definition {
         fields.iter().find(|x| *x.name() == name).unwrap().clone()
     }
 
-    /// This function returns the field list of a definition, properly sorted.
+    /// Returns the processed field list sorted by either key fields or CA order.
+    ///
+    /// This function returns the processed fields sorted according to the specified criteria.
+    ///
+    /// # Arguments
+    ///
+    /// * `key_first` - If `true`, sorts key fields first, then non-key fields. If `false`, sorts by CA order.
+    ///
+    /// # Returns
+    ///
+    /// Returns the sorted field list. Fields with `ca_order == -1` are left in their original order
+    /// when sorting by CA order.
     pub fn fields_processed_sorted(&self, key_first: bool) -> Vec<Field> {
         let mut fields = self.fields_processed();
         let patches = Some(self.patches());
@@ -904,14 +1567,26 @@ impl Definition {
         fields
     }
 
-    /// This function returns the position of a column in a definition, or an error if the column is not found.
+    /// Returns the position of a column in the processed field list by name.
+    ///
+    /// # Arguments
+    ///
+    /// * `column_name` - Name of the column to find
+    ///
+    /// # Returns
+    ///
+    /// Returns the column's index in the processed field list, or [`None`] if not found.
     pub fn column_position_by_name(&self, column_name: &str) -> Option<usize> {
         self.fields_processed()
             .iter()
             .position(|x| x.name() == column_name)
     }
 
-    /// This function returns the position of all key columns on a table.
+    /// Returns the positions of all key columns in the processed field list.
+    ///
+    /// # Returns
+    ///
+    /// Returns a vector of indices for all fields marked as key fields.
     pub fn key_column_positions(&self) -> Vec<usize> {
         self.fields_processed()
             .iter()
@@ -921,9 +1596,15 @@ impl Definition {
             .collect::<Vec<_>>()
     }
 
-    /// This function returns the position of all key columns on a table, in the same order as they're in the assembly kit.
+    /// Returns the positions of all key columns sorted by CA order.
     ///
-    /// This is mainly needed for twad_key_deletes, because for some reason the game uses dave's order, not the binary order for the keys.
+    /// This function returns key column positions in the same order as they appear in
+    /// CA's Assembly Kit, rather than the binary order. This is primarily needed for
+    /// `twad_key_deletes` functionality, which uses CA's ordering.
+    ///
+    /// # Returns
+    ///
+    /// Returns a vector of key column indices sorted by their `ca_order` value.
     pub fn key_column_positions_by_ca_order(&self) -> Vec<usize> {
         let fields_processed = self.fields_processed();
         let mut keys = fields_processed
@@ -937,10 +1618,29 @@ impl Definition {
         keys
     }
 
-    /// This function maps a table definition to a `CREATE TABLE` SQL Query.
+    /// Generates a SQL `CREATE TABLE` statement for this definition.
     ///
-    /// NOTE: While this function supports creating a table with foreign keys,
-    /// said support is disabled because TW tables are not really foreign key-friendly. Specially in mods.
+    /// This function creates a SQL statement suitable for creating a table in SQLite
+    /// with the structure defined by this definition. The table includes additional
+    /// metadata columns (`pack_name`, `file_name`, `is_vanilla`) for tracking data sources.
+    ///
+    /// # Arguments
+    ///
+    /// * `table_name` - Name for the SQL table
+    ///
+    /// # Returns
+    ///
+    /// Returns the SQL `CREATE TABLE` statement as a string.
+    ///
+    /// # Note
+    ///
+    /// Foreign key constraints are intentionally disabled because Total War tables
+    /// (especially in mods) often have referential integrity issues. The function
+    /// only creates a primary key constraint on the key fields.
+    ///
+    /// # Feature
+    ///
+    /// This function requires the `integration_sqlite` feature.
     #[cfg(feature = "integration_sqlite")]
     pub fn map_to_sql_create_table_string(&self, table_name: &str) -> String {
         let patches = Some(self.patches());
@@ -988,7 +1688,18 @@ impl Definition {
         }*/
     }
 
-    /// This function maps a table definition to a `CREATE TABLE` SQL Query.
+    /// Generates the column list for a SQL `INSERT INTO` statement.
+    ///
+    /// This function creates the column name list portion of an `INSERT INTO` statement,
+    /// including the metadata columns and all processed fields.
+    ///
+    /// # Returns
+    ///
+    /// Returns a string like `("pack_name", "file_name", "is_vanilla", "field1", "field2", ...)`.
+    ///
+    /// # Feature
+    ///
+    /// This function requires the `integration_sqlite` feature.
     #[cfg(feature = "integration_sqlite")]
     pub fn map_to_sql_insert_into_string(&self) -> String {
         let fields_sorted = self.fields_processed();
@@ -998,17 +1709,36 @@ impl Definition {
         fields_query
     }
 
-    /// This function updates the fields in the provided definition with the data in the provided RawDefinition.
+    /// Updates field properties from Assembly Kit raw definition data.
     ///
-    /// Not all data is updated though, only:
-    /// - Is Key.
-    /// - Max Length.
-    /// - Default Value.
-    /// - Filename Relative Path.
-    /// - Is Filename.
-    /// - Is Reference.
-    /// - Lookup.
-    /// - CA Order.
+    /// This function updates the definition's fields with data extracted from the Assembly Kit,
+    /// matching fields by name and updating specific properties. Fields not found in the
+    /// Assembly Kit are added to the `unfound_fields` list for reporting.
+    ///
+    /// # Updated Properties
+    ///
+    /// - `is_key`: Primary key status
+    /// - `default_value`: Default value for new rows
+    /// - `filename_relative_path`: Path hints for filename fields
+    /// - `is_filename`: Whether the field contains a filename
+    /// - `is_reference`: Foreign key reference information
+    /// - `lookup`: Lookup column information
+    /// - `description`: Field description
+    /// - `ca_order`: Visual position in Assembly Kit
+    /// - `is_part_of_colour`: Auto-detected RGB colour field grouping
+    ///
+    /// # Arguments
+    ///
+    /// * `raw_definition` - The Assembly Kit definition data
+    /// * `unfound_fields` - List to append unfound field names to (format: `"table_name/field_name"`)
+    ///
+    /// # Note
+    ///
+    /// Fields in `IGNORABLE_FIELDS` are automatically skipped and not reported as unfound.
+    ///
+    /// # Feature
+    ///
+    /// This function requires the `integration_assembly_kit` feature.
     #[cfg(feature = "integration_assembly_kit")]
     pub fn update_from_raw_definition(&mut self, raw_definition: &RawDefinition, unfound_fields: &mut Vec<String>) {
         let raw_table_name = &raw_definition.name.as_ref().unwrap()[..raw_definition.name.as_ref().unwrap().len() - 4];
@@ -1065,7 +1795,7 @@ impl Definition {
 
                     field.ca_order = index as i16;
 
-                    // Detect and group colour fiels.
+                    // Detect and group colour fields.
                     let is_numeric = matches!(field.field_type, FieldType::I16 | FieldType::I32 | FieldType::I64 | FieldType::F32 | FieldType::F64);
 
                     if is_numeric && (
@@ -1117,7 +1847,20 @@ impl Definition {
         }
     }
 
-    /// This function populates the `localised_fields` of a definition with data from the assembly kit.
+    /// Populates the `localised_fields` list from Assembly Kit data.
+    ///
+    /// This function identifies fields that should be extracted to LOC files based on
+    /// Assembly Kit localisable field data and updates the definition's `localised_fields` list.
+    /// All identified localised fields are set to [`FieldType::StringU8`] for consistency.
+    ///
+    /// # Arguments
+    ///
+    /// * `raw_definition` - The Assembly Kit table definition
+    /// * `raw_localisable_fields` - List of all localisable fields from the Assembly Kit
+    ///
+    /// # Feature
+    ///
+    /// This function requires the `integration_assembly_kit` feature.
     #[cfg(feature = "integration_assembly_kit")]
     pub fn update_from_raw_localisable_fields(&mut self, raw_definition: &RawDefinition, raw_localisable_fields: &[RawLocalisableField]) {
         let raw_table_name = &raw_definition.name.as_ref().unwrap()[..raw_definition.name.as_ref().unwrap().len() - 4];
@@ -1142,7 +1885,27 @@ impl Definition {
 /// Implementation of `Field`.
 impl Field {
 
-    /// This function creates a `Field` using the provided data.
+    /// Creates a new field with the specified properties.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - Field name
+    /// * `field_type` - Data type of the field
+    /// * `is_key` - Whether this field is part of the primary key
+    /// * `default_value` - Optional default value
+    /// * `is_filename` - Whether this field contains a filename
+    /// * `filename_relative_path` - Optional path hints for filename fields
+    /// * `is_reference` - Optional foreign key reference `(table, column)`
+    /// * `lookup` - Optional lookup columns
+    /// * `description` - Field description
+    /// * `ca_order` - Visual position in Assembly Kit
+    /// * `is_bitwise` - Number of boolean columns to expand into (0 or 1 = no expansion)
+    /// * `enum_values` - Map of integer values to string names for enum fields
+    /// * `is_part_of_colour` - Optional RGB colour group index
+    ///
+    /// # Returns
+    ///
+    /// Returns a new [`Field`] instance with the specified properties.
     pub fn new(
         name: String,
         field_type: FieldType,
@@ -1177,14 +1940,28 @@ impl Field {
     }
 
     //----------------------------------------------------------------------//
-    // Manual getter implementations, because we need to tweak some of them.
+    // Manual getter implementations with patch support
     //----------------------------------------------------------------------//
+
+    /// Returns the field name.
     pub fn name(&self) -> &str {
         &self.name
     }
+
+    /// Returns the field's data type.
     pub fn field_type(&self) -> &FieldType {
         &self.field_type
     }
+
+    /// Returns whether this field is a key field, applying patches if provided.
+    ///
+    /// # Arguments
+    ///
+    /// * `schema_patches` - Optional patches to check for overrides
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if the field is a key field (either by base definition or patch).
     pub fn is_key(&self, schema_patches: Option<&DefinitionPatch>) -> bool {
         if let Some(schema_patches) = schema_patches {
             if let Some(patch) = schema_patches.get(self.name()) {
@@ -1197,6 +1974,15 @@ impl Field {
         self.is_key
     }
 
+    /// Returns the field's default value, applying patches if provided.
+    ///
+    /// # Arguments
+    ///
+    /// * `schema_patches` - Optional patches to check for overrides
+    ///
+    /// # Returns
+    ///
+    /// Returns the default value if set (either by base definition or patch).
     pub fn default_value(&self, schema_patches: Option<&DefinitionPatch>) -> Option<String> {
         if let Some(schema_patches) = schema_patches {
             if let Some(patch) = schema_patches.get(self.name()) {
@@ -1209,6 +1995,15 @@ impl Field {
         self.default_value.clone()
     }
 
+    /// Returns whether this field contains a filename, applying patches if provided.
+    ///
+    /// # Arguments
+    ///
+    /// * `schema_patches` - Optional patches to check for overrides
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if the field contains a filename path.
     pub fn is_filename(&self, schema_patches: Option<&DefinitionPatch>) -> bool {
         if let Some(schema_patches) = schema_patches {
             if let Some(patch) = schema_patches.get(self.name()) {
@@ -1221,6 +2016,17 @@ impl Field {
         self.is_filename
     }
 
+    /// Returns the filename relative paths, applying patches if provided.
+    ///
+    /// The paths are split by semicolons and backslashes are converted to forward slashes.
+    ///
+    /// # Arguments
+    ///
+    /// * `schema_patches` - Optional patches to check for overrides
+    ///
+    /// # Returns
+    ///
+    /// Returns a vector of relative path strings, or [`None`] if no paths are defined.
     pub fn filename_relative_path(&self, schema_patches: Option<&DefinitionPatch>) -> Option<Vec<String>> {
         if let Some(schema_patches) = schema_patches {
             if let Some(patch) = schema_patches.get(self.name()) {
@@ -1233,6 +2039,16 @@ impl Field {
         self.filename_relative_path.clone().map(|x| x.replace('\\', "/").split(';').map(|x| x.to_string()).collect::<Vec<String>>())
     }
 
+    /// Returns the foreign key reference information, applying patches if provided.
+    ///
+    /// # Arguments
+    ///
+    /// * `schema_patches` - Optional patches to check for overrides
+    ///
+    /// # Returns
+    ///
+    /// Returns `Some((table_name, column_name))` if this field references another table,
+    /// or [`None`] if it doesn't. The table name does not include the `_tables` suffix.
     pub fn is_reference(&self, schema_patches: Option<&DefinitionPatch>) -> Option<(String,String)> {
         if let Some(schema_patches) = schema_patches {
             if let Some(patch) = schema_patches.get(self.name()) {
@@ -1248,6 +2064,18 @@ impl Field {
         self.is_reference.clone()
     }
 
+    /// Returns the lookup column list, applying patches if provided.
+    ///
+    /// Lookup columns are additional columns from the referenced table that should
+    /// be displayed in the UI alongside the referenced field.
+    ///
+    /// # Arguments
+    ///
+    /// * `schema_patches` - Optional patches to check for overrides
+    ///
+    /// # Returns
+    ///
+    /// Returns a vector of column names to look up, or [`None`] if no lookups are defined.
     pub fn lookup(&self, schema_patches: Option<&DefinitionPatch>) -> Option<Vec<String>> {
         if let Some(schema_patches) = schema_patches {
             if let Some(patch) = schema_patches.get(self.name()) {
@@ -1260,10 +2088,29 @@ impl Field {
         self.lookup.clone()
     }
 
+    /// Returns the lookup column list without applying patches.
+    ///
+    /// # Returns
+    ///
+    /// Returns a vector of column names from the base definition, ignoring any patches.
     pub fn lookup_no_patch(&self) -> Option<Vec<String>> {
         self.lookup.clone()
     }
 
+    /// Returns hardcoded lookup values from patches.
+    ///
+    /// Hardcoded lookups provide predefined value mappings that don't require
+    /// querying the referenced table. This is useful for performance or when
+    /// the referenced table is not available.
+    ///
+    /// # Arguments
+    ///
+    /// * `schema_patches` - Optional patches to check for hardcoded values
+    ///
+    /// # Returns
+    ///
+    /// Returns a map of key values to their display strings. Returns an empty
+    /// map if no hardcoded lookups are defined.
     pub fn lookup_hardcoded(&self, schema_patches: Option<&DefinitionPatch>) -> HashMap<String, String> {
         if let Some(schema_patches) = schema_patches {
             if let Some(patch) = schema_patches.get(self.name()) {
@@ -1281,6 +2128,15 @@ impl Field {
         HashMap::new()
     }
 
+    /// Returns the field description, applying patches if provided.
+    ///
+    /// # Arguments
+    ///
+    /// * `schema_patches` - Optional patches to check for overrides
+    ///
+    /// # Returns
+    ///
+    /// Returns the field's description text. May be empty if no description is set.
     pub fn description(&self, schema_patches: Option<&DefinitionPatch>) -> String {
         if let Some(schema_patches) = schema_patches {
             if let Some(patch) = schema_patches.get(self.name()) {
@@ -1293,31 +2149,66 @@ impl Field {
         self.description.to_owned()
     }
 
+    /// Returns the CA order value.
+    ///
+    /// This represents the visual position of the field in CA's Assembly Kit.
+    /// A value of `-1` indicates the position is unknown.
     pub fn ca_order(&self) ->  i16 {
         self.ca_order
     }
+
+    /// Returns the bitwise expansion count.
+    ///
+    /// # Returns
+    ///
+    /// - `0` or `1`: No bitwise expansion
+    /// - `> 1`: Number of boolean columns this field should be expanded into
     pub fn is_bitwise(&self) -> i32 {
         self.is_bitwise
     }
+
+    /// Returns the enum value mappings.
+    ///
+    /// # Returns
+    ///
+    /// Returns a reference to the map of integer values to their string names.
+    /// Empty if this field is not an enum.
     pub fn enum_values(&self) -> &BTreeMap<i32,String> {
         &self.enum_values
     }
 
-    /// Getter for the `enum_values` field, in an option.
+    /// Returns the enum values as an [`Option`].
     pub fn enum_values_to_option(&self) -> Option<BTreeMap<i32, String>> {
         if self.enum_values.is_empty() { None }
         else { Some(self.enum_values.clone()) }
     }
 
-    /// Getter for the `enum_values` field in a string format.
+    /// Returns the enum values as a semicolon-separated string.
+    ///
+    /// # Returns
+    ///
+    /// Returns a string in the format `"value1,name1;value2,name2;..."`.
     pub fn enum_values_to_string(&self) -> String {
         self.enum_values.iter().map(|(x, y)| format!("{x},{y}")).collect::<Vec<String>>().join(";")
     }
 
+    /// Returns the RGB colour group index.
+    ///
+    /// # Returns
+    ///
+    /// Returns the colour group index if this field is part of an RGB triplet,
+    /// or [`None`] if it's not a colour field.
     pub fn is_part_of_colour(&self) -> Option<u8>{
         self.is_part_of_colour
     }
 
+    /// Returns whether this field should be treated as numeric (currently always `false`).
+    ///
+    /// This is a placeholder for future functionality and currently always returns `false`.
+    ///
+    /// # Arguments
+    ///
+    /// * `_schema_patches` - Unused (reserved for future use)
     pub fn is_numeric(&self, _schema_patches: Option<&DefinitionPatch>) -> bool {
         false
         /*
@@ -1332,7 +2223,15 @@ impl Field {
         false*/
     }
 
-    /// Getter for the `cannot_be_empty` field.
+    /// Returns whether this field cannot be empty, checking patches.
+    ///
+    /// # Arguments
+    ///
+    /// * `schema_patches` - Optional patches to check for the `not_empty` flag
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if the field is marked as "cannot be empty" via a patch.
     pub fn cannot_be_empty(&self, schema_patches: Option<&DefinitionPatch>) -> bool {
         if let Some(schema_patches) = schema_patches {
             if let Some(patch) = schema_patches.get(self.name()) {
@@ -1345,10 +2244,21 @@ impl Field {
         false
     }
 
-    /// Getter for the `unused` field.
+    /// Returns whether this field is unused by the game.
+    ///
+    /// Fields marked as unused are still present in the binary format but are not
+    /// actually used by the game logic. This information is primarily determined via patches.
+    ///
+    /// # Arguments
+    ///
+    /// * `schema_patches` - Optional patches to check for the `unused` flag
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if the field is marked as unused (either in the base definition or via patch).
     pub fn unused(&self, schema_patches: Option<&DefinitionPatch>) -> bool {
 
-        // By default all fields are used, except the ones set through patches. If it's unused, skip patches.
+        // By default all fields are used, except the ones set through patches. If it's already marked unused, return early.
         self.unused || {
 
             if let Some(schema_patches) = schema_patches {
@@ -1363,7 +2273,22 @@ impl Field {
         }
     }
 
-    /// This function maps our field to a String ready to be used in a SQL `CREATE TABLE` command.
+    /// Generates a SQL column definition string for this field.
+    ///
+    /// This function creates the SQL column definition portion for use in a
+    /// `CREATE TABLE` statement, including the data type and optional default value.
+    ///
+    /// # Arguments
+    ///
+    /// * `schema_patches` - Optional patches to apply when getting the default value
+    ///
+    /// # Returns
+    ///
+    /// Returns a string like `"field_name" INTEGER DEFAULT "value"`.
+    ///
+    /// # Feature
+    ///
+    /// This function requires the `integration_sqlite` feature.
     #[cfg(feature = "integration_sqlite")]
     pub fn map_to_sql_string(&self, schema_patches: Option<&DefinitionPatch>) -> String {
         let mut string = format!(" \"{}\" {:?} ", self.name(), self.field_type().map_to_sql_type());
@@ -1378,7 +2303,21 @@ impl Field {
 
 impl FieldType {
 
-    /// This function maps our type to a SQLite Type.
+    /// Maps this field type to its corresponding SQLite type.
+    ///
+    /// This function converts RPFM's field types to their appropriate SQLite equivalents
+    /// for database operations.
+    ///
+    /// # Returns
+    ///
+    /// Returns the SQLite [`Type`] that best represents this field type:
+    /// - Numeric types → [`Type::Integer`] or [`Type::Real`]
+    /// - String types → [`Type::Text`]
+    /// - Sequence types → [`Type::Blob`]
+    ///
+    /// # Feature
+    ///
+    /// This function requires the `integration_sqlite` feature.
     #[cfg(feature = "integration_sqlite")]
     pub fn map_to_sql_type(&self) -> Type {
         match self {

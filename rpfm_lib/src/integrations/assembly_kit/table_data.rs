@@ -8,11 +8,77 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*!
-Module with all the code to interact with the Assembly Kit's DB Files.
-
-This module contains all the code needed to parse Assembly Kit's DB files to a format we can understand.
-!*/
+//! Assembly Kit table data parsing and conversion.
+//!
+//! This module handles the parsing of Assembly Kit sample table data files and their
+//! conversion to RPFM's internal table format. These files contain actual row data
+//! that can be used for testing, lookup generation, and schema validation.
+//!
+//! # Overview
+//!
+//! Assembly Kit provides not only table structure definitions (see the `table_definition` module)
+//! but also sample data files containing actual table rows. These XML files are useful for:
+//!
+//! - **Schema validation**: Verifying field types match actual data
+//! - **Lookup generation**: Extracting hardcoded enum/lookup values from descriptions
+//! - **Testing**: Ensuring RPFM can correctly parse real game data
+//! - **Reference**: Understanding what values appear in specific fields
+//!
+//! # File Format
+//!
+//! Table data files are XML files with the same name as their corresponding definition
+//! files (without the `TWaD_` prefix). For example:
+//! - Definition: `TWaD_units_tables.xml`
+//! - Data: `units_tables.xml`
+//!
+//! Each file contains rows of data in XML format:
+//! ```xml
+//! <dataroot>
+//!   <units_tables>
+//!     <key>unit_1</key>
+//!     <category>infantry</category>
+//!     <is_naval>false</is_naval>
+//!   </units_tables>
+//!   <units_tables>
+//!     <key>unit_2</key>
+//!     <category>cavalry</category>
+//!     <is_naval>false</is_naval>
+//!   </units_tables>
+//! </dataroot>
+//! ```
+//!
+//! # Main Types
+//!
+//! - [`RawTable`]: Complete table with definition and all row data
+//! - [`RawTableRow`]: Single row of data
+//! - [`RawTableField`]: Individual field value within a row
+//!
+//! # Functionality
+//!
+//! The primary operations are:
+//!
+//! 1. **Batch Reading**: [`RawTable::read_all()`] reads all table data files from a directory
+//! 2. **Individual Reading**: [`RawTable::read()`] parses a single table data file
+//! 3. **Conversion to DB**: [`RawTable::to_db()`] converts to RPFM's [`DB`] format
+//! 4. **Conversion to Table**: [`RawTable::to_table()`] converts to in-memory table format
+//!
+//! # Workarounds and Special Handling
+//!
+//! ## Missing Fields
+//!
+//! Some games (Thrones, Attila, Rome 2, Shogun 2) omit fields from rows when the field
+//! value is empty. RPFM handles this by inserting default values for missing fields.
+//!
+//! ## Empty Field Markers
+//!
+//! Due to XML parser limitations, empty fields are temporarily filled with placeholder
+//! text (`"Frodo Best Waifu"`) which is removed after parsing.
+//!
+//! ## Field Renaming
+//!
+//! The XML parser requires uniform field names, so table-specific field names are
+//! replaced with generic `<datafield>` tags before parsing, with the original name
+//! stored as an attribute.
 
 use rayon::prelude::*;
 use regex::Regex;
@@ -33,34 +99,94 @@ use super::table_definition::RawDefinition;
 // Types for parsing the Assembly Kit DB Files into.
 //---------------------------------------------------------------------------//
 
-/// This is the raw equivalent to the `entries` field in a `DB` struct. In files, this is the equivalent to the `.xml` file with all the data in the table.
+/// Complete table data parsed from Assembly Kit XML files.
 ///
-/// It contains a vector with all the rows of data in the `.xml` table file.
+/// This represents an entire table including its structure definition and all row data.
+/// Corresponds to a `.xml` data file in the Assembly Kit (e.g., `units_tables.xml`).
+///
+/// # Structure
+///
+/// The table contains:
+/// - An optional definition (field structure) - typically populated during parsing
+/// - All rows of data from the XML file
+///
+/// # Usage
+///
+/// After parsing with [`RawTable::read()`] or [`RawTable::read_all()`], the table
+/// can be converted to RPFM's internal formats:
+/// - [`RawTable::to_db()`] - Convert to DB format for saving as a PackFile table
+/// - [`RawTable::to_table()`] - Convert to in-memory table for manipulation
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename = "dataroot")]
 pub struct RawTable {
+    /// Table structure definition (fields, types, relationships).
+    ///
+    /// This is populated by combining the parsed data structure with the
+    /// corresponding `TWaD_` definition file.
     pub definition: Option<RawDefinition>,
 
+    /// All rows of data in the table.
     pub rows: Vec<RawTableRow>,
 }
 
-/// This is the raw equivalent to a row of data from a DB file.
+/// Single row of data from an Assembly Kit table.
+///
+/// Each row contains a collection of field values. In the XML, this corresponds
+/// to one `<tablename>` element containing multiple field elements.
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename = "datarow")]
 pub struct RawTableRow {
 
+    /// All field values in this row.
     #[serde(rename = "datafield")]
     pub fields: Vec<RawTableField>,
 }
 
-/// This is the raw equivalent to a `DecodedData`.
+/// Individual field value within a table row.
+///
+/// This is the raw equivalent to RPFM's [`DecodedData`]. Each field has a name,
+/// a string value, and optionally a "state" flag marking localisable fields.
+///
+/// # XML Representation
+///
+/// In the original Assembly Kit XML, fields appear as:
+/// ```xml
+/// <field_name>value</field_name>
+/// <other_field some_attribute="...">value with attributes</other_field>
+/// ```
+///
+/// During parsing, these are normalized to:
+/// ```xml
+/// <datafield field_name="field_name">value</datafield>
+/// <datafield field_name="other_field" state="1">value with attributes</datafield>
+/// ```
+///
+/// # State Attribute for Localisable Fields
+///
+/// The `state` attribute is set to `"1"` when the original XML field tag had any
+/// attributes. In Assembly Kit files, fields with attributes are localisable fields
+/// (fields containing translatable text). These fields are filtered out when extracting
+/// non-localisable field definitions, ensuring that regular data fields and translation
+/// fields are processed separately.
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename = "datafield")]
 pub struct RawTableField {
+    /// Name of the field (column name).
     pub field_name: String,
 
+    /// String representation of the field value.
+    ///
+    /// All values are stored as strings in XML and must be parsed to their
+    /// actual types during conversion.
     #[serde(rename = "$value")]
     pub field_data: String,
+
+    /// State flag marking localisable (translatable) fields.
+    ///
+    /// Set to `"1"` when the original Assembly Kit XML field tag had any attributes,
+    /// which indicates the field is localisable (contains translatable text).
+    /// Such fields are filtered out during non-localisable field extraction to ensure
+    /// translation fields are handled separately from regular data fields.
     pub state: Option<String>,
 }
 
@@ -71,7 +197,34 @@ pub struct RawTableField {
 /// Implementation of `RawTable`.
 impl RawTable {
 
-    /// This function reads the provided folder and tries to parse all the Raw Assembly Kit Tables inside it.
+    /// Reads all table data files from an Assembly Kit directory.
+    ///
+    /// This function scans the directory for table data XML files and parses them
+    /// into [`RawTable`] instances. It first reads all table definitions, then
+    /// reads the corresponding data files.
+    ///
+    /// # Arguments
+    ///
+    /// * `raw_tables_folder` - Directory containing both definition and data files
+    /// * `version` - Assembly Kit version (0-2)
+    /// * `tables_to_skip` - Table names to exclude from parsing
+    ///
+    /// # Returns
+    ///
+    /// Returns a vector of successfully parsed tables. Tables that fail to parse
+    /// or are in the skip list are excluded.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The version is unsupported (not 0, 1, or 2)
+    /// - The directory cannot be read
+    /// - Definition files cannot be parsed
+    ///
+    /// # Note
+    ///
+    /// Individual table data files that fail to parse are silently skipped rather
+    /// than causing the entire operation to fail.
     pub fn read_all(raw_tables_folder: &Path, version: i16, tables_to_skip: &[&str]) -> Result<Vec<Self>> {
 
         // First, we try to read all `RawDefinitions` from the same folder.
@@ -88,7 +241,44 @@ impl RawTable {
         }
     }
 
-    /// This function tries to parse a Raw Assembly Kit Table to memory.
+    /// Parses a single Assembly Kit table data file.
+    ///
+    /// Reads the XML data file corresponding to the provided definition and parses
+    /// it into a [`RawTable`]. The data file must have the same name as the definition
+    /// (without the `TWaD_` prefix).
+    ///
+    /// # Arguments
+    ///
+    /// * `raw_definition` - Table structure definition
+    /// * `raw_table_data_folder` - Directory containing the data XML files
+    /// * `version` - Assembly Kit version (0-2)
+    ///
+    /// # Returns
+    ///
+    /// Returns a [`RawTable`] with the definition and all parsed row data.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The version is unsupported (not 0, 1, or 2)
+    /// - The data file cannot be opened
+    /// - The XML is malformed
+    /// - The table is `translated_texts.xml` (returns [`RLibError::AssemblyKitTableTableIgnored`])
+    ///
+    /// # Special Cases
+    ///
+    /// ## translated_texts.xml
+    ///
+    /// This file (present in Rome 2, Attila, Thrones) is ~400MB and not needed for
+    /// schema processing, so it's explicitly ignored.
+    ///
+    /// ## XML Preprocessing
+    ///
+    /// Before parsing, the XML undergoes several transformations to work around
+    /// `serde_xml_rs` limitations:
+    /// 1. Table-specific row tags are renamed to generic `<rows>`
+    /// 2. Field tags are renamed to `<datafield>` with the name as an attribute
+    /// 3. Empty fields are filled with placeholder text (removed after parsing)
     pub fn read(raw_definition: &RawDefinition, raw_table_data_folder: &Path, version: i16) -> Result<Self> {
         match version {
             0..=2 => {
@@ -145,11 +335,64 @@ impl RawTable {
         }
     }
 
+    /// Converts the raw table to RPFM's DB format.
+    ///
+    /// This is a convenience wrapper around [`RawTable::to_table()`] that converts
+    /// the result to a [`DB`] struct suitable for saving as a PackFile table.
+    ///
+    /// # Arguments
+    ///
+    /// * `definition` - Optional RPFM schema definition for type validation and patching
+    ///
+    /// # Returns
+    ///
+    /// Returns a [`DB`] instance containing the converted table data.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The table has no definition
+    /// - Field types cannot be determined
+    /// - Data conversion fails (e.g., invalid number format)
     pub fn to_db(&self, definition: Option<&Definition>) -> Result<DB> {
         let table = Self::to_table(self, definition)?;
         Ok(DB::from(table))
     }
 
+    /// Converts the raw table to RPFM's in-memory table format.
+    ///
+    /// This function performs the main conversion from Assembly Kit's XML representation
+    /// to RPFM's internal table structure, including type conversion and handling of
+    /// missing fields.
+    ///
+    /// # Arguments
+    ///
+    /// * `definition` - Optional RPFM schema definition used for:
+    ///   - Type validation and patching (e.g., fixing string types on empty fields)
+    ///   - Providing default values for missing fields
+    ///
+    /// # Returns
+    ///
+    /// Returns a [`TableInMemory`] with all data converted to proper types.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The raw table has no definition (returns [`RLibError::RawTableMissingDefinition`])
+    /// - Field data cannot be parsed to the expected type
+    /// - The table structure is invalid
+    ///
+    /// # Type Conversion
+    ///
+    /// String values from XML are converted to typed data:
+    /// - `"true"`, `"1"` → `Boolean(true)`
+    /// - `"123"` → `I32(123)`, `F32(123.0)`, etc.
+    /// - `""` → Appropriate default value for the type
+    ///
+    /// # Missing Field Handling
+    ///
+    /// Some games (Thrones, Attila, Rome 2, Shogun 2) omit empty fields from rows.
+    /// This function inserts default values for any missing fields based on their type.
     pub fn to_table(&self, definition: Option<&Definition>) -> Result<TableInMemory> {
         let mut raw_definition = self.definition.as_ref().cloned().ok_or(RLibError::RawTableMissingDefinition)?;
         let table_name = if let Some(ref raw_definition) = raw_definition.name {

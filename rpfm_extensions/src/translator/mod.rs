@@ -8,6 +8,71 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
+//! Mod translation and localization support.
+//!
+//! This module provides tools for managing translations of mod content, making it
+//! easier to localize mods for different languages. It tracks translation status,
+//! detects changes in source text, and supports auto-translation from vanilla data.
+//!
+//! # Overview
+//!
+//! The translation system works by:
+//!
+//! 1. Extracting all translatable strings from a pack's Loc files
+//! 2. Storing translations in a separate JSON file alongside the pack
+//! 3. Tracking which translations need updating when source text changes
+//! 4. Auto-translating from vanilla localisation data where possible
+//!
+//! # Translation Files
+//!
+//! Translations are stored in separate JSON files. Each file contains all source
+//! strings and their translations, along with metadata about translation status.
+//!
+//! # Auto-Translation
+//!
+//! The system can automatically translate strings that exist in the game's vanilla
+//! localisation files. This is useful for mods that reference vanilla content or
+//! use similar terminology.
+//!
+//! # Workflow
+//!
+//! 1. Create a [`PackTranslation`] from a pack
+//! 2. Export to a translation file for external editing
+//! 3. Import completed translations
+//! 4. Generate the final translated Loc file for the pack
+//!
+//! # Output
+//!
+//! Translated strings are output to a Loc file that overrides the original mod's
+//! entries. The filename depends on the game:
+//!
+//! - **Warhammer 1 and newer** (except Thrones): `!!!!!!translated_locs.loc` - loads
+//!   first due to its naming, allowing translations to override the original entries
+//! - **Thrones of Britannia and older games**: `localisation.loc`
+//!
+//! # Example
+//!
+//! ```ignore
+//! use rpfm_extensions::translator::PackTranslation;
+//!
+//! // Create translation from pack
+//! let mut translation = PackTranslation::new(
+//!     &[translations_path],
+//!     &pack,
+//!     "warhammer_3",
+//!     "es",  // Spanish
+//!     &dependencies,
+//!     &english_base,
+//!     &local_fixes,
+//! )?;
+//!
+//! // Save translation file
+//! translation.save(&output_path)?;
+//!
+//! // Generate translated Loc file for the pack
+//! let loc_file = translation.generate_loc()?;
+//! ```
+
 use getset::{Getters, MutGetters, Setters};
 use itertools::Itertools;
 use rayon::prelude::*;
@@ -25,46 +90,86 @@ use rpfm_lib::schema::*;
 
 use crate::dependencies::Dependencies;
 
+/// Filename for the generated translated Loc file.
+///
+/// The leading exclamation marks ensure this file loads before other Loc files,
+/// allowing translations to override the original mod's strings.
 pub const TRANSLATED_FILE_NAME: &str = "!!!!!!translated_locs.loc";
+
+/// Full path for the translated Loc file within a pack.
 pub const TRANSLATED_PATH: &str = "text/!!!!!!translated_locs.loc";
+
+/// Legacy path for translated Loc files (for backwards compatibility).
 pub const TRANSLATED_PATH_OLD: &str = "text/localisation.loc";
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
+/// Translation data for an entire pack.
+///
+/// Contains all translatable strings from a pack along with their translations
+/// and metadata about translation status.
+///
+/// # Persistence
+///
+/// This struct is serialized to JSON files for storage and can be loaded back
+/// when continuing translation work.
+///
+/// # Parent Translations
+///
+/// When a pack has dependencies, translations from parent mods are also loaded
+/// and used for auto-translation, ensuring consistent terminology across
+/// dependent mods.
 #[derive(Debug, Clone, Default, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct PackTranslation {
 
-    /// Language used for the translations.
+    /// Target language code for translations (e.g., "es", "de", "fr").
     language: String,
 
-    /// The name of the pack these translations were created for.
+    /// Name of the pack these translations belong to.
     pack_name: String,
 
-    /// The translations themselfs.
+    /// Map of Loc keys to their translation data.
+    ///
+    /// Keys are the original Loc entry keys from the pack.
     #[serde(serialize_with = "ordered_map_translations")]
     translations: HashMap<String, Translation>,
 }
 
+/// Translation entry for a single localizable string.
+///
+/// Tracks both the original and translated text, along with status flags
+/// indicating whether the translation is up-to-date.
 #[derive(Debug, Clone, Default, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Translation {
 
-    /// Loc key of the translated string.
+    /// The Loc key identifying this string.
     key: String,
 
-    /// Value of the string to translate, in the base language (usually english).
+    /// Original text in the base language (typically English).
+    ///
+    /// This is used to detect when the source text changes, requiring
+    /// re-translation.
     value_original: String,
 
-    /// Translated value.
+    /// Translated text in the target language.
+    ///
+    /// May be empty if not yet translated.
     value_translated: String,
 
-    /// Flag to check if the translation needs to be revised due to the original value changing.
+    /// Whether this translation needs review.
+    ///
+    /// Set to `true` when the original text changes after translation,
+    /// indicating the translation may be outdated.
     needs_retranslation: bool,
 
-    /// Flag to mark a translation as removed from the original Pack.
+    /// Whether this string has been removed from the source pack.
+    ///
+    /// Translations for removed strings are kept for reference but marked
+    /// as removed. If the string reappears, it will be flagged for re-translation.
     removed: bool,
 }
 

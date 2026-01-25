@@ -8,6 +8,52 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
+//! Atlas texture coordinate mapping file format support.
+//!
+//! This module handles `.atlas` files which define texture coordinate mappings for UI sprites
+//! and other 2D graphics elements in Total War games. Atlas files map logical sprite names
+//! to rectangular regions within larger texture atlas images.
+//!
+//! # File Format
+//!
+//! Atlas files use a binary format with the following structure:
+//! - Header with version and metadata
+//! - List of atlas entries mapping sprites to texture coordinates
+//! - Coordinates are stored as percentages of the atlas texture size (4096x4096)
+//!
+//! # Coordinate System
+//!
+//! Texture coordinates are stored as normalized values (0.0-1.0 range) and converted to
+//! pixel coordinates by multiplying by `IMAGE_SIZE` (4096). Each entry defines:
+//! - Top-left corner (x1, y1)
+//! - Bottom-right corner (x2, y2)
+//! - Sprite dimensions (width, height)
+//!
+//! # Table Conversion
+//!
+//! Atlas files can be converted to/from [`TableInMemory`] for easy editing as TSV files.
+//! The table format has 8 columns matching the [`AtlasEntry`] fields.
+//!
+//! [`TableInMemory`]: crate::files::table::local::TableInMemory
+//!
+//! # Usage
+//!
+//! ```ignore
+//! use rpfm_lib::files::atlas::Atlas;
+//! use rpfm_lib::files::Decodeable;
+//!
+//! // Decode an atlas file
+//! let atlas = Atlas::decode(&mut data, &None)?;
+//!
+//! // Access entries
+//! for entry in atlas.entries() {
+//!     println!("Sprite: {} at ({}, {})", entry.string1(), entry.x_1(), entry.y_1());
+//! }
+//!
+//! // Convert to table for TSV export
+//! let table = TableInMemory::from(atlas);
+//! ```
+
 use getset::*;
 use serde_derive::{Serialize, Deserialize};
 
@@ -19,10 +65,16 @@ use crate::files::{DecodeableExtraData, Decodeable, EncodeableExtraData, Encodea
 use crate::schema::{Definition, Field, FieldType};
 use crate::utils::check_size_mismatch;
 
+/// File extension for atlas files.
 pub const EXTENSION: &str = ".atlas";
 
+/// Standard texture atlas size in pixels (4096x4096).
+///
+/// This constant is used to convert normalized texture coordinates (0.0-1.0)
+/// to pixel coordinates within the atlas image.
 const IMAGE_SIZE: u32 = 4096;
 
+/// Atlas file format version.
 const VERSION: i32 = 1;
 
 #[cfg(test)] mod atlas_test;
@@ -31,24 +83,52 @@ const VERSION: i32 = 1;
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
+/// Represents a texture atlas mapping file.
+///
+/// Contains metadata and a list of sprite entries that map logical names to
+/// texture coordinates within an atlas image.
 #[derive(PartialEq, Clone, Debug, Default, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Atlas {
+    /// File format version (currently always 1).
     version: u32,
+
+    /// Unknown field, purpose not yet identified.
     unknown: u32,
+
+    /// List of sprite entries defining texture coordinate mappings.
     entries: Vec<AtlasEntry>,
 }
 
+/// Represents a single sprite entry in an atlas file.
+///
+/// Defines the mapping between a sprite name and its position/size within
+/// the atlas texture. Coordinates are in pixel space (0-4096 range).
 #[derive(PartialEq, Clone, Debug, Default, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct AtlasEntry {
+    /// Primary identifier string (sprite name or reference).
     string1: String,
+
+    /// Secondary identifier string (may be empty or contain additional metadata).
     string2: String,
+
+    /// X coordinate of the top-left corner in pixels.
     x_1: f32,
+
+    /// Y coordinate of the top-left corner in pixels.
     y_1: f32,
+
+    /// X coordinate of the bottom-right corner in pixels.
     x_2: f32,
+
+    /// Y coordinate of the bottom-right corner in pixels.
     y_2: f32,
+
+    /// Width of the sprite in pixels.
     width: f32,
+
+    /// Height of the sprite in pixels.
     height: f32,
 }
 
@@ -104,7 +184,19 @@ impl From<Atlas> for TableInMemory {
 
 impl Atlas {
 
-    /// This function returns the definition of a Atlas table.
+    /// Returns the table schema definition for atlas files.
+    ///
+    /// This definition is used when converting atlas files to/from [`TableInMemory`]
+    /// for TSV export/import functionality.
+    ///
+    /// [`TableInMemory`]: crate::files::table::local::TableInMemory
+    ///
+    /// # Returns
+    ///
+    /// A [`Definition`] with 8 fields matching the [`AtlasEntry`] structure:
+    /// - `string1`, `string2`: String identifiers
+    /// - `x_1`, `y_1`, `x_2`, `y_2`: Coordinate floats
+    /// - `width`, `height`: Dimension floats
     pub fn definition() -> Definition {
         let mut definition = Definition::new(VERSION, None);
         let fields = vec![

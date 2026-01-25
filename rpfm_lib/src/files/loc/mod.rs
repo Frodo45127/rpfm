@@ -8,31 +8,42 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! Loc files are key/value (kinda) tables that contain localised Strings.
+//! Localisation table files for Total War games.
 //!
-//! They're used for string translation in all Total War games since Empire. One thing to take into account
-//! when you're using a language other than english is that in all games up to Troy, the game will only load
-//! the main `localisation.loc` file. It'll not load individual loc files.
+//! Loc files store key-value pairs for text localisation, enabling translation of in-game
+//! strings. Each entry consists of a unique key, the localised text, and a boolean flag
+//! (purpose unknown, commonly called "tooltip").
 //!
-//! # Loc Structure
+//! # Overview
 //!
-//! ## Header
+//! Unlike DB tables which require schema definitions, Loc files have a fixed structure:
+//! - **Key**: Unique identifier for the text entry (UTF-16 string)
+//! - **Text**: The localised string content (UTF-16 string)
+//! - **Tooltip**: Boolean flag of unknown purpose
 //!
-//! | Bytes | Type     | Data                                           |
-//! | ----- | -------- | ---------------------------------------------- |
-//! | 2     | [u16]    | Byteorder mark. Always 0xFF0xFE.               |
-//! | 3     | StringU8 | FileType String. Always LOC.                   |
-//! | 1     | [u8]     | Unknown, always 0. Maybe part of the fileType? |
-//! | 4     | [u32]    | Version of the table. Always 1.                |
-//! | 4     | [u32]    | Amount of entries on the table.                |
+//! Loc files are used in all Total War games since Empire. In games prior to Troy, when
+//! using a non-English language, only the main `localisation.loc` file is loaded -
+//! individual loc files are ignored.
 //!
-//! ## Data
+//! # Binary Structure
 //!
-//! | Bytes | Type            | Data              |
-//! | ----- | --------------- | ----------------- |
-//! | *     | Sized StringU16 | Localisation key. |
-//! | *     | Sized StringU16 | Localised string. |
-//! | 1     | [bool]          | Unknown.          |
+//! ## Header (14 bytes)
+//!
+//! | Bytes | Type            | Data                                           |
+//! | ----- | --------------- | ---------------------------------------------- |
+//! | 2     | [u16]           | Byte order mark. Always `0xFFFE`.              |
+//! | 3     | UTF-8 String    | File type identifier. Always `"LOC"`.          |
+//! | 1     | [u8]            | Unknown, always `0`. Possibly padding.         |
+//! | 4     | [i32]           | Version. Always `1` in known files.            |
+//! | 4     | [u32]           | Number of entries in the table.                |
+//!
+//! ## Data (per entry)
+//!
+//! | Bytes | Type            | Data                                           |
+//! | ----- | --------------- | ---------------------------------------------- |
+//! | 2 + * | Sized StringU16 | Localisation key (u16 length prefix + UTF-16). |
+//! | 2 + * | Sized StringU16 | Localised text (u16 length prefix + UTF-16).   |
+//! | 1     | [bool]          | Tooltip flag (unknown purpose).                |
 
 use csv::{StringRecordsIter, Writer};
 use getset::{Getters, Setters};
@@ -74,12 +85,38 @@ const VERSION: i32 = 1;
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
-/// This stores the data of a decoded Localisation file in memory.
+/// In-memory representation of a decoded Loc (localisation) file.
+///
+/// Wraps a [`TableInMemory`] with a fixed three-column schema: key, text, and tooltip.
+/// Unlike DB tables, Loc files don't require external schema definitions.
+///
+/// # Structure
+///
+/// Each row contains:
+/// - `key` (StringU16): Unique identifier for the localised text
+/// - `text` (StringU16): The localised string content
+/// - `tooltip` (Boolean): Flag of unknown purpose
+///
+/// # Example
+///
+/// ```ignore
+/// use rpfm_lib::files::{Decodeable, loc::Loc};
+/// use std::io::Cursor;
+///
+/// # let loc_data = vec![];
+/// let mut reader = Cursor::new(loc_data);
+/// let loc = Loc::decode(&mut reader, &None).unwrap();
+///
+/// // Access entries
+/// for row in loc.data().iter() {
+///     // row[0] = key, row[1] = text, row[2] = tooltip
+/// }
+/// ```
 #[derive(PartialEq, Clone, Debug, Getters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", set = "pub")]
 pub struct Loc {
 
-    /// The table's data, containing all the stuff needed to decode/encode it.
+    /// The underlying table data with key, text, and tooltip columns.
     table: TableInMemory,
 }
 
@@ -96,7 +133,10 @@ impl Default for Loc {
 /// Implementation of `Loc`.
 impl Loc {
 
-    /// This function creates a new empty `Loc`.
+    /// Creates a new empty Loc table.
+    ///
+    /// Initializes with the standard three-column schema (key, text, tooltip)
+    /// but no data rows.
     pub fn new() -> Self {
         let definition = Self::new_definition();
 
@@ -105,7 +145,12 @@ impl Loc {
         }
     }
 
-    /// This function returns the definition of a Loc table.
+    /// Returns the fixed schema definition for Loc tables.
+    ///
+    /// The definition contains three fields:
+    /// - `key` (StringU16, primary key)
+    /// - `text` (StringU16)
+    /// - `tooltip` (Boolean)
     pub(crate) fn new_definition() -> Definition {
         let mut definition = Definition::new(VERSION, None);
         let fields = vec![
@@ -117,58 +162,71 @@ impl Loc {
         definition
     }
 
-    /// This function returns a reference of the definition used by the Loc table.
+    /// Returns the schema definition used by this Loc table.
     pub fn definition(&self) -> &Definition {
         self.table.definition()
     }
 
-    /// This function returns a reference to the entries of this Loc table.
+    /// Returns the table rows as a slice of decoded data.
     pub fn data(&'_ self) -> Cow<'_, [Vec<DecodedData>]> {
         self.table.data()
     }
 
-    /// This function returns a reference to the entries of this Loc table.
+    /// Returns a mutable reference to the table rows.
     ///
-    /// Make sure to keep the table structure valid for the table definition.
+    /// Ensure modifications maintain valid structure (3 columns per row).
     pub fn data_mut(&mut self) -> &mut Vec<Vec<DecodedData>> {
         self.table.data_mut()
     }
 
-    /// This function returns a valid empty (with default values if any) row for this table.
+    /// Creates a new row with default placeholder values.
     pub fn new_row(&self) -> Vec<DecodedData> {
         self.table().new_row()
     }
 
-    /// This function replaces the data of this table with the one provided.
+    /// Replaces all table data with the provided rows.
     ///
-    /// This can (and will) fail if the data is not in the format defined by the definition of the table.
+    /// # Errors
+    ///
+    /// Returns an error if rows don't match the expected 3-column structure.
     pub fn set_data(&mut self, data: &[Vec<DecodedData>]) -> Result<()> {
         self.table.set_data(data)
     }
 
-    /// This function returns the position of a column in a definition, or None if the column is not found.
+    /// Returns the column index for a given column name, or `None` if not found.
+    ///
+    /// Valid column names: `"key"` (0), `"text"` (1), `"tooltip"` (2).
     pub fn column_position_by_name(&self, column_name: &str) -> Option<usize> {
         self.table().column_position_by_name(column_name)
     }
 
-    /// This function returns the amount of entries in this Loc Table.
+    /// Returns the number of entries in the Loc table.
     pub fn len(&self) -> usize {
         self.table.len()
     }
 
-    /// This function returns if the Loc Table is empty.
+    /// Returns `true` if the Loc table has no entries.
     pub fn is_empty(&self) -> bool {
         self.table.is_empty()
     }
 
-    /// This function replaces the definition of this table with the one provided.
+    /// Replaces the table definition and migrates existing data to match.
     ///
-    /// This updates the table's data to follow the format marked by the new definition, so you can use it to *update* the version of your table.
+    /// Typically not needed for Loc files since the definition is fixed.
     pub fn set_definition(&mut self, new_definition: &Definition) {
         self.table.set_definition(new_definition);
     }
 
-    /// This function tries to read the header of a Loc file from a reader.
+    /// Reads and validates the Loc file header.
+    ///
+    /// # Returns
+    ///
+    /// A tuple of `(version, entry_count)`. Version is always 1 in known files.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RLibError::DecodingLocNotALocTable`] if the header is invalid
+    /// (wrong byte order mark, wrong file type, or insufficient data).
     pub fn read_header<R: ReadBytes>(data: &mut R) -> Result<(i32, u32)> {
 
         // A valid Loc PackedFile has at least 14 bytes. This ensures they exists before anything else.
@@ -192,7 +250,10 @@ impl Loc {
         Ok((version, entry_count))
     }
 
-    /// This function merges the data of a few Loc tables into a new Loc table.
+    /// Merges multiple Loc tables into a single new table.
+    ///
+    /// Combines all rows from the source tables. Duplicate keys are preserved
+    /// (not deduplicated).
     pub fn merge(sources: &[&Self]) -> Result<Self> {
         let mut new_table = Self::new();
         let sources = sources.par_iter()
@@ -212,7 +273,12 @@ impl Loc {
         Ok(new_table)
     }
 
-    /// This function imports a TSV file into a decoded Loc file.
+    /// Imports a Loc table from TSV (tab-separated values) format.
+    ///
+    /// # Arguments
+    ///
+    /// * `records` - CSV reader iterator over TSV records.
+    /// * `field_order` - Mapping of column positions to field names.
     pub fn tsv_import(records: StringRecordsIter<File>, field_order: &HashMap<u32, String>) -> Result<Self> {
         let definition = Self::new_definition();
         let table = TableInMemory::tsv_import(records, &definition, field_order, TSV_NAME_LOC, None)?;
@@ -220,7 +286,12 @@ impl Loc {
         Ok(loc)
     }
 
-    /// This function exports a decoded Loc file into a TSV file.
+    /// Exports the Loc table to TSV (tab-separated values) format.
+    ///
+    /// # Arguments
+    ///
+    /// * `writer` - CSV writer for the output file.
+    /// * `table_path` - Path used in the TSV metadata header.
     pub fn tsv_export(&self, writer: &mut Writer<File>, table_path: &str) -> Result<()> {
         self.table.tsv_export(writer, table_path, true)
     }

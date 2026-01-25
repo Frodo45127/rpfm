@@ -8,6 +8,39 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
+//! Tree placement list for BMD vegetation files.
+//!
+//! This module defines the tree placement data structures used in BMD vegetation files.
+//! Trees are organized by their model path, with each model containing multiple
+//! individual tree instances with positions, rotations, and scales.
+//!
+//! # Structure
+//!
+//! - [`TreeList`]: Top-level container for all tree placement data
+//! - [`BattleTreeItemVector`]: Groups trees by their model path
+//! - [`BattleTreeItem`]: Individual tree instance with transform data
+//!
+//! # Supported Versions
+//!
+//! - **Version 4**: Current format used in Total War: Warhammer III
+//!
+//! # Examples
+//!
+//! ```rust,ignore
+//! use rpfm_lib::files::bmd_vegetation::tree_list::*;
+//!
+//! // Decode a tree list from binary data
+//! let tree_list = TreeList::decode(&mut data, &extra_data)?;
+//!
+//! // Iterate through tree models
+//! for tree_vector in tree_list.tree_list() {
+//!     println!("Model: {}", tree_vector.key());
+//!     for tree in tree_vector.value() {
+//!         println!("  Position: ({}, {}, {})", tree.x(), tree.y(), tree.z());
+//!     }
+//! }
+//! ```
+
 use getset::*;
 use rand::Rng;
 use serde_derive::{Serialize, Deserialize};
@@ -24,31 +57,111 @@ mod v4;
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
-/// This holds an entire `TreeList` file decoded in memory.
+/// Tree placement list for a battle map.
+///
+/// Contains all tree instances organized by their model paths. Each model path
+/// maps to a vector of individual tree instances with transform data.
+///
+/// # Fields
+///
+/// * `serialise_version` - File format version (currently 4)
+/// * `tree_list` - Vector of tree groups, each containing instances of a specific tree model
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// let tree_list = TreeList::decode(&mut data, &extra_data)?;
+/// println!("Tree models: {}", tree_list.tree_list().len());
+/// ```
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct TreeList {
+    /// File format version number.
     serialise_version: u16,
 
+    /// List of tree instance groups, organized by model path.
     tree_list: Vec<BattleTreeItemVector>,
 }
 
+/// A group of tree instances sharing the same model.
+///
+/// Maps a tree model path (`.rigid_model_v2` file) to a vector of individual
+/// tree instances that use that model.
+///
+/// # Fields
+///
+/// * `key` - Path to the tree model file (e.g., `BattleTerrain/vegetation/trees/wh_palm/wh_lizardmen_tree_palmbig_e.rigid_model_v2`)
+/// * `value` - Vector of individual tree instances using this model
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// for tree_vector in tree_list.tree_list() {
+///     println!("Model: {} ({} instances)", tree_vector.key(), tree_vector.value().len());
+/// }
+/// ```
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct BattleTreeItemVector {
+    /// Path to the tree model file.
     key: String,
+
+    /// Vector of tree instances using this model.
     value: Vec<BattleTreeItem>,
 }
 
+/// Individual tree instance with position, rotation, and scale.
+///
+/// Represents a single tree placed on the battle map with its transform data.
+/// The rotation is compressed into a single byte representing Y-axis rotation.
+///
+/// # Fields
+///
+/// * `id` - Unique identifier for this tree instance
+/// * `x` - X coordinate in world space
+/// * `y` - Y coordinate in world space (height)
+/// * `z` - Z coordinate in world space
+/// * `rotation` - Y-axis rotation compressed to 0-255 range (multiply by 1.40625 to get degrees)
+/// * `scale` - Uniform scale factor applied to all axes
+/// * `flags` - Behavior flags for this tree instance
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// let tree = BattleTreeItem {
+///     id: 0x1609e7e52919a40,
+///     x: -22.92,
+///     y: 58.75,
+///     z: -3.01,
+///     rotation: 72,  // ~102 degrees when converted
+///     scale: 1.0,
+///     flags: 3,
+/// };
+/// ```
 #[derive(PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct BattleTreeItem {
+    /// Unique identifier for this tree instance.
     id: u64,
+
+    /// X coordinate in world space.
     x: f32,
+
+    /// Y coordinate in world space (height).
     y: f32,
+
+    /// Z coordinate in world space.
     z: f32,
+
+    /// Y-axis rotation (0-255 maps to 0-360 degrees).
+    ///
+    /// To convert to degrees: `rotation as f32 * 1.40625`
     rotation: u8,
+
+    /// Uniform scale factor.
     scale: f32,
+
+    /// Behavior flags for this tree instance.
     flags: u8,
 }
 

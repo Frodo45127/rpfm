@@ -8,6 +8,63 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
+//! Vertex format definitions and I/O for RigidModel files.
+//!
+//! # Overview
+//!
+//! Vertices define the 3D geometry of meshes. RigidModel files support multiple vertex
+//! formats optimized for different use cases, with extensive use of data compression
+//! to reduce file size.
+//!
+//! # Vertex Formats
+//!
+//! | Format    | ID | Purpose                          | Bone Support |
+//! |-----------|---.|----------------------------------|--------------|
+//! | Static    | 0  | Standard non-animated geometry   | No           |
+//! | Collision | 1  | Simplified collision meshes      | No           |
+//! | Weighted  | 3  | Skeletal animation (2 bones)     | Yes (2)      |
+//! | Cinematic | 4  | High-quality cutscenes (4 bones) | Yes (4)      |
+//! | Grass     | 5  | Vegetation/grass rendering       | No           |
+//! | Uk8       | 8  | Unknown (seen in water planes)   | Unknown      |
+//! | Uk12      | 12 | Unknown (seen in coral shrubs)   | Unknown      |
+//! | ClothSim  | 25 | Cloth physics simulation         | Yes          |
+//!
+//! # Compression Techniques
+//!
+//! Vertices use multiple compression methods to reduce storage:
+//!
+//! ## Half-Precision Floats (f16)
+//! - Positions and UVs stored as 16-bit floats instead of 32-bit
+//! - Reduces size by 50% with minimal precision loss
+//!
+//! ## Normalized Vectors (u8)
+//! - Normals, tangents, bitangents stored as unsigned bytes
+//! - Converted from [-1.0, 1.0] range to [0, 255] range
+//! - Formula: `u8_value = (float_value + 1.0) * 127.5`
+//!
+//! ## Percentage Encoding (Bone Weights)
+//! - Bone weights stored as u8 representing percentages
+//! - Converted from [0.0, 1.0] to [0, 255]
+//! - Formula: `u8_value = float_value * 255.0`
+//!
+//! # Format-Specific Fields
+//!
+//! Different vertex formats read/write different subsets of vertex data:
+//!
+//! - **Static**: Position, UVs, normal, tangent, bitangent
+//! - **Weighted**: Static fields + bone indices + bone weights (2 bones)
+//! - **Cinematic**: Static fields + bone indices + bone weights (4 bones)
+//! - **Collision**: Position only (minimal data)
+//! - **Grass**: Position + UVs + normal + special grass data
+//! - **ClothSim**: Similar to weighted with cloth-specific data
+//!
+//! # Material-Dependent Variations
+//!
+//! The exact fields read also depend on the material type. For example:
+//! - RsTerrain materials read minimal vertex data
+//! - DefaultMaterial reads full vertex attributes
+//! - Cloth materials include additional physics data
+
 use getset::{Getters, MutGetters, Setters};
 use nalgebra::{Vector2, Vector4};
 use serde::{Deserialize, Serialize};
@@ -17,56 +74,104 @@ use crate::error::{Result, RLibError};
 
 use super::materials::MaterialType;
 
-// Vertex types. TODO: Maybe integrate them in the relevant enums.
-const VERTEX_FORMAT_STATIC: u16 = 0;
-const VERTEX_FORMAT_COLLISION: u16 = 1;
-const VERTEX_FORMAT_WEIGHTED: u16 = 3;
-const VERTEX_FORMAT_CINEMATIC: u16 = 4;
-const VERTEX_FORMAT_GRASS: u16 = 5;
-const VERTEX_FORMAT_UK_8: u16 = 8;              // Seen in glb_water_planes
-const VERTEX_FORMAT_UK_12: u16 = 12;            // Seen in sea_coral_shrubs_02
-const VERTEX_FORMAT_CLOTH_SIM: u16 = 25;
-
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
-#[derive(Clone, Copy, Debug, PartialEq, Default, Serialize, Deserialize)]
+/// Vertex format identifier determining data layout and compression.
+///
+/// Different formats optimize for different use cases. The numeric value is stored
+/// as a u16 in the file format.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[repr(u16)]
 pub enum VertexFormat {
-    #[default] Static,
-    Collision,
-    Weighted,
-    Cinematic,
-    Grass,
-    Uk8,
-    Uk12,
-    ClothSim
+    /// Standard static geometry without animation.
+    Static = 0,
+    /// Simplified collision mesh vertices (position only).
+    Collision = 1,
+    /// Skeletal animation vertices with bone weights (2 bones per vertex).
+    Weighted = 3,
+    /// High-quality cinematic vertices (4 bones per vertex).
+    Cinematic = 4,
+    /// Grass/vegetation vertices with special rendering data.
+    Grass = 5,
+    /// Unknown format (observed in glb_water_planes models).
+    Uk8 = 8,
+    /// Unknown format (observed in sea_coral_shrubs_02 models).
+    Uk12 = 12,
+    /// Cloth simulation vertices with physics data.
+    ClothSim = 25,
 }
 
-/// Common vertex type. Not all vertex formats use all values of this.
+impl Default for VertexFormat {
+    fn default() -> Self {
+        Self::Static
+    }
+}
+
+/// Universal vertex structure containing all possible vertex attributes.
+///
+/// Not all fields are used by all vertex formats - the format and material type
+/// determine which fields contain valid data. Fields are stored with various
+/// compression techniques in the binary format.
+///
+/// # Field Usage by Format
+///
+/// - **Static**: position, UVs, normal, tangent, bitangent
+/// - **Weighted**: Static fields + bone_indices (2) + weights (2)
+/// - **Cinematic**: Static fields + bone_indices (4) + weights (4)
+/// - **Collision**: position only
+/// - **Grass**: position, UVs, normal, + grass-specific data
+/// - **ClothSim**: Similar to Weighted with cloth data
+///
+/// # Compression Notes
+///
+/// When reading from file:
+/// - Position is often stored as Vector4 of f16 (half-precision)
+/// - UVs stored as f16
+/// - Normals/tangents/bitangents stored as u8 normalized vectors
+/// - Bone weights stored as u8 percentages
 #[derive(Clone, Debug, Default, PartialEq, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Vertex {
 
-    // Position of the vertex.
+    /// 3D position of the vertex (x, y, z, w).
+    /// Often stored as f16 in file, expanded to f32 in memory.
     position: Vector4<f32>,
 
-    // Coordinates for the texture UV mapping. Not sure why there are two, they're copied from the rendering widget.
+    /// Primary texture UV coordinates (u, v).
+    /// Often stored as f16 in file, expanded to f32 in memory.
     texture_coordinate: Vector2<f32>,
+
+    /// Secondary texture UV coordinates (u, v) for multi-texturing.
+    /// Often stored as f16 in file, expanded to f32 in memory.
     texture_coordinate2: Vector2<f32>,
 
-    // Vertex normal, used to determine lighting-related stuff.
+    /// Vertex normal vector for lighting calculations (x, y, z, w).
+    /// Often stored as u8 normalized in file, expanded to f32 in memory.
     normal: Vector4<f32>,
 
-    // Vertex tangent, used for... deflection of light? According to stackoverflow.
+    /// Tangent vector for normal mapping (x, y, z, w).
+    /// Often stored as u8 normalized in file, expanded to f32 in memory.
     tangent: Vector4<f32>,
+
+    /// Bitangent vector for normal mapping (x, y, z, w).
+    /// Often stored as u8 normalized in file, expanded to f32 in memory.
     bitangent: Vector4<f32>,
 
-    // Colour of the mesh, it seems. Unused due to texturing?
+    /// Vertex color (r, g, b, a). Typically unused in modern rendering (textures used instead).
     color: Vector4<f32>,
+
+    /// Bone indices for skeletal animation (up to 4 bones).
+    /// For Weighted format: only first 2 are used.
+    /// For Cinematic format: all 4 are used.
     bone_indices: Vector4<u8>,
+
+    /// Bone weights for skeletal animation (up to 4 weights, should sum to 1.0).
+    /// Often stored as u8 percentages in file, expanded to f32 in memory.
     weights: Vector4<f32>,
 
+    /// Unknown field (version 8+ only, purpose undocumented).
     uk_1: Vector4<u8>,
 }
 
@@ -78,14 +183,14 @@ impl TryFrom<u16> for VertexFormat {
     type Error = RLibError;
     fn try_from(value: u16) -> Result<Self> {
         match value {
-            VERTEX_FORMAT_STATIC => Ok(Self::Static),
-            VERTEX_FORMAT_COLLISION => Ok(Self::Collision),
-            VERTEX_FORMAT_WEIGHTED => Ok(Self::Weighted),
-            VERTEX_FORMAT_CINEMATIC => Ok(Self::Cinematic),
-            VERTEX_FORMAT_GRASS => Ok(Self::Grass),
-            VERTEX_FORMAT_UK_8 => Ok(Self::Uk8),
-            VERTEX_FORMAT_UK_12 => Ok(Self::Uk12),
-            VERTEX_FORMAT_CLOTH_SIM => Ok(Self::ClothSim),
+            _ if value == Self::Static as u16 => Ok(Self::Static),
+            _ if value == Self::Collision as u16 => Ok(Self::Collision),
+            _ if value == Self::Weighted as u16 => Ok(Self::Weighted),
+            _ if value == Self::Cinematic as u16 => Ok(Self::Cinematic),
+            _ if value == Self::Grass as u16 => Ok(Self::Grass),
+            _ if value == Self::Uk8 as u16 => Ok(Self::Uk8),
+            _ if value == Self::Uk12 as u16 => Ok(Self::Uk12),
+            _ if value == Self::ClothSim as u16 => Ok(Self::ClothSim),
             _ => Err(RLibError::DecodingRigidModelUnknownVertexFormat(value))
         }
     }
@@ -93,20 +198,31 @@ impl TryFrom<u16> for VertexFormat {
 
 impl From<VertexFormat> for u16 {
     fn from(value: VertexFormat) -> u16 {
-        match value {
-            VertexFormat::Static => VERTEX_FORMAT_STATIC,
-            VertexFormat::Collision => VERTEX_FORMAT_COLLISION,
-            VertexFormat::Weighted => VERTEX_FORMAT_WEIGHTED,
-            VertexFormat::Cinematic => VERTEX_FORMAT_CINEMATIC,
-            VertexFormat::Grass => VERTEX_FORMAT_GRASS,
-            VertexFormat::Uk8 => VERTEX_FORMAT_UK_8,
-            VertexFormat::Uk12 => VERTEX_FORMAT_UK_12,
-            VertexFormat::ClothSim => VERTEX_FORMAT_CLOTH_SIM,
-        }
+        value as u16
     }
 }
 
 impl Vertex {
+
+    /// Reads a vertex from binary data based on the vertex format and material type.
+    ///
+    /// Different combinations of vertex format and material type have different binary
+    /// layouts. This function dispatches to the appropriate reading logic based on
+    /// the format/material combination.
+    ///
+    /// # Arguments
+    ///
+    /// * `data` - Binary data source.
+    /// * `version` - RigidModel version (affects layout for some formats).
+    /// * `vtype` - Vertex format specifying the data layout.
+    /// * `mtype` - Material type (affects layout for static vertices).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The vertex format is unknown ([`RLibError::DecodingRigidModelUnknownVertexFormat`])
+    /// - The vertex format is unsupported for the material type
+    ///   ([`RLibError::DecodingRigidModelUnsupportedVertexFormatForMaterial`])
     pub fn read<R: ReadBytes>(data: &mut R, version: u32, vtype: VertexFormat, mtype: MaterialType) -> Result<Self> {
         let mut v = Self::default();
         match vtype {
@@ -250,6 +366,25 @@ impl Vertex {
         Ok(v)
     }
 
+    /// Writes a vertex to binary data based on the vertex format and material type.
+    ///
+    /// Different combinations of vertex format and material type have different binary
+    /// layouts. This function dispatches to the appropriate writing logic based on
+    /// the format/material combination.
+    ///
+    /// # Arguments
+    ///
+    /// * `data` - Output buffer.
+    /// * `version` - RigidModel version (affects layout for some formats).
+    /// * `vtype` - Vertex format specifying the data layout.
+    /// * `mtype` - Material type (affects layout for static vertices).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The vertex format is unknown ([`RLibError::DecodingRigidModelUnknownVertexFormat`])
+    /// - The vertex format is unsupported for the material type
+    ///   ([`RLibError::DecodingRigidModelUnsupportedVertexFormatForMaterial`])
     pub fn write<W: WriteBytes>(&self, data: &mut W, version: u32, vtype: VertexFormat, mtype: MaterialType) -> Result<()> {
         match vtype {
             VertexFormat::Static => match mtype {

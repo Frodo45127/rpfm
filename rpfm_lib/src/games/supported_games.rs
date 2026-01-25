@@ -8,12 +8,54 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*!
-Module that defines the games this lib supports.
-
-This module defines the list of games this lib support for any `Game-Specific` feature.
-You should have no business here, except for supporting a new game.
-!*/
+//! Registry of all Total War games supported by RPFM.
+//!
+//! This module contains the complete list of supported Total War games with their
+//! full configuration data. It provides the [`SupportedGames`] registry which allows
+//! lookup of game information by key.
+//!
+//! # Supported Games
+//!
+//! RPFM currently supports these Total War games (newest to oldest):
+//! - Pharaoh Dynasties (2024)
+//! - Pharaoh (2023)
+//! - Warhammer 3 (2022)
+//! - Troy (2020)
+//! - Three Kingdoms (2019)
+//! - Warhammer 2 (2017)
+//! - Warhammer (2016)
+//! - Thrones of Britannia (2018)
+//! - Attila (2015)
+//! - Rome 2 (2013)
+//! - Shogun 2 (2011)
+//! - Napoleon (2010)
+//! - Empire (2009)
+//! - Arena (online game)
+//!
+//! # Usage
+//!
+//! The primary way to access game information is through the [`SupportedGames`] registry:
+//!
+//! ```ignore
+//! use rpfm_lib::games::supported_games::{SupportedGames, KEY_WARHAMMER_3};
+//!
+//! let games = SupportedGames::default();
+//! let wh3 = games.game(&KEY_WARHAMMER_3).unwrap();
+//! println!("Game: {}", wh3.display_name());
+//! ```
+//!
+//! # Game Keys
+//!
+//! Each game has a unique key constant (e.g., [`KEY_WARHAMMER_3`]) used for programmatic
+//! lookup. These keys are also used in directory names and configuration files.
+//!
+//! # Adding New Games
+//!
+//! To add support for a new Total War game:
+//! 1. Add display name and key constants
+//! 2. Create a [`GameInfo`] instance in the [`SupportedGames::default()`] implementation
+//! 3. Add the game to the `order` vector for proper release order sorting
+//! 4. Update relevant tests
 
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -21,49 +63,157 @@ use std::sync::{Arc, RwLock};
 use crate::compression::CompressionFormat;
 use super::{GameInfo, InstallData, InstallType, pfh_file_type::PFHFileType, pfh_version::PFHVersion, VanillaDBTableNameLogic};
 
-// Display Name for all the Supported Games.
+//---------------------------------------------------------------------------//
+// Display names for all supported Total War games.
+//
+// These are user-facing strings used in UI elements, error messages, and logs.
+// They represent the official or commonly-used short names for each game.
+//---------------------------------------------------------------------------//
+
+/// Display name for Total War: Pharaoh Dynasties.
 pub const DISPLAY_NAME_PHARAOH_DYNASTIES: &str = "Pharaoh Dynasties";
+
+/// Display name for Total War: Pharaoh.
 pub const DISPLAY_NAME_PHARAOH: &str = "Pharaoh";
+
+/// Display name for Total War: Warhammer III.
 pub const DISPLAY_NAME_WARHAMMER_3: &str = "Warhammer 3";
+
+/// Display name for A Total War Saga: Troy.
 pub const DISPLAY_NAME_TROY: &str = "Troy";
+
+/// Display name for Total War: Three Kingdoms.
 pub const DISPLAY_NAME_THREE_KINGDOMS: &str = "Three Kingdoms";
+
+/// Display name for Total War: Warhammer II.
 pub const DISPLAY_NAME_WARHAMMER_2: &str = "Warhammer 2";
+
+/// Display name for Total War: Warhammer.
 pub const DISPLAY_NAME_WARHAMMER: &str = "Warhammer";
+
+/// Display name for A Total War Saga: Thrones of Britannia.
 pub const DISPLAY_NAME_THRONES_OF_BRITANNIA: &str = "Thrones of Britannia";
+
+/// Display name for Total War: Attila.
 pub const DISPLAY_NAME_ATTILA: &str = "Attila";
+
+/// Display name for Total War: Rome II.
 pub const DISPLAY_NAME_ROME_2: &str = "Rome 2";
+
+/// Display name for Total War: Shogun 2.
 pub const DISPLAY_NAME_SHOGUN_2: &str = "Shogun 2";
+
+/// Display name for Napoleon: Total War.
 pub const DISPLAY_NAME_NAPOLEON: &str = "Napoleon";
+
+/// Display name for Empire: Total War.
 pub const DISPLAY_NAME_EMPIRE: &str = "Empire";
+
+/// Display name for Total War: Arena.
 pub const DISPLAY_NAME_ARENA: &str = "Arena";
 
-// Key for all the supported games.
+//---------------------------------------------------------------------------//
+// Unique identifier keys for all supported Total War games.
+//
+// These lowercase, underscore-separated strings are used internally as stable
+// identifiers for games throughout RPFM. They're used in:
+// - Configuration file paths
+// - Schema file organization
+// - Game detection and selection
+// - Save file organization
+//
+// Schema status notes:
+// - "Filtered and revised": Assembly Kit fields have been manually reviewed and corrected
+// - "Startpos tables done": Campaign start position tables have been successfully decoded
+// - "Pending": Schema review and/or startpos decoding still needed
+//---------------------------------------------------------------------------//
+
+/// Unique key for Total War: Pharaoh Dynasties.
 pub const KEY_PHARAOH_DYNASTIES: &str = "pharaoh_dynasties";        // Filtered and revised incorrect AK fields. Startpos tables done.
+
+/// Unique key for Total War: Pharaoh.
 pub const KEY_PHARAOH: &str = "pharaoh";                            // Filtered and revised incorrect AK fields. Startpos tables done.
+
+/// Unique key for Total War: Warhammer III.
 pub const KEY_WARHAMMER_3: &str = "warhammer_3";                    // Filtered and revised incorrect AK fields. Startpos tables done.
+
+/// Unique key for A Total War Saga: Troy.
 pub const KEY_TROY: &str = "troy";                                  // Filtered and revised incorrect AK fields. Startpos tables done.
+
+/// Unique key for Total War: Three Kingdoms.
 pub const KEY_THREE_KINGDOMS: &str = "three_kingdoms";              // Filtered and revised incorrect AK fields. Startpos tables done.
+
+/// Unique key for Total War: Warhammer II.
 pub const KEY_WARHAMMER_2: &str = "warhammer_2";                    // Filtered and revised incorrect AK fields. Startpos tables done.
+
+/// Unique key for Total War: Warhammer.
 pub const KEY_WARHAMMER: &str = "warhammer";                        // Filtered and revised incorrect AK fields. Startpos tables done.
+
+/// Unique key for A Total War Saga: Thrones of Britannia.
 pub const KEY_THRONES_OF_BRITANNIA: &str = "thrones_of_britannia";  // Filtered and revised incorrect AK fields. Startpos tables done.
+
+/// Unique key for Total War: Attila.
 pub const KEY_ATTILA: &str = "attila";                              // Filtered and revised incorrect AK fields. Startpos tables done.
+
+/// Unique key for Total War: Rome II.
 pub const KEY_ROME_2: &str = "rome_2";                              // Filtered and revised incorrect AK fields. Startpos tables done.
+
+/// Unique key for Total War: Shogun 2.
 pub const KEY_SHOGUN_2: &str = "shogun_2";                          // Filtered and revised incorrect AK fields. Startpos tables done.
+
+/// Unique key for Napoleon: Total War.
 pub const KEY_NAPOLEON: &str = "napoleon";                          // Pending of schema review for incorrect AK fields. Pending decoding starpos tables.
+
+/// Unique key for Empire: Total War.
 pub const KEY_EMPIRE: &str = "empire";                              // Pending of schema review for incorrect AK fields. Pending decoding starpos tables.
+
+/// Unique key for Total War: Arena.
 pub const KEY_ARENA: &str = "arena";
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
-/// This struct represents the list of games supported by this lib.
+/// Registry of all supported Total War games.
+///
+/// This struct maintains the complete list of games supported by RPFM along with
+/// their full configuration. It provides lookup by game key and maintains release
+/// order for UI sorting.
+///
+/// # Structure
+///
+/// - `games`: HashMap for O(1) lookup by game key
+/// - `order`: Vector maintaining games in release order (newest first)
+///
+/// # Usage
+///
+/// Create via [`Default::default()`] to get the full game registry:
+///
+/// ```ignore
+/// use rpfm_lib::games::supported_games::{SupportedGames, KEY_WARHAMMER_3};
+///
+/// let games = SupportedGames::default();
+///
+/// // Lookup specific game
+/// if let Some(game) = games.game(&KEY_WARHAMMER_3) {
+///     println!("{}", game.display_name());
+/// }
+///
+/// // Iterate all games in release order
+/// for game in games.games_sorted() {
+///     println!("{}", game.display_name());
+/// }
+/// ```
 pub struct SupportedGames {
 
-    /// List of games supported.
+    /// Map of game key to full game configuration.
+    ///
+    /// Keys are string constants like [`KEY_WARHAMMER_3`].
     games: HashMap<&'static str, GameInfo>,
 
-    /// Order the games were released.
+    /// Games in release order (newest first).
+    ///
+    /// Maintains the order games should appear in UI dropdowns.
     order: Vec<&'static str>
 }
 
@@ -3609,27 +3759,67 @@ impl Default for SupportedGames {
 /// Implementation for `SupportedGames`.
 impl SupportedGames {
 
-    /// This function returns a GameInfo from a game name.
+    /// Retrieves game information by key.
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - Game key constant (e.g., [`KEY_WARHAMMER_3`])
+    ///
+    /// # Returns
+    ///
+    /// Returns `Some(&GameInfo)` if the game is supported, `None` otherwise.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// use rpfm_lib::games::supported_games::{SupportedGames, KEY_WARHAMMER_3};
+    ///
+    /// let games = SupportedGames::default();
+    /// let game = games.game(&KEY_WARHAMMER_3).unwrap();
+    /// assert_eq!(game.key(), KEY_WARHAMMER_3);
+    /// ```
     pub fn game(&self, key: &str) -> Option<&GameInfo> {
         self.games.get(key)
     }
 
-    /// This function returns a vec with references to the full list of supported games.
+    /// Returns all supported games in arbitrary order.
+    ///
+    /// For games sorted by release date, use [`SupportedGames::games_sorted()`].
+    ///
+    /// # Returns
+    ///
+    /// Vector of references to all game configurations.
     pub fn games(&self) -> Vec<&GameInfo> {
         self.games.values().collect::<Vec<&GameInfo>>()
     }
 
-    /// This function returns the list of Game Keys (Game name formatted for internal use) this crate supports.
+    /// Returns all game keys in arbitrary order.
+    ///
+    /// For keys sorted by release date, use [`SupportedGames::game_keys_sorted()`].
+    ///
+    /// # Returns
+    ///
+    /// Vector of game key strings.
     pub fn game_keys(&self) -> Vec<&str> {
         self.games.keys().cloned().collect::<Vec<&str>>()
     }
 
-    /// This function returns a vec with references to the full list of supported games, sorted by release date.
+    /// Returns all supported games sorted by release date (newest first).
+    ///
+    /// Use this when displaying games in UI to show them in chronological order.
+    ///
+    /// # Returns
+    ///
+    /// Vector of game references in release order.
     pub fn games_sorted(&self) -> Vec<&GameInfo> {
         self.order.iter().map(|key| self.game(key).unwrap()).collect::<Vec<&GameInfo>>()
     }
 
-    /// This function returns the list of Game Keys (Game name formatted for internal use) this crate supports, sorted by release date.
+    /// Returns all game keys sorted by release date (newest first).
+    ///
+    /// # Returns
+    ///
+    /// Slice of game keys in release order.
     pub fn game_keys_sorted(&self) -> &[&'static str] {
         &self.order
     }

@@ -8,7 +8,23 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! Module containing tests for decoding/encoding `ESF` files.
+//! Unit tests for ESF encoding and decoding.
+//!
+//! These tests verify round-trip fidelity: decode → encode → decode should
+//! produce identical in-memory structures.
+//!
+//! # Test Strategy
+//!
+//! The tests compare decoded structures rather than raw binary output because
+//! CAULEB128-encoded length fields may have different padding between the
+//! original file and re-encoded output. The important invariant is that the
+//! *data* is preserved, not the exact byte representation.
+//!
+//! # Test Files
+//!
+//! Tests require sample ESF files in `../test_files/`:
+//! - `test_decode_esf_caab.esf`: Sample CAAB-format file
+//! - `test_decode_esf_cbab.esf`: Sample CBAB-format file
 
 use std::io::{BufReader, BufWriter, Write};
 use std::fs::File;
@@ -17,6 +33,11 @@ use crate::files::*;
 
 use super::ESF;
 
+/// Tests CAAB format round-trip encoding fidelity.
+///
+/// Verifies that decoding a CAAB file, re-encoding it, and decoding again
+/// produces the same in-memory structure. This ensures no data loss during
+/// the encode/decode cycle.
 #[test]
 fn test_encode_esf_caab() {
     let path_1 = "../test_files/test_decode_esf_caab.esf";
@@ -34,10 +55,15 @@ fn test_encode_esf_caab() {
     let mut after = vec![];
     data_2.encode(&mut after, &None).unwrap();
 
-    // We have to compare the decoded files due to weird padding issues in cauleb128-encoded fields.
+    // Compare decoded structures, not binary output, due to CAULEB128 padding variations.
     assert_eq!(data, data_2);
 }
 
+/// Tests CBAB format round-trip encoding fidelity.
+///
+/// Verifies that decoding a CBAB file, re-encoding it, and decoding again
+/// produces the same in-memory structure. This ensures no data loss during
+/// the encode/decode cycle.
 #[test]
 fn test_encode_esf_cbab() {
     let path_1 = "../test_files/test_decode_esf_cbab.esf";
@@ -55,6 +81,6 @@ fn test_encode_esf_cbab() {
     let mut after = vec![];
     data_2.encode(&mut after, &None).unwrap();
 
-    // We have to compare the decoded files due to weird padding issues in cauleb128-encoded fields.
+    // Compare decoded structures, not binary output, due to CAULEB128 padding variations.
     assert_eq!(data, data_2);
 }

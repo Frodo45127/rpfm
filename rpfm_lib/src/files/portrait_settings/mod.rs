@@ -8,12 +8,23 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! This is a module to read/write binary Portrait Settings files.
+//! Portrait settings for unit and character portraits.
 //!
-//! Portrait settings are files containing information about the small portrait each unit uses,
-//! tipically at the bottom left of the screen (may vary from game to game) or in the Character Screen in campaign.
+//! This module handles binary portrait settings files that define camera positions
+//! and rendering parameters for unit portraits in Total War games. These portraits
+//! appear in various places:
+//! - Unit cards at the bottom of the battle/campaign UI
+//! - Character details windows in campaign
+//! - Diplomacy screens
 //!
-//! TODO: add format info.
+//! # Supported Versions
+//!
+//! - **Version 1**: Used in Warhammer 2, Warhammer 1, Thrones of Britannia, and Attila
+//! - **Version 4**: Used in Warhammer 3
+//!
+//! # File Location
+//!
+//! Portrait settings files are typically found at `ui/portraits/` within game packs.
 
 use getset::*;
 use serde_derive::{Serialize, Deserialize};
@@ -23,7 +34,7 @@ use crate::binary::{ReadBytes, WriteBytes};
 use crate::files::{DecodeableExtraData, Decodeable, EncodeableExtraData, Encodeable};
 use crate::utils::check_size_mismatch;
 
-/// Extension used by PortraitSettings.
+/// Extension used by portrait settings files.
 pub const EXTENSION: &str = ".bin";
 
 mod versions;
@@ -34,112 +45,128 @@ mod versions;
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
-/// This represents an entire PortraitSettings decoded in memory.
+/// Portrait settings file containing camera configurations for unit portraits.
+///
+/// Each entry in this file corresponds to an art set and defines how the camera
+/// should be positioned when rendering that unit's portrait.
 #[derive(PartialEq, Clone, Debug, Default, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct PortraitSettings {
 
-    /// Version of the PortraitSettings.
+    /// Format version of this file (1 or 4).
     version: u32,
 
-    /// Entries on the PortraitSettings.
+    /// Portrait entries, one per art set.
     entries: Vec<Entry>,
 }
 
-/// This represents a generic Portrait Settings Entry.
+/// A portrait entry defining camera settings for a specific art set.
+///
+/// Each entry links an art set ID to camera configurations for rendering
+/// head and optionally full-body portraits.
 #[derive(PartialEq, Clone, Debug, Default, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Entry {
 
-    /// Id of the entry. Points to an art set key.
+    /// Art set key this entry applies to.
+    ///
+    /// References a key in the art set tables (e.g., `land_units_tables`).
     id: String,
 
-    /// Settings for the head camera.
+    /// Camera settings for the head/portrait view.
     ///
-    /// This is the porthole camera you see in campaign, at the bottom left.
+    /// This is the porthole camera used for unit cards in the bottom-left UI area.
     camera_settings_head: CameraSetting,
 
-    /// Settings for the body camera. Optional.
+    /// Camera settings for the full-body view (optional).
     ///
-    /// This is the camera used for displaying the full body of the character in their details window in campaign.
-    /// This is only needed for characters. Regular units do not have access to the characters window, so it's not needed for them.
+    /// Used in character detail windows in campaign. Only needed for characters
+    /// and heroes; regular units don't require body camera settings.
     camera_settings_body: Option<CameraSetting>,
 
-    /// Variants? Need more info about this.
+    /// Texture variants for this portrait.
+    ///
+    /// Allows different textures to be used based on conditions like season,
+    /// character level, or faction role.
     variants: Vec<Variant>
 }
 
-/// This represents a Camera setting of a Portrait.
+/// Camera positioning and field-of-view settings for a portrait.
 ///
-/// Note that the camera has an auto-level feature, so the camera may autorotate to compensate vertical rotation (pitch)
-/// greater than 90/-90 degrees.
+/// Defines how the camera is positioned relative to the character model when
+/// rendering a portrait. The camera has an auto-level feature that compensates
+/// for vertical rotation (pitch) exceeding 90/-90 degrees.
 #[derive(PartialEq, Clone, Debug, Default, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct CameraSetting {
 
-    /// Distance from the character to the camera.
+    /// Distance from the character along the Z axis (depth).
     z: f32,
 
-    /// Vertical displacement of the camera.
+    /// Vertical displacement of the camera (height offset).
     y: f32,
 
-    /// Rotation angle of the camera, sideways. In degrees.
+    /// Horizontal rotation angle in degrees (left/right).
     yaw: f32,
 
-    /// Rotation angle of the camera, vertically. In degrees.
+    /// Vertical rotation angle in degrees (up/down).
     pitch: f32,
 
-    /// Only in V1.
+    /// Camera distance. Only used in version 1.
     distance: f32,
 
-    /// Only in V1.
+    /// Spherical coordinate theta. Only used in version 1.
     theta: f32,
 
-    /// Only in V1.
+    /// Spherical coordinate phi. Only used in version 1.
     phi: f32,
 
-    /// Field of View.
+    /// Field of view angle in degrees.
     fov: f32,
 
-    /// Skeleton node that the camera will use as default focus point.
+    /// Skeleton bone to use as the camera focus point.
     ///
-    /// Optional. If provided, all displacementes/rotations are relative to this point.
+    /// If specified, all camera offsets and rotations are relative to this bone's
+    /// position. Common values include head or chest bones.
     skeleton_node: String,
 }
 
-/// This represents a generic variant of a Portrait.
+/// A texture variant for a portrait entry.
+///
+/// Variants allow different portrait textures to be used based on game conditions
+/// such as season, character level, age, or faction role.
 #[derive(PartialEq, Eq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Variant {
 
-    /// Variant Filename. Points to the column of the same name in the Variants table.
+    /// Variant identifier matching the `variant_filename` column in variants tables.
     filename: String,
 
-    /// Path of the diffuse image of the Variant.
+    /// Path to the diffuse (color) texture for this variant.
     file_diffuse: String,
 
-    /// No idea. Optional.
+    /// Path to first mask texture (purpose unknown).
     file_mask_1: String,
 
-    /// No idea. Optional.
+    /// Path to second mask texture (purpose unknown).
     file_mask_2: String,
 
-    /// No idea. Optional.
+    /// Path to third mask texture (purpose unknown).
     file_mask_3: String,
 
-    /// Only in v1.
+    /// Season when this variant applies. Only used in version 1.
     season: String,
 
-    /// Only in v1.
+    /// Character level threshold. Only used in version 1.
     level: i32,
 
-    /// Only in v1.
+    /// Character age threshold. Only used in version 1.
     age: i32,
 
-    /// Only in v1.
+    /// Whether this variant is for politicians. Only used in version 1.
     politician: bool,
 
-    /// Only in v1.
+    /// Whether this variant is for faction leaders. Only used in version 1.
     faction_leader: bool,
 }
 
@@ -186,10 +213,12 @@ impl Encodeable for PortraitSettings {
 
 impl PortraitSettings {
 
+    /// Deserializes portrait settings from a JSON string.
     pub fn from_json(data: &str) -> Result<Self> {
         serde_json::from_str(data).map_err(From::from)
     }
 
+    /// Serializes this portrait settings to a pretty-printed JSON string.
     pub fn to_json(&self) -> Result<String> {
         serde_json::to_string_pretty(&self).map_err(From::from)
     }

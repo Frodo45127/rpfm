@@ -8,7 +8,41 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! Module with the logic and documentation for the CAAB ESF files.
+//! CAAB format implementation for ESF files.
+//!
+//! CAAB is an older ESF format identified by the magic bytes `0xCA 0xAB 0x00 0x00`.
+//! The primary difference from CBAB is that string sizes use u16 prefixes instead of u32.
+//!
+//! # File Layout (CAAB)
+//!
+//! ```text
+//! ┌─────────────────────────────────────────────────────────────┐
+//! │ Header (16 bytes)                                           │
+//! │   [0..4]   Signature: 0xCA 0xAB 0x00 0x00                   │
+//! │   [4..8]   Unknown (u32, typically 0)                       │
+//! │   [8..12]  Creation date (u32)                              │
+//! │   [12..16] Offset to string tables (u32)                    │
+//! ├─────────────────────────────────────────────────────────────┤
+//! │ Node Tree                                                   │
+//! │   Recursive tree of nodes starting from root record         │
+//! │   Each node: type marker (1 byte) + type-specific data      │
+//! ├─────────────────────────────────────────────────────────────┤
+//! │ String Tables (at offset specified in header)               │
+//! │   Record names: u16 count + [u8-sized strings]              │
+//! │   UTF-16 strings: u32 count + [u16-sized string + u32 idx]  │
+//! │   UTF-8 strings: u32 count + [u8-sized string + u32 idx]    │
+//! └─────────────────────────────────────────────────────────────┘
+//! ```
+//!
+//! # Compression Handling
+//!
+//! CAAB files may contain LZMA1-compressed sections for large data blocks.
+//! When a record named `CAMPAIGN_ENV` is encountered during encoding, the entire
+//! ESF is re-encoded without compression, then LZMA1-compressed, and stored in
+//! special `COMPRESSED_DATA` and `COMPRESSED_DATA_INFO` nodes.
+//!
+//! During decoding, if a `COMPRESSED_DATA` node is found, the data is decompressed
+//! and the resulting ESF replaces the outer structure.
 
 use std::collections::BTreeMap;
 use std::io::{Cursor, SeekFrom, Write};
@@ -23,10 +57,31 @@ use super::*;
 //                           Implementation of ESF
 //---------------------------------------------------------------------------//
 
-/// Implementation of `ESF`. Section of functions specific for the CAAB format.
 impl ESF {
 
-    /// This function creates a `ESF` of type CAAB from a `Vec<u8>`.
+    /// Decodes CAAB-format ESF data into this ESF instance.
+    ///
+    /// This function assumes the caller has already read and validated the 4-byte
+    /// signature. It reads the remaining header fields, parses the string tables,
+    /// and recursively decodes the node tree.
+    ///
+    /// # Decoding Process
+    ///
+    /// 1. Read header: unknown field, creation date, string table offset
+    /// 2. Seek to string table offset and read:
+    ///    - Record names (used by record nodes)
+    ///    - UTF-16 strings (referenced by string nodes)
+    ///    - UTF-8 strings (referenced by ASCII nodes)
+    /// 3. Seek back to node data and recursively decode the root node
+    /// 4. If compressed data is detected, decompress and replace the ESF content
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - Read operations fail
+    /// - Node tree doesn't end exactly at the string table offset
+    /// - String/record name indices are out of bounds
+    /// - Decompression fails (for compressed ESF files)
     pub(crate) fn read_caab<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
 
         // Note: this assumes the caller has already read the first 4 bytes of the data.
@@ -127,7 +182,32 @@ impl ESF {
         Ok(())
     }
 
-    /// This function takes a `ESF` of type CAAB and encodes it to `Vec<u8>`.
+    /// Encodes this ESF instance to CAAB format.
+    ///
+    /// # Encoding Process
+    ///
+    /// 1. Check for compressible nodes (e.g., `CAMPAIGN_ENV`) and handle compression
+    /// 2. Collect all strings from the node tree into separate tables
+    /// 3. Encode the node tree using collected string indices
+    /// 4. Write header with calculated string table offset
+    /// 5. Write encoded nodes followed by string tables
+    ///
+    /// # Compression
+    ///
+    /// If a `CAMPAIGN_ENV` record is found and compression is not disabled:
+    /// - The entire ESF is first encoded without compression
+    /// - The result is LZMA1-compressed
+    /// - The original node is replaced with `COMPRESSED_DATA` and `COMPRESSED_DATA_INFO` nodes
+    /// - After encoding, the original structure is restored
+    ///
+    /// # Arguments
+    ///
+    /// * `buffer` - Output buffer to write encoded data to
+    /// * `extra_data` - Optional encoding settings (e.g., `disable_compression`)
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if write operations fail or compression fails.
     pub(crate) fn save_caab<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         let mut extra_data = extra_data.clone().unwrap_or_default();
         let disable_compression = extra_data.disable_compression;

@@ -26,7 +26,7 @@ use crate::error::{Result, RLibError};
 /// This trait allow us to easily read all kind of data from a source that implements [`Read`] + [`Seek`].
 pub trait ReadBytes: Read + Seek {
 
-    /// This function returns the lenght of the data we're reading.
+    /// This function returns the length of the data we're reading.
     ///
     /// Extracted from the nightly std.
     ///
@@ -570,7 +570,7 @@ pub trait ReadBytes: Read + Seek {
 
     /// This function tries to read a 00-Padded UTF-8 String value of the provided `size` from `self`.
     ///
-    /// Note that `size` here is the full lenght of the String, including the 00 bytes that act as padding.
+    /// Note that `size` here is the full length of the String, including the 00 bytes that act as padding.
     ///
     /// It may fail if there are not enough bytes to read the value, the value contains invalid
     /// characters for an UTF-8 String, or `self` cannot be read.
@@ -683,7 +683,6 @@ pub trait ReadBytes: Read + Seek {
     /// ```
     fn read_sized_string_u8(&mut self) -> Result<String> {
         if let Ok(size) = self.read_u16() {
-            // TODO: check if we have to restore cursor pos on failure.
             self.read_string_u8(size as usize)
         }
         else {
@@ -713,7 +712,6 @@ pub trait ReadBytes: Read + Seek {
     /// ```
     fn read_sized_string_u8_u32(&mut self) -> Result<String> {
         if let Ok(size) = self.read_u32() {
-            // TODO: check if we have to restore cursor pos on failure.
             self.read_string_u8(size as usize)
         }
         else {
@@ -781,7 +779,7 @@ pub trait ReadBytes: Read + Seek {
 
     /// This function tries to read a 00-Padded UTF-16 String value of the provided `size` from `self`.
     ///
-    /// Note that `size` here is the full lenght of the String in bytes, including the 00 bytes that act as padding.
+    /// Note that `size` here is the full length of the String in bytes, including the 00 bytes that act as padding.
     ///
     /// It may fail if there are not enough bytes to read the value, the value contains invalid
     /// characters for an UTF-16 String, or `self` cannot be read.
@@ -898,7 +896,6 @@ pub trait ReadBytes: Read + Seek {
     /// ```
     fn read_sized_string_u16(&mut self) -> Result<String> {
         if let Ok(size) = self.read_u16() {
-            // TODO: check if we have to restore cursor pos on failure.
             self.read_string_u16(size.wrapping_mul(2) as usize)
         }
         else {
@@ -928,7 +925,6 @@ pub trait ReadBytes: Read + Seek {
     /// ```
     fn read_sized_string_u16_u32(&mut self) -> Result<String> {
         if let Ok(size) = self.read_u32() {
-            // TODO: check if we have to restore cursor pos on failure.
             self.read_string_u16(size.wrapping_mul(2) as usize)
         }
         else {

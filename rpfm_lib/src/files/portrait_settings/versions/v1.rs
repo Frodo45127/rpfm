@@ -24,7 +24,7 @@ use crate::files::portrait_settings::*;
 
 impl PortraitSettings {
 
-    pub fn read_v1<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
+    pub(crate) fn read_v1<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
         let entries_count = data.read_u32()?;
 
         for _ in 0..entries_count {
@@ -64,7 +64,7 @@ impl PortraitSettings {
         Ok(())
     }
 
-    pub fn write_v1<W: WriteBytes>(&self, buffer: &mut W) -> Result<()> {
+    pub(crate) fn write_v1<W: WriteBytes>(&self, buffer: &mut W) -> Result<()> {
         buffer.write_u32(self.entries.len() as u32)?;
 
         for entry in &self.entries {

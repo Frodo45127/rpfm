@@ -8,16 +8,39 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! DB files are tables that contain a lot of data used by the game in a database-like format.
+//! Database table files for Total War game data.
 //!
-//! Think of these files as tables of a database. Each table may be split in files (fragments) or be a single file.
+//! DB files are the primary data storage format in Total War games, containing game data
+//! organized into tables similar to relational database tables. Each table stores structured
+//! data like units, buildings, technologies, and campaign settings.
 //!
-//! They're sequencial, which means to decode them we need to know their definition, as in "first column is
-//! of this type, second column is of this type,...". Also, they're versioned through an optional value in their header.
+//! # Overview
 //!
-//! If you want to know more about specific types a table
-//! can have, check the [`Table`](crate::files::table) module. If you want to know more about definitions and
-//! how to make them, check the [`Schema`](crate::schema) module.
+//! DB tables are binary files with a sequential format requiring a schema definition to decode.
+//! The definition specifies the column types and order, and tables can be versioned to handle
+//! format changes across game updates.
+//!
+//! Key characteristics:
+//! - **Schema-dependent**: Requires a definition from the schema to decode
+//! - **Versioned**: Optional version number in header for format evolution
+//! - **Fragmented**: Tables can be split across multiple files
+//! - **Binary**: Tightly packed binary format for efficient storage
+//!
+//! # Table Structure
+//!
+//! Each DB file consists of a header followed by row data. The header contains metadata
+//! like version, GUID (for some games), and row count. The data section is a sequence
+//! of rows matching the table definition.
+//!
+//! # Schema Definitions
+//!
+//! To decode a DB table, you need:
+//! 1. **Table name**: Identifies which definition to use (e.g., `"units_tables"`)
+//! 2. **Schema**: Contains definitions for all known table versions
+//! 3. **Version**: Optional version number from the header (defaults to 0)
+//!
+//! See the [`Schema`](crate::schema) module for details on definitions and the
+//! [`Table`](crate::files::table) module for the table data structure.
 //!
 //! # DB Structure
 //!
@@ -70,19 +93,70 @@ const VERSION_MARKER: &[u8] = &[252, 253, 254, 255];
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
-/// This holds an entire DB Table decoded in memory.
+/// In-memory representation of a decoded DB table.
+///
+/// Holds a complete DB table including header metadata and row data. The table data
+/// is stored as a [`TableInMemory`] which provides access to rows and columns.
+///
+/// # Fields
+///
+/// * `mysterious_byte` - Boolean flag of unknown purpose (observed as `0` or `1`)
+/// * `guid` - Globally Unique Identifier for this table instance
+/// * `table` - The actual table data with definition and rows
+///
+/// # Getters
+///
+/// Fields have public getters via the `getset` crate:
+/// - `mysterious_byte()` - Get the mysterious byte value
+/// - `guid()` - Get the table's GUID
+/// - `table()` - Get reference to the table data
+///
+/// # The Mysterious Byte
+///
+/// The purpose of this byte is unknown, but it appears in all DB tables. Observed values
+/// are `0` or `1` (interpreted as boolean). In Warhammer 2, a value of `0` can cause
+/// crashes when tables are loaded by the game.
+///
+/// # GUID Handling
+///
+/// GUIDs are only present in some games (e.g., Warhammer series). Older games like
+/// Napoleon and Empire don't use GUIDs, and adding them can crash those games.
+/// The encoding process respects the game's GUID requirements.
+///
+/// # Example
+///
+/// ```ignore
+/// use rpfm_lib::files::{Decodeable, db::DB, DecodeableExtraData, table::Table};
+/// use rpfm_lib::schema::Schema;
+/// use std::io::Cursor;
+///
+/// # let schema = Schema::default();
+/// # let table_data = vec![];
+/// let mut extra = DecodeableExtraData::default();
+/// extra.set_schema(Some(&schema));
+/// extra.set_table_name(Some("units_tables"));
+///
+/// let mut reader = Cursor::new(table_data);
+/// let db = DB::decode(&mut reader, &Some(extra)).unwrap();
+///
+/// // Access table data
+/// let row_count = db.table().len();
+/// ```
 #[derive(PartialEq, Clone, Debug, Getters, Serialize, Deserialize)]
 #[getset(get = "pub")]
 pub struct DB {
 
-    /// Don't know his use, but it's in all the tables I've seen, always being `1` or `0`.
-    /// NOTE: In Warhammer 2, a 0 here seems to crash the game when the tables are loaded.
+    /// Boolean flag of unknown purpose (always `0` or `1`).
+    ///
+    /// In Warhammer 2, a value of `0` can crash the game when loading tables.
     mysterious_byte: bool,
 
-    /// GUID of this table.
+    /// Globally Unique Identifier for this table instance.
+    ///
+    /// Only present in newer games. Empty string for games without GUID support.
     guid: String,
 
-    /// The table's data, containing all the stuff needed to decode/encode it.
+    /// The table data including definition and rows.
     table: TableInMemory,
 }
 
@@ -196,7 +270,31 @@ impl Encodeable for DB {
 
 impl DB {
 
-    /// This function creates a new empty [DB] table.
+    /// Creates a new empty DB table with the specified definition.
+    ///
+    /// Initializes a DB table with no rows but with the structure defined by the provided
+    /// definition. The mysterious byte is set to `true` (safe default) and the GUID is empty.
+    ///
+    /// # Arguments
+    ///
+    /// * `definition` - Schema definition specifying column types and structure
+    /// * `definition_patch` - Optional patches to modify the definition
+    /// * `table_name` - Name of the table (for internal tracking)
+    ///
+    /// # Returns
+    ///
+    /// A new empty DB table ready to have rows added.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// use rpfm_lib::files::{db::DB, table::Table};
+    /// use rpfm_lib::schema::Definition;
+    ///
+    /// # let definition = Definition::default();
+    /// let db = DB::new(&definition, None, "units_tables");
+    /// assert_eq!(db.table().len(), 0);
+    /// ```
     pub fn new(definition: &Definition, definition_patch: Option<&DefinitionPatch>, table_name: &str) -> Self {
         let table = TableInMemory::new(definition, definition_patch, table_name);
 
@@ -207,13 +305,40 @@ impl DB {
         }
     }
 
-    /// This functions decodes the header part of a `DB` from a reader.
+    /// Decodes the header section of a DB table.
     ///
-    /// The data returned is:
-    /// - `version`: the version of this table.
-    /// - `mysterious_byte`: don't know what this is.
-    /// - `guid`: the GUID of this table.
-    /// - `entry_count`: amount of entries this `DB` has.
+    /// Reads the header bytes to extract metadata without decoding the full table data.
+    /// This is useful for inspecting table properties before committing to a full decode.
+    ///
+    /// # Header Format
+    ///
+    /// The header contains optional and required fields:
+    /// 1. **Optional GUID Marker** (`0xFD 0xFE 0xFC 0xFF`) + 2-byte sized UTF-16 string
+    /// 2. **Optional Version Marker** (`0xFC 0xFD 0xFE 0xFF`) + 4-byte signed integer
+    /// 3. **Mysterious Byte** (1 byte boolean)
+    /// 4. **Entry Count** (4-byte unsigned integer)
+    ///
+    /// # Arguments
+    ///
+    /// * `data` - Reader positioned at the start of the DB table
+    ///
+    /// # Returns
+    ///
+    /// A tuple containing:
+    /// - `version` - Table version number (0 if no version marker present)
+    /// - `mysterious_byte` - Unknown boolean flag
+    /// - `guid` - Table GUID (empty string if no GUID marker present)
+    /// - `entry_count` - Number of rows in the table
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RLibError::DecodingDBNotADBTable`] if:
+    /// - The data is less than 5 bytes (minimum valid header size)
+    /// - The data doesn't conform to the DB header format
+    ///
+    /// # Side Effects
+    ///
+    /// After reading, the reader is positioned at the start of the table data section.
     pub fn read_header<R: ReadBytes>(data: &mut R) -> Result<(i32, bool, String, u32)> {
 
         // 5 is the minimum amount of bytes a valid DB Table can have. If there is less, either the table is broken,
@@ -245,22 +370,26 @@ impl DB {
         Ok((version, mysterious_byte, guid, entry_count))
     }
 
-    /// This function returns a reference of the definition of this DB Table.
+    /// Returns the schema definition for this DB table.
     pub fn definition(&self) -> &Definition {
         self.table.definition()
     }
 
-    /// This function returns a reference of the definition patches of this DB Table.
+    /// Returns the definition patches applied to this DB table.
     pub fn patches(&self) -> &DefinitionPatch {
         self.table.patches()
     }
 
-    /// This function returns a reference of the name of this DB Table.
+    /// Returns the table name (e.g., `"units_tables"`).
     pub fn table_name(&self) -> &str {
         self.table.table_name()
     }
 
-    /// This function returns the name of this DB Table, without the "_tables" suffix.
+    /// Returns the table name without the `"_tables"` suffix.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the table name doesn't end with `"_tables"`.
     pub fn table_name_without_tables(&self) -> String {
 
         // Note: it needs this check because this explodes if instead of "_tables" we have non-ascii characters.
@@ -271,37 +400,39 @@ impl DB {
         }
     }
 
-    /// This function returns a reference to the entries of this DB table.
+    /// Returns the table rows as a slice of decoded data.
     pub fn data(&'_ self) -> Cow<'_, [Vec<DecodedData>]> {
         self.table.data()
     }
 
-    /// This function dumps the contents of the provided table into a SQL database.
+    /// Loads table data from a SQLite database, replacing current contents.
     #[cfg(feature = "integration_sqlite")]
     pub fn sql_to_db(&mut self, pool: &Pool<SqliteConnectionManager>, pack_name: &str, file_name: &str) -> Result<()> {
         self.table.sql_to_db(pool, pack_name, file_name)
     }
 
-    /// This function returns a reference to the entries of this DB table.
+    /// Returns a mutable reference to the table rows.
     ///
-    /// Make sure to keep the table structure valid for the table definition.
+    /// Ensure modifications maintain valid structure matching the definition.
     pub fn data_mut(&mut self) -> &mut Vec<Vec<DecodedData>> {
         self.table.data_mut()
     }
 
-    /// This function replaces the data of this table with the one provided.
+    /// Replaces all table data with the provided rows.
     ///
-    /// This can (and will) fail if the data is not in the format defined by the definition of the table.
+    /// # Errors
+    ///
+    /// Returns an error if rows don't match the table definition structure.
     pub fn set_data(&mut self, data: &[Vec<DecodedData>]) -> Result<()> {
         self.table.set_data(data)
     }
 
-    /// This function returns a valid empty (with default values if any) row for this table.
+    /// Creates a new row with default values from the table definition.
     pub fn new_row(&self) -> Vec<DecodedData> {
         self.table().new_row()
     }
 
-    /// This function returns the definition of a table.
+    /// Returns a test definition with all field types for unit testing.
     #[cfg(test)]
     pub fn test_definition() -> Definition {
         let mut definition = Definition::new(-100, None);
@@ -348,37 +479,53 @@ impl DB {
         definition
     }
 
-    /// This function returns the position of a column in a definition, or None if the column is not found.
+    /// Returns the column index for a given column name, or `None` if not found.
     pub fn column_position_by_name(&self, column_name: &str) -> Option<usize> {
         self.table.column_position_by_name(column_name)
     }
 
-    /// This function returns the amount of entries in this DB Table.
+    /// Returns the number of rows in the table.
     pub fn len(&self) -> usize {
         self.table.len()
     }
 
-    /// This function returns if the table is empty.
+    /// Returns `true` if the table has no rows.
     pub fn is_empty(&self) -> bool {
         self.table.is_empty()
     }
 
-    /// This function replaces the definition of this table with the one provided.
+    /// Replaces the table definition and migrates existing data to match.
     ///
-    /// This updates the table's data to follow the format marked by the new definition, so you can use it to *update* the version of your table.
+    /// Use this to update tables to a newer schema version. Data is converted
+    /// between compatible types where possible.
     pub fn set_definition(&mut self, new_definition: &Definition) {
         self.table.set_definition(new_definition);
     }
 
-    /// This function updates the current table to a new definition.
+    /// Alias for [`set_definition`](Self::set_definition).
     pub fn update(&mut self, new_definition: &Definition) {
         self.set_definition(new_definition)
     }
 
-    /// This function performs a cascade update of DB/Loc values across an entire Pack, making sure
-    /// all references to the edited value are updated accordingly.
+    /// Performs a cascade update of a value across all referencing tables in a Pack.
     ///
-    /// It returns the list of ContainerPath where said reference has been found and updated.
+    /// When a key field value is changed, this function finds all tables that reference
+    /// that field and updates them accordingly. It also updates corresponding Loc entries
+    /// if the edited field affects localisation keys.
+    ///
+    /// # Arguments
+    ///
+    /// * `pack` - The Pack to search and update.
+    /// * `schema` - Schema containing table definitions and reference information.
+    /// * `table_name` - Name of the source table (e.g., `"units_tables"`).
+    /// * `field` - The field being edited.
+    /// * `definition` - Definition of the source table.
+    /// * `value_before` - Original value being replaced.
+    /// * `value_after` - New value to set.
+    ///
+    /// # Returns
+    ///
+    /// List of paths where references were found and updated.
     pub fn cascade_edition(pack: &mut Pack, schema: &Schema, table_name: &str, field: &Field, definition: &Definition, value_before: &str, value_after: &str) -> Vec<ContainerPath> {
 
         // So, how does this work:
@@ -537,11 +684,17 @@ impl DB {
         edited_paths
     }
 
-    /// This function merges the data of a few DB tables into a new DB table.
+    /// Merges multiple DB tables into a single new table.
     ///
-    /// The metadata used (definition, patches) is taken from the first table on the list.
+    /// Combines all rows from the source tables. The first table's definition and
+    /// patches are used for the merged result. All source tables are converted to
+    /// match this definition before merging.
     ///
-    /// May fail if the tables do not have the same table name.
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - Tables have different names (can't merge `units_tables` with `buildings_tables`)
+    /// - Fewer than 2 tables are provided
     pub fn merge(sources: &[&Self]) -> Result<Self> {
 
         let table_names = sources.iter().map(|file| file.table_name()).collect::<HashSet<_>>();
@@ -571,7 +724,19 @@ impl DB {
         Ok(new_table)
     }
 
-    /// This function imports a TSV file into a decoded table.
+    /// Imports a DB table from TSV (tab-separated values) format.
+    ///
+    /// # Arguments
+    ///
+    /// * `records` - CSV reader iterator over TSV records.
+    /// * `field_order` - Mapping of column positions to field names.
+    /// * `schema` - Schema containing the table definition.
+    /// * `table_name` - Name of the table (e.g., `"units_tables"`).
+    /// * `table_version` - Version of the table definition to use.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if no matching definition is found in the schema.
     pub fn tsv_import(records: StringRecordsIter<File>, field_order: &HashMap<u32, String>, schema: &Schema, table_name: &str, table_version: i32) -> Result<Self> {
         let definition = schema.definition_by_name_and_version(table_name, table_version).ok_or(RLibError::DecodingDBNoDefinitionsFound)?;
         let definition_patch = schema.patches_for_table(table_name);
@@ -580,16 +745,26 @@ impl DB {
         Ok(db)
     }
 
-    /// This function imports a TSV file into a decoded table.
+    /// Exports the DB table to TSV (tab-separated values) format.
+    ///
+    /// # Arguments
+    ///
+    /// * `writer` - CSV writer for the output file.
+    /// * `table_path` - Path used in the TSV metadata header.
+    /// * `keys_first` - If `true`, key columns are written before non-key columns.
     pub fn tsv_export(&self, writer: &mut Writer<File>, table_path: &str, keys_first: bool) -> Result<()> {
         self.table.tsv_export(writer, table_path, keys_first)
     }
 
+    /// Returns `true` if data was modified during decoding (e.g., invalid values corrected).
     pub fn altered(&self) -> bool {
         *self.table.altered()
     }
 
-    /// This function generates the combined keys for this table and adds them to the keys arg.
+    /// Generates combined primary keys to populate the `twad_key_deletes` table.
+    ///
+    /// Different tables use different key concatenation rules. This function handles
+    /// the table-specific key format for each known table type.
     pub fn generate_twad_key_deletes_keys(&self, keys: &mut HashSet<String>) {
         let definition = self.definition();
         match self.table_name() {

@@ -21,7 +21,7 @@ use super::*;
 
 impl Cs2Collision {
 
-    pub fn read_v20<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
+    pub(crate) fn read_v20<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
         self.bounding_box = Cube::decode(data, &None)?;
 
         while data.read_u8().is_ok() {
@@ -75,7 +75,7 @@ impl Cs2Collision {
         Ok(())
     }
 
-    pub fn write_v20<W: WriteBytes>(&mut self, buffer: &mut W) -> Result<()> {
+    pub(crate) fn write_v20<W: WriteBytes>(&mut self, buffer: &mut W) -> Result<()> {
         self.bounding_box.encode(buffer, &None)?;
 
         for collision_3d in &mut self.collisions_3d {

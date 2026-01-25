@@ -8,20 +8,50 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! This is a dummy module to read/write images.
+//! Image file handling with DDS conversion support.
 //!
-//! Read support just stores the raw data of the image, so you can pass it to another
-//! lib/program to read it. Write support just writes that data back to the source.
+//! This module provides the [`Image`] type for working with image files in Total War PackFiles.
+//! It stores raw image data and provides automatic conversion of DDS textures to PNG format
+//! for easier viewing and editing.
 //!
-//! Supported extensions are:
-//! - `.jpg`
-//! - `.jpeg`
-//! - `.tga`
-//! - `.png`
-//! - `.dds`
-//! - `.gif`
+//! # Supported Formats
 //!
-//! NOTE: DDS files are converted to png in order for a viewer to use them more easily.
+//! The following image formats are recognized:
+//! - **JPEG** (`.jpg`, `.jpeg`) - Standard photo compression
+//! - **PNG** (`.png`) - Lossless compressed images with alpha
+//! - **TGA** (`.tga`) - Targa images (common in game assets)
+//! - **DDS** (`.dds`) - DirectDraw Surface textures (Total War's primary format)
+//! - **GIF** (`.gif`) - Animated or simple images
+//!
+//! # DDS Conversion
+//!
+//! DDS files are automatically converted to PNG format when decoded to enable easier
+//! viewing in standard image viewers and editors. The original DDS data is preserved
+//! for re-encoding.
+//!
+//! The conversion process handles various DDS formats:
+//! - Standard DDS formats supported by the `image` crate
+//! - BC3_UNORM compressed textures via re-compression
+//! - RGBA_U8 color formats
+//!
+//! # Example
+//!
+//! ```ignore
+//! use rpfm_lib::files::{Decodeable, image::Image, DecodeableExtraData};
+//! use std::io::Cursor;
+//!
+//! // Read a DDS texture
+//! let dds_data = std::fs::read("texture.dds").unwrap();
+//! let mut reader = Cursor::new(dds_data);
+//! let mut extra = DecodeableExtraData::default();
+//! extra.set_is_dds(true);
+//! let image = Image::decode(&mut reader, &Some(extra)).unwrap();
+//!
+//! // Access converted PNG data for viewing
+//! if let Some(png_data) = image.converted_data() {
+//!     // Display in image viewer
+//! }
+//! ```
 
 use dds::{ColorFormat, CompressionQuality, Decoder, Encoder, Format, header::Header, ImageView, ImageViewMut};
 use getset::*;
@@ -48,11 +78,53 @@ pub const EXTENSIONS: [&str; 6] = [
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
-/// This represents an entire Image File decoded in memory.
+/// In-memory representation of an image file.
+///
+/// Stores the raw image data in its original format, plus optionally converted PNG data
+/// for DDS textures. The original data is preserved to allow lossless re-encoding.
+///
+/// # Fields
+///
+/// * `data` - Raw binary data in the original image format
+/// * `converted_data` - For DDS files, PNG-converted data for viewing (optional)
+///
+/// # Getters
+///
+/// Fields have public getters via the `getset` crate:
+/// - `data()` - Get reference to original image data
+/// - `converted_data()` - Get reference to converted PNG data (DDS only)
+///
+/// # DDS Handling
+///
+/// When a DDS file is decoded:
+/// 1. `data` contains the original DDS bytes
+/// 2. `converted_data` contains PNG-converted bytes for display
+/// 3. Encoding writes back the original DDS data from `data`
+///
+/// For non-DDS formats:
+/// 1. `data` contains the image bytes
+/// 2. `converted_data` is `None`
+///
+/// # Example
+///
+/// ```ignore
+/// use rpfm_lib::files::{Decodeable, Encodeable, image::Image};
+/// use std::io::Cursor;
+///
+/// # let png_bytes = vec![137, 80, 78, 71]; // PNG header
+/// let mut reader = Cursor::new(png_bytes);
+/// let image = Image::decode(&mut reader, &None).unwrap();
+///
+/// // Access original data
+/// let original = image.data();
+/// ```
 #[derive(Default, PartialEq, Eq, Clone, Debug, Getters, Serialize, Deserialize)]
 #[getset(get = "pub")]
 pub struct Image {
+    /// Original raw image data in native format.
     data: Vec<u8>,
+
+    /// PNG-converted data for DDS textures (for viewing/editing).
     converted_data: Option<Vec<u8>>,
 }
 

@@ -19,7 +19,7 @@ use super::*;
 
 impl Cs2Parsed {
 
-    pub fn read_v0<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
+    pub(crate) fn read_v0<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
         let mut piece = Piece::default();
         let mut destruct = Destruct::default();
         destruct.collision_3d.read_v0(data)?;
@@ -45,7 +45,7 @@ impl Cs2Parsed {
         Ok(())
     }
 
-    pub fn write_v0<W: WriteBytes>(&mut self, buffer: &mut W) -> Result<()> {
+    pub(crate) fn write_v0<W: WriteBytes>(&mut self, buffer: &mut W) -> Result<()> {
         for piece in &mut self.pieces {
             for destruct in &mut piece.destructs {
                 destruct.collision_3d.write_v0(buffer)?;

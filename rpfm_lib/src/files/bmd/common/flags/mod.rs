@@ -8,6 +8,36 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
+//! Flag definitions for BMD entities.
+//!
+//! This module defines the [`Flags`] structure containing boolean flags that control
+//! entity behavior, placement, and visibility in BMD files.
+//!
+//! # Flag Categories
+//!
+//! - **Placement**: `allow_in_outfield`, `clamp_to_surface`, `clamp_to_water_surface`
+//! - **Seasonal**: `spring`, `summer`, `autumn`, `winter`
+//! - **Visibility**: `visible_in_tactical_view`, `visible_in_tactical_view_only`
+//!
+//! # Supported Versions
+//!
+//! - **Version 1**: Initial format
+//! - **Version 2**: Enhanced format
+//! - **Version 3**: Additional flags
+//! - **Version 4**: Current format
+//!
+//! # Usage
+//!
+//! ```ignore
+//! use rpfm_lib::files::bmd::common::flags::Flags;
+//! use rpfm_lib::files::Decodeable;
+//!
+//! let flags = Flags::decode(&mut reader, &None)?;
+//! if *flags.spring() && *flags.visible_in_tactical_view() {
+//!     println!("Visible in spring tactical view");
+//! }
+//! ```
+
 use getset::*;
 use serde_derive::{Serialize, Deserialize};
 
@@ -26,18 +56,69 @@ mod v4;
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
+/// Boolean flags controlling entity behavior and visibility.
+///
+/// This structure contains various flags that control how entities (buildings,
+/// props, etc.) behave in the game, including placement rules, seasonal visibility,
+/// and tactical view settings.
+///
+/// # Flag Categories
+///
+/// ## Placement Flags
+/// - `allow_in_outfield`: Entity can be placed outside the playable area
+/// - `clamp_to_surface`: Entity position is clamped to terrain surface
+/// - `clamp_to_water_surface`: Entity position is clamped to water surface
+///
+/// ## Seasonal Flags
+/// - `spring`, `summer`, `autumn`, `winter`: Entity is visible in specified seasons
+///
+/// ## Visibility Flags
+/// - `visible_in_tactical_view`: Entity is visible in tactical camera view
+/// - `visible_in_tactical_view_only`: Entity is only visible in tactical view
+///
+/// # Example
+///
+/// ```ignore
+/// use rpfm_lib::files::bmd::common::flags::Flags;
+///
+/// let mut flags = Flags::default();
+/// flags.set_serialise_version(4);
+/// flags.set_spring(true);
+/// flags.set_summer(true);
+/// flags.set_clamp_to_surface(true);
+/// flags.set_visible_in_tactical_view(true);
+/// ```
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Flags {
+    /// Format version number (1-4).
     serialise_version: u16,
+
+    /// Whether the entity can be placed in the outfield (outside playable area).
     allow_in_outfield: bool,
+
+    /// Whether the entity position is clamped to the terrain surface.
     clamp_to_surface: bool,
+
+    /// Whether the entity position is clamped to the water surface.
     clamp_to_water_surface: bool,
+
+    /// Whether the entity is visible during spring season.
     spring: bool,
+
+    /// Whether the entity is visible during summer season.
     summer: bool,
+
+    /// Whether the entity is visible during autumn season.
     autumn: bool,
+
+    /// Whether the entity is visible during winter season.
     winter: bool,
+
+    /// Whether the entity is visible in tactical camera view.
     visible_in_tactical_view: bool,
+
+    /// Whether the entity is only visible in tactical view (hidden in normal view).
     visible_in_tactical_view_only: bool,
 }
 

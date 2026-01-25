@@ -8,6 +8,11 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
+//! Climate definitions for terrain tiles.
+//!
+//! Climates define environmental variations for terrain (e.g., temperate, desert, snow).
+//! Each climate has associated textures and colour modifiers that affect how tiles appear.
+
 use getset::*;
 use serde_derive::{Serialize, Deserialize};
 
@@ -23,21 +28,35 @@ mod v3;
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
+/// A climate definition with textures and colour modifiers.
+///
+/// Climates affect the visual appearance of terrain tiles by providing
+/// texture sets and colour adjustments for different environmental conditions.
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Climate {
+    /// Serialisation format version.
     serialise_version: u16,
 
+    /// Climate identifier name.
     name: String,
+    /// Associated texture set name.
     texture_set: String,
+    /// Red colour modifier (0.0-1.0).
     red: f32,
+    /// Green colour modifier (0.0-1.0).
     green: f32,
+    /// Blue colour modifier (0.0-1.0).
     blue: f32,
 
+    /// Textures used by this climate.
     textures: Vec<Texture>,
 
+    /// Additive grass alpha adjustment.
     grass_alpha_add: f32,
+    /// Multiplicative grass alpha adjustment.
     grass_alpha_mul: f32,
+    /// Climate to use for destruction effects.
     destruction_climate: String,
 }
 

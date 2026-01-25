@@ -8,11 +8,74 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*!
-Module with all the code related to the `GlobalSearch`.
-
-This module contains the code needed to get a `GlobalSearch` over an entire `PackFile`.
-!*/
+//! Global search and replace functionality for Pack files.
+//!
+//! This module provides comprehensive search capabilities across entire packs,
+//! supporting multiple file types and search modes. It's designed for finding
+//! and optionally replacing text across DB tables, Loc files, scripts, and more.
+//!
+//! # Features
+//!
+//! - **Pattern Matching**: Simple string pattern search with optional case sensitivity
+//! - **Regex Support**: Full regular expression matching via the `regex` crate
+//! - **Multi-file Search**: Search across all files in a pack simultaneously
+//! - **Dependency Search**: Optionally include vanilla and parent mod files
+//! - **Replace Support**: Batch replacement for supported file types
+//!
+//! # Supported File Types
+//!
+//! Search is implemented for the following file types via the [`Searchable`] trait:
+//!
+//! - **DB/Loc Tables** ([`table`]): Search cell contents by column or across all columns
+//! - **Text Files** ([`text`]): Lua scripts, XML, and other text formats
+//! - **Atlas Files** ([`atlas`]): Texture atlas definitions
+//! - **Portrait Settings** ([`portrait_settings`]): Unit portrait configurations
+//! - **Animation Fragments** ([`anim_fragment_battle`]): Battle animation data
+//! - **Rigid Models** ([`rigid_model`]): 3D model metadata
+//! - **Unit Variants** ([`unit_variant`]): Unit variant definitions
+//! - **Schema** ([`schema`]): Search within schema definitions
+//! - **Unknown Files** ([`unknown`]): Raw binary search
+//!
+//! # Search Sources
+//!
+//! Searches can target different data sources:
+//!
+//! - **Pack Only**: Search only the currently loaded pack
+//! - **Parent Mods**: Include files from parent mod dependencies
+//! - **Vanilla Files**: Include game's vanilla data
+//! - **All Sources**: Search everywhere
+//!
+//! # Usage Example
+//!
+//! ```ignore
+//! use rpfm_extensions::search::{GlobalSearch, SearchSource, SearchOn};
+//!
+//! let mut search = GlobalSearch::default();
+//! search.set_pattern("swordsmen".to_string());
+//! search.set_case_sensitive(false);
+//! search.set_use_regex(false);
+//! search.set_source(SearchSource::Pack);
+//! search.set_search_on(SearchOn::all());
+//!
+//! // Perform the search
+//! search.search(&mut pack, &schema, &dependencies);
+//!
+//! // Access results
+//! for match_holder in search.matches().db() {
+//!     println!("Found in {}: {} matches", match_holder.path(), match_holder.matches().len());
+//! }
+//!
+//! // Perform replacement
+//! search.set_replace_text("spearmen".to_string());
+//! search.replace(&mut pack, &schema);
+//! ```
+//!
+//! # Matching Modes
+//!
+//! The [`MatchingMode`] enum determines how the search pattern is interpreted:
+//!
+//! - **Pattern**: Standard string matching with optional regex fallback
+//! - **Regex**: Full regex pattern matching with capture groups
 
 use getset::*;
 use regex::{RegexBuilder, Regex};
@@ -76,20 +139,59 @@ pub mod schema;
 //                             Trait definitions
 //-------------------------------------------------------------------------------//
 
-/// This trait marks an struct (mainly structs representing decoded files) as `Searchable`, meaning they can be scanned for specific string matches.
+/// Trait for file types that support text searching.
+///
+/// Implementors of this trait can be scanned for text matches using various
+/// matching modes (pattern, regex, case-sensitive, etc.).
+///
+/// # Associated Types
+///
+/// - `SearchMatches`: The type returned containing match results, specific to each
+///   file type (e.g., `TableMatches` for DB/Loc files).
 pub trait Searchable {
+    /// The type containing search results for this searchable type.
     type SearchMatches;
 
-    /// This function performs a search over a Searchable type, and returns the results.
+    /// Performs a search and returns all matches.
+    ///
+    /// # Arguments
+    ///
+    /// * `file_path` - Path of the file being searched (for result reporting)
+    /// * `pattern_to_search` - The search pattern or regex
+    /// * `case_sensitive` - Whether matching should be case-sensitive
+    /// * `matching_mode` - How to interpret the pattern (literal vs regex)
+    ///
+    /// # Returns
+    ///
+    /// A match result struct containing all found matches with their locations.
     fn search(&self, file_path: &str, pattern_to_search: &str, case_sensitive: bool, matching_mode: &MatchingMode) -> Self::SearchMatches;
 }
 
-/// This trait marks a Searchable struct as `Replaceable`, meaning their matches can be replaced.
+/// Trait for searchable types that also support replacement.
+///
+/// Extends [`Searchable`] to allow replacing matched text with new content.
+/// Not all searchable types support replacement (e.g., read-only or binary files).
 pub trait Replaceable: Searchable {
 
-    /// This function performs a replace over search matches, returning true if the replacement was done.
+    /// Replaces matched text with the replacement pattern.
     ///
-    /// Replacements can fail due to outdated search matches or if the replacement is the same as the search match.
+    /// # Arguments
+    ///
+    /// * `pattern` - The original search pattern
+    /// * `replace_pattern` - The text to replace matches with (literal, no regex)
+    /// * `case_sensitive` - Whether matching should be case-sensitive
+    /// * `matching_mode` - How to interpret the search pattern
+    /// * `search_matches` - Previously found matches to replace
+    ///
+    /// # Returns
+    ///
+    /// `true` if any replacements were made, `false` if no changes occurred.
+    ///
+    /// # Note
+    ///
+    /// Replacements may fail if:
+    /// - The search matches are outdated (file was modified since search)
+    /// - The replacement text is identical to the matched text
     fn replace(&mut self, pattern: &str, replace_pattern: &str, case_sensitive: bool, matching_mode: &MatchingMode, search_matches: &Self::SearchMatches) -> bool;
 }
 
@@ -97,83 +199,149 @@ pub trait Replaceable: Searchable {
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
-/// This struct contains the information needed to perform a global search, and the results of said search.
+/// Configuration and results for a global search operation.
+///
+/// This struct holds all parameters needed to perform a search across a pack,
+/// as well as the results from the most recent search operation.
+///
+/// # Example
+///
+/// ```ignore
+/// let mut search = GlobalSearch::default();
+/// search.set_pattern("cavalry".to_string());
+/// search.set_case_sensitive(false);
+/// search.search(&mut pack, &schema, &dependencies);
+/// ```
 #[derive(Default, Debug, Clone, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct GlobalSearch {
 
-    /// Pattern to search.
+    /// The text pattern or regex to search for.
     pattern: String,
 
-    /// Pattern to use when replacing. This is a hard pattern, which means regex is not allowed here.
+    /// Text to use for replacements.
+    ///
+    /// This is always a literal string - regex capture groups are not supported
+    /// in the replacement text.
     replace_text: String,
 
-    /// Should the global search be *Case Sensitive*?
+    /// Whether the search should be case-sensitive.
+    ///
+    /// When `false`, "Cavalry" will match "cavalry", "CAVALRY", etc.
     case_sensitive: bool,
 
-    /// If the search must be done using regex instead basic matching.
+    /// Whether to interpret the pattern as a regular expression.
+    ///
+    /// When `true`, the pattern is compiled as a regex. If compilation fails,
+    /// the search falls back to literal pattern matching.
     use_regex: bool,
 
-    /// Where should we search.
+    /// Which data sources to include in the search.
     source: SearchSource,
 
-    /// In which files we should search on.
+    /// Which file types to search within.
     search_on: SearchOn,
 
-    /// Matches returned by this search.
+    /// Results from the most recent search operation.
     matches: Matches,
 
-    /// Key of the game the files we're searching over belong. This is needed to decode certain file formats.
+    /// Game key for the files being searched.
+    ///
+    /// Required for decoding certain game-specific file formats during search.
     game_key: String,
 }
 
-/// This enum defines the matching mode of the search. We use `Pattern` by default, and fall back to it
-/// if we try to use `Regex` and the provided regex expression is invalid.
+/// How the search pattern should be interpreted.
+///
+/// Determines whether matching is done via literal string comparison
+/// or regular expression evaluation.
 #[derive(Debug, Clone)]
 pub enum MatchingMode {
+    /// Full regular expression matching.
+    ///
+    /// The contained `Regex` is pre-compiled for efficient repeated matching.
     Regex(Regex),
+    /// Literal pattern matching with optional regex fallback.
+    ///
+    /// If `Some(Regex)`, the regex is used for case-insensitive matching.
+    /// If `None`, simple string comparison is used.
     Pattern(Option<Regex>),
 }
 
-/// This enum is a way to put together all kind of matches.
+/// Container for search matches from any file type.
+///
+/// Each variant wraps the specific match type for that file format,
+/// allowing uniform handling of results from different file types.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MatchHolder {
+    /// Matches in animation files.
     Anim(UnknownMatches),
+    /// Matches in animation fragment battle files.
     AnimFragmentBattle(AnimFragmentBattleMatches),
+    /// Matches in animation pack files.
     AnimPack(UnknownMatches),
+    /// Matches in animation table files.
     AnimsTable(UnknownMatches),
+    /// Matches in texture atlas files.
     Atlas(AtlasMatches),
+    /// Matches in audio files.
     Audio(UnknownMatches),
+    /// Matches in BMD files.
     Bmd(UnknownMatches),
+    /// Matches in DB tables.
     Db(TableMatches),
+    /// Matches in ESF files.
     Esf(UnknownMatches),
+    /// Matches in group formation files.
     GroupFormations(UnknownMatches),
+    /// Matches in image files.
     Image(UnknownMatches),
+    /// Matches in Loc (localisation) tables.
     Loc(TableMatches),
+    /// Matches in matched combat files.
     MatchedCombat(UnknownMatches),
+    /// Matches in pack files.
     Pack(UnknownMatches),
+    /// Matches in portrait settings files.
     PortraitSettings(PortraitSettingsMatches),
+    /// Matches in rigid model files.
     RigidModel(RigidModelMatches),
+    /// Matches in sound bank files.
     SoundBank(UnknownMatches),
+    /// Matches in text/script files.
     Text(TextMatches),
+    /// Matches in UIC files.
     Uic(UnknownMatches),
+    /// Matches in unit variant files.
     UnitVariant(UnitVariantMatches),
+    /// Matches in unknown/unsupported files.
     Unknown(UnknownMatches),
+    /// Matches in video files.
     Video(UnknownMatches),
+    /// Matches in schema definitions.
     Schema(SchemaMatches),
 }
 
-/// This enum is specifies the source where the search should be performed.
+/// Data source to search within.
+///
+/// Controls which files are included in the search scope.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[derive(Default)]
 pub enum SearchSource {
+    /// Search only the currently loaded pack.
     #[default] Pack,
+    /// Search in parent mod dependencies.
     ParentFiles,
+    /// Search in vanilla game files.
     GameFiles,
+    /// Search in Assembly Kit files.
     AssKitFiles,
 }
 
-/// This struct specifies in what file types is the search going to be performed.
+/// Configuration for which file types to include in a search.
+///
+/// Each boolean field controls whether that file type will be searched.
+/// Use `SearchOn::all()` to enable all file types or configure individually.
 #[derive(Default, Debug, Clone, Getters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", set = "pub")]
 pub struct SearchOn {
@@ -386,7 +554,7 @@ impl GlobalSearch {
             MatchHolder::Unknown(_) => self.use_regex || !patterns_same_lenght,
             MatchHolder::Video(_) => false,
         }) {
-            Err(RLibError::GlobalSearchReplaceRequiresSameLenghtAndNotRegex)
+            Err(RLibError::GlobalSearchReplaceRequiresSameLengthAndNotRegex)
         } else {
             Ok(())
         }

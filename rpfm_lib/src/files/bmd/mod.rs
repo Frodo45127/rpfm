@@ -8,7 +8,104 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! This is a module to read/write Battle Map Definition binary (FASTBIN0) files.
+//! Battle Map Definition (BMD) file format support.
+//!
+//! BMD files (`.bmd`) are FASTBIN0-format files that define battle map layouts for Total War
+//! games. They contain comprehensive 3D scene data including buildings, terrain, lighting,
+//! vegetation, deployment zones, AI hints, and other gameplay-critical map elements.
+//!
+//! # File Format
+//!
+//! BMD files use the FASTBIN0 binary format with a version-specific structure:
+//!
+//! ```text
+//! [8 bytes]  FASTBIN0 signature
+//! [u16]      serialise_version
+//! [...]      version-specific data
+//! ```
+//!
+//! # Supported Versions
+//!
+//! All currently supported versions are:
+//! - **Version 23**
+//! - **Version 24**
+//! - **Version 25**
+//! - **Version 26**
+//! - **Version 27**
+//!
+//! # File Contents
+//!
+//! BMD files contain numerous specialized data lists:
+//!
+//! ## Buildings & Structures
+//! - `BattlefieldBuildingList` - Buildings inside the battlefield area
+//! - `BattlefieldBuildingListFar` - Buildings outside the battlefield area
+//! - `PrefabInstanceList` - Prefab object instances
+//! - `PropList` - Small decorative props
+//!
+//! ## Terrain & Outlines
+//! - `TerrainOutlines` - Terrain boundary definitions
+//! - `NonTerrainOutlines` - Non-terrain area boundaries
+//! - `GoOutlines` - Traversable areas (where units can go)
+//! - `WaterOutlines` - Water body boundaries
+//!
+//! ## Gameplay Elements
+//! - `DeploymentList` - Unit deployment zones
+//! - `CaptureLocationSet` - Groups of capture locations
+//! - `PlayableArea` - Playable map boundaries
+//! - `AIHints` - AI pathfinding and behavior hints
+//!
+//! ## Lighting & Visual Effects
+//! - `PointLightList` - Point light sources
+//! - `SpotLightList` - Spotlight sources
+//! - `LightProbeList` - Global illumination probes
+//! - `ParticleEmitterList` - Particle effect emitters
+//!
+//! ## Vegetation
+//! - `TreeListReferenceList` - Tree placement references
+//! - `GrassListReferenceList` - Grass placement references
+//!
+//! ## Other
+//! - `CameraZones` - Camera constraint zones
+//! - `SoundShapeList` - 3D audio zones
+//! - `CompositeSceneList` - Composite scene references
+//! - `CustomMaterialMeshList` - Custom material meshes
+//! - And 20+ more specialized lists
+//!
+//! # Usage
+//!
+//! ```ignore
+//! use rpfm_lib::files::bmd::Bmd;
+//! use rpfm_lib::files::Decodeable;
+//!
+//! // Decode a BMD file
+//! let bmd = Bmd::decode(&mut reader, &None)?;
+//!
+//! println!("BMD version: {}", bmd.serialise_version());
+//!
+//! // Access building list
+//! for building in bmd.battlefield_building_list().list() {
+//!     println!("Building: {:?}", building.key());
+//! }
+//!
+//! // Export to Terry (CA's editor format)
+//! bmd.export_prefab_to_raw_data("map_name", Some(&vegetation), &output_path)?;
+//! ```
+//!
+//! # Terry Export
+//!
+//! BMD files can be exported to Terry (Creative Assembly's map editor) format using
+//! [`Bmd::export_prefab_to_raw_data()`]. This generates:
+//! - `.terry` project file
+//! - `.layer` scene layer file with entities and associations
+//!
+//! # File Location
+//!
+//! BMD files are typically found in:
+//! ```text
+//! terrain/battles/*.bmd
+//! terrain/tiles/*.bmd
+//! ```
 
 use getset::*;
 use nalgebra::{Matrix3, Rotation3};
@@ -60,12 +157,17 @@ use self::tree_list_reference_list::TreeListReferenceList;
 use self::grass_list_reference_list::GrassListReferenceList;
 use self::water_outlines::WaterOutlines;
 
-/// Extensions used by BMD files.
+/// File extension for Battle Map Definition files.
+///
+/// BMD files use the `.bmd` extension.
 pub const EXTENSIONS: [&str; 1] = [
     ".bmd",
 ];
 
-/// FASTBIN0
+/// FASTBIN0 file signature.
+///
+/// All BMD files start with this 8-byte signature: `FASTBIN0`
+/// (bytes: `[0x46, 0x41, 0x53, 0x54, 0x42, 0x49, 0x4E, 0x30]`)
 pub const SIGNATURE: &[u8; 8] = &[0x46, 0x41, 0x53, 0x54, 0x42, 0x49, 0x4E, 0x30];
 
 mod battlefield_building_list;
@@ -116,45 +218,204 @@ mod v27;
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
-/// This holds an entire `Bmd` file decoded in memory.
+/// Represents a complete Battle Map Definition file decoded in memory.
+///
+/// This struct contains all battle map data including buildings, terrain, lighting,
+/// deployment zones, AI hints, and numerous other gameplay and visual elements.
+///
+/// # Field Categories
+///
+/// ## Core
+/// - `serialise_version`: File format version (23-27)
+///
+/// ## Buildings & Objects
+/// - `battlefield_building_list` - Buildings inside the battlefield area
+/// - `battlefield_building_list_far` - Buildings outside the battlefield area
+/// - `prefab_instance_list`: Prefab object instances
+/// - `prop_list`: Small decorative props
+/// - `composite_scene_list`: Composite scene references
+///
+/// ## Terrain & Boundaries
+/// - `terrain_outlines`: Terrain area boundaries
+/// - `non_terrain_outlines`: Non-terrain area boundaries
+/// - `go_outlines`: Traversable area outlines (where units can go).
+/// - `water_outlines`: Water body boundaries
+/// - `bmd_outline_list`: Additional outline definitions
+/// - `lite_building_outlines`: Simplified building outlines
+/// - `playable_area`: Playable map boundaries
+///
+/// ## Gameplay
+/// - `deployment_list`: Unit deployment zones
+/// - `capture_location_set`: Capture point locations
+/// - `bmd_catchment_area_list`: Catchment area definitions
+/// - `zones_template_list`: Zone template definitions
+/// - `ef_line_list`: Entity Formation line definitions
+/// - `ai_hints`: AI pathfinding and behavior hints
+///
+/// ## Lighting
+/// - `point_light_list`: Point light sources
+/// - `spot_light_list`: Spotlight sources
+/// - `light_probe_list`: Global illumination probes
+///
+/// ## Effects & Audio
+/// - `particle_emitter_list`: Particle effect emitters
+/// - `sound_shape_list`: 3D audio zones
+/// - `building_projectile_emitter_list`: Building-based projectile emitters
+///
+/// ## Vegetation
+/// - `tree_list_reference_list`: Tree placement references
+/// - `grass_list_reference_list`: Grass placement references
+///
+/// ## Advanced Rendering
+/// - `custom_material_mesh_list`: Custom material meshes
+/// - `terrain_stencil_triangle_list`: Terrain stencil geometry
+/// - `terrain_stencil_blend_triangle_list`: Blended stencil geometry
+/// - `terrain_decal_list`: Terrain decal placements
+///
+/// ## Civilians & Sieges
+/// - `civilian_deployment_list`: Civilian unit spawns
+/// - `civilian_shelter_list`: Civilian shelter locations
+/// - `toggleable_buildings_slot_list`: Destructible building slots
+///
+/// ## Cameras
+/// - `camera_zones`: Camera constraint volumes
+///
+/// # Getset
+///
+/// All fields have public getters, mutable getters, and setters generated via `getset`:
+/// ```ignore
+/// let version = bmd.serialise_version();  // Getter
+/// *bmd.serialise_version_mut() = 27;      // Mutable getter
+/// bmd.set_serialise_version(27);          // Setter
+/// ```
+///
+/// # Example
+///
+/// ```ignore
+/// use rpfm_lib::files::bmd::Bmd;
+/// use rpfm_lib::files::Decodeable;
+///
+/// let bmd = Bmd::decode(&mut reader, &None)?;
+///
+/// // Check version
+/// println!("BMD version: {}", bmd.serialise_version());
+///
+/// // Iterate buildings
+/// for building in bmd.battlefield_building_list().list() {
+///     println!("Building key: {:?}", building.key());
+/// }
+///
+/// // Access deployment zones
+/// for zone in bmd.deployment_list().list() {
+///     println!("Deployment zone: {:?}", zone);
+/// }
+/// ```
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Bmd {
+    /// File format version number (23-27).
     serialise_version: u16,
 
+    /// Building instances inside the battlefield area.
     battlefield_building_list: BattlefieldBuildingList,
+
+    /// Building instances outside the battlefield area.
     battlefield_building_list_far: BattlefieldBuildingListFar,
+
+    /// Groups of capture locations.
     capture_location_set: CaptureLocationSet,
+
+    /// Entity Formation line definitions.
     ef_line_list: EFLineList,
+
+    /// Traversable area outlines (where units can go).
     go_outlines: GoOutlines,
+
+    /// Non-terrain area boundary outlines.
     non_terrain_outlines: NonTerrainOutlines,
+
+    /// Zone template definitions.
     zones_template_list: ZonesTemplateList,
+
+    /// Prefab object instances.
     prefab_instance_list: PrefabInstanceList,
+
+    /// Additional outline definitions.
     bmd_outline_list: BmdOutlineList,
+
+    /// Terrain area boundary outlines.
     terrain_outlines: TerrainOutlines,
+
+    /// Simplified building outline definitions.
     lite_building_outlines: LiteBuildingOutlines,
+
+    /// Camera constraint volumes.
     camera_zones: CameraZones,
+
+    /// Civilian unit deployment locations.
     civilian_deployment_list: CivilianDeploymentList,
+
+    /// Civilian shelter locations.
     civilian_shelter_list: CivilianShelterList,
+
+    /// Small decorative prop instances.
     prop_list: PropList,
+
+    /// Particle effect emitter instances.
     particle_emitter_list: ParticleEmitterList,
+
+    /// AI pathfinding and behavior hints.
     ai_hints: AIHints,
+
+    /// Global illumination light probes.
     light_probe_list: LightProbeList,
+
+    /// Terrain stencil triangle geometry.
     terrain_stencil_triangle_list: TerrainStencilTriangleList,
+
+    /// Point light source instances.
     point_light_list: PointLightList,
+
+    /// Building-based projectile emitter instances.
     building_projectile_emitter_list: BuildingProjectileEmitterList,
+
+    /// Playable map area boundaries.
     playable_area: PlayableArea,
+
+    /// Custom material mesh instances.
     custom_material_mesh_list: CustomMaterialMeshList,
+
+    /// Blended terrain stencil triangle geometry.
     terrain_stencil_blend_triangle_list: TerrainStencilBlendTriangleList,
+
+    /// Spotlight source instances.
     spot_light_list: SpotLightList,
+
+    /// 3D audio zone definitions.
     sound_shape_list: SoundShapeList,
+
+    /// Composite scene references.
     composite_scene_list: CompositeSceneList,
+
+    /// Unit deployment zone definitions.
     deployment_list: DeploymentList,
+
+    /// Catchment area definitions.
     bmd_catchment_area_list: BmdCatchmentAreaList,
+
+    /// Destructible/toggleable building slot definitions.
     toggleable_buildings_slot_list: ToggleableBuildingsSlotList,
+
+    /// Terrain decal placements.
     terrain_decal_list: TerrainDecalList,
+
+    /// Tree placement references (links to vegetation files).
     tree_list_reference_list: TreeListReferenceList,
+
+    /// Grass placement references (links to vegetation files).
     grass_list_reference_list: GrassListReferenceList,
+
+    /// Water body boundary outlines.
     water_outlines: WaterOutlines,
 }
 
@@ -162,7 +423,26 @@ pub struct Bmd {
 //                           Implementation of Bmd
 //---------------------------------------------------------------------------//
 
+/// Trait for converting BMD data structures to Terry `.layer` XML format.
+///
+/// This trait is implemented by all BMD data list types to enable export to
+/// Creative Assembly's Terry map editor format. Each implementation converts
+/// its data to XML entity definitions that can be imported into Terry.
 pub trait ToLayer {
+    /// Converts this data structure to Terry `.layer` XML entity definitions.
+    ///
+    /// # Parameters
+    ///
+    /// - `parent`: Reference to the parent [`Bmd`] for accessing cross-referenced data
+    ///
+    /// # Returns
+    ///
+    /// - `Ok(String)`: XML entity definitions for this data list
+    /// - `Err(_)`: Conversion error
+    ///
+    /// # Default Implementation
+    ///
+    /// Returns an empty string (no entities exported).
     fn to_layer(&self, _parent: &Bmd) -> Result<String> {
         Ok(String::new())
     }
@@ -215,6 +495,55 @@ impl Encodeable for Bmd {
 }
 
 impl Bmd {
+    /// Exports this BMD to Terry (Creative Assembly's editor) format.
+    ///
+    /// Generates two files for use in Terry:
+    /// - `.terry` - Project file defining the prefab structure
+    /// - `.layer` - Scene layer with entities, associations, and vegetation
+    ///
+    /// # Parameters
+    ///
+    /// - `name`: Base name for output files (e.g., "siege_map")
+    /// - `vegetation`: Optional vegetation data from BMD vegetation file
+    /// - `output_path`: Directory where files will be created
+    ///
+    /// # Returns
+    ///
+    /// - `Ok(())`: Successfully exported files
+    /// - `Err(_)`: I/O error or conversion error
+    ///
+    /// # Generated Files
+    ///
+    /// - `{name}.terry` - Project file with scene hierarchy
+    /// - `{name}.187abf10b8b9a13.layer` - Layer file with entities
+    ///
+    /// # Entity Associations
+    ///
+    /// The layer file includes two association types:
+    /// - **Logical**: Parent-child grouping relationships in Terry's UI
+    /// - **Transform**: Spatial/hierarchical relationships
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// use rpfm_lib::files::bmd::Bmd;
+    /// use rpfm_lib::files::bmd_vegetation::BmdVegetation;
+    /// use std::path::Path;
+    ///
+    /// let bmd = Bmd::decode(&mut reader, &None)?;
+    /// let vegetation = BmdVegetation::decode(&mut veg_reader, &None)?;
+    ///
+    /// bmd.export_prefab_to_raw_data(
+    ///     "my_battle_map",
+    ///     Some(&vegetation),
+    ///     Path::new("output/")
+    /// )?;
+    /// ```
+    ///
+    /// # Note
+    ///
+    /// Not all BMD data lists are currently exported. Some are commented out
+    /// in the implementation and will be added as export support is completed.
     pub fn export_prefab_to_raw_data(&self, name: &str, vegetation: Option<&BmdVegetation>, output_path: &Path) -> Result<()> {
 
         // We need to generate two files:
@@ -362,10 +691,36 @@ impl Bmd {
         Ok(())
     }
 
+    /// Returns logical entity associations for Terry export.
+    ///
+    /// Logical associations define parent-child grouping relationships for
+    /// organizing entities in Terry's UI hierarchy.
+    ///
+    /// # Returns
+    ///
+    /// Map of parent entity IDs to their logically grouped child entity IDs.
+    ///
+    /// # Note
+    ///
+    /// Currently returns an empty map. Will be populated as association
+    /// logic is implemented.
     pub fn logical_associations(&self) -> HashMap<String, Vec<String>> {
         HashMap::new()
     }
 
+    /// Returns transform (spatial hierarchy) entity associations for Terry export.
+    ///
+    /// Transform associations define parent-child spatial relationships between
+    /// entities (e.g., props attached to buildings, lights attached to structures).
+    ///
+    /// # Returns
+    ///
+    /// Map of parent entity IDs to their child entity IDs.
+    ///
+    /// # Note
+    ///
+    /// Currently returns an empty map. Will be populated as association
+    /// logic is implemented.
     pub fn trasnform_associations(&self) -> HashMap<String, Vec<String>> {
         HashMap::new()
     }

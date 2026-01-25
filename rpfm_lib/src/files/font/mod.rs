@@ -8,13 +8,60 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! This is a module to read/write Font/CUF files.
+//! CUF (Creative Assembly Unicode Font) file format support.
 //!
-//! Currently, only Empire fonts have been tested.
+//! This module handles `.cuf` font files used by Total War games to render text.
+//! CUF files contain glyph data, metrics, and optional kerning information for
+//! bitmap-based font rendering.
 //!
-//! Most of the code here was implemented thanks to the research done by the Europa Barbarorum Team for their CUF tool.
+//! # File Format
 //!
-//! You may find some of their comments here, ported for reference.
+//! CUF files use a custom binary format with the signature `CUF0`. The structure includes:
+//! - Font properties (line height, baseline, spacing, etc.)
+//! - Glyph mapping table (character code to glyph index)
+//! - Glyph dimensions (allocated size, actual size)
+//! - Glyph bitmap data (8-bit grayscale)
+//! - Optional kerning data (pair-wise spacing adjustments)
+//!
+//! # Testing Status
+//!
+//! Currently, only Empire: Total War fonts have been thoroughly tested. Other games
+//! may use slight variations of the format.
+//!
+//! # Credits
+//!
+//! Most of the reverse-engineering work was done by the Europa Barbarorum Team for
+//! their CUF tool. Their comments and insights have been ported here for reference.
+//!
+//! # Glyph Storage
+//!
+//! Glyphs are stored as 8-bit grayscale bitmaps. The format uses a sparse representation
+//! where only used character codes (non-0xFFFF values) have associated glyph data.
+//!
+//! # Kerning
+//!
+//! Kerning support is optional and only present in some font files. When present,
+//! kerning data provides spacing adjustments for specific character pairs to improve
+//! visual appearance.
+//!
+//! # Usage
+//!
+//! ```ignore
+//! use rpfm_lib::files::font::Font;
+//! use rpfm_lib::files::Decodeable;
+//!
+//! // Decode a font file
+//! let font = Font::decode(&mut data, &None)?;
+//!
+//! // Access font properties
+//! println!("Line height: {}", font.properties().line_height());
+//! println!("Supports kerning: {}", font.supports_kerning());
+//!
+//! // Access glyphs
+//! for (char_code, glyph) in font.glyphs() {
+//!     println!("Character {}: {}x{}", char_code, glyph.width(), glyph.height());
+//! }
+//! ```
 
 use getset::*;
 use serde_derive::{Serialize, Deserialize};
@@ -27,32 +74,53 @@ use crate::error::{Result, RLibError};
 use crate::files::{DecodeableExtraData, Decodeable, EncodeableExtraData, Encodeable};
 use crate::utils::check_size_mismatch;
 
+/// File extension for CUF font files.
 pub const EXTENSION: &str = ".cuf";
 
 #[cfg(test)] mod font_test;
 
+/// CUF file format signature (`CUF0`).
 const SIGNATURE: &[u8; 4] = b"CUF0";
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
+/// Represents a CUF font file.
+///
+/// Contains font properties, glyph data, and optional kerning information.
+/// Glyphs are stored in a sparse map indexed by character code (0-65535).
 #[derive(PartialEq, Clone, Debug, Default, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Font {
+    /// Font rendering properties and metrics.
     properties: CUFProperties,
+
+    /// Map of character codes to glyph data.
+    ///
+    /// Only contains entries for characters actually defined in the font.
+    /// Character codes map to Unicode-like values.
     glyphs: BTreeMap<u16, Glyph>,
 
+    /// Whether this font file includes kerning data.
     supports_kerning: bool,
+
+    /// Character codes below this value do not have kerning data.
     kerning_skip: u16,
+
+    /// Kerning adjustment blocks (one per character code >= kerning_skip).
     kerning_blocks: Vec<Vec<u8>>,
 }
 
+/// Font properties controlling text layout and rendering.
+///
+/// Many of these properties are indices or references whose exact purpose is still
+/// being researched. Comments from the Europa Barbarorum Team's research have been
+/// preserved for reference.
 #[derive(PartialEq, Clone, Debug, Default, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct CUFProperties {
-
-    /// Unknown purpose. First CUF property.
+    /// Unknown purpose (first CUF property).
     first_prop: u16,
 
     /// Unknown purpose. Second CUF property.
@@ -100,16 +168,83 @@ pub struct CUFProperties {
     v_size: u16,
 }
 
+/// Represents a single glyph (character) in a font.
+///
+/// Contains the character's bitmap data and rendering metrics. Glyphs store both
+/// allocated dimensions (for layout) and actual bitmap dimensions (for rendering).
+///
+/// # Bitmap Data
+///
+/// The `data` field contains 8-bit grayscale pixel data in row-major order:
+/// - Each byte represents one pixel's intensity/alpha (0-255)
+/// - Total size is `width × height` bytes
+/// - Empty glyphs (spaces, etc.) may have zero-sized data
+///
+/// # Dimensions
+///
+/// Two sets of dimensions are stored:
+/// - **Allocated** (`alloc_width`, `alloc_height`): Space reserved for layout
+/// - **Actual** (`width`, `height`): Size of the bitmap data
+///
+/// Allocated height can be negative for characters with descenders (e.g., 'g', 'y').
 #[derive(PartialEq, Clone, Debug, Default, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Glyph {
+    /// Glyph code/index in the font.
+    ///
+    /// This is the internal glyph identifier used by the font file format.
     code: u16,
+
+    /// Unicode character code this glyph represents.
+    ///
+    /// Maps to the Unicode character value (0-65535 range for BMP).
+    /// This is the character that will be displayed when this glyph is rendered.
     character: u16,
+
+    /// Allocated height in the font layout (can be negative).
+    ///
+    /// This is the vertical space reserved for the glyph in text layout.
+    /// Negative values indicate descenders (parts of characters below the baseline).
+    /// For example, lowercase 'g' or 'y' typically have negative allocated heights.
     alloc_height: i8,
+
+    /// Allocated width in the font layout.
+    ///
+    /// This is the horizontal advance width - how far to move the cursor after
+    /// rendering this glyph. May differ from the actual bitmap width.
     alloc_width: u8,
+
+    /// Actual bitmap width in pixels.
+    ///
+    /// The width of the glyph's pixel data. The `data` field contains
+    /// `width × height` bytes of bitmap information.
     width: u8,
+
+    /// Actual bitmap height in pixels.
+    ///
+    /// The height of the glyph's pixel data. The `data` field contains
+    /// `width × height` bytes of bitmap information.
     height: u8,
+
+    /// Kerning adjustment value.
+    ///
+    /// Used for pair-wise spacing adjustments between specific character combinations.
+    /// The exact interpretation depends on the kerning data in the font.
     kerning: u32,
+
+    /// 8-bit grayscale bitmap data.
+    ///
+    /// Contains the glyph's pixel data in row-major order:
+    /// - Size: `width × height` bytes
+    /// - Format: One byte per pixel (0 = transparent, 255 = opaque)
+    /// - Empty for characters with no visual representation (e.g., spaces)
+    ///
+    /// # Example Layout
+    ///
+    /// For a 3×2 glyph, data is stored as:
+    /// ```text
+    /// [row0_col0, row0_col1, row0_col2, row1_col0, row1_col1, row1_col2]
+    /// ```
     data: Vec<u8>,
 }
 

@@ -8,7 +8,72 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! This module contains the [Optimizable] and [OptimizableContainer] trait.
+//! Pack optimization system for reducing size and improving compatibility.
+//!
+//! This module provides tools to clean up and optimize mod packs by removing
+//! unnecessary data, duplicate entries, and files that are identical to vanilla.
+//! Optimization helps reduce mod size, improve load times, and increase
+//! compatibility with other mods.
+//!
+//! # Optimization Types
+//!
+//! ## Pack-Level Optimizations
+//!
+//! - **ITM File Removal**: Remove files that are byte-for-byte identical to
+//!   vanilla game files. These provide no benefit and can cause conflicts.
+//!
+//! ## Table Optimizations (DB/Loc)
+//!
+//! - **Duplicate Removal**: Remove rows that appear multiple times
+//! - **ITM Row Removal**: Remove rows identical to vanilla data
+//! - **ITNR Row Removal**: Remove rows identical to the "new row" default
+//! - **Empty File Removal**: Delete tables with no remaining rows
+//! - **Datacore Import**: Generate `twad_key_deletes` entries for datacored tables
+//!
+//! ## Portrait Settings Optimizations
+//!
+//! - **Unused Art Set Removal**: Remove art sets not referenced by any unit
+//! - **Unused Variant Removal**: Remove variants not used in any art set
+//! - **Empty Mask Removal**: Remove portrait masks that are empty/transparent
+//! - **Empty File Removal**: Delete portrait settings with no remaining data
+//!
+//! ## Text File Optimizations
+//!
+//! - **Unused XML Removal**: Remove unused XML files in map/prefab folders
+//! - **AGF File Removal**: Remove unnecessary AGF files
+//! - **Model Statistics Removal**: Remove debug/statistics files
+//!
+//! # Configuration
+//!
+//! Use [`OptimizerOptions`] to control which optimizations are applied:
+//!
+//! ```ignore
+//! let mut options = OptimizerOptions::default();
+//! options.set_pack_remove_itm_files(true);
+//! options.set_table_remove_itm_entries(true);
+//! options.set_pts_remove_empty_masks(true);
+//! ```
+//!
+//! # Usage Example
+//!
+//! ```ignore
+//! use rpfm_extensions::optimizer::OptimizableContainer;
+//!
+//! let (deleted, optimized) = pack.optimize(
+//!     None,  // Optimize all paths
+//!     &mut dependencies,
+//!     &schema,
+//!     &game_info,
+//!     &options,
+//! )?;
+//!
+//! println!("Deleted {} files, optimized {} files", deleted.len(), optimized.len());
+//! ```
+//!
+//! # Traits
+//!
+//! - [`Optimizable`]: For individual file types that can be optimized
+//! - [`OptimizableContainer`]: For containers (like [`Pack`]) that can optimize their contents
 
 use getset::{Getters, Setters};
 use serde::{Deserialize, Serialize};
@@ -22,28 +87,56 @@ use rpfm_lib::schema::Schema;
 
 use crate::dependencies::{Dependencies, KEY_DELETES_TABLE_NAME};
 
+/// Filename suffix used to identify empty mask images.
 const EMPTY_MASK_PATH_END: &str = "empty_mask.png";
+
+/// Default path for generated key deletes table.
 const DEFAULT_KEY_DELETES_FILE: &str = "db/twad_key_deletes_tables/generated_deletes";
 
 //-------------------------------------------------------------------------------//
 //                             Trait definitions
 //-------------------------------------------------------------------------------//
 
-/// This trait marks an struct (mainly structs representing decoded files) as `Optimizable`, meaning it can be cleaned up to reduce size and improve compatibility.
+/// Trait for file types that can be optimized to reduce size.
+///
+/// Implementors define how their specific file format should be cleaned up
+/// and what constitutes an "empty" state that allows safe deletion.
 pub trait Optimizable {
 
-    /// This function optimizes the provided struct to reduce its size and improve compatibility.
+    /// Optimizes this file to reduce size and improve compatibility.
     ///
-    /// It returns if the struct has been left in an state where it can be safetly deleted.
+    /// # Arguments
+    ///
+    /// * `dependencies` - Dependencies cache for comparing against vanilla data
+    /// * `container` - Optional reference to the containing pack for cross-file operations
+    /// * `options` - Configuration controlling which optimizations to apply
+    ///
+    /// # Returns
+    ///
+    /// `true` if the file is now empty and can be safely deleted, `false` otherwise.
     fn optimize(&mut self, dependencies: &mut Dependencies, container: Option<&mut Pack>, options: &OptimizerOptions) -> bool;
 }
 
-/// This trait marks a [Container] as an `Optimizable` container, meaning it can be cleaned up to reduce size and improve compatibility.
+/// Trait for containers (like [`Pack`]) that can optimize their contents.
+///
+/// This trait provides pack-wide optimization capabilities, processing
+/// multiple files and handling deletions.
 pub trait OptimizableContainer: Container {
 
-    /// This function optimizes the provided [Container] to reduce its size and improve compatibility.
+    /// Optimizes the container's contents.
     ///
-    /// It returns the list of files that has been safetly deleted during the optimization process.
+    /// # Arguments
+    ///
+    /// * `paths_to_optimize` - Specific paths to optimize, or `None` for all files
+    /// * `dependencies` - Dependencies cache for vanilla data comparison
+    /// * `schema` - Schema for decoding tables
+    /// * `game` - Game information for format-specific handling
+    /// * `options` - Configuration controlling which optimizations to apply
+    ///
+    /// # Returns
+    ///
+    /// A tuple of `(deleted_files, optimized_files)` containing the paths of
+    /// files that were deleted and files that were modified.
     fn optimize(&mut self,
         paths_to_optimize: Option<Vec<ContainerPath>>,
         dependencies: &mut Dependencies,
@@ -53,7 +146,16 @@ pub trait OptimizableContainer: Container {
     ) -> Result<(HashSet<String>, HashSet<String>)>;
 }
 
-/// Struct containing the configurable options for the optimizer.
+/// Configuration options for the pack optimizer.
+///
+/// Controls which optimization operations are enabled. Each option can be
+/// individually toggled to customize the optimization behavior.
+///
+/// # Default Behavior
+///
+/// By default, safe optimizations are enabled (duplicate removal, ITM removal)
+/// while potentially destructive ones are disabled (datacored table optimization,
+/// unused art set removal).
 #[derive(Clone, Debug, Getters, Setters, Deserialize, Serialize)]
 #[getset(get = "pub", set = "pub")]
 pub struct OptimizerOptions {

@@ -8,7 +8,25 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! This is a module to read/write tile_database files.
+//! Tile database files for Total War terrain systems.
+//!
+//! The tile database (`tile_database.bin`) contains definitions for terrain tiles,
+//! including their rendering parameters, textures, climate variations, and linking rules.
+//! This data is used by the game's terrain system to generate and render battle maps.
+//!
+//! # File Format
+//!
+//! Tile database files use the FASTBIN0 binary format with versioned serialisation.
+//! Currently only version 1 is supported.
+//!
+//! # Structure
+//!
+//! The database contains several interconnected components:
+//! - **Render Parameters**: Global rendering settings for terrain.
+//! - **Conversion Parameters**: Parameters for tile format conversion.
+//! - **Climates**: Climate-specific tile variations (e.g., temperate, desert).
+//! - **Tile Sets**: Groups of related tiles.
+//! - **Tiles**: Individual terrain tile definitions with textures and properties.
 
 use getset::*;
 use serde_derive::{Serialize, Deserialize};
@@ -26,6 +44,7 @@ use self::tile::Tile;
 
 use super::DecodeableExtraData;
 
+/// Name of the file used by Tile Databases.
 pub const NAME: &str = "tile_database.bin";
 
 /// FASTBIN0
@@ -49,16 +68,34 @@ mod v1;
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
-/// This holds an entire `TileDatabase` file decoded in memory.
+/// In-memory representation of a decoded tile database file.
+///
+/// Contains all terrain tile definitions and related configuration data
+/// used by the game's terrain system.
+///
+/// # Fields
+///
+/// * `serialise_version` - Format version (currently only 1 is supported).
+/// * `render_params` - Global rendering parameters for terrain tiles.
+/// * `conversion_params` - Parameters for tile format conversion.
+/// * `climates` - Climate-specific tile configurations.
+/// * `tile_sets` - Groups of related tiles.
+/// * `tiles` - Individual tile definitions.
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct TileDatabase {
+    /// Serialisation format version.
     serialise_version: u16,
 
+    /// Global rendering parameters.
     render_params: RenderParams,
+    /// Tile conversion parameters.
     conversion_params: ConversionParams,
+    /// Climate definitions with tile variations.
     climates: Vec<Climate>,
+    /// Tile set groupings.
     tile_sets: Vec<TileSet>,
+    /// Individual tile definitions.
     tiles: Vec<Tile>,
 }
 

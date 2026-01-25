@@ -8,7 +8,21 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! For more info about all this stuff, check <https://github.com/bnnm/wwiser/>.
+//! Wwise SoundBank (`.bnk`) file support.
+//!
+//! This module handles Audiokinetic Wwise SoundBank files used in modern Total War games.
+//! SoundBanks contain audio event definitions, hierarchies, and metadata that control
+//! how sounds are played in the game.
+//!
+//! For more info about the Wwise format, check <https://github.com/bnnm/wwiser/>.
+//!
+//! # Supported Sections
+//!
+//! Currently only partial support is implemented:
+//! - `BKHD` (Bank Header) - Contains version and bank metadata
+//! - `HIRC` (Hierarchy) - Contains audio object definitions and event actions
+//!
+//! Other sections like `DATA`, `DIDX`, `STID`, etc. are recognized but not yet supported.
 
 use getset::*;
 use serde_derive::{Serialize, Deserialize};
@@ -23,11 +37,11 @@ use self::sections::hirc::HIRC;
 
 use super::DecodeableExtraData;
 
-/// Extension used by soundbank files.
+/// Extension used by SoundBank files.
 pub const EXTENSION: &str = ".bnk";
 
-/// Hash Types.
-const FNV_NO: &str = "none";// #special value, no hashname allowed
+// Hash type identifiers for FNV hashing (used internally by Wwise).
+const FNV_NO: &str = "none";        // Special value, no hashname allowed
 const FNV_BNK: &str = "bank";
 const FNV_LNG: &str = "language";
 const FNV_EVT: &str = "event";
@@ -35,8 +49,8 @@ const FNV_BUS: &str = "bus";
 const FNV_SFX: &str = "sfx";
 const FNV_TRG: &str = "trigger";
 const FNV_GME: &str = "rtpc/game-variable";
-const FNV_VAR: &str = "variable";// #switches/states names
-const FNV_VAL: &str = "value";// #switches/states values
+const FNV_VAR: &str = "variable";   // Switches/states names
+const FNV_VAL: &str = "value";      // Switches/states values
 const FNV_UNK: &str = "???";
 
 const FNV_ORDER: [&str; 10] = [
@@ -47,17 +61,18 @@ const FNV_ORDER_JOIN: [&str; 3] = [
   FNV_BNK, FNV_LNG, FNV_BUS
 ];
 
-const SIGNATURE_AKBK: &str = "AKBK"; //'AKBK': "Audiokinetic Bank",
-const SIGNATURE_BKHD: &str = "BKHD"; //'BKHD': "Bank Header",
-const SIGNATURE_HIRC: &str = "HIRC"; //'HIRC': "Hierarchy",
-const SIGNATURE_DATA: &str = "DATA"; //'DATA': "Data",
-const SIGNATURE_FXPR: &str = "FXPR"; //'FXPR': "FX Parameters",
-const SIGNATURE_ENVS: &str = "ENVS"; //'ENVS': "Enviroment Settings",
-const SIGNATURE_STID: &str = "STID"; //'STID': "String Mappings",
-const SIGNATURE_STMG: &str = "STMG"; //'STMG': "Global Settings",
-const SIGNATURE_DIDX: &str = "DIDX"; //'DIDX': "Media Index",
-const SIGNATURE_PLAT: &str = "PLAT"; //'PLAT': "Custom Platform",
-const SIGNATURE_INIT: &str = "INIT"; //'INIT': "Plugin",
+// Section signature constants (4-byte ASCII identifiers).
+const SIGNATURE_AKBK: &str = "AKBK"; // Audiokinetic Bank (container format)
+const SIGNATURE_BKHD: &str = "BKHD"; // Bank Header
+const SIGNATURE_HIRC: &str = "HIRC"; // Hierarchy
+const SIGNATURE_DATA: &str = "DATA"; // Embedded audio data
+const SIGNATURE_FXPR: &str = "FXPR"; // FX Parameters
+const SIGNATURE_ENVS: &str = "ENVS"; // Environment Settings
+const SIGNATURE_STID: &str = "STID"; // String Mappings
+const SIGNATURE_STMG: &str = "STMG"; // Global Settings
+const SIGNATURE_DIDX: &str = "DIDX"; // Media Index
+const SIGNATURE_PLAT: &str = "PLAT"; // Custom Platform
+const SIGNATURE_INIT: &str = "INIT"; // Plugin
 
 mod common;
 mod sections;
@@ -68,16 +83,30 @@ mod sections;
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
-/// This holds an entire `SoundBank` file decoded in memory.
+/// A decoded Wwise SoundBank file.
+///
+/// SoundBanks are container files that hold audio events, hierarchies, and optionally
+/// embedded audio data. They are identified by their `.bnk` extension.
+///
+/// The file consists of multiple sections, each with a 4-byte signature and size prefix.
+/// The first section must always be `BKHD` (Bank Header).
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct SoundBank {
+    /// Sections contained in this SoundBank.
     sections: Vec<Section>,
 }
 
+/// A section within a SoundBank file.
+///
+/// Each section type contains different data:
+/// - `BKHD`: Bank header with version info (always first)
+/// - `HIRC`: Hierarchy of audio objects and events
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub enum Section {
+    /// Bank Header section containing version and metadata.
     BKHD(BKHD),
+    /// Hierarchy section containing audio object definitions.
     HIRC(HIRC),
 }
 

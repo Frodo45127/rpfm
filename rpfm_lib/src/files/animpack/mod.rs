@@ -8,12 +8,72 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! AnimPacks are a container-type file, that usually contains anim-related files,
-//! such as [Anims Tables](crate::files::anims_table::AnimsTable),
-//! [Anim Fragments](crate::files::anim_fragment_battle::AnimFragmentBattle) and
-//! [Matched Combat Tables](crate::files::matched_combat::MatchedCombat).
+//! AnimPack container file format support.
 //!
-//! Support is complete for all known versions of the file.
+//! AnimPacks (`.animpack` files) are container files that bundle animation-related game
+//! data into a single archive. They are primarily used to organize and distribute animation
+//! assets for units and characters in Total War games.
+//!
+//! # File Format
+//!
+//! AnimPacks use a simple binary format with a file count header followed by a list of
+//! embedded files. Each embedded file includes its path, size, and raw data.
+//!
+//! ```text
+//! [u32] file_count
+//! For each file:
+//!   [u8 + string] file_path (with backslashes)
+//!   [u32] file_size
+//!   [bytes] file_data
+//! ```
+//!
+//! # Contained File Types
+//!
+//! AnimPacks typically contain:
+//! - [`AnimsTable`] - Animation table indices
+//! - [`AnimFragmentBattle`] - Animation fragments
+//! - [`MatchedCombat`] - Matched combat definitions
+//! - Other animation-related binary files
+//!
+//! [`AnimsTable`]: crate::files::anims_table::AnimsTable
+//! [`AnimFragmentBattle`]: crate::files::anim_fragment_battle::AnimFragmentBattle
+//! [`MatchedCombat`]: crate::files::matched_combat::MatchedCombat
+//!
+//! # File Location
+//!
+//! AnimPacks are usually found in:
+//! ```text
+//! animations/*.animpack
+//! ```
+//!
+//! # Usage
+//!
+//! ```ignore
+//! use rpfm_lib::files::animpack::AnimPack;
+//! use rpfm_lib::files::{Container, Decodeable};
+//!
+//! // Decode an AnimPack from disk
+//! let mut extra_data = DecodeableExtraData::default();
+//! extra_data.set_disk_file_path(Some("animations/unit.animpack"));
+//! extra_data.set_data_size(file_size);
+//! extra_data.set_timestamp(timestamp);
+//!
+//! let animpack = AnimPack::decode(&mut reader, &Some(extra_data))?;
+//!
+//! // Access contained files
+//! for (path, file) in animpack.files() {
+//!     println!("File: {}", path);
+//! }
+//!
+//! // Extract a specific file
+//! if let Some(file) = animpack.file_by_path("battle/animations/humanoid01.bin") {
+//!     let data = file.encode(&None, false, false, true)?;
+//! }
+//! ```
+//!
+//! # Version Support
+//!
+//! Complete support for all known AnimPack versions across Total War games.
 
 use serde_derive::{Serialize, Deserialize};
 
@@ -25,7 +85,10 @@ use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::Result;
 use crate::files::*;
 
-/// Extension used by AnimPacks.
+/// File extension for AnimPack files.
+///
+/// AnimPacks use the `.animpack` extension to distinguish them from other
+/// container formats like PackFiles (`.pack`).
 pub const EXTENSION: &str = ".animpack";
 
 #[cfg(test)] mod animpack_test;
@@ -34,46 +97,99 @@ pub const EXTENSION: &str = ".animpack";
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
-/// This holds an entire AnimPack file decoded in memory.
+/// Represents an AnimPack file decoded in memory.
 ///
-/// AnimPacks are a container-type file, that usually contains anim-related files, such as Anim Tables,
-/// Anim Fragments and Matched Combat Tables.
+/// AnimPacks are container files that bundle animation-related assets into a single
+/// archive. This struct holds the complete AnimPack structure including metadata and
+/// all contained files.
 ///
-/// It's usually found in the `anim` folder of the game, under the extension `.animpack`, hence their name.
+/// # Fields
 ///
-/// # AnimPack Structure
+/// - `disk_file_path`: Path to the AnimPack file on disk (empty if in-memory only)
+/// - `disk_file_offset`: Byte offset within the disk file (0 if standalone file)
+/// - `local_timestamp`: Last modified timestamp for change detection
+/// - `paths`: Lowercase path lookup cache for case-insensitive file searches
+/// - `files`: Map of file paths to their [`RFile`] data
+///
+/// # Binary Format
 ///
 /// | Bytes          | Type                         | Data                                    |
 /// | -------------- | ---------------------------- | --------------------------------------- |
-/// | 4              | [u32]                        | File Count.                             |
-/// | X * File Count | [File](#file-structure) List | List of files inside the AnimPack File. |
+/// | 4              | [u32]                        | File Count                              |
+/// | X * File Count | [File](#file-structure) List | List of files inside the AnimPack File  |
 ///
-///
-/// # File Structure
+/// ## File Structure
 ///
 /// | Bytes       | Type           | Data                  |
 /// | ----------- | -------------- | --------------------- |
-/// | *           | Sized StringU8 | File Path.            |
-/// | 4           | [u32]          | File Length in bytes. |
-/// | File Lenght | &\[[u8]\]      | File Data.            |
+/// | *           | Sized StringU8 | File Path             |
+/// | 4           | [u32]          | File Length in bytes  |
+/// | File Length | &\[[u8]\]      | File Data             |
 ///
+/// # Container Implementation
+///
+/// AnimPack implements the [`Container`] trait, providing:
+/// - File extraction and insertion
+/// - Case-insensitive path lookup via paths cache
+/// - Lazy loading support (when unencrypted)
+/// - Timestamp-based change detection
+///
+/// # Lazy Loading
+///
+/// When `lazy_load` is enabled in [`DecodeableExtraData`], file data is not read
+/// immediately but loaded on-demand. This reduces memory usage for large AnimPacks.
+/// Lazy loading requires:
+/// - Valid `disk_file_path` to a file on disk
+/// - Unencrypted data (encrypted files are always fully loaded)
+///
+/// # Example
+///
+/// ```ignore
+/// use rpfm_lib::files::animpack::AnimPack;
+/// use rpfm_lib::files::Container;
+///
+/// // Create a new empty AnimPack
+/// let mut animpack = AnimPack::default();
+///
+/// // Add a file
+/// animpack.insert(rfile, "battle/animations/unit.bin")?;
+///
+/// // Look up a file (case-insensitive)
+/// if let Some(file) = animpack.file_by_path("BATTLE/animations/UNIT.bin") {
+///     println!("Found file!");
+/// }
+/// ```
 #[derive(PartialEq, Clone, Debug, Default, Serialize, Deserialize)]
 pub struct AnimPack {
 
-    /// File Path on disk of this AnimPack.
+    /// Path to this AnimPack file on disk.
+    ///
+    /// If the AnimPack has not been saved to disk or exists only in memory,
+    /// this is an empty string.
     disk_file_path: String,
 
-    /// Offset of this file in the disk file. If the file is not inside another file, it's 0.
+    /// Byte offset of this AnimPack within its disk file.
+    ///
+    /// If the AnimPack is a standalone file (not embedded in another file),
+    /// this is 0.
     disk_file_offset: u64,
 
-    /// Timestamp of the file. Needed for detecting edits on disk outside our control, in case
-    /// we use LazyLoading.
+    /// Last modified timestamp of the disk file in seconds.
+    ///
+    /// Used to detect external modifications when lazy loading is enabled.
+    /// Set to 0 for in-memory AnimPacks.
     local_timestamp: u64,
 
-    /// List of file paths lowercased, with their casing counterparts. To quickly find files.
+    /// Case-insensitive path lookup cache.
+    ///
+    /// Maps lowercase file paths to a list of their original-cased variants.
+    /// This enables fast case-insensitive file lookups via [`Container::file_by_path()`].
     paths: HashMap<String, Vec<String>>,
 
-    /// List of files within this AnimPack.
+    /// Map of file paths to their data.
+    ///
+    /// Keys are file paths as stored in the AnimPack (with forward slashes).
+    /// Values are [`RFile`] instances containing the file data (cached or lazy-loaded).
     files: HashMap<String, RFile>,
 }
 
@@ -83,27 +199,18 @@ pub struct AnimPack {
 
 impl Container for AnimPack {
 
-    /// This function returns a reference to the path on disk of this AnimPack.
-    /// If the AnimPack is not yet a file on disk, you may put an empty string.
-    ///
-    /// Just remember to update it once you save the file to disk.
     fn disk_file_path(&self) -> &str {
        &self.disk_file_path
     }
 
-    /// This function returns a reference to the files inside this AnimPack.
     fn files(&self) -> &HashMap<String, RFile> {
         &self.files
     }
 
-    /// This function returns a mutable reference to the files inside this AnimPack.
     fn files_mut(&mut self) -> &mut HashMap<String, RFile> {
         &mut self.files
     }
 
-    /// This function returns the offset of this AnimPack on the corresponding file on disk.
-    ///
-    /// If the AnimPack hasn't yet be saved to disk or it's not within another file, this returns 0.
     fn disk_file_offset(&self) -> u64 {
        self.disk_file_offset
     }
@@ -116,7 +223,6 @@ impl Container for AnimPack {
         &mut self.paths
     }
 
-    /// This method returns the `Last modified date` the filesystem reports for the container file, in seconds.
     fn local_timestamp(&self) -> u64 {
         self.local_timestamp
     }
@@ -124,34 +230,56 @@ impl Container for AnimPack {
 
 impl Decodeable for AnimPack {
 
-    /// This function allow us to decode something implementing [ReadBytes], like a [File]
-    /// or a [Vec]<[u8]> into an structured AnimPack.
+    /// Decodes an AnimPack from a binary data source.
     ///
-    /// About [extra_data](crate::files::DecodeableExtraData), this decode function requires the following fields:
-    /// - `lazy_load`: If we want to use Lazy-Loading. If the files within this AnimPack are encrypted, this is ignored.
-    /// - `is_encrypted`: If this AnimPack's data is encrypted. If it is, `lazy_load` is ignored.
-    /// - `disk_file_path`: If provided, it must correspond to a valid file on disk.
-    /// - `disk_file_offset`: If the file is within another file, it's the offset where this AnimPack's data starts. If not, it should be 0.
-    /// - `disk_file_size`: The size of the data belonging to this AnimPack.
-    /// - `timestamp`: `Last modified date` of this AnimPack, in seconds. If the AnimPack is not a disk file, it should be 0.
+    /// # Parameters
     ///
-    /// ```rust
-    ///use std::fs::File;
-    ///use std::io::{BufReader, BufWriter, Write};
+    /// - `data`: Binary reader implementing [`ReadBytes`]
+    /// - `extra_data`: Required decoding context (see below)
     ///
-    ///use rpfm_lib::binary::ReadBytes;
-    ///use rpfm_lib::files::{*, animpack::AnimPack};
-    ///use rpfm_lib::utils::last_modified_time_from_file;
+    /// # Required Extra Data Fields
     ///
-    ///let path = "../test_files/test_decode.animpack";
-    ///let mut reader = BufReader::new(File::open(path).unwrap());
+    /// This implementation requires [`DecodeableExtraData`] with:
+    /// - `lazy_load`: Enable lazy loading (ignored if encrypted)
+    /// - `is_encrypted`: Whether the AnimPack data is encrypted
+    /// - `disk_file_path`: Path to file on disk (required for lazy loading)
+    /// - `disk_file_offset`: Offset within disk file (0 for standalone files)
+    /// - `data_size`: Total size of AnimPack data in bytes
+    /// - `timestamp`: Last modified timestamp in seconds (0 for in-memory)
     ///
-    ///let mut decodeable_extra_data = DecodeableExtraData::default();
-    ///decodeable_extra_data.set_disk_file_path(Some(path));
-    ///decodeable_extra_data.set_data_size(reader.len().unwrap());
-    ///decodeable_extra_data.set_timestamp(last_modified_time_from_file(reader.get_ref()).unwrap());
+    /// # Returns
     ///
-    ///let data = AnimPack::decode(&mut reader, &Some(decodeable_extra_data)).unwrap();
+    /// - `Ok(AnimPack)`: Successfully decoded AnimPack with all files
+    /// - `Err(_)`: I/O error, malformed data, or missing required extra data
+    ///
+    /// # Lazy Loading Behavior
+    ///
+    /// When `lazy_load` is true and data is unencrypted:
+    /// - File metadata is read immediately
+    /// - File data is loaded on-demand when accessed
+    /// - Requires valid `disk_file_path` to a file on disk
+    ///
+    /// When encrypted or lazy loading disabled:
+    /// - All file data is read into memory immediately
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// use std::fs::File;
+    /// use std::io::BufReader;
+    /// use rpfm_lib::binary::ReadBytes;
+    /// use rpfm_lib::files::{Decodeable, DecodeableExtraData, animpack::AnimPack};
+    /// use rpfm_lib::utils::last_modified_time_from_file;
+    ///
+    /// let path = "animations/unit.animpack";
+    /// let mut reader = BufReader::new(File::open(path)?);
+    ///
+    /// let mut extra_data = DecodeableExtraData::default();
+    /// extra_data.set_disk_file_path(Some(path));
+    /// extra_data.set_data_size(reader.len()?);
+    /// extra_data.set_timestamp(last_modified_time_from_file(reader.get_ref())?);
+    ///
+    /// let animpack = AnimPack::decode(&mut reader, &Some(extra_data))?;
     /// ```
     fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
         let extra_data = extra_data.as_ref().ok_or(RLibError::DecodingMissingExtraData)?;
@@ -226,25 +354,46 @@ impl Decodeable for AnimPack {
 
 impl Encodeable for AnimPack {
 
-    /// This function allow us to encode an structured AnimPack into something implementing
-    /// [WriteBytes], like a [File] or a [Vec]<[u8]>.
+    /// Encodes this AnimPack to a binary data stream.
     ///
-    /// About [extra_data](crate::files::EncodeableExtraData), its not used in this implementation, so pass a [None].
+    /// # Parameters
     ///
-    /// ```rust
-    ///use std::fs::File;
-    ///use std::io::{BufReader, BufWriter, Write};
+    /// - `buffer`: Binary writer implementing [`WriteBytes`]
+    /// - `extra_data`: Encoding options (not used, pass [`None`])
     ///
-    ///use rpfm_lib::binary::ReadBytes;
-    ///use rpfm_lib::files::{*, animpack::AnimPack};
+    /// # Returns
     ///
-    ///let mut data = AnimPack::default();
-    ///let mut encoded = vec![];
-    ///data.encode(&mut encoded, &None).unwrap();
+    /// - `Ok(())`: Successfully encoded AnimPack
+    /// - `Err(_)`: I/O error, file too large, or encoding error
     ///
-    ///let path = "../test_files/test_encode.animpack";
-    ///let mut writer = BufWriter::new(File::create(path).unwrap());
-    ///writer.write_all(&encoded).unwrap();
+    /// # Encoding Behavior
+    ///
+    /// - Files are sorted alphabetically by path (case-insensitive)
+    /// - Paths use forward slashes (`/`) not backslashes (`\`)
+    /// - Each file is encoded inline with its size prefix
+    /// - Files larger than 4GB (u32::MAX) return an error
+    ///
+    /// # Path Format
+    ///
+    /// **Important**: Encoded paths use forward slashes because animation sets created
+    /// by assed tool break if backslashes are used.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// use std::fs::File;
+    /// use std::io::{BufWriter, Write};
+    /// use rpfm_lib::files::{Encodeable, animpack::AnimPack};
+    ///
+    /// let mut animpack = AnimPack::default();
+    /// // ... add files to animpack ...
+    ///
+    /// let mut encoded = vec![];
+    /// animpack.encode(&mut encoded, &None)?;
+    ///
+    /// // Write to disk
+    /// let mut writer = BufWriter::new(File::create("output.animpack")?);
+    /// writer.write_all(&encoded)?;
     /// ```
     fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         buffer.write_u32(self.files.len() as u32)?;

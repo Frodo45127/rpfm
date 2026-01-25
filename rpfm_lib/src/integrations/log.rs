@@ -8,16 +8,78 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*!
-Module to log CTDs and messages within RPFM.
-
-This module is a custom CTD logging module, heavily inspired in the `human-panic` crate.
-The reason to not use that crate is because it's not configurable. At all. But otherwise,
-feel free to check it out if you need an easy-to-use simple error logger.
-
-Note that these loggers need to be initialized on start by calling `Logger::init()`.
-Otherwise, none of them will work.
-!*/
+//! Crash reporting and structured logging with Sentry integration.
+//!
+//! This module provides comprehensive error tracking and logging capabilities:
+//! - Local crash report generation with backtraces
+//! - Remote error reporting via Sentry
+//! - Structured runtime logging (info, warning, error levels)
+//! - Automatic panic handling and session tracking
+//!
+//! # Overview
+//!
+//! The logging system is heavily inspired by the `human-panic` crate but provides more
+//! configurability and integration with Sentry for production error tracking.
+//!
+//! # Features
+//!
+//! ## Local Crash Reports
+//!
+//! When a panic occurs, a detailed crash report is saved locally as a TOML file containing:
+//! - Program name and version
+//! - Build type (debug/release)
+//! - Operating system information
+//! - Panic message and location
+//! - Full backtrace
+//!
+//! ## Sentry Integration
+//!
+//! In release builds, crashes and events are automatically uploaded to Sentry for:
+//! - Centralized error tracking
+//! - Session health monitoring
+//! - Breadcrumb trails
+//! - Custom event uploads with attachments
+//!
+//! ## Runtime Logging
+//!
+//! Standard logging macros are available throughout the application:
+//! - [`info!`]: Informational messages (verbose mode only)
+//! - [`warn!`]: Warning messages
+//! - [`error!`]: Error messages
+//!
+//! # Initialization
+//!
+//! The logger **must** be initialized at program startup by calling [`Logger::init()`].
+//! Without initialization, none of the logging features will work.
+//!
+//! # Example
+//!
+//! ```no_run
+//! use rpfm_lib::integrations::log::{Logger, info, warn, error};
+//! use std::path::Path;
+//!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! // Initialize the logger
+//! let _sentry_guard = Logger::init(
+//!     Path::new("logs/crash_reports"),
+//!     true,  // verbose mode
+//!     true,  // set global logger
+//!     Some("rpfm@5.0.0".into())
+//! )?;
+//!
+//! // Use logging throughout the application
+//! info!("Application started");
+//! warn!("Configuration file not found, using defaults");
+//!
+//! // The guard ensures Sentry is properly shut down on drop
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! # Note
+//!
+//! The Sentry integration is only active in release builds. Debug builds will still
+//! generate local crash reports but won't upload to Sentry.
 
 use backtrace::Backtrace;
 pub use log::{error, info, warn};
@@ -35,36 +97,55 @@ use std::sync::{Arc, LazyLock, RwLock};
 use crate::error::Result;
 use crate::utils::current_time;
 
-/// Current version of the crate.
+/// Current version of the crate from Cargo.toml.
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// This is the DSN needed for Sentry reports to work. Don't change it.
+/// Sentry DSN (Data Source Name) for error reporting.
+///
+/// This must be set before calling [`Logger::init()`] for Sentry integration to work.
+/// The DSN is provided by Sentry when creating a project.
 pub static SENTRY_DSN: LazyLock<Arc<RwLock<String>>> = LazyLock::new(|| Arc::new(RwLock::new(String::new())));
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
-/// This struct contains all the info to write into a `CrashReport` file.
+/// Crash report data structure.
+///
+/// Contains all information needed to generate a detailed crash report that can be
+/// saved locally as a TOML file or uploaded to Sentry. Created automatically when
+/// a panic occurs.
 #[derive(Debug, Serialize)]
 pub struct Logger {
 
-    /// Name of the Program. To know what of the programs crashed.
+    /// Name of the program that crashed.
+    ///
+    /// Taken from the `CARGO_PKG_NAME` environment variable.
     name: String,
 
-    /// Version of the Program/Lib.
+    /// Version of the program/library.
+    ///
+    /// Taken from the `CARGO_PKG_VERSION` environment variable.
     crate_version: String,
 
-    /// If it happened in a `Debug` or `Release` build.
+    /// Build configuration (Debug or Release).
+    ///
+    /// Determined at compile time based on debug assertions.
     build_type: String,
 
-    /// The OS in which the crash happened.
+    /// Operating system information.
+    ///
+    /// Includes OS type and version (e.g., "Windows 11", "Ubuntu 22.04").
     operating_system: String,
 
-    /// The reason why the crash happened.
+    /// Panic explanation.
+    ///
+    /// Contains the panic message and location (file and line number).
     explanation: String,
 
-    /// A backtrace generated when the crash happened.
+    /// Full backtrace from the panic.
+    ///
+    /// Formatted stack trace showing the call chain leading to the panic.
     backtrace: String,
 }
 
@@ -75,12 +156,50 @@ pub struct Logger {
 /// Implementation of `Logger`.
 impl Logger {
 
-    /// This function initialize the `Logger` to log crashes.
+    /// Initializes the logging system with crash reporting and Sentry integration.
     ///
-    /// There are three loggers active:
-    /// - Log CTD to files.
-    /// - Log CTD to sentry (release only)
-    /// - Log execution steps to file/sentry.
+    /// This function sets up three logging mechanisms:
+    /// 1. **Local crash reports**: Panics are saved as TOML files to disk
+    /// 2. **Sentry crash reporting**: Panics are uploaded to Sentry (release builds only)
+    /// 3. **Runtime logging**: Structured logging via terminal and Sentry breadcrumbs
+    ///
+    /// # Arguments
+    ///
+    /// * `logging_path` - Directory where crash reports will be saved
+    /// * `verbose` - If `true`, log `Info` level messages; if `false`, only `Warn` and above
+    /// * `set_logger` - If `true`, initialize the global logger (disable for testing)
+    /// * `release` - Optional release identifier for Sentry (e.g., `"rpfm@5.0.0"`)
+    ///
+    /// # Returns
+    ///
+    /// Returns a [`ClientInitGuard`] that must be kept alive for the duration of the program.
+    /// Dropping the guard will shut down Sentry and flush pending events.
+    ///
+    /// # Panics
+    ///
+    /// After initialization, any panic in any thread will:
+    /// 1. Generate a local crash report in `logging_path`
+    /// 2. Upload to Sentry (if in release mode and enabled)
+    /// 3. Mark the Sentry session as crashed
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use rpfm_lib::integrations::log::Logger;
+    /// # use std::path::Path;
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let _guard = Logger::init(
+    ///     Path::new("crash_reports"),
+    ///     true,  // verbose
+    ///     true,  // set global logger
+    ///     Some("myapp@1.0.0".into())
+    /// )?;
+    ///
+    /// // Logger is now active
+    /// // Keep _guard alive until program exit
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn init(logging_path: &Path, verbose: bool, set_logger: bool, release: Option<Cow<'static, str>>) -> Result<ClientInitGuard> {
 
         // Make sure the provided folder exists.
@@ -145,9 +264,24 @@ impl Logger {
         Ok(sentry_guard)
     }
 
-    /// Create a new local Crash Report from a `Panic`.
+    /// Creates a crash report from panic information.
     ///
-    /// Remember that this creates the Crash Report in memory. If you want to save it to disk, you've to do it later.
+    /// This function extracts all relevant information from a panic and constructs
+    /// a structured crash report. The report is created in memory and must be
+    /// explicitly saved with [`Logger::save()`].
+    ///
+    /// # Arguments
+    ///
+    /// * `panic_info` - Panic hook information provided by the panic handler
+    /// * `version` - Version string of the program
+    ///
+    /// # Returns
+    ///
+    /// Returns a populated [`Logger`] instance containing the crash report data.
+    ///
+    /// # Note
+    ///
+    /// This is typically called automatically by the panic hook installed by [`Logger::init()`].
     pub fn new(panic_info: &PanicHookInfo, version: &str) -> Self {
 
         let info = os_info::get();
@@ -173,7 +307,18 @@ impl Logger {
         }
     }
 
-    /// This function tries to save a generated Crash Report to the provided folder.
+    /// Saves the crash report to a TOML file.
+    ///
+    /// The crash report is saved with a timestamped filename in the format
+    /// `error-report-{timestamp}.toml`.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Directory where the crash report file should be saved
+    ///
+    /// # Returns
+    ///
+    /// Returns [`Ok`] if the report was saved successfully, or an error if file I/O fails.
     pub fn save(&self, path: &Path) -> Result<()> {
         let file_path = path.join(format!("error-report-{}.toml", current_time()?));
         let mut file = BufWriter::new(File::create(file_path)?);
@@ -181,7 +326,46 @@ impl Logger {
         Ok(())
     }
 
-    /// This function uploads a patch to sentry's service.
+    /// Sends a custom event to Sentry with optional file attachment.
+    ///
+    /// This function creates and uploads a Sentry event with a message and optional
+    /// data attachment. Useful for manually reporting errors or uploading diagnostic data.
+    ///
+    /// # Arguments
+    ///
+    /// * `sentry_guard` - The Sentry client guard (must be active)
+    /// * `level` - Severity level (e.g., [`Level::Info`], [`Level::Warning`], [`Level::Error`])
+    /// * `message` - Event message/description
+    /// * `data` - Optional tuple of `(filename, data_bytes)` to attach to the event
+    ///
+    /// # Returns
+    ///
+    /// Returns [`Ok`] if the event was sent (or Sentry is disabled), or an error on failure.
+    ///
+    /// # Note
+    ///
+    /// If Sentry is not enabled (debug builds or no DSN), this function does nothing
+    /// and returns [`Ok`].
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use rpfm_lib::integrations::log::{Logger, Level};
+    /// # fn example(sentry_guard: &sentry::ClientInitGuard) -> Result<(), Box<dyn std::error::Error>> {
+    /// // Send a simple event
+    /// Logger::send_event(sentry_guard, Level::Info, "Schema updated", None)?;
+    ///
+    /// // Send an event with attachment
+    /// let patch_data = b"some patch data";
+    /// Logger::send_event(
+    ///     sentry_guard,
+    ///     Level::Warning,
+    ///     "Schema patch failed",
+    ///     Some(("patch.json", patch_data))
+    /// )?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn send_event(sentry_guard: &ClientInitGuard, level: Level, message: &str, data: Option<(&str, &[u8])>) -> Result<()> {
         if sentry_guard.is_enabled() {
             let mut event = Event::new();

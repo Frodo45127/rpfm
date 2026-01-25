@@ -8,6 +8,37 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
+//! Grass placement list for BMD vegetation files.
+//!
+//! This module defines the grass placement data structure used in BMD vegetation files.
+//! Grass data is stored as a compressed binary blob that defines grass coverage areas
+//! and density across the battle map.
+//!
+//! # Structure
+//!
+//! - [`GrassList`]: Container for grass placement data
+//!
+//! # Supported Versions
+//!
+//! - **Version 4**: Current format used in Total War: Warhammer III
+//!
+//! # Implementation Notes
+//!
+//! The grass placement data is stored as a raw byte array. The internal format
+//! is not fully documented but represents compressed grass coverage information.
+//!
+//! # Examples
+//!
+//! ```rust,ignore
+//! use rpfm_lib::files::bmd_vegetation::grass_list::*;
+//!
+//! // Decode a grass list from binary data
+//! let grass_list = GrassList::decode(&mut data, &extra_data)?;
+//!
+//! // Access the raw grass data
+//! println!("Grass data size: {} bytes", grass_list.grass_list().len());
+//! ```
+
 use getset::*;
 use serde_derive::{Serialize, Deserialize};
 
@@ -23,12 +54,30 @@ mod v4;
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
-/// This holds an entire `GrassList` file decoded in memory.
+/// Grass placement data for a battle map.
+///
+/// Contains compressed grass coverage information stored as a binary blob.
+/// The exact internal format is implementation-specific and represents
+/// grass density and distribution across the terrain.
+///
+/// # Fields
+///
+/// * `serialise_version` - File format version (currently 4)
+/// * `grass_list` - Raw binary data containing grass coverage information
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// let grass_list = GrassList::decode(&mut data, &extra_data)?;
+/// println!("Grass data: {} bytes", grass_list.grass_list().len());
+/// ```
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct GrassList {
+    /// File format version number.
     serialise_version: u16,
 
+    /// Raw binary data containing grass coverage information.
     grass_list: Vec<u8>,
 }
 

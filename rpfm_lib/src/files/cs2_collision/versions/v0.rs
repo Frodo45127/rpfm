@@ -21,7 +21,7 @@ use super::*;
 
 impl Collision3d {
 
-    pub fn read_v0<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
+    pub(crate) fn read_v0<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
         self.name = data.read_sized_string_u16()?;
 
         self.uk_1 = data.read_i32()?;
@@ -62,7 +62,7 @@ impl Collision3d {
         Ok(())
     }
 
-    pub fn write_v0<W: WriteBytes>(&mut self, buffer: &mut W) -> Result<()> {
+    pub(crate) fn write_v0<W: WriteBytes>(&mut self, buffer: &mut W) -> Result<()> {
         buffer.write_sized_string_u16(&self.name)?;
 
         buffer.write_i32(self.uk_1)?;

@@ -8,7 +8,80 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! Module to hold all table functions specific of the local backend.
+//! In-memory table implementation with import/export capabilities.
+//!
+//! This module provides [`TableInMemory`], the primary concrete implementation of the
+//! [`Table`] trait. It stores all table data in memory and supports multiple serialization
+//! formats for data exchange.
+//!
+//! # TableInMemory
+//!
+//! [`TableInMemory`] is the standard table implementation used throughout RPFM. It holds:
+//! - Complete table data as `Vec<Vec<DecodedData>>`
+//! - Schema definition and patches
+//! - Metadata (table name, altered flag)
+//!
+//! ## Creation and Loading
+//!
+//! Tables can be created in several ways:
+//!
+//! ```rust
+//! # use rpfm_lib::files::table::local::TableInMemory;
+//! # use rpfm_lib::schema::Definition;
+//! # fn example(definition: &Definition) {
+//! // Create empty table from definition
+//! let table = TableInMemory::new(definition, None, "units_tables");
+//!
+//! // Decode from binary data (most common)
+//! // let table = TableInMemory::decode(&mut data, definition, &patches, Some(entry_count), false, "units_tables")?;
+//! # }
+//! ```
+//!
+//! # Supported Formats
+//!
+//! ## Binary Encoding
+//! - **decode/encode**: Native Total War binary format
+//! - Used for reading/writing binary files in PackFiles
+//! - Compact, optimized for game performance
+//!
+//! ## TSV (Tab-Separated Values)
+//! - **tsv_import/tsv_export**: Human-readable text format
+//! - First line: metadata (`#table_name;version;path`)
+//! - Second line: column names
+//! - Remaining lines: data rows
+//! - Handles special characters via escape sequences
+//! - Key columns can be exported first for readability
+//!
+//! ## SQLite Database (optional, feature-gated)
+//! - **db_to_sql/sql_to_db**: Store tables in SQLite for complex queries
+//! - Each table version gets its own SQL table (`tablename_v123`)
+//! - Tracks pack name, file name, vanilla status
+//! - Useful for cross-table analysis and searching
+//!
+//! # Schema Migration
+//!
+//! The [`set_definition`](Table::set_definition) method enables **schema version migration**:
+//! - Columns are mapped by name (not position)
+//! - New columns get default values
+//! - Removed columns are dropped
+//! - Type changes trigger automatic conversion
+//! - Data integrity is preserved where possible
+//!
+//! This allows tables from older game versions to be updated to newer schemas.
+//!
+//! # Data Integrity
+//!
+//! The `altered` flag tracks if data was modified during decoding:
+//! - Set to `true` if invalid numeric values were clamped
+//! - Set to `true` if type conversions occurred
+//! - Used to warn users about potential data corruption
+//!
+//! # Implementation Details
+//!
+//! - Uses `getset` for accessor generation
+//! - Implements `Clone`, `Debug`, `PartialEq` for testability
+//! - Serializable via serde for IPC and caching
+//! - Thread-safe through `Table` trait's `Send + Sync` requirement
 
 use base64::{Engine, engine::general_purpose::STANDARD};
 use csv::{StringRecordsIter, Writer};
@@ -35,26 +108,50 @@ use super::{Table, decode_table, encode_table};
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
-/// This struct contains the data of a Table-like PackedFile after being decoded.
+/// In-memory representation of a decoded table with full data and schema.
 ///
-/// This is for internal use. If you need to interact with this in any way, do it through the PackedFile that contains it, not directly.
+/// This is the primary table implementation in RPFM, storing all table rows in memory
+/// along with their schema definition. Tables are typically accessed through the
+/// [`Table`] trait interface rather than directly.
+///
+/// # Fields
+///
+/// - **table_name**: Identifies the table type (e.g., "units_tables", "buildings_tables")
+/// - **definition**: Complete schema definition including column types and constraints
+/// - **definition_patch**: Runtime modifications to the base schema for this specific table
+/// - **table_data**: All table rows as a `Vec<Vec<DecodedData>>` (outer vector is rows, inner is columns)
+/// - **altered**: Flag indicating if data was modified during decoding (e.g., invalid values corrected)
+///
+/// # Accessors
+///
+/// The struct uses the `getset` macro for automatic accessor generation:
+/// - `table_name()` / `set_table_name()`: Public getters/setters via getset
+/// - Schema and data: Accessed through [`Table`] trait methods for type safety
+///
+/// # Thread Safety
+///
+/// This struct implements `Send + Sync` (via the `Table` trait requirement), allowing
+/// safe concurrent read access and message passing between threads.
 #[derive(Clone, Debug, PartialEq, Getters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", set = "pub")]
 pub struct TableInMemory {
 
-    /// A copy of the `Definition` this table uses, so we don't have to check the schema everywhere.
+    /// Table type identifier (e.g., "units_tables").
     table_name: String,
 
+    /// Schema definition for this table.
     #[getset(skip)]
     definition: Definition,
 
+    /// Runtime schema modifications specific to this table instance.
     #[getset(skip)]
     definition_patch: DefinitionPatch,
 
+    /// All table rows (outer vector is rows, inner is columns)
     #[getset(skip)]
     table_data: Vec<Vec<DecodedData>>,
 
-    /// Flag to detect tables whose data has been altered while decoding (for example, numeric fields with invalid data on them).
+    /// Flag indicating data was altered during decoding (e.g., invalid values corrected).
     altered: bool,
 }
 
@@ -64,7 +161,32 @@ pub struct TableInMemory {
 
 impl TableInMemory {
 
-    /// This function creates a new Table from an existing definition.
+    /// Creates a new empty table from a schema definition.
+    ///
+    /// Initializes a table with no rows but with a complete schema definition.
+    /// This is typically used when creating new tables from scratch or before
+    /// importing data from external sources.
+    ///
+    /// # Parameters
+    ///
+    /// - `definition`: Schema defining column structure, types, and constraints
+    /// - `definition_patch`: Optional runtime modifications to the base schema
+    /// - `table_name`: Table type identifier (e.g., "units_tables")
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// # use rpfm_lib::files::table::{local::TableInMemory, Table};
+    /// # use rpfm_lib::schema::Definition;
+    /// # fn example(definition: &Definition) {
+    /// // Create empty table for manual data entry
+    /// let mut table = TableInMemory::new(definition, None, "units_tables");
+    ///
+    /// // Add rows using the Table trait methods
+    /// let new_row = table.new_row();
+    /// table.data_mut().push(new_row);
+    /// # }
+    /// ```
     pub fn new(definition: &Definition, definition_patch: Option<&DefinitionPatch>, table_name: &str) -> Self {
         let table_data = vec![];
         let definition_patch = if let Some(patch) = definition_patch { patch.clone() } else { HashMap::new() };
@@ -78,6 +200,54 @@ impl TableInMemory {
         }
     }
 
+    /// Decodes a table from binary data using the provided schema.
+    ///
+    /// This is the primary method for loading tables from PackFiles. It reads the binary
+    /// format used by Total War games and converts it into an in-memory representation.
+    ///
+    /// # Parameters
+    ///
+    /// - `data`: Binary data reader positioned at the table start
+    /// - `definition`: Schema definition for interpreting the binary data
+    /// - `definition_patch`: Runtime schema modifications
+    /// - `entry_count`: Optional row count (if `None`, reads from data stream)
+    /// - `return_incomplete`: If `true`, returns partial data on decode errors instead of failing
+    /// - `table_name`: Table type identifier
+    ///
+    /// # Behavior
+    ///
+    /// - Reads entry count from stream if not provided
+    /// - Decodes each row according to schema field definitions
+    /// - Sets `altered` flag if invalid data is corrected during decoding
+    /// - Can return incomplete tables for error recovery if requested
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - Binary data is corrupted or truncated
+    /// - Data types don't match schema expectations
+    /// - Field decoding fails (unless `return_incomplete` is true)
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// # use rpfm_lib::files::table::local::TableInMemory;
+    /// # use rpfm_lib::schema::Definition;
+    /// # use rpfm_lib::binary::ReadBytes;
+    /// # use std::collections::HashMap;
+    /// # fn example<R: ReadBytes>(data: &mut R, definition: &Definition) -> anyhow::Result<()> {
+    /// // Decode table from binary PackFile data
+    /// let table = TableInMemory::decode(
+    ///     data,
+    ///     definition,
+    ///     &HashMap::new(),  // No patches
+    ///     Some(100),        // 100 entries
+    ///     false,            // Fail on errors
+    ///     "units_tables"
+    /// )?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn decode<R: ReadBytes>(
         data: &mut R,
         definition: &Definition,
@@ -100,6 +270,39 @@ impl TableInMemory {
         Ok(table)
     }
 
+    /// Encodes the table to binary format for writing to PackFiles.
+    ///
+    /// Converts the in-memory table representation back to the binary format used
+    /// by Total War games. This is the inverse of [`decode`](Self::decode).
+    ///
+    /// # Parameters
+    ///
+    /// - `data`: Binary writer to receive the encoded table
+    ///
+    /// # Format
+    ///
+    /// The binary output includes:
+    /// - Entry count (u32)
+    /// - Row data encoded according to field types
+    /// - Applied schema patches are used during encoding
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - Writing to the output stream fails
+    /// - Data contains values that cannot be encoded in the target type
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// # use rpfm_lib::files::table::local::TableInMemory;
+    /// # use rpfm_lib::binary::WriteBytes;
+    /// # fn example<W: WriteBytes>(table: &TableInMemory, output: &mut W) -> anyhow::Result<()> {
+    /// // Encode table for saving to PackFile
+    /// table.encode(output)?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn encode<W: WriteBytes>(&self, data: &mut W) -> Result<()> {
         encode_table(&self.data(), data, self.definition(), &Some(self.patches()))
     }
@@ -109,8 +312,49 @@ impl TableInMemory {
     //----------------------------------------------------------------//
     // TODO: Make tsv trait.
 
-
-    /// This function tries to imports a TSV file on the path provided into a binary db table.
+    /// Imports a table from TSV (Tab-Separated Values) format.
+    ///
+    /// Parses TSV data and creates a new table with the imported rows. The TSV format
+    /// is human-readable and editable, making it useful for bulk edits and external
+    /// tools integration.
+    ///
+    /// # TSV Format
+    ///
+    /// Expected format:
+    /// 1. **Header row**: Column names (must match schema field names)
+    /// 2. **Metadata row**: `#table_name;version;path` (optional, can be skipped)
+    /// 3. **Data rows**: Tab-separated values, one row per line
+    ///
+    /// # Parameters
+    ///
+    /// - `records`: CSV record iterator from the TSV file
+    /// - `definition`: Schema definition for validation
+    /// - `field_order`: Maps column indices to field names from the header
+    /// - `table_name`: Table type identifier
+    /// - `schema_patches`: Optional schema modifications
+    ///
+    /// # Column Mapping
+    ///
+    /// Columns are matched by name (not position), allowing:
+    /// - Reordered columns in TSV files
+    /// - Missing columns (filled with defaults)
+    /// - Extra columns in TSV (ignored)
+    ///
+    /// # Type Parsing
+    ///
+    /// - **Booleans**: "true"/"false", "1"/"0", "yes"/"no" (case-insensitive)
+    /// - **Numbers**: Standard decimal format, scientific notation for floats
+    /// - **Colors**: Hexadecimal strings (e.g., "FF0000")
+    /// - **Sequences**: Base64-encoded binary data
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - TSV format is invalid (wrong delimiter, malformed rows)
+    /// - Data cannot be parsed to the expected type
+    /// - Required columns are missing
+    ///
+    /// Error includes row and column numbers for debugging: `ImportTSVIncorrectRow(row, col)`
     pub(crate) fn tsv_import(records: StringRecordsIter<File>, definition: &Definition, field_order: &HashMap<u32, String>, table_name: &str, schema_patches: Option<&DefinitionPatch>) -> Result<Self> {
         let mut table = Self::new(definition, schema_patches, table_name);
         let mut entries = vec![];
@@ -165,7 +409,48 @@ impl TableInMemory {
         Ok(table)
     }
 
-    /// This function exports the provided data to a TSV file.
+    /// Exports the table to TSV (Tab-Separated Values) format.
+    ///
+    /// Writes table data to a TSV file for human editing, version control, or
+    /// external tool processing. The output format is compatible with
+    /// [`tsv_import`](Self::tsv_import).
+    ///
+    /// # Parameters
+    ///
+    /// - `writer`: CSV writer configured for TSV output
+    /// - `table_path`: Original file path (stored in metadata row)
+    /// - `keys_first`: If `true`, sorts key columns to the left for easier reading
+    ///
+    /// # Output Format
+    ///
+    /// ```text
+    /// column1    column2    column3
+    /// #units_tables;5;db/units_tables/data.bin
+    /// value1     value2     value3
+    /// value4     value5     value6
+    /// ```
+    ///
+    /// - **Line 1**: Column names from schema
+    /// - **Line 2**: Metadata (`#table_name;version;path`) with padding cells
+    /// - **Lines 3+**: Data rows
+    ///
+    /// # Data Formatting
+    ///
+    /// - **Floats**: Fixed 4 decimal places (e.g., "3.1416")
+    /// - **Booleans**: "true" or "false"
+    /// - **Sequences**: Base64-encoded binary data
+    /// - **Special chars**: Newlines/tabs are escaped as `\\n`/`\\t`
+    ///
+    /// # Column Ordering
+    ///
+    /// If `keys_first` is `true`:
+    /// - Key columns appear first (left-most)
+    /// - Non-key columns follow
+    /// - Makes primary keys visible without horizontal scrolling
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if writing to the file fails.
     pub(crate) fn tsv_export(&self, writer: &mut Writer<File>, table_path: &str, keys_first: bool) -> Result<()> {
 
         let fields_processed = self.definition().fields_processed();
@@ -195,7 +480,43 @@ impl TableInMemory {
     // SQL functions for tables.
     //----------------------------------------------------------------//
 
-    /// This function insert the table in memory into a sql database.
+    /// Inserts the table into a SQLite database for querying and analysis.
+    ///
+    /// Creates or updates a SQL table with this table's data, enabling complex queries,
+    /// cross-table joins, and full-text search. Each table version gets its own SQL table
+    /// named `tablename_v{version}`.
+    ///
+    /// # Parameters
+    ///
+    /// - `pool`: SQLite connection pool
+    /// - `pack_name`: Name of the PackFile containing this table
+    /// - `file_name`: Path to this table within the PackFile
+    /// - `is_vanilla_pack`: `true` if from official game data, `false` for mods
+    ///
+    /// # SQL Schema
+    ///
+    /// The created SQL table includes:
+    /// - `pack_name` (TEXT): Source PackFile identifier
+    /// - `file_name` (TEXT): Table path within PackFile
+    /// - `is_vanilla` (INTEGER): 1 for vanilla, 0 for mods
+    /// - Column for each schema field (types mapped from `FieldType`)
+    ///
+    /// # Behavior
+    ///
+    /// - Creates the SQL table if it doesn't exist (silently ignores if exists)
+    /// - Uses `INSERT OR REPLACE` to update existing rows
+    /// - Sequences are stored as BLOB for efficient binary storage
+    ///
+    /// # Use Cases
+    ///
+    /// - Finding all units with a specific ability across multiple mods
+    /// - Analyzing stat distributions (e.g., average unit cost)
+    /// - Detecting conflicts between mods
+    /// - Building searchable databases of game content
+    ///
+    /// # Feature Gate
+    ///
+    /// Only available with the `integration_sqlite` feature enabled.
     #[cfg(feature = "integration_sqlite")]
     pub fn db_to_sql(&self, pool: &Pool<SqliteConnectionManager>, pack_name: &str, file_name: &str, is_vanilla_pack: bool) -> Result<()> {
 
@@ -220,13 +541,44 @@ impl TableInMemory {
         Ok(())
     }
 
+    /// Loads table data from a SQLite database.
+    ///
+    /// Retrieves previously stored table data from SQL and replaces the current
+    /// table's rows. This is the inverse of [`db_to_sql`](Self::db_to_sql).
+    ///
+    /// # Parameters
+    ///
+    /// - `pool`: SQLite connection pool
+    /// - `pack_name`: Name of the source PackFile
+    /// - `file_name`: Path to the table within the PackFile
+    ///
+    /// # Behavior
+    ///
+    /// - Queries the SQL table for rows matching `pack_name` and `file_name`
+    /// - Maintains row order via `ROWID`
+    /// - Converts SQL types back to `DecodedData` variants
+    /// - Replaces all current table data
+    ///
+    /// # Feature Gate
+    ///
+    /// Only available with the `integration_sqlite` feature enabled.
     #[cfg(feature = "integration_sqlite")]
     pub fn sql_to_db(&mut self, pool: &Pool<SqliteConnectionManager>, pack_name: &str, file_name: &str) -> Result<()> {
         self.table_data = self.select_all_from_sql(pool, pack_name, file_name)?;
         Ok(())
     }
 
-    /// This function inserts the provided rows of data into a database.
+    /// Inserts all table rows into a SQLite database.
+    ///
+    /// Converts each row's `DecodedData` fields to SQL-compatible values and performs
+    /// a bulk `INSERT OR REPLACE` operation. Sequence fields are passed as binary parameters.
+    ///
+    /// # Arguments
+    ///
+    /// * `pool` - SQLite connection pool.
+    /// * `pack_name` - Name of the pack containing this table.
+    /// * `file_name` - Path of the table file within the pack.
+    /// * `is_vanilla_pack` - Whether the pack is from the base game (stored as 1/0 flag).
     #[cfg(feature = "integration_sqlite")]
     fn insert_all_to_sql(&self, pool: &Pool<SqliteConnectionManager>, pack_name: &str, file_name: &str, is_vanilla_pack: bool) -> Result<()> {
         let mut params = vec![];
@@ -280,7 +632,20 @@ impl TableInMemory {
             .map_err(From::from)
     }
 
-    /// This function inserts the provided rows of data into a database.
+    /// Retrieves all table rows from a SQLite database.
+    ///
+    /// Queries the database for rows matching the pack and file name, converting
+    /// SQL values back to `DecodedData` fields based on the table definition.
+    ///
+    /// # Arguments
+    ///
+    /// * `pool` - SQLite connection pool.
+    /// * `pack_name` - Name of the pack containing this table.
+    /// * `file_name` - Path of the table file within the pack.
+    ///
+    /// # Returns
+    ///
+    /// A vector of rows, each containing decoded field data in column order.
     #[cfg(feature = "integration_sqlite")]
     fn select_all_from_sql(&self, pool: &Pool<SqliteConnectionManager>, pack_name: &str, file_name: &str) -> Result<Vec<Vec<DecodedData>>> {
         let definition = self.definition();
@@ -331,7 +696,18 @@ impl TableInMemory {
         Ok(data)
     }
 
-    /// This function inserts the provided rows of data into a database.
+    /// Counts the number of rows in a table matching a unique identifier.
+    ///
+    /// # Arguments
+    ///
+    /// * `pool` - SQLite connection pool.
+    /// * `table_name` - Name of the table type (e.g., "units_tables").
+    /// * `table_version` - Schema version of the table.
+    /// * `table_unique_id` - Unique identifier to filter rows.
+    ///
+    /// # Returns
+    ///
+    /// The count of matching rows in the database.
     #[cfg(feature = "integration_sqlite")]
     pub fn count_table(
         pool: &Pool<SqliteConnectionManager>,

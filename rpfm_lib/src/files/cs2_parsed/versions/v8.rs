@@ -19,7 +19,7 @@ use super::*;
 
 impl Cs2Parsed {
 
-    pub fn read_v8<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
+    pub(crate) fn read_v8<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
         self.bounding_box = Cube::decode(data, &None)?;
         self.ui_flag.name = data.read_sized_string_u16()?;
         self.ui_flag.transform = Transform4x4::decode(data, &None)?;
@@ -159,7 +159,7 @@ impl Cs2Parsed {
         Ok(())
     }
 
-    pub fn write_v8<W: WriteBytes>(&mut self, buffer: &mut W) -> Result<()> {
+    pub(crate) fn write_v8<W: WriteBytes>(&mut self, buffer: &mut W) -> Result<()> {
         self.bounding_box.encode(buffer, &None)?;
         buffer.write_sized_string_u16(&self.ui_flag.name)?;
         self.ui_flag.transform.encode(buffer, &None)?;

@@ -8,14 +8,88 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! Module with all the code related to the `Diagnostics`.
+//! Pack validation and diagnostic checking system.
 //!
-//! This module contains the code needed to get a `Diagnostics` over an entire `PackFile`.
+//! This module provides comprehensive validation for Total War mod packs, detecting
+//! common errors, potential issues, and best practice violations. Diagnostics help
+//! modders identify problems before they cause crashes or unexpected behavior in-game.
 //!
-//! Notes on cells_affected:
-//! - Both -1: affects the entire table.
-//! - Row -1: affects all rows in single column.
-//! - Column -1: affects all columns in single row.
+//! # Diagnostic Types
+//!
+//! The system checks multiple aspects of a pack:
+//!
+//! - **Table Diagnostics** ([`table`]): DB and Loc table validation
+//!   - Invalid foreign key references
+//!   - Empty required fields (keys, values)
+//!   - Duplicate rows
+//!   - Orphaned localisation entries
+//!
+//! - **Pack Diagnostics** ([`pack`]): Pack-level checks
+//!   - Files conflicting with vanilla
+//!   - Missing declared dependencies
+//!
+//! - **Dependency Diagnostics** ([`dependency`]): Cross-pack validation
+//!   - References to non-existent files
+//!   - Circular dependencies
+//!
+//! - **Portrait Settings Diagnostics** ([`portrait_settings`]): Unit portrait validation
+//!   - Invalid art set references
+//!   - Missing variant definitions
+//!
+//! - **Animation Fragment Diagnostics** ([`anim_fragment_battle`]): Animation validation
+//!   - Invalid animation references
+//!   - Malformed fragment data
+//!
+//! - **Text Diagnostics** ([`text`]): Script validation
+//!
+//! - **Config Diagnostics** ([`config`]): Configuration file validation
+//!
+//! # Diagnostic Levels
+//!
+//! Each diagnostic has an associated severity level:
+//!
+//! - **Error**: Critical issues that will likely cause crashes or major problems
+//! - **Warning**: Issues that may cause problems or indicate mistakes
+//! - **Info**: Suggestions and informational notes
+//!
+//! # Cell Position Encoding
+//!
+//! For table diagnostics, the affected cells are encoded as (row, column) pairs:
+//!
+//! - `(-1, -1)`: Affects the entire table
+//! - `(row, -1)`: Affects all columns in a single row
+//! - `(-1, column)`: Affects all rows in a single column
+//! - `(row, column)`: Affects a specific cell
+//!
+//! # Filtering
+//!
+//! Diagnostics can be filtered by:
+//!
+//! - Ignored folders (skip entire directory trees)
+//! - Ignored files (skip specific files)
+//! - Ignored fields (skip specific table columns)
+//! - Ignored diagnostic types
+//!
+//! # Usage Example
+//!
+//! ```ignore
+//! use rpfm_extensions::diagnostics::Diagnostics;
+//!
+//! let mut diagnostics = Diagnostics::default();
+//! diagnostics.check(
+//!     &mut pack,
+//!     &mut dependencies,
+//!     &schema,
+//!     &game_info,
+//!     game_path,
+//!     &[],  // Check all paths
+//!     false, // Don't check AK-only references
+//! );
+//!
+//! for result in diagnostics.results() {
+//!     println!("{}: {}", result.path(), result.message());
+//! }
+//! ```
 
 use getset::{Getters, MutGetters};
 use rayon::prelude::*;
@@ -54,13 +128,21 @@ pub mod text;
 //                              Trait definitions
 //-------------------------------------------------------------------------------//
 
-/// This trait represents a diagnostic with a level and a message.
+/// Trait for types that can report diagnostic information.
+///
+/// All diagnostic result types implement this trait to provide a consistent
+/// interface for accessing the diagnostic message and severity level.
 pub trait DiagnosticReport {
 
-    /// This function returns the message associated with the diagnostic implementing this.
+    /// Returns the human-readable message describing this diagnostic.
+    ///
+    /// The message should clearly explain what the issue is and, where possible,
+    /// suggest how to fix it.
     fn message(&self) -> String;
 
-    /// This function returns the level associated with the diagnostic implementing this.
+    /// Returns the severity level of this diagnostic.
+    ///
+    /// Used for filtering and prioritizing diagnostic results.
     fn level(&self) -> DiagnosticLevel;
 }
 
@@ -68,50 +150,91 @@ pub trait DiagnosticReport {
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
-/// This struct represents the results of a diagnostics check over a Pack.
+/// Container for diagnostic check results and configuration.
 ///
-/// It also contains some configuration used on the diagnostic themselfs.
+/// This struct holds both the configuration for which diagnostics to run
+/// (via ignore lists) and the results of the diagnostic check.
+///
+/// # Filtering
+///
+/// Use the ignore fields to exclude certain items from diagnostic checks:
+///
+/// - `folders_ignored`: Skip entire folder trees (e.g., "db/deprecated_tables")
+/// - `files_ignored`: Skip specific files by path
+/// - `fields_ignored`: Skip specific table columns (format: "table_name/field_name")
+/// - `diagnostics_ignored`: Skip specific diagnostic types by identifier
 #[derive(Debug, Clone, Default, Getters, MutGetters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub")]
 pub struct Diagnostics {
 
-    /// List of ignored folders for diagnostics.
+    /// Folder paths to exclude from diagnostic checks.
+    ///
+    /// Files within these folders (and subfolders) will not be checked.
     folders_ignored: Vec<String>,
 
-    /// List of ignored files for diagnostics.
+    /// File paths to exclude from diagnostic checks.
     files_ignored: Vec<String>,
 
-    /// List of ignored table fields for diagnostics.
+    /// Table fields to exclude from diagnostic checks.
+    ///
+    /// Format: "table_name/field_name" (e.g., "units_tables/key")
     fields_ignored: Vec<String>,
 
-    /// List of ignored diagnostics.
+    /// Diagnostic type identifiers to skip.
+    ///
+    /// Use this to disable specific checks that produce false positives
+    /// or are not relevant to your mod.
     diagnostics_ignored: Vec<String>,
 
-    /// Results of a diagnostics check.
+    /// The diagnostic results from the most recent check.
     results: Vec<DiagnosticType>
 }
 
-/// This enum contains the different types of diagnostics we can have.
+/// Wrapper enum for all diagnostic result types.
 ///
-/// One enum to hold them all.
+/// Each variant corresponds to a different file type or check category,
+/// containing the specific diagnostic struct for that type.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum DiagnosticType {
+    /// Diagnostics for animation fragment battle files.
     AnimFragmentBattle(AnimFragmentBattleDiagnostic),
+    /// Diagnostics for configuration files.
     Config(ConfigDiagnostic),
+    /// Diagnostics for dependency-related issues.
     Dependency(DependencyDiagnostic),
+    /// Diagnostics for DB tables.
     DB(TableDiagnostic),
+    /// Diagnostics for Loc (localisation) tables.
     Loc(TableDiagnostic),
+    /// Diagnostics for pack-level issues.
     Pack(PackDiagnostic),
+    /// Diagnostics for portrait settings files.
     PortraitSettings(PortraitSettingsDiagnostic),
+    /// Diagnostics for text/script files.
     Text(TextDiagnostic),
 }
 
-/// This enum defines the possible level of a diagnostic.
+/// Severity level of a diagnostic result.
+///
+/// Used to categorize diagnostics by importance and filter results
+/// in the user interface.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub enum DiagnosticLevel {
+    /// Informational message or suggestion.
+    ///
+    /// These don't indicate errors but may highlight potential improvements
+    /// or provide useful information about the mod.
     #[default]
     Info,
+    /// Potential issue that may cause problems.
+    ///
+    /// Warnings indicate things that might be mistakes or could cause
+    /// issues in certain circumstances, but aren't definite errors.
     Warning,
+    /// Critical issue that will likely cause problems.
+    ///
+    /// Errors indicate definite problems that should be fixed, such as
+    /// invalid references or malformed data that could crash the game.
     Error,
 }
 
