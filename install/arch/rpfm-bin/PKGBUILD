@@ -18,7 +18,7 @@ package() {
 
     # All files should already follow the proper structure inside the tar.gz
     # That means we just need to install the executables with different permissions.
-    install -D -m755 "$srcdir/usr/bin/rpfm_ui" "$pkgdir/usr/bin/rpfm_server"
+    install -D -m755 "$srcdir/usr/bin/rpfm_server" "$pkgdir/usr/bin/rpfm_server"
     install -D -m755 "$srcdir/usr/bin/rpfm_ui" "$pkgdir/usr/bin/rpfm_ui"
     install -D -m755 "$srcdir/usr/bin/rpfm_cli" "$pkgdir/usr/bin/rpfm_cli"
 
