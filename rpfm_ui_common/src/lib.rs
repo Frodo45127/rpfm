@@ -74,10 +74,14 @@ pub static ASSETS_PATH: LazyLock<PathBuf> = LazyLock::new(|| if cfg!(debug_asser
 } else {
     // For release builds:
     // - Windows: Same as RFPM exe.
-    // - Linux: /usr/share/rpfm.
+    // - Linux: /usr/share/rpfm, or /app/share if running in a container.
     // - MacOs: Who knows?
     if cfg!(target_os = "linux") {
-        PathBuf::from("/usr/share/".to_owned() + &APP_NAME.read().unwrap())
+        if std::env::var("container").is_ok() {
+            PathBuf::from("/app/share/".to_owned() + &APP_NAME.read().unwrap())
+        } else {
+            PathBuf::from("/usr/share/".to_owned() + &APP_NAME.read().unwrap())
+        }
     } else {
         PROGRAM_PATH.to_path_buf()
     }

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=RPFM
+Comment=A modding tool for Total War games.
+Exec=rpfm_ui
+Icon=com.github.frodo45127.rpfm
+Type=Application
+Terminal=false
+Categories=Game;Utility;
+Keywords=totalwar;modding;packfile;
+StartupWMClass=rpfm_ui

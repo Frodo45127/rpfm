@@ -1,0 +1,78 @@
+app-id: com.github.frodo45127.rpfm
+runtime: org.kde.Platform
+runtime-version: '5.15-25.08'
+sdk: org.kde.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+command: rpfm_ui
+finish-args:
+  # Base
+  - --share=ipc
+  - --socket=fallback-x11
+  - --socket=wayland
+
+  # Sounds
+  - --socket=pulseaudio
+
+  # Access to the outside world
+  - --filesystem=host
+
+  # Additional permissions
+  - --device=dri
+
+build-options:
+  append-path: /usr/lib/sdk/rust-stable/bin
+  env:
+    CARGO_HOME: /run/build/rpfm/cargo
+    CARGO_NET_OFFLINE: 'true'
+    CMAKE_POLICY_VERSION_MINIMUM: '3.5'
+
+modules:
+  - name: rpfm
+    buildsystem: simple
+    build-options:
+      env:
+        CARGO_HOME: /run/build/rpfm/cargo
+    build-commands:
+      # Set up cargo to use vendored sources
+      - mkdir -p ${CARGO_HOME}
+      - |
+        cat > ${CARGO_HOME}/config.toml << EOF
+        [source.crates-io]
+        replace-with = "vendored-sources"
+
+        [source.vendored-sources]
+        directory = "cargo/vendor"
+        EOF
+
+      # Build the binaries
+      - cargo build --release --offline -p rpfm_ui -p rpfm_server
+
+      # Install binaries
+      - install -Dm755 target/release/rpfm_server /app/bin/rpfm_server
+      - install -Dm755 target/release/rpfm_ui /app/bin/rpfm_ui
+
+      # Install the main icon
+      - install -Dm644 icons/rpfm.png /app/share/icons/hicolor/256x256/apps/com.github.frodo45127.rpfm.png
+
+      # Install all icons to the app data directory
+      - mkdir -p /app/share/rpfm/icons
+      - cp -r icons/* /app/share/rpfm/icons/
+
+      # Install the language files
+      - mkdir -p /app/share/rpfm/locale
+      - cp -r locale/* /app/share/rpfm/locale/
+
+      # Install the UI files
+      - mkdir -p /app/share/rpfm/ui
+      - cp -r rpfm_ui/ui_templates/* /app/share/rpfm/ui/
+
+      # Install the desktop file
+      - install -Dm644 install/flatpak/com.github.frodo45127.rpfm.desktop /app/share/applications/com.github.frodo45127.rpfm.desktop
+
+    sources:
+      - type: dir
+        path: ../..
+      # How to generate cargo-sources.json:
+      # flatpak-cargo-generator.py Cargo.lock -o install/flatpak/cargo-sources.json
+      - cargo-sources.json
