@@ -8,7 +8,49 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! Module with all the code that can be considered "backend" of the UI, but should not be on the libs.
+//! # IPC Helpers Module
+//!
+//! This module provides helper data structures for marshalling complex data between the UI and server.
+//! These types serve as lightweight, serializable representations of core library types, designed
+//! specifically for IPC transfer.
+//!
+//! ## Key Types
+//!
+//! ### Container Information
+//!
+//! - [`ContainerInfo`]: A reduced representation of a PackFile, containing only the metadata needed
+//!   by the UI (file name, path, version, type, compression settings).
+//!
+//! ### File Information
+//!
+//! - [`RFileInfo`]: Metadata about a packed file within a container (path, container name, timestamp,
+//!   file type). Used extensively in tree views and file listings.
+//! - [`VideoInfo`]: Metadata specific to video files (format, dimensions, framerate, etc.).
+//!
+//! ### Dependencies
+//!
+//! - [`DependenciesInfo`]: Contains paths to all dependency files (AssKit tables, vanilla files,
+//!   parent mod files) for populating dependency tree views.
+//!
+//! ### Data Sources
+//!
+//! - [`DataSource`]: Discriminates where data comes from (current PackFile, game files, parent mods,
+//!   AssKit files, or external files). Used throughout the UI to track file origins.
+//!
+//! ### File Creation
+//!
+//! - [`NewFile`]: Enum containing the parameters needed to create new files of various types
+//!   (AnimPack, DB table, Loc file, etc.).
+//!
+//! ### API Responses
+//!
+//! - [`APIResponse`]: Represents update check results (new update available, no update, etc.).
+//!
+//! ## Design Notes
+//!
+//! These types are intentionally simple and focus on data transfer rather than business logic.
+//! They use `#[derive(Serialize, Deserialize)]` for JSON serialization over WebSocket, and
+//! `#[derive(Getters)]` for convenient read-only access to fields.
 
 use getset::Getters;
 use rayon::prelude::*;
@@ -236,6 +278,11 @@ impl From<&AnimPack> for ContainerInfo {
     }
 }
 
+/// Creates a [`ContainerInfo`] from an [`RFileInfo`].
+///
+/// This is used when treating an individual file as if it were a container (e.g., for AnimPacks
+/// stored within a Pack). Most fields default to their default values since a single file
+/// doesn't have pack-level metadata.
 impl From<&RFileInfo> for ContainerInfo {
     fn from(file_info: &RFileInfo) -> Self {
         Self {
@@ -246,6 +293,10 @@ impl From<&RFileInfo> for ContainerInfo {
     }
 }
 
+/// Creates an [`RFileInfo`] from an [`RFile`].
+///
+/// Extracts the path, container name, timestamp, and file type from the packed file.
+/// This is the primary way to create file info for display in the UI.
 impl From<&RFile> for RFileInfo {
     fn from(rfile: &RFile) -> Self {
         //let is_cached = !matches!(rfile.get_ref_decoded(), DecodedPackedFile::Unknown);
@@ -264,6 +315,10 @@ impl From<&RFile> for RFileInfo {
     }
 }
 
+/// Creates a [`VideoInfo`] from a [`Video`].
+///
+/// Extracts all video metadata (format, codec, dimensions, frame count, framerate) for display
+/// in the UI's video viewer.
 impl From<&Video> for VideoInfo {
     fn from(video: &Video) -> Self {
         Self {
@@ -322,6 +377,11 @@ impl RFileInfo {
         }
     }
 
+    /// Returns the table name for DB files.
+    ///
+    /// For DB files, the path format is `db/<table_name>/<file_name>`, so this extracts
+    /// the second path component. Returns `None` if the file is not a DB file or if
+    /// the path doesn't have the expected structure.
     pub fn table_name(&self) -> Option<&str> {
         if self.file_type == FileType::DB {
             self.path().split('/').collect::<Vec<_>>().get(1).cloned()
@@ -330,6 +390,10 @@ impl RFileInfo {
         }
     }
 
+    /// Creates an [`RFileInfo`] from a [`DB`] table and its file name.
+    ///
+    /// This is used to create file info for AssKit-only tables that don't have a backing
+    /// [`RFile`]. The path is constructed as `db/<table_name>/<table_file_name>`.
     pub fn from_db(db: &DB, table_file_name: &str) -> Self {
         Self {
             path: format!("db/{}/{}", db.table_name(), table_file_name),
@@ -340,6 +404,9 @@ impl RFileInfo {
     }
 }
 
+/// Displays the [`DataSource`] as a human-readable string.
+///
+/// Used for logging and UI display purposes.
 impl Display for DataSource {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         Display::fmt(match self {
@@ -352,6 +419,10 @@ impl Display for DataSource {
     }
 }
 
+/// Parses a [`DataSource`] from its string representation.
+///
+/// This is the inverse of the [`Display`] implementation. Panics if the string doesn't match
+/// any known data source.
 impl From<&str> for DataSource {
     fn from(value: &str) -> Self {
         match value {

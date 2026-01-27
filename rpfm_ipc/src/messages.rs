@@ -8,6 +8,50 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
+//! # IPC Messages Module
+//!
+//! This module defines the core IPC protocol structures used for communication between the RPFM
+//! frontend and backend server.
+//!
+//! ## Overview
+//!
+//! The protocol is built around three main types:
+//!
+//! - [`Message<T>`]: A generic wrapper that adds request-response correlation via unique IDs.
+//! - [`Command`]: An enum defining all actions the frontend can request from the server.
+//! - [`Response`]: An enum defining all possible results the server can return.
+//!
+//! ## Message Correlation
+//!
+//! Every message includes a unique `id` field that allows the frontend to match responses to their
+//! original requests. This enables:
+//!
+//! - **Asynchronous communication**: Multiple requests can be in flight simultaneously.
+//! - **Non-blocking UI**: The frontend doesn't need to wait for responses before sending new requests.
+//! - **Error handling**: Responses can be matched back to the context that initiated them.
+//!
+//! ## Command Categories
+//!
+//! Commands are organized into logical groups:
+//!
+//! - **PackFile Operations**: Open, save, close, and modify PackFiles.
+//! - **PackedFile Operations**: Create, delete, extract, rename, and decode individual files.
+//! - **Dependency Operations**: Query and manage game dependencies.
+//! - **Search Operations**: Global search and reference lookups.
+//! - **Schema Operations**: Load, save, and update table schemas.
+//! - **Settings Operations**: Get and set application settings.
+//! - **Update Operations**: Check for and apply updates to schemas, translations, etc.
+//! - **Diagnostics**: Run diagnostic checks on PackFiles.
+//! - **Navigation**: Go-to-definition and reference search features.
+//!
+//! ## Response Types
+//!
+//! Responses are typically named after the types they contain (e.g., `Response::Bool(bool)`,
+//! `Response::String(String)`). For complex operations, specialized responses like
+//! `Response::DBRFileInfo` or `Response::ContainerInfoVecRFileInfo` carry domain-specific data.
+//!
+//! Each [`Command`] variant's documentation specifies which [`Response`] variant(s) it returns.
+
 use serde::{Serialize, Deserialize};
 
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -54,504 +98,1002 @@ pub struct Message<T: Debug> {
 /// docs of each command.
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Command {
-    /// This command is used to close a thread.
-    Exit,
 
-    /// This command is used when we want to reset the open `PackFile` to his original state.
-    ResetPackFile,
+    /// Signal that the client is intentionally disconnecting.
+    ///
+    /// This allows the server to immediately clean up the session's resources instead of
+    /// waiting for the timeout. If this was the last active session, the server will also
+    /// shut down.
+    ///
+    /// Response: [`Response::Success`] (sent before cleanup begins).
+    ClientDisconnecting,
 
-    /// This command is used when we want to remove from memory the extra packfile with the provided path.
-    RemovePackFileExtra(PathBuf),
+    //-----------------------------------------------------------------------//
+    // PackFile Operations
+    //-----------------------------------------------------------------------//
 
-    /// This command is used to "clean" a Packfile from corrupted files and save it to disk.
-    CleanAndSavePackFileAs(PathBuf),
+    /// Closes the open Pack.
+    ///
+    /// Response: None.
+    ClosePack,
 
-    /// This command is used when we want to create a new `PackFile`.
-    NewPackFile,
+    /// Close the extra Pack with the provided path.
+    ///
+    /// Response: None.
+    ClosePackExtra(PathBuf),
 
-    /// This command is used when we want to save our currently open `PackFile`.
-    SavePackFile,
+    /// Clean the open Pack from corrupted/undecoded files and try to save it to disk.
+    ///
+    /// Only use this command if your Pack is not save-able otherwise.
+    ///
+    /// Response:
+    /// - [`Response::ContainerInfo`] on success.
+    /// - [`Response::Error`] on failure.
+    CleanAndSavePackAs(PathBuf),
 
-    /// This command is used when we want to save our currently open `PackFile` as another `PackFile`.
-    SavePackFileAs(PathBuf),
+    /// Creates a new empty Pack.
+    ///
+    /// Response: None.
+    NewPack,
 
-    /// This command is used when we want to get the data used to build the `TreeView`.
+    /// Save the currently open Pack to disk.
+    ///
+    /// Response:
+    /// - [`Response::ContainerInfo`] on success.
+    /// - [`Response::Error`] on failure.
+    SavePack,
+
+    /// Save the currently open Pack to a new path.
+    ///
+    /// Response:
+    /// - [`Response::ContainerInfo`] on success.
+    /// - [`Response::Error`] on failure.
+    SavePackAs(PathBuf),
+
+    /// Get the data used to build the `TreeView`].
+    ///
+    /// Response:
+    /// - [`Response::ContainerInfoVecRFileInfo`].
     GetPackFileDataForTreeView,
 
-    /// Same as the one before, but for the extra `PackFile`. It requires the pathbuf of the PackFile.
+    /// Get the data for an extra Pack's TreeView. Requires the PathBuf of the PackFile.
+    ///
+    /// Response:
+    /// - [`Response::ContainerInfoVecRFileInfo`] on success.
+    /// - [`Response::Error`] on failure.
     GetPackFileExtraDataForTreeView(PathBuf),
 
-    /// This command is used to open one or more `PackFiles`. It requires the paths of the `PackFiles`.
+    /// Open one or more `PackFiles` and merge them. Requires the paths of the `PackFiles`].
+    ///
+    /// Response: [`Response::ContainerInfo`] on success, [`Response::Error`] on failure.
     OpenPackFiles(Vec<PathBuf>),
 
-    /// This command is used to open an extra `PackFile`. It requires the path of the `PackFile`.
+    /// Open an extra Pack for "Add from PackFile" feature. Requires the path of the Pack.
+    ///
+    /// Response: [`Response::ContainerInfo`] on success, [`Response::Error`] on failure.
     OpenPackExtra(PathBuf),
 
-    /// This command is used to open all the CA PackFiles for the game selected as one.
+    /// Open all the CA PackFiles for the selected game as one merged PackFile.
+    ///
+    /// Response: [`Response::ContainerInfo`] on success, [`Response::Error`] on failure.
     LoadAllCAPackFiles,
 
-    /// This command is used when we want to get the `RFileInfo` of one or more `PackedFiles`.
+    /// Get the `RFileInfo` of one or more `PackedFiles`].
+    ///
+    /// Response: [`Response::VecRFileInfo`].
     GetPackedFilesInfo(Vec<String>),
 
-    /// This command is used when we want to perform a `Global Search`. It requires the search info.
+    /// Perform a `Global Search`]. Requires the search configuration.
+    ///
+    /// Response: [`Response::GlobalSearchVecRFileInfo`] on success, [`Response::Error`] if no schema.
     GlobalSearch(GlobalSearch),
 
-    /// This command is used when we want to change the `Game Selected`. It contains the name of the game to select, and if we should rebuild the dependencies.
+    /// Change the `Game Selected`]. Contains the game key and whether to rebuild dependencies.
+    ///
+    /// Response: [`Response::CompressionFormatDependenciesInfo`] on success, [`Response::Error`] if game not supported.
     SetGameSelected(String, bool),
 
-    /// This command is used when we want to change the `Type` of the currently open `PackFile`. It contains the new type.
+    /// Change the `Type` of the currently open Pack.
+    ///
+    /// Response: None.
     SetPackFileType(PFHFileType),
 
-    /// This command is used when we want to generate the dependencies cache for a game. It contains the path of the
-    /// source raw db files, the `Raw DB Version` of the currently selected game, and if we should has the files or not.
+    /// Generate the dependencies cache for the selected game.
+    ///
+    /// Response: [`Response::DependenciesInfo`] on success, [`Response::Error`] on failure.
     GenerateDependenciesCache,
 
-    /// This command is used when we want to update the currently loaded Schema with data from the game selected's Assembly Kit.
-    /// It contains the path of the source files, if needed.
+    /// Update the currently loaded Schema with data from the game's Assembly Kit.
+    ///
+    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
     UpdateCurrentSchemaFromAssKit,
 
-    /// This command is used when we want to trigger an optimization pass over the currently open `PackFile`.
+    /// Trigger an optimization pass over the currently open Pack.
+    ///
+    /// Response: [`Response::HashSetStringHashSetString` (deleted paths, added paths) on success, [`Response::Error`] on failure.
     OptimizePackFile(OptimizerOptions),
 
-    /// This command is used to patch the SiegeAI of a Siege Map for warhammer games.
+    /// Patch the SiegeAI of a Siege Map for Warhammer games.
+    ///
+    /// Response: [`Response::StringVecContainerPath`] on success, [`Response::Error`] on failure.
     PatchSiegeAI,
 
-    /// This command is used when we want to change the `Index Includes Timestamp` flag in the currently open `PackFile`
+    /// Change the `Index Includes Timestamp` flag in the currently open Pack.
+    ///
+    /// Response: None.
     ChangeIndexIncludesTimestamp(bool),
 
-    /// This command is used when we want to change the `Data is Compressed` flag in the currently open `PackFile`
+    /// Change the compression format of the currently open Pack.
+    ///
+    /// Response: [`Response::CompressionFormat` (the actual format set, may differ if unsupported).
     ChangeCompressionFormat(CompressionFormat),
 
-    /// This command is used when we want to know the current path of our currently open `PackFile`.
+    /// Get the current path of the currently open Pack.
+    ///
+    /// Response: [`Response::PathBuf`].
     GetPackFilePath,
 
-    /// This command is used when we want to get the info of the provided `PackedFile`.
+    /// Get the info of a single `PackedFile`].
+    ///
+    /// Response: [`Response::OptionRFileInfo`].
     GetRFileInfo(String),
 
-    /// This command is used when we want to check if there is an RPFM update available.
+    //-----------------------------------------------------------------------//
+    // Update Commands
+    //-----------------------------------------------------------------------//
+
+    /// Check if there is an RPFM update available.
+    ///
+    /// Response: [`Response::APIResponse`] on success, [`Response::Error`] on failure.
     CheckUpdates,
 
-    /// This command is used when we want to check if there is an Schema update available.
+    /// Check if there is a Schema update available.
+    ///
+    /// Response: [`Response::APIResponseGit`] on success, [`Response::Error`] on failure.
     CheckSchemaUpdates,
 
-    /// This command is used when we want to update our schemas.
+    /// Update the schemas from the remote repository.
+    ///
+    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
     UpdateSchemas,
 
-    /// This command is used when we want to know if there is a Dependency Database loaded in memory.
+    /// Check if there is a Dependency Database loaded in memory.
+    /// Pass true to ensure dependencies were built with the AssKit.
     ///
-    /// Pass true if you want to ensure the dependencies were built with the AssKit.
+    /// Response: [`Response::Bool`].
     IsThereADependencyDatabase(bool),
 
-    /// This command is used when we want to create a new `PackedFile` inside the currently open `PackFile`.
+    //-----------------------------------------------------------------------//
+    // PackedFile Operations
+    //-----------------------------------------------------------------------//
+
+    /// Create a new `PackedFile` inside the currently open Pack.
+    /// Requires the path and the `NewFile` with the new PackedFile's info.
     ///
-    /// It requires the path of the new PackedFile, and the `NewPackedFile` with the new PackedFile's info.
+    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
     NewPackedFile(String, NewFile),
 
-    /// This command is used when we want to add one or more Files to our currently open `PackFile`.
+    /// Add one or more Files to the currently open Pack.
+    /// Requires: source filesystem paths, destination container paths, optional paths to ignore.
     ///
-    /// It requires the list of filesystem paths to add, and their path once they're inside the `PackFile`.
+    /// Response: [`Response::VecContainerPath` (added paths), then `Success` or [`Response::Error`].
     AddPackedFiles(Vec<PathBuf>, Vec<ContainerPath>, Option<Vec<PathBuf>>),
 
-    /// This command is used when we want to decode a PackedFile to be shown on the UI. It contains the path of the file, and were it is.
+    /// Decode a PackedFile to be shown on the UI.
+    /// Contains the path of the file and its data source.
+    ///
+    /// Response: File-type specific response (e.g., `DBRFileInfo`, `LocRFileInfo`, `TextRFileInfo`,
+    /// `ImageRFileInfo`, `RigidModelRFileInfo`, etc.), `Text` for pack notes, `Unknown` for
+    /// unsupported types, or [`Response::Error`] on failure.
     DecodePackedFile(String, DataSource),
 
-    // This command is used when we want to save an edited `PackedFile` back to the `PackFile`.
+    /// Save an edited `PackedFile` back to the Pack.
+    ///
+    /// Response: [`Response::Success`].
     SavePackedFileFromView(String, RFileDecoded),
 
-    // This command is used when we want to add a PackedFile from one PackFile into another.
+    /// Add PackedFiles from one PackFile into another.
+    ///
+    /// Response: [`Response::VecContainerPath`] on success, [`Response::Error`] if extra PackFile not found.
     AddPackedFilesFromPackFile((PathBuf, Vec<ContainerPath>)),
 
-    // This command is used when we want to add a PackedFile from our PackFile to an Animpack.
+    /// Add PackedFiles from the main PackFile to an AnimPack.
+    ///
+    /// Response: [`Response::VecContainerPath`] on success, [`Response::Error`] on failure.
     AddPackedFilesFromPackFileToAnimpack(String, Vec<ContainerPath>),
 
-    // This command is used when we want to add a PackedFile from an AnimPack to our PackFile.
+    /// Add PackedFiles from an AnimPack to the main PackFile.
+    ///
+    /// Response: [`Response::VecContainerPath`] on success, [`Response::Error`] on failure.
     AddPackedFilesFromAnimpack(DataSource, String, Vec<ContainerPath>),
 
-    // This command is used when we want to delete a PackedFile from an AnimPack.
+    /// Delete PackedFiles from an AnimPack.
+    ///
+    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
     DeleteFromAnimpack((String, Vec<ContainerPath>)),
 
-    // This command is used when we want to delete one or more PackedFiles from a PackFile. It contains the ContainerPath of each PackedFile to delete.
+    /// Delete one or more PackedFiles from a PackFile.
+    ///
+    /// Response: [`Response::VecContainerPath` (deleted paths).
     DeletePackedFiles(Vec<ContainerPath>),
 
-    // This command is used when we want to extract one or more PackedFiles from a PackFile. It contains the ContainerPaths to extract and the extraction path, and a bool to know if tables must be exported to tsv on extract or not.
+    /// Extract one or more PackedFiles from a PackFile.
+    /// Contains: paths by data source, extraction path, whether to export tables as TSV.
+    ///
+    /// Response: [`Response::StringVecPathBuf`] on success, [`Response::Error`] on failure.
     ExtractPackedFiles(BTreeMap<DataSource, Vec<ContainerPath>>, PathBuf, bool),
 
-    // This command is used when we want to rename one or more PackedFiles in a PackFile. It contains a Vec with their original ContainerPath and their new name.
+    /// Rename one or more PackedFiles in a PackFile.
+    /// Contains a Vec with original and new ContainerPaths.
+    ///
+    /// Response: [`Response::VecContainerPathContainerPath`] on success, [`Response::Error`] on failure.
     RenamePackedFiles(Vec<(ContainerPath, ContainerPath)>),
 
-    /// This command is used when we want to know if a folder exists in the currently open PackFile.
+    /// Check if a folder exists in the currently open PackFile.
+    ///
+    /// Response: [`Response::Bool`].
     FolderExists(String),
 
-    /// This command is used when we want to know if a PackedFile exists in the currently open PackFile.
+    /// Check if a PackedFile exists in the currently open PackFile.
+    ///
+    /// Response: [`Response::Bool`].
     PackedFileExists(String),
 
-    /// This command is used when we want to get the table names (the folder of the tables) of all DB files in our dependency PackFiles.
+    //-----------------------------------------------------------------------//
+    // Dependency Commands
+    //-----------------------------------------------------------------------//
+
+    /// Get the table names of all DB files in dependency PackFiles.
+    ///
+    /// Response: [`Response::VecString`].
     GetTableListFromDependencyPackFile,
+
+    /// Get custom table names (start_pos_, twad_ prefixes) from the schema.
+    ///
+    /// Response: [`Response::VecString`] on success, [`Response::Error`] if no schema.
     GetCustomTableList,
+
+    /// Get local art set IDs from campaign_character_arts_tables.
+    ///
+    /// Response: [`Response::HashSetString`].
     LocalArtSetIds,
+
+    /// Get art set IDs from dependencies' campaign_character_arts_tables.
+    ///
+    /// Response: [`Response::HashSetString`].
     DependenciesArtSetIds,
 
-    /// This command is used when we want to get the version of the table provided that's compatible with the version of the game we currently have installed.
+    /// Get the version of a table from the dependency database.
+    ///
+    /// Response: [`Response::I32`] on success, [`Response::Error`] if not found or dependencies not loaded.
     GetTableVersionFromDependencyPackFile(String),
 
-    // This command is used when we want to get the definition of the table provided that's compatible with the version of the game we currently have installed.
+    /// Get the definition of a table from the dependency database.
+    ///
+    /// Response: [`Response::Definition`] on success, [`Response::Error`] if not found.
     GetTableDefinitionFromDependencyPackFile(String),
 
-    /// This command is used when we want to merge multiple compatible tables into one. The contents of this are as follows:
-    /// - `Vec<Vec<String>>`: List of paths to merge.
-    /// - String: Path of the merged file.
-    /// - Bool: Should we delete the source files after merging them?
+    /// Merge multiple compatible tables into one.
+    /// - `Vec<ContainerPath>`: Paths to merge.
+    /// - `String`: Path of the merged file.
+    /// - `bool`: Delete source files after merging.
+    ///
+    /// Response: [`Response::String` (merged path) on success, [`Response::Error`] on failure.
     MergeFiles(Vec<ContainerPath>, String, bool),
 
-    // This command is used when we want to update a table to a newer version.
+    /// Update a table to a newer version.
+    ///
+    /// Response: [`Response::I32I32VecStringVecString` (old_version, new_version, deleted_fields, added_fields) on success, [`Response::Error`] on failure.
     UpdateTable(ContainerPath),
 
-    /// This command is used when we want to replace some specific matches in a Global Search.
+    //-----------------------------------------------------------------------//
+    // Search Commands
+    //-----------------------------------------------------------------------//
+
+    /// Replace specific matches in a Global Search.
+    ///
+    /// Response: [`Response::GlobalSearchVecRFileInfo`] on success, [`Response::Error`] if no schema.
     GlobalSearchReplaceMatches(GlobalSearch, Vec<MatchHolder>),
 
-    /// This command is used when we want to replace all matches in a Global Search.
+    /// Replace all matches in a Global Search.
+    ///
+    /// Response: [`Response::GlobalSearchVecRFileInfo`] on success, [`Response::Error`] if no schema.
     GlobalSearchReplaceAll(GlobalSearch),
 
-    /// This command is used to decode all tables referenced by columns in the provided definition and return their data.
-    /// It requires the table name, the definition of the table to get the reference data from and the list of PackedFiles to ignore.
+    /// Get reference data for columns in a definition.
+    /// Requires: table name, definition, force local reference regeneration.
+    ///
+    /// Response: [`Response::HashMapI32TableReferences`].
     GetReferenceDataFromDefinition(String, Definition, bool),
 
-    /// This command is used to get the list of PackFiles that are marked as dependency of our PackFile.
+    /// Get the list of PackFiles marked as dependencies of the current PackFile.
+    ///
+    /// Response: [`Response::VecBoolString`].
     GetDependencyPackFilesList,
 
-    /// This command is used to set the list of PackFiles that are marked as dependency of our PackFile.
+    /// Set the list of PackFiles marked as dependencies of the current PackFile.
+    ///
+    /// Response: None.
     SetDependencyPackFilesList(Vec<(bool, String)>),
 
-    /// This command is used to get a full list of PackedFile from all known sources to the UI. Requires the path of the PackedFile.
+    /// Get PackedFiles from all known sources (PackFile, GameFiles, ParentFiles).
+    /// Requires: paths to get, whether to lowercase paths.
+    ///
+    /// Response: [`Response::HashMapDataSourceHashMapStringRFile`].
     GetRFilesFromAllSources(Vec<ContainerPath>, bool),
 
-    // This command is used to change the format of a ca_vp8 video packedfile. Requires the path of the PackedFile and the new format.
+    //-----------------------------------------------------------------------//
+    // Video Commands
+    //-----------------------------------------------------------------------//
+
+    /// Change the format of a ca_vp8 video PackedFile.
+    ///
+    /// Response: None on success, [`Response::Error`] on failure.
     SetVideoFormat(String, SupportedFormats),
 
-    // This command is used to save the provided schema to disk.
+    //-----------------------------------------------------------------------//
+    // Schema Commands
+    //-----------------------------------------------------------------------//
+
+    /// Save the provided schema to disk.
+    ///
+    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
     SaveSchema(Schema),
 
-    /// This command is used to save to encoded data the cache of the provided paths, and then clean up the cache.
+    /// Encode and clean the cache for the provided paths.
+    ///
+    /// Response: None.
     CleanCache(Vec<ContainerPath>),
 
-    /// This command is used to export a table as TSV. Requires the internal and destination paths for the PackedFile.
+    //-----------------------------------------------------------------------//
+    // TSV Commands
+    //-----------------------------------------------------------------------//
+
+    /// Export a table as TSV. Requires: internal path, destination path, data source.
+    ///
+    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
     ExportTSV(String, PathBuf, DataSource),
 
-    /// This command is used to import a TSV as a table. Requires the internal and destination paths for the PackedFile.
+    /// Import a TSV as a table. Requires: internal path, source TSV path.
+    ///
+    /// Response: [`Response::RFileDecoded`] on success, [`Response::Error`] on failure.
     ImportTSV(String, PathBuf),
 
-    /// This command is used to open in the defaul file manager the folder of the currently open PackFile.
+    //-----------------------------------------------------------------------//
+    // External Program Commands
+    //-----------------------------------------------------------------------//
+
+    /// Open the folder containing the currently open PackFile in the file manager.
+    ///
+    /// Response: [`Response::Success`] on success, [`Response::Error`] if pack doesn't exist on disk.
     OpenContainingFolder,
 
-    /// This command is used to open a PackedFile on a external program. Requires the internal path of the PackedFile.
+    /// Open a PackedFile in an external program.
+    ///
+    /// Response: [`Response::PathBuf` (extracted path) on success, [`Response::Error`] on failure.
     OpenPackedFileInExternalProgram(DataSource, ContainerPath),
 
-    /// This command is used to save a PackedFile from an external program. Requires both, internal and external paths of the PackedFile.
+    /// Save a PackedFile from an external program. Requires: internal path, external file path.
+    ///
+    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
     SavePackedFileFromExternalView(String, PathBuf),
 
-    /// This command is used to update the program to the last version available, if possible.
+    //-----------------------------------------------------------------------//
+    // Program Update Commands
+    //-----------------------------------------------------------------------//
+
+    /// Update the program to the latest version available.
+    ///
+    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
     UpdateMainProgram,
 
-    /// This command is used to trigger an autosave to a backup from time to time.
+    /// Trigger an autosave to a backup.
+    ///
+    /// Response: None.
     TriggerBackupAutosave,
 
-    /// This command is used to trigger a full diagnostics check over the open PackFile.
+    //-----------------------------------------------------------------------//
+    // Diagnostics Commands
+    //-----------------------------------------------------------------------//
+
+    /// Trigger a full diagnostics check over the open PackFile.
+    /// Requires: ignored diagnostics, check AK-only references.
+    ///
+    /// Response: [`Response::Diagnostics`].
     DiagnosticsCheck(Vec<String>, bool),
 
-    // This command is used to trigger a partial diagnostics check over the open PackFile.
+    /// Trigger a partial diagnostics update.
+    /// Requires: existing diagnostics, paths to check, check AK-only references.
+    ///
+    /// Response: [`Response::Diagnostics`].
     DiagnosticsUpdate(Diagnostics, Vec<ContainerPath>, bool),
 
-    /// This command is used to get the settings of the currently open PackFile.
+    //-----------------------------------------------------------------------//
+    // Pack Settings Commands
+    //-----------------------------------------------------------------------//
+
+    /// Get the settings of the currently open PackFile.
+    ///
+    /// Response: [`Response::PackSettings`].
     GetPackSettings,
 
-    // This command is used to set the settings of the currently open PackFile.
+    /// Set the settings of the currently open PackFile.
+    ///
+    /// Response: None.
     SetPackSettings(PackSettings),
 
-    /// This command is used to trigger the debug missing table definition's code.
+    //-----------------------------------------------------------------------//
+    // Debug Commands
+    //-----------------------------------------------------------------------//
+
+    /// Export missing table definitions to a file (for debugging).
+    ///
+    /// Response: None.
     GetMissingDefinitions,
 
-    /// This command is used to rebuild the dependencies of a PackFile. The bool is for rebuilding the whole dependencies, or just the mod-specific ones.
+    //-----------------------------------------------------------------------//
+    // Dependencies Commands
+    //-----------------------------------------------------------------------//
+
+    /// Rebuild the dependencies of a PackFile.
+    /// Pass true to rebuild all dependencies, false for mod-specific only.
+    ///
+    /// Response: [`Response::DependenciesInfo`] on success, [`Response::Error`] if no schema.
     RebuildDependencies(bool),
 
-    /// This command is used to trigger a cascade edition on all referenced data.
+    //-----------------------------------------------------------------------//
+    // Cascade Edition Commands
+    //-----------------------------------------------------------------------//
+
+    /// Trigger a cascade edition on all referenced data.
+    /// Requires: table name, definition, list of (field, old_value, new_value).
+    ///
+    /// Response: [`Response::VecContainerPathVecRFileInfo`].
     CascadeEdition(String, Definition, Vec<(Field, String, String)>),
 
-    /// This command is used for the Go To Definition feature. Contains table, column, and values to search.
+    //-----------------------------------------------------------------------//
+    // Navigation Commands
+    //-----------------------------------------------------------------------//
+
+    /// Go to the definition of a reference. Contains: table, column, values to search.
+    ///
+    /// Response: [`Response::DataSourceStringUsizeUsize`] on success, [`Response::Error`] if not found.
     GoToDefinition(String, String, Vec<String>),
 
-    /// This command is used to get the source data of a loc key. Contains the loc key to search.
+    /// Get the source data of a loc key.
+    ///
+    /// Response: [`Response::OptionStringStringVecString`].
     GetSourceDataFromLocKey(String),
 
-    /// This command is used to get the loc file/column/row of a key. Contains the loc key to search.
+    /// Go to a loc key's location. Contains the loc key to search.
+    ///
+    /// Response: [`Response::DataSourceStringUsizeUsize`] on success, [`Response::Error`] if not found.
     GoToLoc(String),
 
-    /// This command is used for the Find References feature. Contains list of table/columns to search, and value to search.
+    /// Find all references to a value.
+    /// Contains: map of table -> columns to search, value to search.
+    ///
+    /// Response: [`Response::VecDataSourceStringStringUsizeUsize`].
     SearchReferences(HashMap<String, Vec<String>>, String),
 
-    // This command is used to get the type of a File.
-    //GetFileType(String),
-    /// This command is used to get the name of the currently open PackFile.
+    /// Get the name of the currently open PackFile.
+    ///
+    /// Response: [`Response::String`].
     GetPackFileName,
 
-    /// This command is used to get the raw data of a PackedFile.
+    /// Get the raw binary data of a PackedFile.
+    ///
+    /// Response: [`Response::VecU8`] on success, [`Response::Error`] on failure.
     GetPackedFileRawData(String),
 
-    /// This command is used to import files from the dependencies into out PackFile.
+    /// Import files from dependencies into the open PackFile.
+    ///
+    /// Response: [`Response::VecContainerPath` (added paths), then `Success` or `VecString` (failed paths).
     ImportDependenciesToOpenPackFile(BTreeMap<DataSource, Vec<ContainerPath>>),
 
-    /// This command is used to save all provided PackedFiles into the current PackFile, then merge them and optimize them if possible.
+    /// Save PackedFiles to the current PackFile and optionally optimize.
+    /// Requires: files to save, whether to optimize.
+    ///
+    /// Response: [`Response::VecContainerPathVecContainerPath` (added paths, deleted paths) on success, [`Response::Error`] on failure.
     SavePackedFilesToPackFileAndClean(Vec<RFile>, bool),
 
-    /// This command is used to get all the file names under a path in all dependencies.
+    /// Get all file names under a path in all dependencies.
+    ///
+    /// Response: [`Response::HashMapDataSourceHashSetContainerPath`].
     GetPackedFilesNamesStartingWitPathFromAllSources(ContainerPath),
 
-    /// This command is used to request all notes under a path, no matter their source.
+    //-----------------------------------------------------------------------//
+    // Notes Commands
+    //-----------------------------------------------------------------------//
+
+    /// Get all notes under a path.
+    ///
+    /// Response: [`Response::VecNote`].
     NotesForPath(String),
 
+    /// Add a note.
+    ///
+    /// Response: [`Response::Note`].
+    AddNote(Note),
+
+    /// Delete a note.
+    ///
+    /// Response: None.
+    DeleteNote(String, u64),
+
+    //-----------------------------------------------------------------------//
+    // Schema Patch Commands
+    //-----------------------------------------------------------------------//
+
+    /// Save local schema patches.
+    ///
+    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
     SaveLocalSchemaPatch(HashMap<String, DefinitionPatch>),
+
+    /// Remove local schema patches for a table.
+    ///
+    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
     RemoveLocalSchemaPatchesForTable(String),
+
+    /// Remove local schema patches for a specific field in a table.
+    ///
+    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
     RemoveLocalSchemaPatchesForTableAndField(String, String),
 
-    /// This command is used to import a schema patch in the local schema patches.
+    /// Import a schema patch into the local schema patches.
+    ///
+    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
     ImportSchemaPatch(HashMap<String, DefinitionPatch>),
 
-    /// This command is used to generate all missing loc entries for the currently open PackFile.
+    //-----------------------------------------------------------------------//
+    // Loc Generation Commands
+    //-----------------------------------------------------------------------//
+
+    /// Generate all missing loc entries for the currently open PackFile.
+    ///
+    /// Response: [`Response::VecContainerPath`] on success, [`Response::Error`] on failure.
     GenerateMissingLocData,
 
-    /// This command is used to check for updates on the tw_autogen thing.
+    //-----------------------------------------------------------------------//
+    // Lua Autogen Commands
+    //-----------------------------------------------------------------------//
+
+    /// Check for updates on the tw_autogen repository.
+    ///
+    /// Response: [`Response::APIResponseGit`] on success, [`Response::Error`] on failure.
     CheckLuaAutogenUpdates,
 
-    /// This command is used to update the tw_autogen thing.
+    /// Update the tw_autogen repository.
+    ///
+    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
     UpdateLuaAutogen,
 
-    /// This command is used to initialize a MyMod Folder.
+    //-----------------------------------------------------------------------//
+    // MyMod Commands
+    //-----------------------------------------------------------------------//
+
+    /// Initialize a MyMod folder.
+    /// Requires: mod name, game key, sublime support, vscode support, git support (gitignore content).
+    ///
+    /// Response: [`Response::PathBuf` (path to the new pack) on success, [`Response::Error`] on failure.
     InitializeMyModFolder(String, String, bool, bool, Option<String>),
 
-    AddNote(Note),
-    DeleteNote(String, u64),
+    /// Live export the PackFile to the game folder.
+    ///
+    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
     LiveExport,
+
+    //-----------------------------------------------------------------------//
+    // Map Packing Commands
+    //-----------------------------------------------------------------------//
+
+    /// Pack map tiles into the PackFile.
+    /// Requires: tile map paths, list of (tile path, name).
+    ///
+    /// Response: [`Response::VecContainerPathVecContainerPath`] (added paths, deleted paths) on success, [`Response::Error`] on failure.
     PackMap(Vec<PathBuf>, Vec<(PathBuf, String)>),
+
+    //-----------------------------------------------------------------------//
+    // Diagnostics Ignore Commands
+    //-----------------------------------------------------------------------//
+
+    /// Add a line to the pack's ignored diagnostics.
+    ///
+    /// Response: None.
     AddLineToPackIgnoredDiagnostics(String),
 
+    //-----------------------------------------------------------------------//
+    // Empire/Napoleon AK Commands
+    //-----------------------------------------------------------------------//
+
+    /// Check for updates on the old AK files repository.
+    ///
+    /// Response: [`Response::APIResponseGit`] on success, [`Response::Error`] on failure.
     CheckEmpireAndNapoleonAKUpdates,
+
+    /// Update the old AK files repository.
+    ///
+    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
     UpdateEmpireAndNapoleonAK,
+
+    //-----------------------------------------------------------------------//
+    // Translation Commands
+    //-----------------------------------------------------------------------//
+
+    /// Get pack translation data for a language.
+    ///
+    /// Response: [`Response::PackTranslation`] on success, [`Response::Error`] on failure.
     GetPackTranslation(String),
-    BuildStarpos(String, bool),
-    BuildStarposPost(String, bool),
-    BuildStarposCleanup(String, bool),
-    BuildStarposGetCampaingIds,
-    BuildStarposCheckVictoryConditions,
-    UpdateAnimIds(i32, i32),
-    GetAnimPathsBySkeletonName(String),
+
+    /// Check for translation updates.
+    ///
+    /// Response: [`Response::APIResponseGit`] on success, [`Response::Error`] on failure.
     CheckTranslationsUpdates,
+
+    /// Update the translations repository.
+    ///
+    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
     UpdateTranslations,
+
+    //-----------------------------------------------------------------------//
+    // Starpos Commands
+    //-----------------------------------------------------------------------//
+
+    /// Build starpos (pre-processing step).
+    /// Requires: campaign ID, process HLP/SPD data.
+    ///
+    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
+    BuildStarpos(String, bool),
+
+    /// Build starpos (post-processing step).
+    /// Requires: campaign ID, process HLP/SPD data.
+    ///
+    /// Response: [`Response::VecContainerPath`] on success, [`Response::Error`] on failure.
+    BuildStarposPost(String, bool),
+
+    /// Clean up starpos temporary files.
+    /// Requires: campaign ID, process HLP/SPD data.
+    ///
+    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
+    BuildStarposCleanup(String, bool),
+
+    /// Get campaign IDs for starpos building.
+    ///
+    /// Response: [`Response::HashSetString`].
+    BuildStarposGetCampaingIds,
+
+    /// Check if victory conditions file exists (required for some games).
+    ///
+    /// Response: [`Response::Success`] if exists or not needed, [`Response::Error`] if missing.
+    BuildStarposCheckVictoryConditions,
+
+    //-----------------------------------------------------------------------//
+    // Animation Commands
+    //-----------------------------------------------------------------------//
+
+    /// Update animation IDs with offset.
+    /// Requires: starting ID, offset.
+    ///
+    /// Response: [`Response::VecContainerPath`] on success, [`Response::Error`] on failure.
+    UpdateAnimIds(i32, i32),
+
+    /// Get animation paths by skeleton name.
+    ///
+    /// Response: [`Response::HashSetString`].
+    GetAnimPathsBySkeletonName(String),
+
+    //-----------------------------------------------------------------------//
+    // Table Commands
+    //-----------------------------------------------------------------------//
+
+    /// Get tables from dependencies by table name.
+    ///
+    /// Response: [`Response::VecRFile`] on success, [`Response::Error`] on failure.
     GetTablesFromDependencies(String),
+
+    /// Get table paths by table name from the current PackFile.
+    ///
+    /// Response: [`Response::VecString`].
     GetTablesByTableName(String),
+
+    /// Add keys to the key_deletes table.
+    /// Requires: table file name, key table name, keys to add.
+    ///
+    /// Response: [`Response::OptionContainerPath`].
     AddKeysToKeyDeletes(String, String, HashSet<String>),
+
+    //-----------------------------------------------------------------------//
+    // 3D Export Commands
+    //-----------------------------------------------------------------------//
+
+    /// Export a RigidModel to glTF format.
+    /// Requires: RigidModel, output path.
+    ///
+    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
     ExportRigidToGltf(RigidModel, String),
 
-    // Settings commands - for accessing settings from the UI
+    //-----------------------------------------------------------------------//
+    // Settings Getter Commands
+    //-----------------------------------------------------------------------//
+
+    /// Get a boolean setting value.
+    ///
+    /// Response: [`Response::Bool`].
     SettingsGetBool(String),
+
+    /// Get an i32 setting value.
+    ///
+    /// Response: [`Response::I32`].
     SettingsGetI32(String),
+
+    /// Get an f32 setting value.
+    ///
+    /// Response: [`Response::F32`].
     SettingsGetF32(String),
+
+    /// Get a string setting value.
+    ///
+    /// Response: [`Response::String`].
     SettingsGetString(String),
+
+    /// Get a PathBuf setting value.
+    ///
+    /// Response: [`Response::PathBuf`].
     SettingsGetPathBuf(String),
+
+    /// Get a `Vec<String>` setting value.
+    ///
+    /// Response: [`Response::VecString`].
     SettingsGetVecString(String),
+
+    /// Get raw data setting value.
+    ///
+    /// Response: [`Response::VecU8`].
     SettingsGetVecRaw(String),
+
+    /// Get all settings at once (for batch loading).
+    ///
+    /// This is much more efficient than calling individual SettingsGet* commands
+    /// when you need multiple settings, as it requires only one IPC round-trip.
+    ///
+    /// Response: [`Response::SettingsAll`].
+    SettingsGetAll,
+
+    //-----------------------------------------------------------------------//
+    // Settings Setter Commands
+    //-----------------------------------------------------------------------//
+
+    /// Set a boolean setting value.
+    ///
+    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
     SettingsSetBool(String, bool),
+
+    /// Set an i32 setting value.
+    ///
+    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
     SettingsSetI32(String, i32),
+
+    /// Set an f32 setting value.
+    ///
+    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
     SettingsSetF32(String, f32),
+
+    /// Set a string setting value.
+    ///
+    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
     SettingsSetString(String, String),
+
+    /// Set a PathBuf setting value.
+    ///
+    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
     SettingsSetPathBuf(String, PathBuf),
+
+    /// Set a `Vec<String>` setting value.
+    ///
+    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
     SettingsSetVecString(String, Vec<String>),
+
+    /// Set raw data setting value.
+    ///
+    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
     SettingsSetVecRaw(String, Vec<u8>),
 
+    //-----------------------------------------------------------------------//
+    // Path Commands
+    //-----------------------------------------------------------------------//
+
+    /// Get the config path.
+    ///
+    /// Response: [`Response::PathBuf`] on success, [`Response::Error`] on failure.
     ConfigPath,
+
+    /// Get the Assembly Kit path for the current game.
+    ///
+    /// Response: [`Response::PathBuf`] on success, [`Response::Error`] on failure.
     AssemblyKitPath,
+
+    /// Get the backup autosave path.
+    ///
+    /// Response: [`Response::PathBuf`] on success, [`Response::Error`] on failure.
     BackupAutosavePath,
+
+    /// Get the old AK data path.
+    ///
+    /// Response: [`Response::PathBuf`] on success, [`Response::Error`] on failure.
     OldAkDataPath,
+
+    /// Get the schemas path.
+    ///
+    /// Response: [`Response::PathBuf`] on success, [`Response::Error`] on failure.
     SchemasPath,
+
+    /// Get the table profiles path.
+    ///
+    /// Response: [`Response::PathBuf`] on success, [`Response::Error`] on failure.
     TableProfilesPath,
+
+    /// Get the translations local path.
+    ///
+    /// Response: [`Response::PathBuf`] on success, [`Response::Error`] on failure.
     TranslationsLocalPath,
+
+    /// Get the dependencies cache path.
+    ///
+    /// Response: [`Response::PathBuf`] on success, [`Response::Error`] on failure.
     DependenciesCachePath,
+
+    /// Clear a config path.
+    ///
+    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
     SettingsClearPath(PathBuf),
+
+    //-----------------------------------------------------------------------//
+    // Settings Backup Commands
+    //-----------------------------------------------------------------------//
+
+    /// Backup the current settings to memory.
+    ///
+    /// Response: None.
     BackupSettings,
+
+    /// Clear settings and reset to defaults.
+    ///
+    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
     ClearSettings,
+
+    /// Restore settings from the backup.
+    ///
+    /// Response: None.
     RestoreBackupSettings,
+
+    /// Get the optimizer options.
+    ///
+    /// Response: [`Response::OptimizerOptions`].
     OptimizerOptions,
 
+    //-----------------------------------------------------------------------//
+    // Schema Query Commands
+    //-----------------------------------------------------------------------//
+
+    /// Check if a schema is loaded.
+    ///
+    /// Response: [`Response::Bool`].
     IsSchemaLoaded,
+
+    /// Get all definitions for a table name.
+    ///
+    /// Response: [`Response::VecDefinition`] on success, [`Response::Error`] if no schema.
     DefinitionsByTableName(String),
+
+    /// Get columns that reference a table's definition.
+    ///
+    /// Response: [`Response::HashMapStringHashMapStringVecString`] on success, [`Response::Error`] if no schema.
     ReferencingColumnsForDefinition(String, Definition),
+
+    /// Get the current schema.
+    ///
+    /// Response: [`Response::Schema`] on success, [`Response::Error`] if no schema.
     Schema,
+
+    /// Get a specific definition by table name and version.
+    ///
+    /// Response: [`Response::Definition`] on success, [`Response::Error`] if not found or no schema.
     DefinitionByTableNameAndVersion(String, i32),
+
+    /// Delete a definition by table name and version.
+    ///
+    /// Response: None.
     DeleteDefinition(String, i32)
 }
 
-/// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.
+/// This enum defines the responses (messages) you can send to the UI thread as result of a command.
 ///
-/// Each response should be named after the types of the items it carries.
+/// Each response is named after the types of the items it carries, making them self-documenting.
+/// For example, `VecString` returns a `Vec<String>`, and `DBRFileInfo` returns a `(DB, RFileInfo)` tuple.
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Response {
-    /// Generic response for situations of success.
+    /// Generic response for situations of success where no data needs to be returned.
     Success,
 
-    /// Generic response for situations that returned an error.
+    /// Generic response for situations that returned an error, containing the error message.
     Error(String),
 
-    /// Response to return (bool).
-    Bool(bool),
-
-    /// Response to return (i32).
-    I32(i32),
-    F32(f32),
-
-    /// Response to return (PathBuf).
-    PathBuf(PathBuf),
-
-    /// Response to return (String)
-    String(String),
-    OptionContainerPath(Option<ContainerPath>),
-
-    // Response to return (ContainerInfo, Vec<RFileInfo>).
-    ContainerInfoVecRFileInfo((ContainerInfo, Vec<RFileInfo>)),
-
-    // Response to return (ContainerInfo).
-    ContainerInfo(ContainerInfo),
-
-    // Response to return (Option<RFileInfo>).
-    OptionRFileInfo(Option<RFileInfo>),
-
-    // Response to return (Vec<Option<RFileInfo>>).
-    VecRFileInfo(Vec<RFileInfo>),
-
-    // Response to return (GlobalSearch, Vec<RFileInfo>).
-    GlobalSearchVecRFileInfo(Box<GlobalSearch>, Vec<RFileInfo>),
-
-    // Response to return (`Vec<Vec<String>>`).
-    //VecVecString(Vec<Vec<String>>),
-
-    // Response to return (Vec<ContainerPath>).
-    VecContainerPath(Vec<ContainerPath>),
-
-    // Response to return (Vec<(ContainerPath, Vec<String>)>).
-    VecContainerPathContainerPath(Vec<(ContainerPath, ContainerPath)>),
-
-    // Response to return (String, `Vec<Vec<String>>`).
-    //StringVecVecString((String, Vec<Vec<String>>)),
-    /// Response to return `APIResponse`.
-    APIResponse(APIResponse),
-
-    /// Response to return `APIResponseGit`.
-    APIResponseGit(GitResponse),
-
-    /// Response to return `(AnimFragmentBattle, RFileInfo)`.
+    #[allow(dead_code)]BmdRFileInfo(Box<Bmd>, RFileInfo),
     AnimFragmentBattleRFileInfo(AnimFragmentBattle, RFileInfo),
-
     AnimPackRFileInfo(Vec<RFileInfo>, RFileInfo),
-
-    /// Response to return `(AnimTable, RFileInfo)`.
     AnimsTableRFileInfo(AnimsTable, RFileInfo),
+    APIResponse(APIResponse),
+    APIResponseGit(GitResponse),
     AtlasRFileInfo(Atlas, RFileInfo),
     AudioRFileInfo(Audio, RFileInfo),
-    UnitVariantRFileInfo(UnitVariant, RFileInfo),
-
-    /// Response to return `(CaVp8, RFileInfo)`.
-    VideoInfoRFileInfo(VideoInfo, RFileInfo),
-
-    /// Response to return `(ESF, RFileInfo)`.
+    Bool(bool),
+    CompressionFormat(CompressionFormat),
+    CompressionFormatDependenciesInfo(CompressionFormat, Option<DependenciesInfo>),
+    ContainerInfo(ContainerInfo),
+    ContainerInfoVecRFileInfo((ContainerInfo, Vec<RFileInfo>)),
+    DataSourceStringUsizeUsize(DataSource, String, usize, usize),
+    DBRFileInfo(DB, RFileInfo),
+    Definition(Definition),
+    DependenciesInfo(DependenciesInfo),
+    Diagnostics(Diagnostics),
     ESFRFileInfo(ESF, RFileInfo),
-
-    #[allow(dead_code)]
-    BmdRFileInfo(Box<Bmd>, RFileInfo),
-
-    /// Response to return `(Image, RFileInfo)`.
+    F32(f32),
+    GlobalSearchVecRFileInfo(Box<GlobalSearch>, Vec<RFileInfo>),
+    GroupFormationsRFileInfo(GroupFormations, RFileInfo),
+    HashMapDataSourceHashMapStringRFile(HashMap<DataSource, HashMap<String, RFile>>),
+    HashMapDataSourceHashSetContainerPath(HashMap<DataSource, HashSet<ContainerPath>>),
+    HashMapI32TableReferences(HashMap<i32, TableReferences>),
+    HashMapStringHashMapStringVecString(HashMap<String, HashMap<String, Vec<String>>>),
+    HashSetString(HashSet<String>),
+    HashSetStringHashSetString(HashSet<String>, HashSet<String>),
+    I32(i32),
+    I32I32(i32, i32),
+    I32I32VecStringVecString(i32, i32, Vec<String>, Vec<String>),
     ImageRFileInfo(Image, RFileInfo),
-
-    /// Response to return `(Text, RFileInfo)`.
+    LocRFileInfo(Loc, RFileInfo),
+    MatchedCombatRFileInfo(MatchedCombat, RFileInfo),
+    Note(Note),
+    OptimizerOptions(OptimizerOptions),
+    OptionContainerPath(Option<ContainerPath>),
+    OptionRFileInfo(Option<RFileInfo>),
+    OptionStringStringVecString(Option<(String, String, Vec<String>)>),
+    PackSettings(PackSettings),
+    PackTranslation(PackTranslation),
+    PathBuf(PathBuf),
+    PortraitSettingsRFileInfo(PortraitSettings, RFileInfo),
+    RFileDecoded(RFileDecoded),
+    RigidModelRFileInfo(RigidModel, RFileInfo),
+    Schema(Schema),
+    String(String),
+    StringVecContainerPath(String, Vec<ContainerPath>),
+    StringVecPathBuf(String, Vec<PathBuf>),
+    Text(Text),
     TextRFileInfo(Text, RFileInfo),
+    UICRFileInfo(UIC, RFileInfo),
+    UnitVariantRFileInfo(UnitVariant, RFileInfo),
+    Unknown,
+    VecBoolString(Vec<(bool, String)>),
+    VecContainerPath(Vec<ContainerPath>),
+    VecContainerPathContainerPath(Vec<(ContainerPath, ContainerPath)>),
+    VecContainerPathVecContainerPath(Vec<ContainerPath>, Vec<ContainerPath>),
+    VecContainerPathVecRFileInfo(Vec<ContainerPath>, Vec<RFileInfo>),
+    VecDataSourceStringStringUsizeUsize(Vec<(DataSource, String, String, usize, usize)>),
+    VecDefinition(Vec<Definition>),
+    VecNote(Vec<Note>),
+    VecRFile(Vec<RFile>),
+    VecRFileInfo(Vec<RFileInfo>),
+    VecString(Vec<String>),
+    VecU8(Vec<u8>),
+    VideoInfoRFileInfo(VideoInfo, RFileInfo),
     VMDRFileInfo(Text, RFileInfo),
     WSModelRFileInfo(Text, RFileInfo),
 
-    /// Response to return `(DB, RFileInfo)`.
-    DBRFileInfo(DB, RFileInfo),
-
-    /// Response to return `(Loc, RFileInfo)`.
-    LocRFileInfo(Loc, RFileInfo),
-
-    /// Response to return `(MatchedCombat, RFileInfo)`.
-    MatchedCombatRFileInfo(MatchedCombat, RFileInfo),
-    PortraitSettingsRFileInfo(PortraitSettings, RFileInfo),
-
-    /// Response to return `(RigidModel, RFileInfo)`.
-    RigidModelRFileInfo(RigidModel, RFileInfo),
-
-    /// Response to return `(UIC, RFileInfo)`.
-    UICRFileInfo(UIC, RFileInfo),
-    GroupFormationsRFileInfo(GroupFormations, RFileInfo),
-
-    //UnitVariantRFileInfo(UnitVariant, RFileInfo),
-
-    // Response to return `(DecodedPackedFile, RFileInfo)`. For debug views.
-    //RFileDecodedRFileInfo(RFileDecoded, RFileInfo),
-    /// Response to return `Text`.
-    Text(Text),
-
-    /// Response to return `Unknown`.
-    Unknown,
-
-    /// Response to return `Vec<String>`.
-    VecString(Vec<String>),
-
-    /// Response to return `(i32, i32)`.
-    I32I32(i32, i32),
-
-    /// Response to return `BTreeMap<i32, DependencyData>`.
-    HashMapI32TableReferences(HashMap<i32, TableReferences>),
-
-    /// Response to return `PackFileSettings`.
-    PackSettings(PackSettings),
-
-    /// Response to return `DataSource, Vec<String>, usize, usize`.
-    DataSourceStringUsizeUsize(DataSource, String, usize, usize),
-
-    /// Response to return `Vec<(DataSource, Vec<String>, String, usize, usize)>`.
-    VecDataSourceStringStringUsizeUsize(Vec<(DataSource, String, String, usize, usize)>),
-
-    /// Response to return `Option<(String, String, Vec<String>)>`.
-    OptionStringStringVecString(Option<(String, String, Vec<String>)>),
-
-    /// Response to return `Vec<u8>`.
-    VecU8(Vec<u8>),
-
-    /// Response to return `DependenciesInfo`.
-    DependenciesInfo(DependenciesInfo),
-
-    RFileDecoded(RFileDecoded),
-
-    /// Response to return `HashMap<DataSource, HashMap<Vec<String>, PackedFile>>`.
-    HashMapDataSourceHashMapStringRFile(HashMap<DataSource, HashMap<String, RFile>>),
-    Diagnostics(Diagnostics),
-    Definition(Definition),
-    HashMapDataSourceHashSetContainerPath(HashMap<DataSource, HashSet<ContainerPath>>),
-    VecNote(Vec<Note>),
-    Note(Note),
-    HashSetString(HashSet<String>),
-    HashSetStringHashSetString(HashSet<String>, HashSet<String>),
-    StringVecContainerPath(String, Vec<ContainerPath>),
-    VecContainerPathVecRFileInfo(Vec<ContainerPath>, Vec<RFileInfo>),
-    VecContainerPathVecContainerPath(Vec<ContainerPath>, Vec<ContainerPath>),
-    StringVecPathBuf(String, Vec<PathBuf>),
-    PackTranslation(PackTranslation),
-    VecRFile(Vec<RFile>),
-    VecBoolString(Vec<(bool, String)>),
-    CompressionFormat(CompressionFormat),
-    I32I32VecStringVecString(i32, i32, Vec<String>, Vec<String>),
-    CompressionFormatDependenciesInfo(CompressionFormat, Option<DependenciesInfo>),
-
-
-    OptimizerOptions(OptimizerOptions),
-    VecDefinition(Vec<Definition>),
-    HashMapStringHashMapStringVecString(HashMap<String, HashMap<String, Vec<String>>>),
-    Schema(Schema),
+    /// All settings in one response (for batch loading).
+    /// Contains: (bool settings, i32 settings, f32 settings, string settings)
+    SettingsAll(
+        HashMap<String, bool>,
+        HashMap<String, i32>,
+        HashMap<String, f32>,
+        HashMap<String, String>,
+    ),
 }
