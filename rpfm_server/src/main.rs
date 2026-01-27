@@ -8,35 +8,28 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-use axum::{
-    extract::ws::{Message, WebSocket, WebSocketUpgrade},
-    extract::State,
-    response::IntoResponse,
-    routing::get,
-    Router,
-};
-use futures::stream::StreamExt;
-use futures::sink::SinkExt;
+use axum::{routing::get, Router};
 use rmcp::transport::streamable_http_server::{session::local::LocalSessionManager, StreamableHttpService};
 use tokio::net::TcpListener;
-use tokio::sync::mpsc;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use std::{i32, net::SocketAddr, path::PathBuf};
+use std::net::SocketAddr;
+use std::path::PathBuf;
 use std::sync::Arc;
 
-use rpfm_ipc::messages::{Command, Message as IpcMessage, Response};
-
-use rpfm_lib::games::GameInfo;
+use rpfm_ipc::messages::{Command, Response};
 use rpfm_lib::integrations::log::{Logger, SENTRY_DSN, error, info, release_name};
 
-use crate::comms::CentralCommand;
-use crate::mcp_server::RpfmServer;
+use crate::server_mcp::McpServer;
+use crate::session::SessionManager;
 use crate::settings::{error_path, init_config_path};
+use crate::server_websocket::ws_handler;
 
 pub mod background_thread;
 pub mod comms;
-pub mod mcp_server;
+pub mod server_mcp;
+pub mod server_websocket;
+pub mod session;
 pub mod settings;
 pub mod updater;
 
@@ -65,134 +58,56 @@ const APP_NAME: &str = "rpfm";
 #[tokio::main]
 async fn main() {
 
-    // TODO: Migrate logging to tracing.
-
     // Setup tracing subscriber for logging, redirecting to stderr to avoid interfering with MCP.
+    // TODO: Migrate lib's logging to tracing.
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer().with_writer(std::io::stderr))
         .init();
 
     // Sentry client guard, so we can reuse it later on and keep it in scope for the entire duration of the program.
+    // TODO: See if I can get rid of this global.
     *SENTRY_DSN.write().unwrap() = SENTRY_DSN_KEY.to_owned();
     let guard = Logger::init(&{
         init_config_path().expect("Error while trying to initialize config path. We're fucked.");
         error_path().unwrap_or_else(|_| PathBuf::from("."))
     }, true, false, release_name!()).expect("Failed to initialize logging system.");
 
-    let sentry_enabled = guard.is_enabled();
-    if sentry_enabled {
+    if guard.is_enabled() {
         info!("Sentry Logging support enabled. Starting...");
     } else {
         info!("Sentry Logging support disabled. Starting...");
     }
 
-    // Create the central command at runtime and initialize the background thread.
-    let central: Arc<CentralCommand<Response>> = Arc::new(CentralCommand::default());
-    let receiver = central.take_receiver().expect("Failed to take background receiver.");
-    tokio::spawn(async move {
-        background_thread::background_loop(receiver).await;
-    });
+    // Create the session manager to handle per-client sessions,
+    // and start the background cleanup task for expired sessions.
+    let session_manager: Arc<SessionManager> = Arc::new(SessionManager::default());
+    SessionManager::start_cleanup_task(session_manager.clone());
 
-    let central_clone = central.clone();
+    // Create an MCP service with its own session for MCP clients.
+    let sm = session_manager.clone();
     let http_service = StreamableHttpService::new(
-        move || Ok(RpfmServer::new(central_clone.clone())),
+        move || {
+            let session = sm.create_session();
+            Ok(McpServer::new(session))
+        },
         LocalSessionManager::default().into(),
         Default::default(),
     );
 
-    // Setup the endpoint for the WebSocket server.
+    // Setup the endpoints for the server.
     let app = Router::new()
         .route("/ws", get(ws_handler))
         .nest_service("/mcp", http_service)
-        .with_state(central.clone());
+        .with_state(session_manager);
 
     let addr = SocketAddr::from((DEFAULT_ADDRESS, DEFAULT_PORT));
-    let listener = TcpListener::bind(addr).await.unwrap();
-    info!("Listening on {}", addr);
-
-    axum::serve(listener, app).await.unwrap();
-}
-
-/// WebSocket handler to upgrade the connection and handle messages.
-async fn ws_handler(State(central): State<Arc<CentralCommand<Response>>>, ws: WebSocketUpgrade) -> impl IntoResponse {
-    ws.max_message_size(usize::MAX)
-        .max_frame_size(usize::MAX)
-        .on_upgrade(move |socket| handle_socket(socket, central))
-}
-
-/// Function to handle a WebSocket connection.
-async fn handle_socket(socket: WebSocket, central: Arc<CentralCommand<Response>>) {
-    let (mut sink, mut receiver) = socket.split();
-    let (tx, mut rx) = mpsc::unbounded_channel::<IpcMessage<Response>>();
-
-    // Task to send responses back to the client.
-    let sender_task = tokio::spawn(async move {
-        while let Some(response_msg) = rx.recv().await {
-            match serde_json::to_string(&response_msg) {
-                Ok(json) => {
-                    if sink.send(Message::Text(json.into())).await.is_err() {
-                        break;
-                    }
-                }
-                Err(error) => {
-                    let error_msg = IpcMessage {
-                        id: response_msg.id,
-                        data: Response::Error(format!("Serialization error: {}", error)),
-                    };
-
-                    if let Ok(json) = serde_json::to_string(&error_msg) {
-                        let _ = sink.send(Message::Text(json.into())).await;
-                    }
-                }
-            }
+    match TcpListener::bind(addr).await {
+        Ok(listener) => {
+            info!("Listening on {}", addr);
+            axum::serve(listener, app).await.unwrap();
         }
-    });
-
-    // Loop to receive commands from the client.
-    while let Some(msg) = receiver.next().await {
-        if let Ok(msg) = msg {
-            match msg {
-                Message::Text(t) => {
-                    let tx = tx.clone();
-                    let central = central.clone();
-                    tokio::spawn(async move {
-                        match serde_json::from_str::<IpcMessage<Command>>(&t) {
-                            Ok(msg) => {
-                                info!("Received command [ID {}]: {:?}", msg.id, msg.data);
-
-                                // Route the command through the CentralCommand instance passed in at runtime.
-                                let mut receiver = central.send(msg.data);
-
-                                // Wait for the response (async call).
-                                let response = CentralCommand::recv(&mut receiver).await;
-
-                                // Send the response back through the channel.
-                                let response_msg = IpcMessage {
-                                    id: msg.id,
-                                    data: response,
-                                };
-                                let _ = tx.send(response_msg);
-                            }
-                            Err(error) => {
-                                // If we fail to deserialize, we might not have an ID.
-                                // However, according to protocol, we should probably just log it if we can't even get the ID.
-                                // Or we could try to partially deserialize to get the ID.
-                                error!("Deserialization error: {}", error);
-                            }
-                        }
-                    });
-                }
-                Message::Close(_) => {
-                    println!("client disconnected");
-                    break;
-                }
-                _ => {}
-            }
-        } else {
-            println!("client disconnected");
-            break;
+        Err(err) => {
+            error!("Failed to bind to address {}: {}", addr, err);
         }
     }
-
-    sender_task.abort();
 }

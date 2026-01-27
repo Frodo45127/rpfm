@@ -1591,7 +1591,7 @@ impl AppUI {
             if file_dialog.exec() == 1 {
                 let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
                 let file_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
-                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SavePackFileAs(path));
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SavePackAs(path));
                 let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
                 match response {
                     Response::ContainerInfo(pack_file_info) => {
@@ -1612,7 +1612,7 @@ impl AppUI {
         }
 
         else {
-            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SavePackFile);
+            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SavePack);
             let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
             match response {
                 Response::ContainerInfo(pack_file_info) => {
@@ -4096,7 +4096,7 @@ impl AppUI {
 
                         let path_split = path.split('/').collect::<Vec<_>>();
                         let path = path_split[1..].join("/");
-                        let _ = CENTRAL_COMMAND.read().unwrap().send(Command::RemovePackFileExtra(PathBuf::from(&path)));
+                        let _ = CENTRAL_COMMAND.read().unwrap().send(Command::ClosePackExtra(PathBuf::from(&path)));
                     }
                     else if path.ends_with(DECODER_EXTENSION) {
                         purge_on_delete.push(path.to_owned());
@@ -4250,7 +4250,7 @@ impl AppUI {
     ) {
 
         // Tell the Background Thread to create a new PackFile.
-        let _ = CENTRAL_COMMAND.read().unwrap().send(Command::NewPackFile);
+        let _ = CENTRAL_COMMAND.read().unwrap().send(Command::NewPack);
 
         // Reset the autosave timer.
         let timer = settings_i32("autosave_interval");

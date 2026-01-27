@@ -38,9 +38,7 @@ pub const BETA: &str = "Beta";
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
-pub struct Updater {
-
-}
+pub struct Updater {}
 
 /// This enum controls the channels through where RPFM will try to update.
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]

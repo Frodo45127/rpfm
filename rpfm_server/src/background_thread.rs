@@ -47,6 +47,7 @@ use rpfm_lib::schema::*;
 use rpfm_lib::utils::*;
 
 use crate::*;
+use crate::comms::CentralCommand;
 use crate::settings::*;
 use crate::updater;
 
@@ -95,6 +96,12 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
 
             // Command to close the thread.
             Command::Exit => break,
+
+            // ClientDisconnecting is handled at the WebSocket level in main.rs.
+            // If it reaches here, just acknowledge it (shouldn't normally happen).
+            Command::ClientDisconnecting => {
+                CentralCommand::send_back(&sender, Response::Success);
+            }
 
             // When we want to check if there is an update available for RPFM...
             Command::CheckUpdates => {
@@ -195,13 +202,13 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
             }
 
             // In case we want to reset the PackFile to his original state (dummy)...
-            Command::ResetPackFile => pack_file_decoded = Pack::default(),
+            Command::ClosePack => pack_file_decoded = Pack::default(),
 
             // In case we want to remove a Secondary Packfile from memory...
-            Command::RemovePackFileExtra(path) => { pack_files_decoded_extra.remove(&path); },
+            Command::ClosePackExtra(path) => { pack_files_decoded_extra.remove(&path); },
 
             // In case we want to create a "New PackFile"...
-            Command::NewPackFile => {
+            Command::NewPack => {
                 let pack_version = game.pfh_version_by_file_type(PFHFileType::Mod);
                 pack_file_decoded = Pack::new_with_name_and_version("unknown.pack", pack_version);
 
@@ -273,7 +280,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
             }
 
             // In case we want to "Save a PackFile"...
-            Command::SavePackFile => {
+            Command::SavePack => {
                 let extra_data = Some(EncodeableExtraData::new_from_game_info_and_settings(game, pack_file_decoded.compression_format(), settings.bool("disable_uuid_regeneration_on_db_tables")));
 
                 let pack_type = *pack_file_decoded.header().pfh_file_type();
@@ -289,7 +296,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
             }
 
             // In case we want to "Save a PackFile As"...
-            Command::SavePackFileAs(path) => {
+            Command::SavePackAs(path) => {
                 let extra_data = Some(EncodeableExtraData::new_from_game_info_and_settings(game, pack_file_decoded.compression_format(), settings.bool("disable_uuid_regeneration_on_db_tables")));
 
                 let pack_type = *pack_file_decoded.header().pfh_file_type();
@@ -305,7 +312,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
             }
 
             // If you want to perform a clean&save over a PackFile...
-            Command::CleanAndSavePackFileAs(path) => {
+            Command::CleanAndSavePackAs(path) => {
                 pack_file_decoded.clean_undecoded();
 
                 let extra_data = Some(EncodeableExtraData::new_from_game_info_and_settings(game, pack_file_decoded.compression_format(), settings.bool("disable_uuid_regeneration_on_db_tables")));
@@ -2142,21 +2149,21 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
 
             Command::SaveLocalSchemaPatch(patches) => {
                 let path = table_patches_path().unwrap().join(game.schema_file_name());
-                match Schema::new_patch(&patches, &path) {
+                match Schema::save_patches(&patches, &path) {
                     Ok(_) => CentralCommand::send_back(&sender, Response::Success),
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                 }
             }
             Command::RemoveLocalSchemaPatchesForTable(table_name) => {
                 let path = table_patches_path().unwrap().join(game.schema_file_name());
-                match Schema::remove_patch_for_table(&table_name, &path) {
+                match Schema::remove_patches_for_table(&table_name, &path) {
                     Ok(_) => CentralCommand::send_back(&sender, Response::Success),
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                 }
             }
             Command::RemoveLocalSchemaPatchesForTableAndField(table_name, field_name) => {
                 let path = table_patches_path().unwrap().join(game.schema_file_name());
-                match Schema::remove_patch_for_field(&table_name, &field_name, &path) {
+                match Schema::remove_patches_for_table_and_field(&table_name, &field_name, &path) {
                     Ok(_) => CentralCommand::send_back(&sender, Response::Success),
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                 }
@@ -2164,7 +2171,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
             Command::ImportSchemaPatch(patch) => {
                 match schema {
                     Some(ref mut schema) => {
-                        Schema::add_patch_to_patch_set(schema.patches_mut(), &patch);
+                        Schema::add_patches_to_patch_set(schema.patches_mut(), &patch);
                         match schema.save(&schemas_path().unwrap().join(game.schema_file_name())) {
                             Ok(_) => CentralCommand::send_back(&sender, Response::Success),
                             Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
@@ -2523,6 +2530,14 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
             }
             Command::SettingsGetVecRaw(key) => {
                 CentralCommand::send_back(&sender, Response::VecU8(settings.raw_data(&key)));
+            }
+            Command::SettingsGetAll => {
+                CentralCommand::send_back(&sender, Response::SettingsAll(
+                    settings.bool.clone(),
+                    settings.i32.clone(),
+                    settings.f32.clone(),
+                    settings.string.clone(),
+                ));
             }
             Command::SettingsSetBool(key, value) => {
                 match settings.set_bool(&key, value) {

@@ -782,9 +782,9 @@ impl AppUISlots {
                                             // Prepare the settings depending on what we choose to ignore.
                                             pack_settings.settings_text_mut().insert("import_files_to_ignore".to_owned(), paths_ignore_on_import);
 
-                                            let _ = CENTRAL_COMMAND.read().unwrap().send(Command::NewPackFile);
+                                            let _ = CENTRAL_COMMAND.read().unwrap().send(Command::NewPack);
                                             let _ = CENTRAL_COMMAND.read().unwrap().send(Command::SetPackSettings(pack_settings));
-                                            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SavePackFileAs(mymod_pack_path.clone()));
+                                            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SavePackAs(mymod_pack_path.clone()));
                                             let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
                                             match response {
                                                 Response::ContainerInfo(pack_file_info) => {
@@ -911,7 +911,7 @@ impl AppUISlots {
                     // If we deleted the "MyMod", we allow chaos to form below.
                     if mod_deleted {
                         UI_STATE.set_operational_mode(&app_ui, None);
-                        let _ = CENTRAL_COMMAND.read().unwrap().send(Command::ResetPackFile);
+                        let _ = CENTRAL_COMMAND.read().unwrap().send(Command::ClosePack);
                         AppUI::enable_packfile_actions(&app_ui, &PathBuf::new(), false);
                         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Clear, DataSource::PackFile);
                         UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
@@ -1263,7 +1263,7 @@ impl AppUISlots {
                     if file_dialog.exec() == 1 {
                         let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
                         let file_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
-                        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::CleanAndSavePackFileAs(path));
+                        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::CleanAndSavePackAs(path));
                         let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
                         match response {
                             Response::ContainerInfo(pack_file_info) => {

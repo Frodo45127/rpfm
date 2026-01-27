@@ -99,6 +99,11 @@ pub struct Message<T: Debug> {
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Command {
 
+    /// Close the background thread. Do not use this command directly.
+    ///
+    /// Response: None (breaks the loop).
+    Exit,
+
     /// Signal that the client is intentionally disconnecting.
     ///
     /// This allows the server to immediately clean up the session's resources instead of

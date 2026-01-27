@@ -23,7 +23,7 @@ use rpfm_extensions::optimizer::OptimizerOptions;
 use rpfm_ipc::{MYMOD_BASE_PATH, SECONDARY_PATH};
 
 use rpfm_lib::error::RLibError;
-use rpfm_lib::games::{LUA_AUTOGEN_FOLDER, supported_games::*};
+use rpfm_lib::games::{GameInfo, LUA_AUTOGEN_FOLDER, supported_games::*};
 use rpfm_lib::schema::{DefinitionPatch, SCHEMA_FOLDER};
 
 use crate::*;

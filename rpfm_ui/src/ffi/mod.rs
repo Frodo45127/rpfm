@@ -58,8 +58,9 @@ use cpp_core::Ptr;
 #[cfg(feature = "support_model_renderer")] use rpfm_lib::integrations::log;
 #[cfg(feature = "support_model_renderer")] use rpfm_lib::files::ContainerPath;
 
-#[cfg(feature = "support_model_renderer")] use crate::CENTRAL_COMMAND;
-#[cfg(feature = "support_model_renderer")] use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::CENTRAL_COMMAND;
+use crate::communications::Command;
+#[cfg(feature = "support_model_renderer")] use crate::communications::THREADS_COMMUNICATION_ERROR;
 #[cfg(feature = "support_model_renderer")] use crate::GAME_SELECTED;
 #[cfg(feature = "support_model_renderer")] use crate::packedfile_views::DataSource;
 use crate::UI_STATE;
@@ -646,11 +647,14 @@ pub extern "C" fn are_you_sure(main_window: *mut QMainWindow, is_delete_my_mod: 
         qtr("delete_mymod_1")
     }
 
-    // In any other situation... just return true and forget about the dialog.
-    else { return true };
+    // In any other situation... just notify the server and return true.
+    else {
+        let _ = CENTRAL_COMMAND.read().unwrap().send(Command::ClientDisconnecting);
+        return true
+    };
 
     // If we're closing the main window, save the geometry to the settings before closing it.
-    unsafe {
+    let result = unsafe {
 
         // Create the dialog and run it (Yes => 3, No => 4).
         QMessageBox::from_2_q_string_icon3_int_q_widget(
@@ -662,7 +666,14 @@ pub extern "C" fn are_you_sure(main_window: *mut QMainWindow, is_delete_my_mod: 
             1, // By default, select yes.
             main_window,
         ).exec() == 3
+    };
+
+    // If the user confirmed closing, notify the server before actually closing.
+    if result {
+        let _ = CENTRAL_COMMAND.read().unwrap().send(Command::ClientDisconnecting);
     }
+
+    result
 }
 
 /// This function allow us to create a dialog when trying to close another dialog.

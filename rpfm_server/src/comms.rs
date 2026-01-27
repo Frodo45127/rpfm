@@ -56,23 +56,13 @@ impl<T: Send + Sync + Debug> CentralCommand<T> {
     /// This function serves as a generic way for commands to be sent to the backend.
     ///
     /// It returns the receiver which will receive the answers for the command, if any.
-    fn send_raw<S: Send + Sync + Debug>(
-        sender: &UnboundedSender<(UnboundedSender<T>, S)>,
-        data: S,
-    ) -> UnboundedReceiver<T> {
+    pub fn send(&self, data: Command) -> UnboundedReceiver<T> {
         let (sender_back, receiver_back) = unbounded_channel();
-        if let Err(error) = sender.send((sender_back, data)) {
+        if let Err(error) = self.sender.send((sender_back, data)) {
             panic!("{THREADS_SENDER_ERROR}: {error}");
         }
 
         receiver_back
-    }
-
-    /// This function serves to send a message from the client thread to the server.
-    ///
-    /// It returns the receiver which will receive the answers for the command, if any.
-    pub fn send(&self, data: Command) -> UnboundedReceiver<T> {
-        Self::send_raw(&self.sender, data)
     }
 
     /// This function serves to send a message back through a generated channel.

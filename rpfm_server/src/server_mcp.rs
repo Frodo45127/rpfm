@@ -19,17 +19,17 @@ use std::sync::Arc;
 use std::path::PathBuf;
 
 use rpfm_ipc::helpers::DataSource;
-use rpfm_ipc::messages::{Command, Response};
+use rpfm_ipc::messages::Command;
 
-pub use crate::comms::CentralCommand;
+use crate::session::{Session, recv_response};
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
 #[derive(Clone)]
-pub struct RpfmServer {
-    central: Arc<CentralCommand<Response>>,
+pub struct McpServer {
+    session: Arc<Session>,
     tool_router: ToolRouter<Self>,
 }
 
@@ -81,7 +81,7 @@ pub struct DecodePackedFile {
 //-------------------------------------------------------------------------------//
 
 #[tool_handler]
-impl rmcp::ServerHandler for RpfmServer {
+impl rmcp::ServerHandler for McpServer {
     fn get_info(&self) -> ServerInfo {
         ServerInfo {
             instructions: Some("This is a Model Context Protocol (MCP) server for RPFM (Rusted PackFile Manager). It allows you to interact with RFile and PackFiles using various tools.".into()),
@@ -92,12 +92,12 @@ impl rmcp::ServerHandler for RpfmServer {
 }
 
 #[tool_router]
-impl RpfmServer {
+impl McpServer {
 
-    pub fn new(central: Arc<CentralCommand<Response>>) -> Self {
+    pub fn new(session: Arc<Session>) -> Self {
         Self {
-            central,
-            tool_router: RpfmServer::tool_router()
+            session,
+            tool_router: McpServer::tool_router()
         }
     }
 
@@ -105,64 +105,64 @@ impl RpfmServer {
     pub async fn call_command(&self, params: Parameters<CallCommandArgs>) -> Result<CallToolResult, McpError> {
         let command: Command = serde_json::from_str(&params.0.command).unwrap();
 
-        let mut receiver = self.central.send(command);
-        let response = CentralCommand::recv(&mut receiver).await;
+        let mut receiver = self.session.send(command);
+        let response = recv_response(&mut receiver).await;
 
         Ok(CallToolResult::success(vec![Content::text(serde_json::to_string(&response).unwrap())]))
     }
 
     #[tool(description = "Open one or more PackFiles. Returns the info about the open pack.")]
     pub async fn open_packfiles(&self, params: Parameters<OpenPackfilesArgs>) -> Result<CallToolResult, McpError> {
-        let mut receiver = self.central.send(Command::OpenPackFiles(params.0.paths));
-        let response = CentralCommand::recv(&mut receiver).await;
+        let mut receiver = self.session.send(Command::OpenPackFiles(params.0.paths));
+        let response = recv_response(&mut receiver).await;
 
         Ok(CallToolResult::success(vec![Content::text(serde_json::to_string(&response).unwrap())]))
     }
 
     #[tool(description = "Set the current game selected. You need to set this to one of the valid games after opening a pack.")]
     pub async fn set_game_selected(&self, params: Parameters<SetGameSelectedArgs>) -> Result<CallToolResult, McpError> {
-        let mut receiver = self.central.send(Command::SetGameSelected(params.0.game_name, params.0.rebuild_dependencies));
-        let response = CentralCommand::recv(&mut receiver).await;
+        let mut receiver = self.session.send(Command::SetGameSelected(params.0.game_name, params.0.rebuild_dependencies));
+        let response = recv_response(&mut receiver).await;
 
         Ok(CallToolResult::success(vec![Content::text(serde_json::to_string(&response).unwrap())]))
     }
 
     #[tool(description = "Save the currently open PackFile.")]
     pub async fn save_packfile(&self) -> Result<CallToolResult, McpError> {
-        let mut receiver = self.central.send(Command::SavePackFile);
-        let response = CentralCommand::recv(&mut receiver).await;
+        let mut receiver = self.session.send(Command::SavePack);
+        let response = recv_response(&mut receiver).await;
 
         Ok(CallToolResult::success(vec![Content::text(serde_json::to_string(&response).unwrap())]))
     }
 
     #[tool(description = "Export a table to a TSV file.")]
     pub async fn export_tsv(&self, params: Parameters<TsvExportArgs>) -> Result<CallToolResult, McpError> {
-        let mut receiver = self.central.send(Command::ExportTSV(params.0.table_path, params.0.tsv_path, DataSource::PackFile));
-        let response = CentralCommand::recv(&mut receiver).await;
+        let mut receiver = self.session.send(Command::ExportTSV(params.0.table_path, params.0.tsv_path, DataSource::PackFile));
+        let response = recv_response(&mut receiver).await;
 
         Ok(CallToolResult::success(vec![Content::text(serde_json::to_string(&response).unwrap())]))
     }
 
     #[tool(description = "Import a TSV file to a table.")]
     pub async fn import_tsv(&self, params: Parameters<TsvImportArgs>) -> Result<CallToolResult, McpError> {
-        let mut receiver = self.central.send(Command::ImportTSV(params.0.table_path, params.0.tsv_path));
-        let response = CentralCommand::recv(&mut receiver).await;
+        let mut receiver = self.session.send(Command::ImportTSV(params.0.table_path, params.0.tsv_path));
+        let response = recv_response(&mut receiver).await;
 
         Ok(CallToolResult::success(vec![Content::text(serde_json::to_string(&response).unwrap())]))
     }
 
     #[tool(description = "Decode a file from the open data source you want. The parameters are the path of the file inside the data source, and in what data source it is.")]
     pub async fn decode_packed_file(&self, params: Parameters<DecodePackedFile>) -> Result<CallToolResult, McpError> {
-        let mut receiver = self.central.send(Command::DecodePackedFile(params.0.path, params.0.source));
-        let response = CentralCommand::recv(&mut receiver).await;
+        let mut receiver = self.session.send(Command::DecodePackedFile(params.0.path, params.0.source));
+        let response = recv_response(&mut receiver).await;
 
         Ok(CallToolResult::success(vec![Content::text(serde_json::to_string(&response).unwrap())]))
     }
 
     #[tool(description = "Get the info about the currently open pack and the list of files it contains.")]
     pub async fn open_pack_info(&self) -> Result<CallToolResult, McpError> {
-        let mut receiver = self.central.send(Command::GetPackFileDataForTreeView);
-        let response = CentralCommand::recv(&mut receiver).await;
+        let mut receiver = self.session.send(Command::GetPackFileDataForTreeView);
+        let response = recv_response(&mut receiver).await;
 
         Ok(CallToolResult::success(vec![Content::text(serde_json::to_string(&response).unwrap())]))
     }
