@@ -34,7 +34,7 @@ use rpfm_ui_common::utils::create_grid_layout;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
-use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR, send_ipc_command_result};
 use crate::ffi::get_text_safe;
 use crate::pack_tree::*;
 use crate::packfile_contents_ui::PackFileContentsUI;
@@ -404,7 +404,7 @@ impl FileView {
                             View::UnitVariant(view) => RFileDecoded::UnitVariant(view.save_view()),
                             View::UnitVariantDebug(_) => return Ok(()),
                             View::Video(view) => {
-                                let _ = CENTRAL_COMMAND.read().unwrap().send(Command::SetVideoFormat(self.path_copy(), view.get_current_format()));
+                                send_ipc_command_result(Command::SetVideoFormat(self.path_copy(), view.get_current_format()), response_extractor!())?;
                                 return Ok(());
                             }
                             View::VMD(view) => {

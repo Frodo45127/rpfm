@@ -31,7 +31,7 @@ use crate::background_thread;
 pub const SESSION_SENDER_ERROR: &str = "Error in session communication system. Sender failed to send message.";
 
 /// Default session timeout in seconds (5 minutes).
-pub const DEFAULT_SESSION_TIMEOUT_SECS: u64 = 10;
+pub const DEFAULT_SESSION_TIMEOUT_SECS: u64 = 300;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs

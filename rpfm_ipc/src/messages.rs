@@ -170,17 +170,23 @@ pub enum Command {
 
     /// Open one or more `PackFiles` and merge them. Requires the paths of the `PackFiles`].
     ///
-    /// Response: [`Response::ContainerInfo`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::ContainerInfo`] on success.
+    /// - [`Response::Error`] on failure.
     OpenPackFiles(Vec<PathBuf>),
 
     /// Open an extra Pack for "Add from PackFile" feature. Requires the path of the Pack.
     ///
-    /// Response: [`Response::ContainerInfo`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::ContainerInfo`] on success.
+    /// - [`Response::Error`] on failure.
     OpenPackExtra(PathBuf),
 
     /// Open all the CA PackFiles for the selected game as one merged PackFile.
     ///
-    /// Response: [`Response::ContainerInfo`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::ContainerInfo`] on success.
+    /// - [`Response::Error`] on failure.
     LoadAllCAPackFiles,
 
     /// Get the `RFileInfo` of one or more `PackedFiles`].
@@ -190,12 +196,16 @@ pub enum Command {
 
     /// Perform a `Global Search`]. Requires the search configuration.
     ///
-    /// Response: [`Response::GlobalSearchVecRFileInfo`] on success, [`Response::Error`] if no schema.
+    /// Response:
+    /// - [`Response::GlobalSearchVecRFileInfo`] on success.
+    /// - [`Response::Error`] if no schema.
     GlobalSearch(GlobalSearch),
 
     /// Change the `Game Selected`]. Contains the game key and whether to rebuild dependencies.
     ///
-    /// Response: [`Response::CompressionFormatDependenciesInfo`] on success, [`Response::Error`] if game not supported.
+    /// Response:
+    /// - [`Response::CompressionFormatDependenciesInfo`] on success.
+    /// - [`Response::Error`] if game not supported.
     SetGameSelected(String, bool),
 
     /// Change the `Type` of the currently open Pack.
@@ -205,22 +215,30 @@ pub enum Command {
 
     /// Generate the dependencies cache for the selected game.
     ///
-    /// Response: [`Response::DependenciesInfo`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::DependenciesInfo`] on success.
+    /// - [`Response::Error`] on failure.
     GenerateDependenciesCache,
 
     /// Update the currently loaded Schema with data from the game's Assembly Kit.
     ///
-    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::Success`] on success.
+    /// - [`Response::Error`] on failure.
     UpdateCurrentSchemaFromAssKit,
 
     /// Trigger an optimization pass over the currently open Pack.
     ///
-    /// Response: [`Response::HashSetStringHashSetString` (deleted paths, added paths) on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::HashSetStringHashSetString`] (deleted paths, added paths) on success.
+    /// - [`Response::Error`] on failure.
     OptimizePackFile(OptimizerOptions),
 
     /// Patch the SiegeAI of a Siege Map for Warhammer games.
     ///
-    /// Response: [`Response::StringVecContainerPath`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::StringVecContainerPath`] on success.
+    /// - [`Response::Error`] on failure.
     PatchSiegeAI,
 
     /// Change the `Index Includes Timestamp` flag in the currently open Pack.
@@ -230,7 +248,8 @@ pub enum Command {
 
     /// Change the compression format of the currently open Pack.
     ///
-    /// Response: [`Response::CompressionFormat` (the actual format set, may differ if unsupported).
+    /// Response:
+    /// - [`Response::CompressionFormat`] (the actual format set, may differ if unsupported).
     ChangeCompressionFormat(CompressionFormat),
 
     /// Get the current path of the currently open Pack.
@@ -249,17 +268,23 @@ pub enum Command {
 
     /// Check if there is an RPFM update available.
     ///
-    /// Response: [`Response::APIResponse`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::APIResponse`] on success.
+    /// - [`Response::Error`] on failure.
     CheckUpdates,
 
     /// Check if there is a Schema update available.
     ///
-    /// Response: [`Response::APIResponseGit`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::APIResponseGit`] on success.
+    /// - [`Response::Error`] on failure.
     CheckSchemaUpdates,
 
     /// Update the schemas from the remote repository.
     ///
-    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::Success`] on success.
+    /// - [`Response::Error`] on failure.
     UpdateSchemas,
 
     /// Check if there is a Dependency Database loaded in memory.
@@ -275,21 +300,46 @@ pub enum Command {
     /// Create a new `PackedFile` inside the currently open Pack.
     /// Requires the path and the `NewFile` with the new PackedFile's info.
     ///
-    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::Success`] on success.
+    /// - [`Response::Error`] on failure.
     NewPackedFile(String, NewFile),
 
     /// Add one or more Files to the currently open Pack.
     /// Requires: source filesystem paths, destination container paths, optional paths to ignore.
     ///
-    /// Response: [`Response::VecContainerPath` (added paths), then `Success` or [`Response::Error`].
+    /// Response:
+    /// - [`Response::VecContainerPath`] (added paths), then `Success`.
+    /// - [`Response::Error`] on failure.
     AddPackedFiles(Vec<PathBuf>, Vec<ContainerPath>, Option<Vec<PathBuf>>),
 
     /// Decode a PackedFile to be shown on the UI.
     /// Contains the path of the file and its data source.
     ///
-    /// Response: File-type specific response (e.g., `DBRFileInfo`, `LocRFileInfo`, `TextRFileInfo`,
-    /// `ImageRFileInfo`, `RigidModelRFileInfo`, etc.), `Text` for pack notes, `Unknown` for
-    /// unsupported types, or [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::AnimFragmentBattleRFileInfo`] for AnimFragmentBattle files.
+    /// - [`Response::AnimPackRFileInfo`] for AnimPack files.
+    /// - [`Response::AnimsTableRFileInfo`] for AnimsTable files.
+    /// - [`Response::AtlasRFileInfo`] for Atlas files.
+    /// - [`Response::AudioRFileInfo`] for Audio files.
+    /// - [`Response::BmdRFileInfo`] for BMD files.
+    /// - [`Response::DBRFileInfo`] for DB table files.
+    /// - [`Response::ESFRFileInfo`] for ESF files.
+    /// - [`Response::GroupFormationsRFileInfo`] for GroupFormations files.
+    /// - [`Response::ImageRFileInfo`] for Image files.
+    /// - [`Response::LocRFileInfo`] for Loc files.
+    /// - [`Response::MatchedCombatRFileInfo`] for MatchedCombat files.
+    /// - [`Response::PortraitSettingsRFileInfo`] for PortraitSettings files.
+    /// - [`Response::RigidModelRFileInfo`] for RigidModel files.
+    /// - [`Response::TextRFileInfo`] for Text files.
+    /// - [`Response::UICRFileInfo`] for UIC files.
+    /// - [`Response::UnitVariantRFileInfo`] for UnitVariant files.
+    /// - [`Response::VideoInfoRFileInfo`] for Video files.
+    /// - [`Response::VMDRFileInfo`] for VMD files.
+    /// - [`Response::WSModelRFileInfo`] for WSModel files.
+    /// - [`Response::Text`] for pack notes.
+    /// - [`Response::Unknown`] for unsupported types.
+    /// - [`Response::Error`] on failure.
     DecodePackedFile(String, DataSource),
 
     /// Save an edited `PackedFile` back to the Pack.
@@ -299,39 +349,52 @@ pub enum Command {
 
     /// Add PackedFiles from one PackFile into another.
     ///
-    /// Response: [`Response::VecContainerPath`] on success, [`Response::Error`] if extra PackFile not found.
+    /// Response:
+    /// - [`Response::VecContainerPath`] on success.
+    /// - [`Response::Error`] if extra PackFile not found.
     AddPackedFilesFromPackFile((PathBuf, Vec<ContainerPath>)),
 
     /// Add PackedFiles from the main PackFile to an AnimPack.
     ///
-    /// Response: [`Response::VecContainerPath`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::VecContainerPath`] on success.
+    /// - [`Response::Error`] on failure.
     AddPackedFilesFromPackFileToAnimpack(String, Vec<ContainerPath>),
 
     /// Add PackedFiles from an AnimPack to the main PackFile.
     ///
-    /// Response: [`Response::VecContainerPath`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::VecContainerPath`] on success.
+    /// - [`Response::Error`] on failure.
     AddPackedFilesFromAnimpack(DataSource, String, Vec<ContainerPath>),
 
     /// Delete PackedFiles from an AnimPack.
     ///
-    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::Success`] on success.
+    /// - [`Response::Error`] on failure.
     DeleteFromAnimpack((String, Vec<ContainerPath>)),
 
     /// Delete one or more PackedFiles from a PackFile.
     ///
-    /// Response: [`Response::VecContainerPath` (deleted paths).
+    /// Response:
+    /// - [`Response::VecContainerPath`] (deleted paths).
     DeletePackedFiles(Vec<ContainerPath>),
 
     /// Extract one or more PackedFiles from a PackFile.
     /// Contains: paths by data source, extraction path, whether to export tables as TSV.
     ///
-    /// Response: [`Response::StringVecPathBuf`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::StringVecPathBuf`] on success.
+    /// - [`Response::Error`] on failure.
     ExtractPackedFiles(BTreeMap<DataSource, Vec<ContainerPath>>, PathBuf, bool),
 
     /// Rename one or more PackedFiles in a PackFile.
     /// Contains a Vec with original and new ContainerPaths.
     ///
-    /// Response: [`Response::VecContainerPathContainerPath`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::VecContainerPathContainerPath`] on success.
+    /// - [`Response::Error`] on failure.
     RenamePackedFiles(Vec<(ContainerPath, ContainerPath)>),
 
     /// Check if a folder exists in the currently open PackFile.
@@ -355,7 +418,9 @@ pub enum Command {
 
     /// Get custom table names (start_pos_, twad_ prefixes) from the schema.
     ///
-    /// Response: [`Response::VecString`] on success, [`Response::Error`] if no schema.
+    /// Response:
+    /// - [`Response::VecString`] on success.
+    /// - [`Response::Error`] if no schema.
     GetCustomTableList,
 
     /// Get local art set IDs from campaign_character_arts_tables.
@@ -370,12 +435,16 @@ pub enum Command {
 
     /// Get the version of a table from the dependency database.
     ///
-    /// Response: [`Response::I32`] on success, [`Response::Error`] if not found or dependencies not loaded.
+    /// Response:
+    /// - [`Response::I32`] on success.
+    /// - [`Response::Error`] if not found or dependencies not loaded.
     GetTableVersionFromDependencyPackFile(String),
 
     /// Get the definition of a table from the dependency database.
     ///
-    /// Response: [`Response::Definition`] on success, [`Response::Error`] if not found.
+    /// Response:
+    /// - [`Response::Definition`] on success.
+    /// - [`Response::Error`] if not found.
     GetTableDefinitionFromDependencyPackFile(String),
 
     /// Merge multiple compatible tables into one.
@@ -383,12 +452,16 @@ pub enum Command {
     /// - `String`: Path of the merged file.
     /// - `bool`: Delete source files after merging.
     ///
-    /// Response: [`Response::String` (merged path) on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::String`] (merged path) on success.
+    /// - [`Response::Error`] on failure.
     MergeFiles(Vec<ContainerPath>, String, bool),
 
     /// Update a table to a newer version.
     ///
-    /// Response: [`Response::I32I32VecStringVecString` (old_version, new_version, deleted_fields, added_fields) on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::I32I32VecStringVecString`] (old_version, new_version, deleted_fields, added_fields) on success.
+    /// - [`Response::Error`] on failure.
     UpdateTable(ContainerPath),
 
     //-----------------------------------------------------------------------//
@@ -397,12 +470,16 @@ pub enum Command {
 
     /// Replace specific matches in a Global Search.
     ///
-    /// Response: [`Response::GlobalSearchVecRFileInfo`] on success, [`Response::Error`] if no schema.
+    /// Response:
+    /// - [`Response::GlobalSearchVecRFileInfo`] on success.
+    /// - [`Response::Error`] if no schema.
     GlobalSearchReplaceMatches(GlobalSearch, Vec<MatchHolder>),
 
     /// Replace all matches in a Global Search.
     ///
-    /// Response: [`Response::GlobalSearchVecRFileInfo`] on success, [`Response::Error`] if no schema.
+    /// Response:
+    /// - [`Response::GlobalSearchVecRFileInfo`] on success.
+    /// - [`Response::Error`] if no schema.
     GlobalSearchReplaceAll(GlobalSearch),
 
     /// Get reference data for columns in a definition.
@@ -433,7 +510,9 @@ pub enum Command {
 
     /// Change the format of a ca_vp8 video PackedFile.
     ///
-    /// Response: None on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::Success`] on success.
+    /// - [`Response::Error`] on failure.
     SetVideoFormat(String, SupportedFormats),
 
     //-----------------------------------------------------------------------//
@@ -442,7 +521,9 @@ pub enum Command {
 
     /// Save the provided schema to disk.
     ///
-    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::Success`] on success.
+    /// - [`Response::Error`] on failure.
     SaveSchema(Schema),
 
     /// Encode and clean the cache for the provided paths.
@@ -456,12 +537,16 @@ pub enum Command {
 
     /// Export a table as TSV. Requires: internal path, destination path, data source.
     ///
-    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::Success`] on success.
+    /// - [`Response::Error`] on failure.
     ExportTSV(String, PathBuf, DataSource),
 
     /// Import a TSV as a table. Requires: internal path, source TSV path.
     ///
-    /// Response: [`Response::RFileDecoded`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::RFileDecoded`] on success.
+    /// - [`Response::Error`] on failure.
     ImportTSV(String, PathBuf),
 
     //-----------------------------------------------------------------------//
@@ -470,17 +555,23 @@ pub enum Command {
 
     /// Open the folder containing the currently open PackFile in the file manager.
     ///
-    /// Response: [`Response::Success`] on success, [`Response::Error`] if pack doesn't exist on disk.
+    /// Response:
+    /// - [`Response::Success`] on success.
+    /// - [`Response::Error`] if pack doesn't exist on disk.
     OpenContainingFolder,
 
     /// Open a PackedFile in an external program.
     ///
-    /// Response: [`Response::PathBuf` (extracted path) on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::PathBuf`] (extracted path) on success.
+    /// - [`Response::Error`] on failure.
     OpenPackedFileInExternalProgram(DataSource, ContainerPath),
 
     /// Save a PackedFile from an external program. Requires: internal path, external file path.
     ///
-    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::Success`] on success.
+    /// - [`Response::Error`] on failure.
     SavePackedFileFromExternalView(String, PathBuf),
 
     //-----------------------------------------------------------------------//
@@ -489,7 +580,9 @@ pub enum Command {
 
     /// Update the program to the latest version available.
     ///
-    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::Success`] on success.
+    /// - [`Response::Error`] on failure.
     UpdateMainProgram,
 
     /// Trigger an autosave to a backup.
@@ -543,7 +636,9 @@ pub enum Command {
     /// Rebuild the dependencies of a PackFile.
     /// Pass true to rebuild all dependencies, false for mod-specific only.
     ///
-    /// Response: [`Response::DependenciesInfo`] on success, [`Response::Error`] if no schema.
+    /// Response:
+    /// - [`Response::DependenciesInfo`] on success.
+    /// - [`Response::Error`] if no schema.
     RebuildDependencies(bool),
 
     //-----------------------------------------------------------------------//
@@ -562,7 +657,9 @@ pub enum Command {
 
     /// Go to the definition of a reference. Contains: table, column, values to search.
     ///
-    /// Response: [`Response::DataSourceStringUsizeUsize`] on success, [`Response::Error`] if not found.
+    /// Response:
+    /// - [`Response::DataSourceStringUsizeUsize`] on success.
+    /// - [`Response::Error`] if not found.
     GoToDefinition(String, String, Vec<String>),
 
     /// Get the source data of a loc key.
@@ -572,7 +669,9 @@ pub enum Command {
 
     /// Go to a loc key's location. Contains the loc key to search.
     ///
-    /// Response: [`Response::DataSourceStringUsizeUsize`] on success, [`Response::Error`] if not found.
+    /// Response:
+    /// - [`Response::DataSourceStringUsizeUsize`] on success.
+    /// - [`Response::Error`] if not found.
     GoToLoc(String),
 
     /// Find all references to a value.
@@ -588,18 +687,28 @@ pub enum Command {
 
     /// Get the raw binary data of a PackedFile.
     ///
-    /// Response: [`Response::VecU8`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::VecU8`] on success.
+    /// - [`Response::Error`] on failure.
     GetPackedFileRawData(String),
 
     /// Import files from dependencies into the open PackFile.
     ///
-    /// Response: [`Response::VecContainerPath` (added paths), then `Success` or `VecString` (failed paths).
+    /// This message returns two consecutive responses:
+    /// - [`Response::VecContainerPath`] (added paths) on success.
+    /// - [`Response::Error`] on failure.
+    ///
+    /// Then:
+    /// - [`Response::Success`] on success.
+    /// - [`Response::VecString`] (failed paths) on partial failure.
     ImportDependenciesToOpenPackFile(BTreeMap<DataSource, Vec<ContainerPath>>),
 
     /// Save PackedFiles to the current PackFile and optionally optimize.
     /// Requires: files to save, whether to optimize.
     ///
-    /// Response: [`Response::VecContainerPathVecContainerPath` (added paths, deleted paths) on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::VecContainerPathVecContainerPath`] (added paths, deleted paths) on success.
+    /// - [`Response::Error`] on failure.
     SavePackedFilesToPackFileAndClean(Vec<RFile>, bool),
 
     /// Get all file names under a path in all dependencies.
@@ -632,22 +741,30 @@ pub enum Command {
 
     /// Save local schema patches.
     ///
-    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::Success`] on success.
+    /// - [`Response::Error`] on failure.
     SaveLocalSchemaPatch(HashMap<String, DefinitionPatch>),
 
     /// Remove local schema patches for a table.
     ///
-    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::Success`] on success.
+    /// - [`Response::Error`] on failure.
     RemoveLocalSchemaPatchesForTable(String),
 
     /// Remove local schema patches for a specific field in a table.
     ///
-    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::Success`] on success.
+    /// - [`Response::Error`] on failure.
     RemoveLocalSchemaPatchesForTableAndField(String, String),
 
     /// Import a schema patch into the local schema patches.
     ///
-    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::Success`] on success.
+    /// - [`Response::Error`] on failure.
     ImportSchemaPatch(HashMap<String, DefinitionPatch>),
 
     //-----------------------------------------------------------------------//
@@ -656,7 +773,9 @@ pub enum Command {
 
     /// Generate all missing loc entries for the currently open PackFile.
     ///
-    /// Response: [`Response::VecContainerPath`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::VecContainerPath`] on success.
+    /// - [`Response::Error`] on failure.
     GenerateMissingLocData,
 
     //-----------------------------------------------------------------------//
@@ -665,12 +784,16 @@ pub enum Command {
 
     /// Check for updates on the tw_autogen repository.
     ///
-    /// Response: [`Response::APIResponseGit`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::APIResponseGit`] on success.
+    /// - [`Response::Error`] on failure.
     CheckLuaAutogenUpdates,
 
     /// Update the tw_autogen repository.
     ///
-    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::Success`] on success.
+    /// - [`Response::Error`] on failure.
     UpdateLuaAutogen,
 
     //-----------------------------------------------------------------------//
@@ -680,12 +803,16 @@ pub enum Command {
     /// Initialize a MyMod folder.
     /// Requires: mod name, game key, sublime support, vscode support, git support (gitignore content).
     ///
-    /// Response: [`Response::PathBuf` (path to the new pack) on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::PathBuf`] (path to the new pack) on success.
+    /// - [`Response::Error`] on failure.
     InitializeMyModFolder(String, String, bool, bool, Option<String>),
 
     /// Live export the PackFile to the game folder.
     ///
-    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::Success`] on success.
+    /// - [`Response::Error`] on failure.
     LiveExport,
 
     //-----------------------------------------------------------------------//
@@ -695,7 +822,9 @@ pub enum Command {
     /// Pack map tiles into the PackFile.
     /// Requires: tile map paths, list of (tile path, name).
     ///
-    /// Response: [`Response::VecContainerPathVecContainerPath`] (added paths, deleted paths) on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::VecContainerPathVecContainerPath`] (added paths, deleted paths) on success.
+    /// - [`Response::Error`] on failure.
     PackMap(Vec<PathBuf>, Vec<(PathBuf, String)>),
 
     //-----------------------------------------------------------------------//
@@ -713,12 +842,16 @@ pub enum Command {
 
     /// Check for updates on the old AK files repository.
     ///
-    /// Response: [`Response::APIResponseGit`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::APIResponseGit`] on success.
+    /// - [`Response::Error`] on failure.
     CheckEmpireAndNapoleonAKUpdates,
 
     /// Update the old AK files repository.
     ///
-    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::Success`] on success.
+    /// - [`Response::Error`] on failure.
     UpdateEmpireAndNapoleonAK,
 
     //-----------------------------------------------------------------------//
@@ -727,17 +860,23 @@ pub enum Command {
 
     /// Get pack translation data for a language.
     ///
-    /// Response: [`Response::PackTranslation`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::PackTranslation`] on success.
+    /// - [`Response::Error`] on failure.
     GetPackTranslation(String),
 
     /// Check for translation updates.
     ///
-    /// Response: [`Response::APIResponseGit`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::APIResponseGit`] on success.
+    /// - [`Response::Error`] on failure.
     CheckTranslationsUpdates,
 
     /// Update the translations repository.
     ///
-    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::Success`] on success.
+    /// - [`Response::Error`] on failure.
     UpdateTranslations,
 
     //-----------------------------------------------------------------------//
@@ -747,19 +886,25 @@ pub enum Command {
     /// Build starpos (pre-processing step).
     /// Requires: campaign ID, process HLP/SPD data.
     ///
-    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::Success`] on success.
+    /// - [`Response::Error`] on failure.
     BuildStarpos(String, bool),
 
     /// Build starpos (post-processing step).
     /// Requires: campaign ID, process HLP/SPD data.
     ///
-    /// Response: [`Response::VecContainerPath`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::VecContainerPath`] on success.
+    /// - [`Response::Error`] on failure.
     BuildStarposPost(String, bool),
 
     /// Clean up starpos temporary files.
     /// Requires: campaign ID, process HLP/SPD data.
     ///
-    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::Success`] on success.
+    /// - [`Response::Error`] on failure.
     BuildStarposCleanup(String, bool),
 
     /// Get campaign IDs for starpos building.
@@ -769,7 +914,9 @@ pub enum Command {
 
     /// Check if victory conditions file exists (required for some games).
     ///
-    /// Response: [`Response::Success`] if exists or not needed, [`Response::Error`] if missing.
+    /// Response:
+    /// - [`Response::Success`] if exists or not needed.
+    /// - [`Response::Error`] if missing.
     BuildStarposCheckVictoryConditions,
 
     //-----------------------------------------------------------------------//
@@ -779,7 +926,9 @@ pub enum Command {
     /// Update animation IDs with offset.
     /// Requires: starting ID, offset.
     ///
-    /// Response: [`Response::VecContainerPath`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::VecContainerPath`] on success.
+    /// - [`Response::Error`] on failure.
     UpdateAnimIds(i32, i32),
 
     /// Get animation paths by skeleton name.
@@ -793,7 +942,9 @@ pub enum Command {
 
     /// Get tables from dependencies by table name.
     ///
-    /// Response: [`Response::VecRFile`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::VecRFile`] on success.
+    /// - [`Response::Error`] on failure.
     GetTablesFromDependencies(String),
 
     /// Get table paths by table name from the current PackFile.
@@ -814,7 +965,9 @@ pub enum Command {
     /// Export a RigidModel to glTF format.
     /// Requires: RigidModel, output path.
     ///
-    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::Success`] on success.
+    /// - [`Response::Error`] on failure.
     ExportRigidToGltf(RigidModel, String),
 
     //-----------------------------------------------------------------------//
@@ -870,37 +1023,51 @@ pub enum Command {
 
     /// Set a boolean setting value.
     ///
-    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::Success`] on success.
+    /// - [`Response::Error`] on failure.
     SettingsSetBool(String, bool),
 
     /// Set an i32 setting value.
     ///
-    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::Success`] on success.
+    /// - [`Response::Error`] on failure.
     SettingsSetI32(String, i32),
 
     /// Set an f32 setting value.
     ///
-    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::Success`] on success.
+    /// - [`Response::Error`] on failure.
     SettingsSetF32(String, f32),
 
     /// Set a string setting value.
     ///
-    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::Success`] on success.
+    /// - [`Response::Error`] on failure.
     SettingsSetString(String, String),
 
     /// Set a PathBuf setting value.
     ///
-    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::Success`] on success.
+    /// - [`Response::Error`] on failure.
     SettingsSetPathBuf(String, PathBuf),
 
     /// Set a `Vec<String>` setting value.
     ///
-    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::Success`] on success.
+    /// - [`Response::Error`] on failure.
     SettingsSetVecString(String, Vec<String>),
 
     /// Set raw data setting value.
     ///
-    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::Success`] on success.
+    /// - [`Response::Error`] on failure.
     SettingsSetVecRaw(String, Vec<u8>),
 
     //-----------------------------------------------------------------------//
@@ -909,47 +1076,65 @@ pub enum Command {
 
     /// Get the config path.
     ///
-    /// Response: [`Response::PathBuf`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::PathBuf`] on success.
+    /// - [`Response::Error`] on failure.
     ConfigPath,
 
     /// Get the Assembly Kit path for the current game.
     ///
-    /// Response: [`Response::PathBuf`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::PathBuf`] on success.
+    /// - [`Response::Error`] on failure.
     AssemblyKitPath,
 
     /// Get the backup autosave path.
     ///
-    /// Response: [`Response::PathBuf`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::PathBuf`] on success.
+    /// - [`Response::Error`] on failure.
     BackupAutosavePath,
 
     /// Get the old AK data path.
     ///
-    /// Response: [`Response::PathBuf`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::PathBuf`] on success.
+    /// - [`Response::Error`] on failure.
     OldAkDataPath,
 
     /// Get the schemas path.
     ///
-    /// Response: [`Response::PathBuf`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::PathBuf`] on success.
+    /// - [`Response::Error`] on failure.
     SchemasPath,
 
     /// Get the table profiles path.
     ///
-    /// Response: [`Response::PathBuf`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::PathBuf`] on success.
+    /// - [`Response::Error`] on failure.
     TableProfilesPath,
 
     /// Get the translations local path.
     ///
-    /// Response: [`Response::PathBuf`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::PathBuf`] on success.
+    /// - [`Response::Error`] on failure.
     TranslationsLocalPath,
 
     /// Get the dependencies cache path.
     ///
-    /// Response: [`Response::PathBuf`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::PathBuf`] on success.
+    /// - [`Response::Error`] on failure.
     DependenciesCachePath,
 
     /// Clear a config path.
     ///
-    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::Success`] on success.
+    /// - [`Response::Error`] on failure.
     SettingsClearPath(PathBuf),
 
     //-----------------------------------------------------------------------//
@@ -963,7 +1148,9 @@ pub enum Command {
 
     /// Clear settings and reset to defaults.
     ///
-    /// Response: [`Response::Success`] on success, [`Response::Error`] on failure.
+    /// Response:
+    /// - [`Response::Success`] on success.
+    /// - [`Response::Error`] on failure.
     ClearSettings,
 
     /// Restore settings from the backup.
@@ -987,22 +1174,30 @@ pub enum Command {
 
     /// Get all definitions for a table name.
     ///
-    /// Response: [`Response::VecDefinition`] on success, [`Response::Error`] if no schema.
+    /// Response:
+    /// - [`Response::VecDefinition`] on success.
+    /// - [`Response::Error`] if no schema.
     DefinitionsByTableName(String),
 
     /// Get columns that reference a table's definition.
     ///
-    /// Response: [`Response::HashMapStringHashMapStringVecString`] on success, [`Response::Error`] if no schema.
+    /// Response:
+    /// - [`Response::HashMapStringHashMapStringVecString`] on success.
+    /// - [`Response::Error`] if no schema.
     ReferencingColumnsForDefinition(String, Definition),
 
     /// Get the current schema.
     ///
-    /// Response: [`Response::Schema`] on success, [`Response::Error`] if no schema.
+    /// Response:
+    /// - [`Response::Schema`] on success.
+    /// - [`Response::Error`] if no schema.
     Schema,
 
     /// Get a specific definition by table name and version.
     ///
-    /// Response: [`Response::Definition`] on success, [`Response::Error`] if not found or no schema.
+    /// Response:
+    /// - [`Response::Definition`] on success.
+    /// - [`Response::Error`] if not found or no schema.
     DefinitionByTableNameAndVersion(String, i32),
 
     /// Delete a definition by table name and version.

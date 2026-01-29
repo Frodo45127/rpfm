@@ -1227,8 +1227,10 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                             Ok(data) => {
                                 if let RFileDecoded::Video(ref mut data) = data {
                                     data.set_format(format);
+                                    CentralCommand::send_back(&sender, Response::Success);
+                                } else {
+                                    CentralCommand::send_back(&sender, Response::Error("The file is not a video.".to_string()));
                                 }
-                                // TODO: Put an error here.
                             }
                             Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                         }

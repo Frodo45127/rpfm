@@ -6,7 +6,7 @@ members = [
     "rpfm_lib",
     "rpfm_extensions",
     "rpfm_ipc",
-    #"rpfm_ui_common",
+    "rpfm_ui_common",
 
     # Executables
     "rpfm_cli",
@@ -16,7 +16,7 @@ members = [
 ]
 
 [workspace.package]
-version = "4.7.4"
+version = "4.7.99"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 rust-version = "1.81"
 edition = "2021"
@@ -31,8 +31,8 @@ debug = true
 
 [workspace.dependencies]
 # Internal workspace dependencies.
-rpfm_lib = { path = "rpfm_lib", version = "4.7.3" }
-rpfm_extensions = { path = "rpfm_extensions", version = "4.7.3" }
+rpfm_lib = { path = "rpfm_lib", version = "4.7.99" }
+rpfm_extensions = { path = "rpfm_extensions", version = "4.7.99" }
 rpfm_ui_common = { path = "rpfm_ui_common" }
 rpfm_ipc = { path = "rpfm_ipc" }
 
