@@ -6,6 +6,13 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [Unreleased]
+### Added
+- Implemented basic support for using RPFM Server as an MCP Server.
+
+### Changed
+- Decoupled UI from Backend into RPFM UI and RPFM Server.
+
 ## [4.7.4]
 ### Added
 - Implemented support for CBAB ESF files (thanks [@ADDB](https://github.com/xADDBx) for the research).
