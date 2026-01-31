@@ -223,8 +223,8 @@ pub fn new_packed_file_model_safe() -> QBox<QStandardItemModel> {
 }
 
 // This function allow us to create a custom window.
-extern "C" { fn new_q_main_window_custom(are_you_sure: extern "C" fn(*mut QMainWindow, bool) -> bool, is_dark_theme_enabled: bool) -> *mut QMainWindow; }
-pub fn new_q_main_window_custom_safe(are_you_sure: extern "C" fn(*mut QMainWindow, bool) -> bool) -> QBox<QMainWindow> {
+extern "C" { fn new_q_main_window_custom(are_you_sure: extern "C" fn(*mut QMainWindow, bool, bool) -> bool, is_dark_theme_enabled: bool) -> *mut QMainWindow; }
+pub fn new_q_main_window_custom_safe(are_you_sure: extern "C" fn(*mut QMainWindow, bool, bool) -> bool) -> QBox<QMainWindow> {
     let is_dark_theme_enabled = settings_bool("use_dark_theme");
     unsafe { QBox::from_raw(new_q_main_window_custom(are_you_sure, is_dark_theme_enabled)) }
 }
@@ -632,9 +632,9 @@ pub extern fn anim_paths_by_skeleton_callback(skeleton_name: *mut QString, out: 
 //---------------------------------------------------------------------------//
 
 /// This function allow us to create a dialog when trying to close the main window.
-pub extern "C" fn are_you_sure(main_window: *mut QMainWindow, is_delete_my_mod: bool) -> bool {
+pub extern "C" fn are_you_sure(main_window: *mut QMainWindow, is_delete_my_mod: bool, is_full_close: bool) -> bool {
     unsafe {
-        if !is_delete_my_mod {
+        if is_full_close {
             settings_set_raw_data("geometry", &main_window.as_ref().unwrap().save_geometry().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>());
             settings_set_raw_data("windowState", &main_window.as_ref().unwrap().save_state_0a().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>());
         }
@@ -643,13 +643,14 @@ pub extern "C" fn are_you_sure(main_window: *mut QMainWindow, is_delete_my_mod: 
     let title = qtr("rpfm_title");
     let message = if is_delete_my_mod {
         qtr("delete_mymod_0")
-    } else if UI_STATE.get_is_modified() {
-        qtr("delete_mymod_1")
-    }
-
-    // In any other situation... just notify the server and return true.
-    else {
-        let _ = CENTRAL_COMMAND.read().unwrap().send(Command::ClientDisconnecting);
+    } else if is_full_close {
+        if UI_STATE.get_is_modified() {
+            qtr("delete_mymod_1")
+        } else {
+            let _ = CENTRAL_COMMAND.read().unwrap().send(Command::ClientDisconnecting);
+            return true;
+        }
+    } else {
         return true
     };
 
@@ -669,7 +670,7 @@ pub extern "C" fn are_you_sure(main_window: *mut QMainWindow, is_delete_my_mod: 
     };
 
     // If the user confirmed closing, notify the server before actually closing.
-    if result {
+    if result && is_full_close {
         let _ = CENTRAL_COMMAND.read().unwrap().send(Command::ClientDisconnecting);
     }
 

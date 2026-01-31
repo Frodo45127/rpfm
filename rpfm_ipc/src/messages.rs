@@ -208,6 +208,11 @@ pub enum Command {
     /// - [`Response::Error`] if game not supported.
     SetGameSelected(String, bool),
 
+    /// Get the currently selected game key.
+    ///
+    /// Response: [`Response::String`].
+    GetGameSelected,
+
     /// Change the `Type` of the currently open Pack.
     ///
     /// Response: None.
@@ -1217,6 +1222,10 @@ pub enum Response {
 
     /// Generic response for situations that returned an error, containing the error message.
     Error(String),
+
+    /// Response sent by the server immediately after a WebSocket connection is established.
+    /// Contains the session ID that the client is connected to.
+    SessionConnected(u64),
 
     #[allow(dead_code)]BmdRFileInfo(Box<Bmd>, RFileInfo),
     AnimFragmentBattleRFileInfo(AnimFragmentBattle, RFileInfo),

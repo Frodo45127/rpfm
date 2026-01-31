@@ -73,6 +73,7 @@ pub fn settings_i32(key: &str) -> i32 {
 }
 
 /// Get an f32 setting from the server.
+#[allow(dead_code)]
 pub fn settings_f32(key: &str) -> f32 {
     send_ipc_command(Command::SettingsGetF32(key.to_string()), response_extractor!(Response::F32))
 }
@@ -108,6 +109,7 @@ pub fn settings_set_i32(key: &str, value: i32) {
 }
 
 /// Set an f32 setting on the server.
+#[allow(dead_code)]
 pub fn settings_set_f32(key: &str, value: f32) {
     send_ipc_command(Command::SettingsSetF32(key.to_string(), value), response_extractor!())
 }
@@ -118,6 +120,7 @@ pub fn settings_set_string(key: &str, value: &str) {
 }
 
 /// Set a PathBuf setting on the server.
+#[allow(dead_code)]
 pub fn settings_set_path_buf(key: &str, value: &PathBuf) {
     send_ipc_command(Command::SettingsSetPathBuf(key.to_string(), value.clone()), response_extractor!())
 }

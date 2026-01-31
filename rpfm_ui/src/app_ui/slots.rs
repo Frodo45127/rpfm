@@ -50,7 +50,7 @@ use rpfm_ipc::SECONDARY_PATH;
 use rpfm_ipc::helpers::{ContainerInfo, DataSource};
 
 use rpfm_lib::compression::CompressionFormat;
-use rpfm_lib::files::{ContainerPath, pack::RESERVED_NAME_NOTES, table::Table};
+use rpfm_lib::files::{ContainerPath, pack::{RESERVED_NAME_NOTES, PFHFlags}, table::Table};
 use rpfm_lib::games::{pfh_file_type::PFHFileType, supported_games::*};
 use rpfm_lib::integrations::log::*;
 
@@ -74,8 +74,11 @@ use crate::packedfile_views::{View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::PATREON_URL;
 use crate::references_ui::ReferencesUI;
+use crate::session_ui::SessionDialogResult;
+use crate::session_ui::SessionUI;
 use crate::settings_ui::backend::*;
 use crate::settings_ui::SettingsUI;
+use crate::SUPPORTED_GAMES;
 #[cfg(feature = "enable_tools")]use crate::tools::{faction_painter::ToolFactionPainter, translator::ToolTranslator, unit_editor::ToolUnitEditor};
 use crate::ui::GameSelectedIcons;
 use crate::updater_ui::UpdaterUI;
@@ -111,6 +114,7 @@ pub struct AppUISlots {
     pub packfile_change_packfile_type: QBox<SlotOfBool>,
     pub packfile_index_includes_timestamp: QBox<SlotOfBool>,
     pub packfile_change_compression_format: QBox<SlotOfBool>,
+    pub packfile_select_session: QBox<SlotOfBool>,
     pub packfile_settings: QBox<SlotOfBool>,
     pub packfile_quit: QBox<SlotOfBool>,
 
@@ -259,7 +263,7 @@ impl AppUISlots {
             dependencies_ui => move |_| {
 
                 // Check first if there has been changes in the PackFile.
-                if AppUI::are_you_sure(&app_ui, false) {
+                if AppUI::are_you_sure(&app_ui, false, false) {
                     info!("Triggering `New PackFile` By Slot");
                     AppUI::new_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui);
                 }
@@ -274,7 +278,7 @@ impl AppUISlots {
 
                 // Check first if there has been changes in the PackFile.
                 info!("Triggering `Open PackFile` By Slot?");
-                if AppUI::are_you_sure(&app_ui, false) {
+                if AppUI::are_you_sure(&app_ui, false, false) {
                     info!("Triggering `Open PackFile` By Slot");
 
                     // Create the FileDialog to get the PackFile to open and configure it.
@@ -479,7 +483,7 @@ impl AppUISlots {
 
             // Check first if there has been changes in the PackFile. If we accept, just take all the PackFiles in the data folder
             // and open them all together, skipping mods.
-            if AppUI::are_you_sure(&app_ui, false) {
+            if AppUI::are_you_sure(&app_ui, false, false) {
                 info!("Triggering `Load all CA PackFiles` By Slot");
 
                 // Reset the autosave timer.
@@ -616,6 +620,149 @@ impl AppUISlots {
                     _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                 }
                 UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
+            }
+        ));
+
+        // What happens when we trigger the "Select Session" action.
+        let packfile_select_session = SlotOfBool::new(&app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            dependencies_ui,
+            global_search_ui,
+            diagnostics_ui => move |_| {
+                info!("Triggering `Select Session Dialog` By Slot");
+
+                match SessionUI::new(app_ui.main_window()) {
+                    Ok(session_ui) => {
+                        let result = session_ui.show();
+                        match result {
+                            SessionDialogResult::SessionSelected(session_id) => {
+                                info!("Session selected: {}", session_id);
+
+                                // Close all open files and clear panels.
+                                let _ = AppUI::purge_them_all(&app_ui, &pack_file_contents_ui, false);
+                                global_search_ui.clear();
+                                diagnostics_ui.diagnostics_table_model().clear();
+
+                                // Clear the tree views.
+                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Clear, DataSource::PackFile);
+                                dependencies_ui.dependencies_tree_view().update_treeview(true, TreeViewOperation::Clear, DataSource::ParentFiles);
+                                dependencies_ui.dependencies_tree_view().update_treeview(true, TreeViewOperation::Clear, DataSource::GameFiles);
+                                dependencies_ui.dependencies_tree_view().update_treeview(true, TreeViewOperation::Clear, DataSource::AssKitFiles);
+
+                                // Reset the operational mode.
+                                UI_STATE.set_operational_mode(&app_ui, None);
+
+                                // Disable the main window during reconnection.
+                                app_ui.toggle_main_window(false);
+
+                                log_to_status_bar(&tre("session_status_bar_switching", &[&session_id.to_string()]));
+
+                                // Request reconnection to the new session.
+                                crate::communications::request_reconnect(session_id);
+
+                                // Wait for the WebSocket to reconnect (up to 5 seconds).
+                                if !crate::communications::wait_for_reconnect(5000) {
+                                    app_ui.toggle_main_window(true);
+                                    show_dialog(&app_ui.main_window, tr("session_dialog_reconnect_error"), false);
+                                    return;
+                                }
+
+                                // Now sync the UI state from the new session.
+                                // Get the game selected from the backend and update the UI checkbox.
+                                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetGameSelected);
+                                let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
+                                match response {
+                                    Response::String(game_key) => {
+                                        info!("New session game selected: {}", game_key);
+
+                                        // Update the game selection checkbox (without triggering the slot).
+                                        app_ui.game_selected_group.block_signals(true);
+                                        match game_key.as_str() {
+                                            KEY_PHARAOH_DYNASTIES => app_ui.game_selected_pharaoh_dynasties.set_checked(true),
+                                            KEY_PHARAOH => app_ui.game_selected_pharaoh.set_checked(true),
+                                            KEY_WARHAMMER_3 => app_ui.game_selected_warhammer_3.set_checked(true),
+                                            KEY_TROY => app_ui.game_selected_troy.set_checked(true),
+                                            KEY_THREE_KINGDOMS => app_ui.game_selected_three_kingdoms.set_checked(true),
+                                            KEY_WARHAMMER_2 => app_ui.game_selected_warhammer_2.set_checked(true),
+                                            KEY_WARHAMMER => app_ui.game_selected_warhammer.set_checked(true),
+                                            KEY_THRONES_OF_BRITANNIA => app_ui.game_selected_thrones_of_britannia.set_checked(true),
+                                            KEY_ATTILA => app_ui.game_selected_attila.set_checked(true),
+                                            KEY_ROME_2 => app_ui.game_selected_rome_2.set_checked(true),
+                                            KEY_SHOGUN_2 => app_ui.game_selected_shogun_2.set_checked(true),
+                                            KEY_NAPOLEON => app_ui.game_selected_napoleon.set_checked(true),
+                                            KEY_EMPIRE => app_ui.game_selected_empire.set_checked(true),
+                                            KEY_ARENA => app_ui.game_selected_arena.set_checked(true),
+                                            _ => {}
+                                        }
+                                        app_ui.game_selected_group.block_signals(false);
+
+                                        // Update the GAME_SELECTED static and trigger a full dependency reload.
+                                        if SUPPORTED_GAMES.game(&game_key).is_some() {
+                                            AppUI::change_game_selected(&app_ui, &pack_file_contents_ui, &dependencies_ui, true, true);
+                                        }
+                                    }
+                                    _ => {
+                                        error!("Failed to get game selected from new session: {:?}", response);
+                                    }
+                                }
+
+                                // Rebuild the tree view from the new session's pack file data.
+                                let mut build_data = BuildData::new();
+                                build_data.editable = true;
+                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
+
+                                // Update the pack file type and compression settings from the new session.
+                                // We need to get pack info to set these correctly.
+                                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackFileDataForTreeView);
+                                let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
+                                if let Response::ContainerInfoVecRFileInfo((ui_data, _)) = response {
+                                    // Update pack file type.
+                                    match ui_data.pfh_file_type() {
+                                        PFHFileType::Boot => app_ui.change_packfile_type_boot.set_checked(true),
+                                        PFHFileType::Release => app_ui.change_packfile_type_release.set_checked(true),
+                                        PFHFileType::Patch => app_ui.change_packfile_type_patch.set_checked(true),
+                                        PFHFileType::Mod => app_ui.change_packfile_type_mod.set_checked(true),
+                                        PFHFileType::Movie => app_ui.change_packfile_type_movie.set_checked(true),
+                                    }
+
+                                    // Update compression format.
+                                    app_ui.compression_format_group.block_signals(true);
+                                    match ui_data.compress() {
+                                        CompressionFormat::None => app_ui.compression_format_none.set_checked(true),
+                                        CompressionFormat::Lzma1 => app_ui.compression_format_lzma1.set_checked(true),
+                                        CompressionFormat::Lz4 => app_ui.compression_format_lz4.set_checked(true),
+                                        CompressionFormat::Zstd => app_ui.compression_format_zstd.set_checked(true),
+                                    }
+                                    app_ui.compression_format_group.block_signals(false);
+
+                                    // Update header flags.
+                                    app_ui.change_packfile_type_data_is_encrypted.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_ENCRYPTED_DATA));
+                                    app_ui.change_packfile_type_index_includes_timestamp.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS));
+                                    app_ui.change_packfile_type_index_is_encrypted.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_ENCRYPTED_INDEX));
+                                    app_ui.change_packfile_type_header_is_extended.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_EXTENDED_HEADER));
+                                }
+
+                                // Re-enable the main window.
+                                app_ui.toggle_main_window(true);
+
+                                // Mark the UI as not modified (we just synced with the session).
+                                UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
+
+                                log_to_status_bar(&tre("session_status_bar_switched", &[&session_id.to_string()]));
+                            }
+                            SessionDialogResult::Cancelled => {
+                                info!("Session dialog cancelled");
+                            }
+                            SessionDialogResult::CurrentSession => {
+                                info!("Current session selected, no action needed");
+                            }
+                        }
+                    }
+                    Err(error) => {
+                        show_dialog(&app_ui.main_window, error, false);
+                    }
+                }
             }
         ));
 
@@ -851,7 +998,7 @@ impl AppUISlots {
             global_search_ui => move |_| {
 
                 // Ask before doing it, as this will permanently delete the mod from the Disk.
-                if AppUI::are_you_sure(&app_ui, true) {
+                if AppUI::are_you_sure(&app_ui, true, false) {
                     info!("Triggering `Delete MyMod` By Slot");
 
                     // We want to keep our "MyMod" name for the success message, so we store it here.
@@ -1999,7 +2146,7 @@ impl AppUISlots {
             info!("Triggering `Open Pack` By Drag&Drop by Slot?");
 
             // Check first if there has been changes in the PackFile.
-            if AppUI::are_you_sure(&app_ui, false) {
+            if AppUI::are_you_sure(&app_ui, false, false) {
                 info!("Triggering `Open Pack` By Drag&Drop by Slot");
 
                 // Now the fun thing. We have to get all the selected files, and then open them one by one.
@@ -2043,6 +2190,7 @@ impl AppUISlots {
             packfile_change_packfile_type,
             packfile_index_includes_timestamp,
             packfile_change_compression_format,
+            packfile_select_session,
             packfile_settings,
             packfile_quit,
 

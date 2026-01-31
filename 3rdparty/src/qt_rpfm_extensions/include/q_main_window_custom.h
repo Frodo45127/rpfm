@@ -8,19 +8,19 @@
 #include <QMessageBox>
 #include <KBusyIndicatorWidget>
 
-extern "C" QMainWindow* new_q_main_window_custom(bool (*are_you_sure)(QMainWindow* main_window, bool is_delete_my_mod) = nullptr, bool is_dark_theme_enabled = false);
+extern "C" QMainWindow* new_q_main_window_custom(bool (*are_you_sure)(QMainWindow* main_window, bool is_delete_my_mod, bool is_full_close) = nullptr, bool is_dark_theme_enabled = false);
 
 class QMainWindowCustom : public QMainWindow
 {
     Q_OBJECT
 public:
-    explicit QMainWindowCustom(QWidget *parent = nullptr, bool (*are_you_sure)(QMainWindow* main_window, bool is_delete_my_mod) = nullptr, bool is_dark_theme_enabled = false);
+    explicit QMainWindowCustom(QWidget *parent = nullptr, bool (*are_you_sure)(QMainWindow* main_window, bool is_delete_my_mod, bool is_full_close) = nullptr, bool is_dark_theme_enabled = false);
     void closeEvent(QCloseEvent *event) override;
     void moveEvent(QMoveEvent *event) override;
     void changeEvent(QEvent *event) override;
 
 private:
-    bool (*are_you_sure)(QMainWindow* main_window, bool is_delete_my_mod);
+    bool (*are_you_sure)(QMainWindow* main_window, bool is_delete_my_mod, bool is_full_close);
     bool dark_theme_enabled;
     KBusyIndicatorWidget* busyIndicator;
 

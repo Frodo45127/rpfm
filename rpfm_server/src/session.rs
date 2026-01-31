@@ -20,8 +20,9 @@ use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::time::{Duration, Instant};
 
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, atomic::{AtomicBool, AtomicU32, Ordering}};
+use std::sync::{Arc, Mutex, RwLock, atomic::{AtomicBool, AtomicU32, Ordering}};
 
+use rpfm_ipc::helpers::SessionInfo;
 use rpfm_ipc::messages::{Command, Response};
 use rpfm_lib::integrations::log::info;
 
@@ -83,6 +84,9 @@ pub struct Session {
 
     /// Whether this session has been marked for shutdown.
     shutdown_requested: AtomicBool,
+
+    /// Name of the pack file currently open in this session (if any).
+    pack_name: RwLock<Option<String>>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -92,22 +96,26 @@ pub struct Session {
 impl Session {
 
     /// Create a new session with its own background thread.
-    pub fn new(id: SessionId) -> Self {
+    pub fn new(id: SessionId) -> Arc<Self> {
         let (sender, receiver) = unbounded_channel();
 
-        // Spawn a dedicated background thread for this session.
-        tokio::spawn(async move {
-            info!("Session {} background thread starting...", id);
-            background_thread::background_loop(receiver).await;
-            info!("Session {} background thread terminated.", id);
-        });
-
-        Self {
+        let session = Arc::new(Self {
             id,
             sender,
             connection_count: AtomicU32::new(0),
             shutdown_requested: AtomicBool::new(false),
-        }
+            pack_name: RwLock::new(None),
+        });
+
+        // Spawn a dedicated background thread for this session.
+        let session_clone = session.clone();
+        tokio::spawn(async move {
+            info!("Session {} background thread starting...", id);
+            background_thread::background_loop(receiver, session_clone).await;
+            info!("Session {} background thread terminated.", id);
+        });
+
+        session
     }
 
     /// Get the session ID.
@@ -133,6 +141,16 @@ impl Session {
     /// Check if shutdown has been requested.
     pub fn is_shutdown_requested(&self) -> bool {
         self.shutdown_requested.load(Ordering::SeqCst)
+    }
+
+    /// Get the pack name for this session.
+    pub fn pack_name(&self) -> Option<String> {
+        self.pack_name.read().unwrap().clone()
+    }
+
+    /// Set the pack name for this session.
+    pub fn set_pack_name(&self, name: Option<String>) {
+        *self.pack_name.write().unwrap() = name;
     }
 
     /// Shutdown this session by sending an Exit command.
@@ -182,7 +200,7 @@ impl SessionManager {
             id
         };
 
-        let session = Arc::new(Session::new(id));
+        let session = Session::new(id);
         session.connect();
 
         self.sessions.lock().unwrap().insert(id, ManagedSession {
@@ -318,6 +336,34 @@ impl SessionManager {
     pub fn session_ids(&self) -> Vec<SessionId> {
         let sessions = self.sessions.lock().unwrap();
         sessions.keys().cloned().collect()
+    }
+
+    /// Get information about all active sessions.
+    ///
+    /// Returns a vector of [`SessionInfo`] structs containing session state snapshots
+    /// for use by session management tools.
+    pub fn get_sessions_info(&self) -> Vec<SessionInfo> {
+        let sessions = self.sessions.lock().unwrap();
+        let now = Instant::now();
+
+        sessions.values().map(|managed| {
+            let timeout_remaining_secs = managed.disconnected_at.map(|disconnected_at| {
+                let elapsed = now.duration_since(disconnected_at);
+                if elapsed < self.timeout {
+                    (self.timeout - elapsed).as_secs()
+                } else {
+                    0
+                }
+            });
+
+            SessionInfo::new(
+                managed.session.id(),
+                managed.session.connection_count(),
+                timeout_remaining_secs,
+                managed.session.is_shutdown_requested(),
+                managed.session.pack_name(),
+            )
+        }).collect()
     }
 
     /// Start a background task that periodically cleans up expired sessions.

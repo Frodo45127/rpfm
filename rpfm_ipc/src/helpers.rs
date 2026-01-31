@@ -239,6 +239,31 @@ pub enum APIResponse {
     UnknownVersion,
 }
 
+/// Information about an active session on the server.
+///
+/// This struct provides a snapshot of a session's state, including connection count
+/// and timeout information. It's used by the session management dialog to display
+/// available sessions and allow users to connect to specific ones.
+#[derive(Clone, Debug, Default, Getters, Serialize, Deserialize)]
+#[getset(get = "pub")]
+pub struct SessionInfo {
+
+    /// Unique identifier for the session.
+    session_id: u64,
+
+    /// Number of active connections to this session.
+    connection_count: u32,
+
+    /// Seconds remaining until session timeout (None if session has active connections).
+    timeout_remaining_secs: Option<u64>,
+
+    /// Whether the session has been marked for shutdown.
+    is_shutting_down: bool,
+
+    /// Name of the pack file currently open in this session (if any).
+    pack_name: Option<String>,
+}
+
 //-------------------------------------------------------------------------------//
 //                             Implementations
 //-------------------------------------------------------------------------------//
@@ -432,6 +457,26 @@ impl From<&str> for DataSource {
             "AssKitFiles" => Self::AssKitFiles,
             "ExternalFile" => Self::ExternalFile,
             _ => unreachable!("from data source {}", value)
+        }
+    }
+}
+
+impl SessionInfo {
+
+    /// Create a new SessionInfo with the given parameters.
+    pub fn new(
+        session_id: u64,
+        connection_count: u32,
+        timeout_remaining_secs: Option<u64>,
+        is_shutting_down: bool,
+        pack_name: Option<String>,
+    ) -> Self {
+        Self {
+            session_id,
+            connection_count,
+            timeout_remaining_secs,
+            is_shutting_down,
+            pack_name,
         }
     }
 }

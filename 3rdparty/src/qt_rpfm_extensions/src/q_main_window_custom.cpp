@@ -66,7 +66,7 @@ QMainWindowCustom::QMainWindowCustom(QWidget *parent, bool (*are_you_sure_fn) (Q
 void QMainWindowCustom::closeEvent(QCloseEvent *event) {
     event->ignore();
 
-    if (are_you_sure(this, false)) {
+    if (are_you_sure(this, false, true)) {
         event->accept();
     }
 }

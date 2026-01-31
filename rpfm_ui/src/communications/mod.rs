@@ -22,6 +22,7 @@ use tokio_tungstenite::{connect_async_with_config, tungstenite::protocol::{Messa
 
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::sync::{Arc, RwLock};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 pub use rpfm_ipc::messages::{Command, Response, Message as IpcMessage};
@@ -32,6 +33,19 @@ use crate::CENTRAL_COMMAND;
 
 /// Atomic counter for generating unique message IDs.
 static MESSAGE_ID_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+/// Global variable to hold the current session ID we are connected to.
+pub static CURRENT_SESSION_ID: std::sync::LazyLock<Arc<RwLock<Option<u64>>>> = std::sync::LazyLock::new(|| Arc::new(RwLock::new(None)));
+
+/// Global variable to hold the session ID to reconnect to. When set, the WebSocket loop will
+/// disconnect and reconnect to the specified session.
+pub static RECONNECT_SESSION_ID: std::sync::LazyLock<Arc<RwLock<Option<u64>>>> = std::sync::LazyLock::new(|| Arc::new(RwLock::new(None)));
+
+/// Global flag to signal the WebSocket loop that a reconnection is requested.
+pub static RECONNECT_REQUESTED: AtomicBool = AtomicBool::new(false);
+
+/// Global flag to indicate that the WebSocket has successfully reconnected.
+pub static RECONNECT_COMPLETE: AtomicBool = AtomicBool::new(false);
 
 /// This const is the standard message in case of message communication error. If this happens, crash the program.
 pub const THREADS_COMMUNICATION_ERROR: &str = "Error in thread communication system. Response received: ";
@@ -160,6 +174,7 @@ where
 /// Function to send a command to the backend and receive a result. Use it for commands that can fail.
 ///
 /// This version of the function is for calls that must keep the ui alive.
+#[allow(dead_code)]
 pub fn send_ipc_command_result_async<T, F>(command: Command, extractor: F) -> Result<T>
 where
     F: FnOnce(Response) -> T,
@@ -185,6 +200,7 @@ where
 /// Function to send a command to the backend. Use it for commands that can't fail.
 ///
 /// This version of the function is for calls that must keep the ui alive.
+#[allow(dead_code)]
 pub fn send_ipc_command_async<T, F>(command: Command, extractor: F) -> T
 where
     F: FnOnce(Response) -> T,
@@ -195,23 +211,79 @@ where
     }
 }
 
+/// Request a reconnection to a specific session ID.
+///
+/// This will signal the WebSocket loop to disconnect from the current session and
+/// reconnect to the specified session.
+pub fn request_reconnect(session_id: u64) {
+    RECONNECT_COMPLETE.store(false, Ordering::SeqCst);
+    *RECONNECT_SESSION_ID.write().unwrap() = Some(session_id);
+    RECONNECT_REQUESTED.store(true, Ordering::SeqCst);
+}
+
+/// Wait for the reconnection to complete, processing Qt events to keep the UI responsive.
+///
+/// Returns true if reconnection completed within the timeout, false otherwise.
+pub fn wait_for_reconnect(timeout_ms: u64) -> bool {
+    let event_loop = unsafe { QEventLoop::new_0a() };
+    let start = std::time::Instant::now();
+    let timeout = std::time::Duration::from_millis(timeout_ms);
+
+    while !RECONNECT_COMPLETE.load(Ordering::SeqCst) {
+        if start.elapsed() > timeout {
+            return false;
+        }
+        unsafe { event_loop.process_events_0a(); }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    true
+}
+
 /// This function is the one that actually handles the WebSocket communication with the server.
 pub async fn websocket_loop(mut receiver: UnboundedReceiver<(IpcMessage<Command>, Sender<Response>)>) {
-    let url = "ws://127.0.0.1:45127/ws";
-    info!("Connecting to WebSocket server at {}...", url);
+    let base_url = "ws://localhost:45127/ws";
+    let mut current_session_id: Option<u64> = None;
 
     let mut response_channels = HashMap::new();
 
     loop {
+        // Check if a reconnection was requested.
+        if RECONNECT_REQUESTED.swap(false, Ordering::SeqCst) {
+            current_session_id = RECONNECT_SESSION_ID.write().unwrap().take();
+            info!("Reconnection requested to session: {:?}", current_session_id);
+            // Clear any pending response channels from the old connection.
+            response_channels.clear();
+        }
+
+        // Build the URL with optional session ID parameter.
+        let url = match current_session_id {
+            Some(id) => format!("{}?session_id={}", base_url, id),
+            None => base_url.to_string(),
+        };
+        info!("Connecting to WebSocket server at {}...", url);
+
         let config = WebSocketConfig::default()
             .max_message_size(Some(67108864 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2))   // 16GB
             .max_frame_size(Some(67108864 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2));    // 16GB
 
-        match connect_async_with_config(url, Some(config), false).await {
+        match connect_async_with_config(&url, Some(config), false).await {
             Ok((mut ws_stream, _)) => {
                 info!("WebSocket connected!");
+
+                // Signal that reconnection is complete.
+                RECONNECT_COMPLETE.store(true, Ordering::SeqCst);
+
                 loop {
                     tokio::select! {
+
+                        // Periodically check for reconnection requests (every 100ms).
+                        _ = tokio::time::sleep(tokio::time::Duration::from_millis(100)) => {
+                            if RECONNECT_REQUESTED.load(Ordering::SeqCst) {
+                                info!("Reconnection requested, closing current connection...");
+                                let _ = ws_stream.close(None).await;
+                                break;
+                            }
+                        }
 
                         // New command from the UI.
                         Some((message, sender)) = receiver.recv() => {
@@ -229,6 +301,13 @@ pub async fn websocket_loop(mut receiver: UnboundedReceiver<(IpcMessage<Command>
                                 Ok(WsMessage::Text(text)) => {
                                     match serde_json::from_str::<IpcMessage<Response>>(&text) {
                                         Ok(msg) => {
+                                            // Handle SessionConnected message specially to update current session ID.
+                                            if let Response::SessionConnected(session_id) = &msg.data {
+                                                info!("Connected to session ID: {}", session_id);
+                                                *CURRENT_SESSION_ID.write().unwrap() = Some(*session_id);
+                                                continue;
+                                            }
+
                                             if let Some(sender) = response_channels.remove(&msg.id) {
                                                 let _ = sender.send(msg.data);
                                             } else {

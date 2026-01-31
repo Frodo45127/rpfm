@@ -185,6 +185,7 @@ pub struct AppUI {
     packfile_open_from_data: QBox<QMenu>,
     packfile_open_from_autosave: QBox<QMenu>,
     packfile_load_all_ca_packfiles: QPtr<QAction>,
+    packfile_select_session: QPtr<QAction>,
     packfile_settings: QPtr<QAction>,
     packfile_quit: QPtr<QAction>,
 
@@ -510,6 +511,7 @@ impl AppUI {
         let packfile_compression_format = QMenu::from_q_string_q_widget(&qtr("compression_format"), &menu_bar_packfile);
 
         let packfile_load_all_ca_packfiles = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "load_all_ca_packs", "load_all_ca_packfiles", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
+        let packfile_select_session = menu_bar_packfile.add_action_q_string(&QString::from_std_str("Select Session..."));
         let packfile_settings = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "settings", "settings", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let packfile_quit = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "quit", "quit", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
 
@@ -859,6 +861,7 @@ impl AppUI {
             packfile_open_from_data,
             packfile_open_from_autosave,
             packfile_load_all_ca_packfiles,
+            packfile_select_session,
             packfile_settings,
             packfile_quit,
 
@@ -1120,8 +1123,8 @@ impl AppUI {
     /// This function pops up a modal asking you if you're sure you want to do an action that may result in unsaved data loss.
     ///
     /// If you are trying to delete the open MyMod, pass it true.
-    pub unsafe fn are_you_sure(app_ui: &Rc<Self>, is_delete_my_mod: bool) -> bool {
-        are_you_sure(app_ui.main_window.as_mut_raw_ptr(), is_delete_my_mod)
+    pub unsafe fn are_you_sure(app_ui: &Rc<Self>, is_delete_my_mod: bool, is_full_close: bool) -> bool {
+        are_you_sure(app_ui.main_window.as_mut_raw_ptr(), is_delete_my_mod, is_full_close)
     }
 
     /// This function pops up a modal asking you if you're sure you want to do an action that may result in loss of data.
@@ -1944,7 +1947,7 @@ impl AppUI {
                         global_search_ui,
                         diagnostics_ui,
                         path => move |_| {
-                        if Self::are_you_sure(&app_ui, false) {
+                        if Self::are_you_sure(&app_ui, false, false) {
                             if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path.to_path_buf()], "") {
                                 return show_dialog(&app_ui.main_window, error, false);
                             }
@@ -1984,7 +1987,7 @@ impl AppUI {
                     global_search_ui,
                     diagnostics_ui,
                     path => move |_| {
-                    if Self::are_you_sure(&app_ui, false) {
+                    if Self::are_you_sure(&app_ui, false, false) {
                         if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path.to_path_buf()], "") {
                             return show_dialog(&app_ui.main_window, error, false);
                         }
@@ -2023,7 +2026,7 @@ impl AppUI {
                     global_search_ui,
                     diagnostics_ui,
                     path => move |_| {
-                    if Self::are_you_sure(&app_ui, false) {
+                    if Self::are_you_sure(&app_ui, false, false) {
                         if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path.to_path_buf()], "") {
                             return show_dialog(&app_ui.main_window, error, false);
                         }
@@ -2062,7 +2065,7 @@ impl AppUI {
                     global_search_ui,
                     diagnostics_ui,
                     path => move |_| {
-                    if Self::are_you_sure(&app_ui, false) {
+                    if Self::are_you_sure(&app_ui, false, false) {
                         if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path.to_path_buf()], "") {
                             return show_dialog(&app_ui.main_window, error, false);
                         }
@@ -2109,7 +2112,7 @@ impl AppUI {
                                         global_search_ui,
                                         diagnostics_ui,
                                         path => move |_| {
-                                        if Self::are_you_sure(&app_ui, false) {
+                                        if Self::are_you_sure(&app_ui, false, false) {
                                             if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path.to_path_buf()], "") {
                                                 return show_dialog(&app_ui.main_window, error, false);
                                             }
@@ -2225,7 +2228,7 @@ impl AppUI {
                                         global_search_ui,
                                         diagnostics_ui,
                                         game_folder_name => move |_| {
-                                        if Self::are_you_sure(&app_ui, false) {
+                                        if Self::are_you_sure(&app_ui, false, false) {
                                             if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[pack_file.to_path_buf()], &game_folder_name) {
                                                 return show_dialog(&app_ui.main_window, error, false);
                                             }

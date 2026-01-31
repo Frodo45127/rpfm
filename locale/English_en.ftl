@@ -1826,3 +1826,15 @@ rigid_model_editor_texture_list_title = Texture List
 rigid_model_editor_export_to_gltf = Export to GLTF
 extract_gltf = Export GLTF File
 settings_use_debug_view_unit_variant = Use Debug View for Unit Variants:
+
+## Session Selection Dialog
+
+session_dialog_title = Select Session
+session_dialog_loading = Loading sessions...
+session_dialog_group_title = Available Sessions
+session_dialog_no_sessions = No active sessions found.
+session_dialog_found_sessions = Found {"{"}{"}"} active session(s). Select one to connect:
+session_dialog_load_error = Failed to load sessions: {"{"}{"}"}
+session_dialog_reconnect_error = Failed to reconnect to session. Connection timed out.
+session_status_bar_switching = Switching to session #{"{"}{"}"}...
+session_status_bar_switched = Switched to session #{"{"}{"}"}.

@@ -48,6 +48,7 @@ use rpfm_lib::utils::*;
 
 use crate::*;
 use crate::comms::CentralCommand;
+use crate::session::Session;
 use crate::settings::*;
 use crate::updater;
 
@@ -59,7 +60,7 @@ pub const VANILLA_FIXES_NAME: &str = "vanilla_fixes_";
 /// This is the background loop that's going to be executed in a parallel thread to the UI. No UI or "Unsafe" stuff here.
 ///
 /// All communication between this and the UI thread is done use the `CENTRAL_COMMAND` static.
-pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Response>, Command)>) {
+pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Response>, Command)>, session: Arc<Session>) {
 
     //---------------------------------------------------------------------------------------//
     // Initializing stuff...
@@ -202,7 +203,10 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
             }
 
             // In case we want to reset the PackFile to his original state (dummy)...
-            Command::ClosePack => pack_file_decoded = Pack::default(),
+            Command::ClosePack => {
+                pack_file_decoded = Pack::default();
+                session.set_pack_name(None);
+            }
 
             // In case we want to remove a Secondary Packfile from memory...
             Command::ClosePackExtra(path) => { pack_files_decoded_extra.remove(&path); },
@@ -215,6 +219,8 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 if let Some(version_number) = game.game_version_number(&settings.path_buf(game.key())) {
                     pack_file_decoded.set_game_version(version_number);
                 }
+
+                session.set_pack_name(Some("new_file.pack".to_string()));
             }
 
             // In case we want to "Open one or more PackFiles"...
@@ -234,6 +240,14 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                                 let _ = file.decode(&extra_data, true, false);
                             });
                         }
+
+                        // Update session pack name from the loaded pack.
+                        let pack_name = if pack_file_decoded.disk_file_path().is_empty() {
+                            None
+                        } else {
+                            pack_file_decoded.disk_file_path().split('/').next_back().map(|s| s.to_string())
+                        };
+                        session.set_pack_name(pack_name);
 
                         CentralCommand::send_back(&sender, Response::ContainerInfo(ContainerInfo::from(&pack_file_decoded)));
                     }
@@ -273,6 +287,9 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                             });
                         }
 
+                        // Update session pack name for CA packs.
+                        session.set_pack_name(Some("CA PackFiles".to_string()));
+
                         CentralCommand::send_back(&sender, Response::ContainerInfo(ContainerInfo::from(&pack_file_decoded)));
                     }
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
@@ -306,7 +323,13 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 }
 
                 match pack_file_decoded.save(Some(&path), game, &extra_data) {
-                    Ok(_) => CentralCommand::send_back(&sender, Response::ContainerInfo(From::from(&pack_file_decoded))),
+                    Ok(_) => {
+                        // Update session pack name from the new path.
+                        let pack_name = path.file_name().and_then(|n| n.to_str()).map(|s| s.to_string());
+                        session.set_pack_name(pack_name);
+
+                        CentralCommand::send_back(&sender, Response::ContainerInfo(From::from(&pack_file_decoded)));
+                    }
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(anyhow!("Error while trying to save the currently open PackFile: {}", error).to_string())),
                 }
             }
@@ -317,7 +340,13 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
 
                 let extra_data = Some(EncodeableExtraData::new_from_game_info_and_settings(game, pack_file_decoded.compression_format(), settings.bool("disable_uuid_regeneration_on_db_tables")));
                 match pack_file_decoded.save(Some(&path), game, &extra_data) {
-                    Ok(_) => CentralCommand::send_back(&sender, Response::ContainerInfo(From::from(&pack_file_decoded))),
+                    Ok(_) => {
+                        // Update session pack name from the new path.
+                        let pack_name = path.file_name().and_then(|n| n.to_str()).map(|s| s.to_string());
+                        session.set_pack_name(pack_name);
+
+                        CentralCommand::send_back(&sender, Response::ContainerInfo(From::from(&pack_file_decoded)));
+                    }
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(anyhow!("Error while trying to save the currently open PackFile: {}", error).to_string())),
                 }
             }
@@ -373,6 +402,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 }
             }
 
+            Command::GetGameSelected => CentralCommand::send_back(&sender, Response::String(game.key().to_owned())),
             Command::SetGameSelected(game_key, rebuild_dependencies) => {
                 info!("Setting game selected.");
                 let game_changed = game.key() != game_key || !first_game_change_done;

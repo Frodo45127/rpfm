@@ -88,6 +88,8 @@ tokio-tungstenite = "^0.26"
 
 # Autoupdate support.
 self_update.workspace = true
+
+# Session API support.
 reqwest.workspace = true
 
 # Translator libraries.

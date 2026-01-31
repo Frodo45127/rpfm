@@ -8,7 +8,7 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-use axum::{routing::get, Router};
+use axum::{extract::State, routing::get, Json, Router};
 use rmcp::transport::streamable_http_server::{session::local::LocalSessionManager, StreamableHttpService};
 use tokio::net::TcpListener;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -17,6 +17,7 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use rpfm_ipc::helpers::SessionInfo;
 use rpfm_ipc::messages::{Command, Response};
 use rpfm_lib::integrations::log::{Logger, SENTRY_DSN, error, info, release_name};
 
@@ -97,6 +98,7 @@ async fn main() {
     // Setup the endpoints for the server.
     let app = Router::new()
         .route("/ws", get(ws_handler))
+        .route("/sessions", get(sessions_handler))
         .nest_service("/mcp", http_service)
         .with_state(session_manager);
 
@@ -110,4 +112,20 @@ async fn main() {
             error!("Failed to bind to address {}: {}", addr, err);
         }
     }
+}
+
+/// REST endpoint to get information about all active sessions.
+///
+/// Returns a JSON array of [`SessionInfo`] objects containing:
+/// - `session_id`: Unique session identifier
+/// - `connection_count`: Number of active WebSocket connections
+/// - `timeout_remaining_secs`: Seconds until session cleanup (if disconnected)
+/// - `is_shutting_down`: Whether session is marked for shutdown
+///
+/// This endpoint is used by the UI's session management dialog to display
+/// available sessions and allow users to connect to specific ones.
+async fn sessions_handler(State(session_manager): State<Arc<SessionManager>>) -> Json<Vec<SessionInfo>> {
+    let sessions = session_manager.get_sessions_info();
+    info!("Sessions endpoint queried: {} active session(s)", sessions.len());
+    Json(sessions)
 }

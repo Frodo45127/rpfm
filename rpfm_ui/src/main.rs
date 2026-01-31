@@ -98,6 +98,7 @@ mod pack_tree;
 mod packfile_contents_ui;
 mod packedfile_views;
 mod references_ui;
+mod session_ui;
 mod settings_ui;
 #[cfg(feature = "enable_tools")]mod tools;
 mod ui;

@@ -75,6 +75,15 @@ async fn handle_socket(socket: WebSocket, session_manager: Arc<SessionManager>, 
     let (mut sink, mut receiver) = socket.split();
     let (tx, mut rx) = mpsc::unbounded_channel::<IpcMessage<Response>>();
 
+    // Send the session ID to the client immediately after connection.
+    let session_connected_msg = IpcMessage {
+        id: 0, // Special ID for connection message
+        data: Response::SessionConnected(session_id),
+    };
+    if let Ok(json) = serde_json::to_string(&session_connected_msg) {
+        let _ = sink.send(Message::Text(json.into())).await;
+    }
+
     // Task to send responses back to the client.
     let sender_task = tokio::spawn(async move {
         while let Some(response_msg) = rx.recv().await {

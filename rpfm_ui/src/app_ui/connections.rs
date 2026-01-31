@@ -50,6 +50,7 @@ pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
     app_ui.compression_format_lz4.triggered().connect(&slots.packfile_change_compression_format);
     app_ui.compression_format_zstd.triggered().connect(&slots.packfile_change_compression_format);
 
+    app_ui.packfile_select_session.triggered().connect(&slots.packfile_select_session);
     app_ui.packfile_settings.triggered().connect(&slots.packfile_settings);
     app_ui.packfile_quit.triggered().connect(&slots.packfile_quit);
 
