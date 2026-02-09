@@ -55,14 +55,18 @@ impl PortraitSettings {
 
             let mut variants = vec![];
             for _ in 0..data.read_u32()? {
-                variants.push(Variant {
-                    filename: data.read_sized_string_u8()?,
-                    file_diffuse: data.read_sized_string_u8()?,
-                    file_mask_1: data.read_sized_string_u8()?,
-                    file_mask_2: data.read_sized_string_u8()?,
-                    file_mask_3: data.read_sized_string_u8()?,
-                    ..Default::default()
-                });
+                let mut variant = Variant::default();
+                variant.filename = data.read_sized_string_u8()?;
+                variant.file_diffuse = data.read_sized_string_u8()?;
+
+                // Some files end up here for some reason. End decoding here.
+                if check_size_mismatch(data.stream_position()? as usize, data.len()? as usize).is_err() {
+                    variant.file_mask_1 = data.read_sized_string_u8()?;
+                    variant.file_mask_2 = data.read_sized_string_u8()?;
+                    variant.file_mask_3 = data.read_sized_string_u8()?;
+                }
+
+                variants.push(variant);
             }
 
             self.entries.push(Entry {
