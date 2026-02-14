@@ -9,11 +9,11 @@
 #include <QResource>
 
 // Fuction to be able to create a custom QMainWindow.
-extern "C" QMainWindow* new_q_main_window_custom(bool (*are_you_sure) (QMainWindow* main_window, bool is_delete_my_mod), bool is_dark_theme_enabled) {
+extern "C" QMainWindow* new_q_main_window_custom(bool (*are_you_sure) (QMainWindow* main_window, bool is_delete_my_mod, bool is_full_close), bool is_dark_theme_enabled) {
     return dynamic_cast<QMainWindow*>(new QMainWindowCustom(nullptr, are_you_sure, is_dark_theme_enabled));
 }
 
-QMainWindowCustom::QMainWindowCustom(QWidget *parent, bool (*are_you_sure_fn) (QMainWindow* main_window, bool is_delete_my_mod), bool is_dark_theme_enabled) : QMainWindow(parent) {
+QMainWindowCustom::QMainWindowCustom(QWidget *parent, bool (*are_you_sure_fn) (QMainWindow* main_window, bool is_delete_my_mod, bool is_full_close), bool is_dark_theme_enabled) : QMainWindow(parent) {
     are_you_sure = are_you_sure_fn;
     dark_theme_enabled = is_dark_theme_enabled;
     busyIndicator = new KBusyIndicatorWidget(this);
