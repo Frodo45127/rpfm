@@ -720,10 +720,10 @@ pub enum RLibError {
     #[error(transparent)]
     TomlError(#[from] toml::ser::Error),
 
-    /// Wrapper for [`bincode::Error`] errors.
-    #[cfg(feature = "support_error_bincode")]
+    /// Wrapper for [`bitcode::Error`] errors.
+    #[cfg(feature = "support_error_bitcode")]
     #[error(transparent)]
-    BindcodeError(#[from] bincode::Error),
+    BitcodeError(#[from] bitcode::Error),
 
     /// Wrapper for [`serde_xml_rs::Error`] errors.
     #[cfg(feature = "integration_assembly_kit")]

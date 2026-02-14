@@ -15,7 +15,7 @@ rust-version.workspace = true
 [features]
 default = ["integration_assembly_kit"]
 
-support_error_bincode = ["dep:bincode"]
+support_error_bitcode = ["dep:bitcode"]
 enable_content_inspector = []
 
 integration_assembly_kit = ["dep:serde-xml-rs"]
@@ -41,7 +41,7 @@ serde-xml-rs = { version = "^0.8", optional = true }
 csv.workspace = true
 ron.workspace = true
 toml.workspace = true
-bincode = { workspace = true, optional = true }
+bitcode = { workspace = true, optional = true }
 
 # Serialization of vec -> string values and back.
 base64.workspace = true

@@ -23,7 +23,7 @@ tracing-subscriber = "^0.3"
 anyhow.workspace = true
 
 # Internal dependencies.
-rpfm_lib = { workspace = true, features = ["integration_log", "integration_git", "integration_assembly_kit", "support_error_bincode"] }
+rpfm_lib = { workspace = true, features = ["integration_log", "integration_git", "integration_assembly_kit", "support_error_bitcode"] }
 rpfm_extensions.workspace = true
 rpfm_ipc.workspace = true
 

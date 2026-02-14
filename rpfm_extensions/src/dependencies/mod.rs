@@ -642,7 +642,7 @@ impl Dependencies {
     pub fn load(file_path: &Path, schema: &Option<Schema>) -> Result<Self> {
 
         // Optimization: Instead of a big file, we split the dependencies in 3 files. Why?
-        // Because bincode is not multithreaded and, while reading 3 medium files is slower than a big one,
+        // Because bitcode is not multithreaded and, while reading 3 medium files is slower than a big one,
         // deserializing 3 medium files in 3 separate threads is way faster than 1 big file in 1 thread.
         let mut file_path_1 = file_path.to_path_buf();
         let handle_1: JoinHandle<Result<(u64, String, Vec<RFile>)>> = spawn(move || {
@@ -652,7 +652,7 @@ impl Dependencies {
             file.read_to_end(&mut data)?;
 
             // Never deserialize directly from the file. It's bloody slow!!!
-            bincode::deserialize(&data).map_err(From::from)
+            bitcode::deserialize(&data).map_err(From::from)
         });
 
         let mut file_path_2 = file_path.to_path_buf();
@@ -663,7 +663,7 @@ impl Dependencies {
             file.read_to_end(&mut data)?;
 
             // Never deserialize directly from the file. It's bloody slow!!!
-            bincode::deserialize(&data).map_err(From::from)
+            bitcode::deserialize(&data).map_err(From::from)
         });
 
         let mut file_path_3 = file_path.to_path_buf();
@@ -674,7 +674,7 @@ impl Dependencies {
             file.read_to_end(&mut data)?;
 
             // Never deserialize directly from the file. It's bloody slow!!!
-            bincode::deserialize(&data).map_err(From::from)
+            bitcode::deserialize(&data).map_err(From::from)
         });
 
         // Get the thread's data in reverse, as 1 and 2 are actually the slower to process.
@@ -742,9 +742,9 @@ impl Dependencies {
         let vanilla_files_2 = vanilla_files_1.split_off(self.vanilla_files.len() / 2);
 
         // Never serialize directly into the file. It's bloody slow!!!
-        let serialized_1: Vec<u8> = bincode::serialize(&(&self.build_date, &self.version, &vanilla_files_1))?;
-        let serialized_2: Vec<u8> = bincode::serialize(&vanilla_files_2)?;
-        let serialized_3: Vec<u8> = bincode::serialize(&(&self.vanilla_tables, &self.vanilla_locs, &self.vanilla_folders, &self.vanilla_paths, &self.asskit_only_db_tables))?;
+        let serialized_1: Vec<u8> = bitcode::serialize(&(&self.build_date, &self.version, &vanilla_files_1))?;
+        let serialized_2: Vec<u8> = bitcode::serialize(&vanilla_files_2)?;
+        let serialized_3: Vec<u8> = bitcode::serialize(&(&self.vanilla_tables, &self.vanilla_locs, &self.vanilla_folders, &self.vanilla_paths, &self.asskit_only_db_tables))?;
 
         file_1.write_all(&serialized_1).map_err(RLibError::from)?;
         file_2.write_all(&serialized_2).map_err(RLibError::from)?;

@@ -15,7 +15,7 @@ rust-version.workspace = true
 [dependencies]
 
 # Internal dependencies.
-rpfm_lib = { workspace = true, features = ["integration_log", "integration_assembly_kit", "support_error_bincode"] }
+rpfm_lib = { workspace = true, features = ["integration_log", "integration_assembly_kit", "support_error_bitcode"] }
 
 # Basic get/set support.
 getset.workspace = true
@@ -30,7 +30,7 @@ regex.workspace = true
 serde.workspace = true
 serde_derive.workspace = true
 serde_json.workspace = true
-bincode.workspace = true
+bitcode.workspace = true
 
 # Multithread iterator support.
 rayon.workspace = true
