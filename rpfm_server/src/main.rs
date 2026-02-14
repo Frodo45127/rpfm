@@ -11,7 +11,7 @@
 use axum::{extract::State, routing::get, Json, Router};
 use rmcp::transport::streamable_http_server::{session::local::LocalSessionManager, StreamableHttpService};
 use tokio::net::TcpListener;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Layer};
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -62,7 +62,9 @@ async fn main() {
     // Setup tracing subscriber for logging, redirecting to stderr to avoid interfering with MCP.
     // TODO: Migrate lib's logging to tracing.
     tracing_subscriber::registry()
-        .with(tracing_subscriber::fmt::layer().with_writer(std::io::stderr))
+        .with(tracing_subscriber::fmt::layer()
+            .with_writer(std::io::stderr)
+            .with_filter(tracing_subscriber::filter::LevelFilter::INFO))
         .init();
 
     // Sentry client guard, so we can reuse it later on and keep it in scope for the entire duration of the program.
