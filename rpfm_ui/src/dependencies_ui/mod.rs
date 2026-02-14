@@ -220,38 +220,37 @@ impl DependenciesUI {
         app_ui.toggle_main_window(false);
 
         let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::ImportDependenciesToOpenPackFile(paths_by_source));
-        let response1 = CentralCommand::recv(&receiver);
-        let response2 = CentralCommand::recv(&receiver);
-        match response1 {
-            Response::VecContainerPath(paths) => {
-                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(paths.to_vec()), DataSource::PackFile);
+        let response = CentralCommand::recv(&receiver);
+        match response {
+            Response::VecContainerPathVecString(paths, not_added_paths) => {
+                if !paths.is_empty() {
+                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(paths.to_vec()), DataSource::PackFile);
 
-                UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
+                    UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
 
-                // Try to reload all open files which data we altered, and close those that failed.
-                let failed_paths = paths.iter().filter_map(|path| {
-                    if let ContainerPath::File(ref path) = path {
-                        if let Some(file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| *x.path_read() == *path && x.data_source() == DataSource::PackFile) {
-                            if file_view.reload(path, pack_file_contents_ui).is_err() {
-                                Some(path.to_owned())
+                    // Try to reload all open files which data we altered, and close those that failed.
+                    let failed_paths = paths.iter().filter_map(|path| {
+                        if let ContainerPath::File(ref path) = path {
+                            if let Some(file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| *x.path_read() == *path && x.data_source() == DataSource::PackFile) {
+                                if file_view.reload(path, pack_file_contents_ui).is_err() {
+                                    Some(path.to_owned())
+                                } else { None }
                             } else { None }
                         } else { None }
-                    } else { None }
-                }).collect::<Vec<String>>();
+                    }).collect::<Vec<String>>();
 
-                for path in &failed_paths {
-                    let _ = AppUI::purge_that_one_specifically(app_ui, pack_file_contents_ui, path, DataSource::PackFile, false);
+                    for path in &failed_paths {
+                        let _ = AppUI::purge_that_one_specifically(app_ui, pack_file_contents_ui, path, DataSource::PackFile, false);
+                    }
+                }
+
+                if !not_added_paths.is_empty() {
+                    show_dialog(app_ui.main_window(), anyhow!("<p>There was an error importing the following files:</p> <ul>{}</ul>", not_added_paths.iter().map(|x| "<li>".to_owned() + x + "</li>").collect::<String>()), false);
                 }
             }
 
             Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
-            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response1:?}"),
-        }
-
-        match response2 {
-            Response::Success => {},
-            Response::VecString(error_paths) => show_dialog(app_ui.main_window(), anyhow!("<p>There was an error importing the following files:</p> <ul>{}</ul>", error_paths.iter().map(|x| "<li>".to_owned() + x + "</li>").collect::<String>()), false),
-            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response2:?}"),
+            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
         }
 
         // Re-enable the Main Window.

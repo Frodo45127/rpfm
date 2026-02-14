@@ -119,12 +119,12 @@ pub enum Command {
 
     /// Closes the open Pack.
     ///
-    /// Response: None.
+    /// Response: [`Response::Success`].
     ClosePack,
 
     /// Close the extra Pack with the provided path.
     ///
-    /// Response: None.
+    /// Response: [`Response::Success`].
     ClosePackExtra(PathBuf),
 
     /// Clean the open Pack from corrupted/undecoded files and try to save it to disk.
@@ -138,7 +138,7 @@ pub enum Command {
 
     /// Creates a new empty Pack.
     ///
-    /// Response: None.
+    /// Response: [`Response::Success`].
     NewPack,
 
     /// Save the currently open Pack to disk.
@@ -215,7 +215,7 @@ pub enum Command {
 
     /// Change the `Type` of the currently open Pack.
     ///
-    /// Response: None.
+    /// Response: [`Response::Success`].
     SetPackFileType(PFHFileType),
 
     /// Generate the dependencies cache for the selected game.
@@ -248,7 +248,7 @@ pub enum Command {
 
     /// Change the `Index Includes Timestamp` flag in the currently open Pack.
     ///
-    /// Response: None.
+    /// Response: [`Response::Success`].
     ChangeIndexIncludesTimestamp(bool),
 
     /// Change the compression format of the currently open Pack.
@@ -314,8 +314,7 @@ pub enum Command {
     /// Requires: source filesystem paths, destination container paths, optional paths to ignore.
     ///
     /// Response:
-    /// - [`Response::VecContainerPath`] (added paths), then `Success`.
-    /// - [`Response::Error`] on failure.
+    /// - [`Response::VecContainerPathOptionString`] (added paths, optional error message).
     AddPackedFiles(Vec<PathBuf>, Vec<ContainerPath>, Option<Vec<PathBuf>>),
 
     /// Decode a PackedFile to be shown on the UI.
@@ -500,7 +499,7 @@ pub enum Command {
 
     /// Set the list of PackFiles marked as dependencies of the current PackFile.
     ///
-    /// Response: None.
+    /// Response: [`Response::Success`].
     SetDependencyPackFilesList(Vec<(bool, String)>),
 
     /// Get PackedFiles from all known sources (PackFile, GameFiles, ParentFiles).
@@ -533,7 +532,7 @@ pub enum Command {
 
     /// Encode and clean the cache for the provided paths.
     ///
-    /// Response: None.
+    /// Response: [`Response::Success`].
     CleanCache(Vec<ContainerPath>),
 
     //-----------------------------------------------------------------------//
@@ -592,7 +591,7 @@ pub enum Command {
 
     /// Trigger an autosave to a backup.
     ///
-    /// Response: None.
+    /// Response: [`Response::Success`].
     TriggerBackupAutosave,
 
     //-----------------------------------------------------------------------//
@@ -622,7 +621,7 @@ pub enum Command {
 
     /// Set the settings of the currently open PackFile.
     ///
-    /// Response: None.
+    /// Response: [`Response::Success`].
     SetPackSettings(PackSettings),
 
     //-----------------------------------------------------------------------//
@@ -631,7 +630,7 @@ pub enum Command {
 
     /// Export missing table definitions to a file (for debugging).
     ///
-    /// Response: None.
+    /// Response: [`Response::Success`].
     GetMissingDefinitions,
 
     //-----------------------------------------------------------------------//
@@ -699,13 +698,9 @@ pub enum Command {
 
     /// Import files from dependencies into the open PackFile.
     ///
-    /// This message returns two consecutive responses:
-    /// - [`Response::VecContainerPath`] (added paths) on success.
+    /// Response:
+    /// - [`Response::VecContainerPathVecString`] (added paths, failed paths).
     /// - [`Response::Error`] on failure.
-    ///
-    /// Then:
-    /// - [`Response::Success`] on success.
-    /// - [`Response::VecString`] (failed paths) on partial failure.
     ImportDependenciesToOpenPackFile(BTreeMap<DataSource, Vec<ContainerPath>>),
 
     /// Save PackedFiles to the current PackFile and optionally optimize.
@@ -737,7 +732,7 @@ pub enum Command {
 
     /// Delete a note.
     ///
-    /// Response: None.
+    /// Response: [`Response::Success`].
     DeleteNote(String, u64),
 
     //-----------------------------------------------------------------------//
@@ -838,7 +833,7 @@ pub enum Command {
 
     /// Add a line to the pack's ignored diagnostics.
     ///
-    /// Response: None.
+    /// Response: [`Response::Success`].
     AddLineToPackIgnoredDiagnostics(String),
 
     //-----------------------------------------------------------------------//
@@ -1148,7 +1143,7 @@ pub enum Command {
 
     /// Backup the current settings to memory.
     ///
-    /// Response: None.
+    /// Response: [`Response::Success`].
     BackupSettings,
 
     /// Clear settings and reset to defaults.
@@ -1160,7 +1155,7 @@ pub enum Command {
 
     /// Restore settings from the backup.
     ///
-    /// Response: None.
+    /// Response: [`Response::Success`].
     RestoreBackupSettings,
 
     /// Get the optimizer options.
@@ -1207,7 +1202,7 @@ pub enum Command {
 
     /// Delete a definition by table name and version.
     ///
-    /// Response: None.
+    /// Response: [`Response::Success`].
     DeleteDefinition(String, i32)
 }
 
@@ -1284,8 +1279,10 @@ pub enum Response {
     VecBoolString(Vec<(bool, String)>),
     VecContainerPath(Vec<ContainerPath>),
     VecContainerPathContainerPath(Vec<(ContainerPath, ContainerPath)>),
+    VecContainerPathOptionString(Vec<ContainerPath>, Option<String>),
     VecContainerPathVecContainerPath(Vec<ContainerPath>, Vec<ContainerPath>),
     VecContainerPathVecRFileInfo(Vec<ContainerPath>, Vec<RFileInfo>),
+    VecContainerPathVecString(Vec<ContainerPath>, Vec<String>),
     VecDataSourceStringStringUsizeUsize(Vec<(DataSource, String, String, usize, usize)>),
     VecDefinition(Vec<Definition>),
     VecNote(Vec<Note>),

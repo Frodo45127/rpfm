@@ -328,34 +328,33 @@ impl PackFileContentsUI {
         }
 
         let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::AddPackedFiles(paths.to_vec(), paths_in_container.to_vec(), paths_to_ignore));
-        let response1 = CentralCommand::recv(&receiver);
-        let response2 = CentralCommand::recv(&receiver);
-        match response1 {
-            Response::VecContainerPath(paths) => {
-                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths.to_vec()), DataSource::PackFile);
+        let response = CentralCommand::recv(&receiver);
+        match response {
+            Response::VecContainerPathOptionString(paths, error) => {
+                if !paths.is_empty() {
+                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths.to_vec()), DataSource::PackFile);
 
-                UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
+                    UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
 
-                // Try to reload all open files which data we altered, and close those that failed.
-                let failed_paths = UI_STATE.set_open_packedfiles()
-                    .iter_mut()
-                    .filter(|view| view.data_source() == DataSource::PackFile && (paths.iter().any(|path| path.path_raw() == *view.path_read() || *view.path_read() == RESERVED_NAME_NOTES)))
-                    .filter_map(|view| if view.reload(&view.path_copy(), pack_file_contents_ui).is_err() { Some(view.path_copy()) } else { None })
-                    .collect::<Vec<_>>();
+                    // Try to reload all open files which data we altered, and close those that failed.
+                    let failed_paths = UI_STATE.set_open_packedfiles()
+                        .iter_mut()
+                        .filter(|view| view.data_source() == DataSource::PackFile && (paths.iter().any(|path| path.path_raw() == *view.path_read() || *view.path_read() == RESERVED_NAME_NOTES)))
+                        .filter_map(|view| if view.reload(&view.path_copy(), pack_file_contents_ui).is_err() { Some(view.path_copy()) } else { None })
+                        .collect::<Vec<_>>();
 
-                for path in &failed_paths {
-                    let _ = AppUI::purge_that_one_specifically(app_ui, pack_file_contents_ui, path, DataSource::PackFile, false);
+                    for path in &failed_paths {
+                        let _ = AppUI::purge_that_one_specifically(app_ui, pack_file_contents_ui, path, DataSource::PackFile, false);
+                    }
+                }
+
+                if let Some(error) = error {
+                    show_dialog(app_ui.main_window(), error, false);
                 }
             }
 
             Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
-            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response1:?}"),
-        }
-
-        match response2 {
-            Response::Success => {},
-            Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
-            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response2:?}"),
+            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
         }
 
         // Re-enable the Main Window.

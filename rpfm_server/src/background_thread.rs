@@ -206,10 +206,14 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
             Command::ClosePack => {
                 pack_file_decoded = Pack::default();
                 session.set_pack_name(None);
+                CentralCommand::send_back(&sender, Response::Success);
             }
 
             // In case we want to remove a Secondary Packfile from memory...
-            Command::ClosePackExtra(path) => { pack_files_decoded_extra.remove(&path); },
+            Command::ClosePackExtra(path) => {
+                pack_files_decoded_extra.remove(&path);
+                CentralCommand::send_back(&sender, Response::Success);
+            }
 
             // In case we want to create a "New PackFile"...
             Command::NewPack => {
@@ -221,6 +225,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 }
 
                 session.set_pack_name(Some("new_file.pack".to_string()));
+                CentralCommand::send_back(&sender, Response::Success);
             }
 
             // In case we want to "Open one or more PackFiles"...
@@ -625,13 +630,17 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
             }
 
             // In case we want to change the PackFile's Type...
-            Command::SetPackFileType(new_type) => pack_file_decoded.set_pfh_file_type(new_type),
+            Command::SetPackFileType(new_type) => {
+                pack_file_decoded.set_pfh_file_type(new_type);
+                CentralCommand::send_back(&sender, Response::Success);
+            }
 
             // In case we want to change the "Include Last Modified Date" setting of the PackFile...
             Command::ChangeIndexIncludesTimestamp(state) => {
                 let mut bitmask = pack_file_decoded.bitmask();
                 bitmask.set(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS, state);
                 pack_file_decoded.set_bitmask(bitmask);
+                CentralCommand::send_back(&sender, Response::Success);
             },
 
             // In case we want to compress/decompress the PackedFiles of the currently open PackFile...
@@ -646,7 +655,10 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
             Command::GetDependencyPackFilesList => CentralCommand::send_back(&sender, Response::VecBoolString(pack_file_decoded.dependencies().to_vec())),
 
             // In case we want to set the Dependency PackFiles of our PackFile...
-            Command::SetDependencyPackFilesList(packs) => { pack_file_decoded.set_dependencies(packs); },
+            Command::SetDependencyPackFilesList(packs) => {
+                pack_file_decoded.set_dependencies(packs);
+                CentralCommand::send_back(&sender, Response::Success);
+            },
 
             // In case we want to check if there is a Dependency Database loaded...
             Command::IsThereADependencyDatabase(include_asskit) => {
@@ -772,13 +784,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                     }
                 }
 
-                if let Some(error) = it_broke {
-                    CentralCommand::send_back(&sender, Response::VecContainerPath(added_paths.to_vec()));
-                    CentralCommand::send_back(&sender, Response::Error(error.to_string()));
-                } else {
-                    CentralCommand::send_back(&sender, Response::VecContainerPath(added_paths.to_vec()));
-                    CentralCommand::send_back(&sender, Response::Success);
-                }
+                CentralCommand::send_back(&sender, Response::VecContainerPathOptionString(added_paths.to_vec(), it_broke.map(|e| e.to_string())));
 
                 // Force decoding of table/locs, so they're in memory for the diagnostics to work.
                 if let Some(ref schema) = schema {
@@ -997,7 +1003,9 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                         }
                     }
 
-                    DataSource::ExternalFile => {}
+                    DataSource::ExternalFile => {
+                        CentralCommand::send_back(&sender, Response::Success);
+                    }
                 }
             }
 
@@ -1011,6 +1019,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 else if let Some(file) = pack_file_decoded.files_mut().get_mut(&path) {
                     if let Err(error) = file.set_decoded(file_decoded) {
                         CentralCommand::send_back(&sender, Response::Error(error.to_string()));
+                        continue;
                     }
                 }
                 CentralCommand::send_back(&sender, Response::Success);
@@ -1163,7 +1172,9 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                     if let Some(ref schema) = schema {
                         if let Some(version) = dependencies.read().unwrap().db_version(&table_name) {
                             if let Some(definition) = schema.definition_by_name_and_version(&table_name, version) {
-                                CentralCommand::send_back(&sender, Response::Definition(definition.clone()));
+                                let mut definition = definition.clone();
+                                definition.populate_fields_processed();
+                                CentralCommand::send_back(&sender, Response::Definition(definition));
                             } else { CentralCommand::send_back(&sender, Response::Error(format!("No definition found for table {}.", table_name).to_string())); }
                         } else { CentralCommand::send_back(&sender, Response::Error(format!("Table version not found in dependencies for table {}.", table_name).to_string())); }
                     } else { CentralCommand::send_back(&sender, Response::Error("There is no Schema for the Game Selected.".to_string().to_string())); }
@@ -1289,6 +1300,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 files.iter_mut().for_each(|file| {
                     let _ = file.encode(&extra_data, true, true, false);
                 });
+                CentralCommand::send_back(&sender, Response::Success);
             }
 
             // In case we want to export a PackedFile as a TSV file...
@@ -1468,7 +1480,6 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 let folder = backup_autosave_path().unwrap().join(pack_file_decoded.disk_file_name());
                 let _ = DirBuilder::new().recursive(true).create(&folder);
 
-                // Note: we no longer notify the UI of success or error to not hang it up.
                 let game_path = settings.path_buf(game.key());
                 let ca_paths = game.ca_packs_paths(&game_path)
                     .unwrap_or_default()
@@ -1504,6 +1515,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                         }
                     }
                 }
+                CentralCommand::send_back(&sender, Response::Success);
             }
 
             // In case we want to perform a diagnostics check...
@@ -1542,7 +1554,10 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
 
             // In case we want to get the open PackFile's Settings...
             Command::GetPackSettings => CentralCommand::send_back(&sender, Response::PackSettings(pack_file_decoded.settings().clone())),
-            Command::SetPackSettings(settings) => { pack_file_decoded.set_settings(settings); }
+            Command::SetPackSettings(settings) => {
+                pack_file_decoded.set_settings(settings);
+                CentralCommand::send_back(&sender, Response::Success);
+            }
 
             Command::GetMissingDefinitions => {
 
@@ -1580,6 +1595,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                     let mut file = BufWriter::new(file);
                     let _ = file.write_all(table_list.as_bytes());
                 }
+                CentralCommand::send_back(&sender, Response::Success);
             }
 
             // Ignore errors for now.
@@ -1895,7 +1911,6 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                         DataSource::AssKitFiles => HashMap::new(),
                         _ => {
                             CentralCommand::send_back(&sender, Response::Error("You can't import files from this source.".to_string()));
-                            CentralCommand::send_back(&sender, Response::Success);
                             continue 'background_loop;
                         },
                     };
@@ -1982,7 +1997,6 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                                                 // Any other situation is an error.
                                                 else {
                                                     CentralCommand::send_back(&sender, Response::Error("No idea how you were able to trigger this.".to_string()));
-                                                    CentralCommand::send_back(&sender, Response::Success);
                                                     continue 'background_loop;
                                                 }
 
@@ -2008,25 +2022,18 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                                 },
                                 None => {
                                     CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected.").to_string()));
-                                    CentralCommand::send_back(&sender, Response::Success);
                                     continue 'background_loop;
                                 }
                             }
                         },
                         _ => {
                             CentralCommand::send_back(&sender, Response::Error("You can't import files from this source.".to_string()));
-                            CentralCommand::send_back(&sender, Response::Success);
                             continue 'background_loop;
                         },
                     }
                 }
 
-                CentralCommand::send_back(&sender, Response::VecContainerPath(added_paths));
-                if not_added_paths.is_empty() {
-                    CentralCommand::send_back(&sender, Response::Success);
-                } else {
-                    CentralCommand::send_back(&sender, Response::VecString(not_added_paths));
-                }
+                CentralCommand::send_back(&sender, Response::VecContainerPathVecString(added_paths, not_added_paths));
             },
 
             Command::GetRFilesFromAllSources(paths, force_lowercased_paths) => {
@@ -2177,7 +2184,10 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
 
             Command::NotesForPath(path) => CentralCommand::send_back(&sender, Response::VecNote(pack_file_decoded.notes().notes_by_path(&path))),
             Command::AddNote(note) => CentralCommand::send_back(&sender, Response::Note(pack_file_decoded.notes_mut().add_note(note))),
-            Command::DeleteNote(path, id) => pack_file_decoded.notes_mut().delete_note(&path, id),
+            Command::DeleteNote(path, id) => {
+                pack_file_decoded.notes_mut().delete_note(&path, id);
+                CentralCommand::send_back(&sender, Response::Success);
+            }
 
             Command::SaveLocalSchemaPatch(patches) => {
                 let path = table_patches_path().unwrap().join(game.schema_file_name());
@@ -2373,6 +2383,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 } else {
                     pack_file_decoded.settings_mut().settings_text_mut().insert("diagnostics_files_to_ignore".to_owned(), line);
                 }
+                CentralCommand::send_back(&sender, Response::Success);
             },
 
             Command::UpdateEmpireAndNapoleonAK => {
@@ -2667,21 +2678,31 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                     Err(e) => CentralCommand::send_back(&sender, Response::Error(e.to_string())),
                 }
             },
-            Command::BackupSettings => backup_settings = settings.clone(),
+            Command::BackupSettings => {
+                backup_settings = settings.clone();
+                CentralCommand::send_back(&sender, Response::Success);
+            }
             Command::ClearSettings => match Settings::init(true) {
                 Ok(set) => {
                     settings = set;
                     CentralCommand::send_back(&sender, Response::Success);},
                 Err(e) => CentralCommand::send_back(&sender, Response::Error(e.to_string())),
             },
-            Command::RestoreBackupSettings => settings = backup_settings.clone(),
+            Command::RestoreBackupSettings => {
+                settings = backup_settings.clone();
+                CentralCommand::send_back(&sender, Response::Success);
+            }
             Command::OptimizerOptions => CentralCommand::send_back(&sender, Response::OptimizerOptions(settings.optimizer_options())),
 
             Command::IsSchemaLoaded => CentralCommand::send_back(&sender, Response::Bool(schema.is_some())),
             Command::DefinitionsByTableName(name) => match schema {
                 Some(ref schema) => {
                     match schema.definitions_by_table_name(&name) {
-                        Some(defs) => CentralCommand::send_back(&sender, Response::VecDefinition(defs.to_vec())),
+                        Some(defs) => {
+                            let mut defs = defs.to_vec();
+                            defs.iter_mut().for_each(|def| def.populate_fields_processed());
+                            CentralCommand::send_back(&sender, Response::VecDefinition(defs));
+                        },
                         None => CentralCommand::send_back(&sender, Response::VecDefinition(vec![])),
                     }
                 },
@@ -2697,14 +2718,21 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
             }
             Command::DefinitionByTableNameAndVersion(name, version) => match schema {
                 Some(ref schema) => match schema.definition_by_name_and_version(&name, version) {
-                    Some(def) => CentralCommand::send_back(&sender, Response::Definition(def.clone())),
+                    Some(def) => {
+                        let mut def = def.clone();
+                        def.populate_fields_processed();
+                        CentralCommand::send_back(&sender, Response::Definition(def));
+                    },
                     None => CentralCommand::send_back(&sender, Response::Error(format!("No definition found for table '{}' with version {}.", name, version))),
                 },
                 None => CentralCommand::send_back(&sender, Response::Error("There is no Schema for the Game Selected.".to_string())),
             },
 
-            Command::DeleteDefinition(name, version) => if let Some(ref mut schema) = schema {
-                schema.remove_definition(&name, version);
+            Command::DeleteDefinition(name, version) => {
+                if let Some(ref mut schema) = schema {
+                    schema.remove_definition(&name, version);
+                }
+                CentralCommand::send_back(&sender, Response::Success);
             }
         }
     }
