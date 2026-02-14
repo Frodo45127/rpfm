@@ -1172,9 +1172,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                     if let Some(ref schema) = schema {
                         if let Some(version) = dependencies.read().unwrap().db_version(&table_name) {
                             if let Some(definition) = schema.definition_by_name_and_version(&table_name, version) {
-                                let mut definition = definition.clone();
-                                definition.populate_fields_processed();
-                                CentralCommand::send_back(&sender, Response::Definition(definition));
+                                CentralCommand::send_back(&sender, Response::Definition(definition.clone()));
                             } else { CentralCommand::send_back(&sender, Response::Error(format!("No definition found for table {}.", table_name).to_string())); }
                         } else { CentralCommand::send_back(&sender, Response::Error(format!("Table version not found in dependencies for table {}.", table_name).to_string())); }
                     } else { CentralCommand::send_back(&sender, Response::Error("There is no Schema for the Game Selected.".to_string().to_string())); }
@@ -2698,11 +2696,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
             Command::DefinitionsByTableName(name) => match schema {
                 Some(ref schema) => {
                     match schema.definitions_by_table_name(&name) {
-                        Some(defs) => {
-                            let mut defs = defs.to_vec();
-                            defs.iter_mut().for_each(|def| def.populate_fields_processed());
-                            CentralCommand::send_back(&sender, Response::VecDefinition(defs));
-                        },
+                        Some(defs) => CentralCommand::send_back(&sender, Response::VecDefinition(defs.to_vec())),
                         None => CentralCommand::send_back(&sender, Response::VecDefinition(vec![])),
                     }
                 },
@@ -2718,11 +2712,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
             }
             Command::DefinitionByTableNameAndVersion(name, version) => match schema {
                 Some(ref schema) => match schema.definition_by_name_and_version(&name, version) {
-                    Some(def) => {
-                        let mut def = def.clone();
-                        def.populate_fields_processed();
-                        CentralCommand::send_back(&sender, Response::Definition(def));
-                    },
+                    Some(def) => CentralCommand::send_back(&sender, Response::Definition(def.clone())),
                     None => CentralCommand::send_back(&sender, Response::Error(format!("No definition found for table '{}' with version {}.", name, version))),
                 },
                 None => CentralCommand::send_back(&sender, Response::Error("There is no Schema for the Game Selected.".to_string())),
