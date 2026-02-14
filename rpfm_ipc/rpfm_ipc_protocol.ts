@@ -171,45 +171,518 @@ export type APIResponse =
   | "UnknownVersion";
 
 /** Git operation response. */
-export type GitResponse = unknown; // Opaque; see rpfm_lib::integrations::git
+export type GitResponse =
+  | "NewUpdate"      // A new update is available on the remote
+  | "NoUpdate"       // The local repository is up-to-date
+  | "NoLocalFiles"   // No local copy exists (needs cloning)
+  | "Diverged";      // Local and remote branches have diverged
 
 /** Optimizer configuration options. */
-export type OptimizerOptions = unknown; // See rpfm_extensions::optimizer
+export interface OptimizerOptions {
+  /** Allow removing files unchanged from vanilla. */
+  pack_remove_itm_files: boolean;
+  /** Import datacored tables into twad_key_deletes (doesn't delete datacored tables). */
+  db_import_datacores_into_twad_key_deletes: boolean;
+  /** Allow optimizing datacored tables (not recommended). */
+  db_optimize_datacored_tables: boolean;
+  /** Allow removing duplicated rows from db and loc files. */
+  table_remove_duplicated_entries: boolean;
+  /** Allow removing ITM (Identical To Master) rows from db and loc files. */
+  table_remove_itm_entries: boolean;
+  /** Allow removing ITNR (Identical To New Row) rows from db and loc files. */
+  table_remove_itnr_entries: boolean;
+  /** Allow removing empty db and loc files. */
+  table_remove_empty_file: boolean;
+  /** Allow removing unused xml files in map folders. */
+  text_remove_unused_xml_map_folders: boolean;
+  /** Allow removing unused xml files in the prefab folder. */
+  text_remove_unused_xml_prefab_folder: boolean;
+  /** Allow removing unused agf files. */
+  text_remove_agf_files: boolean;
+  /** Allow removing unused model_statistics files. */
+  text_remove_model_statistics_files: boolean;
+  /** Allow removing unused art sets in Portrait Settings files. */
+  pts_remove_unused_art_sets: boolean;
+  /** Allow removing unused variants from art sets in Portrait Settings files. */
+  pts_remove_unused_variants: boolean;
+  /** Allow removing empty masks in Portrait Settings files. */
+  pts_remove_empty_masks: boolean;
+  /** Allow removing empty Portrait Settings files. */
+  pts_remove_empty_file: boolean;
+}
 
-/** Schema definition for a DB table version. */
-export type Definition = unknown; // See rpfm_lib::schema::Definition
-
-/** Patch applied to a schema definition. */
-export type DefinitionPatch = unknown; // See rpfm_lib::schema::DefinitionPatch
+/** Field data type in schema definitions. */
+export type FieldType =
+  | "Boolean"
+  | "F32"
+  | "F64"
+  | "I16"
+  | "I32"
+  | "I64"
+  | "ColourRGB"
+  | "StringU8"
+  | "StringU16"
+  | "OptionalI16"
+  | "OptionalI32"
+  | "OptionalI64"
+  | "OptionalStringU8"
+  | "OptionalStringU16"
+  | { SequenceU16: Definition }
+  | { SequenceU32: Definition };
 
 /** A single field descriptor within a Definition. */
-export type Field = unknown; // See rpfm_lib::schema::Field
+export interface Field {
+  /** Name of the field. */
+  name: string;
+  /** Data type of the field. */
+  field_type: FieldType;
+  /** Whether this field is part of the table's primary key. */
+  is_key: boolean;
+  /** Default value for this field when creating new rows. */
+  default_value: string | null;
+  /** Whether this field contains a filename/path. */
+  is_filename: boolean;
+  /** Semicolon-separated list of relative paths where files can be found. */
+  filename_relative_path: string | null;
+  /** Foreign key reference to another table: [table_name, column_name]. */
+  is_reference: [string, string] | null;
+  /** Additional columns from the referenced table to show in lookups. */
+  lookup: string[] | null;
+  /** Human-readable description of the field's purpose. */
+  description: string;
+  /** Visual position in CA's Assembly Kit table editor (-1 = unknown). */
+  ca_order: number;
+  /** Number of boolean columns this field should be split into. */
+  is_bitwise: number;
+  /** Named values for this field when treated as an enum. Map of integer values to string names. */
+  enum_values: Record<number, string>;
+  /** Index of the RGB colour group this field belongs to (null if not part of a colour). */
+  is_part_of_colour: number | null;
+}
+
+/** Patch applied to a schema definition. Map of field names to patch properties. */
+export type DefinitionPatch = Record<string, Record<string, string>>;
+
+/** Schema definition for a DB table version. */
+export interface Definition {
+  /** Version number (-1=fake, 0=unversioned, 1+=versioned). */
+  version: number;
+  /** List of fields in binary order. */
+  fields: Field[];
+  /** Processed fields with bitwise expansion, enum conversion, and RGB colour merging applied. */
+  fields_processed_serialized: Field[];
+  /** Fields extracted to LOC files during export. */
+  localised_fields: Field[];
+  /** Order of key fields when constructing localisation keys. */
+  localised_key_order: number[];
+}
 
 /** Full schema containing all table definitions. */
-export type Schema = unknown; // See rpfm_lib::schema::Schema
+export interface Schema {
+  /** Structural version of the schema format (currently 5). */
+  version: number;
+  /** Map of table names to their version definitions. */
+  definitions: Record<string, Definition[]>;
+  /** Map of table names to their patches. */
+  patches: Record<string, DefinitionPatch>;
+}
 
 /** A note attached to a path in the PackFile. */
 export interface Note {
-  [key: string]: unknown; // See rpfm_lib::notes::Note for exact shape
+  /** Unique identifier for this note. */
+  id: number;
+  /** The main content/body of the note. */
+  message: string;
+  /** Optional URL associated with the note. */
+  url: string | null;
+  /** Path within the PackFile (empty string = global note). */
+  path: string;
 }
 
 /** PackFile-level settings. */
-export type PackSettings = unknown; // See rpfm_lib::files::pack::PackSettings
+export interface PackSettings {
+  /** Multi-line text settings (e.g., file ignore lists). */
+  settings_text: Record<string, string>;
+  /** Single-line string settings (e.g., compression format). */
+  settings_string: Record<string, string>;
+  /** Boolean flag settings (e.g., disable_autosaves). */
+  settings_bool: Record<string, boolean>;
+  /** Integer settings (e.g., thresholds, limits). */
+  settings_number: Record<string, number>;
+}
+
+/** Translation entry for a single Loc key. */
+export interface Translation {
+  /** The Loc key identifying this string. */
+  key: string;
+  /** Original text in the base language (typically English). */
+  value_original: string;
+  /** Translated text in the target language (may be empty). */
+  value_translated: string;
+  /** Whether this translation needs review due to source changes. */
+  needs_retranslation: boolean;
+}
 
 /** Pack translation data for a language. */
-export type PackTranslation = unknown; // See rpfm_extensions::translator
+export interface PackTranslation {
+  /** Target language code (e.g., "es", "de", "fr"). */
+  language: string;
+  /** Name of the pack these translations belong to. */
+  pack_name: string;
+  /** Map of Loc keys to their translation data. */
+  translations: Record<string, Translation>;
+}
 
 /** Diagnostics report for the open PackFile. */
-export type Diagnostics = unknown; // See rpfm_extensions::diagnostics
+export interface Diagnostics {
+  /** Folder paths to exclude from diagnostic checks. */
+  folders_ignored: string[];
+  /** File paths to exclude from diagnostic checks. */
+  files_ignored: string[];
+  /** Table fields to exclude (format: "table_name/field_name"). */
+  fields_ignored: string[];
+  /** Diagnostic type identifiers to skip. */
+  diagnostics_ignored: string[];
+  /** Diagnostic results from the most recent check. */
+  results: unknown[];
+}
+
+/** Data source for search operations. */
+export type SearchSource =
+  | "Pack"         // Currently loaded pack
+  | "ParentFiles"  // Parent mod dependencies
+  | "GameFiles"    // Vanilla game files
+  | "AssKitFiles"; // Assembly Kit files
+
+/** Configuration for which file types to include in a search. */
+export interface SearchOn {
+  anim: boolean;
+  anim_fragment_battle: boolean;
+  anim_pack: boolean;
+  anims_table: boolean;
+  atlas: boolean;
+  audio: boolean;
+  bmd: boolean;
+  db: boolean;
+  esf: boolean;
+  group_formations: boolean;
+  image: boolean;
+  loc: boolean;
+  matched_combat: boolean;
+  pack: boolean;
+  portrait_settings: boolean;
+  rigid_model: boolean;
+  sound_bank: boolean;
+  text: boolean;
+  uic: boolean;
+  unit_variant: boolean;
+  unknown: boolean;
+  video: boolean;
+  schema: boolean;
+}
+
+/** Match in an unknown/binary file. */
+export interface UnknownMatch {
+  /** Byte position of the match. */
+  pos: number;
+  /** Length of the matched pattern in bytes. */
+  len: number;
+}
+
+/** Matches for unknown/binary files. */
+export interface UnknownMatches {
+  /** Path of the file. */
+  path: string;
+  /** List of matches within the file. */
+  matches: UnknownMatch[];
+}
+
+/** Match in a table row. */
+export interface TableMatch {
+  /** Name of the column where the match is. */
+  column_name: string;
+  /** Logical index of the column (-1 if hidden). */
+  column_number: number;
+  /** Row number of this match (-1 if hidden by filter). */
+  row_number: number;
+  /** Byte where the match starts. */
+  start: number;
+  /** Byte where the match ends. */
+  end: number;
+  /** The contents of the matched cell. */
+  text: string;
+}
+
+/** Matches for table files (DB & Loc). */
+export interface TableMatches {
+  /** Path of the table. */
+  path: string;
+  /** List of matches within the table. */
+  matches: TableMatch[];
+}
+
+/** Match in a text file. */
+export interface TextMatch {
+  /** Row of the first character of the match. */
+  row: number;
+  /** Byte where the match starts. */
+  start: number;
+  /** Byte where the match ends. */
+  end: number;
+  /** Line of text containing the match. */
+  text: string;
+}
+
+/** Matches for text files. */
+export interface TextMatches {
+  /** Path of the file. */
+  path: string;
+  /** List of matches within the file. */
+  matches: TextMatch[];
+}
+
+/** Match in an AnimFragmentBattle file. */
+export interface AnimFragmentBattleMatch {
+  /** Whether the match is in the skeleton name. */
+  skeleton_name: boolean;
+  /** Whether the match is in the table name. */
+  table_name: boolean;
+  /** Whether the match is in the mount table name. */
+  mount_table_name: boolean;
+  /** Whether the match is in the unmount table name. */
+  unmount_table_name: boolean;
+  /** Whether the match is in the locomotion graph. */
+  locomotion_graph: boolean;
+  /** Entry match: [entry_index, sub_entry, ...flags]. */
+  entry: [number, [number, boolean, boolean, boolean] | null, boolean, boolean, boolean, boolean, boolean] | null;
+  /** Byte where the match starts. */
+  start: number;
+  /** Byte where the match ends. */
+  end: number;
+  /** The matched text. */
+  text: string;
+}
+
+/** Matches for AnimFragmentBattle files. */
+export interface AnimFragmentBattleMatches {
+  /** Path of the file. */
+  path: string;
+  /** List of matches within the file. */
+  matches: AnimFragmentBattleMatch[];
+}
+
+/** Match in an Atlas file (same structure as TableMatch). */
+export interface AtlasMatch {
+  /** Name of the column where the match is. */
+  column_name: string;
+  /** Logical index of the column. */
+  column_number: number;
+  /** Row number of this match. */
+  row_number: number;
+  /** Byte where the match starts. */
+  start: number;
+  /** Byte where the match ends. */
+  end: number;
+  /** The contents of the matched cell. */
+  text: string;
+}
+
+/** Matches for Atlas files. */
+export interface AtlasMatches {
+  /** Path of the file. */
+  path: string;
+  /** List of matches within the file. */
+  matches: AtlasMatch[];
+}
+
+/** Match in a PortraitSettings file. */
+export interface PortraitSettingsMatch {
+  /** Index of the entry in the PortraitSettings file. */
+  entry: number;
+  /** Whether the match is in the id field. */
+  id: boolean;
+  /** Whether the match is in camera_settings_head (skeleton node). */
+  camera_settings_head: boolean;
+  /** Whether the match is in camera_settings_body (skeleton node). */
+  camera_settings_body: boolean;
+  /** Variant match: [variant_index, ...flags] or null. */
+  variant: [number, boolean, boolean, boolean, boolean, boolean] | null;
+  /** Byte where the match starts. */
+  start: number;
+  /** Byte where the match ends. */
+  end: number;
+  /** The matched text. */
+  text: string;
+}
+
+/** Matches for PortraitSettings files. */
+export interface PortraitSettingsMatches {
+  /** Path of the file. */
+  path: string;
+  /** List of matches within the file. */
+  matches: PortraitSettingsMatch[];
+}
+
+/** Match in a RigidModel file. */
+export interface RigidModelMatch {
+  /** Whether the match is in the skeleton id. */
+  skeleton_id: boolean;
+  /** Mesh location: [lod_index, mesh_index] or null. */
+  mesh_value: [number, number] | null;
+  /** Whether the match is in the mesh name. */
+  mesh_name: boolean;
+  /** Whether the match is in the material name. */
+  mesh_mat_name: boolean;
+  /** Whether the match is in the texture directory. */
+  mesh_textute_directory: boolean;
+  /** Whether the match is in the mesh filters. */
+  mesh_filters: boolean;
+  /** Index of the attachment point with a match, or null. */
+  mesh_att_point_name: number | null;
+  /** Index of the texture path with a match, or null. */
+  mesh_texture_path: number | null;
+  /** Byte where the match starts. */
+  start: number;
+  /** Byte where the match ends. */
+  end: number;
+  /** The matched text. */
+  text: string;
+}
+
+/** Matches for RigidModel files. */
+export interface RigidModelMatches {
+  /** Path of the file. */
+  path: string;
+  /** List of matches within the file. */
+  matches: RigidModelMatch[];
+}
+
+/** Match in a UnitVariant file. */
+export interface UnitVariantMatch {
+  /** Index of the entry in the UnitVariant file. */
+  entry: number;
+  /** Whether the match is in the name. */
+  name: boolean;
+  /** Variant match: [variant_index, ...flags] or null. */
+  variant: [number, boolean, boolean] | null;
+  /** Byte where the match starts. */
+  start: number;
+  /** Byte where the match ends. */
+  end: number;
+  /** The matched text. */
+  text: string;
+}
+
+/** Matches for UnitVariant files. */
+export interface UnitVariantMatches {
+  /** Path of the file. */
+  path: string;
+  /** List of matches within the file. */
+  matches: UnitVariantMatch[];
+}
+
+/** Match in a Schema (column name match). */
+export interface SchemaMatch {
+  /** The table name. */
+  table_name: string;
+  /** Version of the definition with a match. */
+  version: number;
+  /** Column index of the match. */
+  column: number;
+  /** Full name of the matched column. */
+  column_name: string;
+}
+
+/** Matches within the schema. */
+export interface SchemaMatches {
+  /** List of matches. */
+  matches: SchemaMatch[];
+}
+
+/** Search results organized by file type. */
+export interface Matches {
+  anim: UnknownMatches[];
+  anim_fragment_battle: AnimFragmentBattleMatches[];
+  anim_pack: UnknownMatches[];
+  anims_table: UnknownMatches[];
+  atlas: AtlasMatches[];
+  audio: UnknownMatches[];
+  bmd: UnknownMatches[];
+  db: TableMatches[];
+  esf: UnknownMatches[];
+  group_formations: UnknownMatches[];
+  image: UnknownMatches[];
+  loc: TableMatches[];
+  matched_combat: UnknownMatches[];
+  pack: UnknownMatches[];
+  portrait_settings: PortraitSettingsMatches[];
+  rigid_model: RigidModelMatches[];
+  sound_bank: UnknownMatches[];
+  text: TextMatches[];
+  uic: UnknownMatches[];
+  unit_variant: UnitVariantMatches[];
+  unknown: UnknownMatches[];
+  video: UnknownMatches[];
+  schema: SchemaMatches;
+}
 
 /** Global search configuration and results. */
-export type GlobalSearch = unknown; // See rpfm_extensions::search::GlobalSearch
+export interface GlobalSearch {
+  /** The text pattern or regex to search for. */
+  pattern: string;
+  /** Text to use for replacements. */
+  replace_text: string;
+  /** Whether the search should be case-sensitive. */
+  case_sensitive: boolean;
+  /** Whether to interpret the pattern as a regular expression. */
+  use_regex: boolean;
+  /** Which data sources to include in the search. */
+  source: SearchSource;
+  /** Which file types to search within. */
+  search_on: SearchOn;
+  /** Results from the most recent search operation. */
+  matches: Matches;
+  /** Game key for the files being searched. */
+  game_key: string;
+}
 
 /** A single match within a global search result. */
-export type MatchHolder = unknown; // See rpfm_extensions::search::MatchHolder
+export type MatchHolder =
+  | { Anim: UnknownMatches }
+  | { AnimFragmentBattle: AnimFragmentBattleMatches }
+  | { AnimPack: UnknownMatches }
+  | { AnimsTable: UnknownMatches }
+  | { Atlas: AtlasMatches }
+  | { Audio: UnknownMatches }
+  | { Bmd: UnknownMatches }
+  | { Db: TableMatches }
+  | { Esf: UnknownMatches }
+  | { GroupFormations: UnknownMatches }
+  | { Image: UnknownMatches }
+  | { Loc: TableMatches }
+  | { MatchedCombat: UnknownMatches }
+  | { Pack: UnknownMatches }
+  | { PortraitSettings: PortraitSettingsMatches }
+  | { RigidModel: RigidModelMatches }
+  | { SoundBank: UnknownMatches }
+  | { Text: TextMatches }
+  | { Uic: UnknownMatches }
+  | { UnitVariant: UnitVariantMatches }
+  | { Unknown: UnknownMatches }
+  | { Video: UnknownMatches }
+  | { Schema: SchemaMatches };
 
 /** Table reference data keyed by column index. */
-export type TableReferences = unknown; // See rpfm_extensions::dependencies::TableReferences
+export interface TableReferences {
+  /** Name of the column these references are for. */
+  field_name: string;
+  /** Whether the referenced table exists only in the Assembly Kit. */
+  referenced_table_is_ak_only: boolean;
+  /** Whether the referenced column has been localised. */
+  referenced_column_is_localised: boolean;
+  /** Map of actual values to their lookup/display text. */
+  data: Record<string, string>;
+}
 
 /** Compression format for PackFiles. */
 export type CompressionFormat = string; // Enum value, e.g. "None", "Lz4", "Zstd", etc.
@@ -217,30 +690,311 @@ export type CompressionFormat = string; // Enum value, e.g. "None", "Lz4", "Zstd
 /** PFH file type (mod, movie, boot, etc.). */
 export type PFHFileType = string; // Enum value
 
-/** Decoded file content (polymorphic). */
-export type RFileDecoded = unknown; // See rpfm_lib::files::RFileDecoded
+/** File type enumeration. */
+export type FileType =
+  | "Anim"
+  | "AnimFragmentBattle"
+  | "AnimPack"
+  | "AnimsTable"
+  | "Atlas"
+  | "Audio"
+  | "BMD"
+  | "BMDVegetation"
+  | "Dat"
+  | "DB"
+  | "ESF"
+  | "Font"
+  | "GroupFormations"
+  | "HlslCompiled"
+  | "Image"
+  | "Loc"
+  | "MatchedCombat"
+  | "Pack"
+  | "PortraitSettings"
+  | "RigidModel"
+  | "SoundBank"
+  | "Text"
+  | "UIC"
+  | "UnitVariant"
+  | "Video"
+  | "VMD"
+  | "WSModel"
+  | "Unknown";
+
+/** Cell data in a table. */
+export type DecodedData =
+  | { Boolean: boolean }
+  | { F32: number }
+  | { F64: number }
+  | { I16: number }
+  | { I32: number }
+  | { I64: number }
+  | { ColourRGB: string }
+  | { StringU8: string }
+  | { StringU16: string }
+  | { OptionalI16: number }
+  | { OptionalI32: number }
+  | { OptionalI64: number }
+  | { OptionalStringU8: string }
+  | { OptionalStringU16: string }
+  | { SequenceU16: DecodedData[][] }
+  | { SequenceU32: DecodedData[][] };
+
+/** In-memory table data structure. */
+export interface TableInMemory {
+  /** Table type identifier (e.g., "units_tables"). */
+  table_name: string;
+  /** Schema definition for this table. */
+  definition: Definition;
+  /** Runtime schema modifications. */
+  definition_patch: DefinitionPatch;
+  /** All table rows (outer = rows, inner = columns). */
+  table_data: DecodedData[][];
+  /** Flag indicating data was altered during decoding. */
+  altered: boolean;
+}
+
+/** Decoded database table file. */
+export interface DB {
+  /** Boolean flag of unknown purpose (0 can crash WH2). */
+  mysterious_byte: boolean;
+  /** GUID for this table instance (empty for older games). */
+  guid: string;
+  /** The table data including definition and rows. */
+  table: TableInMemory;
+}
+
+/** Decoded localisation file. */
+export interface Loc {
+  /** The underlying table data with key, text, and tooltip columns. */
+  table: TableInMemory;
+}
+
+/** Text encoding type. */
+export type TextEncoding =
+  | "Iso8859_1"  // ISO-8859-1 (Western European)
+  | "Utf8"       // UTF-8 without BOM
+  | "Utf8Bom"    // UTF-8 with BOM
+  | "Utf16Le";   // UTF-16 Little Endian with BOM
+
+/** Text file format. */
+export type TextFormat =
+  | "Bat"
+  | "Cpp"
+  | "Html"
+  | "Hlsl"
+  | "Json"
+  | "Js"
+  | "Css"
+  | "Lua"
+  | "Markdown"
+  | "Plain"
+  | "Python"
+  | "Sql"
+  | "Xml"
+  | "Yaml";
+
+/** Decoded text file. */
+export interface Text {
+  /** Character encoding of the file. */
+  encoding: TextEncoding;
+  /** Detected file format based on extension. */
+  format: TextFormat;
+  /** Decoded text contents. */
+  contents: string;
+}
+
+/** Decoded image file. */
+export interface Image {
+  /** Original raw image data in native format. */
+  data: number[];
+  /** PNG-converted data for DDS textures (for viewing/editing). */
+  converted_data: number[] | null;
+}
+
+/** Level of Detail structure for 3D models. */
+export interface Lod {
+  /** Groups of meshes at this LOD level. */
+  groups: unknown[];  // Complex nested structure
+}
+
+/** Decoded RigidModel (3D model) file. */
+export interface RigidModel {
+  /** File format version (6, 7, or 8). */
+  version: number;
+  /** Unknown field. */
+  uk_1: number;
+  /** Skeleton identifier for animation (empty for static models). */
+  skeleton_id: string;
+  /** LOD structures from highest to lowest quality. */
+  lods: Lod[];
+}
+
+/** ESF file signature. */
+export type ESFSignature = string; // CAAB, CBAB, etc.
+
+/** Node type in ESF tree structure. */
+export type NodeType = unknown; // Complex recursive structure
+
+/** Decoded ESF (Empire Save Format) file. */
+export interface ESF {
+  /** Format signature (CAAB, CBAB, etc.). */
+  signature: ESFSignature;
+  /** Unknown header field, typically 0. */
+  unknown_1: number;
+  /** Creation timestamp. */
+  creation_date: number;
+  /** Root node of the data tree. */
+  root_node: NodeType;
+}
+
+/** Decoded BMD (Battle Map Data) file. */
+export interface Bmd {
+  /** File format version (23-27). */
+  serialise_version: number;
+  // Complex structure with many battlefield-related fields
+  [key: string]: unknown;
+}
+
+/** Decoded AnimFragmentBattle file. */
+export interface AnimFragmentBattle {
+  /** File format version (2 or 4). */
+  version: number;
+  /** List of animation entries. */
+  entries: unknown[];
+  /** Name of the skeleton. */
+  skeleton_name: string;
+  /** Format subversion (version 4 only). */
+  subversion: number;
+}
+
+/** Decoded AnimsTable file. */
+export interface AnimsTable {
+  /** File format version (currently 2). */
+  version: number;
+  /** List of animation table entries. */
+  entries: unknown[];
+}
+
+/** Atlas entry for sprite coordinates. */
+export interface AtlasEntry {
+  [key: string]: unknown;
+}
+
+/** Decoded Atlas (sprite sheet) file. */
+export interface Atlas {
+  /** File format version (currently 1). */
+  version: number;
+  /** Unknown field. */
+  unknown: number;
+  /** List of sprite entries. */
+  entries: AtlasEntry[];
+}
+
+/** Decoded Audio file (raw binary). */
+export interface Audio {
+  /** Raw binary audio data. */
+  data: number[];
+}
+
+/** Decoded GroupFormations file. */
+export interface GroupFormations {
+  /** List of formation definitions. */
+  formations: unknown[];
+}
+
+/** Decoded MatchedCombat file. */
+export interface MatchedCombat {
+  /** File format version (1 or 3). */
+  version: number;
+  /** List of matched combat entries. */
+  entries: unknown[];
+}
+
+/** Decoded PortraitSettings file. */
+export interface PortraitSettings {
+  /** Format version (1 or 4). */
+  version: number;
+  /** Portrait entries, one per art set. */
+  entries: unknown[];
+}
+
+/** Decoded UIC (UI Component) file. */
+export interface UIC {
+  /** Format version number. */
+  version: number;
+  /** Whether decoded from XML (true) or binary (false). */
+  source_is_xml: boolean;
+  /** Optional comment/description. */
+  comment: string;
+  /** Condition for precaching. */
+  precache_condition: string;
+  /** Tree structure of UI element relationships. */
+  hierarchy: Record<string, unknown>;
+  /** Map of component IDs to definitions. */
+  components: Record<string, unknown>;
+}
+
+/** Decoded UnitVariant file. */
+export interface UnitVariant {
+  /** Version of the UnitVariant. */
+  version: number;
+  /** Unknown field. */
+  unknown_1: number;
+  /** Variant categories. */
+  categories: unknown[];
+}
+
+/** Video format types. */
+export type SupportedFormats = string;
+
+/** Internal data storage for RFile. */
+export type RFileInnerData = unknown; // OnDisk, Cached, or Decoded
 
 /** A raw packed file. */
-export type RFile = unknown; // See rpfm_lib::files::RFile
+export interface RFile {
+  /** Path of the file within a container. */
+  path: string;
+  /** Last modified timestamp (Unix epoch). */
+  timestamp: number | null;
+  /** Detected or specified file type. */
+  file_type: FileType;
+  /** Name of the source container. */
+  container_name: string | null;
+  /** Internal data storage. */
+  data: RFileInnerData;
+}
 
-/** Decoded file types used in responses (opaque in TypeScript context). */
-export type DB = unknown;
-export type Loc = unknown;
-export type Text = unknown;
-export type Image = unknown;
-export type RigidModel = unknown;
-export type ESF = unknown;
-export type Bmd = unknown;
-export type AnimFragmentBattle = unknown;
-export type AnimsTable = unknown;
-export type Atlas = unknown;
-export type Audio = unknown;
-export type GroupFormations = unknown;
-export type MatchedCombat = unknown;
-export type PortraitSettings = unknown;
-export type UIC = unknown;
-export type UnitVariant = unknown;
-export type SupportedFormats = string;
+/** Decoded file content (polymorphic). */
+export type RFileDecoded =
+  | { Anim: unknown }
+  | { AnimFragmentBattle: AnimFragmentBattle }
+  | { AnimPack: unknown }
+  | { AnimsTable: AnimsTable }
+  | { Atlas: Atlas }
+  | { Audio: Audio }
+  | { BMD: Bmd }
+  | { BMDVegetation: unknown }
+  | { Dat: unknown }
+  | { DB: DB }
+  | { ESF: ESF }
+  | { Font: unknown }
+  | { GroupFormations: GroupFormations }
+  | { HlslCompiled: unknown }
+  | { Image: Image }
+  | { Loc: Loc }
+  | { MatchedCombat: MatchedCombat }
+  | { Pack: unknown }
+  | { PortraitSettings: PortraitSettings }
+  | { RigidModel: RigidModel }
+  | { SoundBank: unknown }
+  | { Text: Text }
+  | { UIC: UIC }
+  | { UnitVariant: UnitVariant }
+  | { Unknown: unknown }
+  | { Video: unknown }
+  | { VMD: Text }
+  | { WSModel: Text };
 
 // ---------------------------------------------------------------------------
 // Command Enum
@@ -294,7 +1048,7 @@ export type Command =
   /**
    * Close the currently open Pack.
    *
-   * Response: None.
+   * Response: `"Success"`
    */
   | "ClosePack"
 
@@ -302,7 +1056,7 @@ export type Command =
    * Close an extra Pack (opened for "Add from PackFile").
    *
    * @param path — Filesystem path to the extra Pack.
-   * Response: None.
+   * Response: `"Success"`
    */
   | { ClosePackExtra: string }
 
@@ -318,7 +1072,7 @@ export type Command =
   /**
    * Create a new empty Pack.
    *
-   * Response: None.
+   * Response: `"Success"`
    */
   | "NewPack"
 
@@ -392,6 +1146,13 @@ export type Command =
   | { GlobalSearch: GlobalSearch }
 
   /**
+   * Get the currently selected game key.
+   *
+   * Response: `{ String: string }`
+   */
+  | "GetGameSelected"
+
+  /**
    * Change the selected game. Optionally rebuilds dependencies.
    *
    * @param params — `[game_key, rebuild_dependencies]`
@@ -403,7 +1164,7 @@ export type Command =
    * Change the PFH type of the currently open Pack (e.g., Mod, Movie, Boot).
    *
    * @param file_type — PFHFileType enum value.
-   * Response: None.
+   * Response: `"Success"`
    */
   | { SetPackFileType: PFHFileType }
 
@@ -440,7 +1201,7 @@ export type Command =
    * Toggle the "Index Includes Timestamp" flag.
    *
    * @param enabled — Whether timestamps should be included.
-   * Response: None.
+   * Response: `"Success"`
    */
   | { ChangeIndexIncludesTimestamp: boolean }
 
@@ -512,7 +1273,7 @@ export type Command =
    * Add files from the filesystem to the currently open Pack.
    *
    * @param params — `[source_paths, destination_container_paths, optional_ignore_paths]`
-   * Response: `{ VecContainerPath: ContainerPath[] }` then `"Success"` or `{ Error: string }`
+   * Response: `{ VecContainerPathOptionString: [ContainerPath[], string | null] }` (added paths, optional error message)
    */
   | { AddPackedFiles: [string[], ContainerPath[], string[] | null] }
 
@@ -710,7 +1471,7 @@ export type Command =
    * Set the list of PackFiles marked as dependencies of the current Pack.
    *
    * @param list — Array of `[enabled, pack_name]` pairs.
-   * Response: None.
+   * Response: `"Success"`
    */
   | { SetDependencyPackFilesList: [boolean, string][] }
 
@@ -728,7 +1489,7 @@ export type Command =
    * Change the format of a ca_vp8 video packed file.
    *
    * @param params — `[internal_path, target_format]`
-   * Response: None | `{ Error: string }`
+   * Response: `"Success"` | `{ Error: string }`
    */
   | { SetVideoFormat: [string, SupportedFormats] }
 
@@ -746,7 +1507,7 @@ export type Command =
    * Encode and clean the internal cache for the specified paths.
    *
    * @param paths — Container paths to clean.
-   * Response: None.
+   * Response: `"Success"`
    */
   | { CleanCache: ContainerPath[] }
 
@@ -805,7 +1566,7 @@ export type Command =
   /**
    * Trigger an autosave backup of the current Pack.
    *
-   * Response: None.
+   * Response: `"Success"`
    */
   | "TriggerBackupAutosave"
 
@@ -840,7 +1601,7 @@ export type Command =
    * Set the settings of the currently open Pack.
    *
    * @param settings — The new pack settings.
-   * Response: None.
+   * Response: `"Success"`
    */
   | { SetPackSettings: PackSettings }
 
@@ -849,7 +1610,7 @@ export type Command =
   /**
    * Export missing table definitions to a file (for debugging/development).
    *
-   * Response: None.
+   * Response: `"Success"`
    */
   | "GetMissingDefinitions"
 
@@ -928,7 +1689,7 @@ export type Command =
    * Import files from dependencies into the open Pack.
    *
    * @param sources — Map of DataSource → ContainerPath[].
-   * Response: `{ VecContainerPath: ContainerPath[] }` then `"Success"` or `{ VecString: string[] }` (failed paths)
+   * Response: `{ VecContainerPathVecString: [ContainerPath[], string[]] }` (added paths, failed paths) | `{ Error: string }`
    */
   | { ImportDependenciesToOpenPackFile: Record<DataSource, ContainerPath[]> }
 
@@ -970,7 +1731,7 @@ export type Command =
    * Delete a note.
    *
    * @param params — `[path, note_id]`
-   * Response: None.
+   * Response: `"Success"`
    */
   | { DeleteNote: [string, number] }
 
@@ -1067,7 +1828,7 @@ export type Command =
    * Add a line to the pack's ignored diagnostics list.
    *
    * @param line — Diagnostic key to ignore.
-   * Response: None.
+   * Response: `"Success"`
    */
   | { AddLineToPackIgnoredDiagnostics: string }
 
@@ -1401,7 +2162,7 @@ export type Command =
   /**
    * Backup current settings to memory (for restore on cancel).
    *
-   * Response: None.
+   * Response: `"Success"`
    */
   | "BackupSettings"
 
@@ -1415,7 +2176,7 @@ export type Command =
   /**
    * Restore settings from the in-memory backup.
    *
-   * Response: None.
+   * Response: `"Success"`
    */
   | "RestoreBackupSettings"
 
@@ -1470,7 +2231,7 @@ export type Command =
    * Delete a definition by table name and version.
    *
    * @param params — `[table_name, version]`
-   * Response: None.
+   * Response: `"Success"`
    */
   | { DeleteDefinition: [string, number] };
 
@@ -1545,8 +2306,10 @@ export type Response =
   | { VecBoolString: [boolean, string][] }
   | { VecContainerPath: ContainerPath[] }
   | { VecContainerPathContainerPath: [ContainerPath, ContainerPath][] }
+  | { VecContainerPathOptionString: [ContainerPath[], string | null] }
   | { VecContainerPathVecContainerPath: [ContainerPath[], ContainerPath[]] }
   | { VecContainerPathVecRFileInfo: [ContainerPath[], RFileInfo[]] }
+  | { VecContainerPathVecString: [ContainerPath[], string[]] }
   | { VecDataSourceStringStringUsizeUsize: [DataSource, string, string, number, number][] }
   | { VecDefinition: Definition[] }
   | { VecNote: Note[] }
