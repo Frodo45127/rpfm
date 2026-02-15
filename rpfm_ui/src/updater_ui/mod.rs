@@ -13,6 +13,7 @@ use qt_widgets::QDialog;
 use qt_widgets::{QWidget, QPushButton, QDialogButtonBox, QLabel, QGroupBox};
 
 use qt_core::QBox;
+use qt_core::QEventLoop;
 use qt_core::QPtr;
 
 use anyhow::Result;
@@ -245,8 +246,8 @@ impl UpdaterUI {
         let receiver_twautogen = CENTRAL_COMMAND.read().unwrap().send(Command::CheckLuaAutogenUpdates);
         let receiver_old_ak = CENTRAL_COMMAND.read().unwrap().send(Command::CheckEmpireAndNapoleonAKUpdates);
 
-        // If we have prechecks done, do not re-check for updates on them.
-        match precheck_program {
+        // Apply prechecks immediately for any that were already resolved.
+        let mut pending_program = match precheck_program {
             Some(response) => {
                 match response {
                     APIResponse::NewStableUpdate(last_release) |
@@ -260,35 +261,12 @@ impl UpdaterUI {
                         update_program_button.set_text(&qtr("updater_update_program_no_updates"));
                     }
                 }
+                false
             }
-            None => {
+            None => true,
+        };
 
-                let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver_program);
-                match response {
-                    Response::APIResponse(response) => {
-                        match response {
-                            APIResponse::NewStableUpdate(last_release) |
-                            APIResponse::NewBetaUpdate(last_release) |
-                            APIResponse::NewUpdateHotfix(last_release) => {
-                                update_program_button.set_text(&qtre("updater_update_program_available", &[&last_release]));
-                                update_program_button.set_enabled(true);
-                            }
-                            APIResponse::NoUpdate |
-                            APIResponse::UnknownVersion => {
-                                update_program_button.set_text(&qtr("updater_update_program_no_updates"));
-                            }
-                        }
-                    }
-
-                    Response::Error(_) => {
-                        update_program_button.set_text(&qtr("updater_update_program_no_updates"));
-                    }
-                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-                }
-            },
-        }
-
-        match precheck_schema {
+        let mut pending_schema = match precheck_schema {
             Some(response) => {
                 match response {
                     GitResponse::NoLocalFiles |
@@ -301,33 +279,12 @@ impl UpdaterUI {
                         update_schemas_button.set_text(&qtr("updater_update_schemas_no_updates"));
                     }
                 }
+                false
             }
-            None => {
-                let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver_schemas);
-                match response {
-                    Response::APIResponseGit(response) => {
-                        match response {
-                            GitResponse::NoLocalFiles |
-                            GitResponse::NewUpdate |
-                            GitResponse::Diverged => {
-                                update_schemas_button.set_text(&qtr("updater_update_schemas_available"));
-                                update_schemas_button.set_enabled(true);
-                            }
-                            GitResponse::NoUpdate => {
-                                update_schemas_button.set_text(&qtr("updater_update_schemas_no_updates"));
-                            }
-                        }
-                    }
+            None => true,
+        };
 
-                    Response::Error(_) => {
-                        update_schemas_button.set_text(&qtr("updater_update_schemas_no_updates"));
-                    }
-                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-                }
-            },
-        }
-
-        match precheck_twautogen {
+        let mut pending_twautogen = match precheck_twautogen {
             Some(response) => {
                 match response {
                     GitResponse::NoLocalFiles |
@@ -340,33 +297,12 @@ impl UpdaterUI {
                         update_twautogen_button.set_text(&qtr("updater_update_twautogen_no_updates"));
                     }
                 }
+                false
             }
-            None => {
-                let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver_twautogen);
-                match response {
-                    Response::APIResponseGit(response) => {
-                        match response {
-                            GitResponse::NoLocalFiles |
-                            GitResponse::NewUpdate |
-                            GitResponse::Diverged => {
-                                update_twautogen_button.set_text(&qtr("updater_update_twautogen_available"));
-                                update_twautogen_button.set_enabled(true);
-                            }
-                            GitResponse::NoUpdate => {
-                                update_twautogen_button.set_text(&qtr("updater_update_twautogen_no_updates"));
-                            }
-                        }
-                    }
+            None => true,
+        };
 
-                    Response::Error(_) => {
-                        update_twautogen_button.set_text(&qtr("updater_update_twautogen_no_updates"));
-                    }
-                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-                }
-            },
-        }
-
-        match precheck_old_ak {
+        let mut pending_old_ak = match precheck_old_ak {
             Some(response) => {
                 match response {
                     GitResponse::NoLocalFiles |
@@ -379,30 +315,139 @@ impl UpdaterUI {
                         update_old_ak_button.set_text(&qtr("updater_update_old_ak_no_updates"));
                     }
                 }
+                false
             }
-            None => {
-                let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver_old_ak);
-                match response {
-                    Response::APIResponseGit(response) => {
-                        match response {
-                            GitResponse::NoLocalFiles |
-                            GitResponse::NewUpdate |
-                            GitResponse::Diverged => {
-                                update_old_ak_button.set_text(&qtr("updater_update_old_ak_available"));
-                                update_old_ak_button.set_enabled(true);
-                            }
-                            GitResponse::NoUpdate => {
-                                update_old_ak_button.set_text(&qtr("updater_update_old_ak_no_updates"));
+            None => true,
+        };
+
+        // Poll all pending receivers concurrently so no check blocks the others.
+        if pending_program || pending_schema || pending_twautogen || pending_old_ak {
+            let event_loop = QEventLoop::new_0a();
+
+            while pending_program || pending_schema || pending_twautogen || pending_old_ak {
+                if pending_program {
+                    match receiver_program.try_recv() {
+                        Ok(response) => {
+                            pending_program = false;
+                            match response {
+                                Response::APIResponse(response) => {
+                                    match response {
+                                        APIResponse::NewStableUpdate(last_release) |
+                                        APIResponse::NewBetaUpdate(last_release) |
+                                        APIResponse::NewUpdateHotfix(last_release) => {
+                                            update_program_button.set_text(&qtre("updater_update_program_available", &[&last_release]));
+                                            update_program_button.set_enabled(true);
+                                        }
+                                        APIResponse::NoUpdate |
+                                        APIResponse::UnknownVersion => {
+                                            update_program_button.set_text(&qtr("updater_update_program_no_updates"));
+                                        }
+                                    }
+                                }
+                                Response::Error(_) => {
+                                    update_program_button.set_text(&qtr("updater_update_program_no_updates"));
+                                }
+                                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                             }
                         }
+                        Err(error) => if error.is_disconnected() {
+                            panic!("{THREADS_COMMUNICATION_ERROR}");
+                        }
                     }
-
-                    Response::Error(_) => {
-                        update_old_ak_button.set_text(&qtr("updater_update_old_ak_no_updates"));
-                    }
-                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                 }
-            },
+
+                if pending_schema {
+                    match receiver_schemas.try_recv() {
+                        Ok(response) => {
+                            pending_schema = false;
+                            match response {
+                                Response::APIResponseGit(response) => {
+                                    match response {
+                                        GitResponse::NoLocalFiles |
+                                        GitResponse::NewUpdate |
+                                        GitResponse::Diverged => {
+                                            update_schemas_button.set_text(&qtr("updater_update_schemas_available"));
+                                            update_schemas_button.set_enabled(true);
+                                        }
+                                        GitResponse::NoUpdate => {
+                                            update_schemas_button.set_text(&qtr("updater_update_schemas_no_updates"));
+                                        }
+                                    }
+                                }
+                                Response::Error(_) => {
+                                    update_schemas_button.set_text(&qtr("updater_update_schemas_no_updates"));
+                                }
+                                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                            }
+                        }
+                        Err(error) => if error.is_disconnected() {
+                            panic!("{THREADS_COMMUNICATION_ERROR}");
+                        }
+                    }
+                }
+
+                if pending_twautogen {
+                    match receiver_twautogen.try_recv() {
+                        Ok(response) => {
+                            pending_twautogen = false;
+                            match response {
+                                Response::APIResponseGit(response) => {
+                                    match response {
+                                        GitResponse::NoLocalFiles |
+                                        GitResponse::NewUpdate |
+                                        GitResponse::Diverged => {
+                                            update_twautogen_button.set_text(&qtr("updater_update_twautogen_available"));
+                                            update_twautogen_button.set_enabled(true);
+                                        }
+                                        GitResponse::NoUpdate => {
+                                            update_twautogen_button.set_text(&qtr("updater_update_twautogen_no_updates"));
+                                        }
+                                    }
+                                }
+                                Response::Error(_) => {
+                                    update_twautogen_button.set_text(&qtr("updater_update_twautogen_no_updates"));
+                                }
+                                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                            }
+                        }
+                        Err(error) => if error.is_disconnected() {
+                            panic!("{THREADS_COMMUNICATION_ERROR}");
+                        }
+                    }
+                }
+
+                if pending_old_ak {
+                    match receiver_old_ak.try_recv() {
+                        Ok(response) => {
+                            pending_old_ak = false;
+                            match response {
+                                Response::APIResponseGit(response) => {
+                                    match response {
+                                        GitResponse::NoLocalFiles |
+                                        GitResponse::NewUpdate |
+                                        GitResponse::Diverged => {
+                                            update_old_ak_button.set_text(&qtr("updater_update_old_ak_available"));
+                                            update_old_ak_button.set_enabled(true);
+                                        }
+                                        GitResponse::NoUpdate => {
+                                            update_old_ak_button.set_text(&qtr("updater_update_old_ak_no_updates"));
+                                        }
+                                    }
+                                }
+                                Response::Error(_) => {
+                                    update_old_ak_button.set_text(&qtr("updater_update_old_ak_no_updates"));
+                                }
+                                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                            }
+                        }
+                        Err(error) => if error.is_disconnected() {
+                            panic!("{THREADS_COMMUNICATION_ERROR}");
+                        }
+                    }
+                }
+
+                event_loop.process_events_0a();
+            }
         }
 
         let ui = Rc::new(Self {

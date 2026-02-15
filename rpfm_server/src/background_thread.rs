@@ -1404,47 +1404,54 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
 
             // When we want to update our schemas...
             Command::UpdateSchemas => {
-                match schemas_path() {
-                    Ok(local_path) => {
-                        let git_integration = GitIntegration::new(&local_path, SCHEMA_REPO, SCHEMA_BRANCH, SCHEMA_REMOTE);
-                        match git_integration.update_repo() {
-                            Ok(_) => {
-                                let schema_path = schemas_path().unwrap().join(game.schema_file_name());
-                                let patches_path = table_patches_path().unwrap().join(game.schema_file_name());
 
-                                // Encode the decoded tables with the old schema, then re-decode them with the new one.
-                                let cf = pack_file_decoded.compression_format();
-                                let mut tables = pack_file_decoded.files_by_type_mut(&[FileType::DB]);
-                                let extra_data = Some(EncodeableExtraData::new_from_game_info_and_settings(game, cf, settings.bool("disable_uuid_regeneration_on_db_tables")));
+                // Run the git operation on the blocking thread pool to avoid blocking the async runtime.
+                let git_result = tokio::task::spawn_blocking(|| {
+                    match schemas_path() {
+                        Ok(local_path) => {
+                            let git_integration = GitIntegration::new(&local_path, SCHEMA_REPO, SCHEMA_BRANCH, SCHEMA_REMOTE);
+                            git_integration.update_repo().map(|_| ()).map_err(|e| anyhow::anyhow!(e.to_string()))
+                        },
+                        Err(error) => Err(error),
+                    }
+                }).await.unwrap();
 
-                                tables.par_iter_mut().for_each(|x| { let _ = x.encode(&extra_data, true, true, false); });
+                // Post-download state mutation must stay in the main loop (accesses local mutable state).
+                match git_result {
+                    Ok(_) => {
+                        let schema_path = schemas_path().unwrap().join(game.schema_file_name());
+                        let patches_path = table_patches_path().unwrap().join(game.schema_file_name());
 
-                                schema = Schema::load(&schema_path, Some(&patches_path)).ok();
+                        // Encode the decoded tables with the old schema, then re-decode them with the new one.
+                        let cf = pack_file_decoded.compression_format();
+                        let mut tables = pack_file_decoded.files_by_type_mut(&[FileType::DB]);
+                        let extra_data = Some(EncodeableExtraData::new_from_game_info_and_settings(game, cf, settings.bool("disable_uuid_regeneration_on_db_tables")));
 
-                                let mut extra_data = DecodeableExtraData::default();
-                                extra_data.set_schema(schema.as_ref());
-                                let extra_data = Some(extra_data);
+                        tables.par_iter_mut().for_each(|x| { let _ = x.encode(&extra_data, true, true, false); });
 
-                                tables.par_iter_mut().for_each(|x| {
-                                    let _ = x.decode(&extra_data, true, false);
-                                });
+                        schema = Schema::load(&schema_path, Some(&patches_path)).ok();
 
-                                // Then rebuild the dependencies stuff.
-                                if dependencies.read().unwrap().is_vanilla_data_loaded(false) {
-                                    let game_path = settings.path_buf(game.key());
-                                    let secondary_path = settings.path_buf(SECONDARY_PATH);
-                                    let dependencies_file_path = dependencies_cache_path().unwrap().join(game.dependencies_cache_file_name());
-                                    let pack_dependencies = pack_file_decoded.dependencies().iter().map(|x| x.1.clone()).collect::<Vec<_>>();
+                        let mut extra_data = DecodeableExtraData::default();
+                        extra_data.set_schema(schema.as_ref());
+                        let extra_data = Some(extra_data);
 
-                                    match dependencies.write().unwrap().rebuild(&schema, &pack_dependencies, Some(&*dependencies_file_path), game, &game_path, &secondary_path) {
-                                        Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                                        Err(_) => CentralCommand::send_back(&sender, Response::Error("Schema updated, but dependencies cache rebuilding failed. You may need to regenerate it.".to_string())),
-                                    }
-                                } else {
-                                    CentralCommand::send_back(&sender, Response::Success)
-                                }
-                            },
-                            Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
+                        tables.par_iter_mut().for_each(|x| {
+                            let _ = x.decode(&extra_data, true, false);
+                        });
+
+                        // Then rebuild the dependencies stuff.
+                        if dependencies.read().unwrap().is_vanilla_data_loaded(false) {
+                            let game_path = settings.path_buf(game.key());
+                            let secondary_path = settings.path_buf(SECONDARY_PATH);
+                            let dependencies_file_path = dependencies_cache_path().unwrap().join(game.dependencies_cache_file_name());
+                            let pack_dependencies = pack_file_decoded.dependencies().iter().map(|x| x.1.clone()).collect::<Vec<_>>();
+
+                            match dependencies.write().unwrap().rebuild(&schema, &pack_dependencies, Some(&*dependencies_file_path), game, &game_path, &secondary_path) {
+                                Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                                Err(_) => CentralCommand::send_back(&sender, Response::Error("Schema updated, but dependencies cache rebuilding failed. You may need to regenerate it.".to_string())),
+                            }
+                        } else {
+                            CentralCommand::send_back(&sender, Response::Success)
                         }
                     },
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
@@ -1453,24 +1460,39 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
 
             // When we want to update our lua setup...
             Command::UpdateLuaAutogen => {
-                match lua_autogen_base_path() {
-                    Ok(local_path) => {
-                        let git_integration = GitIntegration::new(&local_path, LUA_REPO, LUA_BRANCH, LUA_REMOTE);
-                        match git_integration.update_repo() {
-                            Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                            Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
+                let sender = sender.clone();
+                tokio::spawn(async move {
+                    let result = tokio::task::spawn_blocking(|| {
+                        match lua_autogen_base_path() {
+                            Ok(local_path) => {
+                                let git_integration = GitIntegration::new(&local_path, LUA_REPO, LUA_BRANCH, LUA_REMOTE);
+                                git_integration.update_repo().map(|_| ()).map_err(|e| e.into())
+                            },
+                            Err(error) => Err(error),
                         }
-                    },
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
-                }
+                    }).await.unwrap();
+
+                    match result {
+                        Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
+                    }
+                });
             }
 
             // When we want to update our program...
             Command::UpdateMainProgram => {
-                match crate::updater::update_main_program(&settings) {
-                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
-                }
+                let sender = sender.clone();
+                let settings = settings.clone();
+                tokio::spawn(async move {
+                    let result = tokio::task::spawn_blocking(move || {
+                        crate::updater::update_main_program(&settings)
+                    }).await.unwrap();
+
+                    match result {
+                        Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
+                    }
+                });
             }
 
             // When we want to update our program...
@@ -2385,16 +2407,23 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
             },
 
             Command::UpdateEmpireAndNapoleonAK => {
-                match old_ak_files_path() {
-                    Ok(local_path) => {
-                        let git_integration = GitIntegration::new(&local_path, OLD_AK_REPO, OLD_AK_BRANCH, OLD_AK_REMOTE);
-                        match git_integration.update_repo() {
-                            Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                            Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
+                let sender = sender.clone();
+                tokio::spawn(async move {
+                    let result = tokio::task::spawn_blocking(|| {
+                        match old_ak_files_path() {
+                            Ok(local_path) => {
+                                let git_integration = GitIntegration::new(&local_path, OLD_AK_REPO, OLD_AK_BRANCH, OLD_AK_REMOTE);
+                                git_integration.update_repo().map(|_| ()).map_err(|e| e.into())
+                            },
+                            Err(error) => Err(error),
                         }
-                    },
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
-                }
+                    }).await.unwrap();
+
+                    match result {
+                        Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
+                    }
+                });
             }
 
             Command::GetPackTranslation(language) => {
@@ -2441,16 +2470,23 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
             }
 
             Command::UpdateTranslations => {
-                match translations_remote_path() {
-                    Ok(local_path) => {
-                        let git_integration = GitIntegration::new(&local_path, TRANSLATIONS_REPO, TRANSLATIONS_BRANCH, TRANSLATIONS_REMOTE);
-                        match git_integration.update_repo() {
-                            Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                            Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
+                let sender = sender.clone();
+                tokio::spawn(async move {
+                    let result = tokio::task::spawn_blocking(|| {
+                        match translations_remote_path() {
+                            Ok(local_path) => {
+                                let git_integration = GitIntegration::new(&local_path, TRANSLATIONS_REPO, TRANSLATIONS_BRANCH, TRANSLATIONS_REMOTE);
+                                git_integration.update_repo().map(|_| ()).map_err(|e| e.into())
+                            },
+                            Err(error) => Err(error),
                         }
-                    },
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
-                }
+                    }).await.unwrap();
+
+                    match result {
+                        Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
+                    }
+                });
             }
 
             Command::BuildStarposGetCampaingIds => {

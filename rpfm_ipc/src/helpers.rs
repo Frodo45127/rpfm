@@ -220,7 +220,7 @@ pub enum NewFile {
 }
 
 /// This enum controls the possible responses from the server when checking for an update.
-#[derive(Debug, serde_derive::Serialize, serde_derive::Deserialize)]
+#[derive(Debug, PartialEq, Eq, serde_derive::Serialize, serde_derive::Deserialize)]
 pub enum APIResponse {
 
     /// This means a beta update was found.

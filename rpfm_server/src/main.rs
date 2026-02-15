@@ -33,6 +33,7 @@ pub mod server_websocket;
 pub mod session;
 pub mod settings;
 pub mod updater;
+#[cfg(test)] mod updater_test;
 
 use mimalloc::MiMalloc;
 

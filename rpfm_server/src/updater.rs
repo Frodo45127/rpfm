@@ -53,8 +53,13 @@ pub enum UpdateChannel {
 
 /// This function takes care of updating RPFM itself when a new version comes out.
 pub fn update_main_program(settings: &Settings) -> Result<()> {
-    let update_channel = update_channel(settings);
-    let last_release = last_release(update_channel)?;
+    let channel = update_channel(settings);
+    update_main_program_with(|| last_release(channel))
+}
+
+/// Inner function that accepts a release-fetching closure for testability.
+pub fn update_main_program_with(fetch_release: impl FnOnce() -> Result<Release>) -> Result<()> {
+    let last_release = fetch_release()?;
 
     // Get the download for our architecture.
     let asset = last_release.asset_for(get_target(), None).ok_or_else(|| anyhow!("No download available for your architecture."))?;
@@ -122,10 +127,19 @@ pub fn update_main_program(settings: &Settings) -> Result<()> {
 /// Also, this has a special behavior: If we have a beta version and we have the stable channel selected,
 /// it'll pick the newest stable release, even if it's older than our beta. That way we can easily opt-out of betas.
 pub fn check_updates_rpfm(settings: &Settings) -> Result<APIResponse> {
-    let update_channel = update_channel(settings);
-    let last_release = last_release(update_channel)?;
+    let channel = update_channel(settings);
+    let current_version = cargo_crate_version!();
+    check_updates_rpfm_with(current_version, channel, || last_release(channel))
+}
 
-    let current_version = cargo_crate_version!().split('.').map(|x| x.parse::<i32>().unwrap_or(0)).collect::<Vec<i32>>();
+/// Inner function that accepts injectable parameters for testability.
+///
+/// `current_version_str` is a semver string like "4.7.99".
+/// `fetch_release` provides the latest release to compare against.
+pub fn check_updates_rpfm_with(current_version_str: &str, update_channel: UpdateChannel, fetch_release: impl FnOnce() -> Result<Release>) -> Result<APIResponse> {
+    let last_release = fetch_release()?;
+
+    let current_version = current_version_str.split('.').map(|x| x.parse::<i32>().unwrap_or(0)).collect::<Vec<i32>>();
     let last_version = &last_release.version.split('.').map(|x| x.parse::<i32>().unwrap_or(0)).collect::<Vec<i32>>();
 
     // Before doing anything else, check if we are going back to stable after a beta, and we are currently in a beta version.
