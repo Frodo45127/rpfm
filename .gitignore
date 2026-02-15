@@ -169,3 +169,7 @@ Nuget.exe
 
 # For people using zed.
 /.zed/
+
+# For people using Claude and/or OpenSpec.
+/.claude/
+/openspec/
