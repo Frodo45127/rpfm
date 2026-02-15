@@ -2233,7 +2233,15 @@ export type Command =
    * @param params — `[table_name, version]`
    * Response: `"Success"`
    */
-  | { DeleteDefinition: [string, number] };
+  | { DeleteDefinition: [string, number] }
+
+  /**
+   * Get the processed fields from a definition (bitwise expansion, enum conversion, colour merging applied).
+   *
+   * @param definition — The definition to process.
+   * Response: `{ VecField: Field[] }` | `{ Error: string }`
+   */
+  | { FieldsProcessed: Definition };
 
 // ---------------------------------------------------------------------------
 // Response Enum
@@ -2312,6 +2320,7 @@ export type Response =
   | { VecContainerPathVecString: [ContainerPath[], string[]] }
   | { VecDataSourceStringStringUsizeUsize: [DataSource, string, string, number, number][] }
   | { VecDefinition: Definition[] }
+  | { VecField: Field[] }
   | { VecNote: Note[] }
   | { VecRFile: RFile[] }
   | { VecRFileInfo: RFileInfo[] }

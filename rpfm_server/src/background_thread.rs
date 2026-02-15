@@ -2760,6 +2760,10 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 }
                 CentralCommand::send_back(&sender, Response::Success);
             }
+
+            Command::FieldsProcessed(definition) => {
+                CentralCommand::send_back(&sender, Response::VecField(definition.fields_processed()));
+            }
         }
     }
 }

@@ -1203,7 +1203,12 @@ pub enum Command {
     /// Delete a definition by table name and version.
     ///
     /// Response: [`Response::Success`].
-    DeleteDefinition(String, i32)
+    DeleteDefinition(String, i32),
+
+    /// Get the processed fields from a definition (bitwise expansion, enum conversion, colour merging applied).
+    ///
+    /// Response: [`Response::VecField`].
+    FieldsProcessed(Definition),
 }
 
 /// This enum defines the responses (messages) you can send to the UI thread as result of a command.
@@ -1285,6 +1290,7 @@ pub enum Response {
     VecContainerPathVecString(Vec<ContainerPath>, Vec<String>),
     VecDataSourceStringStringUsizeUsize(Vec<(DataSource, String, String, usize, usize)>),
     VecDefinition(Vec<Definition>),
+    VecField(Vec<Field>),
     VecNote(Vec<Note>),
     VecRFile(Vec<RFile>),
     VecRFileInfo(Vec<RFileInfo>),
