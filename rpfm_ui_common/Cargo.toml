@@ -41,5 +41,5 @@ serde_json.workspace = true
 getset.workspace = true
 
 # Translation support.
-fluent-bundle = "^0.15"
+fluent-bundle = "^0.16"
 unic-langid = { version = "^0.9", features = ["unic-langid-macros"] }

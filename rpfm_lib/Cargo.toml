@@ -59,7 +59,7 @@ bitflags = { version = "^2.3", features = ["std", "serde"]}
 regex.workspace = true
 
 # RNG support.
-rand = "^0.9"
+rand = "^0.10"
 
 # Checksumming support.
 crc-fast = "^1"

@@ -84,7 +84,7 @@ fs_extra.workspace = true
 # Online translation support.
 tokio.workspace = true
 futures.workspace = true
-tokio-tungstenite = "^0.26"
+tokio-tungstenite = "^0.28"
 
 # Autoupdate support.
 self_update.workspace = true

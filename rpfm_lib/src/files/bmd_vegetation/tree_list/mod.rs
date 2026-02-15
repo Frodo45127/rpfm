@@ -42,7 +42,7 @@
 //! ```
 
 use getset::*;
-use rand::Rng;
+use rand::RngExt;
 use serde_derive::{Serialize, Deserialize};
 
 use crate::binary::{ReadBytes, WriteBytes};
