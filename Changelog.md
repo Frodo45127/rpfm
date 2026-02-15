@@ -9,9 +9,17 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [Unreleased]
 ### Added
 - Implemented basic support for using RPFM Server as an MCP Server.
+- Implemented basic Typescript documentation for the new RPFM Server.
+- Implemented support for flatpak builds.
 
 ### Changed
 - Decoupled UI from Backend into RPFM UI and RPFM Server.
+- Greatly expanded documentation for the entire project.
+- Reduced size of dependencies cache on disk by about 20%.
+- Update checks are now no longer blocking the backend until they're done.
+
+### Fixed
+- Fixed RPFM erroring out when trying to read incomplete portrait settings files.
 
 ## [4.7.4]
 ### Added

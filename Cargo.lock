@@ -4378,7 +4378,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_cli"
-version = "4.7.99"
+version = "4.7.100"
 dependencies = [
  "anyhow",
  "clap",
@@ -4392,9 +4392,9 @@ dependencies = [
 
 [[package]]
 name = "rpfm_extensions"
-version = "4.7.99"
+version = "4.7.100"
 dependencies = [
- "base64 0.22.1",
+ "base64 0.13.1",
  "bitcode",
  "caseless",
  "getset",
@@ -4412,7 +4412,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_ipc"
-version = "4.7.99"
+version = "4.7.100"
 dependencies = [
  "getset",
  "rayon",
@@ -4425,10 +4425,10 @@ dependencies = [
 
 [[package]]
 name = "rpfm_lib"
-version = "4.7.99"
+version = "4.7.100"
 dependencies = [
  "backtrace",
- "base64 0.22.1",
+ "base64 0.13.1",
  "bitcode",
  "bitflags 2.10.0",
  "byteorder",
@@ -4475,7 +4475,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_server"
-version = "4.7.99"
+version = "4.7.100"
 dependencies = [
  "anyhow",
  "axum",
@@ -4504,10 +4504,10 @@ dependencies = [
 
 [[package]]
 name = "rpfm_ui"
-version = "4.7.99"
+version = "4.7.100"
 dependencies = [
  "anyhow",
- "base64 0.22.1",
+ "base64 0.13.1",
  "chat-gpt-lib-rs",
  "cpp_core",
  "crossbeam",
@@ -4546,7 +4546,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_ui_common"
-version = "4.7.99"
+version = "4.7.100"
 dependencies = [
  "anyhow",
  "cpp_core",
