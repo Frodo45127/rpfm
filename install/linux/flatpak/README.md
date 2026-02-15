@@ -12,7 +12,17 @@
     flatpak install flathub org.freedesktop.Sdk.Extension.rust-stable//25.08
     ```
 
-## Building
+## Quick Build
+
+From the repository root, run the build script:
+
+```bash
+./install/linux/linux_flatpak_release.sh
+```
+
+Use `--skip-cargo-sources` to skip regenerating `cargo-sources.json` if `Cargo.lock` hasn't changed.
+
+## Manual Building
 
 1.  **Generate `cargo-sources.json`** (if Cargo.lock has changed):
 
@@ -25,13 +35,13 @@
 
     Run the generator from the RPFM repository root:
     ```bash
-    python3 flatpak-cargo-generator.py Cargo.lock -o install/flatpak/cargo-sources.json
+    python3 flatpak-cargo-generator.py Cargo.lock -o install/linux/flatpak/cargo-sources.json
     ```
 
 2.  **Build and install the Flatpak**:
     ```bash
     cd /path/to/rpfm
-    flatpak-builder --force-clean --install --user build-dir install/flatpak/com.github.frodo45127.rpfm.yaml
+    flatpak-builder --force-clean --install --user build-dir install/linux/flatpak/com.github.frodo45127.rpfm.yaml
     ```
 
 3.  **Run RPFM**:
@@ -44,5 +54,5 @@
 - If the build fails with network errors, ensure `cargo-sources.json` is up to date with the current `Cargo.lock`.
 - For debugging, you can enter the build environment with:
   ```bash
-  flatpak-builder --run build-dir install/flatpak/com.github.frodo45127.rpfm.yaml bash
+  flatpak-builder --run build-dir install/linux/flatpak/com.github.frodo45127.rpfm.yaml bash
   ```

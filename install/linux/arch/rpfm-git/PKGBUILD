@@ -27,7 +27,7 @@ build() {
 package() {
 
     # The executables.
-    install -D -m755 "$srcdir/$_programname/target/release/rpfm_ui" "$pkgdir/usr/bin/rpfm_server"
+    install -D -m755 "$srcdir/$_programname/target/release/rpfm_server" "$pkgdir/usr/bin/rpfm_server"
     install -D -m755 "$srcdir/$_programname/target/release/rpfm_ui" "$pkgdir/usr/bin/rpfm_ui"
     install -D -m755 "$srcdir/$_programname/target/release/rpfm_cli" "$pkgdir/usr/bin/rpfm_cli"
 
@@ -50,7 +50,7 @@ package() {
     done
 
     # Shortcut.
-    install -D -m644 "$srcdir/$_programname/install/arch/rpfm.desktop" "$pkgdir/usr/share/applications/rpfm.desktop"
+    install -D -m644 "$srcdir/$_programname/install/linux/arch/rpfm.desktop" "$pkgdir/usr/share/applications/rpfm.desktop"
 
     # License.
     install -D -m644 "$srcdir/$_programname/LICENSE" "$pkgdir/usr/share/licenses/$_programname/LICENSE"

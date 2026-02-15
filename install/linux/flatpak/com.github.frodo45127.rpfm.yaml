@@ -46,7 +46,8 @@ modules:
         EOF
 
       # Build the binaries
-      - cargo build --release --offline -p rpfm_ui -p rpfm_server
+      - cargo build --release --offline -p rpfm_server
+      - cargo build --release --offline -p rpfm_ui
 
       # Install binaries
       - install -Dm755 target/release/rpfm_server /app/bin/rpfm_server
@@ -68,11 +69,11 @@ modules:
       - cp -r rpfm_ui/ui_templates/* /app/share/rpfm/ui/
 
       # Install the desktop file
-      - install -Dm644 install/flatpak/com.github.frodo45127.rpfm.desktop /app/share/applications/com.github.frodo45127.rpfm.desktop
+      - install -Dm644 install/linux/flatpak/com.github.frodo45127.rpfm.desktop /app/share/applications/com.github.frodo45127.rpfm.desktop
 
     sources:
       - type: dir
-        path: ../..
+        path: ../../..
       # How to generate cargo-sources.json:
-      # flatpak-cargo-generator.py Cargo.lock -o install/flatpak/cargo-sources.json
+      # flatpak-cargo-generator.py Cargo.lock -o install/linux/flatpak/cargo-sources.json
       - cargo-sources.json
