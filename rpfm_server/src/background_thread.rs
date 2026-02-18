@@ -120,86 +120,20 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 });
             }
 
-            // When we want to check if there is a schema's update available...
             Command::CheckSchemaUpdates => {
-                let sender = sender.clone();
-                tokio::spawn(async move {
-                    let result = tokio::task::spawn_blocking(|| {
-                        match schemas_path() {
-                            Ok(local_path) => {
-                                let git_integration = GitIntegration::new(&local_path, SCHEMA_REPO, SCHEMA_BRANCH, SCHEMA_REMOTE);
-                                git_integration.check_update().map_err(|e| e.into())
-                            }
-                            Err(error) => Err(error),
-                        }
-                    }).await.unwrap();
-
-                    match result {
-                        Ok(response) => CentralCommand::send_back(&sender, Response::APIResponseGit(response)),
-                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
-                    }
-                });
+                git_update_check(sender, schemas_path, SCHEMA_REPO, SCHEMA_BRANCH, SCHEMA_REMOTE);
             }
 
-            // When we want to check if there is a lua setup update available...
             Command::CheckLuaAutogenUpdates => {
-                let sender = sender.clone();
-                tokio::spawn(async move {
-                    let result = tokio::task::spawn_blocking(|| {
-                        match lua_autogen_base_path() {
-                            Ok(local_path) => {
-                                let git_integration = GitIntegration::new(&local_path, LUA_REPO, LUA_BRANCH, LUA_REMOTE);
-                                git_integration.check_update().map_err(|e| e.into())
-                            },
-                            Err(error) => Err(error),
-                        }
-                    }).await.unwrap();
-
-                    match result {
-                        Ok(response) => CentralCommand::send_back(&sender, Response::APIResponseGit(response)),
-                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
-                    }
-                });
+                git_update_check(sender, lua_autogen_base_path, LUA_REPO, LUA_BRANCH, LUA_REMOTE);
             }
 
             Command::CheckEmpireAndNapoleonAKUpdates => {
-                let sender = sender.clone();
-                tokio::spawn(async move {
-                    let result = tokio::task::spawn_blocking(|| {
-                        match old_ak_files_path() {
-                            Ok(local_path) => {
-                                let git_integration = GitIntegration::new(&local_path, OLD_AK_REPO, OLD_AK_BRANCH, OLD_AK_REMOTE);
-                                git_integration.check_update().map_err(|e| e.into())
-                            },
-                            Err(error) => Err(error),
-                        }
-                    }).await.unwrap();
-
-                    match result {
-                        Ok(response) => CentralCommand::send_back(&sender, Response::APIResponseGit(response)),
-                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
-                    }
-                });
+                git_update_check(sender, old_ak_files_path, OLD_AK_REPO, OLD_AK_BRANCH, OLD_AK_REMOTE);
             }
 
             Command::CheckTranslationsUpdates => {
-                let sender = sender.clone();
-                tokio::spawn(async move {
-                    let result = tokio::task::spawn_blocking(|| {
-                        match translations_remote_path() {
-                            Ok(local_path) => {
-                                let git_integration = GitIntegration::new(&local_path, TRANSLATIONS_REPO, TRANSLATIONS_BRANCH, TRANSLATIONS_REMOTE);
-                                git_integration.check_update().map_err(|e| e.into())
-                            }
-                            Err(error) => Err(error),
-                        }
-                    }).await.unwrap();
-
-                    match result {
-                        Ok(response) => CentralCommand::send_back(&sender, Response::APIResponseGit(response)),
-                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
-                    }
-                });
+                git_update_check(sender, translations_remote_path, TRANSLATIONS_REPO, TRANSLATIONS_BRANCH, TRANSLATIONS_REMOTE);
             }
 
             // In case we want to reset the PackFile to his original state (dummy)...
@@ -2868,6 +2802,33 @@ fn exe_path() -> PathBuf {
         path.pop();
         path
     }
+}
+
+/// Spawns an async task that checks for git updates for the given repository configuration,
+/// sending the result back through `sender`.
+fn git_update_check(
+    sender: UnboundedSender<Response>,
+    path_fn: fn() -> Result<PathBuf>,
+    repo: &'static str,
+    branch: &'static str,
+    remote: &'static str,
+) {
+    tokio::spawn(async move {
+        let result = tokio::task::spawn_blocking(move || {
+            match path_fn() {
+                Ok(local_path) => {
+                    let git_integration = GitIntegration::new(&local_path, repo, branch, remote);
+                    git_integration.check_update().map_err(|e| e.into())
+                }
+                Err(error) => Err(error),
+            }
+        }).await.unwrap();
+
+        match result {
+            Ok(response) => CentralCommand::send_back(&sender, Response::APIResponseGit(response)),
+            Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
+        }
+    });
 }
 
 // TODO: what do we do with this?
