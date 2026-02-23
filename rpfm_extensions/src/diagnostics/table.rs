@@ -231,7 +231,7 @@ impl TableDiagnostic {
         local_path_list: &HashMap<String, Vec<String>>,
         check_ak_only_refs: bool,
         files_to_ignore: &Option<Vec<(String, Vec<String>, Vec<String>)>>,
-        pack: &Pack,
+        packs: &BTreeMap<String, Pack>,
         schema: &Schema,
         loc_data: &Option<HashMap<Cow<str>, Cow<str>>>
     ) -> Vec<DiagnosticType> {
@@ -244,7 +244,7 @@ impl TableDiagnostic {
         // Get the dependency data for tables once per batch. That way we can speed up this a lot.
         let file = files.first().and_then(|x| x.decoded().ok());
         let dependency_data = if let Some(RFileDecoded::DB(table)) = file {
-            dependencies.db_reference_data(schema, pack, table.table_name(), table.definition(), loc_data)
+            dependencies.db_reference_data(schema, packs, table.table_name(), table.definition(), loc_data)
         } else {
             return diagnostics
         };

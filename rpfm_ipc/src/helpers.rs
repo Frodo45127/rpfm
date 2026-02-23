@@ -57,6 +57,7 @@ use rayon::prelude::*;
 use schemars::JsonSchema;
 use serde_derive::{Serialize, Deserialize};
 
+use std::collections::BTreeMap;
 use std::fmt::{self, Display};
 
 use rpfm_extensions::dependencies::Dependencies;
@@ -391,12 +392,12 @@ impl DependenciesInfo {
 impl RFileInfo {
 
     /// This function returns the PackedFileInfo for all the PackedFiles the current search has searched on.
-    pub fn info_from_global_search(global_search: &GlobalSearch, pack: &Pack) -> Vec<Self> {
+    pub fn info_from_global_search(global_search: &GlobalSearch, packs: &BTreeMap<String, Pack>) -> Vec<Self> {
         let types = global_search.search_on().types_to_search();
 
-        // Only return info of stuff on the local Pack.
+        // Only return info of stuff on the local Packs.
         if global_search.source() == &SearchSource::Pack {
-            pack.files_by_type(&types).iter().map(|x| From::from(*x)).collect()
+            packs.values().flat_map(|pack| pack.files_by_type(&types).iter().map(|x| From::from(*x)).collect::<Vec<_>>()).collect()
         } else {
             vec![]
         }

@@ -82,6 +82,8 @@ use regex::{RegexBuilder, Regex};
 use rayon::prelude::*;
 use serde_derive::{Deserialize, Serialize};
 
+use std::collections::BTreeMap;
+
 use rpfm_lib::error::{Result, RLibError};
 use rpfm_lib::files::{Container, ContainerPath, DecodeableExtraData, FileType, pack::Pack, RFile, RFileDecoded};
 use rpfm_lib::games::{GameInfo, VanillaDBTableNameLogic};
@@ -405,8 +407,8 @@ pub struct Matches {
 
 impl GlobalSearch {
 
-    /// This function performs a search over the parts of a `PackFile` you specify it, storing his results.
-    pub fn search(&mut self, game_info: &GameInfo, schema: &Schema, pack: &mut Pack, dependencies: &mut Dependencies, update_paths: &[ContainerPath]) {
+    /// This function performs a search over the parts of the provided Packs, storing his results.
+    pub fn search(&mut self, game_info: &GameInfo, schema: &Schema, packs: &mut BTreeMap<String, Pack>, dependencies: &mut Dependencies, update_paths: &[ContainerPath]) {
 
         // Don't do anything if we have no pattern to search.
         if self.pattern.is_empty() { return }
@@ -432,8 +434,7 @@ impl GlobalSearch {
         let update_paths = if !update_paths.is_empty() && self.source == SearchSource::Pack {
             let container_paths = ContainerPath::dedup(update_paths);
             let raw_paths = container_paths.par_iter()
-                .map(|container_path| pack.paths_raw_from_container_path(container_path))
-                .flatten()
+                .flat_map(|container_path| packs.values().flat_map(|pack| pack.paths_raw_from_container_path(container_path)).collect::<Vec<_>>())
                 .collect::<Vec<_>>();
 
             self.matches_mut().retain_paths(&raw_paths);
@@ -468,10 +469,10 @@ impl GlobalSearch {
             SearchSource::Pack => {
 
                 let files_to_search = self.search_on().types_to_search();
-                let mut files = if !update_paths.is_empty() {
-                    pack.files_by_type_and_paths_mut(&files_to_search, &update_paths, false)
+                let mut files: Vec<&mut RFile> = if !update_paths.is_empty() {
+                    packs.values_mut().flat_map(|pack| pack.files_by_type_and_paths_mut(&files_to_search, &update_paths, false)).collect()
                 } else {
-                    pack.files_by_type_mut(&files_to_search)
+                    packs.values_mut().flat_map(|pack| pack.files_by_type_mut(&files_to_search)).collect()
                 };
 
                 self.matches_mut().find_matches(&pattern, case_sensitive, &matching_mode, &search_on, &mut files, schema, extra_data);
@@ -563,7 +564,7 @@ impl GlobalSearch {
     /// This function performs a replace operation over the provided matches.
     ///
     /// NOTE: Schema matches are always ignored.
-    pub fn replace(&mut self, game_info: &GameInfo, schema: &Schema, pack: &mut Pack, dependencies: &mut Dependencies, matches: &[MatchHolder]) -> Result<Vec<ContainerPath>> {
+    pub fn replace(&mut self, game_info: &GameInfo, schema: &Schema, packs: &mut BTreeMap<String, Pack>, dependencies: &mut Dependencies, matches: &[MatchHolder]) -> Result<Vec<ContainerPath>> {
         let mut edited_paths = vec![];
 
         // Don't do anything if we have no pattern to search.
@@ -606,7 +607,7 @@ impl GlobalSearch {
                 MatchHolder::Anim(_) => continue,
                 MatchHolder::AnimFragmentBattle(search_matches) => {
                     let container_path = ContainerPath::File(search_matches.path().to_string());
-                    let mut file = pack.files_by_path_mut(&container_path, false);
+                    let mut file: Vec<&mut RFile> = packs.values_mut().flat_map(|pack| pack.files_by_path_mut(&container_path, false)).collect();
                     if let Some(file) = file.get_mut(0) {
 
                         // Make sure it has been decoded.
@@ -627,7 +628,7 @@ impl GlobalSearch {
                 MatchHolder::AnimsTable(_) => continue,
                 MatchHolder::Atlas(search_matches) => {
                     let container_path = ContainerPath::File(search_matches.path().to_string());
-                    let mut file = pack.files_by_path_mut(&container_path, false);
+                    let mut file: Vec<&mut RFile> = packs.values_mut().flat_map(|pack| pack.files_by_path_mut(&container_path, false)).collect();
                     if let Some(file) = file.get_mut(0) {
 
                         // Make sure it has been decoded.
@@ -650,7 +651,7 @@ impl GlobalSearch {
 
                 MatchHolder::Db(search_matches) => {
                     let container_path = ContainerPath::File(search_matches.path().to_string());
-                    let mut file = pack.files_by_path_mut(&container_path, false);
+                    let mut file: Vec<&mut RFile> = packs.values_mut().flat_map(|pack| pack.files_by_path_mut(&container_path, false)).collect();
                     if let Some(file) = file.get_mut(0) {
                         if let Ok(decoded) = file.decoded_mut() {
                             let edited = match decoded {
@@ -670,7 +671,7 @@ impl GlobalSearch {
                 MatchHolder::Image(_) => continue,
                 MatchHolder::Loc(search_matches) => {
                     let container_path = ContainerPath::File(search_matches.path().to_string());
-                    let mut file = pack.files_by_path_mut(&container_path, false);
+                    let mut file: Vec<&mut RFile> = packs.values_mut().flat_map(|pack| pack.files_by_path_mut(&container_path, false)).collect();
                     if let Some(file) = file.get_mut(0) {
                         if let Ok(decoded) = file.decoded_mut() {
                             let edited = match decoded {
@@ -689,7 +690,7 @@ impl GlobalSearch {
                 MatchHolder::Pack(_) => continue,
                 MatchHolder::PortraitSettings(search_matches) => {
                     let container_path = ContainerPath::File(search_matches.path().to_string());
-                    let mut file = pack.files_by_path_mut(&container_path, false);
+                    let mut file: Vec<&mut RFile> = packs.values_mut().flat_map(|pack| pack.files_by_path_mut(&container_path, false)).collect();
                     if let Some(file) = file.get_mut(0) {
 
                         // Make sure it has been decoded.
@@ -709,7 +710,7 @@ impl GlobalSearch {
 
                 MatchHolder::RigidModel(search_matches) => {
                     let container_path = ContainerPath::File(search_matches.path().to_string());
-                    let mut file = pack.files_by_path_mut(&container_path, false);
+                    let mut file: Vec<&mut RFile> = packs.values_mut().flat_map(|pack| pack.files_by_path_mut(&container_path, false)).collect();
                     if let Some(file) = file.get_mut(0) {
 
                         // Make sure it has been decoded.
@@ -730,7 +731,7 @@ impl GlobalSearch {
                 MatchHolder::SoundBank(_) => continue,
                 MatchHolder::Text(search_matches) => {
                     let container_path = ContainerPath::File(search_matches.path().to_string());
-                    let mut file = pack.files_by_path_mut(&container_path, false);
+                    let mut file: Vec<&mut RFile> = packs.values_mut().flat_map(|pack| pack.files_by_path_mut(&container_path, false)).collect();
                     if let Some(file) = file.get_mut(0) {
 
                         // Make sure it has been decoded.
@@ -764,7 +765,7 @@ impl GlobalSearch {
                 MatchHolder::Uic(_) => continue,
                 MatchHolder::UnitVariant(search_matches) => {
                     let container_path = ContainerPath::File(search_matches.path().to_string());
-                    let mut file = pack.files_by_path_mut(&container_path, false);
+                    let mut file: Vec<&mut RFile> = packs.values_mut().flat_map(|pack| pack.files_by_path_mut(&container_path, false)).collect();
                     if let Some(file) = file.get_mut(0) {
 
                         // Make sure it has been decoded.
@@ -784,7 +785,7 @@ impl GlobalSearch {
 
                 MatchHolder::Unknown(search_matches) => {
                     let container_path = ContainerPath::File(search_matches.path().to_string());
-                    let mut file = pack.files_by_path_mut(&container_path, false);
+                    let mut file: Vec<&mut RFile> = packs.values_mut().flat_map(|pack| pack.files_by_path_mut(&container_path, false)).collect();
                     if let Some(file) = file.get_mut(0) {
 
                         // Make sure it has been decoded.
@@ -809,13 +810,13 @@ impl GlobalSearch {
         }
 
         // Update the current search over the edited files.
-        self.search(game_info, schema, pack, dependencies, &edited_paths);
+        self.search(game_info, schema, packs, dependencies, &edited_paths);
 
         // Return the changed paths.
         Ok(edited_paths)
     }
 
-    pub fn replace_all(&mut self, game_info: &GameInfo, schema: &Schema, pack: &mut Pack, dependencies: &mut Dependencies) -> Result<Vec<ContainerPath>> {
+    pub fn replace_all(&mut self, game_info: &GameInfo, schema: &Schema, packs: &mut BTreeMap<String, Pack>, dependencies: &mut Dependencies) -> Result<Vec<ContainerPath>> {
         let mut matches = vec![];
 
         matches.extend(self.matches.anim.iter().map(|x| MatchHolder::Unknown(x.clone())).collect::<Vec<_>>());
@@ -841,7 +842,7 @@ impl GlobalSearch {
         matches.extend(self.matches.unknown.iter().map(|x| MatchHolder::Unknown(x.clone())).collect::<Vec<_>>());
         matches.extend(self.matches.video.iter().map(|x| MatchHolder::Unknown(x.clone())).collect::<Vec<_>>());
 
-        self.replace(game_info, schema, pack, dependencies, &matches)
+        self.replace(game_info, schema, packs, dependencies, &matches)
     }
 }
 

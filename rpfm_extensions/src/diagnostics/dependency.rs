@@ -28,6 +28,7 @@ use crate::diagnostics::*;
 #[getset(get = "pub", get_mut = "pub")]
 pub struct DependencyDiagnostic {
     path: String,
+    pack: String,
     results: Vec<DependencyDiagnosticReport>
 }
 
@@ -56,6 +57,7 @@ impl Default for DependencyDiagnostic {
     fn default() -> Self {
         Self {
             path: RESERVED_NAME_DEPENDENCIES_MANAGER_V2.to_owned(),
+            pack: String::new(),
             results: vec![],
         }
     }
@@ -95,19 +97,29 @@ impl Display for DependencyDiagnosticReportType {
 impl DependencyDiagnostic {
 
     /// This function takes care of checking for errors in the Dependency Manager.
-    pub fn check(pack: &Pack) ->Option<DiagnosticType> {
-        let mut diagnostic = DependencyDiagnostic::default();
-        for (index, (_, pack)) in pack.dependencies().iter().enumerate() {
+    pub fn check(packs: &BTreeMap<String, Pack>) -> Vec<DiagnosticType> {
+        let mut diagnostics = Vec::new();
 
-            // TODO: Make it so this also checks if the PackFile actually exists,
-            if pack.is_empty() || !pack.ends_with(".pack") || pack.contains(' ') {
-                let result = DependencyDiagnosticReport::new(DependencyDiagnosticReportType::InvalidDependencyPackName(pack.to_string()), &[(index as i32, 1)]);
-                diagnostic.results_mut().push(result);
+        for (key, pack) in packs.iter() {
+            let mut diagnostic = DependencyDiagnostic {
+                pack: key.to_owned(),
+                ..Default::default()
+            };
+
+            for (index, (_, dep_name)) in pack.dependencies().iter().enumerate() {
+
+                // TODO: Make it so this also checks if the PackFile actually exists,
+                if dep_name.is_empty() || !dep_name.ends_with(".pack") || dep_name.contains(' ') {
+                    let result = DependencyDiagnosticReport::new(DependencyDiagnosticReportType::InvalidDependencyPackName(dep_name.to_string()), &[(index as i32, 1)]);
+                    diagnostic.results_mut().push(result);
+                }
+            }
+
+            if !diagnostic.results().is_empty() {
+                diagnostics.push(DiagnosticType::Dependency(diagnostic));
             }
         }
 
-        if !diagnostic.results().is_empty() {
-            Some(DiagnosticType::Dependency(diagnostic))
-        } else { None }
+        diagnostics
     }
 }

@@ -93,14 +93,13 @@ impl TextDiagnostic {
     /// This function takes care of checking for Text-Related for errors.
     pub fn check(
         file: &RFile,
-        pack: &Pack,
+        packs: &BTreeMap<String, Pack>,
         dependencies: &Dependencies,
         global_ignored_diagnostics: &[String],
         ignored_fields: &[String],
         ignored_diagnostics: &HashSet<String>,
         ignored_diagnostics_for_fields: &HashMap<String, Vec<String>>,
     ) -> Option<DiagnosticType> {
-
 
         if let Ok(RFileDecoded::Text(text)) = file.decoded() {
             let mut diagnostic = Self::new(file.path_in_container_raw(), file.container_name().as_deref().unwrap_or(""));
@@ -292,7 +291,9 @@ impl TextDiagnostic {
 
                         // Add the files from the dependencies, then the files from the pack, then reverse the list so we process first the pack ones.
                         if let Ok(mut tables) = dependencies.db_data(&table_name, true, true) {
-                            tables.append(&mut pack.files_by_path(&ContainerPath::Folder("db/".to_string() + &table_name + "/"), true));
+                            for pack in packs.values() {
+                                tables.append(&mut pack.files_by_path(&ContainerPath::Folder("db/".to_string() + &table_name + "/"), true));
+                            }
                             tables.reverse();
 
                             // If there are no tables that match out name, ignore it.

@@ -100,7 +100,7 @@ use rayon::prelude::*;
 use serde_derive::{Serialize, Deserialize};
 
 use std::borrow::Cow;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs::{DirBuilder, File};
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::sync::mpsc::channel;
@@ -522,22 +522,25 @@ impl Dependencies {
         Ok(())
     }
 
-    /// This function builds the local db references data for the tables you pass to it from the Pack provided.
+    /// This function builds the local db references data for the tables you pass to it from the Packs provided.
     ///
     /// Table names must be provided as full names (with *_tables* at the end).
     ///
-    /// NOTE: This function, like many others, assumes the tables are already decoded in the Pack. If they're not, they'll be ignored.
-    pub fn generate_local_db_references(&mut self, schema: &Schema, pack: &Pack, table_names: &[String]) {
+    /// NOTE: This function, like many others, assumes the tables are already decoded in the Packs. If they're not, they'll be ignored.
+    pub fn generate_local_db_references(&mut self, schema: &Schema, packs: &BTreeMap<String, Pack>, table_names: &[String]) {
 
-        let local_tables_references = pack.files_by_type(&[FileType::DB]).par_iter().filter_map(|file| {
-            if let Ok(RFileDecoded::DB(db)) = file.decoded() {
+        let local_tables_references = packs.values()
+            .flat_map(|pack| pack.files_by_type(&[FileType::DB]))
+            .par_bridge()
+            .filter_map(|file| {
+                if let Ok(RFileDecoded::DB(db)) = file.decoded() {
 
-                // Only generate references for the tables you pass it, or for all if we pass the list of tables empty.
-                if table_names.is_empty() || table_names.iter().any(|x| x == db.table_name()) {
-                    Some((db.table_name().to_owned(), self.generate_references(schema, db.table_name(), db.definition())))
+                    // Only generate references for the tables you pass it, or for all if we pass the list of tables empty.
+                    if table_names.is_empty() || table_names.iter().any(|x| x == db.table_name()) {
+                        Some((db.table_name().to_owned(), self.generate_references(schema, db.table_name(), db.definition())))
+                    } else { None }
                 } else { None }
-            } else { None }
-        }).collect::<HashMap<_, _>>();
+            }).collect::<HashMap<_, _>>();
 
         self.local_tables_references.extend(local_tables_references);
     }
@@ -1370,7 +1373,7 @@ impl Dependencies {
     /// It returns them in the order the game will load them.
     ///
     /// NOTE: table_name is expected to be the table's folder name, with "_tables" at the end.
-    pub fn db_data_datacored<'a>(&'a self, table_name: &str, pack: &'a Pack, include_vanilla: bool, include_parent: bool) -> Result<Vec<&'a RFile>> {
+    pub fn db_data_datacored<'a>(&'a self, table_name: &str, packs: &'a BTreeMap<String, Pack>, include_vanilla: bool, include_parent: bool) -> Result<Vec<&'a RFile>> {
         let mut cache = vec![];
 
         if include_vanilla {
@@ -1414,11 +1417,13 @@ impl Dependencies {
             .map(|x| x.path_in_container())
             .collect::<Vec<_>>();
 
-        for pack_file in pack.files_by_paths(&paths, true) {
-            for cache_file in &mut cache {
-                if cache_file.path_in_container() == pack_file.path_in_container() {
-                    *cache_file = pack_file;
-                    break;
+        for pack in packs.values() {
+            for pack_file in pack.files_by_paths(&paths, true) {
+                for cache_file in &mut cache {
+                    if cache_file.path_in_container() == pack_file.path_in_container() {
+                        *cache_file = pack_file;
+                        break;
+                    }
                 }
             }
         }
@@ -1508,7 +1513,7 @@ impl Dependencies {
     /// This function returns the reference/lookup data of all relevant columns of a DB Table.
     ///
     /// NOTE: This assumes you've populated the runtime references before this. If not, it'll fail.
-    pub fn db_reference_data(&self, schema: &Schema, pack: &Pack, table_name: &str, definition: &Definition, loc_data: &Option<HashMap<Cow<str>, Cow<str>>>) -> HashMap<i32, TableReferences> {
+    pub fn db_reference_data(&self, schema: &Schema, packs: &BTreeMap<String, Pack>, table_name: &str, definition: &Definition, loc_data: &Option<HashMap<Cow<str>, Cow<str>>>) -> HashMap<i32, TableReferences> {
 
         // First check if the data is already cached, to speed up things.
         //
@@ -1522,7 +1527,7 @@ impl Dependencies {
         let (_loc_files, loc_decoded) = if loc_data.is_some() {
             (vec![], vec![])
         } else {
-            let loc_files = pack.files_by_type(&[FileType::Loc]);
+            let loc_files: Vec<_> = packs.values().flat_map(|pack| pack.files_by_type(&[FileType::Loc])).collect();
             let loc_decoded = loc_files.iter()
                 .filter_map(|file| if let Ok(RFileDecoded::Loc(loc)) = file.decoded() { Some(loc) } else { None })
                 .map(|file| file.data())
@@ -1559,7 +1564,7 @@ impl Dependencies {
                         let mut references = TableReferences::default();
                         *references.field_name_mut() = field.name().to_owned();
 
-                        let _local_found = self.db_reference_data_from_local_pack(&mut references, (ref_table, ref_column, &lookup_data), pack, loc_data);
+                        let _local_found = self.db_reference_data_from_local_pack(&mut references, (ref_table, ref_column, &lookup_data), packs, loc_data);
 
                         Some((column as i32, references))
                     } else { None }
@@ -1585,7 +1590,7 @@ impl Dependencies {
                             let mut references = TableReferences::default();
                             *references.field_name_mut() = field.name().to_owned();
 
-                            let _local_found = self.db_reference_data_from_local_pack(&mut references, (&ref_table, ref_column, lookup_data), pack, loc_data);
+                            let _local_found = self.db_reference_data_from_local_pack(&mut references, (&ref_table, ref_column, lookup_data), packs, loc_data);
 
                             Some((column as i32, references))
                         } else { None }
@@ -1667,11 +1672,11 @@ impl Dependencies {
     }
 
     /// This function returns the reference/lookup data of all relevant columns of a DB Table from the provided Pack.
-    fn db_reference_data_from_local_pack(&self, references: &mut TableReferences, reference_info: (&str, &str, &[String]), pack: &Pack, loc_data: &HashMap<Cow<str>, Cow<str>>) -> Option<Definition> {
-        self.db_reference_data_generic(references, reference_info, Some(pack), loc_data)
+    fn db_reference_data_from_local_pack(&self, references: &mut TableReferences, reference_info: (&str, &str, &[String]), packs: &BTreeMap<String, Pack>, loc_data: &HashMap<Cow<str>, Cow<str>>) -> Option<Definition> {
+        self.db_reference_data_generic(references, reference_info, Some(packs), loc_data)
     }
 
-    fn db_reference_data_generic(&self, references: &mut TableReferences, reference_info: (&str, &str, &[String]), pack: Option<&Pack>, loc_data: &HashMap<Cow<str>, Cow<str>>) -> Option<Definition> {
+    fn db_reference_data_generic(&self, references: &mut TableReferences, reference_info: (&str, &str, &[String]), packs: Option<&BTreeMap<String, Pack>>, loc_data: &HashMap<Cow<str>, Cow<str>>) -> Option<Definition> {
         let mut data_found: Option<Definition> = None;
 
         let ref_table = reference_info.0;
@@ -1687,9 +1692,9 @@ impl Dependencies {
             ref_table.to_owned() + "_tables"
         };
 
-        let files = match pack {
-            Some(pack) => {
-                let mut files = pack.files_by_path(&ContainerPath::Folder(format!("db/{ref_table_full}")), true);
+        let files = match packs {
+            Some(packs) => {
+                let mut files: Vec<&RFile> = packs.values().flat_map(|pack| pack.files_by_path(&ContainerPath::Folder(format!("db/{ref_table_full}")), true)).collect();
                 files.append(&mut self.db_data(&ref_table_full, true, true).unwrap_or_else(|_| vec![]));
                 files
             },
@@ -1723,8 +1728,10 @@ impl Dependencies {
                                 if !cache.contains_key(lookup_ref_table) {
                                     let mut files = vec![];
 
-                                    if let Some(pack) = pack {
-                                        files.append(&mut pack.files_by_path(&ContainerPath::Folder(format!("db/{lookup_ref_table_long}")), true));
+                                    if let Some(packs) = packs {
+                                        for pack in packs.values() {
+                                            files.append(&mut pack.files_by_path(&ContainerPath::Folder(format!("db/{lookup_ref_table_long}")), true));
+                                        }
                                     }
 
                                     // Only add to the cache the files not already there due to being in the pack.
@@ -2115,8 +2122,8 @@ impl Dependencies {
         None
     }
 
-    /// This function returns the list of values a column of a table has, across all instances of said table in the dependencies and the provided Pack.
-    pub fn db_values_from_table_name_and_column_name(&self, pack: Option<&Pack>, table_name: &str, column_name: &str, include_vanilla: bool, include_parent: bool) -> HashSet<String> {
+    /// This function returns the list of values a column of a table has, across all instances of said table in the dependencies and the provided Packs.
+    pub fn db_values_from_table_name_and_column_name(&self, packs: Option<&BTreeMap<String, Pack>>, table_name: &str, column_name: &str, include_vanilla: bool, include_parent: bool) -> HashSet<String> {
         let mut values = HashSet::new();
 
         if let Ok(files) = self.db_data(table_name, include_vanilla, include_parent) {
@@ -2127,20 +2134,22 @@ impl Dependencies {
             }).flatten().collect::<Vec<_>>());
         }
 
-        if let Some(pack) = pack {
-            let files = pack.files_by_path(&ContainerPath::Folder(format!("db/{table_name}")), true);
-            values.extend(files.par_iter().filter_map(|file| {
-                if let Ok(RFileDecoded::DB(table)) = file.decoded() {
-                    table.definition().column_position_by_name(column_name).map(|column| table.data().par_iter().map(|row| row[column].data_to_string().to_string()).collect::<Vec<_>>())
-                } else { None }
-            }).flatten().collect::<Vec<_>>());
+        if let Some(packs) = packs {
+            for pack in packs.values() {
+                let files = pack.files_by_path(&ContainerPath::Folder(format!("db/{table_name}")), true);
+                values.extend(files.par_iter().filter_map(|file| {
+                    if let Ok(RFileDecoded::DB(table)) = file.decoded() {
+                        table.definition().column_position_by_name(column_name).map(|column| table.data().par_iter().map(|row| row[column].data_to_string().to_string()).collect::<Vec<_>>())
+                    } else { None }
+                }).flatten().collect::<Vec<_>>());
+            }
         }
 
         values
     }
 
     /// This function returns the value a table has in the row it has a specific value in a specific column.
-    pub fn db_values_from_table_name_and_column_name_for_value(&self, pack: Option<&Pack>, table_name: &str, key_column_name: &str, desired_column_name: &str, include_vanilla: bool, include_parent: bool) -> HashMap<String, String> {
+    pub fn db_values_from_table_name_and_column_name_for_value(&self, packs: Option<&BTreeMap<String, Pack>>, table_name: &str, key_column_name: &str, desired_column_name: &str, include_vanilla: bool, include_parent: bool) -> HashMap<String, String> {
         let mut values = HashMap::new();
 
         if let Ok(files) = self.db_data(table_name, include_vanilla, include_parent) {
@@ -2153,15 +2162,17 @@ impl Dependencies {
             }).flatten().collect::<Vec<_>>());
         }
 
-        if let Some(pack) = pack {
-            let files = pack.files_by_path(&ContainerPath::Folder(format!("db/{table_name}")), true);
-            values.extend(files.par_iter().filter_map(|file| {
-                if let Ok(RFileDecoded::DB(table)) = file.decoded() {
-                    if let Some(column) = table.definition().column_position_by_name(key_column_name) {
-                        table.definition().column_position_by_name(desired_column_name).map(|desired_column| table.data().par_iter().map(|row| (row[column].data_to_string().to_string(), row[desired_column].data_to_string().to_string())).collect::<Vec<_>>())
+        if let Some(packs) = packs {
+            for pack in packs.values() {
+                let files = pack.files_by_path(&ContainerPath::Folder(format!("db/{table_name}")), true);
+                values.extend(files.par_iter().filter_map(|file| {
+                    if let Ok(RFileDecoded::DB(table)) = file.decoded() {
+                        if let Some(column) = table.definition().column_position_by_name(key_column_name) {
+                            table.definition().column_position_by_name(desired_column_name).map(|desired_column| table.data().par_iter().map(|row| (row[column].data_to_string().to_string(), row[desired_column].data_to_string().to_string())).collect::<Vec<_>>())
+                        } else { None }
                     } else { None }
-                } else { None }
-            }).flatten().collect::<Vec<_>>());
+                }).flatten().collect::<Vec<_>>());
+            }
         }
 
         values
@@ -2208,7 +2219,7 @@ impl Dependencies {
     }
 
     /// Function to generate the missing loc entries in a pack.
-    pub fn generate_missing_loc_data(&self, pack: &mut Pack) -> Result<Vec<ContainerPath>> {
+    pub fn generate_missing_loc_data(&self, packs: &mut BTreeMap<String, Pack>) -> Result<Vec<ContainerPath>> {
         let loc_data = self.loc_data(true, true)?;
         let mut existing_locs = HashMap::new();
 
@@ -2218,11 +2229,15 @@ impl Dependencies {
             }
         }
 
-        pack.generate_missing_loc_data(&existing_locs)
+        let mut all_paths = vec![];
+        for pack in packs.values_mut() {
+            all_paths.extend(pack.generate_missing_loc_data(&existing_locs)?);
+        }
+        Ok(all_paths)
     }
 
     /// This function bruteforces the order in which multikeyed tables get their keys together for loc entries.
-    pub fn bruteforce_loc_key_order(&self, schema: &mut Schema, locs: Option<HashMap<String, Vec<String>>>, local_files: Option<&Pack>, mut ak_files: Option<&mut HashMap<String, DB>>) -> Result<()> {
+    pub fn bruteforce_loc_key_order(&self, schema: &mut Schema, locs: Option<HashMap<String, Vec<String>>>, local_packs: Option<&BTreeMap<String, Pack>>, mut ak_files: Option<&mut HashMap<String, DB>>) -> Result<()> {
         let mut fields_still_not_found = vec![];
 
         // Get all vanilla loc keys into a big hashmap so we can check them fast.
@@ -2239,14 +2254,14 @@ impl Dependencies {
         };
 
         // This is to fix bruteforcing not working on tables like campaigns.
-        let local_files = match local_files {
-            Some(pack) => pack.files_by_type(&[FileType::DB])
-                .iter()
+        let local_files: Vec<_> = match local_packs {
+            Some(packs) => packs.values()
+                .flat_map(|pack| pack.files_by_type(&[FileType::DB]))
                 .filter_map(|x| match x.decoded() {
                     Ok(RFileDecoded::DB(db)) => Some(db),
                     _ => None,
                 })
-                .collect::<Vec<_>>(),
+                .collect(),
             None => Vec::new(),
         };
 
@@ -2467,21 +2482,23 @@ impl Dependencies {
 
     /// This function generates automatic schema patches based mainly on bruteforcing and some clever logic.
     #[allow(clippy::if_same_then_else)]
-    pub fn generate_automatic_patches(&self, schema: &mut Schema, pack: &Pack) -> Result<()> {
+    pub fn generate_automatic_patches(&self, schema: &mut Schema, packs: &BTreeMap<String, Pack>) -> Result<()> {
         let mut db_tables = self.db_and_loc_data(true, false, true, false)?
             .iter()
             .filter_map(|file| if let Ok(RFileDecoded::DB(table)) = file.decoded() { Some(table) } else { None })
             .collect::<Vec<_>>();
 
-        db_tables.extend_from_slice(&pack.files_by_type(&[FileType::DB])
-            .iter()
-            .filter_map(|x| if let Ok(RFileDecoded::DB(db)) = x.decoded() {
-                Some(db)
-            } else {
-                None
-            })
-            .collect::<Vec<_>>()
-        );
+        for pack in packs.values() {
+            db_tables.extend_from_slice(&pack.files_by_type(&[FileType::DB])
+                .iter()
+                .filter_map(|x| if let Ok(RFileDecoded::DB(db)) = x.decoded() {
+                    Some(db)
+                } else {
+                    None
+                })
+                .collect::<Vec<_>>()
+            );
+        }
 
         let current_patches = schema.patches_mut();
         let mut new_patches: HashMap<String, DefinitionPatch> = HashMap::new();
@@ -2891,8 +2908,14 @@ impl Dependencies {
     /// Function to add tiles and tile maps to the provided pack.
     ///
     /// Only for Warhammer 3.
-    pub fn add_tile_maps_and_tiles(&mut self, pack: &mut Pack, game: &GameInfo, schema: &Schema, options: OptimizerOptions, tile_maps: Vec<PathBuf>, tiles: Vec<(PathBuf, String)>) -> Result<(Vec<ContainerPath>, Vec<ContainerPath>)> {
+    pub fn add_tile_maps_and_tiles(&mut self, packs: &mut BTreeMap<String, Pack>, pack_key: Option<&str>, game: &GameInfo, schema: &Schema, options: OptimizerOptions, tile_maps: Vec<PathBuf>, tiles: Vec<(PathBuf, String)>) -> Result<(Vec<ContainerPath>, Vec<ContainerPath>)> {
         let mut added_paths = vec![];
+
+        // Use the provided key, or fall back to the first pack in the map.
+        let pack = match pack_key {
+            Some(key) => packs.get_mut(key).ok_or_else(|| RLibError::NoPacksProvided)?,
+            None => packs.values_mut().next().ok_or_else(|| RLibError::NoPacksProvided)?,
+        };
 
         // Tile Maps are from assembly_kit/working_data/terrain/battles/.
         for tile_map in &tile_maps {
@@ -2944,7 +2967,20 @@ impl Dependencies {
     // Function to trigger an startpos build.
     //
     // After this ends, remember to call the post one!
-    pub fn build_starpos_pre(&self, pack_file: &mut Pack, game: &GameInfo, game_path: &Path, campaign_id: &str, process_hlp_spd_data: bool, sub_start_pos: &str) -> Result<()> {
+    pub fn build_starpos_pre(&self, packs: &mut BTreeMap<String, Pack>, pack_key: Option<&str>, game: &GameInfo, game_path: &Path, campaign_id: &str, process_hlp_spd_data: bool, sub_start_pos: &str) -> Result<()> {
+
+        // Pre-fetch data we need before taking mutable borrows.
+        let map_names = if process_hlp_spd_data {
+            self.db_values_from_table_name_and_column_name_for_value(Some(packs), "campaigns_tables", "campaign_name", "map_name", true, true)
+        } else {
+            HashMap::new()
+        };
+
+        // Use the provided key, or fall back to the first pack in the map.
+        let pack_file = match pack_key {
+            Some(key) => packs.get_mut(key).ok_or_else(|| RLibError::NoPacksProvided)?,
+            None => packs.values_mut().next().ok_or_else(|| RLibError::NoPacksProvided)?,
+        };
         let pack_name = pack_file.disk_file_name();
         if pack_name.is_empty() {
             return Err(RLibError::BuildStartposError("The Pack needs to be saved to disk in order to build a startpos. Save it and try again.".to_owned()));
@@ -3045,7 +3081,6 @@ impl Dependencies {
 
         // Same for the other two files, if we're generating them. We need to get the campaign name from the campaigns table first, then get the files generated.
         if process_hlp_spd_data {
-            let map_names = self.db_values_from_table_name_and_column_name_for_value(Some(pack_file), "campaigns_tables", "campaign_name", "map_name", true, true);
             if let Some(map_name) = map_names.get(campaign_id) {
                 match game.key() {
 
@@ -3215,7 +3250,20 @@ impl Dependencies {
     /// Call this when the game closes after the pre function launched it.
     ///
     /// NOTE: The assembly kit path is only needed for Rome 2.
-    pub fn build_starpos_post(&self, pack_file: &mut Pack, game: &GameInfo, game_path: &Path, asskit_path: Option<PathBuf>,campaign_id: &str, process_hlp_spd_data: bool, cleanup_mode: bool, sub_start_pos: &[String]) -> Result<Vec<ContainerPath>> {
+    pub fn build_starpos_post(&self, packs: &mut BTreeMap<String, Pack>, pack_key: Option<&str>, game: &GameInfo, game_path: &Path, asskit_path: Option<PathBuf>,campaign_id: &str, process_hlp_spd_data: bool, cleanup_mode: bool, sub_start_pos: &[String]) -> Result<Vec<ContainerPath>> {
+
+        // Pre-fetch data we need before taking mutable borrows.
+        let map_names = if process_hlp_spd_data {
+            self.db_values_from_table_name_and_column_name_for_value(Some(packs), "campaigns_tables", "campaign_name", "map_name", true, true)
+        } else {
+            HashMap::new()
+        };
+
+        // Use the provided key, or fall back to the first pack in the map.
+        let pack_file = match pack_key {
+            Some(key) => packs.get_mut(key).ok_or_else(|| RLibError::NoPacksProvided)?,
+            None => packs.values_mut().next().ok_or_else(|| RLibError::NoPacksProvided)?,
+        };
 
         let mut startpos_failed = false;
         let mut sub_startpos_failed = vec![];
@@ -3377,7 +3425,6 @@ impl Dependencies {
 
         // Same with the other two files.
         if process_hlp_spd_data {
-            let map_names = self.db_values_from_table_name_and_column_name_for_value(Some(pack_file), "campaigns_tables", "campaign_name", "map_name", true, true);
             if let Some(map_name) = map_names.get(campaign_id) {
 
                 // Same as with startpos. It's different depending on the game.

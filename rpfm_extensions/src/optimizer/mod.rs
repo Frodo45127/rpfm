@@ -78,7 +78,7 @@
 use getset::{Getters, Setters};
 use serde::{Deserialize, Serialize};
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use rpfm_lib::error::{RLibError, Result};
 use rpfm_lib::files::{Container, ContainerPath, db::DB, EncodeableExtraData, FileType, loc::Loc, pack::Pack, portrait_settings::PortraitSettings, RFile, RFileDecoded, table::DecodedData, text::TextFormat};
@@ -114,7 +114,7 @@ pub trait Optimizable {
     /// # Returns
     ///
     /// `true` if the file is now empty and can be safely deleted, `false` otherwise.
-    fn optimize(&mut self, dependencies: &mut Dependencies, container: Option<&mut Pack>, options: &OptimizerOptions) -> bool;
+    fn optimize(&mut self, dependencies: &mut Dependencies, container: Option<&BTreeMap<String, Pack>>, options: &OptimizerOptions) -> bool;
 }
 
 /// Trait for containers (like [`Pack`]) that can optimize their contents.
@@ -294,7 +294,8 @@ impl OptimizableContainer for Pack {
 
         // Cache the pack paths for the text file checks.
         let pack_paths = self.paths().keys().map(|x| x.to_owned()).collect::<HashSet<String>>();
-        let mut self_copy = self.clone();
+        let self_copy = self.clone();
+        let self_copy_map = BTreeMap::from([("main".to_string(), self_copy)]);
 
         // List of files to optimize.
         let mut files_to_optimize = match paths_to_optimize {
@@ -368,7 +369,7 @@ impl OptimizableContainer for Pack {
                         // as those are probably intended to overwrite vanilla files, not to be optimized.
                         if options.db_optimize_datacored_tables || !dependencies.file_exists(&path, true, true, true) {
                             if let Ok(RFileDecoded::DB(db)) = rfile.decoded_mut() {
-                                if db.optimize(dependencies, Some(&mut self_copy), options) && options.table_remove_empty_file {
+                                if db.optimize(dependencies, Some(&self_copy_map), options) && options.table_remove_empty_file {
                                     return Some(path);
                                 }
                             }
@@ -380,7 +381,7 @@ impl OptimizableContainer for Pack {
                         // Same as with tables, don't optimize them if they're overwriting.
                         if options.db_optimize_datacored_tables || !dependencies.file_exists(&path, true, true, true) {
                             if let Ok(RFileDecoded::Loc(loc)) = rfile.decoded_mut() {
-                                if loc.optimize(dependencies, Some(&mut self_copy), options) && options.table_remove_empty_file {
+                                if loc.optimize(dependencies, Some(&self_copy_map), options) && options.table_remove_empty_file {
                                     return Some(path);
                                 }
                             }
@@ -431,7 +432,7 @@ impl OptimizableContainer for Pack {
                         // In portrait settings file we look to cleanup variants and art sets that are not referenced by the game tables.
                         // Meaning they are not used by the game.
                         if let Ok(RFileDecoded::PortraitSettings(ps)) = rfile.decoded_mut() {
-                            if ps.optimize(dependencies, Some(&mut self_copy), options) && options.pts_remove_empty_file {
+                            if ps.optimize(dependencies, Some(&self_copy_map), options) && options.pts_remove_empty_file {
                                 return Some(path);
                             }
                         }
@@ -467,7 +468,7 @@ impl Optimizable for DB {
     /// - Removal of ITNR (Identical To New Row) entries.
     ///
     /// It returns if the DB is empty, meaning it can be safetly deleted.
-    fn optimize(&mut self, dependencies: &mut Dependencies, container: Option<&mut Pack>, options: &OptimizerOptions) -> bool {
+    fn optimize(&mut self, dependencies: &mut Dependencies, container: Option<&BTreeMap<String, Pack>>, options: &OptimizerOptions) -> bool {
         let container = match container {
             Some(container) => container,
             None => return false,
@@ -563,7 +564,7 @@ impl Optimizable for Loc {
     /// - Removal of ITNR (Identical To New Row) entries.
     ///
     /// It returns if the Loc is empty, meaning it can be safetly deleted.
-    fn optimize(&mut self, dependencies: &mut Dependencies, _container: Option<&mut Pack>, options: &OptimizerOptions) -> bool {
+    fn optimize(&mut self, dependencies: &mut Dependencies, _container: Option<&BTreeMap<String, Pack>>, options: &OptimizerOptions) -> bool {
 
         // Get a manipulable copy of all the entries, so we can optimize it.
         let mut entries = self.data().to_vec();
@@ -626,16 +627,16 @@ impl Optimizable for PortraitSettings {
     /// - Removal of art sets not present in the campaign_character_arts table (unused data).
     ///
     /// It returns if the PortraitSettings is empty, meaning it can be safetly deleted.
-    fn optimize(&mut self, dependencies: &mut Dependencies, container: Option<&mut Pack>, options: &OptimizerOptions) -> bool {
+    fn optimize(&mut self, dependencies: &mut Dependencies, container: Option<&BTreeMap<String, Pack>>, options: &OptimizerOptions) -> bool {
 
         // Get a manipulable copy of all the entries, so we can optimize it.
         let mut entries = self.entries().to_vec();
 
         // Get the list of art set ids and variant filenames to check against.
-        let art_set_ids = dependencies.db_values_from_table_name_and_column_name(container.as_deref(), "campaign_character_arts_tables", "art_set_id", true, true);
-        let mut variant_filenames = dependencies.db_values_from_table_name_and_column_name(container.as_deref(), "variants_tables", "variant_filename", true, true);
+        let art_set_ids = dependencies.db_values_from_table_name_and_column_name(container, "campaign_character_arts_tables", "art_set_id", true, true);
+        let mut variant_filenames = dependencies.db_values_from_table_name_and_column_name(container, "variants_tables", "variant_filename", true, true);
         if variant_filenames.is_empty() {
-            variant_filenames = dependencies.db_values_from_table_name_and_column_name(container.as_deref(), "variants_tables", "variant_name", true, true);
+            variant_filenames = dependencies.db_values_from_table_name_and_column_name(container, "variants_tables", "variant_name", true, true);
         }
 
         // Do not do anything if we don't have ids and variants.

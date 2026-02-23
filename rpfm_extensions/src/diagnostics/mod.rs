@@ -261,12 +261,25 @@ impl DiagnosticType {
             Self::Config(_) => "",
         }
     }
+
+    pub fn pack(&self) -> &str {
+        match self {
+            Self::AnimFragmentBattle(ref diag) => diag.pack(),
+            Self::DB(ref diag) |
+            Self::Loc(ref diag) => diag.pack(),
+            Self::Pack(diag) => diag.pack(),
+            Self::PortraitSettings(diag) => diag.pack(),
+            Self::Text(diag) => diag.pack(),
+            Self::Dependency(diag) => diag.pack(),
+            Self::Config(_) => "",
+        }
+    }
 }
 
 impl Diagnostics {
 
-    /// This function performs a search over the parts of a `PackFile` you specify it, storing his results.
-    pub fn check(&mut self, pack: &mut Pack, dependencies: &mut Dependencies, schema: &Schema, game_info: &GameInfo, game_path: &Path, paths_to_check: &[ContainerPath], check_ak_only_refs: bool) {
+    /// This function performs a search over the parts of the provided Packs, storing his results.
+    pub fn check(&mut self, packs: &mut BTreeMap<String, Pack>, dependencies: &mut Dependencies, schema: &Schema, game_info: &GameInfo, game_path: &Path, paths_to_check: &[ContainerPath], check_ak_only_refs: bool) {
 
         // Clear the diagnostics first if we're doing a full check, or only the config ones and the ones for the path to update if we're doing a partial check.
         if paths_to_check.is_empty() {
@@ -304,7 +317,8 @@ impl Diagnostics {
             }
         }
 
-        let files_to_ignore = pack.settings().diagnostics_files_to_ignore();
+        // TODO: Check if we should split this so each pack is only affected by their own ignored files.
+        let files_to_ignore = packs.values().find_map(|pack| pack.settings().diagnostics_files_to_ignore());
 
         // To make sure we can read any non-db and non-loc file, we need to pre-decode them here.
         {
@@ -313,17 +327,19 @@ impl Diagnostics {
             extra_data.set_game_info(Some(game_info));
             let extra_data = Some(extra_data);
 
-            pack.files_by_type_mut(&[FileType::AnimFragmentBattle, FileType::Text, FileType::PortraitSettings])
-                .par_iter_mut()
-                .for_each(|file| { let _ = file.decode(&extra_data, true, false); });
+            for pack in packs.values_mut() {
+                pack.files_by_type_mut(&[FileType::AnimFragmentBattle, FileType::Text, FileType::PortraitSettings])
+                    .par_iter_mut()
+                    .for_each(|file| { let _ = file.decode(&extra_data, true, false); });
+            }
         }
 
         // Logic here: we want to process the tables on batches containing all the tables of the same type, so we can check duplicates in different tables.
         // To do that, we have to sort/split the file list, the process that.
-        let files = if paths_to_check.is_empty() {
-            pack.files_by_type(&[FileType::AnimFragmentBattle, FileType::DB, FileType::Loc, FileType::Text, FileType::PortraitSettings])
+        let files: Vec<&RFile> = if paths_to_check.is_empty() {
+            packs.values().flat_map(|pack| pack.files_by_type(&[FileType::AnimFragmentBattle, FileType::DB, FileType::Loc, FileType::Text, FileType::PortraitSettings])).collect()
         } else {
-            pack.files_by_type_and_paths(&[FileType::AnimFragmentBattle, FileType::DB, FileType::Loc, FileType::Text, FileType::PortraitSettings], paths_to_check, false)
+            packs.values().flat_map(|pack| pack.files_by_type_and_paths(&[FileType::AnimFragmentBattle, FileType::DB, FileType::Loc, FileType::Text, FileType::PortraitSettings], paths_to_check, false)).collect()
         };
 
         let mut files_split: HashMap<&str, Vec<&RFile>> = HashMap::new();
@@ -379,9 +395,13 @@ impl Diagnostics {
         }
 
         // Getting this here speeds up a lot path-checking later.
-        let local_file_path_list = pack.paths_cache();
+        let mut local_file_path_list = HashMap::new();
+        for pack in packs.values() {
+            local_file_path_list.extend(pack.paths_cache().iter().map(|(k, v)| (k.clone(), v.clone())));
+        }
+        let local_file_path_list = &local_file_path_list;
 
-        let loc_files = pack.files_by_type(&[FileType::Loc]);
+        let loc_files: Vec<&RFile> = packs.values().flat_map(|pack| pack.files_by_type(&[FileType::Loc])).collect();
         let loc_decoded = loc_files.iter()
             .filter_map(|file| if let Ok(RFileDecoded::Loc(loc)) = file.decoded() { Some(loc) } else { None })
             .map(|file| file.data())
@@ -403,14 +423,14 @@ impl Diagnostics {
 
         // If table names is empty this triggers a full regeneration, which is slow as fuck. So make sure to avoid that if we're only doing a partial check.
         if !table_names.is_empty() || (table_names.is_empty() && paths_to_check.is_empty()) {
-            dependencies.generate_local_db_references(schema, pack, &table_names);
+            dependencies.generate_local_db_references(schema, packs, &table_names);
         }
 
         // Caches for Portrait Settings diagnostics. There are some alt lookups for tables with differently named columns between games.
-        let art_set_ids = dependencies.db_values_from_table_name_and_column_name(Some(pack), "campaign_character_arts_tables", "art_set_id", true, true);
-        let mut variant_filenames = dependencies.db_values_from_table_name_and_column_name(Some(pack), "variants_tables", "variant_filename", true, true);
+        let art_set_ids = dependencies.db_values_from_table_name_and_column_name(Some(packs), "campaign_character_arts_tables", "art_set_id", true, true);
+        let mut variant_filenames = dependencies.db_values_from_table_name_and_column_name(Some(packs), "variants_tables", "variant_filename", true, true);
         if variant_filenames.is_empty() {
-            variant_filenames = dependencies.db_values_from_table_name_and_column_name(Some(pack), "variants_tables", "variant_name", true, true);
+            variant_filenames = dependencies.db_values_from_table_name_and_column_name(Some(packs), "variants_tables", "variant_name", true, true);
         }
 
         // Process the files in batches.
@@ -432,7 +452,7 @@ impl Diagnostics {
                             local_file_path_list,
                             check_ak_only_refs,
                             &files_to_ignore,
-                            pack,
+                            packs,
                             schema,
                             &loc_data
                         ));
@@ -459,7 +479,7 @@ impl Diagnostics {
                                     local_file_path_list,
                                 ),
 
-                                FileType::Text => TextDiagnostic::check(file, pack, dependencies, &self.diagnostics_ignored, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields),
+                                FileType::Text => TextDiagnostic::check(file, packs, dependencies, &self.diagnostics_ignored, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields),
                                 FileType::PortraitSettings => PortraitSettingsDiagnostic::check(file, &art_set_ids, &variant_filenames, dependencies, &self.diagnostics_ignored, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields, local_file_path_list),
                                 _ => None,
                             };
@@ -479,13 +499,8 @@ impl Diagnostics {
 
         // These two are global, so do not execute on file-specific runs.
         if paths_to_check.is_empty() {
-            if let Some(diagnostics) = DependencyDiagnostic::check(pack) {
-                self.results_mut().push(diagnostics);
-            }
-
-            if let Some(diagnostics) = PackDiagnostic::check(pack, dependencies, game_info) {
-                self.results_mut().push(diagnostics);
-            }
+            self.results_mut().extend(DependencyDiagnostic::check(packs));
+            self.results_mut().extend(PackDiagnostic::check(packs, dependencies, game_info));
         }
 
         self.results_mut().sort_by(|a, b| {

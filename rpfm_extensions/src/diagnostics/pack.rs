@@ -30,6 +30,7 @@ use crate::diagnostics::*;
 #[derive(Debug, Clone, Default, Getters, MutGetters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub")]
 pub struct PackDiagnostic {
+    pack: String,
     results: Vec<PackDiagnosticReport>
 }
 
@@ -102,96 +103,95 @@ impl Display for PackDiagnosticReportType {
 impl PackDiagnostic {
 
     /// This function takes care of checking for PackFile-Related for errors.
-    pub fn check(pack: &mut Pack, dependencies: &mut Dependencies, game: &GameInfo) -> Option<DiagnosticType> {
-        let mut diagnostic = PackDiagnostic::default();
-
-        let name = pack.disk_file_name();
-        if name.contains(' ') {
-            let result = PackDiagnosticReport::new(PackDiagnosticReportType::InvalidPackName(name.to_string()));
-            diagnostic.results_mut().push(result);
-        }
-
-        let (existing, new) = pack.missing_locs_paths();
-        if pack.paths().contains_key(&existing) {
-            let result = PackDiagnosticReport::new(PackDiagnosticReportType::MissingLocDataFileDetected(existing));
-            diagnostic.results_mut().push(result);
-        }
-
-        if pack.paths().contains_key(&new) {
-            let result = PackDiagnosticReport::new(PackDiagnosticReportType::MissingLocDataFileDetected(new));
-            diagnostic.results_mut().push(result);
-        }
-
-        let results = pack.paths()
-            .values()
-            .filter_map(|x| if x.len() >= 2 {
-                Some(x.iter().map(|x| PackDiagnosticReport::new(PackDiagnosticReportType::FileDuplicated(x.to_string()))).collect::<Vec<_>>())
-            } else {
-                None
-            })
-            .flatten()
-            .collect::<Vec<_>>();
-
-        if !results.is_empty() {
-            diagnostic.results_mut().extend(results);
-        }
-
-        let invalid_file_names = pack.paths().par_iter()
-            .map(|(path, real_paths)| (path, path.split("/"), real_paths))
-            .filter(|(_, split, _)| {
-                let filename = split.clone().last().unwrap_or_default();
-                // Check for invalid Windows characters.
-                let has_invalid_chars = filename.chars().any(|c| INVALID_CHARACTERS_WINDOWS.contains(&c));
-                // Check for leading/trailing whitespace.
-                let has_whitespace_issues = filename.starts_with(' ') || filename.ends_with(' ');
-                // Check for files that are only dots.
-                let is_only_dots = !filename.is_empty() && filename.chars().all(|c| c == '.');
-
-                has_invalid_chars || has_whitespace_issues || is_only_dots
-            })
-            .filter_map(|(_, _, real_paths)| real_paths.first())
-            .collect::<Vec<_>>();
-
-        for path in invalid_file_names {
-            let result = PackDiagnosticReport::new(PackDiagnosticReportType::InvalidFileName(name.to_string(), path.to_string()));
-            diagnostic.results_mut().push(result);
-        }
+    pub fn check(packs: &mut BTreeMap<String, Pack>, dependencies: &mut Dependencies, game: &GameInfo) -> Vec<DiagnosticType> {
+        let mut diagnostics = Vec::new();
 
         let extra_data = Some(EncodeableExtraData::new_from_game_info(game));
-        let real_paths = pack.paths()
-            .values()
-            .flatten()
-            .map(|x| x.to_string())
-            .collect::<Vec<_>>();
+        let real_paths: Vec<String> = packs.values()
+            .flat_map(|pack| pack.paths().values().flatten().map(|x| x.to_string()).collect::<Vec<_>>())
+            .collect();
 
-        for path in &real_paths {
-            if let Some(rfile) = pack.file_mut(path, true) {
-                if let Ok(dep_file) = dependencies.file_mut(path, true, true) {
+        for (key, pack) in packs.iter_mut() {
+            let mut diagnostic = PackDiagnostic { pack: key.clone(), ..Default::default() };
 
-                    let mut itm = false;
-                    if let Ok(local_hash) = rfile.data_hash(&extra_data) {
-                        if let Ok(dependency_hash) = dep_file.data_hash(&extra_data) {
-                            if local_hash == dependency_hash {
-                                let result = PackDiagnosticReport::new(PackDiagnosticReportType::FileITM(rfile.path_in_container_raw().to_string()));
-                                diagnostic.results_mut().push(result);
-                                itm = true;
+            let name = pack.disk_file_name();
+            if name.contains(' ') {
+                let result = PackDiagnosticReport::new(PackDiagnosticReportType::InvalidPackName(name.to_string()));
+                diagnostic.results_mut().push(result);
+            }
+
+            let (existing, new) = pack.missing_locs_paths();
+            if pack.paths().contains_key(&existing) {
+                let result = PackDiagnosticReport::new(PackDiagnosticReportType::MissingLocDataFileDetected(existing));
+                diagnostic.results_mut().push(result);
+            }
+
+            if pack.paths().contains_key(&new) {
+                let result = PackDiagnosticReport::new(PackDiagnosticReportType::MissingLocDataFileDetected(new));
+                diagnostic.results_mut().push(result);
+            }
+
+            let results = pack.paths()
+                .values()
+                .filter_map(|x| if x.len() >= 2 {
+                    Some(x.iter().map(|x| PackDiagnosticReport::new(PackDiagnosticReportType::FileDuplicated(x.to_string()))).collect::<Vec<_>>())
+                } else {
+                    None
+                })
+                .flatten()
+                .collect::<Vec<_>>();
+
+            if !results.is_empty() {
+                diagnostic.results_mut().extend(results);
+            }
+
+            let invalid_file_names = pack.paths().par_iter()
+                .map(|(path, real_paths)| (path, path.split("/"), real_paths))
+                .filter(|(_, split, _)| {
+                    let filename = split.clone().last().unwrap_or_default();
+                    let has_invalid_chars = filename.chars().any(|c| INVALID_CHARACTERS_WINDOWS.contains(&c));
+                    let has_whitespace_issues = filename.starts_with(' ') || filename.ends_with(' ');
+                    let is_only_dots = !filename.is_empty() && filename.chars().all(|c| c == '.');
+
+                    has_invalid_chars || has_whitespace_issues || is_only_dots
+                })
+                .filter_map(|(_, _, real_paths)| real_paths.first())
+                .collect::<Vec<_>>();
+
+            for path in invalid_file_names {
+                let result = PackDiagnosticReport::new(PackDiagnosticReportType::InvalidFileName(name.to_string(), path.to_string()));
+                diagnostic.results_mut().push(result);
+            }
+
+            for path in &real_paths {
+                if let Some(rfile) = pack.file_mut(path, true) {
+                    if let Ok(dep_file) = dependencies.file_mut(path, true, true) {
+
+                        let mut itm = false;
+                        if let Ok(local_hash) = rfile.data_hash(&extra_data) {
+                            if let Ok(dependency_hash) = dep_file.data_hash(&extra_data) {
+                                if local_hash == dependency_hash {
+                                    let result = PackDiagnosticReport::new(PackDiagnosticReportType::FileITM(rfile.path_in_container_raw().to_string()));
+                                    diagnostic.results_mut().push(result);
+                                    itm = true;
+                                }
                             }
                         }
-                    }
 
-                    // To avoid duplicated reports, only mark as overwrites those not already marked as ITM, as ITM is really a subset of overwrites
-                    // and would generate confusing duplicate reports otherwise.
-                    if !itm {
-                        let result = PackDiagnosticReport::new(PackDiagnosticReportType::FileOverwrite(rfile.path_in_container_raw().to_string()));
-                        diagnostic.results_mut().push(result);
+                        if !itm {
+                            let result = PackDiagnosticReport::new(PackDiagnosticReportType::FileOverwrite(rfile.path_in_container_raw().to_string()));
+                            diagnostic.results_mut().push(result);
+                        }
                     }
                 }
             }
+
+            if !diagnostic.results().is_empty() {
+                diagnostics.push(DiagnosticType::Pack(diagnostic));
+            }
         }
 
-        if !diagnostic.results().is_empty() {
-            Some(DiagnosticType::Pack(diagnostic))
-        } else { None }
+        diagnostics
     }
 
 }
