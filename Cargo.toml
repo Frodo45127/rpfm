@@ -9,7 +9,6 @@ members = [
     "rpfm_ui_common",
 
     # Executables
-    "rpfm_cli",
     "rpfm_server",
     #"rpfm_gpui",
     "rpfm_ui",
