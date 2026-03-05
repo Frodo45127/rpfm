@@ -173,3 +173,8 @@ Nuget.exe
 # For people using Claude and/or OpenSpec.
 /.claude/
 /openspec/
+
+# Flatpak stuff.
+/.flatpak-builder/
+/build-dir/
+/flatpak-build-dir/
