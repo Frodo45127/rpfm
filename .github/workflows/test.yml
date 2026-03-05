@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      
+
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
@@ -34,12 +34,6 @@ jobs:
         with:
           command: build
           args: --workspace --lib --exclude rpfm_ui_common
-      
-      - name: Build rpfm-cli
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --verbose --bin rpfm_cli
 
       - name: Run tests
         uses: actions-rs/cargo@v1
