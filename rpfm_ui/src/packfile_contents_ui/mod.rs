@@ -13,6 +13,7 @@ Module with all the code related to the main `PackFileContentsUI`.
 !*/
 
 use qt_widgets::QAction;
+use qt_widgets::QActionGroup;
 use qt_widgets::QCheckBox;
 use qt_widgets::QDialog;
 use qt_widgets::{q_dialog_button_box::StandardButton, QDialogButtonBox};
@@ -124,6 +125,39 @@ pub struct PackFileContentsUI {
     context_menu_generate_missing_loc_data: QPtr<QAction>,
 
     //-------------------------------------------------------------------------------//
+    // Pack-level actions (shown when pack root is right-clicked).
+    //-------------------------------------------------------------------------------//
+    context_menu_install: QPtr<QAction>,
+    context_menu_uninstall: QPtr<QAction>,
+
+    context_menu_packfile_type_menu: QPtr<QMenu>,
+    context_menu_packfile_type_group: QBox<QActionGroup>,
+    context_menu_packfile_type_boot: QPtr<QAction>,
+    context_menu_packfile_type_release: QPtr<QAction>,
+    context_menu_packfile_type_patch: QPtr<QAction>,
+    context_menu_packfile_type_mod: QPtr<QAction>,
+    context_menu_packfile_type_movie: QPtr<QAction>,
+    context_menu_index_includes_timestamp: QPtr<QAction>,
+    context_menu_header_is_extended: QPtr<QAction>,
+    context_menu_index_is_encrypted: QPtr<QAction>,
+    context_menu_data_is_encrypted: QPtr<QAction>,
+
+    context_menu_compression_menu: QPtr<QMenu>,
+    context_menu_compression_group: QBox<QActionGroup>,
+    context_menu_compression_none: QPtr<QAction>,
+    context_menu_compression_lzma1: QPtr<QAction>,
+    context_menu_compression_lz4: QPtr<QAction>,
+    context_menu_compression_zstd: QPtr<QAction>,
+
+    context_menu_optimize_packfile: QPtr<QAction>,
+    context_menu_rescue_packfile: QPtr<QAction>,
+    context_menu_build_starpos: QPtr<QAction>,
+    context_menu_patch_siege_ai: QPtr<QAction>,
+    context_menu_live_export: QPtr<QAction>,
+    context_menu_pack_map: QPtr<QAction>,
+    context_menu_update_anim_ids: QPtr<QAction>,
+
+    //-------------------------------------------------------------------------------//
     // Actions not in the UI.
     //-------------------------------------------------------------------------------//
     packfile_contents_tree_view_expand_all: QPtr<QAction>,
@@ -226,6 +260,83 @@ impl PackFileContentsUI {
         let context_menu_update_table = add_action_to_menu(&packfile_contents_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "pack_tree_context_menu", "update_files", "context_menu_update_table", Some(packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_generate_missing_loc_data = add_action_to_menu(&packfile_contents_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "pack_tree_context_menu", "generate_missing_loc_data", "context_menu_generate_missing_loc_data", Some(packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>()));
 
+        //-------------------------------------------------------------------------------//
+        // Pack-level actions (shown when pack root is right-clicked).
+        //-------------------------------------------------------------------------------//
+
+        packfile_contents_tree_view_context_menu.add_separator();
+
+        let context_menu_install = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("packfile_install"));
+        let context_menu_uninstall = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("packfile_uninstall"));
+
+        packfile_contents_tree_view_context_menu.add_separator();
+
+        // Pack Type submenu.
+        let context_menu_packfile_type_menu = packfile_contents_tree_view_context_menu.add_menu_q_string(&qtr("change_packfile_type"));
+        let menu_packfile_type = &context_menu_packfile_type_menu;
+        let context_menu_packfile_type_boot = menu_packfile_type.add_action_q_string(&qtr("packfile_type_boot"));
+        let context_menu_packfile_type_release = menu_packfile_type.add_action_q_string(&qtr("packfile_type_release"));
+        let context_menu_packfile_type_patch = menu_packfile_type.add_action_q_string(&qtr("packfile_type_patch"));
+        let context_menu_packfile_type_mod = menu_packfile_type.add_action_q_string(&qtr("packfile_type_mod"));
+        let context_menu_packfile_type_movie = menu_packfile_type.add_action_q_string(&qtr("packfile_type_movie"));
+
+        let context_menu_packfile_type_group = QActionGroup::new(menu_packfile_type);
+        context_menu_packfile_type_group.add_action_q_action(&context_menu_packfile_type_boot);
+        context_menu_packfile_type_group.add_action_q_action(&context_menu_packfile_type_release);
+        context_menu_packfile_type_group.add_action_q_action(&context_menu_packfile_type_patch);
+        context_menu_packfile_type_group.add_action_q_action(&context_menu_packfile_type_mod);
+        context_menu_packfile_type_group.add_action_q_action(&context_menu_packfile_type_movie);
+        context_menu_packfile_type_boot.set_checkable(true);
+        context_menu_packfile_type_release.set_checkable(true);
+        context_menu_packfile_type_patch.set_checkable(true);
+        context_menu_packfile_type_mod.set_checkable(true);
+        context_menu_packfile_type_movie.set_checkable(true);
+
+        // Header flags (individual checkable items).
+        menu_packfile_type.add_separator();
+        let context_menu_index_includes_timestamp = menu_packfile_type.add_action_q_string(&qtr("change_packfile_type_index_includes_timestamp"));
+        let context_menu_header_is_extended = menu_packfile_type.add_action_q_string(&qtr("change_packfile_type_header_is_extended"));
+        let context_menu_index_is_encrypted = menu_packfile_type.add_action_q_string(&qtr("change_packfile_type_index_is_encrypted"));
+        let context_menu_data_is_encrypted = menu_packfile_type.add_action_q_string(&qtr("change_packfile_type_data_is_encrypted"));
+        context_menu_index_includes_timestamp.set_checkable(true);
+        context_menu_header_is_extended.set_checkable(true);
+        context_menu_index_is_encrypted.set_checkable(true);
+        context_menu_data_is_encrypted.set_checkable(true);
+        context_menu_header_is_extended.set_enabled(false);
+        context_menu_index_is_encrypted.set_enabled(false);
+        context_menu_data_is_encrypted.set_enabled(false);
+
+        // Compression Format submenu.
+        let context_menu_compression_menu = packfile_contents_tree_view_context_menu.add_menu_q_string(&qtr("compression_format"));
+        let menu_compression_format = &context_menu_compression_menu;
+        let context_menu_compression_none = menu_compression_format.add_action_q_string(&qtr("compression_format_none"));
+        let context_menu_compression_lzma1 = menu_compression_format.add_action_q_string(&qtr("compression_format_lzma1"));
+        let context_menu_compression_lz4 = menu_compression_format.add_action_q_string(&qtr("compression_format_lz4"));
+        let context_menu_compression_zstd = menu_compression_format.add_action_q_string(&qtr("compression_format_zstd"));
+
+        let context_menu_compression_group = QActionGroup::new(menu_compression_format);
+        context_menu_compression_group.add_action_q_action(&context_menu_compression_none);
+        context_menu_compression_group.add_action_q_action(&context_menu_compression_lzma1);
+        context_menu_compression_group.add_action_q_action(&context_menu_compression_lz4);
+        context_menu_compression_group.add_action_q_action(&context_menu_compression_zstd);
+        context_menu_compression_none.set_checkable(true);
+        context_menu_compression_lzma1.set_checkable(true);
+        context_menu_compression_lz4.set_checkable(true);
+        context_menu_compression_zstd.set_checkable(true);
+
+        packfile_contents_tree_view_context_menu.add_separator();
+
+        // Special stuff actions (pack-level operations).
+        let context_menu_optimize_packfile = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("special_stuff_optimize_packfile"));
+        let context_menu_rescue_packfile = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("special_stuff_rescue_packfile"));
+        let context_menu_build_starpos = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("special_stuff_build_starpos"));
+        let context_menu_patch_siege_ai = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("special_stuff_patch_siege_ai"));
+        let context_menu_live_export = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("special_stuff_live_export"));
+        let context_menu_pack_map = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("special_stuff_pack_map"));
+        let context_menu_update_anim_ids = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("special_stuff_update_anim_ids"));
+
+        packfile_contents_tree_view_context_menu.add_separator();
+
         let packfile_contents_tree_view_expand_all = add_action_to_menu(&packfile_contents_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "pack_tree_context_menu", "expand_all", "treeview_expand_all", Some(packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>()));
         let packfile_contents_tree_view_collapse_all = add_action_to_menu(&packfile_contents_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "pack_tree_context_menu", "collapse_all", "treeview_collapse_all", Some(packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>()));
 
@@ -306,6 +417,39 @@ impl PackFileContentsUI {
             context_menu_generate_missing_loc_data,
 
             //-------------------------------------------------------------------------------//
+            // Pack-level actions.
+            //-------------------------------------------------------------------------------//
+            context_menu_install,
+            context_menu_uninstall,
+
+            context_menu_packfile_type_menu,
+            context_menu_packfile_type_group,
+            context_menu_packfile_type_boot,
+            context_menu_packfile_type_release,
+            context_menu_packfile_type_patch,
+            context_menu_packfile_type_mod,
+            context_menu_packfile_type_movie,
+            context_menu_index_includes_timestamp,
+            context_menu_header_is_extended,
+            context_menu_index_is_encrypted,
+            context_menu_data_is_encrypted,
+
+            context_menu_compression_menu,
+            context_menu_compression_group,
+            context_menu_compression_none,
+            context_menu_compression_lzma1,
+            context_menu_compression_lz4,
+            context_menu_compression_zstd,
+
+            context_menu_optimize_packfile,
+            context_menu_rescue_packfile,
+            context_menu_build_starpos,
+            context_menu_patch_siege_ai,
+            context_menu_live_export,
+            context_menu_pack_map,
+            context_menu_update_anim_ids,
+
+            //-------------------------------------------------------------------------------//
             // "Special" Actions for the TreeView.
             //-------------------------------------------------------------------------------//
             packfile_contents_tree_view_expand_all,
@@ -327,7 +471,8 @@ impl PackFileContentsUI {
             app_ui.toggle_main_window(false);
         }
 
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::AddPackedFiles(paths.to_vec(), paths_in_container.to_vec(), paths_to_ignore));
+        let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::AddPackedFiles(pack_key, paths.to_vec(), paths_in_container.to_vec(), paths_to_ignore));
         let response = CentralCommand::recv(&receiver);
         match response {
             Response::VecContainerPathOptionString(paths, error) => {
@@ -527,7 +672,8 @@ impl PackFileContentsUI {
         else {
             let mut paths_by_source = BTreeMap::new();
             paths_by_source.insert(DataSource::PackFile, items_to_extract);
-            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::ExtractPackedFiles(paths_by_source, extraction_path, extract_tables_as_tsv));
+            let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::ExtractPackedFiles(pack_key, paths_by_source, extraction_path, extract_tables_as_tsv));
             app_ui.toggle_main_window(false);
             let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
             match response {
@@ -542,5 +688,42 @@ impl PackFileContentsUI {
     pub unsafe fn start_delayed_updates_timer(pack_file_contents_ui: &Rc<Self>,) {
         pack_file_contents_ui.filter_timer_delayed_updates.set_interval(500);
         pack_file_contents_ui.filter_timer_delayed_updates.start_0a();
+    }
+
+    /// Get the pack key from the current tree view selection, or fall back to the first editable pack root.
+    ///
+    /// This is the primary way UI code obtains the pack key to pass to server commands.
+    /// When multiple packs are open, it derives the key from the selected item's root node.
+    /// If nothing is selected, it returns the first editable pack root's key.
+    pub unsafe fn pack_key_from_selection_or_first(&self) -> Option<String> {
+
+        // First, try to get it from the current tree selection.
+        let selection = self.packfile_contents_tree_view.selection_model().selection().indexes();
+        if selection.count_0a() > 0 {
+            let index = selection.at(0);
+            let filter: qt_core::QPtr<qt_core::QSortFilterProxyModel> = self.packfile_contents_tree_view.model().static_downcast();
+            let source_index = filter.map_to_source(index);
+
+            if let Some(key) = self.packfile_contents_tree_view.get_pack_key_from_index(source_index) {
+                return Some(key);
+            }
+        }
+
+        // Fallback: return the first editable pack root's key.
+        for row in 0..self.packfile_contents_tree_model.row_count_0a() {
+            let item = self.packfile_contents_tree_model.item_1a(row);
+            let root_type = item.data_1a(rpfm_ui_common::ROOT_NODE_TYPE).to_int_0a();
+            if root_type == rpfm_ui_common::ROOT_NODE_TYPE_EDITABLE_PACKFILE {
+                let variant = item.data_1a(rpfm_ui_common::ITEM_PACK_KEY);
+                if variant.is_valid() && !variant.is_null() {
+                    let key = variant.to_string().to_std_string();
+                    if !key.is_empty() {
+                        return Some(key);
+                    }
+                }
+            }
+        }
+
+        None
     }
 }

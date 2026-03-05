@@ -56,7 +56,6 @@ use rpfm_extensions::diagnostics::{*, anim_fragment_battle::*, config::*, depend
 use rpfm_ipc::helpers::DataSource;
 
 use rpfm_lib::files::{ContainerPath, portrait_settings::Variant};
-use rpfm_lib::games::supported_games::*;
 use rpfm_lib::integrations::log::info;
 
 use rpfm_ui_common::utils::{atomic_from_cpp_box, find_widget, load_template, ref_from_atomic};
@@ -66,7 +65,6 @@ use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::CENTRAL_COMMAND;
 use crate::dependencies_ui::DependenciesUI;
 use crate::ffi::{new_tableview_filter_safe, scroll_to_pos_and_select_safe, trigger_tableview_filter_safe};
-use crate::GAME_SELECTED;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::pack_tree::*;
 use crate::packedfile_views::{FileView, View, ViewType, SpecialView};
@@ -579,27 +577,29 @@ impl DiagnosticsUI {
 
         // Build the table columns without data in them, because otherwise it becomes very slow.
         diagnostics_ui.diagnostics_table_model.clear();
-        diagnostics_ui.diagnostics_table_model.set_column_count(7);
+        diagnostics_ui.diagnostics_table_model.set_column_count(8);
 
         diagnostics_ui.diagnostics_table_model.set_header_data_3a(0, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_level")));
         diagnostics_ui.diagnostics_table_model.set_header_data_3a(1, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_diag")));
         diagnostics_ui.diagnostics_table_model.set_header_data_3a(2, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_cells_affected")));
-        diagnostics_ui.diagnostics_table_model.set_header_data_3a(3, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_path")));
-        diagnostics_ui.diagnostics_table_model.set_header_data_3a(4, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_message")));
-        diagnostics_ui.diagnostics_table_model.set_header_data_3a(5, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_report_type")));
-        diagnostics_ui.diagnostics_table_model.set_header_data_3a(6, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_column_names")));
+        diagnostics_ui.diagnostics_table_model.set_header_data_3a(3, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_pack")));
+        diagnostics_ui.diagnostics_table_model.set_header_data_3a(4, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_path")));
+        diagnostics_ui.diagnostics_table_model.set_header_data_3a(5, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_message")));
+        diagnostics_ui.diagnostics_table_model.set_header_data_3a(6, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_report_type")));
+        diagnostics_ui.diagnostics_table_model.set_header_data_3a(7, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_column_names")));
 
-        // Hide the column number column for tables.
+        // Hide internal-only columns.
         diagnostics_ui.diagnostics_table_view.hide_column(1);
         diagnostics_ui.diagnostics_table_view.hide_column(2);
-        diagnostics_ui.diagnostics_table_view.hide_column(5);
         diagnostics_ui.diagnostics_table_view.hide_column(6);
-        diagnostics_ui.diagnostics_table_view.sort_by_column_2a(3, SortOrder::AscendingOrder);
+        diagnostics_ui.diagnostics_table_view.hide_column(7);
+        diagnostics_ui.diagnostics_table_view.sort_by_column_2a(4, SortOrder::AscendingOrder);
 
         diagnostics_ui.diagnostics_table_view.horizontal_header().set_stretch_last_section(true);
         diagnostics_ui.diagnostics_table_view.horizontal_header().set_section_resize_mode_2a(0, ResizeMode::Fixed);
         diagnostics_ui.diagnostics_table_view.horizontal_header().set_default_section_size(70);
-        diagnostics_ui.diagnostics_table_view.set_column_width(3, 450);
+        diagnostics_ui.diagnostics_table_view.set_column_width(3, 150);
+        diagnostics_ui.diagnostics_table_view.set_column_width(4, 450);
 
         if !diagnostics.is_empty() {
 
@@ -628,6 +628,7 @@ impl DiagnosticsUI {
                                 let level = Self::new_item();
                                 let diag_type = Self::new_item();
                                 let data_affected = Self::new_item();
+                                let pack = Self::new_item();
                                 let path = Self::new_item();
                                 let message = Self::new_item();
                                 let report_type = Self::new_item();
@@ -643,6 +644,7 @@ impl DiagnosticsUI {
                                 level.set_text(result_type);
                                 diag_type.set_text(&QString::from_std_str(diagnostic_type.to_string()));
                                 data_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&result).unwrap())), 2);
+                                pack.set_text(&QString::from_std_str(diagnostic_type.pack()));
                                 path.set_text(&QString::from_std_str(diagnostic.path()));
                                 message.set_text(&QString::from_std_str(result.message()));
                                 report_type.set_text(&QString::from_std_str(result.report_type().to_string()));
@@ -653,6 +655,7 @@ impl DiagnosticsUI {
                                 qlist.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
                                 qlist.append_q_standard_item(&diag_type.into_ptr().as_mut_raw_ptr());
                                 qlist.append_q_standard_item(&data_affected.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&pack.into_ptr().as_mut_raw_ptr());
                                 qlist.append_q_standard_item(&path.into_ptr().as_mut_raw_ptr());
                                 qlist.append_q_standard_item(&message.into_ptr().as_mut_raw_ptr());
                                 qlist.append_q_standard_item(&report_type.into_ptr().as_mut_raw_ptr());
@@ -674,6 +677,7 @@ impl DiagnosticsUI {
                                 let level = Self::new_item();
                                 let diag_type = Self::new_item();
                                 let data_affected = Self::new_item();
+                                let pack = Self::new_item();
                                 let path = Self::new_item();
                                 let message = Self::new_item();
                                 let report_type = Self::new_item();
@@ -689,11 +693,11 @@ impl DiagnosticsUI {
                                 level.set_text(result_type);
                                 diag_type.set_text(&QString::from_std_str(diagnostic_type.to_string()));
                                 data_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&result.cells_affected()).unwrap())), 2);
+                                pack.set_text(&QString::from_std_str(diagnostic_type.pack()));
                                 path.set_text(&QString::from_std_str(diagnostic.path()));
                                 message.set_text(&QString::from_std_str(result.message()));
                                 report_type.set_text(&QString::from_std_str(result.report_type().to_string()));
                                 extra_data_1.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&result.column_names()).unwrap())), 2);
-
 
                                 // Set the tooltips to the diag type and description columns.
                                 Self::set_tooltips_table(&[&level, &path, &message], result.report_type());
@@ -701,6 +705,7 @@ impl DiagnosticsUI {
                                 qlist.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
                                 qlist.append_q_standard_item(&diag_type.into_ptr().as_mut_raw_ptr());
                                 qlist.append_q_standard_item(&data_affected.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&pack.into_ptr().as_mut_raw_ptr());
                                 qlist.append_q_standard_item(&path.into_ptr().as_mut_raw_ptr());
                                 qlist.append_q_standard_item(&message.into_ptr().as_mut_raw_ptr());
                                 qlist.append_q_standard_item(&report_type.into_ptr().as_mut_raw_ptr());
@@ -721,6 +726,7 @@ impl DiagnosticsUI {
                                 let level = Self::new_item();
                                 let diag_type = Self::new_item();
                                 let data_affected = Self::new_item();
+                                let pack = Self::new_item();
                                 let path = Self::new_item();
                                 let message = Self::new_item();
                                 let report_type = Self::new_item();
@@ -738,6 +744,7 @@ impl DiagnosticsUI {
                                     path.set_text(&QString::from_std_str(file_path));
                                 }
                                 diag_type.set_text(&QString::from_std_str(diagnostic_type.to_string()));
+                                pack.set_text(&QString::from_std_str(diagnostic_type.pack()));
                                 message.set_text(&QString::from_std_str(result.message()));
                                 report_type.set_text(&QString::from_std_str(result.report_type().to_string()));
 
@@ -758,6 +765,7 @@ impl DiagnosticsUI {
                                 qlist.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
                                 qlist.append_q_standard_item(&diag_type.into_ptr().as_mut_raw_ptr());
                                 qlist.append_q_standard_item(&data_affected.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&pack.into_ptr().as_mut_raw_ptr());
                                 qlist.append_q_standard_item(&path.into_ptr().as_mut_raw_ptr());
                                 qlist.append_q_standard_item(&message.into_ptr().as_mut_raw_ptr());
                                 qlist.append_q_standard_item(&report_type.into_ptr().as_mut_raw_ptr());
@@ -778,6 +786,7 @@ impl DiagnosticsUI {
                                 let level = Self::new_item();
                                 let diag_type = Self::new_item();
                                 let data_affected = Self::new_item();
+                                let pack = Self::new_item();
                                 let path = Self::new_item();
                                 let message = Self::new_item();
                                 let report_type = Self::new_item();
@@ -804,6 +813,7 @@ impl DiagnosticsUI {
                                 };
 
                                 data_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(data_affected_string)), 2);
+                                pack.set_text(&QString::from_std_str(diagnostic_type.pack()));
                                 path.set_text(&QString::from_std_str(diagnostic.path()));
                                 message.set_text(&QString::from_std_str(result.message()));
                                 report_type.set_text(&QString::from_std_str(result.report_type().to_string()));
@@ -814,6 +824,7 @@ impl DiagnosticsUI {
                                 qlist.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
                                 qlist.append_q_standard_item(&diag_type.into_ptr().as_mut_raw_ptr());
                                 qlist.append_q_standard_item(&data_affected.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&pack.into_ptr().as_mut_raw_ptr());
                                 qlist.append_q_standard_item(&path.into_ptr().as_mut_raw_ptr());
                                 qlist.append_q_standard_item(&message.into_ptr().as_mut_raw_ptr());
                                 qlist.append_q_standard_item(&report_type.into_ptr().as_mut_raw_ptr());
@@ -835,6 +846,7 @@ impl DiagnosticsUI {
                                 let level = Self::new_item();
                                 let diag_type = Self::new_item();
                                 let data_affected = Self::new_item();
+                                let pack = Self::new_item();
                                 let path = Self::new_item();
                                 let message = Self::new_item();
                                 let report_type = Self::new_item();
@@ -855,6 +867,7 @@ impl DiagnosticsUI {
                                 };
 
                                 data_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(data_affected_string)), 2);
+                                pack.set_text(&QString::from_std_str(diagnostic_type.pack()));
                                 path.set_text(&QString::from_std_str(diagnostic.path()));
                                 message.set_text(&QString::from_std_str(result.message()));
                                 report_type.set_text(&QString::from_std_str(result.report_type().to_string()));
@@ -865,6 +878,7 @@ impl DiagnosticsUI {
                                 qlist.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
                                 qlist.append_q_standard_item(&diag_type.into_ptr().as_mut_raw_ptr());
                                 qlist.append_q_standard_item(&data_affected.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&pack.into_ptr().as_mut_raw_ptr());
                                 qlist.append_q_standard_item(&path.into_ptr().as_mut_raw_ptr());
                                 qlist.append_q_standard_item(&message.into_ptr().as_mut_raw_ptr());
                                 qlist.append_q_standard_item(&report_type.into_ptr().as_mut_raw_ptr());
@@ -886,6 +900,7 @@ impl DiagnosticsUI {
                                 let level = Self::new_item();
                                 let diag_type = Self::new_item();
                                 let data_affected = Self::new_item();
+                                let pack = Self::new_item();
                                 let path = Self::new_item();
                                 let message = Self::new_item();
                                 let report_type = Self::new_item();
@@ -901,6 +916,7 @@ impl DiagnosticsUI {
                                 level.set_text(result_type);
                                 diag_type.set_text(&QString::from_std_str(diagnostic_type.to_string()));
                                 data_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&result.cells_affected()).unwrap())), 2);
+                                pack.set_text(&QString::from_std_str(diagnostic_type.pack()));
                                 path.set_text(&QString::from_std_str(diagnostic.path()));
                                 message.set_text(&QString::from_std_str(result.message()));
                                 report_type.set_text(&QString::from_std_str(result.report_type().to_string()));
@@ -911,6 +927,7 @@ impl DiagnosticsUI {
                                 qlist.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
                                 qlist.append_q_standard_item(&diag_type.into_ptr().as_mut_raw_ptr());
                                 qlist.append_q_standard_item(&data_affected.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&pack.into_ptr().as_mut_raw_ptr());
                                 qlist.append_q_standard_item(&path.into_ptr().as_mut_raw_ptr());
                                 qlist.append_q_standard_item(&message.into_ptr().as_mut_raw_ptr());
                                 qlist.append_q_standard_item(&report_type.into_ptr().as_mut_raw_ptr());
@@ -932,6 +949,7 @@ impl DiagnosticsUI {
                                 let level = Self::new_item();
                                 let diag_type = Self::new_item();
                                 let data_affected = Self::new_item();
+                                let pack = Self::new_item();
                                 let path = Self::new_item();
                                 let message = Self::new_item();
                                 let report_type = Self::new_item();
@@ -955,6 +973,7 @@ impl DiagnosticsUI {
                                 qlist.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
                                 qlist.append_q_standard_item(&diag_type.into_ptr().as_mut_raw_ptr());
                                 qlist.append_q_standard_item(&data_affected.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&pack.into_ptr().as_mut_raw_ptr());
                                 qlist.append_q_standard_item(&path.into_ptr().as_mut_raw_ptr());
                                 qlist.append_q_standard_item(&message.into_ptr().as_mut_raw_ptr());
                                 qlist.append_q_standard_item(&report_type.into_ptr().as_mut_raw_ptr());
@@ -1003,10 +1022,11 @@ impl DiagnosticsUI {
         let model: QPtr<QStandardItemModel> = filter_model.source_model().static_downcast();
         let model_index = filter_model.map_to_source(model_index_filtered.as_ref().unwrap());
 
-        // If it's a match, get the path, the position data of the match, and open the PackedFile, scrolling it down.
-        let item_path = model.item_2a(model_index.row(), 3);
+        // If it's a match, get the path, the pack key, the position data of the match, and open the PackedFile, scrolling it down.
+        let pack_key = model.item_2a(model_index.row(), 3).text().to_std_string();
+        let item_path = model.item_2a(model_index.row(), 4);
         let path = item_path.text().to_std_string();
-        let tree_index = pack_file_contents_ui.packfile_contents_tree_view().expand_treeview_to_item(&path, DataSource::PackFile);
+        let tree_index = pack_file_contents_ui.packfile_contents_tree_view().expand_treeview_to_item_in_pack(&path, DataSource::PackFile, &pack_key);
 
         let diagnostic_type = model.item_2a(model_index.row(), 1).text().to_std_string();
         if diagnostic_type == "DependencyManager" {
@@ -1030,7 +1050,7 @@ impl DiagnosticsUI {
         // If it's a table, focus on the matched cell.
         match &*diagnostic_type {
             "AnimFragmentBattle" => {
-                if let Some(file_view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).find(|x| *x.path_read() == path) {
+                if let Some(file_view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).find(|x| *x.path_read() == path && (pack_key.is_empty() || x.pack_key_copy() == pack_key)) {
 
                     // In case of tables, we have to get the logical row/column of the match and select it.
                     if let ViewType::Internal(View::AnimFragmentBattle(view)) = file_view.view_type() {
@@ -1067,7 +1087,7 @@ impl DiagnosticsUI {
 
             "DB" | "Loc" | "DependencyManager" => {
 
-                if let Some(file_view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).find(|x| *x.path_read() == path) {
+                if let Some(file_view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).find(|x| *x.path_read() == path && (pack_key.is_empty() || x.pack_key_copy() == pack_key)) {
 
                     // In case of tables, we have to get the logical row/column of the match and select it.
                     if let ViewType::Internal(View::Table(view)) = file_view.view_type() {
@@ -1122,7 +1142,7 @@ impl DiagnosticsUI {
             }
 
             "PortraitSettings" => {
-                if let Some(file_view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).find(|x| *x.path_read() == path) {
+                if let Some(file_view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).find(|x| *x.path_read() == path && (pack_key.is_empty() || x.pack_key_copy() == pack_key)) {
                     if let ViewType::Internal(View::PortraitSettings(view)) = file_view.view_type() {
                         let list_view = view.main_list_view();
                         let list_filter: QPtr<QSortFilterProxyModel> = list_view.model().static_downcast();
@@ -1175,7 +1195,7 @@ impl DiagnosticsUI {
                                                     view.variants_list_view().selection_model().select_q_model_index_q_flags_selection_flag(list_model_index_filtered.as_ref(), QFlags::from(SelectionFlag::SelectCurrent));
 
                                                     // We need to check the report type to see if we have to select a line edit.
-                                                    let report_type = model.item_2a(model_index.row(), 5).text().to_std_string();
+                                                    let report_type = model.item_2a(model_index.row(), 6).text().to_std_string();
                                                     match &*report_type {
                                                         "FileDiffuseNotFoundForVariant" => {
                                                             view.file_diffuse_line_edit().select_all();
@@ -1209,7 +1229,7 @@ impl DiagnosticsUI {
             }
 
             "Text" => {
-                if let Some(file_view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).find(|x| *x.path_read() == path) {
+                if let Some(file_view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).find(|x| *x.path_read() == path && (pack_key.is_empty() || x.pack_key_copy() == pack_key)) {
 
                     // In case of tables, we have to get the logical row/column of the match and select it.
                     if let ViewType::Internal(View::Text(view)) = file_view.view_type() {
@@ -1227,28 +1247,13 @@ impl DiagnosticsUI {
 
             // Config matches have to open their relevant config issue.
             "Config" => {
-                match &*model.item_2a(model_index.row(), 5).text().to_std_string() {
+                match &*model.item_2a(model_index.row(), 6).text().to_std_string() {
 
                     // For these, we will trigger the action to generate the dependencies cache.
                     "DependenciesCacheNotGenerated" |
                     "DependenciesCacheOutdated" |
                     "DependenciesCacheCouldNotBeLoaded" => {
-                        match GAME_SELECTED.read().unwrap().key() {
-                            KEY_PHARAOH_DYNASTIES => app_ui.special_stuff_ph_dyn_generate_dependencies_cache().trigger(),
-                            KEY_PHARAOH => app_ui.special_stuff_ph_generate_dependencies_cache().trigger(),
-                            KEY_WARHAMMER_3 => app_ui.special_stuff_wh3_generate_dependencies_cache().trigger(),
-                            KEY_TROY => app_ui.special_stuff_troy_generate_dependencies_cache().trigger(),
-                            KEY_THREE_KINGDOMS => app_ui.special_stuff_three_k_generate_dependencies_cache().trigger(),
-                            KEY_WARHAMMER_2 => app_ui.special_stuff_wh2_generate_dependencies_cache().trigger(),
-                            KEY_WARHAMMER => app_ui.special_stuff_wh_generate_dependencies_cache().trigger(),
-                            KEY_THRONES_OF_BRITANNIA => app_ui.special_stuff_tob_generate_dependencies_cache().trigger(),
-                            KEY_ATTILA => app_ui.special_stuff_att_generate_dependencies_cache().trigger(),
-                            KEY_ROME_2 => app_ui.special_stuff_rom2_generate_dependencies_cache().trigger(),
-                            KEY_SHOGUN_2 => app_ui.special_stuff_sho2_generate_dependencies_cache().trigger(),
-                            KEY_NAPOLEON => app_ui.special_stuff_nap_generate_dependencies_cache().trigger(),
-                            KEY_EMPIRE => app_ui.special_stuff_emp_generate_dependencies_cache().trigger(),
-                            _ => {}
-                        }
+                        app_ui.game_selected_generate_dependencies_cache().trigger();
                     }
                     "IncorrectGamePath" => app_ui.packfile_settings().trigger(),
                     _ => {}
@@ -1272,7 +1277,9 @@ impl DiagnosticsUI {
             _ => return,
         };
 
-        if let Some(view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).find(|view| &view.path_copy() == path) {
+        let pack = diagnostic.pack();
+
+        if let Some(view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).find(|view| &view.path_copy() == path && (pack.is_empty() || view.pack_key_copy() == pack)) {
             if app_ui.tab_bar_packed_file().index_of(view.main_widget()) != -1 {
 
                 // In case of tables, we have to get the logical row/column of the match and select it.
@@ -1578,7 +1585,7 @@ impl DiagnosticsUI {
                 pattern.push_str("empty");
             }
 
-            columns.push(3);
+            columns.push(4);
             patterns.push(QString::from_std_str(pattern).into_ptr());
             sensitivity.push(CaseSensitivity::CaseSensitive);
         }
@@ -1641,7 +1648,7 @@ impl DiagnosticsUI {
             diagnostic_type_pattern.push_str("empty");
         }
 
-        columns.push(5);
+        columns.push(6);
         patterns.push(QString::from_std_str(diagnostic_type_pattern).into_ptr());
         sensitivity.push(CaseSensitivity::CaseSensitive);
         let use_nott = vec![false; sensitivity.len()];

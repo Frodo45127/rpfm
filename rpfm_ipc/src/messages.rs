@@ -117,89 +117,84 @@ pub enum Command {
     // PackFile Operations
     //-----------------------------------------------------------------------//
 
-    /// Closes the open Pack.
+    /// Closes a specific open Pack identified by its pack key.
     ///
     /// Response: [`Response::Success`].
-    ClosePack,
+    ClosePack(String),
 
-    /// Close the extra Pack with the provided path.
+    /// Closes all currently open Packs.
     ///
     /// Response: [`Response::Success`].
-    ClosePackExtra(PathBuf),
+    CloseAllPacks,
 
-    /// Clean the open Pack from corrupted/undecoded files and try to save it to disk.
+    /// Clean a specific open Pack from corrupted/undecoded files and try to save it to disk.
+    /// First field is the pack key, second is the destination path.
     ///
     /// Only use this command if your Pack is not save-able otherwise.
     ///
     /// Response:
     /// - [`Response::ContainerInfo`] on success.
     /// - [`Response::Error`] on failure.
-    CleanAndSavePackAs(PathBuf),
+    CleanAndSavePackAs(String, PathBuf),
+
+    /// List all currently open packs with their keys and metadata.
+    ///
+    /// Response: [`Response::VecStringContainerInfo`].
+    ListOpenPacks,
 
     /// Creates a new empty Pack.
     ///
-    /// Response: [`Response::Success`].
+    /// Response: [`Response::String`] with the assigned pack key.
     NewPack,
 
-    /// Save the currently open Pack to disk.
+    /// Save a specific open Pack to disk. The field is the pack key.
     ///
     /// Response:
     /// - [`Response::ContainerInfo`] on success.
     /// - [`Response::Error`] on failure.
-    SavePack,
+    SavePack(String),
 
-    /// Save the currently open Pack to a new path.
+    /// Save a specific open Pack to a new path.
+    /// First field is the pack key, second is the destination path.
     ///
     /// Response:
     /// - [`Response::ContainerInfo`] on success.
     /// - [`Response::Error`] on failure.
-    SavePackAs(PathBuf),
+    SavePackAs(String, PathBuf),
 
-    /// Get the data used to build the `TreeView`].
+    /// Get the data used to build the `TreeView` for a specific pack.
+    /// The field is the pack key.
     ///
     /// Response:
     /// - [`Response::ContainerInfoVecRFileInfo`].
-    GetPackFileDataForTreeView,
-
-    /// Get the data for an extra Pack's TreeView. Requires the PathBuf of the PackFile.
-    ///
-    /// Response:
-    /// - [`Response::ContainerInfoVecRFileInfo`] on success.
-    /// - [`Response::Error`] on failure.
-    GetPackFileExtraDataForTreeView(PathBuf),
+    GetPackFileDataForTreeView(String),
 
     /// Open one or more `PackFiles` and merge them. Requires the paths of the `PackFiles`].
     ///
     /// Response:
-    /// - [`Response::ContainerInfo`] on success.
+    /// - [`Response::StringContainerInfo`] (pack_key, info) on success.
     /// - [`Response::Error`] on failure.
     OpenPackFiles(Vec<PathBuf>),
-
-    /// Open an extra Pack for "Add from PackFile" feature. Requires the path of the Pack.
-    ///
-    /// Response:
-    /// - [`Response::ContainerInfo`] on success.
-    /// - [`Response::Error`] on failure.
-    OpenPackExtra(PathBuf),
 
     /// Open all the CA PackFiles for the selected game as one merged PackFile.
     ///
     /// Response:
-    /// - [`Response::ContainerInfo`] on success.
+    /// - [`Response::StringContainerInfo`] (pack_key, info) on success.
     /// - [`Response::Error`] on failure.
     LoadAllCAPackFiles,
 
-    /// Get the `RFileInfo` of one or more `PackedFiles`].
+    /// Get the `RFileInfo` of one or more `PackedFiles` from a specific pack.
+    /// First field is the pack key, second is the list of file paths.
     ///
     /// Response: [`Response::VecRFileInfo`].
-    GetPackedFilesInfo(Vec<String>),
+    GetPackedFilesInfo(String, Vec<String>),
 
-    /// Perform a `Global Search`]. Requires the search configuration.
+    /// Perform a `Global Search` on a specific pack. Requires the pack key and search configuration.
     ///
     /// Response:
     /// - [`Response::GlobalSearchVecRFileInfo`] on success.
     /// - [`Response::Error`] if no schema.
-    GlobalSearch(GlobalSearch),
+    GlobalSearch(String, GlobalSearch),
 
     /// Change the `Game Selected`]. Contains the game key and whether to rebuild dependencies.
     ///
@@ -213,10 +208,11 @@ pub enum Command {
     /// Response: [`Response::String`].
     GetGameSelected,
 
-    /// Change the `Type` of the currently open Pack.
+    /// Change the `Type` of a specific open Pack.
+    /// First field is the pack key, second is the new type.
     ///
     /// Response: [`Response::Success`].
-    SetPackFileType(PFHFileType),
+    SetPackFileType(String, PFHFileType),
 
     /// Generate the dependencies cache for the selected game.
     ///
@@ -232,40 +228,46 @@ pub enum Command {
     /// - [`Response::Error`] on failure.
     UpdateCurrentSchemaFromAssKit,
 
-    /// Trigger an optimization pass over the currently open Pack.
+    /// Trigger an optimization pass over a specific open Pack.
+    /// First field is the pack key, second is the optimizer options.
     ///
     /// Response:
     /// - [`Response::HashSetStringHashSetString`] (deleted paths, added paths) on success.
     /// - [`Response::Error`] on failure.
-    OptimizePackFile(OptimizerOptions),
+    OptimizePackFile(String, OptimizerOptions),
 
-    /// Patch the SiegeAI of a Siege Map for Warhammer games.
+    /// Patch the SiegeAI of a Siege Map for Warhammer games in a specific pack.
+    /// The field is the pack key.
     ///
     /// Response:
     /// - [`Response::StringVecContainerPath`] on success.
     /// - [`Response::Error`] on failure.
-    PatchSiegeAI,
+    PatchSiegeAI(String),
 
-    /// Change the `Index Includes Timestamp` flag in the currently open Pack.
+    /// Change the `Index Includes Timestamp` flag in a specific open Pack.
+    /// First field is the pack key, second is the flag value.
     ///
     /// Response: [`Response::Success`].
-    ChangeIndexIncludesTimestamp(bool),
+    ChangeIndexIncludesTimestamp(String, bool),
 
-    /// Change the compression format of the currently open Pack.
+    /// Change the compression format of a specific open Pack.
+    /// First field is the pack key, second is the compression format.
     ///
     /// Response:
     /// - [`Response::CompressionFormat`] (the actual format set, may differ if unsupported).
-    ChangeCompressionFormat(CompressionFormat),
+    ChangeCompressionFormat(String, CompressionFormat),
 
-    /// Get the current path of the currently open Pack.
+    /// Get the current path of a specific open Pack.
+    /// The field is the pack key.
     ///
     /// Response: [`Response::PathBuf`].
-    GetPackFilePath,
+    GetPackFilePath(String),
 
-    /// Get the info of a single `PackedFile`].
+    /// Get the info of a single `PackedFile` from a specific pack.
+    /// First field is the pack key, second is the file path.
     ///
     /// Response: [`Response::OptionRFileInfo`].
-    GetRFileInfo(String),
+    GetRFileInfo(String, String),
 
     //-----------------------------------------------------------------------//
     // Update Commands
@@ -302,23 +304,23 @@ pub enum Command {
     // PackedFile Operations
     //-----------------------------------------------------------------------//
 
-    /// Create a new `PackedFile` inside the currently open Pack.
-    /// Requires the path and the `NewFile` with the new PackedFile's info.
+    /// Create a new `PackedFile` inside a specific open Pack.
+    /// First field is the pack key, then path and NewFile info.
     ///
     /// Response:
     /// - [`Response::Success`] on success.
     /// - [`Response::Error`] on failure.
-    NewPackedFile(String, NewFile),
+    NewPackedFile(String, String, NewFile),
 
-    /// Add one or more Files to the currently open Pack.
-    /// Requires: source filesystem paths, destination container paths, optional paths to ignore.
+    /// Add one or more Files to a specific open Pack.
+    /// First field is the pack key, then source filesystem paths, destination container paths, optional paths to ignore.
     ///
     /// Response:
     /// - [`Response::VecContainerPathOptionString`] (added paths, optional error message).
-    AddPackedFiles(Vec<PathBuf>, Vec<ContainerPath>, Option<Vec<PathBuf>>),
+    AddPackedFiles(String, Vec<PathBuf>, Vec<ContainerPath>, Option<Vec<PathBuf>>),
 
     /// Decode a PackedFile to be shown on the UI.
-    /// Contains the path of the file and its data source.
+    /// First field is the pack key, then the path of the file and its data source.
     ///
     /// Response:
     /// - [`Response::AnimFragmentBattleRFileInfo`] for AnimFragmentBattle files.
@@ -344,72 +346,80 @@ pub enum Command {
     /// - [`Response::Text`] for pack notes.
     /// - [`Response::Unknown`] for unsupported types.
     /// - [`Response::Error`] on failure.
-    DecodePackedFile(String, DataSource),
+    DecodePackedFile(String, String, DataSource),
 
-    /// Save an edited `PackedFile` back to the Pack.
+    /// Save an edited `PackedFile` back to a specific Pack.
+    /// First field is the pack key, then path and decoded file data.
     ///
     /// Response: [`Response::Success`].
-    SavePackedFileFromView(String, RFileDecoded),
+    SavePackedFileFromView(String, String, RFileDecoded),
 
-    /// Add PackedFiles from one PackFile into another.
+    /// Add PackedFiles from one open pack into another.
+    /// First field is the target pack key, second is the source pack key, third is the paths to copy.
     ///
     /// Response:
     /// - [`Response::VecContainerPath`] on success.
-    /// - [`Response::Error`] if extra PackFile not found.
-    AddPackedFilesFromPackFile((PathBuf, Vec<ContainerPath>)),
+    /// - [`Response::Error`] if source pack not found.
+    AddPackedFilesFromPackFile(String, String, Vec<ContainerPath>),
 
-    /// Add PackedFiles from the main PackFile to an AnimPack.
-    ///
-    /// Response:
-    /// - [`Response::VecContainerPath`] on success.
-    /// - [`Response::Error`] on failure.
-    AddPackedFilesFromPackFileToAnimpack(String, Vec<ContainerPath>),
-
-    /// Add PackedFiles from an AnimPack to the main PackFile.
+    /// Add PackedFiles from a specific pack to an AnimPack.
+    /// First field is the pack key, then animpack path and container paths.
     ///
     /// Response:
     /// - [`Response::VecContainerPath`] on success.
     /// - [`Response::Error`] on failure.
-    AddPackedFilesFromAnimpack(DataSource, String, Vec<ContainerPath>),
+    AddPackedFilesFromPackFileToAnimpack(String, String, Vec<ContainerPath>),
 
-    /// Delete PackedFiles from an AnimPack.
+    /// Add PackedFiles from an AnimPack to a specific pack.
+    /// First field is the pack key, then data source, animpack path, and container paths.
+    ///
+    /// Response:
+    /// - [`Response::VecContainerPath`] on success.
+    /// - [`Response::Error`] on failure.
+    AddPackedFilesFromAnimpack(String, DataSource, String, Vec<ContainerPath>),
+
+    /// Delete PackedFiles from an AnimPack in a specific pack.
+    /// First field is the pack key, then animpack path and container paths.
     ///
     /// Response:
     /// - [`Response::Success`] on success.
     /// - [`Response::Error`] on failure.
-    DeleteFromAnimpack((String, Vec<ContainerPath>)),
+    DeleteFromAnimpack(String, String, Vec<ContainerPath>),
 
-    /// Delete one or more PackedFiles from a PackFile.
+    /// Delete one or more PackedFiles from a specific pack.
+    /// First field is the pack key, second is the paths to delete.
     ///
     /// Response:
     /// - [`Response::VecContainerPath`] (deleted paths).
-    DeletePackedFiles(Vec<ContainerPath>),
+    DeletePackedFiles(String, Vec<ContainerPath>),
 
-    /// Extract one or more PackedFiles from a PackFile.
-    /// Contains: paths by data source, extraction path, whether to export tables as TSV.
+    /// Extract one or more PackedFiles from a pack.
+    /// First field is the pack key, then paths by data source, extraction path, whether to export tables as TSV.
     ///
     /// Response:
     /// - [`Response::StringVecPathBuf`] on success.
     /// - [`Response::Error`] on failure.
-    ExtractPackedFiles(BTreeMap<DataSource, Vec<ContainerPath>>, PathBuf, bool),
+    ExtractPackedFiles(String, BTreeMap<DataSource, Vec<ContainerPath>>, PathBuf, bool),
 
-    /// Rename one or more PackedFiles in a PackFile.
-    /// Contains a Vec with original and new ContainerPaths.
+    /// Rename one or more PackedFiles in a specific pack.
+    /// First field is the pack key, second is a Vec with original and new ContainerPaths.
     ///
     /// Response:
     /// - [`Response::VecContainerPathContainerPath`] on success.
     /// - [`Response::Error`] on failure.
-    RenamePackedFiles(Vec<(ContainerPath, ContainerPath)>),
+    RenamePackedFiles(String, Vec<(ContainerPath, ContainerPath)>),
 
-    /// Check if a folder exists in the currently open PackFile.
+    /// Check if a folder exists in a specific open PackFile.
+    /// First field is the pack key, second is the folder path.
     ///
     /// Response: [`Response::Bool`].
-    FolderExists(String),
+    FolderExists(String, String),
 
-    /// Check if a PackedFile exists in the currently open PackFile.
+    /// Check if a PackedFile exists in a specific open PackFile.
+    /// First field is the pack key, second is the file path.
     ///
     /// Response: [`Response::Bool`].
-    PackedFileExists(String),
+    PackedFileExists(String, String),
 
     //-----------------------------------------------------------------------//
     // Dependency Commands
@@ -427,10 +437,11 @@ pub enum Command {
     /// - [`Response::Error`] if no schema.
     GetCustomTableList,
 
-    /// Get local art set IDs from campaign_character_arts_tables.
+    /// Get local art set IDs from campaign_character_arts_tables in a specific pack.
+    /// The field is the pack key.
     ///
     /// Response: [`Response::HashSetString`].
-    LocalArtSetIds,
+    LocalArtSetIds(String),
 
     /// Get art set IDs from dependencies' campaign_character_arts_tables.
     ///
@@ -451,56 +462,59 @@ pub enum Command {
     /// - [`Response::Error`] if not found.
     GetTableDefinitionFromDependencyPackFile(String),
 
-    /// Merge multiple compatible tables into one.
-    /// - `Vec<ContainerPath>`: Paths to merge.
-    /// - `String`: Path of the merged file.
-    /// - `bool`: Delete source files after merging.
+    /// Merge multiple compatible tables into one in a specific pack.
+    /// First field is the pack key, then paths to merge, merged file path, delete source flag.
     ///
     /// Response:
     /// - [`Response::String`] (merged path) on success.
     /// - [`Response::Error`] on failure.
-    MergeFiles(Vec<ContainerPath>, String, bool),
+    MergeFiles(String, Vec<ContainerPath>, String, bool),
 
-    /// Update a table to a newer version.
+    /// Update a table to a newer version in a specific pack.
+    /// First field is the pack key, second is the container path.
     ///
     /// Response:
     /// - [`Response::I32I32VecStringVecString`] (old_version, new_version, deleted_fields, added_fields) on success.
     /// - [`Response::Error`] on failure.
-    UpdateTable(ContainerPath),
+    UpdateTable(String, ContainerPath),
 
     //-----------------------------------------------------------------------//
     // Search Commands
     //-----------------------------------------------------------------------//
 
-    /// Replace specific matches in a Global Search.
+    /// Replace specific matches in a Global Search on a specific pack.
+    /// First field is the pack key, then search config and match holders.
     ///
     /// Response:
     /// - [`Response::GlobalSearchVecRFileInfo`] on success.
     /// - [`Response::Error`] if no schema.
-    GlobalSearchReplaceMatches(GlobalSearch, Vec<MatchHolder>),
+    GlobalSearchReplaceMatches(String, GlobalSearch, Vec<MatchHolder>),
 
-    /// Replace all matches in a Global Search.
+    /// Replace all matches in a Global Search on a specific pack.
+    /// First field is the pack key, second is the search config.
     ///
     /// Response:
     /// - [`Response::GlobalSearchVecRFileInfo`] on success.
     /// - [`Response::Error`] if no schema.
-    GlobalSearchReplaceAll(GlobalSearch),
+    GlobalSearchReplaceAll(String, GlobalSearch),
 
-    /// Get reference data for columns in a definition.
-    /// Requires: table name, definition, force local reference regeneration.
+    /// Get reference data for columns in a definition from a specific pack.
+    /// First field is the pack key, then table name, definition, force flag.
     ///
     /// Response: [`Response::HashMapI32TableReferences`].
-    GetReferenceDataFromDefinition(String, Definition, bool),
+    GetReferenceDataFromDefinition(String, String, Definition, bool),
 
-    /// Get the list of PackFiles marked as dependencies of the current PackFile.
+    /// Get the list of PackFiles marked as dependencies of a specific pack.
+    /// The field is the pack key.
     ///
     /// Response: [`Response::VecBoolString`].
-    GetDependencyPackFilesList,
+    GetDependencyPackFilesList(String),
 
-    /// Set the list of PackFiles marked as dependencies of the current PackFile.
+    /// Set the list of PackFiles marked as dependencies of a specific pack.
+    /// First field is the pack key, second is the dependency list.
     ///
     /// Response: [`Response::Success`].
-    SetDependencyPackFilesList(Vec<(bool, String)>),
+    SetDependencyPackFilesList(String, Vec<(bool, String)>),
 
     /// Get PackedFiles from all known sources (PackFile, GameFiles, ParentFiles).
     /// Requires: paths to get, whether to lowercase paths.
@@ -512,12 +526,13 @@ pub enum Command {
     // Video Commands
     //-----------------------------------------------------------------------//
 
-    /// Change the format of a ca_vp8 video PackedFile.
+    /// Change the format of a ca_vp8 video PackedFile in a specific pack.
+    /// First field is the pack key, then file path and format.
     ///
     /// Response:
     /// - [`Response::Success`] on success.
     /// - [`Response::Error`] on failure.
-    SetVideoFormat(String, SupportedFormats),
+    SetVideoFormat(String, String, SupportedFormats),
 
     //-----------------------------------------------------------------------//
     // Schema Commands
@@ -530,53 +545,59 @@ pub enum Command {
     /// - [`Response::Error`] on failure.
     SaveSchema(Schema),
 
-    /// Encode and clean the cache for the provided paths.
+    /// Encode and clean the cache for the provided paths in a specific pack.
+    /// First field is the pack key, second is the paths to clean.
     ///
     /// Response: [`Response::Success`].
-    CleanCache(Vec<ContainerPath>),
+    CleanCache(String, Vec<ContainerPath>),
 
     //-----------------------------------------------------------------------//
     // TSV Commands
     //-----------------------------------------------------------------------//
 
-    /// Export a table as TSV. Requires: internal path, destination path, data source.
+    /// Export a table as TSV from a specific pack.
+    /// First field is the pack key, then internal path, destination path, data source.
     ///
     /// Response:
     /// - [`Response::Success`] on success.
     /// - [`Response::Error`] on failure.
-    ExportTSV(String, PathBuf, DataSource),
+    ExportTSV(String, String, PathBuf, DataSource),
 
-    /// Import a TSV as a table. Requires: internal path, source TSV path.
+    /// Import a TSV as a table into a specific pack.
+    /// First field is the pack key, then internal path, source TSV path.
     ///
     /// Response:
     /// - [`Response::RFileDecoded`] on success.
     /// - [`Response::Error`] on failure.
-    ImportTSV(String, PathBuf),
+    ImportTSV(String, String, PathBuf),
 
     //-----------------------------------------------------------------------//
     // External Program Commands
     //-----------------------------------------------------------------------//
 
-    /// Open the folder containing the currently open PackFile in the file manager.
+    /// Open the folder containing a specific open PackFile in the file manager.
+    /// The field is the pack key.
     ///
     /// Response:
     /// - [`Response::Success`] on success.
     /// - [`Response::Error`] if pack doesn't exist on disk.
-    OpenContainingFolder,
+    OpenContainingFolder(String),
 
     /// Open a PackedFile in an external program.
+    /// First field is the pack key, then data source and container path.
     ///
     /// Response:
     /// - [`Response::PathBuf`] (extracted path) on success.
     /// - [`Response::Error`] on failure.
-    OpenPackedFileInExternalProgram(DataSource, ContainerPath),
+    OpenPackedFileInExternalProgram(String, DataSource, ContainerPath),
 
-    /// Save a PackedFile from an external program. Requires: internal path, external file path.
+    /// Save a PackedFile from an external program to a specific pack.
+    /// First field is the pack key, then internal path, external file path.
     ///
     /// Response:
     /// - [`Response::Success`] on success.
     /// - [`Response::Error`] on failure.
-    SavePackedFileFromExternalView(String, PathBuf),
+    SavePackedFileFromExternalView(String, String, PathBuf),
 
     //-----------------------------------------------------------------------//
     // Program Update Commands
@@ -589,23 +610,24 @@ pub enum Command {
     /// - [`Response::Error`] on failure.
     UpdateMainProgram,
 
-    /// Trigger an autosave to a backup.
+    /// Trigger an autosave to a backup for a specific pack.
+    /// The field is the pack key.
     ///
     /// Response: [`Response::Success`].
-    TriggerBackupAutosave,
+    TriggerBackupAutosave(String),
 
     //-----------------------------------------------------------------------//
     // Diagnostics Commands
     //-----------------------------------------------------------------------//
 
-    /// Trigger a full diagnostics check over the open PackFile.
-    /// Requires: ignored diagnostics, check AK-only references.
+    /// Trigger a full diagnostics check over all open Packs.
+    /// First field is ignored diagnostics, then check AK-only references.
     ///
     /// Response: [`Response::Diagnostics`].
     DiagnosticsCheck(Vec<String>, bool),
 
-    /// Trigger a partial diagnostics update.
-    /// Requires: existing diagnostics, paths to check, check AK-only references.
+    /// Trigger a partial diagnostics update over all open packs.
+    /// First field is existing diagnostics, then paths to check, check AK-only references.
     ///
     /// Response: [`Response::Diagnostics`].
     DiagnosticsUpdate(Diagnostics, Vec<ContainerPath>, bool),
@@ -614,30 +636,33 @@ pub enum Command {
     // Pack Settings Commands
     //-----------------------------------------------------------------------//
 
-    /// Get the settings of the currently open PackFile.
+    /// Get the settings of a specific open PackFile.
+    /// The field is the pack key.
     ///
     /// Response: [`Response::PackSettings`].
-    GetPackSettings,
+    GetPackSettings(String),
 
-    /// Set the settings of the currently open PackFile.
+    /// Set the settings of a specific open PackFile.
+    /// First field is the pack key, second is the settings.
     ///
     /// Response: [`Response::Success`].
-    SetPackSettings(PackSettings),
+    SetPackSettings(String, PackSettings),
 
     //-----------------------------------------------------------------------//
     // Debug Commands
     //-----------------------------------------------------------------------//
 
-    /// Export missing table definitions to a file (for debugging).
+    /// Export missing table definitions from a specific pack to a file (for debugging).
+    /// The field is the pack key.
     ///
     /// Response: [`Response::Success`].
-    GetMissingDefinitions,
+    GetMissingDefinitions(String),
 
     //-----------------------------------------------------------------------//
     // Dependencies Commands
     //-----------------------------------------------------------------------//
 
-    /// Rebuild the dependencies of a PackFile.
+    /// Rebuild the dependencies.
     /// Pass true to rebuild all dependencies, false for mod-specific only.
     ///
     /// Response:
@@ -649,67 +674,73 @@ pub enum Command {
     // Cascade Edition Commands
     //-----------------------------------------------------------------------//
 
-    /// Trigger a cascade edition on all referenced data.
-    /// Requires: table name, definition, list of (field, old_value, new_value).
+    /// Trigger a cascade edition on all referenced data in a specific pack.
+    /// First field is the pack key, then table name, definition, list of (field, old_value, new_value).
     ///
     /// Response: [`Response::VecContainerPathVecRFileInfo`].
-    CascadeEdition(String, Definition, Vec<(Field, String, String)>),
+    CascadeEdition(String, String, Definition, Vec<(Field, String, String)>),
 
     //-----------------------------------------------------------------------//
     // Navigation Commands
     //-----------------------------------------------------------------------//
 
-    /// Go to the definition of a reference. Contains: table, column, values to search.
+    /// Go to the definition of a reference in a specific pack.
+    /// First field is the pack key, then table, column, values to search.
     ///
     /// Response:
     /// - [`Response::DataSourceStringUsizeUsize`] on success.
     /// - [`Response::Error`] if not found.
-    GoToDefinition(String, String, Vec<String>),
+    GoToDefinition(String, String, String, Vec<String>),
 
-    /// Get the source data of a loc key.
+    /// Get the source data of a loc key from a specific pack.
+    /// First field is the pack key, second is the loc key.
     ///
     /// Response: [`Response::OptionStringStringVecString`].
-    GetSourceDataFromLocKey(String),
+    GetSourceDataFromLocKey(String, String),
 
-    /// Go to a loc key's location. Contains the loc key to search.
+    /// Go to a loc key's location in a specific pack.
+    /// First field is the pack key, second is the loc key to search.
     ///
     /// Response:
     /// - [`Response::DataSourceStringUsizeUsize`] on success.
     /// - [`Response::Error`] if not found.
-    GoToLoc(String),
+    GoToLoc(String, String),
 
-    /// Find all references to a value.
-    /// Contains: map of table -> columns to search, value to search.
+    /// Find all references to a value in a specific pack.
+    /// First field is the pack key, then map of table -> columns to search, value to search.
     ///
     /// Response: [`Response::VecDataSourceStringStringUsizeUsize`].
-    SearchReferences(HashMap<String, Vec<String>>, String),
+    SearchReferences(String, HashMap<String, Vec<String>>, String),
 
-    /// Get the name of the currently open PackFile.
+    /// Get the name of a specific open PackFile.
+    /// The field is the pack key.
     ///
     /// Response: [`Response::String`].
-    GetPackFileName,
+    GetPackFileName(String),
 
-    /// Get the raw binary data of a PackedFile.
+    /// Get the raw binary data of a PackedFile from a specific pack.
+    /// First field is the pack key, second is the file path.
     ///
     /// Response:
     /// - [`Response::VecU8`] on success.
     /// - [`Response::Error`] on failure.
-    GetPackedFileRawData(String),
+    GetPackedFileRawData(String, String),
 
-    /// Import files from dependencies into the open PackFile.
+    /// Import files from dependencies into a specific open PackFile.
+    /// First field is the pack key, second is the paths by data source.
     ///
     /// Response:
     /// - [`Response::VecContainerPathVecString`] (added paths, failed paths).
     /// - [`Response::Error`] on failure.
-    ImportDependenciesToOpenPackFile(BTreeMap<DataSource, Vec<ContainerPath>>),
+    ImportDependenciesToOpenPackFile(String, BTreeMap<DataSource, Vec<ContainerPath>>),
 
-    /// Save PackedFiles to the current PackFile and optionally optimize.
-    /// Requires: files to save, whether to optimize.
+    /// Save PackedFiles to a specific PackFile and optionally optimize.
+    /// First field is the pack key, then files to save, whether to optimize.
     ///
     /// Response:
     /// - [`Response::VecContainerPathVecContainerPath`] (added paths, deleted paths) on success.
     /// - [`Response::Error`] on failure.
-    SavePackedFilesToPackFileAndClean(Vec<RFile>, bool),
+    SavePackedFilesToPackFileAndClean(String, Vec<RFile>, bool),
 
     /// Get all file names under a path in all dependencies.
     ///
@@ -720,20 +751,23 @@ pub enum Command {
     // Notes Commands
     //-----------------------------------------------------------------------//
 
-    /// Get all notes under a path.
+    /// Get all notes under a path in a specific pack.
+    /// First field is the pack key, second is the path.
     ///
     /// Response: [`Response::VecNote`].
-    NotesForPath(String),
+    NotesForPath(String, String),
 
-    /// Add a note.
+    /// Add a note to a specific pack.
+    /// First field is the pack key, second is the note.
     ///
     /// Response: [`Response::Note`].
-    AddNote(Note),
+    AddNote(String, Note),
 
-    /// Delete a note.
+    /// Delete a note from a specific pack.
+    /// First field is the pack key, then path and note ID.
     ///
     /// Response: [`Response::Success`].
-    DeleteNote(String, u64),
+    DeleteNote(String, String, u64),
 
     //-----------------------------------------------------------------------//
     // Schema Patch Commands
@@ -771,12 +805,13 @@ pub enum Command {
     // Loc Generation Commands
     //-----------------------------------------------------------------------//
 
-    /// Generate all missing loc entries for the currently open PackFile.
+    /// Generate all missing loc entries for a specific open PackFile.
+    /// The field is the pack key.
     ///
     /// Response:
     /// - [`Response::VecContainerPath`] on success.
     /// - [`Response::Error`] on failure.
-    GenerateMissingLocData,
+    GenerateMissingLocData(String),
 
     //-----------------------------------------------------------------------//
     // Lua Autogen Commands
@@ -808,33 +843,35 @@ pub enum Command {
     /// - [`Response::Error`] on failure.
     InitializeMyModFolder(String, String, bool, bool, Option<String>),
 
-    /// Live export the PackFile to the game folder.
+    /// Live export a specific PackFile to the game folder.
+    /// The field is the pack key.
     ///
     /// Response:
     /// - [`Response::Success`] on success.
     /// - [`Response::Error`] on failure.
-    LiveExport,
+    LiveExport(String),
 
     //-----------------------------------------------------------------------//
     // Map Packing Commands
     //-----------------------------------------------------------------------//
 
-    /// Pack map tiles into the PackFile.
-    /// Requires: tile map paths, list of (tile path, name).
+    /// Pack map tiles into a specific PackFile.
+    /// First field is the pack key, then tile map paths, list of (tile path, name).
     ///
     /// Response:
     /// - [`Response::VecContainerPathVecContainerPath`] (added paths, deleted paths) on success.
     /// - [`Response::Error`] on failure.
-    PackMap(Vec<PathBuf>, Vec<(PathBuf, String)>),
+    PackMap(String, Vec<PathBuf>, Vec<(PathBuf, String)>),
 
     //-----------------------------------------------------------------------//
     // Diagnostics Ignore Commands
     //-----------------------------------------------------------------------//
 
-    /// Add a line to the pack's ignored diagnostics.
+    /// Add a line to a specific pack's ignored diagnostics.
+    /// First field is the pack key, second is the diagnostic line.
     ///
     /// Response: [`Response::Success`].
-    AddLineToPackIgnoredDiagnostics(String),
+    AddLineToPackIgnoredDiagnostics(String, String),
 
     //-----------------------------------------------------------------------//
     // Empire/Napoleon AK Commands
@@ -858,12 +895,13 @@ pub enum Command {
     // Translation Commands
     //-----------------------------------------------------------------------//
 
-    /// Get pack translation data for a language.
+    /// Get pack translation data for a language from a specific pack.
+    /// First field is the pack key, second is the language.
     ///
     /// Response:
     /// - [`Response::PackTranslation`] on success.
     /// - [`Response::Error`] on failure.
-    GetPackTranslation(String),
+    GetPackTranslation(String, String),
 
     /// Check for translation updates.
     ///
@@ -883,53 +921,55 @@ pub enum Command {
     // Starpos Commands
     //-----------------------------------------------------------------------//
 
-    /// Build starpos (pre-processing step).
-    /// Requires: campaign ID, process HLP/SPD data.
+    /// Build starpos (pre-processing step) for a specific pack.
+    /// First field is the pack key, then campaign ID, process HLP/SPD data.
     ///
     /// Response:
     /// - [`Response::Success`] on success.
     /// - [`Response::Error`] on failure.
-    BuildStarpos(String, bool),
+    BuildStarpos(String, String, bool),
 
-    /// Build starpos (post-processing step).
-    /// Requires: campaign ID, process HLP/SPD data.
+    /// Build starpos (post-processing step) for a specific pack.
+    /// First field is the pack key, then campaign ID, process HLP/SPD data.
     ///
     /// Response:
     /// - [`Response::VecContainerPath`] on success.
     /// - [`Response::Error`] on failure.
-    BuildStarposPost(String, bool),
+    BuildStarposPost(String, String, bool),
 
-    /// Clean up starpos temporary files.
-    /// Requires: campaign ID, process HLP/SPD data.
+    /// Clean up starpos temporary files for a specific pack.
+    /// First field is the pack key, then campaign ID, process HLP/SPD data.
     ///
     /// Response:
     /// - [`Response::Success`] on success.
     /// - [`Response::Error`] on failure.
-    BuildStarposCleanup(String, bool),
+    BuildStarposCleanup(String, String, bool),
 
-    /// Get campaign IDs for starpos building.
+    /// Get campaign IDs for starpos building from a specific pack.
+    /// The field is the pack key.
     ///
     /// Response: [`Response::HashSetString`].
-    BuildStarposGetCampaingIds,
+    BuildStarposGetCampaingIds(String),
 
-    /// Check if victory conditions file exists (required for some games).
+    /// Check if victory conditions file exists in a specific pack (required for some games).
+    /// The field is the pack key.
     ///
     /// Response:
     /// - [`Response::Success`] if exists or not needed.
     /// - [`Response::Error`] if missing.
-    BuildStarposCheckVictoryConditions,
+    BuildStarposCheckVictoryConditions(String),
 
     //-----------------------------------------------------------------------//
     // Animation Commands
     //-----------------------------------------------------------------------//
 
-    /// Update animation IDs with offset.
-    /// Requires: starting ID, offset.
+    /// Update animation IDs with offset in a specific pack.
+    /// First field is the pack key, then starting ID, offset.
     ///
     /// Response:
     /// - [`Response::VecContainerPath`] on success.
     /// - [`Response::Error`] on failure.
-    UpdateAnimIds(i32, i32),
+    UpdateAnimIds(String, i32, i32),
 
     /// Get animation paths by skeleton name.
     ///
@@ -947,16 +987,17 @@ pub enum Command {
     /// - [`Response::Error`] on failure.
     GetTablesFromDependencies(String),
 
-    /// Get table paths by table name from the current PackFile.
+    /// Get table paths by table name from a specific PackFile.
+    /// First field is the pack key, second is the table name.
     ///
     /// Response: [`Response::VecString`].
-    GetTablesByTableName(String),
+    GetTablesByTableName(String, String),
 
-    /// Add keys to the key_deletes table.
-    /// Requires: table file name, key table name, keys to add.
+    /// Add keys to the key_deletes table in a specific pack.
+    /// First field is the pack key, then table file name, key table name, keys to add.
     ///
     /// Response: [`Response::OptionContainerPath`].
-    AddKeysToKeyDeletes(String, String, HashSet<String>),
+    AddKeysToKeyDeletes(String, String, String, HashSet<String>),
 
     //-----------------------------------------------------------------------//
     // 3D Export Commands
@@ -1240,6 +1281,7 @@ pub enum Response {
     CompressionFormatDependenciesInfo(CompressionFormat, Option<DependenciesInfo>),
     ContainerInfo(ContainerInfo),
     ContainerInfoVecRFileInfo((ContainerInfo, Vec<RFileInfo>)),
+    StringContainerInfo(String, ContainerInfo),
     DataSourceStringUsizeUsize(DataSource, String, usize, usize),
     DBRFileInfo(DB, RFileInfo),
     Definition(Definition),
@@ -1295,6 +1337,7 @@ pub enum Response {
     VecRFile(Vec<RFile>),
     VecRFileInfo(Vec<RFileInfo>),
     VecString(Vec<String>),
+    VecStringContainerInfo(Vec<(String, ContainerInfo)>),
     VecU8(Vec<u8>),
     VideoInfoRFileInfo(VideoInfo, RFileInfo),
     VMDRFileInfo(Text, RFileInfo),

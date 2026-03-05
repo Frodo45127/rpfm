@@ -107,6 +107,7 @@ impl AnimFragmentBattleDiagnostic {
 
     /// This function takes care of checking the loc tables of your mod for errors.
     pub fn check(
+        pack_key: &str,
         file: &RFile,
         dependencies: &Dependencies,
         global_ignored_diagnostics: &[String],
@@ -116,7 +117,7 @@ impl AnimFragmentBattleDiagnostic {
         local_path_list: &HashMap<String, Vec<String>>,
     ) ->Option<DiagnosticType> {
         if let Ok(RFileDecoded::AnimFragmentBattle(fragment)) = file.decoded() {
-            let mut diagnostic = AnimFragmentBattleDiagnostic::new(file.path_in_container_raw(), file.container_name().as_deref().unwrap_or(""));
+            let mut diagnostic = AnimFragmentBattleDiagnostic::new(file.path_in_container_raw(), pack_key);
 
             if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, None, Some("LocomotionGraphPathNotFound"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && !fragment.locomotion_graph().is_empty() {
                 let path = fragment.locomotion_graph().replace('\\', "/");

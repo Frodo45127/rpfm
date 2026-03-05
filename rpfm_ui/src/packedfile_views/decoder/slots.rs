@@ -589,7 +589,8 @@ impl PackedFileDecoderViewSlots {
                             }
                         }
 
-                        let _ = CENTRAL_COMMAND.read().unwrap().send(Command::CleanCache(packed_files_to_save));
+                        let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                        let _ = CENTRAL_COMMAND.read().unwrap().send(Command::CleanCache(pack_key, packed_files_to_save));
                         let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SaveSchema(schema));
                         let response = CentralCommand::recv(&receiver);
                         match response {

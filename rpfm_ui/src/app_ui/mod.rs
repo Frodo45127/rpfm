@@ -75,9 +75,8 @@ use rpfm_ipc::MYMOD_BASE_PATH;
 use rpfm_ipc::SECONDARY_PATH;
 use rpfm_ipc::helpers::{ContainerInfo, DataSource, NewFile};
 
-use rpfm_lib::compression::CompressionFormat;
 use rpfm_lib::files::{animpack, ContainerPath, FileType, loc, text, pack::*, portrait_settings, text::TextFormat};
-use rpfm_lib::games::{pfh_file_type::*, pfh_version::*, supported_games::*};
+use rpfm_lib::games::supported_games::*;
 use rpfm_lib::integrations::log::*;
 use rpfm_lib::utils::*;
 
@@ -173,41 +172,22 @@ pub struct AppUI {
     // `PackFile` menu.
     //-------------------------------------------------------------------------------//
     packfile_new_packfile: QPtr<QAction>,
-    packfile_open_packfile: QPtr<QAction>,
-    packfile_save_packfile: QPtr<QAction>,
-    packfile_save_packfile_as: QPtr<QAction>,
-    packfile_save_packfile_for_release: QPtr<QAction>,
-    packfile_install: QPtr<QAction>,
-    packfile_uninstall: QPtr<QAction>,
+    packfile_open_packfiles: QPtr<QAction>,
+    packfile_open_and_merge_packs: QPtr<QAction>,
+    packfile_load_all_ca_packfiles: QPtr<QAction>,
     packfile_open_recent: QBox<QMenu>,
     packfile_open_from_content: QBox<QMenu>,
     packfile_open_from_secondary: QBox<QMenu>,
     packfile_open_from_data: QBox<QMenu>,
     packfile_open_from_autosave: QBox<QMenu>,
-    packfile_load_all_ca_packfiles: QPtr<QAction>,
+    packfile_close_pack_menu: QBox<QMenu>,
+    packfile_save_pack_menu: QBox<QMenu>,
+    packfile_save_pack_as_menu: QBox<QMenu>,
+    packfile_save_pack_for_release: QBox<QMenu>,
+    packfile_save_all: QPtr<QAction>,
     packfile_select_session: QPtr<QAction>,
     packfile_settings: QPtr<QAction>,
     packfile_quit: QPtr<QAction>,
-
-    // "Change PackFile Type" submenu.
-    change_packfile_type_group: QBox<QActionGroup>,
-    change_packfile_type_boot: QPtr<QAction>,
-    change_packfile_type_release: QPtr<QAction>,
-    change_packfile_type_patch: QPtr<QAction>,
-    change_packfile_type_mod: QPtr<QAction>,
-    change_packfile_type_movie: QPtr<QAction>,
-
-    change_packfile_type_header_is_extended: QPtr<QAction>,
-    change_packfile_type_index_includes_timestamp: QPtr<QAction>,
-    change_packfile_type_index_is_encrypted: QPtr<QAction>,
-    change_packfile_type_data_is_encrypted: QPtr<QAction>,
-
-    // Compression Format submenu.
-    compression_format_group: QBox<QActionGroup>,
-    compression_format_none: QPtr<QAction>,
-    compression_format_lzma1: QPtr<QAction>,
-    compression_format_lz4: QPtr<QAction>,
-    compression_format_zstd: QPtr<QAction>,
 
     //-------------------------------------------------------------------------------//
     // `MyMod` menu.
@@ -268,81 +248,9 @@ pub struct AppUI {
     game_selected_group: QBox<QActionGroup>,
 
     //-------------------------------------------------------------------------------//
-    // `Special Stuff` menu.
+    // `Game Selected` menu (continued).
     //-------------------------------------------------------------------------------//
-
-    // Pharaoh Dynasties actions.
-    special_stuff_ph_dyn_generate_dependencies_cache: QPtr<QAction>,
-    special_stuff_ph_dyn_optimize_packfile: QPtr<QAction>,
-    special_stuff_ph_dyn_build_starpos: QPtr<QAction>,
-
-    // Pharaoh actions.
-    special_stuff_ph_generate_dependencies_cache: QPtr<QAction>,
-    special_stuff_ph_optimize_packfile: QPtr<QAction>,
-    special_stuff_ph_build_starpos: QPtr<QAction>,
-
-    // Warhammer 3 actions.
-    special_stuff_wh3_generate_dependencies_cache: QPtr<QAction>,
-    special_stuff_wh3_optimize_packfile: QPtr<QAction>,
-    special_stuff_wh3_live_export: QPtr<QAction>,
-    special_stuff_wh3_pack_map: QPtr<QAction>,
-    special_stuff_wh3_build_starpos: QPtr<QAction>,
-    special_stuff_wh3_update_anim_ids: QPtr<QAction>,
-
-    // Troy actions.
-    special_stuff_troy_generate_dependencies_cache: QPtr<QAction>,
-    special_stuff_troy_optimize_packfile: QPtr<QAction>,
-    special_stuff_troy_build_starpos: QPtr<QAction>,
-
-    // Three Kingdoms actions.
-    special_stuff_three_k_generate_dependencies_cache: QPtr<QAction>,
-    special_stuff_three_k_optimize_packfile: QPtr<QAction>,
-    special_stuff_three_k_build_starpos: QPtr<QAction>,
-
-    // Warhammer 2's actions.
-    special_stuff_wh2_generate_dependencies_cache: QPtr<QAction>,
-    special_stuff_wh2_optimize_packfile: QPtr<QAction>,
-    special_stuff_wh2_patch_siege_ai: QPtr<QAction>,
-    special_stuff_wh2_build_starpos: QPtr<QAction>,
-
-    // Warhammer's actions.
-    special_stuff_wh_generate_dependencies_cache: QPtr<QAction>,
-    special_stuff_wh_optimize_packfile: QPtr<QAction>,
-    special_stuff_wh_patch_siege_ai: QPtr<QAction>,
-    special_stuff_wh_build_starpos: QPtr<QAction>,
-
-    // Thrones of Britannia's actions.
-    special_stuff_tob_generate_dependencies_cache: QPtr<QAction>,
-    special_stuff_tob_optimize_packfile: QPtr<QAction>,
-    special_stuff_tob_build_starpos: QPtr<QAction>,
-
-    // Attila's actions.
-    special_stuff_att_generate_dependencies_cache: QPtr<QAction>,
-    special_stuff_att_optimize_packfile: QPtr<QAction>,
-    special_stuff_att_build_starpos: QPtr<QAction>,
-
-    // Rome 2's actions.
-    special_stuff_rom2_generate_dependencies_cache: QPtr<QAction>,
-    special_stuff_rom2_optimize_packfile: QPtr<QAction>,
-    special_stuff_rom2_build_starpos: QPtr<QAction>,
-
-    // Shogun 2's actions.
-    special_stuff_sho2_generate_dependencies_cache: QPtr<QAction>,
-    special_stuff_sho2_optimize_packfile: QPtr<QAction>,
-    special_stuff_sho2_build_starpos: QPtr<QAction>,
-
-    // Napoleon's actions.
-    special_stuff_nap_generate_dependencies_cache: QPtr<QAction>,
-    special_stuff_nap_optimize_packfile: QPtr<QAction>,
-    special_stuff_nap_build_starpos: QPtr<QAction>,
-
-    // Empire's actions.
-    special_stuff_emp_generate_dependencies_cache: QPtr<QAction>,
-    special_stuff_emp_optimize_packfile: QPtr<QAction>,
-    special_stuff_emp_build_starpos: QPtr<QAction>,
-
-    // Common operations.
-    special_stuff_rescue_packfile: QPtr<QAction>,
+    game_selected_generate_dependencies_cache: QPtr<QAction>,
 
     //-------------------------------------------------------------------------------//
     // `Tools` menu.
@@ -481,7 +389,6 @@ impl AppUI {
         let menu_bar_mymod = menu_bar.add_menu_q_string(&qtr("menu_bar_mymod"));
         let menu_bar_view = menu_bar.add_menu_q_string(&qtr("menu_bar_view"));
         let menu_bar_game_selected = menu_bar.add_menu_q_string(&qtr("menu_bar_game_selected"));
-        let menu_bar_special_stuff = menu_bar.add_menu_q_string(&qtr("menu_bar_special_stuff"));
         let menu_bar_tools = menu_bar.add_menu_q_string(&qtr("menu_bar_tools"));
         let menu_bar_about = menu_bar.add_menu_q_string(&qtr("menu_bar_about"));
 
@@ -495,91 +402,39 @@ impl AppUI {
 
         // Populate the `PackFile` menu.
         let packfile_new_packfile = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "new_pack", "new_packfile", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let packfile_open_packfile = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "open_pack", "open_packfile", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let packfile_save_packfile = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "save_pack", "save_packfile", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let packfile_save_packfile_as = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "save_pack_as", "save_packfile_as", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let packfile_save_packfile_for_release = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "save_pack_for_release", "save_packfile_for_release", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let packfile_install = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "install_pack", "packfile_install", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let packfile_uninstall = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "uninstall_pack", "packfile_uninstall", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
+        let packfile_open_packfiles = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "open_packs", "open_packs", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
+        let packfile_open_and_merge_packs = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "open_and_merge_packs", "open_and_merge_packs", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
+        let packfile_load_all_ca_packfiles = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "load_all_ca_packs", "load_all_ca_packfiles", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
+        let packfile_save_all = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "save_all", "save_all", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
 
         let packfile_open_recent = QMenu::from_q_string_q_widget(&qtr("open_recent"), &menu_bar_packfile);
         let packfile_open_from_content = QMenu::from_q_string_q_widget(&qtr("open_from_content"), &menu_bar_packfile);
         let packfile_open_from_secondary = QMenu::from_q_string_q_widget(&qtr("open_from_secondary"), &menu_bar_packfile);
         let packfile_open_from_data = QMenu::from_q_string_q_widget(&qtr("open_from_data"), &menu_bar_packfile);
         let packfile_open_from_autosave = QMenu::from_q_string_q_widget(&qtr("open_from_autosave"), &menu_bar_packfile);
-        let packfile_change_packfile_type = QMenu::from_q_string_q_widget(&qtr("change_packfile_type"), &menu_bar_packfile);
-        let packfile_compression_format = QMenu::from_q_string_q_widget(&qtr("compression_format"), &menu_bar_packfile);
+        let packfile_close_pack_menu = QMenu::from_q_string_q_widget(&qtr("close_pack_menu"), &menu_bar_packfile);
+        let packfile_save_pack_menu = QMenu::from_q_string_q_widget(&qtr("save_pack_menu"), &menu_bar_packfile);
+        let packfile_save_pack_as_menu = QMenu::from_q_string_q_widget(&qtr("save_pack_as_menu"), &menu_bar_packfile);
+        let packfile_save_pack_for_release = QMenu::from_q_string_q_widget(&qtr("save_pack_for_release"), &menu_bar_packfile);
 
-        let packfile_load_all_ca_packfiles = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "load_all_ca_packs", "load_all_ca_packfiles", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let packfile_select_session = menu_bar_packfile.add_action_q_string(&QString::from_std_str("Select Session..."));
+        let packfile_select_session = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "select_session", "select_session", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let packfile_settings = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "settings", "settings", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let packfile_quit = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "quit", "quit", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
 
-        // Add the "Open..." submenus. These needs to be here because they have to be inserted in specific positions of the menu.
-        menu_bar_packfile.insert_menu(&packfile_load_all_ca_packfiles, &packfile_open_recent);
-        menu_bar_packfile.insert_menu(&packfile_load_all_ca_packfiles, &packfile_open_from_content);
-        menu_bar_packfile.insert_menu(&packfile_load_all_ca_packfiles, &packfile_open_from_secondary);
-        menu_bar_packfile.insert_menu(&packfile_load_all_ca_packfiles, &packfile_open_from_data);
-        menu_bar_packfile.insert_menu(&packfile_load_all_ca_packfiles, &packfile_open_from_autosave);
+        menu_bar_packfile.insert_menu(&packfile_save_all, &packfile_open_recent);
+        menu_bar_packfile.insert_menu(&packfile_save_all, &packfile_open_from_content);
+        menu_bar_packfile.insert_menu(&packfile_save_all, &packfile_open_from_secondary);
+        menu_bar_packfile.insert_menu(&packfile_save_all, &packfile_open_from_data);
+        menu_bar_packfile.insert_menu(&packfile_save_all, &packfile_open_from_autosave);
+        menu_bar_packfile.insert_menu(&packfile_save_all, &packfile_close_pack_menu);
+        menu_bar_packfile.insert_menu(&packfile_save_all, &packfile_save_pack_menu);
+        menu_bar_packfile.insert_menu(&packfile_save_all, &packfile_save_pack_as_menu);
+        menu_bar_packfile.insert_menu(&packfile_save_all, &packfile_save_pack_for_release);
 
-        menu_bar_packfile.insert_separator(packfile_open_recent.menu_action());
-        menu_bar_packfile.insert_separator(&packfile_settings);
-        menu_bar_packfile.insert_menu(&packfile_settings, &packfile_change_packfile_type);
-        menu_bar_packfile.insert_menu(&packfile_settings, &packfile_compression_format);
-        menu_bar_packfile.insert_separator(&packfile_settings);
-
-        // `Change PackFile Type` submenu.
-        let change_packfile_type_boot = packfile_change_packfile_type.add_action_q_string(&qtr("packfile_type_boot"));
-        let change_packfile_type_release = packfile_change_packfile_type.add_action_q_string(&qtr("packfile_type_release"));
-        let change_packfile_type_patch = packfile_change_packfile_type.add_action_q_string(&qtr("packfile_type_patch"));
-        let change_packfile_type_mod = packfile_change_packfile_type.add_action_q_string(&qtr("packfile_type_mod"));
-        let change_packfile_type_movie = packfile_change_packfile_type.add_action_q_string(&qtr("packfile_type_movie"));
-        let change_packfile_type_header_is_extended = packfile_change_packfile_type.add_action_q_string(&qtr("change_packfile_type_header_is_extended"));
-        let change_packfile_type_index_includes_timestamp = packfile_change_packfile_type.add_action_q_string(&qtr("change_packfile_type_index_includes_timestamp"));
-        let change_packfile_type_index_is_encrypted = packfile_change_packfile_type.add_action_q_string(&qtr("change_packfile_type_index_is_encrypted"));
-        let change_packfile_type_data_is_encrypted = packfile_change_packfile_type.add_action_q_string(&qtr("change_packfile_type_data_is_encrypted"));
-
-        let change_packfile_type_group = QActionGroup::new(&packfile_change_packfile_type);
-
-        // Configure the `PackFile` menu and his submenu.
-        change_packfile_type_group.add_action_q_action(&change_packfile_type_boot);
-        change_packfile_type_group.add_action_q_action(&change_packfile_type_release);
-        change_packfile_type_group.add_action_q_action(&change_packfile_type_patch);
-        change_packfile_type_group.add_action_q_action(&change_packfile_type_mod);
-        change_packfile_type_group.add_action_q_action(&change_packfile_type_movie);
-        change_packfile_type_boot.set_checkable(true);
-        change_packfile_type_release.set_checkable(true);
-        change_packfile_type_patch.set_checkable(true);
-        change_packfile_type_mod.set_checkable(true);
-        change_packfile_type_movie.set_checkable(true);
-
-        // These ones are individual, but they need to be checkable and not editable.
-        change_packfile_type_data_is_encrypted.set_checkable(true);
-        change_packfile_type_index_includes_timestamp.set_checkable(true);
-        change_packfile_type_index_is_encrypted.set_checkable(true);
-        change_packfile_type_header_is_extended.set_checkable(true);
-
-        change_packfile_type_data_is_encrypted.set_enabled(false);
-        change_packfile_type_index_is_encrypted.set_enabled(false);
-        change_packfile_type_header_is_extended.set_enabled(false);
-
-        // Put separators in the SubMenu.
-        packfile_change_packfile_type.insert_separator(&change_packfile_type_header_is_extended);
-
-        // Same for the compression submenu.
-        let compression_format_none = packfile_compression_format.add_action_q_string(&qtr("compression_format_none"));
-        let compression_format_lzma1 = packfile_compression_format.add_action_q_string(&qtr("compression_format_lzma1"));
-        let compression_format_lz4 = packfile_compression_format.add_action_q_string(&qtr("compression_format_lz4"));
-        let compression_format_zstd = packfile_compression_format.add_action_q_string(&qtr("compression_format_zstd"));
-        let compression_format_group = QActionGroup::new(&packfile_compression_format);
-        compression_format_group.add_action_q_action(&compression_format_none);
-        compression_format_group.add_action_q_action(&compression_format_lzma1);
-        compression_format_group.add_action_q_action(&compression_format_lz4);
-        compression_format_group.add_action_q_action(&compression_format_zstd);
-        compression_format_none.set_checkable(true);
-        compression_format_lzma1.set_checkable(true);
-        compression_format_lz4.set_checkable(true);
-        compression_format_zstd.set_checkable(true);
+        menu_bar_packfile.insert_separator(&packfile_open_recent.menu_action());
+        menu_bar_packfile.insert_separator(&packfile_close_pack_menu.menu_action());
+        menu_bar_packfile.insert_separator(&packfile_save_pack_menu.menu_action());
+        menu_bar_packfile.insert_separator(&packfile_select_session);
 
         //-----------------------------------------------//
         // `MyMod` Menu.
@@ -649,6 +504,7 @@ impl AppUI {
         let game_selected_open_game_data_folder = add_action_to_menu(&menu_bar_game_selected, shortcuts.as_ref(), "game_selected_menu", "open_game_data_folder", "game_selected_open_game_data_folder", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let game_selected_open_game_assembly_kit_folder = add_action_to_menu(&menu_bar_game_selected, shortcuts.as_ref(), "game_selected_menu", "open_game_ak_folder", "game_selected_open_game_assembly_kit_folder", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let game_selected_open_config_folder = add_action_to_menu(&menu_bar_game_selected, shortcuts.as_ref(), "game_selected_menu", "open_rpfm_config_folder", "game_selected_open_config_folder", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
+        let game_selected_generate_dependencies_cache = add_action_to_menu(&menu_bar_game_selected, shortcuts.as_ref(), "game_selected_menu", "generate_dependencies_cache", "game_selected_generate_dependencies_cache", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
 
         let game_selected_pharaoh_dynasties = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(DISPLAY_NAME_PHARAOH_DYNASTIES));
         let game_selected_pharaoh = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(DISPLAY_NAME_PHARAOH));
@@ -713,74 +569,6 @@ impl AppUI {
         game_selected_napoleon.set_checkable(true);
         game_selected_empire.set_checkable(true);
         game_selected_arena.set_checkable(true);
-
-        //-----------------------------------------------//
-        // `Special Stuff` Menu.
-        //-----------------------------------------------//
-
-        // Populate the `Special Stuff` menu with submenus.
-        let menu_pharaoh_dynasties = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_PHARAOH_DYNASTIES));
-        let menu_pharaoh = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_PHARAOH));
-        let menu_warhammer_3 = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_WARHAMMER_3));
-        let menu_troy = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_TROY));
-        let menu_three_kingdoms = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_THREE_KINGDOMS));
-        let menu_warhammer_2 = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_WARHAMMER_2));
-        let menu_warhammer = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_WARHAMMER));
-        let menu_thrones_of_britannia = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_THRONES_OF_BRITANNIA));
-        let menu_attila = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_ATTILA));
-        let menu_rome_2 = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_ROME_2));
-        let menu_shogun_2 = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_SHOGUN_2));
-        let menu_napoleon = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_NAPOLEON));
-        let menu_empire = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_EMPIRE));
-        let special_stuff_rescue_packfile = menu_bar_special_stuff.add_action_q_string(&qtr("special_stuff_rescue_packfile"));
-
-        // Populate the `Special Stuff` submenus.
-        let special_stuff_ph_dyn_generate_dependencies_cache = add_action_to_menu(&menu_pharaoh_dynasties, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let special_stuff_ph_dyn_optimize_packfile = add_action_to_menu(&menu_pharaoh_dynasties, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let special_stuff_ph_dyn_build_starpos = add_action_to_menu(&menu_pharaoh_dynasties, shortcuts.as_ref(), "special_stuff_menu", "build_starpos", "special_stuff_build_starpos", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let special_stuff_ph_generate_dependencies_cache = add_action_to_menu(&menu_pharaoh, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let special_stuff_ph_optimize_packfile = add_action_to_menu(&menu_pharaoh, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let special_stuff_ph_build_starpos = add_action_to_menu(&menu_pharaoh, shortcuts.as_ref(), "special_stuff_menu", "build_starpos", "special_stuff_build_starpos", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let special_stuff_wh3_generate_dependencies_cache = add_action_to_menu(&menu_warhammer_3, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let special_stuff_wh3_optimize_packfile = add_action_to_menu(&menu_warhammer_3, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let special_stuff_wh3_live_export = add_action_to_menu(&menu_warhammer_3, shortcuts.as_ref(), "special_stuff_menu", "live_export", "special_stuff_live_export", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let special_stuff_wh3_pack_map = add_action_to_menu(&menu_warhammer_3, shortcuts.as_ref(), "special_stuff_menu", "pack_map", "special_stuff_pack_map", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let special_stuff_wh3_build_starpos = add_action_to_menu(&menu_warhammer_3, shortcuts.as_ref(), "special_stuff_menu", "build_starpos", "special_stuff_build_starpos", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let special_stuff_wh3_update_anim_ids = add_action_to_menu(&menu_warhammer_3, shortcuts.as_ref(), "special_stuff_menu", "update_anim_ids", "special_stuff_update_anim_ids", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let special_stuff_troy_generate_dependencies_cache = add_action_to_menu(&menu_troy, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let special_stuff_troy_optimize_packfile = add_action_to_menu(&menu_troy, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let special_stuff_troy_build_starpos = add_action_to_menu(&menu_troy, shortcuts.as_ref(), "special_stuff_menu", "build_starpos", "special_stuff_build_starpos", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let special_stuff_three_k_generate_dependencies_cache = add_action_to_menu(&menu_three_kingdoms, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let special_stuff_three_k_optimize_packfile = add_action_to_menu(&menu_three_kingdoms, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let special_stuff_three_k_build_starpos = add_action_to_menu(&menu_three_kingdoms, shortcuts.as_ref(), "special_stuff_menu", "build_starpos", "special_stuff_build_starpos", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let special_stuff_wh2_generate_dependencies_cache = add_action_to_menu(&menu_warhammer_2, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let special_stuff_wh2_optimize_packfile = add_action_to_menu(&menu_warhammer_2, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let special_stuff_wh2_patch_siege_ai = add_action_to_menu(&menu_warhammer_2, shortcuts.as_ref(), "special_stuff_menu", "patch_siege_ai", "special_stuff_patch_siege_ai", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let special_stuff_wh2_build_starpos = add_action_to_menu(&menu_warhammer_2, shortcuts.as_ref(), "special_stuff_menu", "build_starpos", "special_stuff_build_starpos", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let special_stuff_wh_generate_dependencies_cache = add_action_to_menu(&menu_warhammer, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let special_stuff_wh_optimize_packfile = add_action_to_menu(&menu_warhammer, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let special_stuff_wh_patch_siege_ai = add_action_to_menu(&menu_warhammer, shortcuts.as_ref(), "special_stuff_menu", "patch_siege_ai", "special_stuff_patch_siege_ai", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let special_stuff_wh_build_starpos = add_action_to_menu(&menu_warhammer, shortcuts.as_ref(), "special_stuff_menu", "build_starpos", "special_stuff_build_starpos", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let special_stuff_tob_generate_dependencies_cache = add_action_to_menu(&menu_thrones_of_britannia, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let special_stuff_tob_optimize_packfile = add_action_to_menu(&menu_thrones_of_britannia, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let special_stuff_tob_build_starpos = add_action_to_menu(&menu_thrones_of_britannia, shortcuts.as_ref(), "special_stuff_menu", "build_starpos", "special_stuff_build_starpos", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let special_stuff_att_generate_dependencies_cache = add_action_to_menu(&menu_attila, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let special_stuff_att_optimize_packfile = add_action_to_menu(&menu_attila, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let special_stuff_att_build_starpos = add_action_to_menu(&menu_attila, shortcuts.as_ref(), "special_stuff_menu", "build_starpos", "special_stuff_build_starpos", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let special_stuff_rom2_generate_dependencies_cache = add_action_to_menu(&menu_rome_2, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let special_stuff_rom2_optimize_packfile = add_action_to_menu(&menu_rome_2, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let special_stuff_rom2_build_starpos = add_action_to_menu(&menu_rome_2, shortcuts.as_ref(), "special_stuff_menu", "build_starpos", "special_stuff_build_starpos", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let special_stuff_sho2_generate_dependencies_cache = add_action_to_menu(&menu_shogun_2, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let special_stuff_sho2_optimize_packfile = add_action_to_menu(&menu_shogun_2, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let special_stuff_sho2_build_starpos = add_action_to_menu(&menu_shogun_2, shortcuts.as_ref(), "special_stuff_menu", "build_starpos", "special_stuff_build_starpos", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let special_stuff_nap_generate_dependencies_cache = add_action_to_menu(&menu_napoleon, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let special_stuff_nap_optimize_packfile = add_action_to_menu(&menu_napoleon, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let special_stuff_nap_build_starpos = add_action_to_menu(&menu_napoleon, shortcuts.as_ref(), "special_stuff_menu", "build_starpos", "special_stuff_build_starpos", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let special_stuff_emp_generate_dependencies_cache = add_action_to_menu(&menu_empire, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let special_stuff_emp_optimize_packfile = add_action_to_menu(&menu_empire, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let special_stuff_emp_build_starpos = add_action_to_menu(&menu_empire, shortcuts.as_ref(), "special_stuff_menu", "build_starpos", "special_stuff_build_starpos", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-
-        menu_bar_special_stuff.insert_separator(&special_stuff_rescue_packfile);
 
         //-----------------------------------------------//
         // `Tools` Menu.
@@ -849,41 +637,22 @@ impl AppUI {
 
             // Menus.
             packfile_new_packfile,
-            packfile_open_packfile,
-            packfile_save_packfile,
-            packfile_save_packfile_as,
-            packfile_save_packfile_for_release,
-            packfile_install,
-            packfile_uninstall,
+            packfile_open_packfiles,
+            packfile_open_and_merge_packs,
+            packfile_load_all_ca_packfiles,
             packfile_open_recent,
             packfile_open_from_content,
             packfile_open_from_secondary,
             packfile_open_from_data,
             packfile_open_from_autosave,
-            packfile_load_all_ca_packfiles,
+            packfile_close_pack_menu,
+            packfile_save_pack_menu,
+            packfile_save_pack_as_menu,
+            packfile_save_pack_for_release,
+            packfile_save_all,
             packfile_select_session,
             packfile_settings,
             packfile_quit,
-
-            // "Change PackFile Type" submenu.
-            change_packfile_type_group,
-            change_packfile_type_boot,
-            change_packfile_type_release,
-            change_packfile_type_patch,
-            change_packfile_type_mod,
-            change_packfile_type_movie,
-
-            change_packfile_type_header_is_extended,
-            change_packfile_type_index_includes_timestamp,
-            change_packfile_type_index_is_encrypted,
-            change_packfile_type_data_is_encrypted,
-
-            // Compression Format submenu.
-            compression_format_group,
-            compression_format_none,
-            compression_format_lzma1,
-            compression_format_lz4,
-            compression_format_zstd,
 
             //-------------------------------------------------------------------------------//
             // `MyMod` menu.
@@ -943,82 +712,7 @@ impl AppUI {
 
             game_selected_group,
 
-            //-------------------------------------------------------------------------------//
-            // "Special Stuff" menu.
-            //-------------------------------------------------------------------------------//
-
-            // Pharaoh Dynasties actions.
-            special_stuff_ph_dyn_generate_dependencies_cache,
-            special_stuff_ph_dyn_optimize_packfile,
-            special_stuff_ph_dyn_build_starpos,
-
-            // Pharaoh actions.
-            special_stuff_ph_generate_dependencies_cache,
-            special_stuff_ph_optimize_packfile,
-            special_stuff_ph_build_starpos,
-
-            // Warhammer 3 actions.
-            special_stuff_wh3_generate_dependencies_cache,
-            special_stuff_wh3_optimize_packfile,
-            special_stuff_wh3_live_export,
-            special_stuff_wh3_pack_map,
-            special_stuff_wh3_build_starpos,
-            special_stuff_wh3_update_anim_ids,
-
-            // Troy actions.
-            special_stuff_troy_generate_dependencies_cache,
-            special_stuff_troy_optimize_packfile,
-            special_stuff_troy_build_starpos,
-
-            // Three Kingdoms actions.
-            special_stuff_three_k_generate_dependencies_cache,
-            special_stuff_three_k_optimize_packfile,
-            special_stuff_three_k_build_starpos,
-
-            // Warhammer 2's actions.
-            special_stuff_wh2_generate_dependencies_cache,
-            special_stuff_wh2_optimize_packfile,
-            special_stuff_wh2_patch_siege_ai,
-            special_stuff_wh2_build_starpos,
-
-            // Warhammer's actions.
-            special_stuff_wh_generate_dependencies_cache,
-            special_stuff_wh_optimize_packfile,
-            special_stuff_wh_patch_siege_ai,
-            special_stuff_wh_build_starpos,
-
-            // Thrones of Britannia's actions.
-            special_stuff_tob_generate_dependencies_cache,
-            special_stuff_tob_optimize_packfile,
-            special_stuff_tob_build_starpos,
-
-            // Attila's actions.
-            special_stuff_att_generate_dependencies_cache,
-            special_stuff_att_optimize_packfile,
-            special_stuff_att_build_starpos,
-
-            // Rome 2's actions.
-            special_stuff_rom2_generate_dependencies_cache,
-            special_stuff_rom2_optimize_packfile,
-            special_stuff_rom2_build_starpos,
-
-            // Shogun 2's actions.
-            special_stuff_sho2_generate_dependencies_cache,
-            special_stuff_sho2_optimize_packfile,
-            special_stuff_sho2_build_starpos,
-
-            // Napoleon's actions.
-            special_stuff_nap_generate_dependencies_cache,
-            special_stuff_nap_optimize_packfile,
-            special_stuff_nap_build_starpos,
-
-            // Empire's actions.
-            special_stuff_emp_generate_dependencies_cache,
-            special_stuff_emp_optimize_packfile,
-            special_stuff_emp_build_starpos,
-
-            // Common operations.
-            special_stuff_rescue_packfile,
+            game_selected_generate_dependencies_cache,
 
             //-------------------------------------------------------------------------------//
             // "Tools" menu.
@@ -1306,42 +1000,46 @@ impl AppUI {
         did_it_worked
     }
 
-    /// This function opens the PackFile at the provided Path, and sets all the stuff needed, depending on the situation.
+    /// This function opens the PackFile(s) at the provided Path, and sets all the stuff needed, depending on the situation.
     ///
     /// NOTE: The `game_folder` is for when using this function with *MyMods*. If you're opening a normal mod, pass it empty.
+    /// NOTE: When `additive` is true, packs are added alongside any already-open packs instead of replacing them.
+    /// When additive and no packs are currently open, game selection logic is still applied.
     pub unsafe fn open_packfile(
         app_ui: &Rc<Self>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         global_search_ui: &Rc<GlobalSearchUI>,
+        dependencies_ui: &Rc<DependenciesUI>,
         pack_file_paths: &[PathBuf],
         game_folder: &str,
+        additive: bool,
     ) -> Result<()> {
 
+        // Check if there are currently any packs open (before we open new ones).
+        // This is used to decide whether to run game selection logic in additive mode.
+        let had_packs_open = additive && pack_file_contents_ui.packfile_contents_tree_model().row_count_0a() != 0;
+
         // Destroy whatever it's in the PackedFile's view, to avoid data corruption. We don't care about this result.
-        let _ = Self::purge_them_all(app_ui, pack_file_contents_ui, false);
+        // Only needed when replacing packs, not when adding alongside existing ones.
+        if !additive {
+            let _ = Self::purge_them_all(app_ui, pack_file_contents_ui, false);
+        }
 
-        // Tell the Background Thread to create a new PackFile with the data of one or more from the disk.
         app_ui.toggle_main_window(false);
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::OpenPackFiles(pack_file_paths.to_vec()));
 
-        // If it's only one packfile, store it in the recent file list.
-        if pack_file_paths.len() == 1 {
-            let mut paths = settings_vec_string("recentFileList");
-
-            if let Some(pos) = paths.iter().position(|x| x == pack_file_paths[0].to_str().unwrap()) {
-                paths.remove(pos);
+        // Track all opened files in the recent file list.
+        for pack_file_path in pack_file_paths {
+            if let Some(path_str) = pack_file_path.to_str() {
+                let mut paths = settings_vec_string("recentFileList");
+                if let Some(pos) = paths.iter().position(|x| x == path_str) {
+                    paths.remove(pos);
+                }
+                paths.insert(0, path_str.to_owned());
+                while paths.len() > 10 {
+                    paths.pop();
+                }
+                let _ = settings_set_vec_string("recentFileList", &paths);
             }
-
-            paths.reverse();
-            paths.push(pack_file_paths[0].to_str().unwrap().to_owned());
-            paths.reverse();
-
-            while paths.len() > 10 {
-                paths.pop();
-            }
-
-            // Ignore failures to save this setting.
-            let _ = settings_set_vec_string("recentFileList", &paths);
         }
 
         let timer = settings_i32("autosave_interval");
@@ -1350,182 +1048,89 @@ impl AppUI {
             app_ui.timer_backup_autosave.start_0a();
         }
 
-        // Check what response we got.
-        let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
-        match response {
-
-            // If it's success...
-            Response::ContainerInfo(ui_data) => {
-
-                // We choose the right option, depending on our PackFile.
-                match ui_data.pfh_file_type() {
-                    PFHFileType::Boot => app_ui.change_packfile_type_boot.set_checked(true),
-                    PFHFileType::Release => app_ui.change_packfile_type_release.set_checked(true),
-                    PFHFileType::Patch => app_ui.change_packfile_type_patch.set_checked(true),
-                    PFHFileType::Mod => app_ui.change_packfile_type_mod.set_checked(true),
-                    PFHFileType::Movie => app_ui.change_packfile_type_movie.set_checked(true),
-                }
-
-                // Enable or disable these, depending on what data we have in the header.
-                app_ui.change_packfile_type_data_is_encrypted.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_ENCRYPTED_DATA));
-                app_ui.change_packfile_type_index_includes_timestamp.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS));
-                app_ui.change_packfile_type_index_is_encrypted.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_ENCRYPTED_INDEX));
-                app_ui.change_packfile_type_header_is_extended.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_EXTENDED_HEADER));
-
-                // Set the compression format correctly, because otherwise we may fuckup some files.
-                app_ui.compression_format_group.block_signals(true);
-                match ui_data.compress() {
-                    CompressionFormat::None => app_ui.compression_format_none.set_checked(true),
-                    CompressionFormat::Lzma1 => app_ui.compression_format_lzma1.set_checked(true),
-                    CompressionFormat::Lz4 => app_ui.compression_format_lz4.set_checked(true),
-                    CompressionFormat::Zstd => app_ui.compression_format_zstd.set_checked(true),
-                }
-                app_ui.compression_format_group.block_signals(false);
-
-                // Update the TreeView.
-                let mut build_data = BuildData::new();
-                build_data.editable = true;
-                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
-
-                // Close the Global Search stuff and reset the filter's history.
-                GlobalSearchUI::clear(global_search_ui);
-
-                // If it's a "MyMod" (game_folder_name is not empty), we choose the Game selected Depending on it.
-                if !game_folder.is_empty() && pack_file_paths.len() == 1 {
-
-                    // NOTE: Arena should never be here.
-                    // Change the Game Selected in the UI.
-                    match game_folder {
-                        KEY_PHARAOH_DYNASTIES => app_ui.game_selected_pharaoh_dynasties.trigger(),
-                        KEY_PHARAOH => app_ui.game_selected_pharaoh.trigger(),
-                        KEY_WARHAMMER_3 => app_ui.game_selected_warhammer_3.trigger(),
-                        KEY_TROY => app_ui.game_selected_troy.trigger(),
-                        KEY_THREE_KINGDOMS => app_ui.game_selected_three_kingdoms.trigger(),
-                        KEY_WARHAMMER_2 => app_ui.game_selected_warhammer_2.trigger(),
-                        KEY_WARHAMMER => app_ui.game_selected_warhammer.trigger(),
-                        KEY_THRONES_OF_BRITANNIA => app_ui.game_selected_thrones_of_britannia.trigger(),
-                        KEY_ATTILA => app_ui.game_selected_attila.trigger(),
-                        KEY_ROME_2 => app_ui.game_selected_rome_2.trigger(),
-                        KEY_SHOGUN_2 => app_ui.game_selected_shogun_2.trigger(),
-                        KEY_NAPOLEON => app_ui.game_selected_napoleon.trigger(),
-                        KEY_EMPIRE => app_ui.game_selected_empire.trigger(),
-                        _ => unimplemented!()
-                    }
-
-                    // Set the current "Operational Mode" to `MyMod`.
-                    UI_STATE.set_operational_mode(app_ui, Some(&pack_file_paths[0]));
-                }
-
-                // If it's not a "MyMod", we choose the new Game Selected depending on what the open mod id is.
-                else {
-
-                    // Reset the operational mode.
-                    UI_STATE.set_operational_mode(app_ui, None);
-
-                    // Depending on the Id, choose one game or another.
-                    let game_selected = GAME_SELECTED.read().unwrap().key();
-                    match ui_data.pfh_version() {
-
-                        // PFH6 is for Troy and maybe WH3.
-                        PFHVersion::PFH6 => {
-
-                            // If we have Warhammer selected, we keep Warhammer. If we have Attila, we keep Attila. That's the logic.
-                            match game_selected {
-                                KEY_TROY => app_ui.game_selected_troy.trigger(),
-                                _ => {
-                                    show_message_warning(&app_ui.message_widget, tre("game_selected_changed_on_opening", &[DISPLAY_NAME_TROY]));
-                                    app_ui.game_selected_troy.trigger();
-                                }
-                            }
-                        },
-
-                        // PFH5 is for Warhammer 2/Arena.
-                        PFHVersion::PFH5 => {
-
-                            // If the PackFile has the mysterious byte enabled, it's from Arena.
-                            if ui_data.bitmask().contains(PFHFlags::HAS_EXTENDED_HEADER) {
-                                app_ui.game_selected_arena.trigger();
-                            }
-
-                            // Otherwise, it's from Three Kingdoms, Warhammer 2, Troy, Pharaoh or Warhammer 3.
-                            else {
-                                match game_selected {
-                                    KEY_PHARAOH_DYNASTIES => app_ui.game_selected_pharaoh_dynasties.trigger(),
-                                    KEY_PHARAOH => app_ui.game_selected_pharaoh.trigger(),
-                                    KEY_WARHAMMER_3 => app_ui.game_selected_warhammer_3.trigger(),
-                                    KEY_TROY => app_ui.game_selected_troy.trigger(),
-                                    KEY_THREE_KINGDOMS => app_ui.game_selected_three_kingdoms.trigger(),
-                                    KEY_WARHAMMER_2 => app_ui.game_selected_warhammer_2.trigger(),
-                                    _ => {
-                                        show_message_warning(&app_ui.message_widget, tre("game_selected_changed_on_opening", &[DISPLAY_NAME_WARHAMMER_3]));
-                                        app_ui.game_selected_warhammer_3.trigger();
-                                    }
-                                }
-                            }
-                        },
-
-                        // PFH4 is for Thrones of Britannia/Warhammer 1/Attila/Rome 2.
-                        PFHVersion::PFH4 => {
-
-                            // If we have Warhammer selected, we keep Warhammer. If we have Attila, we keep Attila. That's the logic.
-                            match game_selected {
-                                KEY_WARHAMMER => app_ui.game_selected_warhammer.trigger(),
-                                KEY_THRONES_OF_BRITANNIA => app_ui.game_selected_thrones_of_britannia.trigger(),
-                                KEY_ATTILA => app_ui.game_selected_attila.trigger(),
-                                KEY_ROME_2 => app_ui.game_selected_rome_2.trigger(),
-                                _ => {
-                                    show_message_warning(&app_ui.message_widget, tre("game_selected_changed_on_opening", &[DISPLAY_NAME_ROME_2]));
-                                    app_ui.game_selected_rome_2.trigger();
-                                }
-                            }
-                        },
-
-                        // PFH3/2 is for Shogun 2.
-                        PFHVersion::PFH3 | PFHVersion::PFH2 => {
-                            match game_selected {
-                                KEY_SHOGUN_2 => app_ui.game_selected_shogun_2.trigger(),
-                                _ => {
-                                    show_message_warning(&app_ui.message_widget, tre("game_selected_changed_on_opening", &[DISPLAY_NAME_SHOGUN_2]));
-                                    app_ui.game_selected_shogun_2.trigger();
-                                }
-                            }
-                        }
-
-                        // PFH0 is for Napoleon/Empire.
-                        PFHVersion::PFH0 => {
-                            match game_selected {
-                                KEY_NAPOLEON => app_ui.game_selected_napoleon.trigger(),
-                                KEY_EMPIRE => app_ui.game_selected_empire.trigger(),
-                                _ => {
-                                    show_message_warning(&app_ui.message_widget, tre("game_selected_changed_on_opening", &[DISPLAY_NAME_EMPIRE]));
-                                    app_ui.game_selected_empire.trigger();
-                                }
-                            }
-                        },
-                    }
-                }
-
-                UI_STATE.set_is_modified(false, app_ui, pack_file_contents_ui);
-                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile);
-
-                // Re-enable the Main Window.
-                app_ui.toggle_main_window(true);
+        // Open the packs and update the tree view.
+        // In additive mode, each pack is opened individually and added to the tree.
+        // In non-additive mode, close all existing packs on the backend first, then open the new ones.
+        if !additive {
+            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::CloseAllPacks);
+            let response = CentralCommand::recv(&receiver);
+            match response {
+                Response::Success => {},
+                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
             }
-
-            // If we got an error...
-            Response::Error(error) => {
-                app_ui.toggle_main_window(true);
-                return Err(anyhow!(error))
-            }
-
-            // In ANY other situation, it's a message problem.
-            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
         }
+
+        if additive {
+            for pack_file_path in pack_file_paths {
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::OpenPackFiles(vec![pack_file_path.clone()]));
+                let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
+                match response {
+                    Response::StringContainerInfo(pack_key, _) => {
+                        let mut build_data = BuildData::new();
+                        build_data.editable = true;
+                        build_data.pack_key = Some(pack_key);
+                        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::AddPack(build_data), DataSource::PackFile);
+
+                        Self::enable_packfile_actions(app_ui, pack_file_path, true);
+                    }
+                    Response::Error(error) => {
+                        app_ui.toggle_main_window(true);
+                        return Err(anyhow!(error));
+                    }
+                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                }
+            }
+        } else {
+            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::OpenPackFiles(pack_file_paths.to_vec()));
+            let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
+            match response {
+                Response::StringContainerInfo(pack_key, _) => {
+                    let mut build_data = BuildData::new();
+                    build_data.editable = true;
+                    build_data.pack_key = Some(pack_key);
+                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
+                }
+                Response::Error(error) => {
+                    app_ui.toggle_main_window(true);
+                    return Err(anyhow!(error))
+                }
+                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+            }
+        }
+
+        // Close the Global Search stuff and reset the filter's history.
+        GlobalSearchUI::clear(global_search_ui);
+        global_search_ui.update_pack_sources(pack_file_contents_ui);
+
+        // Operational mode logic: apply when opening the first pack(s).
+        if !had_packs_open {
+            if !game_folder.is_empty() && pack_file_paths.len() == 1 {
+
+                // Set the current "Operational Mode" to `MyMod`.
+                UI_STATE.set_operational_mode(app_ui, Some(&pack_file_paths[0]));
+            } else if !additive {
+
+                // Reset the operational mode when replacing packs.
+                UI_STATE.set_operational_mode(app_ui, None);
+            }
+        }
+
+        // Rebuild parent packs in the dependencies so they reflect the newly opened pack.
+        Self::rebuild_parent_packs(app_ui, pack_file_contents_ui, dependencies_ui);
+
+        if additive {
+            UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
+        } else {
+            UI_STATE.set_is_modified(false, app_ui, pack_file_contents_ui);
+            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile);
+        }
+
+        // Re-enable the Main Window.
+        app_ui.toggle_main_window(true);
 
         // Return success.
         Ok(())
     }
-
 
     /// This function is used to save the currently open `PackFile` to disk.
     ///
@@ -1537,9 +1142,33 @@ impl AppUI {
         save_as: bool,
         optimize: bool
     ) -> Result<()> {
+        Self::save_packfile_by_key(app_ui, pack_file_contents_ui, None, save_as, optimize)
+    }
+
+    /// This function is used to save a specific `PackFile` to disk, identified by pack key.
+    ///
+    /// If `target_pack_key` is `None`, it uses the selected/first pack.
+    /// If the PackFile doesn't exist or we pass `save_as = true`,
+    /// it opens a dialog asking for a path.
+    pub unsafe fn save_packfile_by_key(
+        app_ui: &Rc<Self>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        target_pack_key: Option<String>,
+        save_as: bool,
+        optimize: bool
+    ) -> Result<()> {
 
         let mut result: Result<()> = Ok(());
         app_ui.toggle_main_window(false);
+
+        // Resolve the pack key once, up front.
+        let pack_key = match target_pack_key.or_else(|| pack_file_contents_ui.pack_key_from_selection_or_first()) {
+            Some(key) => key,
+            None => {
+                app_ui.toggle_main_window(true);
+                return Err(anyhow!("No pack is open."));
+            }
+        };
 
         // First, we need to save all open `PackedFiles` to the backend. If one fails, we want to know what one.
         AppUI::back_to_back_end_all(app_ui, pack_file_contents_ui)?;
@@ -1548,7 +1177,7 @@ impl AppUI {
             let _ = AppUI::purge_them_all(app_ui, pack_file_contents_ui, true);
 
             let options = optimizer_options();
-            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::OptimizePackFile(options));
+            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::OptimizePackFile(pack_key.clone(), options));
             let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
             match response {
                 Response::HashSetStringHashSetString(response_1, response_2) => {
@@ -1562,9 +1191,16 @@ impl AppUI {
             }
         }
 
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackFilePath);
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackFilePath(pack_key.clone()));
         let response = CentralCommand::recv(&receiver);
-        let mut path = if let Response::PathBuf(path) = response { path } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}") };
+        let mut path = match response {
+            Response::PathBuf(path) => path,
+            Response::Error(error) => {
+                app_ui.toggle_main_window(true);
+                return Err(anyhow!(error));
+            }
+            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+        };
         if !path.is_file() || save_as {
 
             // Create the FileDialog to save the PackFile and configure it.
@@ -1594,7 +1230,7 @@ impl AppUI {
             if file_dialog.exec() == 1 {
                 let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
                 let file_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
-                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SavePackAs(path));
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SavePackAs(pack_key.clone(), path));
                 let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
                 match response {
                     Response::ContainerInfo(pack_file_info) => {
@@ -1615,7 +1251,7 @@ impl AppUI {
         }
 
         else {
-            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SavePack);
+            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SavePack(pack_key.clone()));
             let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
             match response {
                 Response::ContainerInfo(pack_file_info) => {
@@ -1646,7 +1282,9 @@ impl AppUI {
     /// This function enables/disables the actions on the main window, depending on the current state of the Application.
     ///
     /// You have to pass `enable = true` if you are trying to enable actions, and `false` to disable them.
-    pub unsafe fn enable_packfile_actions(app_ui: &Rc<Self>, pack_path: &Path, enable: bool) {
+    ///
+    /// TODO: Check how to rework this for multiple packs.
+    pub unsafe fn enable_packfile_actions(app_ui: &Rc<Self>, _pack_path: &Path, enable: bool) {
 
         // If the game is Arena, no matter what we're doing, these ones ALWAYS have to be disabled.
         let game_selected = GAME_SELECTED.read().unwrap().clone();
@@ -1654,11 +1292,11 @@ impl AppUI {
 
             // Disable the actions that allow to create and save PackFiles.
             app_ui.packfile_new_packfile.set_enabled(false);
-            app_ui.packfile_save_packfile.set_enabled(false);
-            app_ui.packfile_save_packfile_as.set_enabled(false);
-            app_ui.packfile_save_packfile_for_release.set_enabled(false);
-            app_ui.packfile_install.set_enabled(false);
-            app_ui.packfile_uninstall.set_enabled(false);
+            app_ui.packfile_close_pack_menu.set_enabled(true);
+            app_ui.packfile_save_pack_menu.set_enabled(false);
+            app_ui.packfile_save_pack_as_menu.set_enabled(false);
+            app_ui.packfile_save_pack_for_release.set_enabled(false);
+            app_ui.packfile_save_all.set_enabled(false);
 
             // This one too, though we had to deal with it specially later on.
             app_ui.mymod_new.set_enabled(false);
@@ -1669,26 +1307,11 @@ impl AppUI {
 
             // Enable or disable the actions from "PackFile" Submenu.
             app_ui.packfile_new_packfile.set_enabled(true);
-            app_ui.packfile_save_packfile.set_enabled(enable);
-            app_ui.packfile_save_packfile_as.set_enabled(enable);
-            app_ui.packfile_save_packfile_for_release.set_enabled(enable);
-
-            // Ensure it's a file and it's not in data before proceeding.
-            let enable_install = if !pack_path.is_file() { false }
-            else if let Ok(game_data_path) = GAME_SELECTED.read().unwrap().local_mods_path(&settings_path_buf(GAME_SELECTED.read().unwrap().key())) {
-                game_data_path.is_dir() && !pack_path.starts_with(&game_data_path)
-            } else { false };
-            app_ui.packfile_install.set_enabled(enable_install);
-
-            let enable_uninstall = if !pack_path.is_file() { false }
-            else if let Ok(mut game_data_path) = GAME_SELECTED.read().unwrap().local_mods_path(&settings_path_buf(GAME_SELECTED.read().unwrap().key())) {
-                if !game_data_path.is_dir() || pack_path.starts_with(&game_data_path) { false }
-                else {
-                    game_data_path.push(pack_path.file_name().unwrap().to_string_lossy().to_string());
-                    game_data_path.is_file()
-                }
-            } else { false };
-            app_ui.packfile_uninstall.set_enabled(enable_uninstall);
+            app_ui.packfile_close_pack_menu.set_enabled(enable);
+            app_ui.packfile_save_pack_menu.set_enabled(enable);
+            app_ui.packfile_save_pack_as_menu.set_enabled(enable);
+            app_ui.packfile_save_pack_for_release.set_enabled(enable);
+            app_ui.packfile_save_all.set_enabled(enable);
 
             // If there is a "MyMod" path set in the settings...
             let path = settings_path_buf(MYMOD_BASE_PATH);
@@ -1696,212 +1319,27 @@ impl AppUI {
             else { app_ui.mymod_new.set_enabled(false); }
         }
 
-        // These actions are common, no matter what game we have.
-        app_ui.change_packfile_type_group.set_enabled(enable);
-        app_ui.change_packfile_type_index_includes_timestamp.set_enabled(enable);
-
-        app_ui.special_stuff_rescue_packfile.set_enabled(enable);
-
-        // If we are enabling...
-        if enable {
-            app_ui.compression_format_lzma1.set_enabled(game_selected.compression_formats_supported().contains(&CompressionFormat::Lzma1));
-            app_ui.compression_format_lz4.set_enabled(game_selected.compression_formats_supported().contains(&CompressionFormat::Lz4));
-            app_ui.compression_format_zstd.set_enabled(game_selected.compression_formats_supported().contains(&CompressionFormat::Zstd));
-
-            // Check the Game Selected and enable the actions corresponding to out game.
-            match game_selected.key() {
-                KEY_PHARAOH_DYNASTIES => {
-                    app_ui.special_stuff_ph_dyn_optimize_packfile.set_enabled(true);
-                    app_ui.special_stuff_ph_dyn_build_starpos.set_enabled(true);
-                },
-                KEY_PHARAOH => {
-                    app_ui.special_stuff_ph_optimize_packfile.set_enabled(true);
-                    app_ui.special_stuff_ph_build_starpos.set_enabled(true);
-                },
-                KEY_WARHAMMER_3 => {
-                    app_ui.special_stuff_wh3_optimize_packfile.set_enabled(true);
-                    app_ui.special_stuff_wh3_live_export.set_enabled(true);
-                    app_ui.special_stuff_wh3_pack_map.set_enabled(true);
-                    app_ui.special_stuff_wh3_build_starpos.set_enabled(true);
-                    app_ui.special_stuff_wh3_update_anim_ids.set_enabled(true);
-                },
-                KEY_TROY => {
-                    app_ui.special_stuff_troy_optimize_packfile.set_enabled(true);
-                    app_ui.special_stuff_troy_build_starpos.set_enabled(true);
-                },
-                KEY_THREE_KINGDOMS => {
-                    app_ui.special_stuff_three_k_optimize_packfile.set_enabled(true);
-                    app_ui.special_stuff_three_k_build_starpos.set_enabled(true);
-                },
-                KEY_WARHAMMER_2 => {
-                    app_ui.special_stuff_wh2_patch_siege_ai.set_enabled(true);
-                    app_ui.special_stuff_wh2_optimize_packfile.set_enabled(true);
-                    app_ui.special_stuff_wh2_build_starpos.set_enabled(true);
-                },
-                KEY_WARHAMMER => {
-                    app_ui.special_stuff_wh_patch_siege_ai.set_enabled(true);
-                    app_ui.special_stuff_wh_optimize_packfile.set_enabled(true);
-                    app_ui.special_stuff_wh_build_starpos.set_enabled(true);
-                },
-                KEY_THRONES_OF_BRITANNIA => {
-                    app_ui.special_stuff_tob_optimize_packfile.set_enabled(true);
-                    app_ui.special_stuff_tob_build_starpos.set_enabled(true);
-                },
-                KEY_ATTILA => {
-                    app_ui.special_stuff_att_optimize_packfile.set_enabled(true);
-                    app_ui.special_stuff_att_build_starpos.set_enabled(true);
-                },
-                KEY_ROME_2 => {
-                    app_ui.special_stuff_rom2_optimize_packfile.set_enabled(true);
-                    app_ui.special_stuff_rom2_build_starpos.set_enabled(true);
-                },
-                KEY_SHOGUN_2 => {
-                    app_ui.special_stuff_sho2_optimize_packfile.set_enabled(true);
-                    app_ui.special_stuff_sho2_build_starpos.set_enabled(true);
-                },
-                KEY_NAPOLEON => {
-                    app_ui.special_stuff_nap_optimize_packfile.set_enabled(true);
-                    app_ui.special_stuff_nap_build_starpos.set_enabled(true);
-                },
-                KEY_EMPIRE => {
-                    app_ui.special_stuff_emp_optimize_packfile.set_enabled(true);
-                    app_ui.special_stuff_emp_build_starpos.set_enabled(true);
-                },
-                _ => {},
-            }
-        }
-
         // If we are disabling...
-        else {
-            app_ui.compression_format_lzma1.set_enabled(false);
-            app_ui.compression_format_lz4.set_enabled(false);
-            app_ui.compression_format_zstd.set_enabled(false);
-
-            // Disable Pharaoh Dynasties actions.
-            app_ui.special_stuff_ph_dyn_optimize_packfile.set_enabled(false);
-            app_ui.special_stuff_ph_dyn_generate_dependencies_cache.set_enabled(false);
-            app_ui.special_stuff_ph_dyn_build_starpos.set_enabled(false);
-
-            // Disable Pharaoh actions.
-            app_ui.special_stuff_ph_optimize_packfile.set_enabled(false);
-            app_ui.special_stuff_ph_generate_dependencies_cache.set_enabled(false);
-            app_ui.special_stuff_ph_build_starpos.set_enabled(false);
-
-            // Disable Warhammer 3 actions...
-            app_ui.special_stuff_wh3_optimize_packfile.set_enabled(false);
-            app_ui.special_stuff_wh3_generate_dependencies_cache.set_enabled(false);
-            app_ui.special_stuff_wh3_live_export.set_enabled(false);
-            app_ui.special_stuff_wh3_pack_map.set_enabled(false);
-            app_ui.special_stuff_wh3_build_starpos.set_enabled(false);
-            app_ui.special_stuff_wh3_update_anim_ids.set_enabled(false);
-
-            // Disable Troy actions...
-            app_ui.special_stuff_troy_optimize_packfile.set_enabled(false);
-            app_ui.special_stuff_troy_generate_dependencies_cache.set_enabled(false);
-            app_ui.special_stuff_troy_build_starpos.set_enabled(false);
-
-            // Disable Three Kingdoms actions...
-            app_ui.special_stuff_three_k_optimize_packfile.set_enabled(false);
-            app_ui.special_stuff_three_k_generate_dependencies_cache.set_enabled(false);
-            app_ui.special_stuff_three_k_build_starpos.set_enabled(false);
-
-            // Disable Warhammer 2 actions...
-            app_ui.special_stuff_wh2_patch_siege_ai.set_enabled(false);
-            app_ui.special_stuff_wh2_optimize_packfile.set_enabled(false);
-            app_ui.special_stuff_wh2_generate_dependencies_cache.set_enabled(false);
-            app_ui.special_stuff_wh2_build_starpos.set_enabled(false);
-
-            // Disable Warhammer actions...
-            app_ui.special_stuff_wh_patch_siege_ai.set_enabled(false);
-            app_ui.special_stuff_wh_optimize_packfile.set_enabled(false);
-            app_ui.special_stuff_wh_generate_dependencies_cache.set_enabled(false);
-            app_ui.special_stuff_wh_build_starpos.set_enabled(false);
-
-            // Disable Thrones of Britannia actions...
-            app_ui.special_stuff_tob_optimize_packfile.set_enabled(false);
-            app_ui.special_stuff_tob_generate_dependencies_cache.set_enabled(false);
-            app_ui.special_stuff_tob_build_starpos.set_enabled(false);
-
-            // Disable Attila actions...
-            app_ui.special_stuff_att_optimize_packfile.set_enabled(false);
-            app_ui.special_stuff_att_generate_dependencies_cache.set_enabled(false);
-            app_ui.special_stuff_att_build_starpos.set_enabled(false);
-
-            // Disable Rome 2 actions...
-            app_ui.special_stuff_rom2_optimize_packfile.set_enabled(false);
-            app_ui.special_stuff_rom2_generate_dependencies_cache.set_enabled(false);
-            app_ui.special_stuff_rom2_build_starpos.set_enabled(false);
-
-            // Disable Shogun 2 actions...
-            app_ui.special_stuff_sho2_optimize_packfile.set_enabled(false);
-            app_ui.special_stuff_sho2_generate_dependencies_cache.set_enabled(false);
-            app_ui.special_stuff_sho2_build_starpos.set_enabled(false);
-
-            // Disable Napoleon actions...
-            app_ui.special_stuff_nap_optimize_packfile.set_enabled(false);
-            app_ui.special_stuff_nap_generate_dependencies_cache.set_enabled(false);
-            app_ui.special_stuff_nap_build_starpos.set_enabled(false);
-
-            // Disable Empire actions...
-            app_ui.special_stuff_emp_optimize_packfile.set_enabled(false);
-            app_ui.special_stuff_emp_generate_dependencies_cache.set_enabled(false);
-            app_ui.special_stuff_emp_build_starpos.set_enabled(false);
+        if !enable {
+            app_ui.game_selected_generate_dependencies_cache.set_enabled(false);
         }
+
+        // Dependencies generation should be enabled for the current game.
+        app_ui.game_selected_generate_dependencies_cache.set_enabled(true);
 
         // The assembly kit thing should only be available for Rome 2 and later games.
-        // And dependencies generation should be enabled for the current game.
         match game_selected.key() {
-            KEY_PHARAOH_DYNASTIES => {
-                app_ui.game_selected_open_game_assembly_kit_folder.set_enabled(true);
-                app_ui.special_stuff_ph_dyn_generate_dependencies_cache.set_enabled(true);
-            },
-            KEY_PHARAOH => {
-                app_ui.game_selected_open_game_assembly_kit_folder.set_enabled(true);
-                app_ui.special_stuff_ph_generate_dependencies_cache.set_enabled(true);
-            },
-            KEY_WARHAMMER_3 => {
-                app_ui.game_selected_open_game_assembly_kit_folder.set_enabled(true);
-                app_ui.special_stuff_wh3_generate_dependencies_cache.set_enabled(true);
-            },
-            KEY_TROY => {
-                app_ui.game_selected_open_game_assembly_kit_folder.set_enabled(true);
-                app_ui.special_stuff_troy_generate_dependencies_cache.set_enabled(true);
-            },
-            KEY_THREE_KINGDOMS => {
-                app_ui.game_selected_open_game_assembly_kit_folder.set_enabled(true);
-                app_ui.special_stuff_three_k_generate_dependencies_cache.set_enabled(true);
-            },
-            KEY_WARHAMMER_2 => {
-                app_ui.game_selected_open_game_assembly_kit_folder.set_enabled(true);
-                app_ui.special_stuff_wh2_generate_dependencies_cache.set_enabled(true);
-            },
-            KEY_WARHAMMER => {
-                app_ui.game_selected_open_game_assembly_kit_folder.set_enabled(true);
-                app_ui.special_stuff_wh_generate_dependencies_cache.set_enabled(true);
-            },
-            KEY_THRONES_OF_BRITANNIA => {
-                app_ui.game_selected_open_game_assembly_kit_folder.set_enabled(true);
-                app_ui.special_stuff_tob_generate_dependencies_cache.set_enabled(true);
-            },
-            KEY_ATTILA => {
-                app_ui.game_selected_open_game_assembly_kit_folder.set_enabled(true);
-                app_ui.special_stuff_att_generate_dependencies_cache.set_enabled(true);
-            },
+            KEY_PHARAOH_DYNASTIES |
+            KEY_PHARAOH |
+            KEY_WARHAMMER_3 |
+            KEY_TROY |
+            KEY_THREE_KINGDOMS |
+            KEY_WARHAMMER_2 |
+            KEY_WARHAMMER |
+            KEY_THRONES_OF_BRITANNIA |
+            KEY_ATTILA |
             KEY_ROME_2 => {
                 app_ui.game_selected_open_game_assembly_kit_folder.set_enabled(true);
-                app_ui.special_stuff_rom2_generate_dependencies_cache.set_enabled(true);
-            },
-            KEY_SHOGUN_2 => {
-                app_ui.game_selected_open_game_assembly_kit_folder.set_enabled(false);
-                app_ui.special_stuff_sho2_generate_dependencies_cache.set_enabled(true);
-            },
-            KEY_NAPOLEON => {
-                app_ui.game_selected_open_game_assembly_kit_folder.set_enabled(false);
-                app_ui.special_stuff_nap_generate_dependencies_cache.set_enabled(true);
-            },
-            KEY_EMPIRE => {
-                app_ui.game_selected_open_game_assembly_kit_folder.set_enabled(false);
-                app_ui.special_stuff_emp_generate_dependencies_cache.set_enabled(true);
             },
             _ => {
                 app_ui.game_selected_open_game_assembly_kit_folder.set_enabled(false);
@@ -1910,11 +1348,12 @@ impl AppUI {
     }
 
     /// This function takes care of recreating the dynamic submenus under `PackFile` menu.
-    pub unsafe fn build_open_from_submenus(
+    pub unsafe fn build_pack_submenus(
         app_ui: &Rc<Self>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         global_search_ui: &Rc<GlobalSearchUI>,
         diagnostics_ui: &Rc<DiagnosticsUI>,
+        dependencies_ui: &Rc<DependenciesUI>,
     ) {
 
         // First, we clear both menus, so we can rebuild them properly.
@@ -1923,6 +1362,10 @@ impl AppUI {
         app_ui.packfile_open_from_secondary.clear();
         app_ui.packfile_open_from_data.clear();
         app_ui.packfile_open_from_autosave.clear();
+        app_ui.packfile_close_pack_menu.clear();
+        app_ui.packfile_save_pack_menu.clear();
+        app_ui.packfile_save_pack_as_menu.clear();
+        app_ui.packfile_save_pack_for_release.clear();
 
         //---------------------------------------------------------------------------------------//
         // Build the menus...
@@ -1944,11 +1387,12 @@ impl AppUI {
                     let slot_open_mod = SlotOfBool::new(&open_mod_action, clone!(
                         app_ui,
                         pack_file_contents_ui,
+                        dependencies_ui,
                         global_search_ui,
                         diagnostics_ui,
                         path => move |_| {
                         if Self::are_you_sure(&app_ui, false, false) {
-                            if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path.to_path_buf()], "") {
+                            if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &dependencies_ui, &[path.to_path_buf()], "", false) {
                                 return show_dialog(&app_ui.main_window, error, false);
                             }
 
@@ -1984,11 +1428,12 @@ impl AppUI {
                 let slot_open_mod = SlotOfBool::new(&open_mod_action, clone!(
                     app_ui,
                     pack_file_contents_ui,
+                    dependencies_ui,
                     global_search_ui,
                     diagnostics_ui,
                     path => move |_| {
                     if Self::are_you_sure(&app_ui, false, false) {
-                        if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path.to_path_buf()], "") {
+                        if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &dependencies_ui, &[path.to_path_buf()], "", false) {
                             return show_dialog(&app_ui.main_window, error, false);
                         }
 
@@ -2023,11 +1468,12 @@ impl AppUI {
                 let slot_open_mod = SlotOfBool::new(&open_mod_action, clone!(
                     app_ui,
                     pack_file_contents_ui,
+                    dependencies_ui,
                     global_search_ui,
                     diagnostics_ui,
                     path => move |_| {
                     if Self::are_you_sure(&app_ui, false, false) {
-                        if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path.to_path_buf()], "") {
+                        if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &dependencies_ui, &[path.to_path_buf()], "", false) {
                             return show_dialog(&app_ui.main_window, error, false);
                         }
 
@@ -2062,11 +1508,12 @@ impl AppUI {
                 let slot_open_mod = SlotOfBool::new(&open_mod_action, clone!(
                     app_ui,
                     pack_file_contents_ui,
+                    dependencies_ui,
                     global_search_ui,
                     diagnostics_ui,
                     path => move |_| {
                     if Self::are_you_sure(&app_ui, false, false) {
-                        if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path.to_path_buf()], "") {
+                        if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &dependencies_ui, &[path.to_path_buf()], "", false) {
                             return show_dialog(&app_ui.main_window, error, false);
                         }
 
@@ -2109,11 +1556,12 @@ impl AppUI {
                                     let slot_open_mod = SlotOfBool::new(&open_mod_action, clone!(
                                         app_ui,
                                         pack_file_contents_ui,
+                                        dependencies_ui,
                                         global_search_ui,
                                         diagnostics_ui,
                                         path => move |_| {
                                         if Self::are_you_sure(&app_ui, false, false) {
-                                            if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path.to_path_buf()], "") {
+                                            if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &dependencies_ui, &[path.to_path_buf()], "", false) {
                                                 return show_dialog(&app_ui.main_window, error, false);
                                             }
 
@@ -2139,12 +1587,114 @@ impl AppUI {
             }
         }
 
-        // Only if the submenu has items, we enable it.
+        // Query the server for all open packs.
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::ListOpenPacks);
+        let response = CentralCommand::recv(&receiver);
+        let pack_list = if let Response::VecStringContainerInfo(list) = response { list } else { return; };
+
+        for (pack_key, _container_info) in &pack_list {
+
+            // Close Pack action.
+            let close_action = app_ui.packfile_close_pack_menu.add_action_q_string(&QString::from_std_str(pack_key));
+            let slot_close = SlotOfBool::new(&close_action, clone!(
+                app_ui,
+                pack_file_contents_ui,
+                global_search_ui,
+                pack_key => move |_| {
+                    let _ = CENTRAL_COMMAND.read().unwrap().send(Command::ClosePack(pack_key.clone()));
+                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::RemovePack(pack_key.clone()), DataSource::PackFile);
+                    global_search_ui.update_pack_sources(&pack_file_contents_ui);
+
+                    // Close any open file views belonging to this pack.
+                    let mut tabs_to_close = vec![];
+                    {
+                        let open_packedfiles = UI_STATE.get_open_packedfiles();
+                        for file_view in open_packedfiles.iter() {
+                            if file_view.pack_key_copy() == pack_key {
+                                let widget = file_view.main_widget();
+                                let index = app_ui.tab_bar_packed_file.index_of(widget);
+                                if index != -1 {
+                                    tabs_to_close.push(index);
+                                }
+                            }
+                        }
+                    }
+
+                    tabs_to_close.sort_unstable();
+                    tabs_to_close.reverse();
+
+                    for index in tabs_to_close {
+                        app_ui.tab_bar_packed_file.remove_tab(index);
+                    }
+
+                    // Also remove them from the open file views list.
+                    UI_STATE.set_open_packedfiles().retain(|v| v.pack_key_copy() != pack_key);
+
+                    // If no packs remain, disable pack-dependent actions.
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::ListOpenPacks);
+                    let response = CentralCommand::recv(&receiver);
+                    if let Response::VecStringContainerInfo(remaining) = response {
+                        if remaining.is_empty() {
+                            Self::enable_packfile_actions(&app_ui, &std::path::PathBuf::new(), false);
+                        }
+                    }
+
+                    GameSelectedIcons::set_game_selected_icon(&app_ui);
+                }
+            ));
+            close_action.triggered().connect(&slot_close);
+
+            // Save Pack action (per-pack).
+            let save_action = app_ui.packfile_save_pack_menu.add_action_q_string(&QString::from_std_str(pack_key));
+            let slot_save = SlotOfBool::new(&save_action, clone!(
+                app_ui,
+                pack_file_contents_ui,
+                pack_key => move |_| {
+                    if let Err(error) = Self::save_packfile_by_key(&app_ui, &pack_file_contents_ui, Some(pack_key.clone()), false, false) {
+                        show_dialog(&app_ui.main_window, error, false);
+                    }
+                }
+            ));
+            save_action.triggered().connect(&slot_save);
+
+            // Save Pack As action (per-pack).
+            let save_as_action = app_ui.packfile_save_pack_as_menu.add_action_q_string(&QString::from_std_str(pack_key));
+            let slot_save_as = SlotOfBool::new(&save_as_action, clone!(
+                app_ui,
+                pack_file_contents_ui,
+                pack_key => move |_| {
+                    if let Err(error) = Self::save_packfile_by_key(&app_ui, &pack_file_contents_ui, Some(pack_key.clone()), true, false) {
+                        show_dialog(&app_ui.main_window, error, false);
+                    }
+                }
+            ));
+            save_as_action.triggered().connect(&slot_save_as);
+
+            // Save Pack For Release action (per-pack).
+            let save_for_release_action = app_ui.packfile_save_pack_for_release.add_action_q_string(&QString::from_std_str(pack_key));
+            let slot_save_for_release = SlotOfBool::new(&save_for_release_action, clone!(
+                app_ui,
+                pack_file_contents_ui,
+                pack_key => move |_| {
+                    if let Err(error) = Self::save_packfile_by_key(&app_ui, &pack_file_contents_ui, Some(pack_key.clone()), false, true) {
+                        show_dialog(&app_ui.main_window, error, false);
+                    }
+                }
+            ));
+            save_for_release_action.triggered().connect(&slot_save_for_release);
+        }
+
         app_ui.packfile_open_recent.menu_action().set_visible(!app_ui.packfile_open_recent.actions().is_empty());
         app_ui.packfile_open_from_content.menu_action().set_visible(!app_ui.packfile_open_from_content.actions().is_empty());
         app_ui.packfile_open_from_secondary.menu_action().set_visible(!app_ui.packfile_open_from_secondary.actions().is_empty());
         app_ui.packfile_open_from_data.menu_action().set_visible(!app_ui.packfile_open_from_data.actions().is_empty());
         app_ui.packfile_open_from_autosave.menu_action().set_visible(!app_ui.packfile_open_from_autosave.actions().is_empty());
+
+        let has_packs = !pack_list.is_empty();
+        app_ui.packfile_close_pack_menu.set_enabled(has_packs);
+        app_ui.packfile_save_pack_menu.set_enabled(has_packs);
+        app_ui.packfile_save_pack_as_menu.set_enabled(has_packs);
+        app_ui.packfile_save_pack_for_release.set_enabled(has_packs);
     }
 
     /// This function takes care of the re-creation of the `MyMod` list for each game.
@@ -2152,7 +1702,8 @@ impl AppUI {
         app_ui: &Rc<Self>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         diagnostics_ui: &Rc<DiagnosticsUI>,
-        global_search_ui: &Rc<GlobalSearchUI>
+        global_search_ui: &Rc<GlobalSearchUI>,
+        dependencies_ui: &Rc<DependenciesUI>,
     ) {
 
         // First, we need to reset the menu, which basically means deleting all the game submenus and hiding them.
@@ -2225,11 +1776,12 @@ impl AppUI {
                                     let slot_open_mod = SlotOfBool::new(&open_mod_action, clone!(
                                         app_ui,
                                         pack_file_contents_ui,
+                                        dependencies_ui,
                                         global_search_ui,
                                         diagnostics_ui,
                                         game_folder_name => move |_| {
                                         if Self::are_you_sure(&app_ui, false, false) {
-                                            if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[pack_file.to_path_buf()], &game_folder_name) {
+                                            if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &dependencies_ui, &[pack_file.to_path_buf()], &game_folder_name, false) {
                                                 return show_dialog(&app_ui.main_window, error, false);
                                             }
 
@@ -2378,10 +1930,10 @@ impl AppUI {
                     }
                 }
 
-                let mut tab = FileView::default();
+                let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                let mut tab = FileView::new(path, &pack_key);
                 tab.main_widget().set_parent(&app_ui.tab_bar_packed_file);
                 tab.main_widget().set_context_menu_policy(ContextMenuPolicy::CustomContextMenu);
-                tab.set_path(path);
 
                 // Any table banned or from out of our PackFile should not be editable.
                 if let DataSource::PackFile = data_source {
@@ -2397,7 +1949,7 @@ impl AppUI {
                 tab.set_data_source(data_source);
 
                 if !is_external {
-                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::DecodePackedFile(path.to_string(), tab.data_source()));
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::DecodePackedFile(pack_key.clone(), path.to_string(), tab.data_source()));
 
                     tab.set_is_preview(is_preview);
                     let icon_type = IconType::File(path.to_owned());
@@ -2948,7 +2500,7 @@ impl AppUI {
                     let icon_type = IconType::File(path.to_owned());
                     let icon = TREEVIEW_ICONS.icon(icon_type);
 
-                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::OpenPackedFileInExternalProgram(DataSource::PackFile, ContainerPath::File(path.to_owned())));
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::OpenPackedFileInExternalProgram(pack_key, DataSource::PackFile, ContainerPath::File(path.to_owned())));
                     let path = Rc::new(RefCell::new(path.to_owned()));
 
                     let response = CentralCommand::recv(&receiver);
@@ -3037,10 +2589,10 @@ impl AppUI {
             }
 
             // If it's not already open/hidden, we create it and add it as a new tab.
-            let mut tab = FileView::default();
+            let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+            let mut tab = FileView::new(&path, &pack_key);
             tab.main_widget().set_parent(&app_ui.tab_bar_packed_file);
             tab.set_is_preview(false);
-            tab.set_path(&path);
             let icon_type = IconType::Pack(true);
             let icon = TREEVIEW_ICONS.icon(icon_type);
 
@@ -3123,7 +2675,7 @@ impl AppUI {
 
         // Create the "New File" dialog and wait for his data (or a cancellation). If we receive None, we do nothing. If we receive Some,
         // we still have to check if it has been any error during the creation of the File (for example, no definition for DB Tables).
-        match Self::new_file_dialog(app_ui, file_type) {
+        match Self::new_file_dialog(app_ui, pack_file_contents_ui, file_type) {
             Ok(new_file) => {
                 if let Some(mut new_file) = new_file {
 
@@ -3172,7 +2724,8 @@ impl AppUI {
                     };
 
                     // Check if the File already exists, and report it if so.
-                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::PackedFileExists(full_path.to_owned()));
+                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::PackedFileExists(pack_key.clone(), full_path.to_owned()));
                     let response = CentralCommand::recv(&receiver);
                     let exists = if let Response::Bool(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
                     if exists {
@@ -3180,7 +2733,7 @@ impl AppUI {
                     }
 
                     // Get the response, just in case it failed.
-                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::NewPackedFile(full_path.to_owned(), new_file));
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::NewPackedFile(pack_key, full_path.to_owned(), new_file));
                     let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::Success => {
@@ -3217,7 +2770,7 @@ impl AppUI {
             };
             let path_split = path.split('/').collect::<Vec<_>>();
 
-            if let Some(mut name) = Self::new_packed_file_name_dialog(app_ui) {
+            if let Some(mut name) = Self::new_packed_file_name_dialog(app_ui, pack_file_contents_ui) {
 
                 // DB Check.
                 let (new_path, new_packed_file) = if path.starts_with("db") && (path_split.len() == 2 || path_split.len() == 3) {
@@ -3284,13 +2837,14 @@ impl AppUI {
                 };
 
                 // Check if the PackedFile already exists, and report it if so.
-                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::PackedFileExists(new_path.to_owned()));
+                let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::PackedFileExists(pack_key.clone(), new_path.to_owned()));
                 let response = CentralCommand::recv(&receiver);
                 let exists = if let Response::Bool(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
                 if exists { return show_dialog(&app_ui.main_window, "The provided file/s already exists in the current path.", false)}
 
                 // Create the PackFile.
-                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::NewPackedFile(new_path.to_owned(), new_packed_file));
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::NewPackedFile(pack_key, new_path.to_owned(), new_packed_file));
                 let response = CentralCommand::recv(&receiver);
                 match response {
                     Response::Success => {
@@ -3330,7 +2884,7 @@ impl AppUI {
     /// This function creates all the "New File" dialogs.
     ///
     /// It returns the type/name of the new file, or None if the dialog is canceled or closed.
-    pub unsafe fn new_file_dialog(app_ui: &Rc<Self>, file_type: FileType) -> Result<Option<NewFile>> {
+    pub unsafe fn new_file_dialog(app_ui: &Rc<Self>, pack_file_contents_ui: &Rc<PackFileContentsUI>, file_type: FileType) -> Result<Option<NewFile>> {
 
         // Load the UI Template.
         let template_path = if cfg!(debug_assertions) { NEW_FILE_VIEW_DEBUG } else { NEW_FILE_VIEW_RELEASE };
@@ -3388,7 +2942,8 @@ impl AppUI {
         // The default file name is the Pack name.
         //
         // That's because usually modders name many of the mod files like that.
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackFileName);
+        let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackFileName(pack_key.clone()));
         let response = CentralCommand::recv(&receiver);
         let pack_name = if let Response::String(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
         let pack_name = if pack_name.to_lowercase().ends_with(".pack") {
@@ -3426,7 +2981,7 @@ impl AppUI {
             FileType::Loc => name_line_edit.set_text(&QString::from_std_str(format!("{pack_name}.loc"))),
             FileType::Text => name_line_edit.set_text(&QString::from_std_str(format!("{pack_name}.txt"))),
             FileType::PortraitSettings => {
-                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::LocalArtSetIds);
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::LocalArtSetIds(pack_key.clone()));
                 let response = CentralCommand::recv(&receiver);
                 let local_art_set_ids = if let Response::HashSetString(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
 
@@ -3542,7 +3097,7 @@ impl AppUI {
     /// This function creates the "New PackedFile's Name" dialog when creating a new QueeK PackedFile.
     ///
     /// It returns the new name of the PackedFile, or `None` if the dialog is canceled or closed.
-    unsafe fn new_packed_file_name_dialog(app_ui: &Rc<Self>) -> Option<String> {
+    unsafe fn new_packed_file_name_dialog(app_ui: &Rc<Self>, pack_file_contents_ui: &Rc<PackFileContentsUI>) -> Option<String> {
 
         // Create and configure the dialog.
         let dialog = QDialog::new_1a(&app_ui.main_window);
@@ -3554,7 +3109,8 @@ impl AppUI {
         let name_line_edit = QLineEdit::new();
         let accept_button = QPushButton::from_q_string(&qtr("gen_loc_accept"));
 
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackFileName);
+        let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackFileName(pack_key));
         let response = CentralCommand::recv(&receiver);
         let packfile_name = if let Response::String(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
         let packfile_name = if packfile_name.to_lowercase().ends_with(".pack") {
@@ -3581,7 +3137,7 @@ impl AppUI {
     }
 
     /// This function creates the entire "Merge Tables" dialog. It returns the stuff set in it.
-    pub unsafe fn merge_tables_dialog(app_ui: &Rc<Self>) -> Option<(String, bool)> {
+    pub unsafe fn merge_tables_dialog(app_ui: &Rc<Self>, pack_file_contents_ui: &Rc<PackFileContentsUI>) -> Option<(String, bool)> {
 
         let dialog = QDialog::new_1a(&app_ui.main_window);
         dialog.set_window_title(&qtr("merge_tables"));
@@ -3591,7 +3147,8 @@ impl AppUI {
         let main_grid = create_grid_layout(dialog.static_upcast());
         let name_line_edit = QLineEdit::new();
 
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackFileName);
+        let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackFileName(pack_key));
         let response = CentralCommand::recv(&receiver);
         let packfile_name = if let Response::String(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
         let packfile_name = if packfile_name.to_lowercase().ends_with(".pack") {
@@ -3631,7 +3188,7 @@ impl AppUI {
     /// This function creates the "Pack Map" dialog.
     ///
     /// It returns the tile maps and tiles to add, or `None` if the dialog is canceled or closed.
-    unsafe fn pack_map_dialog(app_ui: &Rc<Self>) -> Result<Option<(Vec<PathBuf>, Vec<(PathBuf, String)>)>> {
+    pub unsafe fn pack_map_dialog(app_ui: &Rc<Self>, pack_file_contents_ui: &Rc<PackFileContentsUI>) -> Result<Option<(Vec<PathBuf>, Vec<(PathBuf, String)>)>> {
 
         // Load the UI Template.
         let template_path = if cfg!(debug_assertions) { PACK_MAP_VIEW_DEBUG } else { PACK_MAP_VIEW_RELEASE };
@@ -3689,13 +3246,14 @@ impl AppUI {
         let tile_maps_strip_name = tile_maps.iter().flat_map(|tile_map| tile_map.strip_prefix(&tile_maps_path)).collect::<Vec<_>>();
 
 
+        let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
         for (index, tile_map) in tile_maps.iter().enumerate() {
             let tile_map_name = tile_maps_strip_name[index].to_string_lossy().replace('\\', "/");
             let item = QStandardItem::from_q_string(&QString::from_std_str(&tile_map_name));
             item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(tile_map.to_string_lossy())), 20);
             item.set_editable(false);
 
-            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::FolderExists(format!("terrain/battles/{tile_map_name}")));
+            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::FolderExists(pack_key.clone(), format!("terrain/battles/{tile_map_name}")));
             let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
             match response {
                 Response::Bool(exists) => if exists {
@@ -3720,7 +3278,7 @@ impl AppUI {
                 item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(tile.to_string_lossy())), 20);
                 item.set_editable(false);
 
-                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::FolderExists(format!("terrain/tiles/battle/{tile_name}")));
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::FolderExists(pack_key.clone(), format!("terrain/tiles/battle/{tile_name}")));
                 let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
                 match response {
                     Response::Bool(exists) => if exists {
@@ -3847,7 +3405,7 @@ impl AppUI {
         } else { Ok(None) }
     }
 
-    unsafe fn optimizer_dialog(
+    pub unsafe fn optimizer_dialog(
         app_ui: &Rc<Self>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         global_search_ui: &Rc<GlobalSearchUI>
@@ -3967,8 +3525,9 @@ impl AppUI {
             AppUI::purge_them_all(app_ui, pack_file_contents_ui, true)?;
             GlobalSearchUI::clear(global_search_ui);
 
+            let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
             let options = optimizer_options();
-            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::OptimizePackFile(options));
+            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::OptimizePackFile(pack_key, options));
             let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
             match response {
                 Response::HashSetStringHashSetString(response_1, response_2) => {
@@ -4098,8 +3657,13 @@ impl AppUI {
                         purge_on_delete.push(path.to_owned());
 
                         let path_split = path.split('/').collect::<Vec<_>>();
-                        let path = path_split[1..].join("/");
-                        let _ = CENTRAL_COMMAND.read().unwrap().send(Command::ClosePackExtra(PathBuf::from(&path)));
+                        let pack_path = path_split[1..].join("/");
+                        let pack_key = std::path::Path::new(&pack_path)
+                            .file_name()
+                            .and_then(|n| n.to_str())
+                            .unwrap_or("unknown.pack")
+                            .to_string();
+                        let _ = CENTRAL_COMMAND.read().unwrap().send(Command::ClosePack(pack_key));
                     }
                     else if path.ends_with(DECODER_EXTENSION) {
                         purge_on_delete.push(path.to_owned());
@@ -4121,6 +3685,28 @@ impl AppUI {
     }
 
     /// Function to change the game selected, changing schemas, dependencies, and all related stuff as needed.
+    /// This function rebuilds the parent packs in the dependencies UI.
+    ///
+    /// It's shared between `open_packfile` (to reload parents when a new pack is opened)
+    /// and `change_game_selected` (to reload parents when the game didn't change but dependencies need rebuilding).
+    pub unsafe fn rebuild_parent_packs(
+        app_ui: &Rc<Self>,
+        _pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        dependencies_ui: &Rc<DependenciesUI>,
+    ) {
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::RebuildDependencies(true));
+        let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
+        match response {
+            Response::DependenciesInfo(dep_info) => {
+                let mut parent_build_data = BuildData::new();
+                parent_build_data.data = Some((ContainerInfo::default(), dep_info.parent_packed_files().to_vec()));
+                dependencies_ui.dependencies_tree_view().update_treeview(true, TreeViewOperation::Build(parent_build_data), DataSource::ParentFiles);
+            }
+            Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
+            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+        }
+    }
+
     pub unsafe fn change_game_selected(
         app_ui: &Rc<Self>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
@@ -4130,10 +3716,17 @@ impl AppUI {
     ) {
 
         // Optimization: get this before starting the entire game change. Otherwise, we'll hang the thread near the end.
-        // Mutable because we reuse this variable to store the other receiver we need to generate down below.
-        let mut receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackFilePath);
-        let response = CentralCommand::recv(&receiver);
-        let pack_path = if let Response::PathBuf(pack_path) = response { pack_path } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}") };
+        let pack_path = if let Some(pack_key) = pack_file_contents_ui.pack_key_from_selection_or_first() {
+            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackFilePath(pack_key));
+            let response = CentralCommand::recv(&receiver);
+            match response {
+                Response::PathBuf(path) => path,
+                Response::Error(_) => PathBuf::new(),
+                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+            }
+        } else {
+            PathBuf::new()
+        };
 
         // Get the new `Game Selected` and clean his name up, so it ends up like "x_y".
         let mut new_game_selected = app_ui.game_selected_group.checked_action().text().to_std_string();
@@ -4154,21 +3747,12 @@ impl AppUI {
             // Send the command to the background thread to set the new `Game Selected`. We expect two responses:
             // - New compression format.
             // - Success.
-            receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SetGameSelected(new_game_selected.to_owned(), rebuild_dependencies));
+            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SetGameSelected(new_game_selected.to_owned(), rebuild_dependencies));
             let response = CentralCommand::recv(&receiver);
             match response {
-                Response::CompressionFormatDependenciesInfo(cf, dependencies_info) => {
+                Response::CompressionFormatDependenciesInfo(_cf, dependencies_info) => {
                     *GAME_SELECTED.write().unwrap() = SUPPORTED_GAMES.game(&new_game_selected).unwrap();
                     dep_info = dependencies_info;
-
-                    app_ui.compression_format_group.block_signals(true);
-                    match cf {
-                        CompressionFormat::None => app_ui.compression_format_none.set_checked(true),
-                        CompressionFormat::Lzma1 => app_ui.compression_format_lzma1.set_checked(true),
-                        CompressionFormat::Lz4 => app_ui.compression_format_lz4.set_checked(true),
-                        CompressionFormat::Zstd => app_ui.compression_format_zstd.set_checked(true),
-                    }
-                    app_ui.compression_format_group.block_signals(false);
 
                     // If we have a pack open, set the current "Operational Mode" to `Normal` (In case we were in `MyMod` mode).
                     // We do not really support changing game selected while keep treating a mymod as a mymod.
@@ -4194,25 +3778,22 @@ impl AppUI {
             app_ui.toggle_main_window(true);
         }
 
-        // Regardless if the game changed or not, if we are asked to rebuild data, prepare for a rebuild.
-        // Realistically, there are two reasons for calling this:
-        // - Game changed, requires full dependencies rebuild.
-        // - Pack changed, requires parent mod rebuild.
-        //
-        // The backend already differentiates between the two and acts accordingly.
+        // Rebuild dependencies if requested.
         if rebuild_dependencies {
 
-            if force_full_dependency_reload {
-                app_ui.toggle_main_window(false);
-            }
-
+            // If the game changed, the SetGameSelected command already returned dep_info with everything.
+            // Use it to update parent, game, and asskit tree views.
             if let Some(dep_info) = dep_info {
+
+                if force_full_dependency_reload {
+                    app_ui.toggle_main_window(false);
+                }
+
                 let mut parent_build_data = BuildData::new();
                 parent_build_data.data = Some((ContainerInfo::default(), dep_info.parent_packed_files().to_vec()));
                 dependencies_ui.dependencies_tree_view().update_treeview(true, TreeViewOperation::Build(parent_build_data), DataSource::ParentFiles);
 
-                // While the backend returns the data of the entire dependencies, game and asskit data only change on game change, so we don't need to
-                // rebuild them the game didn't change.
+                // Game and asskit data only change on game change, so we don't need to rebuild them if the game didn't change.
                 if game_changed || force_full_dependency_reload {
 
                     // NOTE: We're MOVING, not copying nor referencing the RFileInfo. This info is big and moving it makes it faster.
@@ -4224,10 +3805,15 @@ impl AppUI {
                     dependencies_ui.dependencies_tree_view().update_treeview(true, TreeViewOperation::Build(game_build_data), DataSource::GameFiles);
                     dependencies_ui.dependencies_tree_view().update_treeview(true, TreeViewOperation::Build(asskit_build_data), DataSource::AssKitFiles);
                 }
+
+                if force_full_dependency_reload {
+                    app_ui.toggle_main_window(true);
+                }
             }
 
-            if force_full_dependency_reload {
-                app_ui.toggle_main_window(true);
+            // If the game didn't change, just rebuild parent packs using the shared function.
+            else {
+                Self::rebuild_parent_packs(app_ui, pack_file_contents_ui, dependencies_ui);
             }
         }
 
@@ -4239,7 +3825,8 @@ impl AppUI {
 
         // If we have the setting enabled, ask the backend to generate the missing definition list.
         if settings_bool("check_for_missing_table_definitions") {
-            let _ = CENTRAL_COMMAND.read().unwrap().send(Command::GetMissingDefinitions);
+            let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+            let _ = CENTRAL_COMMAND.read().unwrap().send(Command::GetMissingDefinitions(pack_key));
         }
     }
 
@@ -4252,8 +3839,11 @@ impl AppUI {
         dependencies_ui: &Rc<DependenciesUI>
     ) {
 
-        // Tell the Background Thread to create a new PackFile.
-        let _ = CENTRAL_COMMAND.read().unwrap().send(Command::NewPack);
+        // Tell the Background Thread to create a new PackFile and get the pack key.
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::NewPack);
+        let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
+        let pack_key = if let Response::String(key) = response { key }
+        else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}") };
 
         // Reset the autosave timer.
         let timer = settings_i32("autosave_interval");
@@ -4273,22 +3863,12 @@ impl AppUI {
         GlobalSearchUI::clear(global_search_ui);
         diagnostics_ui.diagnostics_table_model().clear();
 
-        // New PackFiles are always of Mod type.
-        app_ui.change_packfile_type_mod.set_checked(true);
-
-        // By default, the four bitmask should be false.
-        app_ui.change_packfile_type_data_is_encrypted.set_checked(false);
-        app_ui.change_packfile_type_index_includes_timestamp.set_checked(false);
-        app_ui.change_packfile_type_index_is_encrypted.set_checked(false);
-        app_ui.change_packfile_type_header_is_extended.set_checked(false);
-
-        // We also disable compression by default.
-        app_ui.compression_format_none.set_checked(true);
-
         // Update the TreeView.
         let mut build_data = BuildData::new();
         build_data.editable = true;
+        build_data.pack_key = Some(pack_key.clone());
         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
+        global_search_ui.update_pack_sources(pack_file_contents_ui);
 
         // Enable the actions available for the PackFile from the `MenuBar`.
         AppUI::enable_packfile_actions(app_ui, &PathBuf::new(), true);
@@ -4358,7 +3938,8 @@ impl AppUI {
                         paths_packedfile.push(ContainerPath::File(filtered_path.to_string_lossy().to_string()));
                     }
 
-                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackSettings);
+                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackSettings(pack_key));
                     let response = CentralCommand::recv(&receiver);
                     let settings = match response {
                         Response::PackSettings(settings) => settings,
@@ -4434,7 +4015,9 @@ impl AppUI {
             process_hlp_spd_data_checkbox.set_enabled(false);
         }
 
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::BuildStarposGetCampaingIds);
+        let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::BuildStarposGetCampaingIds(pack_key.clone()));
         let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
         match response {
             Response::HashSetString(ids) => {
@@ -4454,7 +4037,7 @@ impl AppUI {
             _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
         }
 
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::BuildStarposCheckVictoryConditions);
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::BuildStarposCheckVictoryConditions(pack_key.clone()));
         let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
         match response {
             Response::Success => {}
@@ -4470,12 +4053,13 @@ impl AppUI {
         let games_closed_button_ptr = games_closed_button.as_ptr();
         let campaign_id_combobox_ptr = campaign_id_combobox.as_ptr();
         let process_hlp_spd_data_checkbox_ptr = process_hlp_spd_data_checkbox.as_ptr();
+        let pack_key_for_closure = pack_key.clone();
         let start_build_process = SlotNoArgs::new(&dialog, move || {
             build_starpos_button_ptr.set_enabled(false);
 
             let campaign_id = campaign_id_combobox_ptr.current_text().to_std_string();
             let process_hlp_spd_data = process_hlp_spd_data_checkbox_ptr.is_checked();
-            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::BuildStarpos(campaign_id, process_hlp_spd_data));
+            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::BuildStarpos(pack_key_for_closure.clone(), campaign_id, process_hlp_spd_data));
             let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
             match response {
                 Response::Success => games_closed_button_ptr.set_enabled(true),
@@ -4493,7 +4077,7 @@ impl AppUI {
         if dialog.exec() == 1 {
             let campaign_id = campaign_id_combobox.current_text().to_std_string();
             let process_hlp_spd_data = process_hlp_spd_data_checkbox.is_checked();
-            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::BuildStarposPost(campaign_id, process_hlp_spd_data));
+            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::BuildStarposPost(pack_key.clone(), campaign_id, process_hlp_spd_data));
             let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
             match response {
                 Response::VecContainerPath(paths) => {
@@ -4514,7 +4098,7 @@ impl AppUI {
             // If the user did not properly followed the procedure, do a post-cleanup pass anyway to avoid the idiot's stupidity causing problems.
             let campaign_id = campaign_id_combobox.current_text().to_std_string();
             let process_hlp_spd_data = process_hlp_spd_data_checkbox.is_checked();
-            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::BuildStarposCleanup(campaign_id, process_hlp_spd_data));
+            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::BuildStarposCleanup(pack_key.clone(), campaign_id, process_hlp_spd_data));
             let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
             match response {
                 Response::Success => Ok(()),
@@ -4559,7 +4143,8 @@ impl AppUI {
         if dialog.exec() == 1 {
             let starting_id = starting_id_spinbox.value();
             let offset = offset_spinbox.value();
-            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::UpdateAnimIds(starting_id, offset));
+            let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::UpdateAnimIds(pack_key, starting_id, offset));
             let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
             match response {
                 Response::VecContainerPath(paths) => {

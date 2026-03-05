@@ -155,6 +155,9 @@ pub struct Tool {
     /// Bottom buttonbox of the Tool.
     button_box: QPtr<QDialogButtonBox>,
 
+    /// The key of the pack this tool operates on.
+    pack_key: String,
+
     /// If the pack should be optimized before saving.
     optimize: bool
 }
@@ -218,6 +221,7 @@ impl Tool {
             packed_files: Rc::new(RefCell::new(HashMap::new())),
             message_widget,
             button_box,
+            pack_key: String::new(),
             optimize
         })
     }
@@ -250,7 +254,8 @@ impl Tool {
 
         // If either the PackFile exists, or it didn't but now it does, then me need to check, file by file, to see if we can merge
         // the data edited by the tool into the current files, or we have to insert the files as new.
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SavePackedFilesToPackFileAndClean(packed_files.to_vec(), self.optimize));
+        let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SavePackedFilesToPackFileAndClean(pack_key, packed_files.to_vec(), self.optimize));
         let response = CentralCommand::recv(&receiver);
         match response {
             Response::VecContainerPathVecContainerPath(paths_to_add, paths_to_delete) => {

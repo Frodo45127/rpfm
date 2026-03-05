@@ -379,9 +379,14 @@ impl ToolTranslator {
         }
 
         // Unlike other tools, data is loaded here, because we need it to generate the table widget.
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackTranslation(language));
+        let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackTranslation(pack_key, language));
         let response = CentralCommand::recv(&receiver);
-        let data = if let Response::PackTranslation(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
+        let data = match response {
+            Response::PackTranslation(data) => data,
+            Response::Error(error) => return Err(anyhow!(error)),
+            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+        };
 
         let table_data = TableType::TranslatorTable(data.to_table()?);
         let table = TableView::new_view(&table_view_container, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile)))?;

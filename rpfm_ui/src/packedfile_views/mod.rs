@@ -109,6 +109,7 @@ const RFILE_RELOAD_ERROR: &str = "The PackedFile you added is not the same type 
 #[getset(get = "pub")]
 pub struct FileView {
     path: Arc<RwLock<String>>,
+    pack_key: Arc<RwLock<String>>,
     #[getset(skip)] data_source: Arc<RwLock<DataSource>>,
     #[getset(skip)] is_preview: AtomicBool,
     #[getset(skip)] is_read_only: AtomicBool,
@@ -172,38 +173,40 @@ pub enum SpecialView {
 //-------------------------------------------------------------------------------//
 
 /// Default implementation for `FileView`.
-impl Default for FileView {
-    fn default() -> Self {
-        let path = Arc::new(RwLock::new(String::new()));
+impl FileView {
 
-        let main_widget_ptr = unsafe { QWidget::new_0a() };
-        let main_layout = unsafe { create_grid_layout(main_widget_ptr.static_upcast()) };
+    /// Creates a new `FileView` with the given path and pack key.
+    ///
+    /// Both values are set before the `NotesView` is created, avoiding the race
+    /// condition where `load_data` would run with an empty pack key.
+    pub unsafe fn new(path_str: &str, pack_key_str: &str) -> Self {
+        let path = Arc::new(RwLock::new(path_str.to_owned()));
+        let pack_key = Arc::new(RwLock::new(pack_key_str.to_owned()));
+
+        let main_widget_ptr = QWidget::new_0a();
+        let main_layout = create_grid_layout(main_widget_ptr.static_upcast());
         let main_widget = Arc::new(main_widget_ptr);
 
-        let notes_widget_ptr = unsafe { QWidget::new_0a() };
-        unsafe { create_grid_layout(notes_widget_ptr.static_upcast()); }
-        unsafe { main_layout.add_widget_5a(&notes_widget_ptr, 0, 99, 1, 1); }
+        let notes_widget_ptr = QWidget::new_0a();
+        create_grid_layout(notes_widget_ptr.static_upcast());
+        main_layout.add_widget_5a(&notes_widget_ptr, 0, 99, 1, 1);
         let notes_widget = Arc::new(notes_widget_ptr);
-        let notes_view = unsafe { NotesView::new_view(&notes_widget, path.clone()) };
+        let notes_view = NotesView::new_view(&notes_widget, pack_key.clone(), path.clone());
 
         // Hide it by default.
-        unsafe { notes_widget.set_visible(false) };
+        notes_widget.set_visible(false);
 
-        let is_preview = AtomicBool::new(false);
-        let is_read_only = AtomicBool::new(false);
-        let data_source = Arc::new(RwLock::new(DataSource::PackFile));
-        let view = ViewType::Internal(View::None);
-        let packed_file_type = FileType::Unknown;
         Self {
             path,
+            pack_key,
             main_widget,
             notes_widget,
             notes_view,
-            is_preview,
-            is_read_only,
-            data_source,
-            view_type: view,
-            file_type: packed_file_type,
+            is_preview: AtomicBool::new(false),
+            is_read_only: AtomicBool::new(false),
+            data_source: Arc::new(RwLock::new(DataSource::PackFile)),
+            view_type: ViewType::Internal(View::None),
+            file_type: FileType::Unknown,
         }
     }
 }
@@ -228,6 +231,11 @@ impl FileView {
     /// This function returns a reference to the path of this `FileView`.
     pub fn path_read(&'_ self) -> RwLockReadGuard<'_, String> {
         self.path.read().unwrap()
+    }
+
+    /// This function returns a copy of the pack key of this `FileView`.
+    pub fn pack_key_copy(&self) -> String {
+        self.pack_key.read().unwrap().to_owned()
     }
 
     /// This function allows you to set a `FileView` as a preview or normal view.
@@ -341,7 +349,8 @@ impl FileView {
                                     }
 
                                     // Save the new list and return Ok.
-                                    let _ = CENTRAL_COMMAND.read().unwrap().send(Command::SetDependencyPackFilesList(entries));
+                                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                                    let _ = CENTRAL_COMMAND.read().unwrap().send(Command::SetDependencyPackFilesList(pack_key, entries));
 
                                     // Set the packfile as modified. This one is special, as this is a "simulated PackedFile", so we have to mark the PackFile manually.
                                     pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![ContainerPath::Folder(String::new())]), DataSource::PackFile);
@@ -355,7 +364,8 @@ impl FileView {
                             View::MatchedCombatDebug(_) => return Ok(()),
                             View::PackFile(_) => return Ok(()),
                             View::PackSettings(view) => {
-                                let _ = CENTRAL_COMMAND.read().unwrap().send(Command::SetPackSettings(view.save_view()));
+                                let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                                let _ = CENTRAL_COMMAND.read().unwrap().send(Command::SetPackSettings(pack_key, view.save_view()));
                                 return Ok(())
                             },
 
@@ -404,7 +414,8 @@ impl FileView {
                             View::UnitVariant(view) => RFileDecoded::UnitVariant(view.save_view()),
                             View::UnitVariantDebug(_) => return Ok(()),
                             View::Video(view) => {
-                                send_ipc_command_result(Command::SetVideoFormat(self.path_copy(), view.get_current_format()), response_extractor!())?;
+                                let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                                send_ipc_command_result(Command::SetVideoFormat(pack_key, self.path_copy(), view.get_current_format()), response_extractor!())?;
                                 return Ok(());
                             }
                             View::VMD(view) => {
@@ -425,7 +436,8 @@ impl FileView {
                         };
 
                         // Save the PackedFile, and trigger the stuff that needs to be triggered after a save.
-                        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SavePackedFileFromView(self.path_copy(), data));
+                        let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SavePackedFileFromView(pack_key, self.path_copy(), data));
                         let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
                         match response {
                             Response::Success => {
@@ -437,7 +449,8 @@ impl FileView {
                         }
                     },
                     ViewType::External(view) => {
-                        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SavePackedFileFromExternalView(self.path_copy(), view.get_external_path()));
+                        let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SavePackedFileFromExternalView(pack_key, self.path_copy(), view.get_external_path()));
                         let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
                         match response {
                             Response::Success => {},
@@ -467,7 +480,8 @@ impl FileView {
         if data_source != DataSource::ExternalFile {
             match self.view_type_mut() {
                 ViewType::Internal(view) => {
-                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::DecodePackedFile(path.to_owned(), data_source));
+                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::DecodePackedFile(pack_key, path.to_owned(), data_source));
                     let response = CentralCommand::recv(&receiver);
 
                     match response {

@@ -120,7 +120,7 @@ impl UI {
         let dependencies_ui = Rc::new(DependenciesUI::new(&app_ui)?);
         let references_ui = Rc::new(ReferencesUI::new(app_ui.main_window())?);
 
-        AppUITempSlots::build(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
+        AppUITempSlots::build(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui);
 
         let app_slots = AppUISlots::new(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, &dependencies_ui, &references_ui);
         let pack_file_contents_slots = PackFileContentsSlots::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui);
@@ -225,7 +225,7 @@ impl UI {
 
             if !paths.is_empty() {
                 info!("Directly opening Pack/s {paths:?}.");
-                if let Err(error) = AppUI::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &paths, "") {
+                if let Err(error) = AppUI::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &dependencies_ui, &paths, "", false) {
                     show_dialog(app_ui.main_window(), error, false);
 
                 } else {

@@ -93,13 +93,11 @@ impl PackFileExtraView {
         pack_file_path: PathBuf,
     ) -> Result<()> {
 
-        // Load the extra PackFile to memory.
-        // Ignore the response, we don't need it yet.
-        // TODO: Use this data to populate tooltips.
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::OpenPackExtra(pack_file_path.clone()));
+        // Load the extra PackFile to memory via the unified packs map.
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::OpenPackFiles(vec![pack_file_path.clone()]));
         let response = CentralCommand::recv(&receiver);
         match response {
-            Response::ContainerInfo(_) => {},
+            Response::StringContainerInfo(_, _) => {},
             Response::Error(error) => return Err(anyhow!(error)),
             _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
         }

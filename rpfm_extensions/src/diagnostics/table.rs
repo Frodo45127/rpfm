@@ -77,7 +77,7 @@ pub enum TableDiagnosticReportType {
 /// Used to cache multiple tables and having them being aware of each other on check.
 struct TableInfo<'a> {
     path: &'a str,
-    container_name: &'a str,
+    pack_key: &'a str,
     fields_processed: Vec<Field>,
     patches: Option<&'a DefinitionPatch>,
     key_amount: usize,
@@ -224,7 +224,7 @@ impl TableDiagnostic {
 
     /// This function takes care of checking the db tables of your mod for errors.
     pub fn check_db(
-        files: &[&RFile],
+        files: &[(&str, &RFile)],
         dependencies: &Dependencies,
         global_ignored_diagnostics: &[String],
         game_info: &GameInfo,
@@ -242,7 +242,7 @@ impl TableDiagnostic {
         }
 
         // Get the dependency data for tables once per batch. That way we can speed up this a lot.
-        let file = files.first().and_then(|x| x.decoded().ok());
+        let file = files.first().and_then(|(_, x)| x.decoded().ok());
         let dependency_data = if let Some(RFileDecoded::DB(table)) = file {
             dependencies.db_reference_data(schema, packs, table.table_name(), table.definition(), loc_data)
         } else {
@@ -252,7 +252,7 @@ impl TableDiagnostic {
         // So, the way we do this semi-optimized, is we do a first loop getting all the cached data we're going to need,
         // then do the real loop, having the data of all files available for checking diagnostics.
         let mut table_infos = vec![];
-        for file in files {
+        for (pack_key, file) in files {
             let (ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) = Diagnostics::ignore_data_for_file(file, files_to_ignore).unwrap_or_default();
             if let Ok(RFileDecoded::DB(table)) = file.decoded() {
                 let fields_processed = table.definition().fields_processed();
@@ -261,7 +261,7 @@ impl TableDiagnostic {
 
                 table_infos.push(TableInfo {
                     path: file.path_in_container_raw(),
-                    container_name: file.container_name().as_deref().unwrap_or(""),
+                    pack_key,
                     key_amount: fields_processed.iter().filter(|field| field.is_key(patches)).count(),
                     fields_processed,
                     patches,
@@ -276,8 +276,8 @@ impl TableDiagnostic {
 
         let mut global_keys: HashMap<Vec<&DecodedData>, Vec<(Vec<(i32, i32)>, usize)>> = HashMap::with_capacity(table_infos.iter().map(|x| x.table_data.len()).sum());
         let dec_files = files.iter()
-            .filter_map(|x| match x.decoded().ok() {
-                Some(RFileDecoded::DB(ref table)) => Some((table, x)),
+            .filter_map(|(_, x)| match x.decoded().ok() {
+                Some(RFileDecoded::DB(ref table)) => Some((table, *x)),
                 _ => None,
             })
             .collect::<Vec<_>>();
@@ -286,7 +286,7 @@ impl TableDiagnostic {
             let is_twad_key_deletes = table.table_name().starts_with("twad_key_deletes");
             let check_ak_only = check_ak_only_refs || table.table_name().starts_with("start_pos_");
             if let Some(table_info) = table_infos.get(index) {
-                let mut diagnostic = TableDiagnostic::new(file.path_in_container_raw(), file.container_name().as_deref().unwrap_or(""));
+                let mut diagnostic = TableDiagnostic::new(table_info.path, table_info.pack_key);
 
                 // Before anything else, check if the table is outdated.
                 if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, None, Some("OutdatedTable"), &table_info.ignored_fields, &table_info.ignored_diagnostics, &table_info.ignored_diagnostics_for_fields) && Self::is_table_outdated(table.table_name(), *table.definition().version(), dependencies) {
@@ -590,7 +590,7 @@ impl TableDiagnostic {
                                     )
                                 }
                                 None => {
-                                    let mut diag = TableDiagnostic::new(table_info.path, table_info.container_name);
+                                    let mut diag = TableDiagnostic::new(table_info.path, table_info.pack_key);
                                         diag.results_mut().push(
                                         TableDiagnosticReport::new(
                                             TableDiagnosticReportType::DuplicatedCombinedKeys(
@@ -615,7 +615,7 @@ impl TableDiagnostic {
 
     /// This function takes care of checking the loc tables of your mod for errors.
     pub fn check_loc(
-        files: &[&RFile],
+        files: &[(&str, &RFile)],
         global_ignored_diagnostics: &[String],
         files_to_ignore: &Option<Vec<(String, Vec<String>, Vec<String>)>>
     ) -> Vec<DiagnosticType> {
@@ -624,7 +624,7 @@ impl TableDiagnostic {
         // So, the way we do this semi-optimized, is we do a first loop getting all the cached data we're going to need,
         // then do the real loop, having the data of all files available for checking diagnostics.
         let mut table_infos = vec![];
-        for file in files {
+        for (pack_key, file) in files {
             let (ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) = Diagnostics::ignore_data_for_file(file, files_to_ignore).unwrap_or_default();
             if let Ok(RFileDecoded::Loc(table)) = file.decoded() {
                 let fields_processed = table.definition().fields_processed();
@@ -633,7 +633,7 @@ impl TableDiagnostic {
 
                 table_infos.push(TableInfo {
                     path: file.path_in_container_raw(),
-                    container_name: file.container_name().as_deref().unwrap_or(""),
+                    pack_key,
                     key_amount: fields_processed.iter().filter(|field| field.is_key(patches)).count(),
                     fields_processed,
                     patches,
@@ -647,17 +647,17 @@ impl TableDiagnostic {
         }
 
         let dec_files = files.iter()
-            .filter_map(|x| match x.decoded().ok() {
-                Some(RFileDecoded::Loc(ref table)) => Some((table, x)),
+            .filter_map(|(_, x)| match x.decoded().ok() {
+                Some(RFileDecoded::Loc(ref table)) => Some((table, *x)),
                 _ => None,
             })
             .collect::<Vec<_>>();
 
         let mut global_keys: HashMap<&DecodedData, Vec<((i32, i32), usize)>> = HashMap::with_capacity(table_infos.iter().map(|x| x.table_data.len()).sum());
 
-        for (index, (table, file)) in dec_files.iter().enumerate() {
+        for (index, (table, _file)) in dec_files.iter().enumerate() {
             if let Some(table_info) = table_infos.get(index) {
-                let mut diagnostic = TableDiagnostic::new(file.path_in_container_raw(), file.container_name().as_deref().unwrap_or(""));
+                let mut diagnostic = TableDiagnostic::new(table_info.path, table_info.pack_key);
                 let fields = table.definition().fields_processed();
                 let field_key_name = fields[0].name();
                 let field_text_name = fields[1].name();
@@ -737,7 +737,7 @@ impl TableDiagnostic {
                                     )
                                 }
                                 None => {
-                                    let mut diag = TableDiagnostic::new(table_info.path, table_info.container_name);
+                                    let mut diag = TableDiagnostic::new(table_info.path, table_info.pack_key);
                                         diag.results_mut().push(
                                         TableDiagnosticReport::new(
                                             TableDiagnosticReportType::DuplicatedCombinedKeys(
@@ -792,7 +792,7 @@ impl TableDiagnostic {
                                         )
                                     }
                                     None => {
-                                        let mut diag = TableDiagnostic::new(table_info.path, table_info.container_name);
+                                        let mut diag = TableDiagnostic::new(table_info.path, table_info.pack_key);
                                             diag.results_mut().push(
                                             TableDiagnosticReport::new(
                                                 TableDiagnosticReportType::DuplicatedRow(

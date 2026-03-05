@@ -50,7 +50,8 @@ impl DebugViewSlots {
             view => move || {
             match view.save_view() {
                 Ok(decoded_packed_file) => {
-                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SavePackedFileFromView(view.get_path(), decoded_packed_file));
+                    let pack_key = String::new();
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SavePackedFileFromView(pack_key, view.get_path(), decoded_packed_file));
                     let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
                     match response {
                         Response::Success => log_to_status_bar(&tr("debug_view_save_success")),

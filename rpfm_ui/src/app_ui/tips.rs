@@ -23,26 +23,9 @@ pub unsafe fn set_tips(app_ui: &Rc<AppUI>) {
     // `PackFile` menu tips.
     //-----------------------------------------------//
     app_ui.packfile_new_packfile.set_status_tip(&qtr("tt_packfile_new_packfile"));
-    app_ui.packfile_open_packfile.set_status_tip(&qtr("tt_packfile_open_packfile"));
-    app_ui.packfile_save_packfile.set_status_tip(&qtr("tt_packfile_save_packfile"));
-    app_ui.packfile_save_packfile_as.set_status_tip(&qtr("tt_packfile_save_packfile_as"));
-    app_ui.packfile_save_packfile_for_release.set_status_tip(&qtr("tt_packfile_save_packfile_for_release"));
-    app_ui.packfile_install.set_status_tip(&qtr("tt_packfile_install"));
-    app_ui.packfile_uninstall.set_status_tip(&qtr("tt_packfile_uninstall"));
     app_ui.packfile_load_all_ca_packfiles.set_status_tip(&qtr("tt_packfile_load_all_ca_packfiles"));
     app_ui.packfile_settings.set_status_tip(&qtr("tt_packfile_settings"));
     app_ui.packfile_quit.set_status_tip(&qtr("tt_packfile_quit"));
-
-    app_ui.change_packfile_type_boot.set_status_tip(&qtr("tt_change_packfile_type_boot"));
-    app_ui.change_packfile_type_release.set_status_tip(&qtr("tt_change_packfile_type_release"));
-    app_ui.change_packfile_type_patch.set_status_tip(&qtr("tt_change_packfile_type_patch"));
-    app_ui.change_packfile_type_mod.set_status_tip(&qtr("tt_change_packfile_type_mod"));
-    app_ui.change_packfile_type_movie.set_status_tip(&qtr("tt_change_packfile_type_movie"));
-
-    app_ui.change_packfile_type_data_is_encrypted.set_status_tip(&qtr("tt_change_packfile_type_data_is_encrypted"));
-    app_ui.change_packfile_type_index_includes_timestamp.set_status_tip(&qtr("tt_change_packfile_type_index_includes_timestamp"));
-    app_ui.change_packfile_type_index_is_encrypted.set_status_tip(&qtr("tt_change_packfile_type_index_is_encrypted"));
-    app_ui.change_packfile_type_header_is_extended.set_status_tip(&qtr("tt_change_packfile_type_header_is_extended"));
 
     //-----------------------------------------------//
     // `MyMod` menu tips.
@@ -74,36 +57,10 @@ pub unsafe fn set_tips(app_ui: &Rc<AppUI>) {
     app_ui.game_selected_arena.set_status_tip(&qtr("tt_game_selected_arena"));
 
     //-----------------------------------------------//
-    // `Special Stuff` menu tips.
+    // `Game Selected` menu tips.
     //-----------------------------------------------//
     let generate_dependencies_cache = qtr("tt_generate_dependencies_cache");
-    let optimize_packfile = qtr("tt_optimize_packfile");
-    let patch_siege_ai_tip = qtr("tt_patch_siege_ai");
-    app_ui.special_stuff_wh3_generate_dependencies_cache.set_status_tip(&generate_dependencies_cache);
-    app_ui.special_stuff_wh3_optimize_packfile.set_status_tip(&optimize_packfile);
-    app_ui.special_stuff_troy_generate_dependencies_cache.set_status_tip(&generate_dependencies_cache);
-    app_ui.special_stuff_troy_optimize_packfile.set_status_tip(&optimize_packfile);
-    app_ui.special_stuff_three_k_generate_dependencies_cache.set_status_tip(&generate_dependencies_cache);
-    app_ui.special_stuff_three_k_optimize_packfile.set_status_tip(&optimize_packfile);
-    app_ui.special_stuff_wh2_generate_dependencies_cache.set_status_tip(&generate_dependencies_cache);
-    app_ui.special_stuff_wh2_optimize_packfile.set_status_tip(&optimize_packfile);
-    app_ui.special_stuff_wh2_patch_siege_ai.set_status_tip(&patch_siege_ai_tip);
-    app_ui.special_stuff_wh_generate_dependencies_cache.set_status_tip(&generate_dependencies_cache);
-    app_ui.special_stuff_wh_optimize_packfile.set_status_tip(&optimize_packfile);
-    app_ui.special_stuff_wh_patch_siege_ai.set_status_tip(&patch_siege_ai_tip);
-    app_ui.special_stuff_tob_generate_dependencies_cache.set_status_tip(&generate_dependencies_cache);
-    app_ui.special_stuff_tob_optimize_packfile.set_status_tip(&optimize_packfile);
-    app_ui.special_stuff_att_generate_dependencies_cache.set_status_tip(&generate_dependencies_cache);
-    app_ui.special_stuff_att_optimize_packfile.set_status_tip(&optimize_packfile);
-    app_ui.special_stuff_rom2_generate_dependencies_cache.set_status_tip(&generate_dependencies_cache);
-    app_ui.special_stuff_rom2_optimize_packfile.set_status_tip(&optimize_packfile);
-    app_ui.special_stuff_sho2_generate_dependencies_cache.set_status_tip(&generate_dependencies_cache);
-    app_ui.special_stuff_sho2_optimize_packfile.set_status_tip(&optimize_packfile);
-
-    app_ui.special_stuff_nap_generate_dependencies_cache.set_status_tip(&generate_dependencies_cache);
-    app_ui.special_stuff_nap_optimize_packfile.set_status_tip(&optimize_packfile);
-    app_ui.special_stuff_emp_generate_dependencies_cache.set_status_tip(&generate_dependencies_cache);
-    app_ui.special_stuff_emp_optimize_packfile.set_status_tip(&optimize_packfile);
+    app_ui.game_selected_generate_dependencies_cache.set_status_tip(&generate_dependencies_cache);
 
     //-----------------------------------------------//
     // `About` menu tips.

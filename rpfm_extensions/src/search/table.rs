@@ -14,25 +14,33 @@ Module with all the code related to the `TableMatches`.
 This module contains the code needed to get table matches from a `GlobalSearch`.
 !*/
 
-use getset::{Getters, MutGetters};
+use getset::{Getters, MutGetters, Setters};
 use serde_derive::{Deserialize, Serialize};
 
 use rpfm_lib::files::{db::DB, loc::Loc, table::DecodedData};
 use rpfm_lib::schema::Field;
 
-use super::{find_in_string, MatchingMode, Replaceable, Searchable, replace_match_string};
+use super::{find_in_string, MatchingMode, Replaceable, SearchSource, Searchable, replace_match_string};
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
 /// This struct represents all the matches of the global search within a table.
-#[derive(Debug, Clone, Eq, PartialEq, Getters, MutGetters, Serialize, Deserialize)]
-#[getset(get = "pub", get_mut = "pub")]
+#[derive(Debug, Clone, Eq, PartialEq, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct TableMatches {
 
     /// The path of the table.
     path: String,
+
+    /// The search source that produced these matches.
+    #[serde(default)]
+    source: SearchSource,
+
+    /// The container name (pack file name) this file belongs to.
+    #[serde(default)]
+    container_name: String,
 
     /// The list of matches within a table.
     matches: Vec<TableMatch>,
@@ -144,6 +152,8 @@ impl TableMatches {
         Self {
             path: path.to_owned(),
             matches: vec![],
+            source: SearchSource::default(),
+            container_name: String::new(),
         }
     }
 

@@ -226,8 +226,9 @@ impl ToolUnitEditor {
         ];
 
         let view = if cfg!(debug_assertions) { VIEW_DEBUG } else { VIEW_RELEASE };
-        let tool = Tool::new(app_ui.main_window(), &paths, &TOOL_SUPPORTED_GAMES, view, true)?;
+        let mut tool = Tool::new(app_ui.main_window(), &paths, &TOOL_SUPPORTED_GAMES, view, true)?;
         tool.set_title(&tr("unit_editor_title"));
+        *tool.pack_key_mut() = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
         tool.backup_used_paths(app_ui, pack_file_contents_ui)?;
 
         //-----------------------------------------------------------------------//
@@ -763,7 +764,7 @@ impl ToolUnitEditor {
 
         if let Some(table) = Tool::get_table_data(data, processed_data, TABLE_NAME, &["key"], Some(("main_units".to_owned(), "land_unit".to_owned())))? {
             let table_name_full = TABLE_NAME.to_owned() + "_tables";
-            let reference_data = get_reference_data(FileType::DB, &table_name_full, table.definition(), false)?;
+            let reference_data = get_reference_data(FileType::DB, &table_name_full, table.definition(), false, self.tool.pack_key())?;
 
             let schema_patches = table.definition().patches();
             for field in table.definition().fields_processed() {
@@ -784,7 +785,7 @@ impl ToolUnitEditor {
 
         if let Some(table) = Tool::get_table_data(data, processed_data, TABLE_NAME, &["unit"], None)? {
             let table_name_full = TABLE_NAME.to_owned() + "_tables";
-            let reference_data = get_reference_data(FileType::DB, &table_name_full, table.definition(), false)?;
+            let reference_data = get_reference_data(FileType::DB, &table_name_full, table.definition(), false, self.tool.pack_key())?;
 
             let schema_patches = table.definition().patches();
             for field in table.definition().fields_processed() {
@@ -1015,7 +1016,7 @@ impl ToolUnitEditor {
             log::info!("{:#?}", variant_data.iter().sorted_by_key(|x| x.0).collect::<std::collections::BTreeMap<&String, &String>>());
         }
 
-        let new_data = SubToolVariantUnitEditor::new(self.tool.main_widget().as_ref().unwrap(), &variant_data)?;
+        let new_data = SubToolVariantUnitEditor::new(self.tool.main_widget().as_ref().unwrap(), &variant_data, self.tool.pack_key())?;
         if let Some(new_data) = new_data {
             if cfg!(debug_assertions) {
                 log::info!("{:#?}", new_data.iter().sorted_by_key(|x| x.0).collect::<std::collections::BTreeMap<&String, &String>>());

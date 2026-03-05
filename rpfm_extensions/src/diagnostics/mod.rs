@@ -336,21 +336,21 @@ impl Diagnostics {
 
         // Logic here: we want to process the tables on batches containing all the tables of the same type, so we can check duplicates in different tables.
         // To do that, we have to sort/split the file list, the process that.
-        let files: Vec<&RFile> = if paths_to_check.is_empty() {
-            packs.values().flat_map(|pack| pack.files_by_type(&[FileType::AnimFragmentBattle, FileType::DB, FileType::Loc, FileType::Text, FileType::PortraitSettings])).collect()
+        let files: Vec<(&str, &RFile)> = if paths_to_check.is_empty() {
+            packs.iter().flat_map(|(key, pack)| pack.files_by_type(&[FileType::AnimFragmentBattle, FileType::DB, FileType::Loc, FileType::Text, FileType::PortraitSettings]).into_iter().map(move |file| (key.as_str(), file))).collect()
         } else {
-            packs.values().flat_map(|pack| pack.files_by_type_and_paths(&[FileType::AnimFragmentBattle, FileType::DB, FileType::Loc, FileType::Text, FileType::PortraitSettings], paths_to_check, false)).collect()
+            packs.iter().flat_map(|(key, pack)| pack.files_by_type_and_paths(&[FileType::AnimFragmentBattle, FileType::DB, FileType::Loc, FileType::Text, FileType::PortraitSettings], paths_to_check, false).into_iter().map(move |file| (key.as_str(), file))).collect()
         };
 
-        let mut files_split: HashMap<&str, Vec<&RFile>> = HashMap::new();
+        let mut files_split: HashMap<&str, Vec<(&str, &RFile)>> = HashMap::new();
         let mut we_need_loc_data = false;
-        for file in &files {
+        for (pack_key, file) in &files {
             match file.file_type() {
                 FileType::AnimFragmentBattle => {
                     if let Some(table_set) = files_split.get_mut("anim_fragment_battle") {
-                        table_set.push(file);
+                        table_set.push((pack_key, file));
                     } else {
-                        files_split.insert("anim_fragment_battle", vec![file]);
+                        files_split.insert("anim_fragment_battle", vec![(pack_key, file)]);
                     }
                 },
                 FileType::DB => {
@@ -359,35 +359,35 @@ impl Diagnostics {
                     let path_split = file.path_in_container_split();
                     if path_split.len() > 2 {
                         if let Some(table_set) = files_split.get_mut(path_split[1]) {
-                            table_set.push(file);
+                            table_set.push((pack_key, file));
                         } else {
-                            files_split.insert(path_split[1], vec![file]);
+                            files_split.insert(path_split[1], vec![(pack_key, file)]);
                         }
                     }
                 },
                 FileType::Loc => {
                     if let Some(table_set) = files_split.get_mut("locs") {
-                        table_set.push(file);
+                        table_set.push((pack_key, file));
                     } else {
-                        files_split.insert("locs", vec![file]);
+                        files_split.insert("locs", vec![(pack_key, file)]);
                     }
                 },
                 FileType::Text => {
                     if let Some(name) = file.file_name() {
                         if name.ends_with(".lua") {
                             if let Some(table_set) = files_split.get_mut("lua") {
-                                table_set.push(file);
+                                table_set.push((pack_key, file));
                             } else {
-                                files_split.insert("lua", vec![file]);
+                                files_split.insert("lua", vec![(pack_key, file)]);
                             }
                         }
                     }
                 },
                 FileType::PortraitSettings => {
                     if let Some(table_set) = files_split.get_mut("portrait_settings") {
-                        table_set.push(file);
+                        table_set.push((pack_key, file));
                     } else {
-                        files_split.insert("portrait_settings", vec![file]);
+                        files_split.insert("portrait_settings", vec![(pack_key, file)]);
                     }
                 },
                 _ => {},
@@ -438,7 +438,7 @@ impl Diagnostics {
             let mut diagnostics = Vec::with_capacity(files.len());
 
             // Ignore empty groups, which should never happen, but just in case.
-            if let Some(file_type) = files.first().map(|x| x.file_type()) {
+            if let Some(file_type) = files.first().map(|(_, x)| x.file_type()) {
 
                 // DB groups are processed as a group, not per file, so we are able to detect duplicated lines between files.
                 // Same for locs.
@@ -465,11 +465,12 @@ impl Diagnostics {
                         ));
                     }
                     _ => {
-                        for file in files {
+                        for (pack_key, file) in files {
                             let (ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) = Self::ignore_data_for_file(file, &files_to_ignore)?;
 
                             let diagnostic = match file.file_type() {
                                 FileType::AnimFragmentBattle => AnimFragmentBattleDiagnostic::check(
+                                    pack_key,
                                     file,
                                     dependencies,
                                     &self.diagnostics_ignored,
@@ -479,8 +480,8 @@ impl Diagnostics {
                                     local_file_path_list,
                                 ),
 
-                                FileType::Text => TextDiagnostic::check(file, packs, dependencies, &self.diagnostics_ignored, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields),
-                                FileType::PortraitSettings => PortraitSettingsDiagnostic::check(file, &art_set_ids, &variant_filenames, dependencies, &self.diagnostics_ignored, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields, local_file_path_list),
+                                FileType::Text => TextDiagnostic::check(pack_key, file, packs, dependencies, &self.diagnostics_ignored, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields),
+                                FileType::PortraitSettings => PortraitSettingsDiagnostic::check(pack_key, file, &art_set_ids, &variant_filenames, dependencies, &self.diagnostics_ignored, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields, local_file_path_list),
                                 _ => None,
                             };
 
@@ -491,8 +492,6 @@ impl Diagnostics {
                     }
                 }
             }
-
-
 
             Some(diagnostics)
         }).flatten().collect());

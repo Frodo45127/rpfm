@@ -153,11 +153,12 @@ impl SubToolVariantUnitEditor {
     /// This function creates the tool's dialog.
     ///
     /// NOTE: This can fail at runtime if any of the expected widgets is not in the UI's XML.
-    pub unsafe fn new(parent: Ref<QWidget>, data: &HashMap<String, String>) -> Result<Option<HashMap<String, String>>> {
+    pub unsafe fn new(parent: Ref<QWidget>, data: &HashMap<String, String>, pack_key: &str) -> Result<Option<HashMap<String, String>>> {
 
         let view = if cfg!(debug_assertions) { VIEW_DEBUG } else { VIEW_RELEASE };
-        let tool = Tool::new(parent, &[], &TOOL_SUPPORTED_GAMES, view, true)?;
+        let mut tool = Tool::new(parent, &[], &TOOL_SUPPORTED_GAMES, view, true)?;
 
+        *tool.pack_key_mut() = pack_key.to_owned();
         tool.set_title(&tr("variant_editor_title"));
 
         // ListView.
@@ -362,7 +363,7 @@ impl SubToolVariantUnitEditor {
     unsafe fn get_unit_variants_colours_data(&self, data: &HashMap<String, String>) -> Result<()> {
         if let Some(definition) = data.get("unit_variants_colours_definition") {
             let definition = serde_json::from_str(definition)?;
-            let reference_data = get_reference_data(FileType::DB, "unit_variants_colours_tables", &definition, false)?;
+            let reference_data = get_reference_data(FileType::DB, "unit_variants_colours_tables", &definition, false, self.tool.pack_key())?;
 
             let column_faction = definition.column_position_by_name("faction").ok_or_else(|| ToolsError::MissingColumnInTable("unit_variants_colours".to_string(), "faction".to_string()))?;
             let column_soldier_type = definition.column_position_by_name("soldier_type").ok_or_else(|| ToolsError::MissingColumnInTable("unit_variants_colours".to_string(), "soldier_type".to_string()))?;

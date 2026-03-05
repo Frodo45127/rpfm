@@ -60,14 +60,18 @@ menu_bar_debug = Debug
 
 ## PackFile Menu
 
-new_packfile = New PackFile
-open_packfile = Open PackFile
-save_packfile = Save PackFile
-save_packfile_as = Save PackFile As…
-save_packfile_for_release = Save PackFile For Release
+new_packfile = New Pack
+open_packs = Open Packs
+open_and_merge_packs = Open and Merge Packs
+close_pack_menu = Close Pack...
+save_pack_menu = Save Pack...
+save_pack_as_menu = Save Pack As...
+save_pack_for_release = Save Pack For Release...
+save_all = Save All Packs
+select_session = Select Session
 packfile_install = Install
 packfile_uninstall = Uninstall
-load_all_ca_packfiles = Load All CA PackFiles
+load_all_ca_packfiles = Load All CA Packs
 settings = Settings
 quit = Quit
 open_recent = Open Recent
@@ -114,6 +118,7 @@ game_selected_launch_game = Launch Game Selected
 game_selected_open_game_data_folder = Open Game's Data Folder
 game_selected_open_game_assembly_kit_folder = Open Game's Assembly Kit Folder
 game_selected_open_config_folder = Open RPFM's Config Folder
+game_selected_generate_dependencies_cache = Generate Dependencies Cache
 
 ## Special Stuff
 
@@ -553,7 +558,6 @@ external_current_path = Current path for edition:
 stop_watching = Stop watching the file
 open_folder = Open folder in file manager
 
-game_selected_changed_on_opening = Game Selected changed to {"{"}{"}"}, as the PackFile you opened is not compatible with the game you had selected.
 
 ### Extra stuff I don't remember where it goes.
 
@@ -741,6 +745,8 @@ label_dependencies_cache_not_generated = Dependencies Cache not generated
 
 diagnostics_button_show_more_filters = Show more filters
 diagnostics_colum_report_type = Report Type
+diagnostics_colum_column_names = Column Names
+diagnostics_colum_pack = Pack
 
 diagnostic_type = Diagnostic Report Type
 diagnostic_show = Show?

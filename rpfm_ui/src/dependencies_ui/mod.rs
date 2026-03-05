@@ -219,7 +219,8 @@ impl DependenciesUI {
     pub unsafe fn import_dependencies(&self, paths_by_source: BTreeMap<DataSource, Vec<ContainerPath>>, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
         app_ui.toggle_main_window(false);
 
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::ImportDependenciesToOpenPackFile(paths_by_source));
+        let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::ImportDependenciesToOpenPackFile(pack_key, paths_by_source));
         let response = CentralCommand::recv(&receiver);
         match response {
             Response::VecContainerPathVecString(paths, not_added_paths) => {
@@ -280,7 +281,8 @@ impl DependenciesUI {
             PathBuf::from(extraction_path.to_std_string())
         } else { return };
 
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::ExtractPackedFiles(paths_by_source, extraction_path, true));
+        let pack_key = String::new();
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::ExtractPackedFiles(pack_key, paths_by_source, extraction_path, true));
         app_ui.toggle_main_window(false);
         let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
         match response {

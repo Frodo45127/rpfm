@@ -60,7 +60,8 @@ impl DependenciesManagerView {
     ) -> Result<Option<RFileInfo>> {
 
         // Get the decoded Table.
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetDependencyPackFilesList);
+        let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetDependencyPackFilesList(pack_key));
         let response = CentralCommand::recv(&receiver);
         let table_data = match response {
             Response::VecBoolString(table) => TableType::DependencyManager(table.iter()

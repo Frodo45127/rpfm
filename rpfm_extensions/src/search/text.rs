@@ -14,25 +14,33 @@ Module with all the code related to the `TextMatches`.
 This module contains the code needed to get text matches from a `GlobalSearch`.
 !*/
 
-use getset::{Getters, MutGetters};
+use getset::{Getters, MutGetters, Setters};
 use itertools::Itertools;
 use serde_derive::{Deserialize, Serialize};
 
 use rpfm_lib::files::text::Text;
 
-use super::{find_in_string, MatchingMode, Replaceable, Searchable, replace_match_string};
+use super::{find_in_string, MatchingMode, Replaceable, SearchSource, Searchable, replace_match_string};
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
 /// This struct represents all the matches of the global search within a text PackedFile.
-#[derive(Debug, Clone, Getters, MutGetters, Serialize, Deserialize)]
-#[getset(get = "pub", get_mut = "pub")]
+#[derive(Debug, Clone, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct TextMatches {
 
     /// The path of the file.
     path: String,
+
+    /// The search source that produced these matches.
+    #[serde(default)]
+    source: SearchSource,
+
+    /// The container name (pack file name) this file belongs to.
+    #[serde(default)]
+    container_name: String,
 
     /// The list of matches within the file.
     matches: Vec<TextMatch>,
@@ -123,6 +131,8 @@ impl TextMatches {
         Self {
             path: path.to_owned(),
             matches: vec![],
+            source: SearchSource::default(),
+            container_name: String::new(),
         }
     }
 }

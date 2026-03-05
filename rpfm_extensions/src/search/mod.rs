@@ -54,7 +54,7 @@
 //! search.set_pattern("swordsmen".to_string());
 //! search.set_case_sensitive(false);
 //! search.set_use_regex(false);
-//! search.set_source(SearchSource::Pack);
+//! search.set_sources(vec![SearchSource::Pack("my_pack".to_string())]);
 //! search.set_search_on(SearchOn::all());
 //!
 //! // Perform the search
@@ -239,7 +239,7 @@ pub struct GlobalSearch {
     use_regex: bool,
 
     /// Which data sources to include in the search.
-    source: SearchSource,
+    sources: Vec<SearchSource>,
 
     /// Which file types to search within.
     search_on: SearchOn,
@@ -328,16 +328,21 @@ pub enum MatchHolder {
 ///
 /// Controls which files are included in the search scope.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[derive(Default)]
 pub enum SearchSource {
-    /// Search only the currently loaded pack.
-    #[default] Pack,
+    /// Search a specific pack identified by its key.
+    Pack(String),
     /// Search in parent mod dependencies.
     ParentFiles,
     /// Search in vanilla game files.
     GameFiles,
     /// Search in Assembly Kit files.
     AssKitFiles,
+}
+
+impl Default for SearchSource {
+    fn default() -> Self {
+        Self::Pack(String::new())
+    }
 }
 
 /// Configuration for which file types to include in a search.
@@ -430,8 +435,9 @@ impl GlobalSearch {
             }
         };
 
-        // If we're updating, make sure to dedup and get the raw paths of each file to update.
-        let update_paths = if !update_paths.is_empty() && self.source == SearchSource::Pack {
+        // For incremental updates, only support when there's exactly one Pack source.
+        let has_single_pack_source = self.sources.len() == 1 && matches!(self.sources.first(), Some(SearchSource::Pack(_)));
+        let update_paths = if !update_paths.is_empty() && has_single_pack_source {
             let container_paths = ContainerPath::dedup(update_paths);
             let raw_paths = container_paths.par_iter()
                 .flat_map(|container_path| packs.values().flat_map(|pack| pack.paths_raw_from_container_path(container_path)).collect::<Vec<_>>())
@@ -460,60 +466,70 @@ impl GlobalSearch {
         let pattern = self.pattern.to_owned();
         let case_sensitive = self.case_sensitive;
         let search_on = self.search_on().clone();
+        let files_to_search = self.search_on().types_to_search();
 
         let mut extra_data = DecodeableExtraData::default();
         extra_data.set_game_info(Some(game_info));
         let extra_data = Some(extra_data);
 
-        match self.source {
-            SearchSource::Pack => {
+        // Clone sources to avoid borrow conflict with self.matches.
+        let sources = self.sources.clone();
 
-                let files_to_search = self.search_on().types_to_search();
-                let mut files: Vec<&mut RFile> = if !update_paths.is_empty() {
-                    packs.values_mut().flat_map(|pack| pack.files_by_type_and_paths_mut(&files_to_search, &update_paths, false)).collect()
-                } else {
-                    packs.values_mut().flat_map(|pack| pack.files_by_type_mut(&files_to_search)).collect()
-                };
+        for source in &sources {
+            let mut temp_matches = Matches::default();
 
-                self.matches_mut().find_matches(&pattern, case_sensitive, &matching_mode, &search_on, &mut files, schema, extra_data);
-            }
-            SearchSource::ParentFiles => {
+            match source {
+                SearchSource::Pack(key) => {
+                    if let Some(pack) = packs.get_mut(key) {
+                        let mut files: Vec<&mut RFile> = if !update_paths.is_empty() {
+                            pack.files_by_type_and_paths_mut(&files_to_search, &update_paths, false)
+                        } else {
+                            pack.files_by_type_mut(&files_to_search)
+                        };
 
-                let files_to_search = self.search_on().types_to_search();
-                let files = dependencies.files_by_types_mut(&files_to_search, false, true);
-
-                self.matches_mut().find_matches(&pattern, case_sensitive, &matching_mode, &search_on, &mut files.into_values().collect::<Vec<_>>(), schema, extra_data);
-            },
-            SearchSource::GameFiles => {
-
-                let files_to_search = self.search_on().types_to_search();
-                let files = dependencies.files_by_types_mut(&files_to_search, true, false);
-
-                self.matches_mut().find_matches(&pattern, case_sensitive, &matching_mode, &search_on, &mut files.into_values().collect::<Vec<_>>(), schema, extra_data);
-            },
-
-            // Asskit files are only tables.
-            SearchSource::AssKitFiles => {
-                if self.search_on.db {
-                    self.matches.db = dependencies.asskit_only_db_tables()
-                        .par_iter()
-                        .filter_map(|(table_name, table)| {
-                            let file_name = match game_info.vanilla_db_table_name_logic() {
-                                VanillaDBTableNameLogic::FolderName => table_name.to_owned(),
-                                VanillaDBTableNameLogic::DefaultName(ref default_name) => default_name.to_owned()
-                            };
-
-                            let path = format!("db/{table_name}/{file_name}");
-                            let result = table.search(&path, &self.pattern, self.case_sensitive, &matching_mode);
-                            if !result.matches().is_empty() {
-                                Some(result)
-                            } else {
-                                None
-                            }
-                        }
-                    ).collect();
+                        temp_matches.find_matches(&pattern, case_sensitive, &matching_mode, &search_on, &mut files, schema, extra_data.clone(), source);
+                    }
                 }
-            },
+                SearchSource::ParentFiles => {
+                    let files = dependencies.files_by_types_mut(&files_to_search, false, true);
+                    temp_matches.find_matches(&pattern, case_sensitive, &matching_mode, &search_on, &mut files.into_values().collect::<Vec<_>>(), schema, extra_data.clone(), source);
+                },
+                SearchSource::GameFiles => {
+                    let files = dependencies.files_by_types_mut(&files_to_search, true, false);
+                    temp_matches.find_matches(&pattern, case_sensitive, &matching_mode, &search_on, &mut files.into_values().collect::<Vec<_>>(), schema, extra_data.clone(), source);
+                },
+
+                // Asskit files are only tables.
+                SearchSource::AssKitFiles => {
+                    if self.search_on.db {
+                        temp_matches.db = dependencies.asskit_only_db_tables()
+                            .par_iter()
+                            .filter_map(|(table_name, table)| {
+                                let file_name = match game_info.vanilla_db_table_name_logic() {
+                                    VanillaDBTableNameLogic::FolderName => table_name.to_owned(),
+                                    VanillaDBTableNameLogic::DefaultName(ref default_name) => default_name.to_owned()
+                                };
+
+                                let path = format!("db/{table_name}/{file_name}");
+                                let mut result = table.search(&path, &self.pattern, self.case_sensitive, &matching_mode);
+                                result.set_source(source.clone());
+                                if !result.matches().is_empty() {
+                                    Some(result)
+                                } else {
+                                    None
+                                }
+                            }
+                        ).collect();
+                    }
+                },
+            }
+
+            self.matches.extend(temp_matches);
+        }
+
+        // Schema search runs once regardless of sources (it's not source-dependent).
+        if search_on.schema {
+            self.matches.schema = schema.search("", &pattern, case_sensitive, &matching_mode);
         }
 
         // Restore the pattern to what it was before searching.
@@ -573,7 +589,7 @@ impl GlobalSearch {
         }
 
         // This is only useful for Packs, not for dependencies.
-        if self.source != SearchSource::Pack {
+        if !self.sources.iter().any(|s| matches!(s, SearchSource::Pack(_))) {
             return Ok(edited_paths)
         }
 
@@ -909,7 +925,7 @@ impl Matches {
         }
     }
 
-    pub fn find_matches(&mut self, pattern: &str, case_sensitive: bool, matching_mode: &MatchingMode, search_on: &SearchOn, files: &mut Vec<&mut RFile>, schema: &Schema, extra_data: Option<DecodeableExtraData>) {
+    pub fn find_matches(&mut self, pattern: &str, case_sensitive: bool, matching_mode: &MatchingMode, search_on: &SearchOn, files: &mut Vec<&mut RFile>, _schema: &Schema, extra_data: Option<DecodeableExtraData>, source: &SearchSource) {
         let matches = files.par_iter_mut()
             .filter_map(|file| {
                 if search_on.anim && file.file_type() == FileType::Anim {
@@ -927,7 +943,9 @@ impl Matches {
                     None
                 } else if search_on.anim_fragment_battle && file.file_type() == FileType::AnimFragmentBattle {
                     if let Ok(RFileDecoded::AnimFragmentBattle(data)) = file.decode(&extra_data, false, true).transpose().unwrap() {
-                        let result = data.search(file.path_in_container_raw(), pattern, case_sensitive, matching_mode);
+                        let mut result = data.search(file.path_in_container_raw(), pattern, case_sensitive, matching_mode);
+                        result.set_source(source.clone());
+                        result.set_container_name(file.container_name().clone().unwrap_or_default());
                         if !result.matches().is_empty() {
                             Some((None, Some(result), None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None))
                         } else {
@@ -964,7 +982,9 @@ impl Matches {
                     None
                 } else if search_on.atlas && file.file_type() == FileType::Atlas {
                     if let Ok(RFileDecoded::Atlas(data)) = file.decode(&None, false, true).transpose().unwrap() {
-                        let result = data.search(file.path_in_container_raw(), pattern, case_sensitive, matching_mode);
+                        let mut result = data.search(file.path_in_container_raw(), pattern, case_sensitive, matching_mode);
+                        result.set_source(source.clone());
+                        result.set_container_name(file.container_name().clone().unwrap_or_default());
                         if !result.matches().is_empty() {
                             Some((None, None, None, None, Some(result), None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None))
                         } else {
@@ -1001,7 +1021,9 @@ impl Matches {
                     None
                 } else if search_on.db && file.file_type() == FileType::DB {
                     if let Ok(RFileDecoded::DB(table)) = file.decoded() {
-                        let result = table.search(file.path_in_container_raw(), pattern, case_sensitive, matching_mode);
+                        let mut result = table.search(file.path_in_container_raw(), pattern, case_sensitive, matching_mode);
+                        result.set_source(source.clone());
+                        result.set_container_name(file.container_name().clone().unwrap_or_default());
                         if !result.matches().is_empty() {
                             Some((None, None, None, None, None, None, None, Some(result), None, None, None, None, None, None, None, None, None, None, None, None, None, None))
                         } else {
@@ -1051,7 +1073,9 @@ impl Matches {
                     None
                 } else if search_on.loc && file.file_type() == FileType::Loc {
                     if let Ok(RFileDecoded::Loc(table)) = file.decoded() {
-                        let result = table.search(file.path_in_container_raw(), pattern, case_sensitive, matching_mode);
+                        let mut result = table.search(file.path_in_container_raw(), pattern, case_sensitive, matching_mode);
+                        result.set_source(source.clone());
+                        result.set_container_name(file.container_name().clone().unwrap_or_default());
                         if !result.matches().is_empty() {
                             Some((None, None, None, None, None, None, None, None, None, None, None, Some(result), None, None, None, None, None, None, None, None, None, None))
                         } else {
@@ -1088,7 +1112,9 @@ impl Matches {
                     None
                 } else if search_on.portrait_settings && file.file_type() == FileType::PortraitSettings {
                     if let Ok(RFileDecoded::PortraitSettings(data)) = file.decode(&None, false, true).transpose().unwrap() {
-                        let result = data.search(file.path_in_container_raw(), pattern, case_sensitive, matching_mode);
+                        let mut result = data.search(file.path_in_container_raw(), pattern, case_sensitive, matching_mode);
+                        result.set_source(source.clone());
+                        result.set_container_name(file.container_name().clone().unwrap_or_default());
                         if !result.matches().is_empty() {
                             Some((None, None, None, None, None, None, None, None, None, None, None, None, None, None, Some(result), None, None, None, None, None, None, None))
                         } else {
@@ -1099,7 +1125,9 @@ impl Matches {
                     }
                 } else if search_on.rigid_model && file.file_type() == FileType::RigidModel {
                     if let Ok(RFileDecoded::RigidModel(data)) = file.decode(&None, false, true).transpose().unwrap() {
-                        let result = data.search(file.path_in_container_raw(), pattern, case_sensitive, matching_mode);
+                        let mut result = data.search(file.path_in_container_raw(), pattern, case_sensitive, matching_mode);
+                        result.set_source(source.clone());
+                        result.set_container_name(file.container_name().clone().unwrap_or_default());
                         if !result.matches().is_empty() {
                             Some((None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, Some(result), None, None, None, None, None, None))
                         } else {
@@ -1123,7 +1151,9 @@ impl Matches {
                     None
                 } else if search_on.text && file.file_type() == FileType::Text {
                     if let Ok(RFileDecoded::Text(text)) = file.decode(&None, false, true).transpose().unwrap() {
-                        let result = text.search(file.path_in_container_raw(), pattern, case_sensitive, matching_mode);
+                        let mut result = text.search(file.path_in_container_raw(), pattern, case_sensitive, matching_mode);
+                        result.set_source(source.clone());
+                        result.set_container_name(file.container_name().clone().unwrap_or_default());
                         if !result.matches().is_empty() {
                             Some((None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, Some(result), None, None, None, None))
                         } else {
@@ -1134,7 +1164,9 @@ impl Matches {
                     }
                 } else if search_on.text && file.file_type() == FileType::VMD {
                     if let Ok(RFileDecoded::VMD(text)) = file.decode(&None, false, true).transpose().unwrap() {
-                        let result = text.search(file.path_in_container_raw(), pattern, case_sensitive, matching_mode);
+                        let mut result = text.search(file.path_in_container_raw(), pattern, case_sensitive, matching_mode);
+                        result.set_source(source.clone());
+                        result.set_container_name(file.container_name().clone().unwrap_or_default());
                         if !result.matches().is_empty() {
                             Some((None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, Some(result), None, None, None, None))
                         } else {
@@ -1145,7 +1177,9 @@ impl Matches {
                     }
                 } else if search_on.text && file.file_type() == FileType::WSModel {
                     if let Ok(RFileDecoded::WSModel(text)) = file.decode(&None, false, true).transpose().unwrap() {
-                        let result = text.search(file.path_in_container_raw(), pattern, case_sensitive, matching_mode);
+                        let mut result = text.search(file.path_in_container_raw(), pattern, case_sensitive, matching_mode);
+                        result.set_source(source.clone());
+                        result.set_container_name(file.container_name().clone().unwrap_or_default());
                         if !result.matches().is_empty() {
                             Some((None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, Some(result), None, None, None, None))
                         } else {
@@ -1169,7 +1203,9 @@ impl Matches {
                     None
                 } else if search_on.unit_variant && file.file_type() == FileType::UnitVariant {
                     if let Ok(RFileDecoded::UnitVariant(data)) = file.decode(&None, false, true).transpose().unwrap() {
-                        let result = data.search(file.path_in_container_raw(), pattern, case_sensitive, matching_mode);
+                        let mut result = data.search(file.path_in_container_raw(), pattern, case_sensitive, matching_mode);
+                        result.set_source(source.clone());
+                        result.set_container_name(file.container_name().clone().unwrap_or_default());
                         if !result.matches().is_empty() {
                             Some((None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, Some(result), None, None))
                         } else {
@@ -1180,7 +1216,9 @@ impl Matches {
                     }
                 } else if search_on.unknown && file.file_type() == FileType::Unknown {
                     if let Ok(RFileDecoded::Unknown(data)) = file.decode(&None, false, true).transpose().unwrap() {
-                        let result = data.search(file.path_in_container_raw(), pattern, case_sensitive, matching_mode);
+                        let mut result = data.search(file.path_in_container_raw(), pattern, case_sensitive, matching_mode);
+                        result.set_source(source.clone());
+                        result.set_container_name(file.container_name().clone().unwrap_or_default());
                         if !result.matches().is_empty() {
                             Some((None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, Some(result), None))
                         } else {
@@ -1234,11 +1272,33 @@ impl Matches {
         self.unit_variant = matches.iter().filter_map(|x| x.19.clone()).collect::<Vec<_>>();
         self.unknown = matches.iter().filter_map(|x| x.20.clone()).collect::<Vec<_>>();
         self.video = matches.iter().filter_map(|x| x.21.clone()).collect::<Vec<_>>();
+    }
 
-        // Schema searches are a bit independant from the rest, so they're done after the full search.
-        if search_on.schema {
-            self.schema = schema.search("", pattern, case_sensitive, matching_mode);
-        }
+    /// Extends this `Matches` by appending all matches from another `Matches` instance.
+    pub fn extend(&mut self, other: Matches) {
+        self.anim.extend(other.anim);
+        self.anim_fragment_battle.extend(other.anim_fragment_battle);
+        self.anim_pack.extend(other.anim_pack);
+        self.anims_table.extend(other.anims_table);
+        self.atlas.extend(other.atlas);
+        self.audio.extend(other.audio);
+        self.bmd.extend(other.bmd);
+        self.db.extend(other.db);
+        self.esf.extend(other.esf);
+        self.group_formations.extend(other.group_formations);
+        self.image.extend(other.image);
+        self.loc.extend(other.loc);
+        self.matched_combat.extend(other.matched_combat);
+        self.pack.extend(other.pack);
+        self.portrait_settings.extend(other.portrait_settings);
+        self.rigid_model.extend(other.rigid_model);
+        self.sound_bank.extend(other.sound_bank);
+        self.text.extend(other.text);
+        self.uic.extend(other.uic);
+        self.unit_variant.extend(other.unit_variant);
+        self.unknown.extend(other.unknown);
+        self.video.extend(other.video);
+        // Note: schema is not extended here, it's handled separately.
     }
 }
 

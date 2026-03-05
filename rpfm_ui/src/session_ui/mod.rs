@@ -221,10 +221,12 @@ impl SessionUI {
         for session in sessions {
             let session_id = *session.session_id();
 
-            // Build the label text with pack name and session info
-            let pack_info = match session.pack_name() {
-                Some(name) => name.clone(),
-                None => "No pack open".to_string(),
+            // Build the label text with pack names and session info
+            let pack_names = session.pack_names();
+            let pack_info = if pack_names.is_empty() {
+                "No pack open".to_string()
+            } else {
+                pack_names.join(", ")
             };
 
             let status = if *session.is_shutting_down() {

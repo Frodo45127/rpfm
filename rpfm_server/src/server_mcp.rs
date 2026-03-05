@@ -72,6 +72,8 @@ pub struct SetGameSelectedArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct TsvExportArgs {
+    /// The key of the target pack.
+    pub pack_key: String,
     /// The path of the TSV file to export to.
     pub tsv_path: PathBuf,
     /// The path of the table to export.
@@ -80,6 +82,8 @@ pub struct TsvExportArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct TsvImportArgs {
+    /// The key of the target pack.
+    pub pack_key: String,
     /// The path of the TSV file to import from.
     pub tsv_path: PathBuf,
     /// The path of the table to import to.
@@ -88,6 +92,8 @@ pub struct TsvImportArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct DecodePackedFileArgs {
+    /// The key of the target pack.
+    pub pack_key: String,
     /// The path of the file inside the data source.
     pub path: String,
     /// The data source to decode from.
@@ -102,16 +108,60 @@ pub struct PathArg {
     pub path: PathBuf,
 }
 
+// -- Pack Key Args (multi-pack support) --
+
+#[derive(Debug, Deserialize, JsonSchema, Serialize)]
+pub struct PackKeyArg {
+    /// The key of the target pack. Use `list_open_packs` to get available keys.
+    pub pack_key: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema, Serialize)]
+pub struct PackKeyBoolArg {
+    /// The key of the target pack.
+    pub pack_key: String,
+    /// A boolean value.
+    pub value: bool,
+}
+
+#[derive(Debug, Deserialize, JsonSchema, Serialize)]
+pub struct PackKeyStringArg {
+    /// The key of the target pack.
+    pub pack_key: String,
+    /// A string value.
+    pub value: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema, Serialize)]
+pub struct PackKeyStringsArg {
+    /// The key of the target pack.
+    pub pack_key: String,
+    /// A list of string values.
+    pub values: Vec<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema, Serialize)]
+pub struct PackKeyPathArg {
+    /// The key of the target pack.
+    pub pack_key: String,
+    /// The file path.
+    pub path: PathBuf,
+}
+
 // -- Pack Metadata Args --
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct SetPackFileTypeArgs {
+    /// The key of the target pack.
+    pub pack_key: String,
     /// The JSON representation of the PFHFileType enum.
     pub pack_file_type: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct ChangeCompressionFormatArgs {
+    /// The key of the target pack.
+    pub pack_key: String,
     /// The JSON representation of the CompressionFormat enum.
     pub format: String,
 }
@@ -124,12 +174,16 @@ pub struct BoolArg {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct SetPackSettingsArgs {
+    /// The key of the target pack.
+    pub pack_key: String,
     /// The JSON representation of the PackSettings struct.
     pub settings: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct SetDependencyPackFilesListArgs {
+    /// The key of the target pack.
+    pub pack_key: String,
     /// The JSON representation of Vec<(bool, String)> for the dependency list.
     pub list: String,
 }
@@ -138,6 +192,8 @@ pub struct SetDependencyPackFilesListArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct NewPackedFileArgs {
+    /// The key of the target pack.
+    pub pack_key: String,
     /// The path for the new file inside the pack.
     pub path: String,
     /// The JSON representation of the NewFile enum.
@@ -146,6 +202,8 @@ pub struct NewPackedFileArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct AddPackedFilesArgs {
+    /// The key of the target pack.
+    pub pack_key: String,
     /// The source filesystem paths.
     pub source_paths: Vec<PathBuf>,
     /// The JSON representation of Vec<ContainerPath> for destination paths.
@@ -156,14 +214,18 @@ pub struct AddPackedFilesArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct AddPackedFilesFromPackFileArgs {
-    /// The path of the source PackFile.
-    pub source_pack_path: PathBuf,
+    /// The key of the target pack.
+    pub pack_key: String,
+    /// The key of the source PackFile.
+    pub source_pack_path: String,
     /// The JSON representation of Vec<ContainerPath> for files to add.
     pub container_paths: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct AddPackedFilesFromPackFileToAnimpackArgs {
+    /// The key of the target pack.
+    pub pack_key: String,
     /// The animpack path.
     pub animpack_path: String,
     /// The JSON representation of Vec<ContainerPath> for files to add.
@@ -172,6 +234,8 @@ pub struct AddPackedFilesFromPackFileToAnimpackArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct AddPackedFilesFromAnimpackArgs {
+    /// The key of the target pack.
+    pub pack_key: String,
     /// The data source to get the animpack from.
     pub source: DataSource,
     /// The animpack path.
@@ -182,12 +246,16 @@ pub struct AddPackedFilesFromAnimpackArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct ContainerPathsArg {
+    /// The key of the target pack.
+    pub pack_key: String,
     /// The JSON representation of Vec<ContainerPath>.
     pub paths: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct DeleteFromAnimpackArgs {
+    /// The key of the target pack.
+    pub pack_key: String,
     /// The animpack path.
     pub animpack_path: String,
     /// The JSON representation of Vec<ContainerPath> for files to delete.
@@ -196,6 +264,8 @@ pub struct DeleteFromAnimpackArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct ExtractPackedFilesArgs {
+    /// The key of the target pack.
+    pub pack_key: String,
     /// The JSON representation of BTreeMap<DataSource, Vec<ContainerPath>>.
     pub source_paths: String,
     /// The destination path on disk.
@@ -206,12 +276,16 @@ pub struct ExtractPackedFilesArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct RenamePackedFilesArgs {
+    /// The key of the target pack.
+    pub pack_key: String,
     /// The JSON representation of Vec<(ContainerPath, ContainerPath)>.
     pub renames: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct SavePackedFileFromViewArgs {
+    /// The key of the target pack.
+    pub pack_key: String,
     /// The path of the file inside the pack.
     pub path: String,
     /// The JSON representation of the RFileDecoded enum.
@@ -220,6 +294,8 @@ pub struct SavePackedFileFromViewArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct SavePackedFileFromExternalViewArgs {
+    /// The key of the target pack.
+    pub pack_key: String,
     /// The internal path of the file in the pack.
     pub internal_path: String,
     /// The external file path on disk.
@@ -228,6 +304,8 @@ pub struct SavePackedFileFromExternalViewArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct SavePackedFilesToPackFileAndCleanArgs {
+    /// The key of the target pack.
+    pub pack_key: String,
     /// The JSON representation of Vec<RFile>.
     pub files: String,
     /// Whether to optimize after saving.
@@ -242,6 +320,8 @@ pub struct StringArg {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct OpenPackedFileInExternalProgramArgs {
+    /// The key of the target pack.
+    pub pack_key: String,
     /// The data source of the file.
     pub source: DataSource,
     /// The JSON representation of the ContainerPath.
@@ -258,6 +338,8 @@ pub struct StringsArg {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct ImportDependenciesArgs {
+    /// The key of the target pack.
+    pub pack_key: String,
     /// The JSON representation of BTreeMap<DataSource, Vec<ContainerPath>>.
     pub paths: String,
 }
@@ -280,12 +362,16 @@ pub struct ContainerPathArg {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct GlobalSearchArgs {
+    /// The key of the target pack.
+    pub pack_key: String,
     /// The JSON representation of the GlobalSearch struct.
     pub search: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct GlobalSearchReplaceMatchesArgs {
+    /// The key of the target pack.
+    pub pack_key: String,
     /// The JSON representation of the GlobalSearch struct.
     pub search: String,
     /// The JSON representation of Vec<MatchHolder>.
@@ -294,6 +380,8 @@ pub struct GlobalSearchReplaceMatchesArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct SearchReferencesArgs {
+    /// The key of the target pack.
+    pub pack_key: String,
     /// The JSON representation of HashMap<String, Vec<String>>.
     pub reference_map: String,
     /// The value to search for.
@@ -302,6 +390,8 @@ pub struct SearchReferencesArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct GetReferenceDataFromDefinitionArgs {
+    /// The key of the target pack.
+    pub pack_key: String,
     /// The table name.
     pub table_name: String,
     /// The JSON representation of the Definition struct.
@@ -312,6 +402,8 @@ pub struct GetReferenceDataFromDefinitionArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct GoToDefinitionArgs {
+    /// The key of the target pack.
+    pub pack_key: String,
     /// The table name.
     pub table_name: String,
     /// The column name.
@@ -360,6 +452,8 @@ pub struct SchemaPatchArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct MergeFilesArgs {
+    /// The key of the target pack.
+    pub pack_key: String,
     /// The JSON representation of Vec<ContainerPath> for files to merge.
     pub paths: String,
     /// The path for the merged file.
@@ -370,6 +464,8 @@ pub struct MergeFilesArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct CascadeEditionArgs {
+    /// The key of the target pack.
+    pub pack_key: String,
     /// The table name.
     pub table_name: String,
     /// The JSON representation of the Definition struct.
@@ -380,6 +476,8 @@ pub struct CascadeEditionArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct AddKeysToKeyDeletesArgs {
+    /// The key of the target pack.
+    pub pack_key: String,
     /// The table file name.
     pub table_file_name: String,
     /// The key table name.
@@ -412,12 +510,16 @@ pub struct DiagnosticsUpdateArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct AddNoteArgs {
+    /// The key of the target pack.
+    pub pack_key: String,
     /// The JSON representation of the Note struct.
     pub note: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct DeleteNoteArgs {
+    /// The key of the target pack.
+    pub pack_key: String,
     /// The path the note belongs to.
     pub path: String,
     /// The note ID.
@@ -428,6 +530,8 @@ pub struct DeleteNoteArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct OptimizePackFileArgs {
+    /// The key of the target pack.
+    pub pack_key: String,
     /// The JSON representation of the OptimizerOptions struct.
     pub options: String,
 }
@@ -508,6 +612,8 @@ pub struct InitializeMyModFolderArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct PackMapArgs {
+    /// The key of the target pack.
+    pub pack_key: String,
     /// The tile map paths.
     pub tile_maps: Vec<PathBuf>,
     /// The JSON representation of Vec<(PathBuf, String)> for tile path/name pairs.
@@ -516,6 +622,8 @@ pub struct PackMapArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct BuildStarposArgs {
+    /// The key of the target pack.
+    pub pack_key: String,
     /// The campaign ID.
     pub campaign_id: String,
     /// Whether to process HLP/SPD data.
@@ -524,6 +632,8 @@ pub struct BuildStarposArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct UpdateAnimIdsArgs {
+    /// The key of the target pack.
+    pub pack_key: String,
     /// The starting animation ID.
     pub starting_id: i32,
     /// The offset to apply.
@@ -540,6 +650,8 @@ pub struct ExportRigidToGltfArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct SetVideoFormatArgs {
+    /// The key of the target pack.
+    pub pack_key: String,
     /// The path of the video file in the pack.
     pub path: String,
     /// The JSON representation of the SupportedFormats enum.
@@ -548,6 +660,8 @@ pub struct SetVideoFormatArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct GetPackTranslationArgs {
+    /// The key of the target pack.
+    pub pack_key: String,
     /// The language code.
     pub language: String,
 }
@@ -601,39 +715,29 @@ impl McpServer {
         send_and_respond!(self, Command::OpenPackFiles(params.0.paths))
     }
 
-    #[tool(description = "Save the currently open PackFile.")]
-    pub async fn save_packfile(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::SavePack)
+    #[tool(description = "Save the pack identified by `pack_key`.")]
+    pub async fn save_packfile(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self, Command::SavePack(params.0.pack_key))
     }
 
-    #[tool(description = "Close the currently open PackFile without saving. Any unsaved changes will be lost.")]
-    pub async fn close_pack(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::ClosePack)
+    #[tool(description = "Close the pack identified by `pack_key` without saving. Any unsaved changes will be lost.")]
+    pub async fn close_pack(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self, Command::ClosePack(params.0.pack_key))
     }
 
-    #[tool(description = "Save the currently open PackFile to a new path.")]
-    pub async fn save_pack_as(&self, params: Parameters<PathArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::SavePackAs(params.0.path))
+    #[tool(description = "Save the pack identified by `pack_key` to a new path.")]
+    pub async fn save_pack_as(&self, params: Parameters<PackKeyPathArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self, Command::SavePackAs(params.0.pack_key, params.0.path))
     }
 
-    #[tool(description = "Clean the pack from corrupted files and save to a path. Use if normal save fails.")]
-    pub async fn clean_and_save_pack_as(&self, params: Parameters<PathArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::CleanAndSavePackAs(params.0.path))
+    #[tool(description = "Clean the pack identified by `pack_key` from corrupted files and save to a path. Use if normal save fails.")]
+    pub async fn clean_and_save_pack_as(&self, params: Parameters<PackKeyPathArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self, Command::CleanAndSavePackAs(params.0.pack_key, params.0.path))
     }
 
-    #[tool(description = "Trigger a backup autosave.")]
-    pub async fn trigger_backup_autosave(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::TriggerBackupAutosave)
-    }
-
-    #[tool(description = "Open an extra PackFile (for 'Add from PackFile' feature).")]
-    pub async fn open_pack_extra(&self, params: Parameters<PathArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::OpenPackExtra(params.0.path))
-    }
-
-    #[tool(description = "Close an extra PackFile.")]
-    pub async fn close_pack_extra(&self, params: Parameters<PathArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::ClosePackExtra(params.0.path))
+    #[tool(description = "Trigger a backup autosave for the pack identified by `pack_key`.")]
+    pub async fn trigger_backup_autosave(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self, Command::TriggerBackupAutosave(params.0.pack_key))
     }
 
     #[tool(description = "Open all CA (vanilla) PackFiles for the selected game as one merged PackFile.")]
@@ -645,180 +749,175 @@ impl McpServer {
     // Pack Metadata
     //-----------------------------------------------------------------------//
 
-    #[tool(description = "Set the type of the currently open PackFile. Pass the PFHFileType as JSON.")]
+    #[tool(description = "Set the type of the pack identified by `pack_key`. Pass the PFHFileType as JSON.")]
     pub async fn set_pack_file_type(&self, params: Parameters<SetPackFileTypeArgs>) -> Result<CallToolResult, McpError> {
         let pfh_type = serde_json::from_str(&params.0.pack_file_type).unwrap();
-        send_and_respond!(self, Command::SetPackFileType(pfh_type))
+        send_and_respond!(self, Command::SetPackFileType(params.0.pack_key, pfh_type))
     }
 
-    #[tool(description = "Change the compression format of the currently open PackFile. Pass the CompressionFormat as JSON.")]
+    #[tool(description = "Change the compression format of the pack identified by `pack_key`. Pass the CompressionFormat as JSON.")]
     pub async fn change_compression_format(&self, params: Parameters<ChangeCompressionFormatArgs>) -> Result<CallToolResult, McpError> {
         let format = serde_json::from_str(&params.0.format).unwrap();
-        send_and_respond!(self, Command::ChangeCompressionFormat(format))
+        send_and_respond!(self, Command::ChangeCompressionFormat(params.0.pack_key, format))
     }
 
-    #[tool(description = "Change whether the pack index includes timestamps.")]
-    pub async fn change_index_includes_timestamp(&self, params: Parameters<BoolArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::ChangeIndexIncludesTimestamp(params.0.value))
+    #[tool(description = "Change whether the pack index includes timestamps for the pack identified by `pack_key`.")]
+    pub async fn change_index_includes_timestamp(&self, params: Parameters<PackKeyBoolArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self, Command::ChangeIndexIncludesTimestamp(params.0.pack_key, params.0.value))
     }
 
-    #[tool(description = "Get the file path of the currently open PackFile.")]
-    pub async fn get_pack_file_path(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::GetPackFilePath)
+    #[tool(description = "Get the file path of the pack identified by `pack_key`.")]
+    pub async fn get_pack_file_path(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self, Command::GetPackFilePath(params.0.pack_key))
     }
 
-    #[tool(description = "Get the file name of the currently open PackFile.")]
-    pub async fn get_pack_file_name(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::GetPackFileName)
+    #[tool(description = "Get the file name of the pack identified by `pack_key`.")]
+    pub async fn get_pack_file_name(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self, Command::GetPackFileName(params.0.pack_key))
     }
 
-    #[tool(description = "Get the settings of the currently open PackFile.")]
-    pub async fn get_pack_settings(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::GetPackSettings)
+    #[tool(description = "Get the settings of the pack identified by `pack_key`.")]
+    pub async fn get_pack_settings(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self, Command::GetPackSettings(params.0.pack_key))
     }
 
-    #[tool(description = "Set the settings of the currently open PackFile. Pass PackSettings as JSON.")]
+    #[tool(description = "Set the settings of the pack identified by `pack_key`. Pass PackSettings as JSON.")]
     pub async fn set_pack_settings(&self, params: Parameters<SetPackSettingsArgs>) -> Result<CallToolResult, McpError> {
         let settings = serde_json::from_str(&params.0.settings).unwrap();
-        send_and_respond!(self, Command::SetPackSettings(settings))
+        send_and_respond!(self, Command::SetPackSettings(params.0.pack_key, settings))
     }
 
-    #[tool(description = "Get the list of PackFiles marked as dependencies of the current PackFile.")]
-    pub async fn get_dependency_pack_files_list(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::GetDependencyPackFilesList)
+    #[tool(description = "Get the list of PackFiles marked as dependencies of the pack identified by `pack_key`.")]
+    pub async fn get_dependency_pack_files_list(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self, Command::GetDependencyPackFilesList(params.0.pack_key))
     }
 
-    #[tool(description = "Set the list of PackFiles marked as dependencies. Pass Vec<(bool, String)> as JSON.")]
+    #[tool(description = "Set the list of PackFiles marked as dependencies for the pack identified by `pack_key`. Pass Vec<(bool, String)> as JSON.")]
     pub async fn set_dependency_pack_files_list(&self, params: Parameters<SetDependencyPackFilesListArgs>) -> Result<CallToolResult, McpError> {
         let list = serde_json::from_str(&params.0.list).unwrap();
-        send_and_respond!(self, Command::SetDependencyPackFilesList(list))
-    }
-
-    #[tool(description = "Get the tree view data for an extra PackFile.")]
-    pub async fn get_pack_file_extra_data_for_tree_view(&self, params: Parameters<PathArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::GetPackFileExtraDataForTreeView(params.0.path))
+        send_and_respond!(self, Command::SetDependencyPackFilesList(params.0.pack_key, list))
     }
 
     //-----------------------------------------------------------------------//
     // File Operations
     //-----------------------------------------------------------------------//
 
-    #[tool(description = "Decode a file from the open data source you want. The parameters are the path of the file inside the data source, and in what data source it is.")]
+    #[tool(description = "Decode a file from the pack identified by `pack_key`. The parameters are the path of the file inside the data source, and in what data source it is.")]
     pub async fn decode_packed_file(&self, params: Parameters<DecodePackedFileArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::DecodePackedFile(params.0.path, params.0.source))
+        send_and_respond!(self, Command::DecodePackedFile(params.0.pack_key, params.0.path, params.0.source))
     }
 
-    #[tool(description = "Create a new file inside the pack. Pass the NewFile type as JSON.")]
+    #[tool(description = "Create a new file inside the pack identified by `pack_key`. Pass the NewFile type as JSON.")]
     pub async fn new_packed_file(&self, params: Parameters<NewPackedFileArgs>) -> Result<CallToolResult, McpError> {
         let new_file = serde_json::from_str(&params.0.new_file).unwrap();
-        send_and_respond!(self, Command::NewPackedFile(params.0.path, new_file))
+        send_and_respond!(self, Command::NewPackedFile(params.0.pack_key, params.0.path, new_file))
     }
 
-    #[tool(description = "Add files from disk to the pack. Pass destination ContainerPaths as JSON.")]
+    #[tool(description = "Add files from disk to the pack identified by `pack_key`. Pass destination ContainerPaths as JSON.")]
     pub async fn add_packed_files(&self, params: Parameters<AddPackedFilesArgs>) -> Result<CallToolResult, McpError> {
         let dest: Vec<rpfm_lib::files::ContainerPath> = serde_json::from_str(&params.0.destination_paths).unwrap();
-        send_and_respond!(self, Command::AddPackedFiles(params.0.source_paths, dest, params.0.ignore_paths))
+        send_and_respond!(self, Command::AddPackedFiles(params.0.pack_key, params.0.source_paths, dest, params.0.ignore_paths))
     }
 
-    #[tool(description = "Add files from another PackFile. Pass ContainerPaths as JSON.")]
+    #[tool(description = "Add files from another PackFile to the pack identified by `pack_key`. Pass ContainerPaths as JSON.")]
     pub async fn add_packed_files_from_pack_file(&self, params: Parameters<AddPackedFilesFromPackFileArgs>) -> Result<CallToolResult, McpError> {
         let paths: Vec<rpfm_lib::files::ContainerPath> = serde_json::from_str(&params.0.container_paths).unwrap();
-        send_and_respond!(self, Command::AddPackedFilesFromPackFile((params.0.source_pack_path, paths)))
+        send_and_respond!(self, Command::AddPackedFilesFromPackFile(params.0.pack_key, params.0.source_pack_path, paths))
     }
 
-    #[tool(description = "Add files from the main PackFile to an AnimPack. Pass ContainerPaths as JSON.")]
+    #[tool(description = "Add files from the pack identified by `pack_key` to an AnimPack. Pass ContainerPaths as JSON.")]
     pub async fn add_packed_files_from_pack_file_to_animpack(&self, params: Parameters<AddPackedFilesFromPackFileToAnimpackArgs>) -> Result<CallToolResult, McpError> {
         let paths: Vec<rpfm_lib::files::ContainerPath> = serde_json::from_str(&params.0.container_paths).unwrap();
-        send_and_respond!(self, Command::AddPackedFilesFromPackFileToAnimpack(params.0.animpack_path, paths))
+        send_and_respond!(self, Command::AddPackedFilesFromPackFileToAnimpack(params.0.pack_key, params.0.animpack_path, paths))
     }
 
-    #[tool(description = "Add files from an AnimPack to the main PackFile. Pass ContainerPaths as JSON.")]
+    #[tool(description = "Add files from an AnimPack to the pack identified by `pack_key`. Pass ContainerPaths as JSON.")]
     pub async fn add_packed_files_from_animpack(&self, params: Parameters<AddPackedFilesFromAnimpackArgs>) -> Result<CallToolResult, McpError> {
         let paths: Vec<rpfm_lib::files::ContainerPath> = serde_json::from_str(&params.0.container_paths).unwrap();
-        send_and_respond!(self, Command::AddPackedFilesFromAnimpack(params.0.source, params.0.animpack_path, paths))
+        send_and_respond!(self, Command::AddPackedFilesFromAnimpack(params.0.pack_key, params.0.source, params.0.animpack_path, paths))
     }
 
-    #[tool(description = "Delete files from the pack. Pass Vec<ContainerPath> as JSON.")]
+    #[tool(description = "Delete files from the pack identified by `pack_key`. Pass Vec<ContainerPath> as JSON.")]
     pub async fn delete_packed_files(&self, params: Parameters<ContainerPathsArg>) -> Result<CallToolResult, McpError> {
         let paths: Vec<rpfm_lib::files::ContainerPath> = serde_json::from_str(&params.0.paths).unwrap();
-        send_and_respond!(self, Command::DeletePackedFiles(paths))
+        send_and_respond!(self, Command::DeletePackedFiles(params.0.pack_key, paths))
     }
 
-    #[tool(description = "Delete files from an AnimPack. Pass ContainerPaths as JSON.")]
+    #[tool(description = "Delete files from an AnimPack in the pack identified by `pack_key`. Pass ContainerPaths as JSON.")]
     pub async fn delete_from_animpack(&self, params: Parameters<DeleteFromAnimpackArgs>) -> Result<CallToolResult, McpError> {
         let paths: Vec<rpfm_lib::files::ContainerPath> = serde_json::from_str(&params.0.container_paths).unwrap();
-        send_and_respond!(self, Command::DeleteFromAnimpack((params.0.animpack_path, paths)))
+        send_and_respond!(self, Command::DeleteFromAnimpack(params.0.pack_key, params.0.animpack_path, paths))
     }
 
-    #[tool(description = "Extract files from a pack to disk. Pass source paths as JSON BTreeMap<DataSource, Vec<ContainerPath>>.")]
+    #[tool(description = "Extract files from the pack identified by `pack_key` to disk. Pass source paths as JSON BTreeMap<DataSource, Vec<ContainerPath>>.")]
     pub async fn extract_packed_files(&self, params: Parameters<ExtractPackedFilesArgs>) -> Result<CallToolResult, McpError> {
         let source: BTreeMap<DataSource, Vec<rpfm_lib::files::ContainerPath>> = serde_json::from_str(&params.0.source_paths).unwrap();
-        send_and_respond!(self, Command::ExtractPackedFiles(source, params.0.destination_path, params.0.export_as_tsv))
+        send_and_respond!(self, Command::ExtractPackedFiles(params.0.pack_key, source, params.0.destination_path, params.0.export_as_tsv))
     }
 
-    #[tool(description = "Rename files in the pack. Pass Vec<(ContainerPath, ContainerPath)> as JSON.")]
+    #[tool(description = "Rename files in the pack identified by `pack_key`. Pass Vec<(ContainerPath, ContainerPath)> as JSON.")]
     pub async fn rename_packed_files(&self, params: Parameters<RenamePackedFilesArgs>) -> Result<CallToolResult, McpError> {
         let renames: Vec<(rpfm_lib::files::ContainerPath, rpfm_lib::files::ContainerPath)> = serde_json::from_str(&params.0.renames).unwrap();
-        send_and_respond!(self, Command::RenamePackedFiles(renames))
+        send_and_respond!(self, Command::RenamePackedFiles(params.0.pack_key, renames))
     }
 
-    #[tool(description = "Save an edited decoded file back to the pack. Pass RFileDecoded as JSON.")]
+    #[tool(description = "Save an edited decoded file back to the pack identified by `pack_key`. Pass RFileDecoded as JSON.")]
     pub async fn save_packed_file_from_view(&self, params: Parameters<SavePackedFileFromViewArgs>) -> Result<CallToolResult, McpError> {
         let data: rpfm_lib::files::RFileDecoded = serde_json::from_str(&params.0.data).unwrap();
-        send_and_respond!(self, Command::SavePackedFileFromView(params.0.path, data))
+        send_and_respond!(self, Command::SavePackedFileFromView(params.0.pack_key, params.0.path, data))
     }
 
-    #[tool(description = "Save a file from an external program back to the pack.")]
+    #[tool(description = "Save a file from an external program back to the pack identified by `pack_key`.")]
     pub async fn save_packed_file_from_external_view(&self, params: Parameters<SavePackedFileFromExternalViewArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::SavePackedFileFromExternalView(params.0.internal_path, params.0.external_path))
+        send_and_respond!(self, Command::SavePackedFileFromExternalView(params.0.pack_key, params.0.internal_path, params.0.external_path))
     }
 
-    #[tool(description = "Save files to the PackFile and optionally clean. Pass Vec<RFile> as JSON.")]
+    #[tool(description = "Save files to the pack identified by `pack_key` and optionally clean. Pass Vec<RFile> as JSON.")]
     pub async fn save_packed_files_to_pack_file_and_clean(&self, params: Parameters<SavePackedFilesToPackFileAndCleanArgs>) -> Result<CallToolResult, McpError> {
         let files: Vec<rpfm_lib::files::RFile> = serde_json::from_str(&params.0.files).unwrap();
-        send_and_respond!(self, Command::SavePackedFilesToPackFileAndClean(files, params.0.optimize))
+        send_and_respond!(self, Command::SavePackedFilesToPackFileAndClean(params.0.pack_key, files, params.0.optimize))
     }
 
-    #[tool(description = "Get the raw binary data of a file in the pack.")]
-    pub async fn get_packed_file_raw_data(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::GetPackedFileRawData(params.0.value))
+    #[tool(description = "Get the raw binary data of a file in the pack identified by `pack_key`.")]
+    pub async fn get_packed_file_raw_data(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self, Command::GetPackedFileRawData(params.0.pack_key, params.0.value))
     }
 
-    #[tool(description = "Open a file in an external program. Pass ContainerPath as JSON.")]
+    #[tool(description = "Open a file in an external program from the pack identified by `pack_key`. Pass ContainerPath as JSON.")]
     pub async fn open_packed_file_in_external_program(&self, params: Parameters<OpenPackedFileInExternalProgramArgs>) -> Result<CallToolResult, McpError> {
         let cp: rpfm_lib::files::ContainerPath = serde_json::from_str(&params.0.container_path).unwrap();
-        send_and_respond!(self, Command::OpenPackedFileInExternalProgram(params.0.source, cp))
+        send_and_respond!(self, Command::OpenPackedFileInExternalProgram(params.0.pack_key, params.0.source, cp))
     }
 
-    #[tool(description = "Open the folder containing the currently open PackFile in the file manager.")]
-    pub async fn open_containing_folder(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::OpenContainingFolder)
+    #[tool(description = "Open the folder containing the pack identified by `pack_key` in the file manager.")]
+    pub async fn open_containing_folder(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self, Command::OpenContainingFolder(params.0.pack_key))
     }
 
-    #[tool(description = "Clean the decode cache for the provided paths. Pass Vec<ContainerPath> as JSON.")]
+    #[tool(description = "Clean the decode cache for the provided paths in the pack identified by `pack_key`. Pass Vec<ContainerPath> as JSON.")]
     pub async fn clean_cache(&self, params: Parameters<ContainerPathsArg>) -> Result<CallToolResult, McpError> {
         let paths: Vec<rpfm_lib::files::ContainerPath> = serde_json::from_str(&params.0.paths).unwrap();
-        send_and_respond!(self, Command::CleanCache(paths))
+        send_and_respond!(self, Command::CleanCache(params.0.pack_key, paths))
     }
 
-    #[tool(description = "Check if a folder exists in the currently open PackFile.")]
-    pub async fn folder_exists(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::FolderExists(params.0.value))
+    #[tool(description = "Check if a folder exists in the pack identified by `pack_key`.")]
+    pub async fn folder_exists(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self, Command::FolderExists(params.0.pack_key, params.0.value))
     }
 
-    #[tool(description = "Check if a file exists in the currently open PackFile.")]
-    pub async fn packed_file_exists(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::PackedFileExists(params.0.value))
+    #[tool(description = "Check if a file exists in the pack identified by `pack_key`.")]
+    pub async fn packed_file_exists(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self, Command::PackedFileExists(params.0.pack_key, params.0.value))
     }
 
-    #[tool(description = "Get the info of one or more files in the pack.")]
-    pub async fn get_packed_files_info(&self, params: Parameters<StringsArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::GetPackedFilesInfo(params.0.values))
+    #[tool(description = "Get the info of one or more files in the pack identified by `pack_key`.")]
+    pub async fn get_packed_files_info(&self, params: Parameters<PackKeyStringsArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self, Command::GetPackedFilesInfo(params.0.pack_key, params.0.values))
     }
 
-    #[tool(description = "Get the info of a single file in the pack.")]
-    pub async fn get_rfile_info(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::GetRFileInfo(params.0.value))
+    #[tool(description = "Get the info of a single file in the pack identified by `pack_key`.")]
+    pub async fn get_rfile_info(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self, Command::GetRFileInfo(params.0.pack_key, params.0.value))
     }
 
     //-----------------------------------------------------------------------//
@@ -879,10 +978,10 @@ impl McpServer {
         send_and_respond!(self, Command::GetTablesFromDependencies(params.0.value))
     }
 
-    #[tool(description = "Import files from dependencies into the open PackFile. Pass BTreeMap<DataSource, Vec<ContainerPath>> as JSON.")]
+    #[tool(description = "Import files from dependencies into the pack identified by `pack_key`. Pass BTreeMap<DataSource, Vec<ContainerPath>> as JSON.")]
     pub async fn import_dependencies_to_open_pack_file(&self, params: Parameters<ImportDependenciesArgs>) -> Result<CallToolResult, McpError> {
         let paths: BTreeMap<DataSource, Vec<rpfm_lib::files::ContainerPath>> = serde_json::from_str(&params.0.paths).unwrap();
-        send_and_respond!(self, Command::ImportDependenciesToOpenPackFile(paths))
+        send_and_respond!(self, Command::ImportDependenciesToOpenPackFile(params.0.pack_key, paths))
     }
 
     #[tool(description = "Get files from all known sources (PackFile, GameFiles, ParentFiles). Pass Vec<ContainerPath> as JSON.")]
@@ -897,9 +996,9 @@ impl McpServer {
         send_and_respond!(self, Command::GetPackedFilesNamesStartingWitPathFromAllSources(path))
     }
 
-    #[tool(description = "Get local art set IDs from campaign_character_arts_tables.")]
-    pub async fn local_art_set_ids(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::LocalArtSetIds)
+    #[tool(description = "Get local art set IDs from campaign_character_arts_tables in the pack identified by `pack_key`.")]
+    pub async fn local_art_set_ids(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self, Command::LocalArtSetIds(params.0.pack_key))
     }
 
     #[tool(description = "Get art set IDs from dependencies' campaign_character_arts_tables.")]
@@ -911,50 +1010,50 @@ impl McpServer {
     // Search
     //-----------------------------------------------------------------------//
 
-    #[tool(description = "Run a global search across the pack. Pass GlobalSearch as JSON.")]
+    #[tool(description = "Run a global search across the pack identified by `pack_key`. Pass GlobalSearch as JSON.")]
     pub async fn global_search(&self, params: Parameters<GlobalSearchArgs>) -> Result<CallToolResult, McpError> {
         let search = serde_json::from_str(&params.0.search).unwrap();
-        send_and_respond!(self, Command::GlobalSearch(search))
+        send_and_respond!(self, Command::GlobalSearch(params.0.pack_key, search))
     }
 
-    #[tool(description = "Replace specific matches in a global search. Pass GlobalSearch and Vec<MatchHolder> as JSON.")]
+    #[tool(description = "Replace specific matches in a global search for the pack identified by `pack_key`. Pass GlobalSearch and Vec<MatchHolder> as JSON.")]
     pub async fn global_search_replace_matches(&self, params: Parameters<GlobalSearchReplaceMatchesArgs>) -> Result<CallToolResult, McpError> {
         let search = serde_json::from_str(&params.0.search).unwrap();
         let matches = serde_json::from_str(&params.0.matches).unwrap();
-        send_and_respond!(self, Command::GlobalSearchReplaceMatches(search, matches))
+        send_and_respond!(self, Command::GlobalSearchReplaceMatches(params.0.pack_key, search, matches))
     }
 
-    #[tool(description = "Replace all matches in a global search. Pass GlobalSearch as JSON.")]
+    #[tool(description = "Replace all matches in a global search for the pack identified by `pack_key`. Pass GlobalSearch as JSON.")]
     pub async fn global_search_replace_all(&self, params: Parameters<GlobalSearchArgs>) -> Result<CallToolResult, McpError> {
         let search = serde_json::from_str(&params.0.search).unwrap();
-        send_and_respond!(self, Command::GlobalSearchReplaceAll(search))
+        send_and_respond!(self, Command::GlobalSearchReplaceAll(params.0.pack_key, search))
     }
 
-    #[tool(description = "Find all references to a value. Pass HashMap<String, Vec<String>> as JSON for the reference map.")]
+    #[tool(description = "Find all references to a value in the pack identified by `pack_key`. Pass HashMap<String, Vec<String>> as JSON for the reference map.")]
     pub async fn search_references(&self, params: Parameters<SearchReferencesArgs>) -> Result<CallToolResult, McpError> {
         let map: HashMap<String, Vec<String>> = serde_json::from_str(&params.0.reference_map).unwrap();
-        send_and_respond!(self, Command::SearchReferences(map, params.0.value))
+        send_and_respond!(self, Command::SearchReferences(params.0.pack_key, map, params.0.value))
     }
 
-    #[tool(description = "Get reference data for columns in a definition. Pass Definition as JSON.")]
+    #[tool(description = "Get reference data for columns in a definition for the pack identified by `pack_key`. Pass Definition as JSON.")]
     pub async fn get_reference_data_from_definition(&self, params: Parameters<GetReferenceDataFromDefinitionArgs>) -> Result<CallToolResult, McpError> {
         let def = serde_json::from_str(&params.0.definition).unwrap();
-        send_and_respond!(self, Command::GetReferenceDataFromDefinition(params.0.table_name, def, params.0.force))
+        send_and_respond!(self, Command::GetReferenceDataFromDefinition(params.0.pack_key, params.0.table_name, def, params.0.force))
     }
 
-    #[tool(description = "Go to the definition of a reference. Provide table name, column name, and values to search.")]
+    #[tool(description = "Go to the definition of a reference in the pack identified by `pack_key`. Provide table name, column name, and values to search.")]
     pub async fn go_to_definition(&self, params: Parameters<GoToDefinitionArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::GoToDefinition(params.0.table_name, params.0.column_name, params.0.values))
+        send_and_respond!(self, Command::GoToDefinition(params.0.pack_key, params.0.table_name, params.0.column_name, params.0.values))
     }
 
-    #[tool(description = "Go to a loc key's location.")]
-    pub async fn go_to_loc(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::GoToLoc(params.0.value))
+    #[tool(description = "Go to a loc key's location in the pack identified by `pack_key`.")]
+    pub async fn go_to_loc(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self, Command::GoToLoc(params.0.pack_key, params.0.value))
     }
 
-    #[tool(description = "Get the source data of a loc key.")]
-    pub async fn get_source_data_from_loc_key(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::GetSourceDataFromLocKey(params.0.value))
+    #[tool(description = "Get the source data of a loc key in the pack identified by `pack_key`.")]
+    pub async fn get_source_data_from_loc_key(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self, Command::GetSourceDataFromLocKey(params.0.pack_key, params.0.value))
     }
 
     //-----------------------------------------------------------------------//
@@ -1040,99 +1139,99 @@ impl McpServer {
     // Table Operations
     //-----------------------------------------------------------------------//
 
-    #[tool(description = "Merge multiple compatible tables into one. Pass Vec<ContainerPath> as JSON.")]
+    #[tool(description = "Merge multiple compatible tables into one in the pack identified by `pack_key`. Pass Vec<ContainerPath> as JSON.")]
     pub async fn merge_files(&self, params: Parameters<MergeFilesArgs>) -> Result<CallToolResult, McpError> {
         let paths: Vec<rpfm_lib::files::ContainerPath> = serde_json::from_str(&params.0.paths).unwrap();
-        send_and_respond!(self, Command::MergeFiles(paths, params.0.merged_path, params.0.delete_source))
+        send_and_respond!(self, Command::MergeFiles(params.0.pack_key, paths, params.0.merged_path, params.0.delete_source))
     }
 
-    #[tool(description = "Update a table to a newer version. Pass ContainerPath as JSON.")]
-    pub async fn update_table(&self, params: Parameters<ContainerPathArg>) -> Result<CallToolResult, McpError> {
-        let path: rpfm_lib::files::ContainerPath = serde_json::from_str(&params.0.path).unwrap();
-        send_and_respond!(self, Command::UpdateTable(path))
+    #[tool(description = "Update a table to a newer version in the pack identified by `pack_key`. Pass ContainerPath as JSON.")]
+    pub async fn update_table(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
+        let path: rpfm_lib::files::ContainerPath = serde_json::from_str(&params.0.value).unwrap();
+        send_and_respond!(self, Command::UpdateTable(params.0.pack_key, path))
     }
 
-    #[tool(description = "Trigger a cascade edition on all referenced data. Pass Definition and Vec<(Field, String, String)> as JSON.")]
+    #[tool(description = "Trigger a cascade edition on all referenced data in the pack identified by `pack_key`. Pass Definition and Vec<(Field, String, String)> as JSON.")]
     pub async fn cascade_edition(&self, params: Parameters<CascadeEditionArgs>) -> Result<CallToolResult, McpError> {
         let def = serde_json::from_str(&params.0.definition).unwrap();
         let changes = serde_json::from_str(&params.0.changes).unwrap();
-        send_and_respond!(self, Command::CascadeEdition(params.0.table_name, def, changes))
+        send_and_respond!(self, Command::CascadeEdition(params.0.pack_key, params.0.table_name, def, changes))
     }
 
-    #[tool(description = "Get table paths by table name from the current PackFile.")]
-    pub async fn get_tables_by_table_name(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::GetTablesByTableName(params.0.value))
+    #[tool(description = "Get table paths by table name from the pack identified by `pack_key`.")]
+    pub async fn get_tables_by_table_name(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self, Command::GetTablesByTableName(params.0.pack_key, params.0.value))
     }
 
-    #[tool(description = "Add keys to the key_deletes table.")]
+    #[tool(description = "Add keys to the key_deletes table in the pack identified by `pack_key`.")]
     pub async fn add_keys_to_key_deletes(&self, params: Parameters<AddKeysToKeyDeletesArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::AddKeysToKeyDeletes(params.0.table_file_name, params.0.key_table_name, params.0.keys))
+        send_and_respond!(self, Command::AddKeysToKeyDeletes(params.0.pack_key, params.0.table_file_name, params.0.key_table_name, params.0.keys))
     }
 
-    #[tool(description = "Export a table to a TSV file.")]
+    #[tool(description = "Export a table from the pack identified by `pack_key` to a TSV file.")]
     pub async fn export_tsv(&self, params: Parameters<TsvExportArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::ExportTSV(params.0.table_path, params.0.tsv_path, DataSource::PackFile))
+        send_and_respond!(self, Command::ExportTSV(params.0.pack_key, params.0.table_path, params.0.tsv_path, DataSource::PackFile))
     }
 
-    #[tool(description = "Import a TSV file to a table.")]
+    #[tool(description = "Import a TSV file to a table in the pack identified by `pack_key`.")]
     pub async fn import_tsv(&self, params: Parameters<TsvImportArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::ImportTSV(params.0.table_path, params.0.tsv_path))
+        send_and_respond!(self, Command::ImportTSV(params.0.pack_key, params.0.table_path, params.0.tsv_path))
     }
 
     //-----------------------------------------------------------------------//
     // Diagnostics
     //-----------------------------------------------------------------------//
 
-    #[tool(description = "Run a full diagnostics check over the open PackFile.")]
+    #[tool(description = "Run a full diagnostics check over all open packs.")]
     pub async fn diagnostics_check(&self, params: Parameters<DiagnosticsCheckArgs>) -> Result<CallToolResult, McpError> {
         send_and_respond!(self, Command::DiagnosticsCheck(params.0.ignored, params.0.check_ak_only_refs))
     }
 
-    #[tool(description = "Update diagnostics for changed files. Pass Diagnostics and Vec<ContainerPath> as JSON.")]
+    #[tool(description = "Update diagnostics for changed files across all open packs. Pass Diagnostics and Vec<ContainerPath> as JSON.")]
     pub async fn diagnostics_update(&self, params: Parameters<DiagnosticsUpdateArgs>) -> Result<CallToolResult, McpError> {
         let diag = serde_json::from_str(&params.0.diagnostics).unwrap();
         let paths: Vec<rpfm_lib::files::ContainerPath> = serde_json::from_str(&params.0.paths).unwrap();
         send_and_respond!(self, Command::DiagnosticsUpdate(diag, paths, params.0.check_ak_only_refs))
     }
 
-    #[tool(description = "Add a line to the pack's ignored diagnostics list.")]
-    pub async fn add_line_to_pack_ignored_diagnostics(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::AddLineToPackIgnoredDiagnostics(params.0.value))
+    #[tool(description = "Add a line to the ignored diagnostics list for the pack identified by `pack_key`.")]
+    pub async fn add_line_to_pack_ignored_diagnostics(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self, Command::AddLineToPackIgnoredDiagnostics(params.0.pack_key, params.0.value))
     }
 
-    #[tool(description = "Export missing table definitions to a file (for debugging).")]
-    pub async fn get_missing_definitions(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::GetMissingDefinitions)
+    #[tool(description = "Export missing table definitions for the pack identified by `pack_key` to a file (for debugging).")]
+    pub async fn get_missing_definitions(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self, Command::GetMissingDefinitions(params.0.pack_key))
     }
 
     //-----------------------------------------------------------------------//
     // Notes
     //-----------------------------------------------------------------------//
 
-    #[tool(description = "Get all notes under a path.")]
-    pub async fn notes_for_path(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::NotesForPath(params.0.value))
+    #[tool(description = "Get all notes under a path in the pack identified by `pack_key`.")]
+    pub async fn notes_for_path(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self, Command::NotesForPath(params.0.pack_key, params.0.value))
     }
 
-    #[tool(description = "Add a note. Pass Note as JSON.")]
+    #[tool(description = "Add a note to the pack identified by `pack_key`. Pass Note as JSON.")]
     pub async fn add_note(&self, params: Parameters<AddNoteArgs>) -> Result<CallToolResult, McpError> {
         let note = serde_json::from_str(&params.0.note).unwrap();
-        send_and_respond!(self, Command::AddNote(note))
+        send_and_respond!(self, Command::AddNote(params.0.pack_key, note))
     }
 
-    #[tool(description = "Delete a note by path and ID.")]
+    #[tool(description = "Delete a note by path and ID in the pack identified by `pack_key`.")]
     pub async fn delete_note(&self, params: Parameters<DeleteNoteArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::DeleteNote(params.0.path, params.0.id))
+        send_and_respond!(self, Command::DeleteNote(params.0.pack_key, params.0.path, params.0.id))
     }
 
     //-----------------------------------------------------------------------//
     // Optimization
     //-----------------------------------------------------------------------//
 
-    #[tool(description = "Optimize the currently open PackFile. Pass OptimizerOptions as JSON.")]
+    #[tool(description = "Optimize the pack identified by `pack_key`. Pass OptimizerOptions as JSON.")]
     pub async fn optimize_pack_file(&self, params: Parameters<OptimizePackFileArgs>) -> Result<CallToolResult, McpError> {
         let options = serde_json::from_str(&params.0.options).unwrap();
-        send_and_respond!(self, Command::OptimizePackFile(options))
+        send_and_respond!(self, Command::OptimizePackFile(params.0.pack_key, options))
     }
 
     #[tool(description = "Get the default optimizer options.")]
@@ -1340,9 +1439,9 @@ impl McpServer {
     // Specialized
     //-----------------------------------------------------------------------//
 
-    #[tool(description = "Get the info about the currently open pack and the list of files it contains.")]
-    pub async fn open_pack_info(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::GetPackFileDataForTreeView)
+    #[tool(description = "Get the info about the pack identified by `pack_key` and the list of files it contains.")]
+    pub async fn open_pack_info(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self, Command::GetPackFileDataForTreeView(params.0.pack_key))
     }
 
     #[tool(description = "Initialize a MyMod folder for mod development.")]
@@ -1350,60 +1449,60 @@ impl McpServer {
         send_and_respond!(self, Command::InitializeMyModFolder(params.0.name, params.0.game, params.0.sublime, params.0.vscode, params.0.gitignore))
     }
 
-    #[tool(description = "Live export the PackFile to the game folder for testing.")]
-    pub async fn live_export(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::LiveExport)
+    #[tool(description = "Live export the pack identified by `pack_key` to the game folder for testing.")]
+    pub async fn live_export(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self, Command::LiveExport(params.0.pack_key))
     }
 
-    #[tool(description = "Patch the SiegeAI of a Siege Map for Warhammer games.")]
-    pub async fn patch_siege_ai(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::PatchSiegeAI)
+    #[tool(description = "Patch the SiegeAI of a Siege Map in the pack identified by `pack_key` for Warhammer games.")]
+    pub async fn patch_siege_ai(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self, Command::PatchSiegeAI(params.0.pack_key))
     }
 
-    #[tool(description = "Pack map tiles into the PackFile. Pass Vec<(PathBuf, String)> as JSON for tiles.")]
+    #[tool(description = "Pack map tiles into the pack identified by `pack_key`. Pass Vec<(PathBuf, String)> as JSON for tiles.")]
     pub async fn pack_map(&self, params: Parameters<PackMapArgs>) -> Result<CallToolResult, McpError> {
         let tiles: Vec<(PathBuf, String)> = serde_json::from_str(&params.0.tiles).unwrap();
-        send_and_respond!(self, Command::PackMap(params.0.tile_maps, tiles))
+        send_and_respond!(self, Command::PackMap(params.0.pack_key, params.0.tile_maps, tiles))
     }
 
-    #[tool(description = "Generate all missing loc entries for the currently open PackFile.")]
-    pub async fn generate_missing_loc_data(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::GenerateMissingLocData)
+    #[tool(description = "Generate all missing loc entries for the pack identified by `pack_key`.")]
+    pub async fn generate_missing_loc_data(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self, Command::GenerateMissingLocData(params.0.pack_key))
     }
 
-    #[tool(description = "Get pack translation data for a language.")]
+    #[tool(description = "Get pack translation data for a language from the pack identified by `pack_key`.")]
     pub async fn get_pack_translation(&self, params: Parameters<GetPackTranslationArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::GetPackTranslation(params.0.language))
+        send_and_respond!(self, Command::GetPackTranslation(params.0.pack_key, params.0.language))
     }
 
-    #[tool(description = "Get campaign IDs for starpos building.")]
-    pub async fn build_starpos_get_campaign_ids(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::BuildStarposGetCampaingIds)
+    #[tool(description = "Get campaign IDs for starpos building in the pack identified by `pack_key`.")]
+    pub async fn build_starpos_get_campaign_ids(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self, Command::BuildStarposGetCampaingIds(params.0.pack_key))
     }
 
-    #[tool(description = "Check if victory conditions file exists for starpos building.")]
-    pub async fn build_starpos_check_victory_conditions(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::BuildStarposCheckVictoryConditions)
+    #[tool(description = "Check if victory conditions file exists for starpos building in the pack identified by `pack_key`.")]
+    pub async fn build_starpos_check_victory_conditions(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self, Command::BuildStarposCheckVictoryConditions(params.0.pack_key))
     }
 
-    #[tool(description = "Build starpos (pre-processing step).")]
+    #[tool(description = "Build starpos (pre-processing step) for the pack identified by `pack_key`.")]
     pub async fn build_starpos(&self, params: Parameters<BuildStarposArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::BuildStarpos(params.0.campaign_id, params.0.process_hlp_spd))
+        send_and_respond!(self, Command::BuildStarpos(params.0.pack_key, params.0.campaign_id, params.0.process_hlp_spd))
     }
 
-    #[tool(description = "Build starpos (post-processing step).")]
+    #[tool(description = "Build starpos (post-processing step) for the pack identified by `pack_key`.")]
     pub async fn build_starpos_post(&self, params: Parameters<BuildStarposArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::BuildStarposPost(params.0.campaign_id, params.0.process_hlp_spd))
+        send_and_respond!(self, Command::BuildStarposPost(params.0.pack_key, params.0.campaign_id, params.0.process_hlp_spd))
     }
 
-    #[tool(description = "Clean up starpos temporary files.")]
+    #[tool(description = "Clean up starpos temporary files for the pack identified by `pack_key`.")]
     pub async fn build_starpos_cleanup(&self, params: Parameters<BuildStarposArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::BuildStarposCleanup(params.0.campaign_id, params.0.process_hlp_spd))
+        send_and_respond!(self, Command::BuildStarposCleanup(params.0.pack_key, params.0.campaign_id, params.0.process_hlp_spd))
     }
 
-    #[tool(description = "Update animation IDs with an offset.")]
+    #[tool(description = "Update animation IDs with an offset in the pack identified by `pack_key`.")]
     pub async fn update_anim_ids(&self, params: Parameters<UpdateAnimIdsArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::UpdateAnimIds(params.0.starting_id, params.0.offset))
+        send_and_respond!(self, Command::UpdateAnimIds(params.0.pack_key, params.0.starting_id, params.0.offset))
     }
 
     #[tool(description = "Get animation paths by skeleton name.")]
@@ -1417,9 +1516,18 @@ impl McpServer {
         send_and_respond!(self, Command::ExportRigidToGltf(rigid, params.0.output_path))
     }
 
-    #[tool(description = "Change the format of a ca_vp8 video file. Pass SupportedFormats as JSON.")]
+    #[tool(description = "Change the format of a ca_vp8 video file in the pack identified by `pack_key`. Pass SupportedFormats as JSON.")]
     pub async fn set_video_format(&self, params: Parameters<SetVideoFormatArgs>) -> Result<CallToolResult, McpError> {
         let format = serde_json::from_str(&params.0.format).unwrap();
-        send_and_respond!(self, Command::SetVideoFormat(params.0.path, format))
+        send_and_respond!(self, Command::SetVideoFormat(params.0.pack_key, params.0.path, format))
+    }
+
+    //-----------------------------------------------------------------------//
+    // Multi-Pack Management
+    //-----------------------------------------------------------------------//
+
+    #[tool(description = "List all currently open packs with their keys and metadata. Use this to get valid pack_key values for other tools.")]
+    pub async fn list_open_packs(&self) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self, Command::ListOpenPacks)
     }
 }

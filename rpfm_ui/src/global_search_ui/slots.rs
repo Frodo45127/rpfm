@@ -270,17 +270,12 @@ impl GlobalSearchSlots {
 
         let save_view_status = SlotNoArgs::new(&global_search_ui.dock_widget, clone!(
             global_search_ui => move || {
-                let value = if global_search_ui.search_source_packfile.is_checked() {
-                    0
-                } else if global_search_ui.search_source_parent.is_checked() {
-                    1
-                } else if global_search_ui.search_source_game.is_checked() {
-                    2
-                } else {
-                    3
-                };
+                let mut value = 0i32;
+                if global_search_ui.search_source_parent.is_checked() { value |= 1; }
+                if global_search_ui.search_source_game.is_checked() { value |= 2; }
+                if global_search_ui.search_source_asskit.is_checked() { value |= 4; }
 
-                let _ = settings_set_i32("global_search_source_status", value);
+                let _ = settings_set_i32("global_search_sources_status", value);
         }));
 
         // And here... we return all the slots.

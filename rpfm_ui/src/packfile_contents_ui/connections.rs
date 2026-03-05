@@ -73,6 +73,26 @@ pub unsafe fn set_connections(ui: &PackFileContentsUI, slots: &PackFileContentsS
     ui.context_menu_update_table.triggered().connect(&slots.contextual_menu_tables_update_table);
     ui.context_menu_generate_missing_loc_data.triggered().connect(&slots.contextual_menu_generate_missing_loc_data);
 
+    ui.context_menu_install.triggered().connect(&slots.context_menu_install);
+    ui.context_menu_uninstall.triggered().connect(&slots.context_menu_uninstall);
+    ui.context_menu_packfile_type_boot.triggered().connect(&slots.context_menu_change_packfile_type);
+    ui.context_menu_packfile_type_release.triggered().connect(&slots.context_menu_change_packfile_type);
+    ui.context_menu_packfile_type_patch.triggered().connect(&slots.context_menu_change_packfile_type);
+    ui.context_menu_packfile_type_mod.triggered().connect(&slots.context_menu_change_packfile_type);
+    ui.context_menu_packfile_type_movie.triggered().connect(&slots.context_menu_change_packfile_type);
+    ui.context_menu_index_includes_timestamp.triggered().connect(&slots.context_menu_index_includes_timestamp);
+    ui.context_menu_compression_none.triggered().connect(&slots.context_menu_change_compression_format);
+    ui.context_menu_compression_lzma1.triggered().connect(&slots.context_menu_change_compression_format);
+    ui.context_menu_compression_lz4.triggered().connect(&slots.context_menu_change_compression_format);
+    ui.context_menu_compression_zstd.triggered().connect(&slots.context_menu_change_compression_format);
+    ui.context_menu_optimize_packfile.triggered().connect(&slots.context_menu_optimize_packfile);
+    ui.context_menu_patch_siege_ai.triggered().connect(&slots.context_menu_patch_siege_ai);
+    ui.context_menu_live_export.triggered().connect(&slots.context_menu_live_export);
+    ui.context_menu_pack_map.triggered().connect(&slots.context_menu_pack_map);
+    ui.context_menu_rescue_packfile.triggered().connect(&slots.context_menu_rescue_packfile);
+    ui.context_menu_build_starpos.triggered().connect(&slots.context_menu_build_starpos);
+    ui.context_menu_update_anim_ids.triggered().connect(&slots.context_menu_update_anim_ids);
+
     ui.packfile_contents_tree_view_expand_all.triggered().connect(&slots.packfile_contents_tree_view_expand_all);
     ui.packfile_contents_tree_view_collapse_all.triggered().connect(&slots.packfile_contents_tree_view_collapse_all);
 

@@ -71,6 +71,7 @@ const ROLE_PATH: i32 = 35;
 #[derive(Getters)]
 #[getset(get = "pub")]
 pub struct NotesView {
+    pack_key: Arc<RwLock<String>>,
     path: Arc<RwLock<String>>,
     list: QBox<QListView>,
     filter: QBox<QSortFilterProxyModel>,
@@ -88,7 +89,7 @@ pub struct NotesView {
 
 impl NotesView {
 
-    pub unsafe fn new_view(tips_widget: &Arc<QBox<QWidget>>, path: Arc<RwLock<String>>) -> Arc<Self> {
+    pub unsafe fn new_view(tips_widget: &Arc<QBox<QWidget>>, pack_key: Arc<RwLock<String>>, path: Arc<RwLock<String>>) -> Arc<Self> {
 
         let layout: QPtr<QGridLayout> = tips_widget.layout().static_downcast();
         let list = QListView::new_1a(tips_widget.as_ptr());
@@ -112,6 +113,7 @@ impl NotesView {
         context_menu_delete.set_enabled(false);
 
         let view = Arc::new(Self {
+            pack_key,
             path,
             list,
             filter,
@@ -133,7 +135,7 @@ impl NotesView {
     pub unsafe fn load_data(&self) {
         self.model.clear();
 
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::NotesForPath(self.path.read().unwrap().to_owned()));
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::NotesForPath(self.pack_key.read().unwrap().clone(), self.path.read().unwrap().to_owned()));
         let response = CentralCommand::recv(&receiver);
         match response {
             Response::VecNote(mut notes) => {
@@ -155,7 +157,7 @@ impl NotesView {
     /// This function saves a note on the currently open Pack.
     pub unsafe fn save_data(&self, note: Note) {
 
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::AddNote(note));
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::AddNote(self.pack_key.read().unwrap().clone(), note));
         let response = CentralCommand::recv(&receiver);
         match response {
             Response::Note(note) => self.add_item_to_notes_list(&note),
@@ -292,7 +294,7 @@ impl NotesView {
     unsafe fn delete_selected_note(&self) {
         let note = self.note_from_selection();
 
-        let _ = CENTRAL_COMMAND.read().unwrap().send(Command::DeleteNote(note.path().to_owned(), *note.id()));
+        let _ = CENTRAL_COMMAND.read().unwrap().send(Command::DeleteNote(self.pack_key.read().unwrap().clone(), note.path().to_owned(), *note.id()));
         let indexes = self.filter.map_selection_to_source(&self.list.selection_model().selection()).indexes();
         self.model.remove_row_1a(indexes.at(0).row());
     }

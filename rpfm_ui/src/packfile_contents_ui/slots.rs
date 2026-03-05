@@ -29,13 +29,16 @@ use qt_core::{SlotNoArgs, SlotOfBool, SlotOfQModelIndexInt, SlotOfQString};
 use itertools::Itertools;
 
 use std::collections::HashSet;
-use std::fs::DirBuilder;
+use std::fs::{copy, remove_file, DirBuilder};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use rpfm_ipc::{MYMOD_BASE_PATH, helpers::DataSource};
 
+use rpfm_lib::compression::CompressionFormat;
 use rpfm_lib::files::{ContainerPath, FileType, pack::*};
+use rpfm_lib::games::pfh_file_type::PFHFileType;
+use rpfm_lib::games::supported_games::*;
 use rpfm_lib::integrations::log::*;
 use rpfm_lib::utils::*;
 
@@ -52,9 +55,11 @@ use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::SpecialView;
 use crate::references_ui::ReferencesUI;
 use crate::settings_ui::backend::{is_schema_loaded, settings_bool, settings_path_buf};
+use crate::GAME_SELECTED;
 use crate::UI_STATE;
 use crate::ui_state::OperationalMode;
-use crate::utils::{check_regex, qtr, show_dialog, tre};
+use crate::pack_tree::{BuildData, new_pack_file_tooltip};
+use crate::utils::{check_regex, log_to_status_bar, qtr, show_dialog, show_message_info, tr, tre};
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -102,6 +107,19 @@ pub struct PackFileContentsSlots {
     pub contextual_menu_tables_merge_tables: QBox<SlotOfBool>,
     pub contextual_menu_tables_update_table: QBox<SlotOfBool>,
     pub contextual_menu_generate_missing_loc_data: QBox<SlotOfBool>,
+
+    pub context_menu_install: QBox<SlotOfBool>,
+    pub context_menu_uninstall: QBox<SlotOfBool>,
+    pub context_menu_change_packfile_type: QBox<SlotOfBool>,
+    pub context_menu_change_compression_format: QBox<SlotOfBool>,
+    pub context_menu_index_includes_timestamp: QBox<SlotOfBool>,
+    pub context_menu_optimize_packfile: QBox<SlotOfBool>,
+    pub context_menu_patch_siege_ai: QBox<SlotOfBool>,
+    pub context_menu_live_export: QBox<SlotOfBool>,
+    pub context_menu_pack_map: QBox<SlotOfBool>,
+    pub context_menu_rescue_packfile: QBox<SlotOfBool>,
+    pub context_menu_build_starpos: QBox<SlotOfBool>,
+    pub context_menu_update_anim_ids: QBox<SlotOfBool>,
 
     pub packfile_contents_tree_view_expand_all: QBox<SlotNoArgs>,
     pub packfile_contents_tree_view_collapse_all: QBox<SlotNoArgs>,
@@ -184,7 +202,8 @@ impl PackFileContentsSlots {
                 }
 
                 // Send the renaming data to the Background Thread, wait for a response.
-                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::RenamePackedFiles(renaming_data_background.to_vec()));
+                let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::RenamePackedFiles(pack_key, renaming_data_background.to_vec()));
                 let response = CentralCommand::recv(&receiver);
                 match response {
                     Response::VecContainerPathContainerPath(renamed_items) => {
@@ -546,6 +565,66 @@ impl PackFileContentsSlots {
                 if !is_there_a_dependency_database || !is_schema_loaded() {
                     pack_file_contents_ui.context_menu_update_table.set_enabled(false);
                 }
+
+                // Pack-level actions: only visible when exactly one pack root is selected.
+                if contents == 4 {
+                    pack_file_contents_ui.context_menu_install.set_visible(true);
+                    pack_file_contents_ui.context_menu_uninstall.set_visible(true);
+                    pack_file_contents_ui.context_menu_packfile_type_menu.menu_action().set_visible(true);
+                    pack_file_contents_ui.context_menu_compression_menu.menu_action().set_visible(true);
+                    pack_file_contents_ui.context_menu_optimize_packfile.set_visible(true);
+                    pack_file_contents_ui.context_menu_rescue_packfile.set_visible(true);
+                    pack_file_contents_ui.context_menu_build_starpos.set_visible(true);
+
+                    // Game-specific actions.
+                    let game_key = GAME_SELECTED.read().unwrap().key().to_owned();
+                    pack_file_contents_ui.context_menu_patch_siege_ai.set_visible(game_key == KEY_WARHAMMER_2 || game_key == KEY_WARHAMMER);
+                    pack_file_contents_ui.context_menu_live_export.set_visible(game_key == KEY_WARHAMMER_3);
+                    pack_file_contents_ui.context_menu_pack_map.set_visible(game_key == KEY_WARHAMMER_3);
+                    pack_file_contents_ui.context_menu_update_anim_ids.set_visible(game_key == KEY_WARHAMMER_3);
+
+                    // Update pack type/compression/flags to reflect the selected pack's current state.
+                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackFileDataForTreeView(pack_key));
+                    let response = CentralCommand::recv(&receiver);
+                    if let Response::ContainerInfoVecRFileInfo((ui_data, _)) = response {
+                        pack_file_contents_ui.context_menu_packfile_type_group.block_signals(true);
+                        match ui_data.pfh_file_type() {
+                            PFHFileType::Boot => pack_file_contents_ui.context_menu_packfile_type_boot.set_checked(true),
+                            PFHFileType::Release => pack_file_contents_ui.context_menu_packfile_type_release.set_checked(true),
+                            PFHFileType::Patch => pack_file_contents_ui.context_menu_packfile_type_patch.set_checked(true),
+                            PFHFileType::Mod => pack_file_contents_ui.context_menu_packfile_type_mod.set_checked(true),
+                            PFHFileType::Movie => pack_file_contents_ui.context_menu_packfile_type_movie.set_checked(true),
+                        }
+                        pack_file_contents_ui.context_menu_packfile_type_group.block_signals(false);
+
+                        pack_file_contents_ui.context_menu_compression_group.block_signals(true);
+                        match ui_data.compress() {
+                            CompressionFormat::None => pack_file_contents_ui.context_menu_compression_none.set_checked(true),
+                            CompressionFormat::Lzma1 => pack_file_contents_ui.context_menu_compression_lzma1.set_checked(true),
+                            CompressionFormat::Lz4 => pack_file_contents_ui.context_menu_compression_lz4.set_checked(true),
+                            CompressionFormat::Zstd => pack_file_contents_ui.context_menu_compression_zstd.set_checked(true),
+                        }
+                        pack_file_contents_ui.context_menu_compression_group.block_signals(false);
+
+                        pack_file_contents_ui.context_menu_data_is_encrypted.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_ENCRYPTED_DATA));
+                        pack_file_contents_ui.context_menu_index_includes_timestamp.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS));
+                        pack_file_contents_ui.context_menu_index_is_encrypted.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_ENCRYPTED_INDEX));
+                        pack_file_contents_ui.context_menu_header_is_extended.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_EXTENDED_HEADER));
+                    }
+                } else {
+                    pack_file_contents_ui.context_menu_install.set_visible(false);
+                    pack_file_contents_ui.context_menu_uninstall.set_visible(false);
+                    pack_file_contents_ui.context_menu_packfile_type_menu.menu_action().set_visible(false);
+                    pack_file_contents_ui.context_menu_compression_menu.menu_action().set_visible(false);
+                    pack_file_contents_ui.context_menu_optimize_packfile.set_visible(false);
+                    pack_file_contents_ui.context_menu_rescue_packfile.set_visible(false);
+                    pack_file_contents_ui.context_menu_build_starpos.set_visible(false);
+                    pack_file_contents_ui.context_menu_patch_siege_ai.set_visible(false);
+                    pack_file_contents_ui.context_menu_live_export.set_visible(false);
+                    pack_file_contents_ui.context_menu_pack_map.set_visible(false);
+                    pack_file_contents_ui.context_menu_update_anim_ids.set_visible(false);
+                }
             }
         ));
 
@@ -829,7 +908,8 @@ impl PackFileContentsSlots {
                     let path_str = file_dialog.selected_files().at(0).to_std_string();
 
                     // DON'T ALLOW TO LOAD THE SAME PACKFILE WE HAVE ALREADY OPEN!!!!
-                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackFileDataForTreeView);
+                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackFileDataForTreeView(pack_key));
                     let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::ContainerInfoVecRFileInfo((pack_file_info, _)) => {
@@ -858,7 +938,8 @@ impl PackFileContentsSlots {
 
                     let mut selected_items = <QPtr<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
 
-                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::DeletePackedFiles(selected_items.clone()));
+                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::DeletePackedFiles(pack_key, selected_items.clone()));
                     let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::VecContainerPath(items) => {
@@ -957,7 +1038,8 @@ impl PackFileContentsSlots {
                             }
 
                             // Send the renaming data to the Background Thread, wait for a response.
-                            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::RenamePackedFiles(renaming_data_background.to_vec()));
+                            let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::RenamePackedFiles(pack_key, renaming_data_background.to_vec()));
                             let response = CentralCommand::recv(&receiver);
                             match response {
                                 Response::VecContainerPathContainerPath(renamed_items) => {
@@ -1090,7 +1172,8 @@ impl PackFileContentsSlots {
                         complete_path.push_str(&new_folder_name);
 
                         // Check if the folder exists.
-                        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::FolderExists(complete_path.to_owned()));
+                        let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::FolderExists(pack_key, complete_path.to_owned()));
                         let response = CentralCommand::recv(&receiver);
                         let folder_exists = if let Response::Bool(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
 
@@ -1140,8 +1223,10 @@ impl PackFileContentsSlots {
 
         // What happens when we trigger the "Open Containing Folder" Action.
         let contextual_menu_open_containing_folder = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
-            app_ui => move |_| {
-            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::OpenContainingFolder);
+            app_ui,
+            pack_file_contents_ui => move |_| {
+            let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::OpenContainingFolder(pack_key));
             let response = CentralCommand::recv(&receiver);
             match response {
                 Response::Success => {}
@@ -1236,7 +1321,7 @@ impl PackFileContentsSlots {
             if (loc_pass || db_pass) && !(loc_pass && db_pass) {
 
                 // Get the info for the merged file.
-                if let Some((mut name, delete_source_files)) = AppUI::merge_tables_dialog(&app_ui) {
+                if let Some((mut name, delete_source_files)) = AppUI::merge_tables_dialog(&app_ui, &pack_file_contents_ui) {
 
                     // If it's a loc file and the name doesn't end in a ".loc" termination, call it ".loc".
                     if loc_pass && !name.to_lowercase().ends_with(".loc") {
@@ -1265,7 +1350,8 @@ impl PackFileContentsSlots {
                     path_to_add.push_str(&name);
 
                     let selected_paths_cont = selected_paths.iter().map(|x| ContainerPath::File(x.to_owned())).collect::<Vec<_>>();
-                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::MergeFiles(selected_paths_cont.to_vec(), path_to_add, delete_source_files));
+                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::MergeFiles(pack_key, selected_paths_cont.to_vec(), path_to_add, delete_source_files));
                     let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::String(path_to_add) => {
@@ -1315,7 +1401,8 @@ impl PackFileContentsSlots {
                         }
                     }
 
-                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::UpdateTable(item_type.clone()));
+                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::UpdateTable(pack_key, item_type.clone()));
                     let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::I32I32VecStringVecString(old_version, new_version, fields_deleted, fields_added) => {
@@ -1352,7 +1439,8 @@ impl PackFileContentsSlots {
             // Make sure the backend has all the data updated.
             let _ = AppUI::back_to_back_end_all(&app_ui, &pack_file_contents_ui);
 
-            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GenerateMissingLocData);
+            let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GenerateMissingLocData(pack_key));
             let response = CentralCommand::recv(&receiver);
             match response {
                 Response::VecContainerPath(paths_to_add) => {
@@ -1373,6 +1461,383 @@ impl PackFileContentsSlots {
                 _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
             }
         }));
+
+        //-----------------------------------------------------------------------//
+        // Pack-level context menu slots.
+        //-----------------------------------------------------------------------//
+
+        let context_menu_install = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui => move |_| {
+                info!("Triggering `Install` By Slot");
+
+                if let Err(error) = AppUI::save_packfile(&app_ui, &pack_file_contents_ui, false, false) {
+                    return show_dialog(app_ui.main_window(), error, false);
+                }
+
+                let pack_key = match pack_file_contents_ui.pack_key_from_selection_or_first() {
+                    Some(key) => key,
+                    None => return show_dialog(app_ui.main_window(), "No pack is open.", false),
+                };
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackFilePath(pack_key));
+                let response = CentralCommand::recv(&receiver);
+                let pack_path = match response {
+                    Response::PathBuf(path) => path,
+                    Response::Error(error) => return show_dialog(app_ui.main_window(), error, false),
+                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                };
+                let mut pack_image_path = pack_path.clone();
+                pack_image_path.set_extension("png");
+
+                if !pack_path.is_file() {
+                    return show_dialog(app_ui.main_window(), "Pack to install not found on disk.", false);
+                }
+
+                if let Ok(mut game_local_mods_path) = GAME_SELECTED.read().unwrap().local_mods_path(&settings_path_buf(GAME_SELECTED.read().unwrap().key())) {
+                    if !game_local_mods_path.is_dir() {
+                        return show_dialog(app_ui.main_window(), "Game Path not configured. Go to <i>'PackFile/Settings'</i> and configure it.", false);
+                    }
+
+                    if pack_path.starts_with(&game_local_mods_path) {
+                        return show_dialog(app_ui.main_window(), "This Pack is already being edited from the data folder of the game. You cannot install/uninstall it.", false);
+                    }
+
+                    if let Some(ref mod_name) = pack_path.file_name() {
+                        game_local_mods_path.push(mod_name);
+
+                        let ca_paths = match GAME_SELECTED.read().unwrap().ca_packs_paths(&settings_path_buf(GAME_SELECTED.read().unwrap().key())) {
+                            Ok(paths) => paths,
+                            Err(_) => return show_dialog(app_ui.main_window(), "You can't do that to a CA PackFile, you monster!", false),
+                        };
+
+                        if ca_paths.contains(&game_local_mods_path) {
+                            return show_dialog(app_ui.main_window(), "You can't do that to a CA PackFile, you monster!", false);
+                        }
+
+                        if copy(&pack_path, &game_local_mods_path).is_err() {
+                            return show_dialog(app_ui.main_window(), "Error installing a Pack. Make sure the game/assembly kit is close and try again.", false);
+                        }
+
+                        game_local_mods_path.pop();
+                        game_local_mods_path.push(pack_image_path.file_name().unwrap());
+                        if pack_image_path.is_file() && copy(&pack_image_path, &game_local_mods_path).is_err() {
+                            return show_dialog(app_ui.main_window(), "Error installing the thumbnail of a Pack. Make sure the game/assembly kit is close and try again.", false);
+                        }
+
+                        log_to_status_bar(&tr("install_success"));
+                    }
+                }
+            }
+        ));
+
+        let context_menu_uninstall = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui => move |_| {
+                info!("Triggering `Uninstall` By Slot");
+
+                let pack_key = match pack_file_contents_ui.pack_key_from_selection_or_first() {
+                    Some(key) => key,
+                    None => return show_dialog(app_ui.main_window(), "No pack is open.", false),
+                };
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackFilePath(pack_key));
+                let response = CentralCommand::recv(&receiver);
+                let pack_path = match response {
+                    Response::PathBuf(path) => path,
+                    Response::Error(error) => return show_dialog(app_ui.main_window(), error, false),
+                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                };
+
+                if !pack_path.is_file() {
+                    return show_dialog(app_ui.main_window(), "Pack to install not found on disk.", false);
+                }
+
+                if let Ok(game_local_mods_path) = GAME_SELECTED.read().unwrap().local_mods_path(&settings_path_buf(GAME_SELECTED.read().unwrap().key())) {
+                    if !game_local_mods_path.is_dir() {
+                        return show_dialog(app_ui.main_window(), "Game Path not configured. Go to <i>'PackFile/Settings'</i> and configure it.", false);
+                    }
+
+                    if pack_path.starts_with(&game_local_mods_path) {
+                        return show_dialog(app_ui.main_window(), "This Pack is already being edited from the data folder of the game. You cannot install/uninstall it.", false);
+                    }
+
+                    if let Some(ref mod_name) = pack_path.file_name() {
+                        let mut data_pack_path = game_local_mods_path.to_path_buf();
+                        data_pack_path.push(mod_name);
+
+                        let mut data_image_path = data_pack_path.clone();
+                        data_image_path.set_extension("png");
+
+                        let ca_paths = match GAME_SELECTED.read().unwrap().ca_packs_paths(&settings_path_buf(GAME_SELECTED.read().unwrap().key())) {
+                            Ok(paths) => paths,
+                            Err(_) => return show_dialog(app_ui.main_window(), "You can't do that to a CA PackFile, you monster!", false),
+                        };
+
+                        if ca_paths.contains(&data_pack_path) {
+                            return show_dialog(app_ui.main_window(), "You can't do that to a CA PackFile, you monster!", false);
+                        }
+
+                        if remove_file(&data_pack_path).is_err() {
+                            return show_dialog(app_ui.main_window(), "Error uninstalling the Pack from the game's folder. Make sure nothing else is using it and try again.", false);
+                        }
+
+                        let mut source_image_path = pack_path.to_path_buf();
+                        source_image_path.set_extension("png");
+                        if source_image_path.is_file() {
+                            if remove_file(&data_image_path).is_err() {
+                                return show_dialog(app_ui.main_window(), "Error uninstalling the thumbnail of the Pack from the game's folder. Make sure nothing else is using it and try again.", false);
+                            }
+                        }
+
+                        log_to_status_bar(&tr("uninstall_success"));
+                    }
+                }
+            }
+        ));
+
+        let context_menu_change_packfile_type = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui => move |_| {
+                info!("Triggering `Change PackFile Type` By Slot");
+
+                let packfile_type = match &*(pack_file_contents_ui.context_menu_packfile_type_group.checked_action().text().remove_q_string(&QString::from_std_str("&")).to_std_string()) {
+                    "Boot" => PFHFileType::Boot,
+                    "Release" => PFHFileType::Release,
+                    "Patch" => PFHFileType::Patch,
+                    "Mod" => PFHFileType::Mod,
+                    "Movie" => PFHFileType::Movie,
+                    _ => unreachable!("change_pack_type with string {}", pack_file_contents_ui.context_menu_packfile_type_group.checked_action().text().remove_q_string(&QString::from_std_str("&")).to_std_string())
+                };
+
+                let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                let _ = CENTRAL_COMMAND.read().unwrap().send(Command::SetPackFileType(pack_key, packfile_type));
+                UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
+            }
+        ));
+
+        let context_menu_change_compression_format = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui => move |_| {
+                let compression_format = CompressionFormat::from(pack_file_contents_ui.context_menu_compression_group.checked_action().text().remove_q_string(&QString::from_std_str("&")).to_std_string().as_str());
+                let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::ChangeCompressionFormat(pack_key, compression_format));
+                let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
+                match response {
+                    Response::CompressionFormat(cf) => {
+                        pack_file_contents_ui.context_menu_compression_group.block_signals(true);
+                        match cf {
+                            CompressionFormat::None => pack_file_contents_ui.context_menu_compression_none.set_checked(true),
+                            CompressionFormat::Lzma1 => pack_file_contents_ui.context_menu_compression_lzma1.set_checked(true),
+                            CompressionFormat::Lz4 => pack_file_contents_ui.context_menu_compression_lz4.set_checked(true),
+                            CompressionFormat::Zstd => pack_file_contents_ui.context_menu_compression_zstd.set_checked(true),
+                        }
+                        pack_file_contents_ui.context_menu_compression_group.block_signals(false);
+                    },
+                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                }
+                UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
+            }
+        ));
+
+        let context_menu_index_includes_timestamp = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui => move |_| {
+                let state = pack_file_contents_ui.context_menu_index_includes_timestamp.is_checked();
+                let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                let _ = CENTRAL_COMMAND.read().unwrap().send(Command::ChangeIndexIncludesTimestamp(pack_key, state));
+                UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
+            }
+        ));
+
+        let context_menu_optimize_packfile = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui => move |_| {
+                info!("Triggering `Optimize PackFile` By Slot");
+
+                app_ui.toggle_main_window(false);
+
+                match AppUI::optimizer_dialog(&app_ui, &pack_file_contents_ui, &global_search_ui) {
+                    Ok(Some(_)) => show_dialog(app_ui.main_window(), tr("optimize_packfile_success"), true),
+                    Ok(None) => {},
+                    Err(error) => show_dialog(app_ui.main_window(), error, false),
+                }
+
+                app_ui.toggle_main_window(true);
+            }
+        ));
+
+        let context_menu_patch_siege_ai = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui => move |_| {
+                info!("Triggering `Patch SiegeAI` By Slot");
+
+                app_ui.toggle_main_window(false);
+
+                if let Err(error) = AppUI::purge_them_all(&app_ui, &pack_file_contents_ui, true) {
+                    return show_dialog(app_ui.main_window(), error, false);
+                }
+
+                GlobalSearchUI::clear(&global_search_ui);
+
+                let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::PatchSiegeAI(pack_key));
+                let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
+                match response {
+                    Response::StringVecContainerPath(message, paths) => {
+                        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Delete(paths, true), DataSource::PackFile);
+                        show_dialog(app_ui.main_window(), message, true);
+                    }
+                    Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
+                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}")
+                }
+
+                app_ui.toggle_main_window(true);
+            }
+        ));
+
+        let context_menu_live_export = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui => move |_| {
+                info!("Triggering `Live Export` By Slot");
+
+                app_ui.toggle_main_window(false);
+
+                let _ = AppUI::back_to_back_end_all(&app_ui, &pack_file_contents_ui);
+
+                let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::LiveExport(pack_key));
+                let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
+                match response {
+                    Response::Success => show_message_info(app_ui.message_widget(), tr("live_export_success")),
+                    Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
+                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}")
+                }
+
+                app_ui.toggle_main_window(true);
+            }
+        ));
+
+        let context_menu_pack_map = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui => move |_| {
+                info!("Triggering `Pack Map` By Slot");
+
+                app_ui.toggle_main_window(false);
+
+                let _ = AppUI::back_to_back_end_all(&app_ui, &pack_file_contents_ui);
+
+                if let Ok(Some((tile_maps, tiles))) = AppUI::pack_map_dialog(&app_ui, &pack_file_contents_ui) {
+                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::PackMap(pack_key, tile_maps, tiles));
+                    let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
+                    match response {
+                        Response::VecContainerPathVecContainerPath(paths_to_add, paths_to_delete) => {
+                            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(paths_to_add.to_vec()), DataSource::PackFile);
+
+                            UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
+
+                            let failed_paths = UI_STATE.set_open_packedfiles()
+                                .iter_mut()
+                                .filter(|view| view.data_source() == DataSource::PackFile && (paths_to_add.iter().any(|path| path.path_raw() == *view.path_read() || *view.path_read() == RESERVED_NAME_NOTES)))
+                                .filter_map(|view| if view.reload(&view.path_copy(), &pack_file_contents_ui).is_err() { Some(view.path_copy()) } else { None })
+                                .collect::<Vec<_>>();
+
+                            for path in &failed_paths {
+                                let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, DataSource::PackFile, false);
+                            }
+
+                            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Delete(paths_to_delete.to_vec(), settings_bool("delete_empty_folders_on_delete")), DataSource::PackFile);
+
+                            for path in &paths_to_delete {
+                                let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path.path_raw(), DataSource::PackFile, false);
+                            }
+                        }
+                        Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
+                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}")
+                    }
+                }
+
+                app_ui.toggle_main_window(true);
+            }
+        ));
+
+        let context_menu_rescue_packfile = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui => move |_| {
+                if AppUI::are_you_sure_edition(&app_ui, "are_you_sure_rescue_packfile") {
+                    info!("Triggering `Rescue PackFile` By Slot");
+
+                    app_ui.toggle_main_window(false);
+
+                    if let Err(error) = AppUI::back_to_back_end_all(&app_ui, &pack_file_contents_ui) {
+                        return show_dialog(app_ui.main_window(), error, false);
+                    }
+
+                    let file_dialog = QFileDialog::from_q_widget_q_string(
+                        app_ui.main_window(),
+                        &qtr("save_packfile"),
+                    );
+                    file_dialog.set_accept_mode(qt_widgets::q_file_dialog::AcceptMode::AcceptSave);
+                    file_dialog.set_name_filter(&QString::from_std_str("PackFiles (*.pack)"));
+                    file_dialog.set_confirm_overwrite(true);
+                    file_dialog.set_default_suffix(&QString::from_std_str("pack"));
+
+                    if file_dialog.exec() == 1 {
+                        let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
+                        let file_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
+                        let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::CleanAndSavePackAs(pack_key, path));
+                        let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
+                        match response {
+                            Response::ContainerInfo(pack_file_info) => {
+                                let mut build_data = BuildData::new();
+                                build_data.editable = true;
+                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
+                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile);
+
+                                let packfile_item = pack_file_contents_ui.packfile_contents_tree_model().item_1a(0);
+                                packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
+                                packfile_item.set_text(&QString::from_std_str(file_name));
+
+                                UI_STATE.set_operational_mode(&app_ui, None);
+                                UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
+                            }
+                            Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
+                            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                        }
+                    }
+
+                    app_ui.toggle_main_window(true);
+                }
+            }
+        ));
+
+        let context_menu_build_starpos = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui => move |_| {
+                app_ui.toggle_main_window(false);
+
+                if let Err(error) = AppUI::build_starpos(&app_ui, &pack_file_contents_ui) {
+                    show_dialog(app_ui.main_window(), error, false);
+                }
+
+                app_ui.toggle_main_window(true);
+            }
+        ));
+
+        let context_menu_update_anim_ids = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui => move |_| {
+                app_ui.toggle_main_window(false);
+
+                if let Err(error) = AppUI::update_anim_ids(&app_ui, &pack_file_contents_ui) {
+                    show_dialog(app_ui.main_window(), error, false);
+                }
+
+                app_ui.toggle_main_window(true);
+            }
+        ));
 
         let packfile_contents_tree_view_expand_all = SlotNoArgs::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             pack_file_contents_ui => move || {
@@ -1427,6 +1892,19 @@ impl PackFileContentsSlots {
             contextual_menu_tables_merge_tables,
             contextual_menu_tables_update_table,
             contextual_menu_generate_missing_loc_data,
+
+            context_menu_install,
+            context_menu_uninstall,
+            context_menu_change_packfile_type,
+            context_menu_change_compression_format,
+            context_menu_index_includes_timestamp,
+            context_menu_optimize_packfile,
+            context_menu_patch_siege_ai,
+            context_menu_live_export,
+            context_menu_pack_map,
+            context_menu_rescue_packfile,
+            context_menu_build_starpos,
+            context_menu_update_anim_ids,
 
             packfile_contents_tree_view_expand_all,
             packfile_contents_tree_view_collapse_all,

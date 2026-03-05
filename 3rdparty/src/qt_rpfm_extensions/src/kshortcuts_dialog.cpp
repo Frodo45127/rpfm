@@ -16,13 +16,13 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     KActionCollection* pack_menu_actions = new KActionCollection(parent, "pack_menu");
     pack_menu_actions->setComponentDisplayName("Pack Menu");
     new_action(pack_menu_actions, "new_pack", "New Pack", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+N"), "project-development-new-template");
-    new_action(pack_menu_actions, "open_pack", "Open Pack", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+O"), "project-open");
-    new_action(pack_menu_actions, "save_pack", "Save Pack", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+S"), "document-save");
-    new_action(pack_menu_actions, "save_pack_as", "Save Pack As", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+Shift+S"), "document-save-as");
-    new_action(pack_menu_actions, "save_pack_for_release", "Save Pack For Release", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+Shift+Alt+S"), "document-save-as");
+    new_action(pack_menu_actions, "open_packs", "Open Packs", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+O"), "project-open");
+    new_action(pack_menu_actions, "open_and_merge_packs", "Open & Merge Packs", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+Shift+O"), "project-open");
+    new_action(pack_menu_actions, "save_all", "Save All Packs", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+S"), "document-save-as");
     new_action(pack_menu_actions, "install_pack", "Install Pack", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+Shift+I"), "format-align-vertical-top");
     new_action(pack_menu_actions, "uninstall_pack", "Uninstall Pack", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+Shift+U"), "format-align-vertical-bottom");
     new_action(pack_menu_actions, "load_all_ca_packs", "Load All CA Packs", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+G"), "dialog-object-properties");
+    new_action(pack_menu_actions, "select_session", "Select Session", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""), "settings-configure");
     new_action(pack_menu_actions, "settings", "Settings", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+P"), "settings-configure");
     new_action(pack_menu_actions, "quit", "Quit", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""), "gtk-quit");
     pack_menu_actions->readSettings();
@@ -54,19 +54,8 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     new_action(game_selected_menu_actions, "open_game_data_folder", "Open Game Data Folder", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""), "document-open-folder");
     new_action(game_selected_menu_actions, "open_game_ak_folder", "Open Game Assembly Kit Folder", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""), "document-open-folder");
     new_action(game_selected_menu_actions, "open_rpfm_config_folder", "Open RPFM Config Folder", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""), "document-open-folder");
+    new_action(game_selected_menu_actions, "generate_dependencies_cache", "Generate Dependencies Cache", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""), "database-index");
     game_selected_menu_actions->readSettings();
-
-    // Special Stuff Menu actions.
-    KActionCollection* special_stuff_menu_actions = new KActionCollection(parent, "special_stuff_menu");
-    special_stuff_menu_actions->setComponentDisplayName("Special Stuff Menu");
-    new_action(special_stuff_menu_actions, "generate_dependencies_cache", "Generate Dependencies Cache", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""), "database-index");
-    new_action(special_stuff_menu_actions, "optimize_pack", "Optimize Pack", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""), "games-highscores");
-    new_action(special_stuff_menu_actions, "patch_siege_ai", "Patch SiegeAI", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""), "selection-move-to-layer-below");
-    new_action(special_stuff_menu_actions, "live_export", "Live Export", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""), "format-align-vertical-top");
-    new_action(special_stuff_menu_actions, "pack_map", "Pack Map", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""), "folder-add");
-    new_action(special_stuff_menu_actions, "build_starpos", "Build Starpos", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""), "run-build");
-    new_action(special_stuff_menu_actions, "update_anim_ids", "Update Anim Ids", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""), "media-repeat-single");
-    special_stuff_menu_actions->readSettings();
 
     // About Menu actions.
     KActionCollection* about_menu_actions = new KActionCollection(parent, "about_menu");
@@ -249,7 +238,6 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     shortcuts->append(dynamic_cast<QObject*>(mymod_menu_actions));
     shortcuts->append(dynamic_cast<QObject*>(view_menu_actions));
     shortcuts->append(dynamic_cast<QObject*>(game_selected_menu_actions));
-    shortcuts->append(dynamic_cast<QObject*>(special_stuff_menu_actions));
     shortcuts->append(dynamic_cast<QObject*>(about_menu_actions));
     shortcuts->append(dynamic_cast<QObject*>(file_tab_actions));
     shortcuts->append(dynamic_cast<QObject*>(pack_tree_actions));

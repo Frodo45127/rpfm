@@ -18,10 +18,10 @@ use qt_widgets::q_abstract_item_view::ScrollHint;
 use qt_widgets::QCheckBox;
 use qt_widgets::QComboBox;
 use qt_widgets::QDockWidget;
+use qt_widgets::QGridLayout;
 use qt_widgets::QGroupBox;
 use qt_widgets::QLineEdit;
 use qt_widgets::QMainWindow;
-use qt_widgets::QRadioButton;
 use qt_widgets::QTabWidget;
 use qt_widgets::QToolButton;
 use qt_widgets::QTreeView;
@@ -119,6 +119,9 @@ const UNIT_VARIANT_VARIANT_INDEX: i32 = 42;
 //const MATCH_TEXT_START: i32 = 45;
 //const MATCH_TEXT_END: i32 = 46;
 
+const MATCH_SOURCE_TYPE: i32 = 48;
+const MATCH_PACK_KEY: i32 = 49;
+
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
@@ -139,10 +142,10 @@ pub struct GlobalSearchUI {
     replace_all_button: QPtr<QToolButton>,
     use_regex_checkbox: QPtr<QToolButton>,
 
-    search_source_packfile: QPtr<QRadioButton>,
-    search_source_parent: QPtr<QRadioButton>,
-    search_source_game: QPtr<QRadioButton>,
-    search_source_asskit: QPtr<QRadioButton>,
+    search_source_parent: QPtr<QCheckBox>,
+    search_source_game: QPtr<QCheckBox>,
+    search_source_asskit: QPtr<QCheckBox>,
+    search_source_group_box: QPtr<QGroupBox>,
 
     search_on_all_checkbox: QPtr<QCheckBox>,
     search_on_all_common_checkbox: QPtr<QCheckBox>,
@@ -233,24 +236,19 @@ impl GlobalSearchUI {
         let search_on_group_box: QPtr<QGroupBox> = find_widget(&main_widget.static_upcast(), "search_on_groupbox")?;
         search_on_group_box.set_title(&qtr("global_search_search_on"));
 
-        let search_source_packfile: QPtr<QRadioButton> = find_widget(&main_widget.static_upcast(), "source_packfile")?;
-        let search_source_parent: QPtr<QRadioButton> = find_widget(&main_widget.static_upcast(), "source_parent")?;
-        let search_source_game: QPtr<QRadioButton> = find_widget(&main_widget.static_upcast(), "source_game")?;
-        let search_source_asskit: QPtr<QRadioButton> = find_widget(&main_widget.static_upcast(), "source_asskit")?;
-        search_source_packfile.set_text(&qtr("global_search_source_packfile"));
+        let search_source_parent: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "source_parent")?;
+        let search_source_game: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "source_game")?;
+        let search_source_asskit: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "source_asskit")?;
         search_source_parent.set_text(&qtr("global_search_source_parent"));
         search_source_game.set_text(&qtr("global_search_source_game"));
         search_source_asskit.set_text(&qtr("global_search_source_asskit"));
-        search_source_game.set_checked(true);
 
-        // Remember the last status of the source radio.
-        match settings_i32("global_search_source_status") {
-            0 => search_source_packfile.set_checked(true),
-            1 => search_source_parent.set_checked(true),
-            2 => search_source_game.set_checked(true),
-            3 => search_source_asskit.set_checked(true),
-            _ => {}
-        }
+        // Remember the last status of the source checkboxes using a bitmask.
+        // bit0 = parent, bit1 = game, bit2 = asskit
+        let sources_status = settings_i32("global_search_sources_status");
+        search_source_parent.set_checked(sources_status & 1 != 0);
+        search_source_game.set_checked(sources_status & 2 != 0);
+        search_source_asskit.set_checked(sources_status & 4 != 0);
 
         let search_source_group_box: QPtr<QGroupBox> = find_widget(&main_widget.static_upcast(), "search_source_groupbox")?;
         search_source_group_box.set_title(&qtr("global_search_search_source"));
@@ -395,10 +393,10 @@ impl GlobalSearchUI {
             case_sensitive_checkbox,
             use_regex_checkbox,
 
-            search_source_packfile,
             search_source_parent,
             search_source_game,
             search_source_asskit,
+            search_source_group_box,
 
             search_on_all_checkbox,
             search_on_all_common_checkbox,
@@ -450,7 +448,10 @@ impl GlobalSearchUI {
 
         // Create the global search and populate it with all the settings for the search.
         let receiver = match self.search_data_from_ui(true, false) {
-            Some(global_search) => CENTRAL_COMMAND.read().unwrap().send(Command::GlobalSearch(global_search)),
+            Some(global_search) => {
+                let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                CENTRAL_COMMAND.read().unwrap().send(Command::GlobalSearch(pack_key, global_search))
+            },
             None => return,
         };
 
@@ -497,16 +498,91 @@ impl GlobalSearchUI {
         self.matches_schema_tree_model.clear();
     }
 
+    /// This function updates the pack source checkboxes in the search source group box
+    /// based on the currently open packs in the tree model.
+    pub unsafe fn update_pack_sources(&self, pack_file_contents_ui: &PackFileContentsUI) {
+        let layout: QPtr<QGridLayout> = self.search_source_group_box.layout().static_downcast();
+
+        // Remove existing pack checkboxes (iterate in reverse to avoid index issues)
+        for i in (0..layout.count()).rev() {
+            let item = layout.item_at(i);
+            if !item.is_null() {
+                let widget = item.widget();
+                if !widget.is_null() {
+                    let prop = widget.property("pack_key\0".as_ptr().cast());
+                    if prop.is_valid() && !prop.is_null() {
+                        layout.remove_widget(&widget);
+                        widget.delete_later();
+                    }
+                }
+            }
+        }
+
+        // Remove the static checkboxes from layout so we can re-add them after the pack ones.
+        layout.remove_widget(&self.search_source_parent);
+        layout.remove_widget(&self.search_source_game);
+        layout.remove_widget(&self.search_source_asskit);
+
+        // Add pack checkboxes first (row 0+).
+        let tree_model = pack_file_contents_ui.packfile_contents_tree_model();
+        let mut next_row = 0;
+
+        for row in 0..tree_model.row_count_0a() {
+            let item = tree_model.item_1a(row);
+            let root_type = item.data_1a(rpfm_ui_common::ROOT_NODE_TYPE).to_int_0a();
+            if root_type == rpfm_ui_common::ROOT_NODE_TYPE_EDITABLE_PACKFILE {
+                let variant = item.data_1a(rpfm_ui_common::ITEM_PACK_KEY);
+                if variant.is_valid() && !variant.is_null() {
+                    let key = variant.to_string().to_std_string();
+                    if !key.is_empty() {
+                        let name = item.text().to_std_string();
+                        let checkbox = QCheckBox::from_q_string(&QString::from_std_str(&name));
+                        checkbox.set_checked(true);
+                        checkbox.set_property("pack_key\0".as_ptr().cast(), &QVariant::from_q_string(&QString::from_std_str(&key)));
+                        layout.add_widget_5a(&checkbox, next_row, 0, 1, 1);
+                        next_row += 1;
+                    }
+                }
+            }
+        }
+
+        // Re-add static checkboxes after the pack ones.
+        layout.add_widget_5a(&self.search_source_parent, next_row, 0, 1, 1);
+        layout.add_widget_5a(&self.search_source_game, next_row + 1, 0, 1, 1);
+        layout.add_widget_5a(&self.search_source_asskit, next_row + 2, 0, 1, 1);
+    }
+
+    /// Helper to get all dynamically-created pack checkboxes from the search source group box.
+    unsafe fn get_pack_checkboxes(&self) -> Vec<QPtr<QCheckBox>> {
+        let layout: QPtr<QGridLayout> = self.search_source_group_box.layout().static_downcast();
+        let mut checkboxes = Vec::new();
+        for i in 0..layout.count() {
+            let item = layout.item_at(i);
+            if !item.is_null() {
+                let widget = item.widget();
+                if !widget.is_null() {
+                    let prop = widget.property("pack_key\0".as_ptr().cast());
+                    if prop.is_valid() && !prop.is_null() {
+                        let checkbox: QPtr<QCheckBox> = widget.static_downcast();
+                        checkboxes.push(checkbox);
+                    }
+                }
+            }
+        }
+        checkboxes
+    }
+
     /// This function replace the currently selected match with the provided text.
     pub unsafe fn replace_current(&self, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
         let receiver = match self.search_data_from_ui(false, true) {
             Some(global_search) => {
-                if global_search.source() != &SearchSource::Pack {
+                if !global_search.sources().iter().any(|s| matches!(s, SearchSource::Pack(_))) {
                     return show_dialog(app_ui.main_window(), "The dependencies are read-only. You cannot do a Global Replace over them.", false);
                 }
 
                 let matches = self.matches_from_selection();
-                CENTRAL_COMMAND.read().unwrap().send(Command::GlobalSearchReplaceMatches(global_search, matches.to_vec()))
+                let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                CENTRAL_COMMAND.read().unwrap().send(Command::GlobalSearchReplaceMatches(pack_key, global_search, matches.to_vec()))
             },
             None => return,
         };
@@ -577,11 +653,12 @@ impl GlobalSearchUI {
         self.search(pack_file_contents_ui);
         let receiver = match self.search_data_from_ui(false, true) {
             Some(global_search) => {
-                if global_search.source() != &SearchSource::Pack {
+                if !global_search.sources().iter().any(|s| matches!(s, SearchSource::Pack(_))) {
                     return show_dialog(app_ui.main_window(), "The dependencies are read-only. You cannot do a Global Replace over them.", false);
                 }
 
-                CENTRAL_COMMAND.read().unwrap().send(Command::GlobalSearchReplaceAll(global_search))
+                let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                CENTRAL_COMMAND.read().unwrap().send(Command::GlobalSearchReplaceAll(pack_key, global_search))
             },
             None => return,
         };
@@ -645,10 +722,20 @@ impl GlobalSearchUI {
             gidhora.text().to_std_string()
         };
 
-        let global_search = UI_STATE.get_global_search();
-        let data_source = match global_search.source() {
-            SearchSource::Pack => {
-                let tree_index = pack_file_contents_ui.packfile_contents_tree_view().expand_treeview_to_item(&path, DataSource::PackFile);
+        // Determine source info from the file-level tree item's data roles.
+        let file_item = if is_match {
+            let parent = gidhora.parent();
+            if parent.is_null() { return; }
+            parent
+        } else {
+            gidhora
+        };
+        let source_type = file_item.data_1a(MATCH_SOURCE_TYPE).to_int_0a();
+
+        let data_source = match source_type {
+            0 => {
+                let pack_key = file_item.data_1a(MATCH_PACK_KEY).to_string().to_std_string();
+                let tree_index = pack_file_contents_ui.packfile_contents_tree_view().expand_treeview_to_item_in_pack(&path, DataSource::PackFile, &pack_key);
 
                 // Manually select the open PackedFile, then open it. This means we can open PackedFiles nor in out filter.
                 UI_STATE.set_packfile_contents_read_only(true);
@@ -664,7 +751,7 @@ impl GlobalSearchUI {
                 DataSource::PackFile
             },
 
-            SearchSource::ParentFiles => {
+            1 => {
                 let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(&path, DataSource::ParentFiles);
                 if let Some(ref tree_index) = tree_index {
                     if tree_index.is_valid() {
@@ -675,7 +762,7 @@ impl GlobalSearchUI {
                 }
                 DataSource::ParentFiles
             },
-            SearchSource::GameFiles => {
+            2 => {
                 let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(&path, DataSource::GameFiles);
                 if let Some(ref tree_index) = tree_index {
                     if tree_index.is_valid() {
@@ -686,7 +773,7 @@ impl GlobalSearchUI {
                 }
                 DataSource::GameFiles
             },
-            SearchSource::AssKitFiles => {
+            3 => {
                 let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(&path, DataSource::AssKitFiles);
                 if let Some(ref tree_index) = tree_index {
                     if tree_index.is_valid() {
@@ -697,6 +784,7 @@ impl GlobalSearchUI {
                 }
                 DataSource::AssKitFiles
             },
+            _ => DataSource::PackFile,
         };
 
         AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui, Some(path.to_owned()), false, false, data_source);
@@ -942,6 +1030,17 @@ impl GlobalSearchUI {
                     file.set_text(&QString::from_std_str(path));
                     TREEVIEW_ICONS.set_standard_item_icon(&file, Some(&file_type));
 
+                    let source_type = match match_afb.source() {
+                        SearchSource::Pack(key) => {
+                            file.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(key)), MATCH_PACK_KEY);
+                            0
+                        }
+                        SearchSource::ParentFiles => 1,
+                        SearchSource::GameFiles => 2,
+                        SearchSource::AssKitFiles => 3,
+                    };
+                    file.set_data_2a(&QVariant::from_int(source_type), MATCH_SOURCE_TYPE);
+
                     for match_row in match_afb.matches() {
 
                         // Create a new list of StandardItem.
@@ -1077,6 +1176,17 @@ impl GlobalSearchUI {
                     file.set_text(&QString::from_std_str(path));
                     TREEVIEW_ICONS.set_standard_item_icon(&file, Some(&file_type));
 
+                    let source_type = match match_atlas.source() {
+                        SearchSource::Pack(key) => {
+                            file.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(key)), MATCH_PACK_KEY);
+                            0
+                        }
+                        SearchSource::ParentFiles => 1,
+                        SearchSource::GameFiles => 2,
+                        SearchSource::AssKitFiles => 3,
+                    };
+                    file.set_data_2a(&QVariant::from_int(source_type), MATCH_SOURCE_TYPE);
+
                     for match_row in match_atlas.matches() {
 
                         // Create a new list of StandardItem.
@@ -1151,6 +1261,17 @@ impl GlobalSearchUI {
                     let file = Self::new_item();
                     file.set_text(&QString::from_std_str(path));
                     TREEVIEW_ICONS.set_standard_item_icon(&file, Some(&file_type));
+
+                    let source_type = match match_ps.source() {
+                        SearchSource::Pack(key) => {
+                            file.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(key)), MATCH_PACK_KEY);
+                            0
+                        }
+                        SearchSource::ParentFiles => 1,
+                        SearchSource::GameFiles => 2,
+                        SearchSource::AssKitFiles => 3,
+                    };
+                    file.set_data_2a(&QVariant::from_int(source_type), MATCH_SOURCE_TYPE);
 
                     for match_row in match_ps.matches() {
 
@@ -1278,6 +1399,17 @@ impl GlobalSearchUI {
 
                     file.set_text(&QString::from_std_str(path));
                     TREEVIEW_ICONS.set_standard_item_icon(&file, Some(&file_type));
+
+                    let source_type = match match_rm.source() {
+                        SearchSource::Pack(key) => {
+                            file.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(key)), MATCH_PACK_KEY);
+                            0
+                        }
+                        SearchSource::ParentFiles => 1,
+                        SearchSource::GameFiles => 2,
+                        SearchSource::AssKitFiles => 3,
+                    };
+                    file.set_data_2a(&QVariant::from_int(source_type), MATCH_SOURCE_TYPE);
 
                     for match_row in match_rm.matches() {
                         let qlist_boi = QListOfQStandardItem::new();
@@ -1409,6 +1541,17 @@ impl GlobalSearchUI {
                     file.set_text(&QString::from_std_str(path));
                     TREEVIEW_ICONS.set_standard_item_icon(&file, Some(&file_type));
 
+                    let source_type = match match_table.source() {
+                        SearchSource::Pack(key) => {
+                            file.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(key)), MATCH_PACK_KEY);
+                            0
+                        }
+                        SearchSource::ParentFiles => 1,
+                        SearchSource::GameFiles => 2,
+                        SearchSource::AssKitFiles => 3,
+                    };
+                    file.set_data_2a(&QVariant::from_int(source_type), MATCH_SOURCE_TYPE);
+
                     for match_row in match_table.matches() {
 
                         // Create a new list of StandardItem.
@@ -1486,6 +1629,17 @@ impl GlobalSearchUI {
                     file.set_text(&QString::from_std_str(path));
                     TREEVIEW_ICONS.set_standard_item_icon(&file, Some(&file_type));
 
+                    let source_type = match match_text.source() {
+                        SearchSource::Pack(key) => {
+                            file.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(key)), MATCH_PACK_KEY);
+                            0
+                        }
+                        SearchSource::ParentFiles => 1,
+                        SearchSource::GameFiles => 2,
+                        SearchSource::AssKitFiles => 3,
+                    };
+                    file.set_data_2a(&QVariant::from_int(source_type), MATCH_SOURCE_TYPE);
+
                     for match_row in match_text.matches() {
 
                         // Create a new list of StandardItem.
@@ -1557,6 +1711,17 @@ impl GlobalSearchUI {
                     let file = Self::new_item();
                     file.set_text(&QString::from_std_str(path));
                     TREEVIEW_ICONS.set_standard_item_icon(&file, Some(&file_type));
+
+                    let source_type = match match_uv.source() {
+                        SearchSource::Pack(key) => {
+                            file.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(key)), MATCH_PACK_KEY);
+                            0
+                        }
+                        SearchSource::ParentFiles => 1,
+                        SearchSource::GameFiles => 2,
+                        SearchSource::AssKitFiles => 3,
+                    };
+                    file.set_data_2a(&QVariant::from_int(source_type), MATCH_SOURCE_TYPE);
 
                     for match_row in match_uv.matches() {
 
@@ -1669,6 +1834,17 @@ impl GlobalSearchUI {
 
                     file.set_text(&QString::from_std_str(path));
                     TREEVIEW_ICONS.set_standard_item_icon(&file, Some(&file_type));
+
+                    let source_type = match match_unk.source() {
+                        SearchSource::Pack(key) => {
+                            file.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(key)), MATCH_PACK_KEY);
+                            0
+                        }
+                        SearchSource::ParentFiles => 1,
+                        SearchSource::GameFiles => 2,
+                        SearchSource::AssKitFiles => 3,
+                    };
+                    file.set_data_2a(&QVariant::from_int(source_type), MATCH_SOURCE_TYPE);
 
                     for match_row in match_unk.matches() {
 
@@ -2503,15 +2679,23 @@ impl GlobalSearchUI {
             return None;
         }
 
-        if self.search_source_packfile.is_checked() {
-            global_search.set_source(SearchSource::Pack);
-        } else if self.search_source_parent.is_checked() {
-            global_search.set_source(SearchSource::ParentFiles);
-        } else if self.search_source_game.is_checked() {
-            global_search.set_source(SearchSource::GameFiles);
-        } else if self.search_source_asskit.is_checked() {
-            global_search.set_source(SearchSource::AssKitFiles);
+        let mut sources = Vec::new();
+        for checkbox in self.get_pack_checkboxes() {
+            if checkbox.is_checked() {
+                let pack_key = checkbox.property("pack_key\0".as_ptr().cast()).to_string().to_std_string();
+                sources.push(SearchSource::Pack(pack_key));
+            }
         }
+        if self.search_source_parent.is_checked() {
+            sources.push(SearchSource::ParentFiles);
+        }
+        if self.search_source_game.is_checked() {
+            sources.push(SearchSource::GameFiles);
+        }
+        if self.search_source_asskit.is_checked() {
+            sources.push(SearchSource::AssKitFiles);
+        }
+        global_search.set_sources(sources);
 
         if self.search_on_all_checkbox.is_checked() {
             global_search.search_on_mut().set_anim(true);

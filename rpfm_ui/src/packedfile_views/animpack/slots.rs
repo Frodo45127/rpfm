@@ -94,7 +94,8 @@ impl PackedFileAnimPackViewSlots {
 
                     // Ask the Background Thread to copy the files, and send him the path.
                     app_ui.toggle_main_window(false);
-                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::AddPackedFilesFromPackFileToAnimpack(view.path().read().unwrap().to_owned(), item_types));
+                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::AddPackedFilesFromPackFileToAnimpack(pack_key, view.path().read().unwrap().to_owned(), item_types));
                     let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::VecContainerPath(paths_ok) => {
@@ -137,7 +138,8 @@ impl PackedFileAnimPackViewSlots {
 
                     // Ask the Background Thread to copy the files, and send him the path.
                     app_ui.toggle_main_window(false);
-                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::AddPackedFilesFromAnimpack(*view.data_source.read().unwrap(), view.path().read().unwrap().to_owned(), item_types));
+                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::AddPackedFilesFromAnimpack(pack_key, *view.data_source.read().unwrap(), view.path().read().unwrap().to_owned(), item_types));
                     let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::VecContainerPath(paths_ok) => {
@@ -182,7 +184,8 @@ impl PackedFileAnimPackViewSlots {
                     let item_types = view.anim_pack_tree_view.get_item_types_from_selection_filtered();
 
                     // Ask the backend to delete them.
-                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::DeleteFromAnimpack((view.path().read().unwrap().to_owned(), item_types.clone())));
+                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::DeleteFromAnimpack(pack_key, view.path().read().unwrap().to_owned(), item_types.clone()));
                     let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::Success => {

@@ -8,24 +8,32 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-use getset::{Getters, MutGetters};
+use getset::{Getters, MutGetters, Setters};
 use serde_derive::{Deserialize, Serialize};
 
 use rpfm_lib::files::anim_fragment_battle::AnimFragmentBattle;
 
-use super::{find_in_string, MatchingMode, replace_match_string, Replaceable, Searchable};
+use super::{find_in_string, MatchingMode, replace_match_string, Replaceable, SearchSource, Searchable};
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
 /// This struct represents all the matches of the global search within an Anim Fragment Battle File.
-#[derive(Debug, Clone, Getters, MutGetters, Serialize, Deserialize)]
-#[getset(get = "pub", get_mut = "pub")]
+#[derive(Debug, Clone, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct AnimFragmentBattleMatches {
 
     /// The path of the file.
     path: String,
+
+    /// The search source that produced these matches.
+    #[serde(default)]
+    source: SearchSource,
+
+    /// The container name (pack file name) this file belongs to.
+    #[serde(default)]
+    container_name: String,
 
     /// The list of matches within the file.
     matches: Vec<AnimFragmentBattleMatch>,
@@ -536,6 +544,8 @@ impl AnimFragmentBattleMatches {
         Self {
             path: path.to_owned(),
             matches: vec![],
+            source: SearchSource::default(),
+            container_name: String::new(),
         }
     }
 }

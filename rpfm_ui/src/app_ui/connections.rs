@@ -31,24 +31,10 @@ pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
     app_ui.menu_bar_packfile.about_to_show().connect(&slots.packfile_open_menu);
 
     app_ui.packfile_new_packfile.triggered().connect(&slots.packfile_new_packfile);
-    app_ui.packfile_open_packfile.triggered().connect(&slots.packfile_open_packfile);
-    app_ui.packfile_save_packfile.triggered().connect(&slots.packfile_save_packfile);
-    app_ui.packfile_save_packfile_as.triggered().connect(&slots.packfile_save_packfile_as);
-    app_ui.packfile_save_packfile_for_release.triggered().connect(&slots.packfile_save_packfile_for_release);
-    app_ui.packfile_install.triggered().connect(&slots.packfile_install);
-    app_ui.packfile_uninstall.triggered().connect(&slots.packfile_uninstall);
+    app_ui.packfile_open_packfiles.triggered().connect(&slots.packfile_open_packfiles);
+    app_ui.packfile_open_and_merge_packs.triggered().connect(&slots.packfile_open_and_merge_packs);
     app_ui.packfile_load_all_ca_packfiles.triggered().connect(&slots.packfile_load_all_ca_packfiles);
-
-    app_ui.change_packfile_type_boot.triggered().connect(&slots.packfile_change_packfile_type);
-    app_ui.change_packfile_type_release.triggered().connect(&slots.packfile_change_packfile_type);
-    app_ui.change_packfile_type_patch.triggered().connect(&slots.packfile_change_packfile_type);
-    app_ui.change_packfile_type_mod.triggered().connect(&slots.packfile_change_packfile_type);
-    app_ui.change_packfile_type_movie.triggered().connect(&slots.packfile_change_packfile_type);
-    app_ui.change_packfile_type_index_includes_timestamp.triggered().connect(&slots.packfile_index_includes_timestamp);
-    app_ui.compression_format_none.triggered().connect(&slots.packfile_change_compression_format);
-    app_ui.compression_format_lzma1.triggered().connect(&slots.packfile_change_compression_format);
-    app_ui.compression_format_lz4.triggered().connect(&slots.packfile_change_compression_format);
-    app_ui.compression_format_zstd.triggered().connect(&slots.packfile_change_compression_format);
+    app_ui.packfile_save_all.triggered().connect(&slots.packfile_save_all);
 
     app_ui.packfile_select_session.triggered().connect(&slots.packfile_select_session);
     app_ui.packfile_settings.triggered().connect(&slots.packfile_settings);
@@ -100,59 +86,9 @@ pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
     app_ui.game_selected_arena.triggered().connect(&slots.change_game_selected);
 
     //-----------------------------------------------//
-    // `Special Stuff` menu connections.
+    // `Game Selected` menu connections.
     //-----------------------------------------------//
-    app_ui.special_stuff_wh2_patch_siege_ai.triggered().connect(&slots.special_stuff_patch_siege_ai);
-    app_ui.special_stuff_wh_patch_siege_ai.triggered().connect(&slots.special_stuff_patch_siege_ai);
-
-    app_ui.special_stuff_ph_dyn_optimize_packfile.triggered().connect(&slots.special_stuff_optimize_packfile);
-    app_ui.special_stuff_ph_optimize_packfile.triggered().connect(&slots.special_stuff_optimize_packfile);
-    app_ui.special_stuff_wh3_optimize_packfile.triggered().connect(&slots.special_stuff_optimize_packfile);
-    app_ui.special_stuff_troy_optimize_packfile.triggered().connect(&slots.special_stuff_optimize_packfile);
-    app_ui.special_stuff_three_k_optimize_packfile.triggered().connect(&slots.special_stuff_optimize_packfile);
-    app_ui.special_stuff_wh2_optimize_packfile.triggered().connect(&slots.special_stuff_optimize_packfile);
-    app_ui.special_stuff_wh_optimize_packfile.triggered().connect(&slots.special_stuff_optimize_packfile);
-    app_ui.special_stuff_tob_optimize_packfile.triggered().connect(&slots.special_stuff_optimize_packfile);
-    app_ui.special_stuff_att_optimize_packfile.triggered().connect(&slots.special_stuff_optimize_packfile);
-    app_ui.special_stuff_rom2_optimize_packfile.triggered().connect(&slots.special_stuff_optimize_packfile);
-    app_ui.special_stuff_sho2_optimize_packfile.triggered().connect(&slots.special_stuff_optimize_packfile);
-    app_ui.special_stuff_nap_optimize_packfile.triggered().connect(&slots.special_stuff_optimize_packfile);
-    app_ui.special_stuff_emp_optimize_packfile.triggered().connect(&slots.special_stuff_optimize_packfile);
-
-    app_ui.special_stuff_ph_dyn_generate_dependencies_cache.triggered().connect(&slots.special_stuff_generate_dependencies_cache);
-    app_ui.special_stuff_ph_generate_dependencies_cache.triggered().connect(&slots.special_stuff_generate_dependencies_cache);
-    app_ui.special_stuff_wh3_generate_dependencies_cache.triggered().connect(&slots.special_stuff_generate_dependencies_cache);
-    app_ui.special_stuff_troy_generate_dependencies_cache.triggered().connect(&slots.special_stuff_generate_dependencies_cache);
-    app_ui.special_stuff_three_k_generate_dependencies_cache.triggered().connect(&slots.special_stuff_generate_dependencies_cache);
-    app_ui.special_stuff_wh2_generate_dependencies_cache.triggered().connect(&slots.special_stuff_generate_dependencies_cache);
-    app_ui.special_stuff_wh_generate_dependencies_cache.triggered().connect(&slots.special_stuff_generate_dependencies_cache);
-    app_ui.special_stuff_tob_generate_dependencies_cache.triggered().connect(&slots.special_stuff_generate_dependencies_cache);
-    app_ui.special_stuff_att_generate_dependencies_cache.triggered().connect(&slots.special_stuff_generate_dependencies_cache);
-    app_ui.special_stuff_rom2_generate_dependencies_cache.triggered().connect(&slots.special_stuff_generate_dependencies_cache);
-    app_ui.special_stuff_sho2_generate_dependencies_cache.triggered().connect(&slots.special_stuff_generate_dependencies_cache);
-    app_ui.special_stuff_nap_generate_dependencies_cache.triggered().connect(&slots.special_stuff_generate_dependencies_cache);
-    app_ui.special_stuff_emp_generate_dependencies_cache.triggered().connect(&slots.special_stuff_generate_dependencies_cache);
-
-    app_ui.special_stuff_wh3_live_export.triggered().connect(&slots.special_stuff_live_export);
-    app_ui.special_stuff_wh3_pack_map.triggered().connect(&slots.special_stuff_pack_map);
-
-    app_ui.special_stuff_ph_dyn_build_starpos.triggered().connect(&slots.special_stuff_build_starpos);
-    app_ui.special_stuff_ph_build_starpos.triggered().connect(&slots.special_stuff_build_starpos);
-    app_ui.special_stuff_wh3_build_starpos.triggered().connect(&slots.special_stuff_build_starpos);
-    app_ui.special_stuff_troy_build_starpos.triggered().connect(&slots.special_stuff_build_starpos);
-    app_ui.special_stuff_three_k_build_starpos.triggered().connect(&slots.special_stuff_build_starpos);
-    app_ui.special_stuff_wh2_build_starpos.triggered().connect(&slots.special_stuff_build_starpos);
-    app_ui.special_stuff_wh_build_starpos.triggered().connect(&slots.special_stuff_build_starpos);
-    app_ui.special_stuff_tob_build_starpos.triggered().connect(&slots.special_stuff_build_starpos);
-    app_ui.special_stuff_att_build_starpos.triggered().connect(&slots.special_stuff_build_starpos);
-    app_ui.special_stuff_rom2_build_starpos.triggered().connect(&slots.special_stuff_build_starpos);
-    app_ui.special_stuff_sho2_build_starpos.triggered().connect(&slots.special_stuff_build_starpos);
-    app_ui.special_stuff_nap_build_starpos.triggered().connect(&slots.special_stuff_build_starpos);
-    app_ui.special_stuff_emp_build_starpos.triggered().connect(&slots.special_stuff_build_starpos);
-
-    app_ui.special_stuff_wh3_update_anim_ids.triggered().connect(&slots.special_stuff_update_anim_ids);
-
-    app_ui.special_stuff_rescue_packfile.triggered().connect(&slots.special_stuff_rescue_packfile);
+    app_ui.game_selected_generate_dependencies_cache.triggered().connect(&slots.game_selected_generate_dependencies_cache);
 
     //-----------------------------------------------//
     // `Tools` menu connections.

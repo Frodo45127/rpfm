@@ -176,6 +176,7 @@ impl DiagnosticsUISlots {
         ));
 
         let ignore_parent_folder = SlotNoArgs::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
+            pack_file_contents_ui,
             diagnostics_ui => move || {
                 let selection = diagnostics_ui.selection_sorted_and_deduped();
                 let mut string = String::new();
@@ -190,12 +191,14 @@ impl DiagnosticsUISlots {
                 }
 
                 if !string.is_empty() {
-                    CENTRAL_COMMAND.read().unwrap().send(Command::AddLineToPackIgnoredDiagnostics(format!("\n{string}")));
+                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                    CENTRAL_COMMAND.read().unwrap().send(Command::AddLineToPackIgnoredDiagnostics(pack_key, format!("\n{string}")));
                 }
             }
         ));
 
         let ignore_parent_folder_field = SlotNoArgs::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
+            pack_file_contents_ui,
             diagnostics_ui => move || {
                 let selection = diagnostics_ui.selection_sorted_and_deduped();
                 let mut string = String::new();
@@ -217,12 +220,14 @@ impl DiagnosticsUISlots {
                 }
 
                 if !string.is_empty() {
-                    CENTRAL_COMMAND.read().unwrap().send(Command::AddLineToPackIgnoredDiagnostics(format!("\n{string}")));
+                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                    CENTRAL_COMMAND.read().unwrap().send(Command::AddLineToPackIgnoredDiagnostics(pack_key, format!("\n{string}")));
                 }
             }
         ));
 
         let ignore_file = SlotNoArgs::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
+            pack_file_contents_ui,
             diagnostics_ui => move || {
                 let selection = diagnostics_ui.selection_sorted_and_deduped();
                 let mut string = String::new();
@@ -236,12 +241,14 @@ impl DiagnosticsUISlots {
                 }
 
                 if !string.is_empty() {
-                    CENTRAL_COMMAND.read().unwrap().send(Command::AddLineToPackIgnoredDiagnostics(format!("\n{string}")));
+                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                    CENTRAL_COMMAND.read().unwrap().send(Command::AddLineToPackIgnoredDiagnostics(pack_key, format!("\n{string}")));
                 }
             }
         ));
 
         let ignore_file_field = SlotNoArgs::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
+            pack_file_contents_ui,
             diagnostics_ui => move || {
                 let selection = diagnostics_ui.selection_sorted_and_deduped();
                 let mut string = String::new();
@@ -262,12 +269,14 @@ impl DiagnosticsUISlots {
                 }
 
                 if !string.is_empty() {
-                    CENTRAL_COMMAND.read().unwrap().send(Command::AddLineToPackIgnoredDiagnostics(format!("\n{string}")));
+                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                    CENTRAL_COMMAND.read().unwrap().send(Command::AddLineToPackIgnoredDiagnostics(pack_key, format!("\n{string}")));
                 }
             }
         ));
 
         let ignore_diagnostic_for_parent_folder = SlotNoArgs::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
+            pack_file_contents_ui,
             diagnostics_ui => move || {
                 let selection = diagnostics_ui.selection_sorted_and_deduped();
                 let mut string = String::new();
@@ -284,12 +293,14 @@ impl DiagnosticsUISlots {
                 }
 
                 if !string.is_empty() {
-                    CENTRAL_COMMAND.read().unwrap().send(Command::AddLineToPackIgnoredDiagnostics(format!("\n{string}")));
+                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                    CENTRAL_COMMAND.read().unwrap().send(Command::AddLineToPackIgnoredDiagnostics(pack_key, format!("\n{string}")));
                 }
             }
         ));
 
         let ignore_diagnostic_for_parent_folder_field = SlotNoArgs::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
+            pack_file_contents_ui,
             diagnostics_ui => move || {
                 let selection = diagnostics_ui.selection_sorted_and_deduped();
                 let mut string = String::new();
@@ -312,12 +323,14 @@ impl DiagnosticsUISlots {
                 }
 
                 if !string.is_empty() {
-                    CENTRAL_COMMAND.read().unwrap().send(Command::AddLineToPackIgnoredDiagnostics(format!("\n{string}")));
+                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                    CENTRAL_COMMAND.read().unwrap().send(Command::AddLineToPackIgnoredDiagnostics(pack_key, format!("\n{string}")));
                 }
             }
         ));
 
         let ignore_diagnostic_for_file = SlotNoArgs::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
+            pack_file_contents_ui,
             diagnostics_ui => move || {
                 let selection = diagnostics_ui.selection_sorted_and_deduped();
                 let mut string = String::new();
@@ -332,12 +345,14 @@ impl DiagnosticsUISlots {
                 }
 
                 if !string.is_empty() {
-                    CENTRAL_COMMAND.read().unwrap().send(Command::AddLineToPackIgnoredDiagnostics(format!("\n{string}")));
+                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                    CENTRAL_COMMAND.read().unwrap().send(Command::AddLineToPackIgnoredDiagnostics(pack_key, format!("\n{string}")));
                 }
             }
         ));
 
         let ignore_diagnostic_for_file_field = SlotNoArgs::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
+            pack_file_contents_ui,
             diagnostics_ui => move || {
                 let selection = diagnostics_ui.selection_sorted_and_deduped();
                 let mut string = String::new();
@@ -359,12 +374,14 @@ impl DiagnosticsUISlots {
                 }
 
                 if !string.is_empty() {
-                    CENTRAL_COMMAND.read().unwrap().send(Command::AddLineToPackIgnoredDiagnostics(format!("\n{string}")));
+                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                    CENTRAL_COMMAND.read().unwrap().send(Command::AddLineToPackIgnoredDiagnostics(pack_key, format!("\n{string}")));
                 }
             }
         ));
 
         let ignore_diagnostic_for_pack = SlotNoArgs::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
+            pack_file_contents_ui,
             diagnostics_ui => move || {
                 let selection = diagnostics_ui.selection_sorted_and_deduped();
                 let mut string = String::new();
@@ -378,7 +395,8 @@ impl DiagnosticsUISlots {
                 }
 
                 if !string.is_empty() {
-                    CENTRAL_COMMAND.read().unwrap().send(Command::AddLineToPackIgnoredDiagnostics(format!("\n{string}")));
+                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                    CENTRAL_COMMAND.read().unwrap().send(Command::AddLineToPackIgnoredDiagnostics(pack_key, format!("\n{string}")));
                 }
             }
         ));

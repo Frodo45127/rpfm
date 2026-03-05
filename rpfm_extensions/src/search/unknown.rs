@@ -8,25 +8,33 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-use getset::{Getters, MutGetters};
+use getset::{Getters, MutGetters, Setters};
 use regex::bytes::RegexBuilder;
 use serde_derive::{Deserialize, Serialize};
 
 use rpfm_lib::files::unknown::Unknown;
 
-use super::{find_in_bytes, MatchingMode, Replaceable, Searchable, replace_match_bytes};
+use super::{find_in_bytes, MatchingMode, Replaceable, SearchSource, Searchable, replace_match_bytes};
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
 /// This struct represents all the matches of the global search within an Unknown File.
-#[derive(Debug, Clone, Getters, MutGetters, Serialize, Deserialize)]
-#[getset(get = "pub", get_mut = "pub")]
+#[derive(Debug, Clone, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct UnknownMatches {
 
     /// The path of the file.
     path: String,
+
+    /// The search source that produced these matches.
+    #[serde(default)]
+    source: SearchSource,
+
+    /// The container name (pack file name) this file belongs to.
+    #[serde(default)]
+    container_name: String,
 
     /// The list of matches within the file.
     matches: Vec<UnknownMatch>,
@@ -106,6 +114,8 @@ impl UnknownMatches {
         Self {
             path: path.to_owned(),
             matches: vec![],
+            source: SearchSource::default(),
+            container_name: String::new(),
         }
     }
 }

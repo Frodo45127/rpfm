@@ -349,7 +349,8 @@ impl TableView {
 
         // Get the dependency data of this Table.
         let table_name_for_ref = if let Some(name) = table_name { name.to_owned() } else { "".to_owned() };
-        let dependency_data = get_reference_data(packed_file_type, &table_name_for_ref, &table_definition, false)?;
+        let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+        let dependency_data = get_reference_data(packed_file_type, &table_name_for_ref, &table_definition, false, &pack_key)?;
 
         // Do not bother getting hashed data for tables that are not modded.
         let vanilla_hashed_tables = {
@@ -1170,7 +1171,8 @@ impl TableView {
     pub unsafe fn update_key_deletes_list(view: &Arc<Self>, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
 
         // The add to key deletes menu works a bit different. Must be enabled only in supported games, regardless of pack source.
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetTablesByTableName(KEY_DELETES_TABLE_NAME.to_owned()));
+        let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetTablesByTableName(pack_key, KEY_DELETES_TABLE_NAME.to_owned()));
         let response = CentralCommand::recv(&receiver);
         match response {
             Response::VecString(paths) => {
@@ -1248,7 +1250,8 @@ impl TableView {
         table.set_data(&table_in_memory.data())?;
         table.generate_twad_key_deletes_keys(&mut keys);
 
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::AddKeysToKeyDeletes(file_name.to_string(), table_name, keys));
+        let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::AddKeysToKeyDeletes(pack_key, file_name.to_string(), table_name, keys));
         let response = CentralCommand::recv(&receiver);
         match response {
             Response::OptionContainerPath(path) => {
@@ -3023,7 +3026,8 @@ impl TableView {
                 (fields_processed[*column as usize].clone(), value_before.to_string(), value_after.to_string()))
                 .collect::<Vec<_>>();
 
-            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::CascadeEdition(table_name, definition, changes));
+            let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::CascadeEdition(pack_key, table_name, definition, changes));
             let response = CentralCommand::recv(&receiver);
             match response {
                 Response::VecContainerPathVecRFileInfo(edited_paths, packed_files_info) => {
@@ -3385,7 +3389,7 @@ impl TableView {
                 FileType::Loc => {
                     let index_row = self.table_filter.map_to_source(self.table_view.selection_model().selection().indexes().at(0)).row();
                     let key = self.table_model.index_2a(index_row, 0).data_0a().to_string().to_std_string();
-                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetSourceDataFromLocKey(key));
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetSourceDataFromLocKey(pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default(), key));
                     let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
                     match response {
                         Response::OptionStringStringVecString(response) => response,
@@ -3406,7 +3410,7 @@ impl TableView {
                 });
 
                 // Then ask the backend to do the heavy work.
-                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GoToDefinition(ref_table, ref_column, ref_data));
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GoToDefinition(pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default(), ref_table, ref_column, ref_data));
                 let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
                 match response {
 
@@ -3656,7 +3660,7 @@ impl TableView {
                 let loc_key = format!("{table_name}_{loc_column_name}_{key}");
 
                 // Then ask the backend to do the heavy work.
-                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GoToLoc(loc_key));
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GoToLoc(pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default(), loc_key));
                 let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
                 match response {
 

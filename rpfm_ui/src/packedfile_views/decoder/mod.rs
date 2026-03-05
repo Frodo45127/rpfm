@@ -181,7 +181,8 @@ impl PackedFileDecoderView {
         let table_name = container_path.db_table_name_from_path()
             .ok_or_else(|| anyhow!("The decoder cannot be use for this file."))?;
 
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackedFileRawData(path.to_owned()));
+        let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackedFileRawData(pack_key, path.to_owned()));
         let response = CentralCommand::recv(&receiver);
         let mut data = match response {
             Response::VecU8(data) => Cursor::new(data),

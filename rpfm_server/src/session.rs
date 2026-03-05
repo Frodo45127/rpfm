@@ -85,8 +85,8 @@ pub struct Session {
     /// Whether this session has been marked for shutdown.
     shutdown_requested: AtomicBool,
 
-    /// Name of the pack file currently open in this session (if any).
-    pack_name: RwLock<Option<String>>,
+    /// Names of the pack files currently open in this session.
+    pack_names: RwLock<Vec<String>>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -104,7 +104,7 @@ impl Session {
             sender,
             connection_count: AtomicU32::new(0),
             shutdown_requested: AtomicBool::new(false),
-            pack_name: RwLock::new(None),
+            pack_names: RwLock::new(Vec::new()),
         });
 
         // Spawn a dedicated background thread for this session.
@@ -143,14 +143,23 @@ impl Session {
         self.shutdown_requested.load(Ordering::SeqCst)
     }
 
-    /// Get the pack name for this session.
-    pub fn pack_name(&self) -> Option<String> {
-        self.pack_name.read().unwrap().clone()
+    /// Get the pack names for this session.
+    pub fn pack_names(&self) -> Vec<String> {
+        self.pack_names.read().unwrap().clone()
     }
 
-    /// Set the pack name for this session.
-    pub fn set_pack_name(&self, name: Option<String>) {
-        *self.pack_name.write().unwrap() = name;
+    /// Add a pack name to this session.
+    pub fn add_pack_name(&self, name: &str) {
+        let mut names = self.pack_names.write().unwrap();
+        if !names.contains(&name.to_string()) {
+            names.push(name.to_string());
+        }
+    }
+
+    /// Remove a pack name from this session.
+    pub fn remove_pack_name(&self, name: &str) {
+        let mut names = self.pack_names.write().unwrap();
+        names.retain(|n| n != name);
     }
 
     /// Shutdown this session by sending an Exit command.
@@ -361,7 +370,7 @@ impl SessionManager {
                 managed.session.connection_count(),
                 timeout_remaining_secs,
                 managed.session.is_shutdown_requested(),
-                managed.session.pack_name(),
+                managed.session.pack_names(),
             )
         }).collect()
     }

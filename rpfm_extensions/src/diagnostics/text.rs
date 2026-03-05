@@ -92,6 +92,7 @@ impl TextDiagnostic {
 
     /// This function takes care of checking for Text-Related for errors.
     pub fn check(
+        pack_key: &str,
         file: &RFile,
         packs: &BTreeMap<String, Pack>,
         dependencies: &Dependencies,
@@ -102,7 +103,7 @@ impl TextDiagnostic {
     ) -> Option<DiagnosticType> {
 
         if let Ok(RFileDecoded::Text(text)) = file.decoded() {
-            let mut diagnostic = Self::new(file.path_in_container_raw(), file.container_name().as_deref().unwrap_or(""));
+            let mut diagnostic = Self::new(file.path_in_container_raw(), pack_key);
 
             let text = text.contents();
             let mut start_pos = 0;

@@ -261,8 +261,8 @@ pub struct SessionInfo {
     /// Whether the session has been marked for shutdown.
     is_shutting_down: bool,
 
-    /// Name of the pack file currently open in this session (if any).
-    pack_name: Option<String>,
+    /// Names of the pack files currently open in this session.
+    pack_names: Vec<String>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -396,7 +396,7 @@ impl RFileInfo {
         let types = global_search.search_on().types_to_search();
 
         // Only return info of stuff on the local Packs.
-        if global_search.source() == &SearchSource::Pack {
+        if global_search.sources().iter().any(|s| matches!(s, SearchSource::Pack(_))) {
             packs.values().flat_map(|pack| pack.files_by_type(&types).iter().map(|x| From::from(*x)).collect::<Vec<_>>()).collect()
         } else {
             vec![]
@@ -470,14 +470,14 @@ impl SessionInfo {
         connection_count: u32,
         timeout_remaining_secs: Option<u64>,
         is_shutting_down: bool,
-        pack_name: Option<String>,
+        pack_names: Vec<String>,
     ) -> Self {
         Self {
             session_id,
             connection_count,
             timeout_remaining_secs,
             is_shutting_down,
-            pack_name,
+            pack_names,
         }
     }
 }

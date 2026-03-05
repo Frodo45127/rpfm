@@ -115,6 +115,7 @@ impl PortraitSettingsDiagnostic {
 
     /// This function takes care of checking for PortraitSettings-Related for errors.
     pub fn check(
+        pack_key: &str,
         file: &RFile,
         art_set_ids: &HashSet<String>,
         variant_filenames: &HashSet<String>,
@@ -126,7 +127,7 @@ impl PortraitSettingsDiagnostic {
         local_path_list: &HashMap<String, Vec<String>>,
     ) -> Option<DiagnosticType> {
         if let Ok(RFileDecoded::PortraitSettings(portrait_settings)) = file.decoded() {
-            let mut diagnostic = Self::new(file.path_in_container_raw(), file.container_name().as_deref().unwrap_or(""));
+            let mut diagnostic = Self::new(file.path_in_container_raw(), pack_key);
 
             // Disabled, as some games seem to only load their portrait_settings files named as portrait_settings.bin.
             /*if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, None, Some("DatacoredPortraitSettings"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && dependencies.file_exists(file.path_in_container_raw(), true, false, false)  {

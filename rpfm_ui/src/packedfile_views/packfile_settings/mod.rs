@@ -75,7 +75,8 @@ impl PackFileSettingsView {
         pack_file_contents_ui: &Rc<PackFileContentsUI>
     ) -> Result<()> {
 
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackSettings);
+        let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackSettings(pack_key));
         let response = CentralCommand::recv(&receiver);
         let settings = match response {
             Response::PackSettings(settings) => settings,
