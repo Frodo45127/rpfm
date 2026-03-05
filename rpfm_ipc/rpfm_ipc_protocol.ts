@@ -1046,104 +1046,97 @@ export type Command =
   // ---- PackFile Operations ----
 
   /**
-   * Close the currently open Pack.
+   * Close a specific open Pack.
+   *
+   * @param pack_key — The pack key identifying which pack to close.
+   * Response: `"Success"` | `{ Error: string }`
+   */
+  | { ClosePack: string }
+
+  /**
+   * Close all currently open Packs.
    *
    * Response: `"Success"`
    */
-  | "ClosePack"
+  | "CloseAllPacks"
 
   /**
-   * Close an extra Pack (opened for "Add from PackFile").
-   *
-   * @param path — Filesystem path to the extra Pack.
-   * Response: `"Success"`
-   */
-  | { ClosePackExtra: string }
-
-  /**
-   * Clean the open Pack from corrupted/undecoded files and save to disk.
+   * Clean a specific open Pack from corrupted/undecoded files and save to disk.
    * Only use if the Pack is otherwise unsaveable.
    *
-   * @param path — Destination path.
+   * @param args — `[pack_key, destination_path]`
    * Response: `{ ContainerInfo: ContainerInfo }` | `{ Error: string }`
    */
-  | { CleanAndSavePackAs: string }
+  | { CleanAndSavePackAs: [string, string] }
+
+  /**
+   * List all currently open packs with their keys and metadata.
+   *
+   * Response: `{ VecStringContainerInfo: [string, ContainerInfo][] }`
+   */
+  | "ListOpenPacks"
 
   /**
    * Create a new empty Pack.
    *
-   * Response: `"Success"`
+   * Response: `{ String: string }` with the assigned pack key.
    */
   | "NewPack"
 
   /**
-   * Save the currently open Pack to its current path.
+   * Save a specific open Pack to disk.
    *
+   * @param pack_key — The pack key identifying which pack to save.
    * Response: `{ ContainerInfo: ContainerInfo }` | `{ Error: string }`
    */
-  | "SavePack"
+  | { SavePack: string }
 
   /**
-   * Save the currently open Pack to a new path.
+   * Save a specific open Pack to a new path.
    *
-   * @param path — Destination path.
+   * @param args — `[pack_key, destination_path]`
    * Response: `{ ContainerInfo: ContainerInfo }` | `{ Error: string }`
    */
-  | { SavePackAs: string }
+  | { SavePackAs: [string, string] }
 
   /**
-   * Get tree view data for the currently open Pack.
+   * Get tree view data for a specific pack.
    *
+   * @param pack_key — The pack key identifying which pack to query.
    * Response: `{ ContainerInfoVecRFileInfo: [ContainerInfo, RFileInfo[]] }`
    */
-  | "GetPackFileDataForTreeView"
-
-  /**
-   * Get tree view data for an extra (secondary) Pack.
-   *
-   * @param path — Path to the extra Pack.
-   * Response: `{ ContainerInfoVecRFileInfo: [ContainerInfo, RFileInfo[]] }` | `{ Error: string }`
-   */
-  | { GetPackFileExtraDataForTreeView: string }
+  | { GetPackFileDataForTreeView: string }
 
   /**
    * Open one or more PackFiles and merge them into the current session.
    *
    * @param paths — Array of filesystem paths.
-   * Response: `{ ContainerInfo: ContainerInfo }` | `{ Error: string }`
+   * Response: `{ StringContainerInfo: [string, ContainerInfo] }` | `{ Error: string }`
    */
   | { OpenPackFiles: string[] }
 
   /**
-   * Open an extra Pack for "Add from PackFile" operations.
-   *
-   * @param path — Filesystem path to the Pack.
-   * Response: `{ ContainerInfo: ContainerInfo }` | `{ Error: string }`
-   */
-  | { OpenPackExtra: string }
-
-  /**
    * Open all CA PackFiles for the selected game as one merged Pack.
    *
-   * Response: `{ ContainerInfo: ContainerInfo }` | `{ Error: string }`
+   * Response: `{ StringContainerInfo: [string, ContainerInfo] }` | `{ Error: string }`
    */
   | "LoadAllCAPackFiles"
 
   /**
    * Get RFileInfo for one or more packed files by path.
    *
-   * @param paths — Internal paths of the packed files.
+   * @param args — `[pack_key, internal_paths]`
    * Response: `{ VecRFileInfo: RFileInfo[] }`
    */
-  | { GetPackedFilesInfo: string[] }
+  | { GetPackedFilesInfo: [string, string[]] }
 
   /**
-   * Perform a global search across the open Pack.
+   * Perform a global search across a specific pack.
    *
-   * @param config — GlobalSearch configuration object.
+   * @param args — `[pack_key, search_config]`
    * Response: `{ GlobalSearchVecRFileInfo: [GlobalSearch, RFileInfo[]] }` | `{ Error: string }`
    */
-  | { GlobalSearch: GlobalSearch }
+  | { GlobalSearch: [string, GlobalSearch] }
 
   /**
    * Get the currently selected game key.
@@ -1161,12 +1154,12 @@ export type Command =
   | { SetGameSelected: [string, boolean] }
 
   /**
-   * Change the PFH type of the currently open Pack (e.g., Mod, Movie, Boot).
+   * Change the PFH type of a specific open Pack (e.g., Mod, Movie, Boot).
    *
-   * @param file_type — PFHFileType enum value.
+   * @param args — `[pack_key, file_type]`
    * Response: `"Success"`
    */
-  | { SetPackFileType: PFHFileType }
+  | { SetPackFileType: [string, PFHFileType] }
 
   /**
    * Generate the dependencies cache for the currently selected game.
@@ -1183,50 +1176,52 @@ export type Command =
   | "UpdateCurrentSchemaFromAssKit"
 
   /**
-   * Run the optimizer over the currently open Pack.
+   * Run the optimizer over a specific open Pack.
    *
-   * @param options — Optimizer configuration.
+   * @param args — `[pack_key, optimizer_options]`
    * Response: `{ HashSetStringHashSetString: [string[], string[]] }` (deleted, added paths) | `{ Error: string }`
    */
-  | { OptimizePackFile: OptimizerOptions }
+  | { OptimizePackFile: [string, OptimizerOptions] }
 
   /**
-   * Patch Siege AI for Warhammer siege maps.
+   * Patch Siege AI for Warhammer siege maps in a specific pack.
    *
+   * @param pack_key — The pack key identifying which pack to patch.
    * Response: `{ StringVecContainerPath: [string, ContainerPath[]] }` | `{ Error: string }`
    */
-  | "PatchSiegeAI"
+  | { PatchSiegeAI: string }
 
   /**
-   * Toggle the "Index Includes Timestamp" flag.
+   * Toggle the "Index Includes Timestamp" flag for a specific pack.
    *
-   * @param enabled — Whether timestamps should be included.
+   * @param args — `[pack_key, enabled]`
    * Response: `"Success"`
    */
-  | { ChangeIndexIncludesTimestamp: boolean }
+  | { ChangeIndexIncludesTimestamp: [string, boolean] }
 
   /**
-   * Change the compression format of the currently open Pack.
+   * Change the compression format of a specific open Pack.
    *
-   * @param format — Desired compression format.
+   * @param args — `[pack_key, compression_format]`
    * Response: `{ CompressionFormat: CompressionFormat }` (actual format set, may differ if unsupported)
    */
-  | { ChangeCompressionFormat: CompressionFormat }
+  | { ChangeCompressionFormat: [string, CompressionFormat] }
 
   /**
-   * Get the filesystem path of the currently open Pack.
+   * Get the filesystem path of a specific open Pack.
    *
+   * @param pack_key — The pack key identifying which pack to query.
    * Response: `{ PathBuf: string }`
    */
-  | "GetPackFilePath"
+  | { GetPackFilePath: string }
 
   /**
-   * Get the info of a single packed file.
+   * Get the info of a single packed file from a specific pack.
    *
-   * @param path — Internal path of the packed file.
+   * @param args — `[pack_key, internal_path]`
    * Response: `{ OptionRFileInfo: RFileInfo | null }`
    */
-  | { GetRFileInfo: string }
+  | { GetRFileInfo: [string, string] }
 
   // ---- Update Commands ----
 
@@ -1262,115 +1257,115 @@ export type Command =
   // ---- PackedFile Operations ----
 
   /**
-   * Create a new packed file inside the currently open Pack.
+   * Create a new packed file inside a specific open Pack.
    *
-   * @param params — `[path, new_file_spec]`
+   * @param args — `[pack_key, path, new_file_spec]`
    * Response: `"Success"` | `{ Error: string }`
    */
-  | { NewPackedFile: [string, NewFile] }
+  | { NewPackedFile: [string, string, NewFile] }
 
   /**
-   * Add files from the filesystem to the currently open Pack.
+   * Add files from the filesystem to a specific open Pack.
    *
-   * @param params — `[source_paths, destination_container_paths, optional_ignore_paths]`
+   * @param args — `[pack_key, source_paths, destination_container_paths, optional_ignore_paths]`
    * Response: `{ VecContainerPathOptionString: [ContainerPath[], string | null] }` (added paths, optional error message)
    */
-  | { AddPackedFiles: [string[], ContainerPath[], string[] | null] }
+  | { AddPackedFiles: [string, string[], ContainerPath[], string[] | null] }
 
   /**
    * Decode a packed file for display in the UI.
    *
-   * @param params — `[internal_path, data_source]`
+   * @param args — `[pack_key, internal_path, data_source]`
    * Response: Type-specific (e.g., `{ DBRFileInfo: [DB, RFileInfo] }`,
    *   `{ LocRFileInfo: [Loc, RFileInfo] }`, `{ TextRFileInfo: [Text, RFileInfo] }`,
    *   `{ ImageRFileInfo: [Image, RFileInfo] }`, `{ RigidModelRFileInfo: [RigidModel, RFileInfo] }`,
    *   `"Unknown"`, etc.) | `{ Error: string }`
    */
-  | { DecodePackedFile: [string, DataSource] }
+  | { DecodePackedFile: [string, string, DataSource] }
 
   /**
    * Save an edited packed file back to the Pack.
    *
-   * @param params — `[internal_path, decoded_file_content]`
+   * @param args — `[pack_key, internal_path, decoded_file_content]`
    * Response: `"Success"`
    */
-  | { SavePackedFileFromView: [string, RFileDecoded] }
+  | { SavePackedFileFromView: [string, string, RFileDecoded] }
 
   /**
-   * Copy packed files from another Pack into the current one.
+   * Copy packed files from one Pack into another.
    *
-   * @param params — `[source_pack_path, container_paths]`
+   * @param args — `[target_pack_key, source_pack_key, container_paths]`
    * Response: `{ VecContainerPath: ContainerPath[] }` | `{ Error: string }`
    */
-  | { AddPackedFilesFromPackFile: [string, ContainerPath[]] }
+  | { AddPackedFilesFromPackFile: [string, string, ContainerPath[]] }
 
   /**
    * Copy packed files from the main Pack into an AnimPack.
    *
-   * @param params — `[animpack_path, container_paths]`
+   * @param args — `[pack_key, animpack_path, container_paths]`
    * Response: `{ VecContainerPath: ContainerPath[] }` | `{ Error: string }`
    */
-  | { AddPackedFilesFromPackFileToAnimpack: [string, ContainerPath[]] }
+  | { AddPackedFilesFromPackFileToAnimpack: [string, string, ContainerPath[]] }
 
   /**
    * Copy packed files from an AnimPack into the main Pack.
    *
-   * @param params — `[data_source, animpack_path, container_paths]`
+   * @param args — `[pack_key, data_source, animpack_path, container_paths]`
    * Response: `{ VecContainerPath: ContainerPath[] }` | `{ Error: string }`
    */
-  | { AddPackedFilesFromAnimpack: [DataSource, string, ContainerPath[]] }
+  | { AddPackedFilesFromAnimpack: [string, DataSource, string, ContainerPath[]] }
 
   /**
    * Delete packed files from an AnimPack.
    *
-   * @param params — `[animpack_path, container_paths]`
+   * @param args — `[pack_key, animpack_path, container_paths]`
    * Response: `"Success"` | `{ Error: string }`
    */
-  | { DeleteFromAnimpack: [string, ContainerPath[]] }
+  | { DeleteFromAnimpack: [string, string, ContainerPath[]] }
 
   /**
-   * Delete packed files from the open Pack.
+   * Delete packed files from a specific open Pack.
    *
-   * @param paths — Container paths to delete.
+   * @param args — `[pack_key, container_paths]`
    * Response: `{ VecContainerPath: ContainerPath[] }` (deleted paths)
    */
-  | { DeletePackedFiles: ContainerPath[] }
+  | { DeletePackedFiles: [string, ContainerPath[]] }
 
   /**
-   * Extract packed files from the Pack to the filesystem.
+   * Extract packed files from a specific Pack to the filesystem.
    *
-   * @param params — `[paths_by_source, extraction_path, export_tables_as_tsv]`
+   * @param args — `[pack_key, paths_by_source, extraction_path, export_tables_as_tsv]`
    *
-   * The first parameter is a map of DataSource → ContainerPath[].
+   * The `paths_by_source` parameter is a map of DataSource → ContainerPath[].
    * In JSON: `{ "PackFile": [...], "GameFiles": [...] }`
    *
    * Response: `{ StringVecPathBuf: [string, string[]] }` | `{ Error: string }`
    */
-  | { ExtractPackedFiles: [Record<DataSource, ContainerPath[]>, string, boolean] }
+  | { ExtractPackedFiles: [string, Record<DataSource, ContainerPath[]>, string, boolean] }
 
   /**
-   * Rename packed files in the Pack.
+   * Rename packed files in a specific Pack.
    *
-   * @param renames — Array of `[old_path, new_path]` pairs.
+   * @param args — `[pack_key, renames]` where renames is array of `[old_path, new_path]` pairs.
    * Response: `{ VecContainerPathContainerPath: [ContainerPath, ContainerPath][] }` | `{ Error: string }`
    */
-  | { RenamePackedFiles: [ContainerPath, ContainerPath][] }
+  | { RenamePackedFiles: [string, [ContainerPath, ContainerPath][]] }
 
   /**
-   * Check if a folder exists in the currently open Pack.
+   * Check if a folder exists in a specific open Pack.
    *
-   * @param path — Folder path to check.
+   * @param args — `[pack_key, folder_path]`
    * Response: `{ Bool: boolean }`
    */
-  | { FolderExists: string }
+  | { FolderExists: [string, string] }
 
   /**
-   * Check if a packed file exists in the currently open Pack.
+   * Check if a packed file exists in a specific open Pack.
    *
-   * @param path — File path to check.
+   * @param args — `[pack_key, file_path]`
    * Response: `{ Bool: boolean }`
    */
-  | { PackedFileExists: string }
+  | { PackedFileExists: [string, string] }
 
   // ---- Dependency Commands ----
 
@@ -1389,11 +1384,12 @@ export type Command =
   | "GetCustomTableList"
 
   /**
-   * Get local art set IDs from campaign_character_arts_tables.
+   * Get local art set IDs from campaign_character_arts_tables in a specific pack.
    *
+   * @param pack_key — The pack key identifying which pack to query.
    * Response: `{ HashSetString: string[] }`
    */
-  | "LocalArtSetIds"
+  | { LocalArtSetIds: string }
 
   /**
    * Get art set IDs from dependencies' campaign_character_arts_tables.
@@ -1421,59 +1417,60 @@ export type Command =
   /**
    * Merge multiple compatible tables into one.
    *
-   * @param params — `[paths_to_merge, merged_file_path, delete_sources]`
+   * @param args — `[pack_key, paths_to_merge, merged_file_path, delete_sources]`
    * Response: `{ String: string }` (merged path) | `{ Error: string }`
    */
-  | { MergeFiles: [ContainerPath[], string, boolean] }
+  | { MergeFiles: [string, ContainerPath[], string, boolean] }
 
   /**
    * Update a table to a newer schema version.
    *
-   * @param path — Container path of the table.
+   * @param args — `[pack_key, container_path]`
    * Response: `{ I32I32VecStringVecString: [old_ver, new_ver, deleted_fields, added_fields] }` | `{ Error: string }`
    */
-  | { UpdateTable: ContainerPath }
+  | { UpdateTable: [string, ContainerPath] }
 
   // ---- Search Commands ----
 
   /**
    * Replace specific matches in a global search.
    *
-   * @param params — `[search_config, matches_to_replace]`
+   * @param args — `[pack_key, search_config, matches_to_replace]`
    * Response: `{ GlobalSearchVecRFileInfo: [GlobalSearch, RFileInfo[]] }` | `{ Error: string }`
    */
-  | { GlobalSearchReplaceMatches: [GlobalSearch, MatchHolder[]] }
+  | { GlobalSearchReplaceMatches: [string, GlobalSearch, MatchHolder[]] }
 
   /**
    * Replace all matches in a global search.
    *
-   * @param config — GlobalSearch configuration.
+   * @param args — `[pack_key, search_config]`
    * Response: `{ GlobalSearchVecRFileInfo: [GlobalSearch, RFileInfo[]] }` | `{ Error: string }`
    */
-  | { GlobalSearchReplaceAll: GlobalSearch }
+  | { GlobalSearchReplaceAll: [string, GlobalSearch] }
 
   /**
    * Get reference data for columns in a table definition.
    *
-   * @param params — `[table_name, definition, force_local_regen]`
+   * @param args — `[pack_key, table_name, definition, force_local_regen]`
    * Response: `{ HashMapI32TableReferences: Record<number, TableReferences> }`
    */
-  | { GetReferenceDataFromDefinition: [string, Definition, boolean] }
+  | { GetReferenceDataFromDefinition: [string, string, Definition, boolean] }
 
   /**
-   * Get the list of PackFiles marked as dependencies of the current Pack.
+   * Get the list of PackFiles marked as dependencies of a specific Pack.
    *
+   * @param pack_key — The pack key identifying which pack to query.
    * Response: `{ VecBoolString: [boolean, string][] }`
    */
-  | "GetDependencyPackFilesList"
+  | { GetDependencyPackFilesList: string }
 
   /**
-   * Set the list of PackFiles marked as dependencies of the current Pack.
+   * Set the list of PackFiles marked as dependencies of a specific Pack.
    *
-   * @param list — Array of `[enabled, pack_name]` pairs.
+   * @param args — `[pack_key, dependency_list]` where each entry is `[enabled, pack_name]`.
    * Response: `"Success"`
    */
-  | { SetDependencyPackFilesList: [boolean, string][] }
+  | { SetDependencyPackFilesList: [string, [boolean, string][]] }
 
   /**
    * Get packed files from all known sources (PackFile, GameFiles, ParentFiles).
@@ -1488,10 +1485,10 @@ export type Command =
   /**
    * Change the format of a ca_vp8 video packed file.
    *
-   * @param params — `[internal_path, target_format]`
+   * @param args — `[pack_key, internal_path, target_format]`
    * Response: `"Success"` | `{ Error: string }`
    */
-  | { SetVideoFormat: [string, SupportedFormats] }
+  | { SetVideoFormat: [string, string, SupportedFormats] }
 
   // ---- Schema Commands ----
 
@@ -1506,53 +1503,54 @@ export type Command =
   /**
    * Encode and clean the internal cache for the specified paths.
    *
-   * @param paths — Container paths to clean.
+   * @param args — `[pack_key, container_paths]`
    * Response: `"Success"`
    */
-  | { CleanCache: ContainerPath[] }
+  | { CleanCache: [string, ContainerPath[]] }
 
   // ---- TSV Commands ----
 
   /**
    * Export a table as a TSV file.
    *
-   * @param params — `[internal_path, destination_path, data_source]`
+   * @param args — `[pack_key, internal_path, destination_path, data_source]`
    * Response: `"Success"` | `{ Error: string }`
    */
-  | { ExportTSV: [string, string, DataSource] }
+  | { ExportTSV: [string, string, string, DataSource] }
 
   /**
    * Import a TSV file as a table.
    *
-   * @param params — `[internal_path, source_tsv_path]`
+   * @param args — `[pack_key, internal_path, source_tsv_path]`
    * Response: `{ RFileDecoded: RFileDecoded }` | `{ Error: string }`
    */
-  | { ImportTSV: [string, string] }
+  | { ImportTSV: [string, string, string] }
 
   // ---- External Program Commands ----
 
   /**
-   * Open the folder containing the currently open Pack in the file manager.
+   * Open the folder containing a specific open Pack in the file manager.
    *
+   * @param pack_key — The pack key identifying which pack's folder to open.
    * Response: `"Success"` | `{ Error: string }`
    */
-  | "OpenContainingFolder"
+  | { OpenContainingFolder: string }
 
   /**
    * Open a packed file in an external program.
    *
-   * @param params — `[data_source, container_path]`
+   * @param args — `[pack_key, data_source, container_path]`
    * Response: `{ PathBuf: string }` (extracted temp path) | `{ Error: string }`
    */
-  | { OpenPackedFileInExternalProgram: [DataSource, ContainerPath] }
+  | { OpenPackedFileInExternalProgram: [string, DataSource, ContainerPath] }
 
   /**
    * Save a packed file that was edited in an external program.
    *
-   * @param params — `[internal_path, external_file_path]`
+   * @param args — `[pack_key, internal_path, external_file_path]`
    * Response: `"Success"` | `{ Error: string }`
    */
-  | { SavePackedFileFromExternalView: [string, string] }
+  | { SavePackedFileFromExternalView: [string, string, string] }
 
   // ---- Program Update Commands ----
 
@@ -1564,18 +1562,19 @@ export type Command =
   | "UpdateMainProgram"
 
   /**
-   * Trigger an autosave backup of the current Pack.
+   * Trigger an autosave backup of a specific Pack.
    *
+   * @param pack_key — The pack key identifying which pack to back up.
    * Response: `"Success"`
    */
-  | "TriggerBackupAutosave"
+  | { TriggerBackupAutosave: string }
 
   // ---- Diagnostics Commands ----
 
   /**
-   * Run a full diagnostics check over the open Pack.
+   * Run a full diagnostics check over the open packs.
    *
-   * @param params — `[ignored_diagnostic_keys, check_ak_only_refs]`
+   * @param params — `[pack_keys, check_ak_only_refs]`
    * Response: `{ Diagnostics: Diagnostics }`
    */
   | { DiagnosticsCheck: [string[], boolean] }
@@ -1591,28 +1590,30 @@ export type Command =
   // ---- Pack Settings Commands ----
 
   /**
-   * Get the settings of the currently open Pack.
+   * Get the settings of a specific open Pack.
    *
+   * @param pack_key — The pack key identifying which pack to query.
    * Response: `{ PackSettings: PackSettings }`
    */
-  | "GetPackSettings"
+  | { GetPackSettings: string }
 
   /**
-   * Set the settings of the currently open Pack.
+   * Set the settings of a specific open Pack.
    *
-   * @param settings — The new pack settings.
+   * @param args — `[pack_key, pack_settings]`
    * Response: `"Success"`
    */
-  | { SetPackSettings: PackSettings }
+  | { SetPackSettings: [string, PackSettings] }
 
   // ---- Debug Commands ----
 
   /**
-   * Export missing table definitions to a file (for debugging/development).
+   * Export missing table definitions from a specific pack to a file (for debugging/development).
    *
+   * @param pack_key — Pack to export from.
    * Response: `"Success"`
    */
-  | "GetMissingDefinitions"
+  | { GetMissingDefinitions: string }
 
   // ---- Dependencies Commands ----
 
@@ -1627,79 +1628,80 @@ export type Command =
   // ---- Cascade Edition Commands ----
 
   /**
-   * Trigger a cascade edition on all referenced data.
+   * Trigger a cascade edition on all referenced data in a specific pack.
    *
-   * @param params — `[table_name, definition, field_changes]`
+   * @param params — `[pack_key, table_name, definition, field_changes]`
    *   where field_changes is `[field, old_value, new_value][]`
    * Response: `{ VecContainerPathVecRFileInfo: [ContainerPath[], RFileInfo[]] }`
    */
-  | { CascadeEdition: [string, Definition, [Field, string, string][]] }
+  | { CascadeEdition: [string, string, Definition, [Field, string, string][]] }
 
   // ---- Navigation Commands ----
 
   /**
-   * Go to the definition of a table reference.
+   * Go to the definition of a table reference in a specific pack.
    *
-   * @param params — `[table_name, column_name, values_to_search]`
+   * @param params — `[pack_key, table_name, column_name, values_to_search]`
    * Response: `{ DataSourceStringUsizeUsize: [DataSource, string, number, number] }` | `{ Error: string }`
    */
-  | { GoToDefinition: [string, string, string[]] }
+  | { GoToDefinition: [string, string, string, string[]] }
 
   /**
-   * Get the source data (table, column, values) of a loc key.
+   * Get the source data (table, column, values) of a loc key from a specific pack.
    *
-   * @param loc_key — The loc key to look up.
+   * @param params — `[pack_key, loc_key]`
    * Response: `{ OptionStringStringVecString: [string, string, string[]] | null }`
    */
-  | { GetSourceDataFromLocKey: string }
+  | { GetSourceDataFromLocKey: [string, string] }
 
   /**
-   * Navigate to a loc key's location.
+   * Navigate to a loc key's location in a specific pack.
    *
-   * @param loc_key — The loc key to find.
+   * @param params — `[pack_key, loc_key]`
    * Response: `{ DataSourceStringUsizeUsize: [DataSource, string, number, number] }` | `{ Error: string }`
    */
-  | { GoToLoc: string }
+  | { GoToLoc: [string, string] }
 
   /**
-   * Find all references to a value across tables.
+   * Find all references to a value across tables in a specific pack.
    *
-   * @param params — `[table_columns_map, search_value]`
+   * @param params — `[pack_key, table_columns_map, search_value]`
    *   where table_columns_map is `Record<table_name, column_names[]>`
    * Response: `{ VecDataSourceStringStringUsizeUsize: [DataSource, string, string, number, number][] }`
    */
-  | { SearchReferences: [Record<string, string[]>, string] }
+  | { SearchReferences: [string, Record<string, string[]>, string] }
 
   /**
-   * Get the name of the currently open Pack.
+   * Get the name of a specific open Pack.
    *
+   * @param pack_key — Pack key.
    * Response: `{ String: string }`
    */
-  | "GetPackFileName"
+  | { GetPackFileName: string }
 
   /**
-   * Get the raw binary data of a packed file.
+   * Get the raw binary data of a packed file from a specific pack.
    *
-   * @param path — Internal path.
+   * @param params — `[pack_key, path]`
    * Response: `{ VecU8: number[] }` | `{ Error: string }`
    */
-  | { GetPackedFileRawData: string }
+  | { GetPackedFileRawData: [string, string] }
 
   /**
-   * Import files from dependencies into the open Pack.
+   * Import files from dependencies into a specific open Pack.
    *
-   * @param sources — Map of DataSource → ContainerPath[].
+   * @param params — `[pack_key, sources]` where sources is `Record<DataSource, ContainerPath[]>`
    * Response: `{ VecContainerPathVecString: [ContainerPath[], string[]] }` (added paths, failed paths) | `{ Error: string }`
    */
-  | { ImportDependenciesToOpenPackFile: Record<DataSource, ContainerPath[]> }
+  | { ImportDependenciesToOpenPackFile: [string, Record<DataSource, ContainerPath[]>] }
 
   /**
-   * Save packed files to the Pack and optionally run optimizer.
+   * Save packed files to a specific Pack and optionally run optimizer.
    *
-   * @param params — `[files, optimize]`
+   * @param params — `[pack_key, files, optimize]`
    * Response: `{ VecContainerPathVecContainerPath: [ContainerPath[], ContainerPath[]] }` (added, deleted) | `{ Error: string }`
    */
-  | { SavePackedFilesToPackFileAndClean: [RFile[], boolean] }
+  | { SavePackedFilesToPackFileAndClean: [string, RFile[], boolean] }
 
   /**
    * Get all file names under a path from all dependency sources.
@@ -1712,28 +1714,28 @@ export type Command =
   // ---- Notes Commands ----
 
   /**
-   * Get all notes under a given path.
+   * Get all notes under a given path in a specific pack.
    *
-   * @param path — Path prefix.
+   * @param params — `[pack_key, path]`
    * Response: `{ VecNote: Note[] }`
    */
-  | { NotesForPath: string }
+  | { NotesForPath: [string, string] }
 
   /**
-   * Add a note.
+   * Add a note to a specific pack.
    *
-   * @param note — The note to add.
+   * @param params — `[pack_key, note]`
    * Response: `{ Note: Note }`
    */
-  | { AddNote: Note }
+  | { AddNote: [string, Note] }
 
   /**
-   * Delete a note.
+   * Delete a note from a specific pack.
    *
-   * @param params — `[path, note_id]`
+   * @param params — `[pack_key, path, note_id]`
    * Response: `"Success"`
    */
-  | { DeleteNote: [string, number] }
+  | { DeleteNote: [string, string, number] }
 
   // ---- Schema Patch Commands ----
 
@@ -1772,11 +1774,12 @@ export type Command =
   // ---- Loc Generation Commands ----
 
   /**
-   * Generate all missing loc entries for the open Pack.
+   * Generate all missing loc entries for a specific open Pack.
    *
+   * @param pack_key — Pack to generate loc data for.
    * Response: `{ VecContainerPath: ContainerPath[] }` | `{ Error: string }`
    */
-  | "GenerateMissingLocData"
+  | { GenerateMissingLocData: string }
 
   // ---- Lua Autogen Commands ----
 
@@ -1805,32 +1808,33 @@ export type Command =
   | { InitializeMyModFolder: [string, string, boolean, boolean, string | null] }
 
   /**
-   * Live-export the Pack to the game's data folder.
+   * Live-export a specific Pack to the game's data folder.
    *
+   * @param pack_key — Pack to export.
    * Response: `"Success"` | `{ Error: string }`
    */
-  | "LiveExport"
+  | { LiveExport: string }
 
   // ---- Map Packing Commands ----
 
   /**
-   * Pack map tiles into the current Pack.
+   * Pack map tiles into a specific Pack.
    *
-   * @param params — `[tile_map_paths, tile_entries]`
+   * @param params — `[pack_key, tile_map_paths, tile_entries]`
    *   where tile_entries is `[tile_path, tile_name][]`
    * Response: `{ VecContainerPathVecContainerPath: [ContainerPath[], ContainerPath[]] }` (added, deleted) | `{ Error: string }`
    */
-  | { PackMap: [string[], [string, string][]] }
+  | { PackMap: [string, string[], [string, string][]] }
 
   // ---- Diagnostics Ignore Commands ----
 
   /**
-   * Add a line to the pack's ignored diagnostics list.
+   * Add a line to a specific pack's ignored diagnostics list.
    *
-   * @param line — Diagnostic key to ignore.
+   * @param params — `[pack_key, diagnostic_line]`
    * Response: `"Success"`
    */
-  | { AddLineToPackIgnoredDiagnostics: string }
+  | { AddLineToPackIgnoredDiagnostics: [string, string] }
 
   // ---- Empire/Napoleon AK Commands ----
 
@@ -1851,12 +1855,12 @@ export type Command =
   // ---- Translation Commands ----
 
   /**
-   * Get pack translation data for a language.
+   * Get pack translation data for a language from a specific pack.
    *
-   * @param language — Language code.
+   * @param params — `[pack_key, language]`
    * Response: `{ PackTranslation: PackTranslation }` | `{ Error: string }`
    */
-  | { GetPackTranslation: string }
+  | { GetPackTranslation: [string, string] }
 
   /**
    * Check for translation updates.
@@ -1875,52 +1879,54 @@ export type Command =
   // ---- Starpos Commands ----
 
   /**
-   * Build starpos (pre-processing step).
+   * Build starpos (pre-processing step) for a specific pack.
    *
-   * @param params — `[campaign_id, process_hlp_spd_data]`
+   * @param params — `[pack_key, campaign_id, process_hlp_spd_data]`
    * Response: `"Success"` | `{ Error: string }`
    */
-  | { BuildStarpos: [string, boolean] }
+  | { BuildStarpos: [string, string, boolean] }
 
   /**
-   * Build starpos (post-processing step).
+   * Build starpos (post-processing step) for a specific pack.
    *
-   * @param params — `[campaign_id, process_hlp_spd_data]`
+   * @param params — `[pack_key, campaign_id, process_hlp_spd_data]`
    * Response: `{ VecContainerPath: ContainerPath[] }` | `{ Error: string }`
    */
-  | { BuildStarposPost: [string, boolean] }
+  | { BuildStarposPost: [string, string, boolean] }
 
   /**
-   * Clean up starpos temporary files.
+   * Clean up starpos temporary files for a specific pack.
    *
-   * @param params — `[campaign_id, process_hlp_spd_data]`
+   * @param params — `[pack_key, campaign_id, process_hlp_spd_data]`
    * Response: `"Success"` | `{ Error: string }`
    */
-  | { BuildStarposCleanup: [string, boolean] }
+  | { BuildStarposCleanup: [string, string, boolean] }
 
   /**
-   * Get campaign IDs available for starpos building.
+   * Get campaign IDs available for starpos building from a specific pack.
    *
+   * @param pack_key — Pack key.
    * Response: `{ HashSetString: string[] }`
    */
-  | "BuildStarposGetCampaingIds"
+  | { BuildStarposGetCampaingIds: string }
 
   /**
-   * Check if victory conditions file exists (required for some games).
+   * Check if victory conditions file exists in a specific pack (required for some games).
    *
+   * @param pack_key — Pack key.
    * Response: `"Success"` | `{ Error: string }`
    */
-  | "BuildStarposCheckVictoryConditions"
+  | { BuildStarposCheckVictoryConditions: string }
 
   // ---- Animation Commands ----
 
   /**
-   * Update animation IDs with an offset.
+   * Update animation IDs with an offset in a specific pack.
    *
-   * @param params — `[starting_id, offset]`
+   * @param params — `[pack_key, starting_id, offset]`
    * Response: `{ VecContainerPath: ContainerPath[] }` | `{ Error: string }`
    */
-  | { UpdateAnimIds: [number, number] }
+  | { UpdateAnimIds: [string, number, number] }
 
   /**
    * Get animation paths by skeleton name.
@@ -1941,20 +1947,20 @@ export type Command =
   | { GetTablesFromDependencies: string }
 
   /**
-   * Get table paths by name from the current Pack.
+   * Get table paths by name from a specific Pack.
    *
-   * @param table_name — Name of the table.
+   * @param params — `[pack_key, table_name]`
    * Response: `{ VecString: string[] }`
    */
-  | { GetTablesByTableName: string }
+  | { GetTablesByTableName: [string, string] }
 
   /**
-   * Add keys to the key_deletes table.
+   * Add keys to the key_deletes table in a specific pack.
    *
-   * @param params — `[table_file_name, key_table_name, keys_to_add]`
+   * @param params — `[pack_key, table_file_name, key_table_name, keys_to_add]`
    * Response: `{ OptionContainerPath: ContainerPath | null }`
    */
-  | { AddKeysToKeyDeletes: [string, string, string[]] }
+  | { AddKeysToKeyDeletes: [string, string, string, string[]] }
 
   // ---- 3D Export Commands ----
 
@@ -2325,6 +2331,7 @@ export type Response =
   | { VecRFile: RFile[] }
   | { VecRFileInfo: RFileInfo[] }
   | { VecString: string[] }
+  | { VecStringContainerInfo: [string, ContainerInfo][] }
   | { VecU8: number[] }
   | { HashSetString: string[] }
   | { HashSetStringHashSetString: [string[], string[]] }
@@ -2336,6 +2343,7 @@ export type Response =
   | { CompressionFormatDependenciesInfo: [CompressionFormat, DependenciesInfo | null] }
   | { ContainerInfo: ContainerInfo }
   | { ContainerInfoVecRFileInfo: [ContainerInfo, RFileInfo[]] }
+  | { StringContainerInfo: [string, ContainerInfo] }
   | { DataSourceStringUsizeUsize: [DataSource, string, number, number] }
   | { Definition: Definition }
   | { DependenciesInfo: DependenciesInfo }
@@ -2419,23 +2427,36 @@ export type Response =
  *
  *   // --- Typed convenience methods ---
  *
- *   async openPack(paths: string[]): Promise<ContainerInfo> {
+ *   async openPack(paths: string[]): Promise<[string, ContainerInfo]> {
  *     const resp = await this.send({ OpenPackFiles: paths });
+ *     return (resp as { StringContainerInfo: [string, ContainerInfo] }).StringContainerInfo;
+ *   }
+ *
+ *   async listOpenPacks(): Promise<[string, ContainerInfo][]> {
+ *     const resp = await this.send("ListOpenPacks");
+ *     return (resp as { VecStringContainerInfo: [string, ContainerInfo][] }).VecStringContainerInfo;
+ *   }
+ *
+ *   async closePack(packKey: string): Promise<void> {
+ *     await this.send({ ClosePack: packKey });
+ *   }
+ *
+ *   async closeAllPacks(): Promise<void> {
+ *     await this.send("CloseAllPacks");
+ *   }
+ *
+ *   async savePack(packKey: string): Promise<ContainerInfo> {
+ *     const resp = await this.send({ SavePack: packKey });
  *     return (resp as { ContainerInfo: ContainerInfo }).ContainerInfo;
  *   }
  *
- *   async savePack(): Promise<ContainerInfo> {
- *     const resp = await this.send("SavePack");
+ *   async savePackAs(packKey: string, path: string): Promise<ContainerInfo> {
+ *     const resp = await this.send({ SavePackAs: [packKey, path] });
  *     return (resp as { ContainerInfo: ContainerInfo }).ContainerInfo;
  *   }
  *
- *   async savePackAs(path: string): Promise<ContainerInfo> {
- *     const resp = await this.send({ SavePackAs: path });
- *     return (resp as { ContainerInfo: ContainerInfo }).ContainerInfo;
- *   }
- *
- *   async getTreeView(): Promise<[ContainerInfo, RFileInfo[]]> {
- *     const resp = await this.send("GetPackFileDataForTreeView");
+ *   async getTreeView(packKey: string): Promise<[ContainerInfo, RFileInfo[]]> {
+ *     const resp = await this.send({ GetPackFileDataForTreeView: packKey });
  *     return (resp as { ContainerInfoVecRFileInfo: [ContainerInfo, RFileInfo[]] }).ContainerInfoVecRFileInfo;
  *   }
  *
@@ -2443,21 +2464,22 @@ export type Response =
  *     await this.send({ SetGameSelected: [gameKey, rebuildDeps] });
  *   }
  *
- *   async decodeFile(path: string, source: DataSource = "PackFile"): Promise<Response> {
- *     return this.send({ DecodePackedFile: [path, source] });
+ *   async decodeFile(packKey: string, path: string, source: DataSource = "PackFile"): Promise<Response> {
+ *     return this.send({ DecodePackedFile: [packKey, path, source] });
  *   }
  *
- *   async deleteFiles(paths: ContainerPath[]): Promise<ContainerPath[]> {
- *     const resp = await this.send({ DeletePackedFiles: paths });
+ *   async deleteFiles(packKey: string, paths: ContainerPath[]): Promise<ContainerPath[]> {
+ *     const resp = await this.send({ DeletePackedFiles: [packKey, paths] });
  *     return (resp as { VecContainerPath: ContainerPath[] }).VecContainerPath;
  *   }
  *
  *   async extractFiles(
+ *     packKey: string,
  *     paths: Record<DataSource, ContainerPath[]>,
  *     destPath: string,
  *     asTsv = false,
  *   ): Promise<[string, string[]]> {
- *     const resp = await this.send({ ExtractPackedFiles: [paths, destPath, asTsv] });
+ *     const resp = await this.send({ ExtractPackedFiles: [packKey, paths, destPath, asTsv] });
  *     return (resp as { StringVecPathBuf: [string, string[]] }).StringVecPathBuf;
  *   }
  *
