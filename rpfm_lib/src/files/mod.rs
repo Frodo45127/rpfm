@@ -1514,7 +1514,11 @@ pub trait Container {
     ///
     /// A vector of references to matching files.
     fn files_by_type(&self, file_types: &[FileType]) -> Vec<&RFile> {
-        self.files().par_iter().filter(|(_, file)| file_types.contains(&file.file_type)).map(|(_, file)| file).collect()
+        self.files()
+            .iter()
+            .filter(|(_, file)| { dbg!(file.file_type); file_types.contains(&file.file_type) })
+            .map(|(_, file)| file)
+            .collect()
     }
 
     /// Returns mutable references to all files of the specified types.
