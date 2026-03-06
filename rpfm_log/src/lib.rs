@@ -84,7 +84,7 @@
 use backtrace::Backtrace;
 pub use log::{error, info, warn};
 use ron::ser::PrettyConfig;
-pub use sentry::{ClientInitGuard, Envelope, integrations::log::SentryLogger, protocol::*, release_name, end_session, end_session_with_status};
+pub use sentry::{ClientInitGuard, ClientOptions, end_session, end_session_with_status, Envelope, integrations::{log::SentryLogger, tracing::SentryLayer}, protocol::*, release_name, self, SessionMode};
 use serde_derive::Serialize;
 use simplelog::{ColorChoice, CombinedLogger, LevelFilter, SharedLogger, TermLogger, TerminalMode};
 
@@ -256,10 +256,13 @@ impl Logger {
 
         // Initialize Sentry's guard, for remote reporting. Only for release mode.
         let dsn = if cfg!(debug_assertions) { String::new() } else { SENTRY_DSN.read().unwrap().to_string() };
-        let client_options = sentry::ClientOptions {
+        let client_options = ClientOptions {
             release: release.clone(),
             sample_rate: 1.0,
+            traces_sample_rate: 1.0,
+            enable_logs: true,
             auto_session_tracking: true,
+            session_mode: SessionMode::Application,
             ..Default::default()
         };
 

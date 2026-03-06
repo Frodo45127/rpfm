@@ -19,7 +19,7 @@ use std::sync::Arc;
 
 use rpfm_ipc::helpers::SessionInfo;
 use rpfm_ipc::messages::{Command, Response};
-use rpfm_log::{Logger, SENTRY_DSN, error, info, release_name};
+use rpfm_log::{Logger, SentryLayer, SENTRY_DSN, error, info, release_name};
 
 use crate::server_mcp::McpServer;
 use crate::session::SessionManager;
@@ -60,19 +60,22 @@ const APP_NAME: &str = "rpfm";
 #[tokio::main]
 async fn main() {
 
-    // Setup tracing subscriber for logging, redirecting to stderr to avoid interfering with MCP.
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::fmt::layer()
-            .with_writer(std::io::stderr)
-            .with_filter(tracing_subscriber::filter::LevelFilter::INFO))
-        .init();
-
     // Sentry client guard, so we can reuse it later on and keep it in scope for the entire duration of the program.
+    // Must be initialized before the tracing subscriber so the SentryLayer can capture spans.
     *SENTRY_DSN.write().unwrap() = SENTRY_DSN_KEY.to_owned();
     let guard = Logger::init(&{
         init_config_path().expect("Error while trying to initialize config path. We're fucked.");
         error_path().unwrap_or_else(|_| PathBuf::from("."))
     }, true, false, release_name!()).expect("Failed to initialize logging system.");
+
+    // Setup tracing subscriber for logging, redirecting to stderr to avoid interfering with MCP.
+    // The SentryLayer captures tracing spans/events as Sentry breadcrumbs and performance spans.
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::fmt::layer()
+            .with_writer(std::io::stderr)
+            .with_filter(tracing_subscriber::filter::LevelFilter::INFO))
+        .with(SentryLayer::default())
+        .init();
 
     if guard.is_enabled() {
         info!("Sentry logging support for RPFM SERVER enabled. Starting...");

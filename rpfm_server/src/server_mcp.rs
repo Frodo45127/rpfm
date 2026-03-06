@@ -21,6 +21,7 @@ use std::path::PathBuf;
 
 use rpfm_ipc::helpers::DataSource;
 use rpfm_ipc::messages::Command;
+use rpfm_log::sentry;
 
 use crate::session::{Session, recv_response};
 
@@ -29,10 +30,27 @@ use crate::session::{Session, recv_response};
 //-------------------------------------------------------------------------------//
 
 /// Helper to send a command and return the JSON response.
+///
+/// Each tool call starts an independent Sentry transaction following the MCP tracing spec,
+/// so it gets reported regardless of the long-lived rmcp service span.
 macro_rules! send_and_respond {
-    ($self:expr, $cmd:expr) => {{
+    ($self:expr, $tool_name:expr, $cmd:expr) => {{
+        let tx_ctx = sentry::TransactionContext::new(
+            &format!("tools/call {}", $tool_name),
+            "mcp.server",
+        );
+        let tx = sentry::start_transaction(tx_ctx);
+        tx.set_data("mcp.method.name", sentry::protocol::Value::from("tools/call"));
+        tx.set_data("mcp.tool.name", sentry::protocol::Value::from($tool_name));
+        tx.set_data("mcp.transport", sentry::protocol::Value::from("streamable-http"));
+
+        sentry::configure_scope(|scope| scope.set_span(Some(tx.clone().into())));
+
         let mut receiver = $self.session.send($cmd);
         let response = recv_response(&mut receiver).await;
+
+        tx.finish();
+
         Ok(CallToolResult::success(vec![Content::text(serde_json::to_string(&response).unwrap())]))
     }};
 }
@@ -698,7 +716,7 @@ impl McpServer {
     #[tool(name = "call_command", description = "Call any IPC command directly. Use this for commands not yet wrapped as named tools.")]
     pub async fn call_command(&self, params: Parameters<CallCommandArgs>) -> Result<CallToolResult, McpError> {
         let command: Command = serde_json::from_str(&params.0.command).unwrap();
-        send_and_respond!(self, command)
+        send_and_respond!(self, "call_command", command)
     }
 
     //-----------------------------------------------------------------------//
@@ -707,42 +725,42 @@ impl McpServer {
 
     #[tool(description = "Create a new empty PackFile.")]
     pub async fn new_pack(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::NewPack)
+        send_and_respond!(self, "new_pack", Command::NewPack)
     }
 
     #[tool(description = "Open one or more PackFiles. Returns the info about the open pack.")]
     pub async fn open_packfiles(&self, params: Parameters<OpenPackfilesArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::OpenPackFiles(params.0.paths))
+        send_and_respond!(self, "open_packfiles", Command::OpenPackFiles(params.0.paths))
     }
 
     #[tool(description = "Save the pack identified by `pack_key`.")]
     pub async fn save_packfile(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::SavePack(params.0.pack_key))
+        send_and_respond!(self, "save_packfile", Command::SavePack(params.0.pack_key))
     }
 
     #[tool(description = "Close the pack identified by `pack_key` without saving. Any unsaved changes will be lost.")]
     pub async fn close_pack(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::ClosePack(params.0.pack_key))
+        send_and_respond!(self, "close_pack", Command::ClosePack(params.0.pack_key))
     }
 
     #[tool(description = "Save the pack identified by `pack_key` to a new path.")]
     pub async fn save_pack_as(&self, params: Parameters<PackKeyPathArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::SavePackAs(params.0.pack_key, params.0.path))
+        send_and_respond!(self, "save_pack_as", Command::SavePackAs(params.0.pack_key, params.0.path))
     }
 
     #[tool(description = "Clean the pack identified by `pack_key` from corrupted files and save to a path. Use if normal save fails.")]
     pub async fn clean_and_save_pack_as(&self, params: Parameters<PackKeyPathArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::CleanAndSavePackAs(params.0.pack_key, params.0.path))
+        send_and_respond!(self, "clean_and_save_pack_as", Command::CleanAndSavePackAs(params.0.pack_key, params.0.path))
     }
 
     #[tool(description = "Trigger a backup autosave for the pack identified by `pack_key`.")]
     pub async fn trigger_backup_autosave(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::TriggerBackupAutosave(params.0.pack_key))
+        send_and_respond!(self, "trigger_backup_autosave", Command::TriggerBackupAutosave(params.0.pack_key))
     }
 
     #[tool(description = "Open all CA (vanilla) PackFiles for the selected game as one merged PackFile.")]
     pub async fn load_all_ca_pack_files(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::LoadAllCAPackFiles)
+        send_and_respond!(self, "load_all_ca_pack_files", Command::LoadAllCAPackFiles)
     }
 
     //-----------------------------------------------------------------------//
@@ -752,50 +770,50 @@ impl McpServer {
     #[tool(description = "Set the type of the pack identified by `pack_key`. Pass the PFHFileType as JSON.")]
     pub async fn set_pack_file_type(&self, params: Parameters<SetPackFileTypeArgs>) -> Result<CallToolResult, McpError> {
         let pfh_type = serde_json::from_str(&params.0.pack_file_type).unwrap();
-        send_and_respond!(self, Command::SetPackFileType(params.0.pack_key, pfh_type))
+        send_and_respond!(self, "set_pack_file_type", Command::SetPackFileType(params.0.pack_key, pfh_type))
     }
 
     #[tool(description = "Change the compression format of the pack identified by `pack_key`. Pass the CompressionFormat as JSON.")]
     pub async fn change_compression_format(&self, params: Parameters<ChangeCompressionFormatArgs>) -> Result<CallToolResult, McpError> {
         let format = serde_json::from_str(&params.0.format).unwrap();
-        send_and_respond!(self, Command::ChangeCompressionFormat(params.0.pack_key, format))
+        send_and_respond!(self, "change_compression_format", Command::ChangeCompressionFormat(params.0.pack_key, format))
     }
 
     #[tool(description = "Change whether the pack index includes timestamps for the pack identified by `pack_key`.")]
     pub async fn change_index_includes_timestamp(&self, params: Parameters<PackKeyBoolArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::ChangeIndexIncludesTimestamp(params.0.pack_key, params.0.value))
+        send_and_respond!(self, "change_index_includes_timestamp", Command::ChangeIndexIncludesTimestamp(params.0.pack_key, params.0.value))
     }
 
     #[tool(description = "Get the file path of the pack identified by `pack_key`.")]
     pub async fn get_pack_file_path(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::GetPackFilePath(params.0.pack_key))
+        send_and_respond!(self, "get_pack_file_path", Command::GetPackFilePath(params.0.pack_key))
     }
 
     #[tool(description = "Get the file name of the pack identified by `pack_key`.")]
     pub async fn get_pack_file_name(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::GetPackFileName(params.0.pack_key))
+        send_and_respond!(self, "get_pack_file_name", Command::GetPackFileName(params.0.pack_key))
     }
 
     #[tool(description = "Get the settings of the pack identified by `pack_key`.")]
     pub async fn get_pack_settings(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::GetPackSettings(params.0.pack_key))
+        send_and_respond!(self, "get_pack_settings", Command::GetPackSettings(params.0.pack_key))
     }
 
     #[tool(description = "Set the settings of the pack identified by `pack_key`. Pass PackSettings as JSON.")]
     pub async fn set_pack_settings(&self, params: Parameters<SetPackSettingsArgs>) -> Result<CallToolResult, McpError> {
         let settings = serde_json::from_str(&params.0.settings).unwrap();
-        send_and_respond!(self, Command::SetPackSettings(params.0.pack_key, settings))
+        send_and_respond!(self, "set_pack_settings", Command::SetPackSettings(params.0.pack_key, settings))
     }
 
     #[tool(description = "Get the list of PackFiles marked as dependencies of the pack identified by `pack_key`.")]
     pub async fn get_dependency_pack_files_list(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::GetDependencyPackFilesList(params.0.pack_key))
+        send_and_respond!(self, "get_dependency_pack_files_list", Command::GetDependencyPackFilesList(params.0.pack_key))
     }
 
     #[tool(description = "Set the list of PackFiles marked as dependencies for the pack identified by `pack_key`. Pass Vec<(bool, String)> as JSON.")]
     pub async fn set_dependency_pack_files_list(&self, params: Parameters<SetDependencyPackFilesListArgs>) -> Result<CallToolResult, McpError> {
         let list = serde_json::from_str(&params.0.list).unwrap();
-        send_and_respond!(self, Command::SetDependencyPackFilesList(params.0.pack_key, list))
+        send_and_respond!(self, "set_dependency_pack_files_list", Command::SetDependencyPackFilesList(params.0.pack_key, list))
     }
 
     //-----------------------------------------------------------------------//
@@ -804,120 +822,120 @@ impl McpServer {
 
     #[tool(description = "Decode a file from the pack identified by `pack_key`. The parameters are the path of the file inside the data source, and in what data source it is.")]
     pub async fn decode_packed_file(&self, params: Parameters<DecodePackedFileArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::DecodePackedFile(params.0.pack_key, params.0.path, params.0.source))
+        send_and_respond!(self, "decode_packed_file", Command::DecodePackedFile(params.0.pack_key, params.0.path, params.0.source))
     }
 
     #[tool(description = "Create a new file inside the pack identified by `pack_key`. Pass the NewFile type as JSON.")]
     pub async fn new_packed_file(&self, params: Parameters<NewPackedFileArgs>) -> Result<CallToolResult, McpError> {
         let new_file = serde_json::from_str(&params.0.new_file).unwrap();
-        send_and_respond!(self, Command::NewPackedFile(params.0.pack_key, params.0.path, new_file))
+        send_and_respond!(self, "new_packed_file", Command::NewPackedFile(params.0.pack_key, params.0.path, new_file))
     }
 
     #[tool(description = "Add files from disk to the pack identified by `pack_key`. Pass destination ContainerPaths as JSON.")]
     pub async fn add_packed_files(&self, params: Parameters<AddPackedFilesArgs>) -> Result<CallToolResult, McpError> {
         let dest: Vec<rpfm_lib::files::ContainerPath> = serde_json::from_str(&params.0.destination_paths).unwrap();
-        send_and_respond!(self, Command::AddPackedFiles(params.0.pack_key, params.0.source_paths, dest, params.0.ignore_paths))
+        send_and_respond!(self, "add_packed_files", Command::AddPackedFiles(params.0.pack_key, params.0.source_paths, dest, params.0.ignore_paths))
     }
 
     #[tool(description = "Add files from another PackFile to the pack identified by `pack_key`. Pass ContainerPaths as JSON.")]
     pub async fn add_packed_files_from_pack_file(&self, params: Parameters<AddPackedFilesFromPackFileArgs>) -> Result<CallToolResult, McpError> {
         let paths: Vec<rpfm_lib::files::ContainerPath> = serde_json::from_str(&params.0.container_paths).unwrap();
-        send_and_respond!(self, Command::AddPackedFilesFromPackFile(params.0.pack_key, params.0.source_pack_path, paths))
+        send_and_respond!(self, "add_packed_files_from_pack_file", Command::AddPackedFilesFromPackFile(params.0.pack_key, params.0.source_pack_path, paths))
     }
 
     #[tool(description = "Add files from the pack identified by `pack_key` to an AnimPack. Pass ContainerPaths as JSON.")]
     pub async fn add_packed_files_from_pack_file_to_animpack(&self, params: Parameters<AddPackedFilesFromPackFileToAnimpackArgs>) -> Result<CallToolResult, McpError> {
         let paths: Vec<rpfm_lib::files::ContainerPath> = serde_json::from_str(&params.0.container_paths).unwrap();
-        send_and_respond!(self, Command::AddPackedFilesFromPackFileToAnimpack(params.0.pack_key, params.0.animpack_path, paths))
+        send_and_respond!(self, "add_packed_files_from_pack_file_to_animpack", Command::AddPackedFilesFromPackFileToAnimpack(params.0.pack_key, params.0.animpack_path, paths))
     }
 
     #[tool(description = "Add files from an AnimPack to the pack identified by `pack_key`. Pass ContainerPaths as JSON.")]
     pub async fn add_packed_files_from_animpack(&self, params: Parameters<AddPackedFilesFromAnimpackArgs>) -> Result<CallToolResult, McpError> {
         let paths: Vec<rpfm_lib::files::ContainerPath> = serde_json::from_str(&params.0.container_paths).unwrap();
-        send_and_respond!(self, Command::AddPackedFilesFromAnimpack(params.0.pack_key, params.0.source, params.0.animpack_path, paths))
+        send_and_respond!(self, "add_packed_files_from_animpack", Command::AddPackedFilesFromAnimpack(params.0.pack_key, params.0.source, params.0.animpack_path, paths))
     }
 
     #[tool(description = "Delete files from the pack identified by `pack_key`. Pass Vec<ContainerPath> as JSON.")]
     pub async fn delete_packed_files(&self, params: Parameters<ContainerPathsArg>) -> Result<CallToolResult, McpError> {
         let paths: Vec<rpfm_lib::files::ContainerPath> = serde_json::from_str(&params.0.paths).unwrap();
-        send_and_respond!(self, Command::DeletePackedFiles(params.0.pack_key, paths))
+        send_and_respond!(self, "delete_packed_files", Command::DeletePackedFiles(params.0.pack_key, paths))
     }
 
     #[tool(description = "Delete files from an AnimPack in the pack identified by `pack_key`. Pass ContainerPaths as JSON.")]
     pub async fn delete_from_animpack(&self, params: Parameters<DeleteFromAnimpackArgs>) -> Result<CallToolResult, McpError> {
         let paths: Vec<rpfm_lib::files::ContainerPath> = serde_json::from_str(&params.0.container_paths).unwrap();
-        send_and_respond!(self, Command::DeleteFromAnimpack(params.0.pack_key, params.0.animpack_path, paths))
+        send_and_respond!(self, "delete_from_animpack", Command::DeleteFromAnimpack(params.0.pack_key, params.0.animpack_path, paths))
     }
 
     #[tool(description = "Extract files from the pack identified by `pack_key` to disk. Pass source paths as JSON BTreeMap<DataSource, Vec<ContainerPath>>.")]
     pub async fn extract_packed_files(&self, params: Parameters<ExtractPackedFilesArgs>) -> Result<CallToolResult, McpError> {
         let source: BTreeMap<DataSource, Vec<rpfm_lib::files::ContainerPath>> = serde_json::from_str(&params.0.source_paths).unwrap();
-        send_and_respond!(self, Command::ExtractPackedFiles(params.0.pack_key, source, params.0.destination_path, params.0.export_as_tsv))
+        send_and_respond!(self, "extract_packed_files", Command::ExtractPackedFiles(params.0.pack_key, source, params.0.destination_path, params.0.export_as_tsv))
     }
 
     #[tool(description = "Rename files in the pack identified by `pack_key`. Pass Vec<(ContainerPath, ContainerPath)> as JSON.")]
     pub async fn rename_packed_files(&self, params: Parameters<RenamePackedFilesArgs>) -> Result<CallToolResult, McpError> {
         let renames: Vec<(rpfm_lib::files::ContainerPath, rpfm_lib::files::ContainerPath)> = serde_json::from_str(&params.0.renames).unwrap();
-        send_and_respond!(self, Command::RenamePackedFiles(params.0.pack_key, renames))
+        send_and_respond!(self, "rename_packed_files", Command::RenamePackedFiles(params.0.pack_key, renames))
     }
 
     #[tool(description = "Save an edited decoded file back to the pack identified by `pack_key`. Pass RFileDecoded as JSON.")]
     pub async fn save_packed_file_from_view(&self, params: Parameters<SavePackedFileFromViewArgs>) -> Result<CallToolResult, McpError> {
         let data: rpfm_lib::files::RFileDecoded = serde_json::from_str(&params.0.data).unwrap();
-        send_and_respond!(self, Command::SavePackedFileFromView(params.0.pack_key, params.0.path, data))
+        send_and_respond!(self, "save_packed_file_from_view", Command::SavePackedFileFromView(params.0.pack_key, params.0.path, data))
     }
 
     #[tool(description = "Save a file from an external program back to the pack identified by `pack_key`.")]
     pub async fn save_packed_file_from_external_view(&self, params: Parameters<SavePackedFileFromExternalViewArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::SavePackedFileFromExternalView(params.0.pack_key, params.0.internal_path, params.0.external_path))
+        send_and_respond!(self, "save_packed_file_from_external_view", Command::SavePackedFileFromExternalView(params.0.pack_key, params.0.internal_path, params.0.external_path))
     }
 
     #[tool(description = "Save files to the pack identified by `pack_key` and optionally clean. Pass Vec<RFile> as JSON.")]
     pub async fn save_packed_files_to_pack_file_and_clean(&self, params: Parameters<SavePackedFilesToPackFileAndCleanArgs>) -> Result<CallToolResult, McpError> {
         let files: Vec<rpfm_lib::files::RFile> = serde_json::from_str(&params.0.files).unwrap();
-        send_and_respond!(self, Command::SavePackedFilesToPackFileAndClean(params.0.pack_key, files, params.0.optimize))
+        send_and_respond!(self, "save_packed_files_to_pack_file_and_clean", Command::SavePackedFilesToPackFileAndClean(params.0.pack_key, files, params.0.optimize))
     }
 
     #[tool(description = "Get the raw binary data of a file in the pack identified by `pack_key`.")]
     pub async fn get_packed_file_raw_data(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::GetPackedFileRawData(params.0.pack_key, params.0.value))
+        send_and_respond!(self, "get_packed_file_raw_data", Command::GetPackedFileRawData(params.0.pack_key, params.0.value))
     }
 
     #[tool(description = "Open a file in an external program from the pack identified by `pack_key`. Pass ContainerPath as JSON.")]
     pub async fn open_packed_file_in_external_program(&self, params: Parameters<OpenPackedFileInExternalProgramArgs>) -> Result<CallToolResult, McpError> {
         let cp: rpfm_lib::files::ContainerPath = serde_json::from_str(&params.0.container_path).unwrap();
-        send_and_respond!(self, Command::OpenPackedFileInExternalProgram(params.0.pack_key, params.0.source, cp))
+        send_and_respond!(self, "open_packed_file_in_external_program", Command::OpenPackedFileInExternalProgram(params.0.pack_key, params.0.source, cp))
     }
 
     #[tool(description = "Open the folder containing the pack identified by `pack_key` in the file manager.")]
     pub async fn open_containing_folder(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::OpenContainingFolder(params.0.pack_key))
+        send_and_respond!(self, "open_containing_folder", Command::OpenContainingFolder(params.0.pack_key))
     }
 
     #[tool(description = "Clean the decode cache for the provided paths in the pack identified by `pack_key`. Pass Vec<ContainerPath> as JSON.")]
     pub async fn clean_cache(&self, params: Parameters<ContainerPathsArg>) -> Result<CallToolResult, McpError> {
         let paths: Vec<rpfm_lib::files::ContainerPath> = serde_json::from_str(&params.0.paths).unwrap();
-        send_and_respond!(self, Command::CleanCache(params.0.pack_key, paths))
+        send_and_respond!(self, "clean_cache", Command::CleanCache(params.0.pack_key, paths))
     }
 
     #[tool(description = "Check if a folder exists in the pack identified by `pack_key`.")]
     pub async fn folder_exists(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::FolderExists(params.0.pack_key, params.0.value))
+        send_and_respond!(self, "folder_exists", Command::FolderExists(params.0.pack_key, params.0.value))
     }
 
     #[tool(description = "Check if a file exists in the pack identified by `pack_key`.")]
     pub async fn packed_file_exists(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::PackedFileExists(params.0.pack_key, params.0.value))
+        send_and_respond!(self, "packed_file_exists", Command::PackedFileExists(params.0.pack_key, params.0.value))
     }
 
     #[tool(description = "Get the info of one or more files in the pack identified by `pack_key`.")]
     pub async fn get_packed_files_info(&self, params: Parameters<PackKeyStringsArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::GetPackedFilesInfo(params.0.pack_key, params.0.values))
+        send_and_respond!(self, "get_packed_files_info", Command::GetPackedFilesInfo(params.0.pack_key, params.0.values))
     }
 
     #[tool(description = "Get the info of a single file in the pack identified by `pack_key`.")]
     pub async fn get_rfile_info(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::GetRFileInfo(params.0.pack_key, params.0.value))
+        send_and_respond!(self, "get_rfile_info", Command::GetRFileInfo(params.0.pack_key, params.0.value))
     }
 
     //-----------------------------------------------------------------------//
@@ -926,12 +944,12 @@ impl McpServer {
 
     #[tool(description = "Get the currently selected game key.")]
     pub async fn get_game_selected(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::GetGameSelected)
+        send_and_respond!(self, "get_game_selected", Command::GetGameSelected)
     }
 
     #[tool(description = "Set the current game selected. You need to set this to one of the valid games after opening a pack.")]
     pub async fn set_game_selected(&self, params: Parameters<SetGameSelectedArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::SetGameSelected(params.0.game_name, params.0.rebuild_dependencies))
+        send_and_respond!(self, "set_game_selected", Command::SetGameSelected(params.0.game_name, params.0.rebuild_dependencies))
     }
 
     //-----------------------------------------------------------------------//
@@ -940,70 +958,70 @@ impl McpServer {
 
     #[tool(description = "Generate the dependencies cache for the selected game.")]
     pub async fn generate_dependencies_cache(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::GenerateDependenciesCache)
+        send_and_respond!(self, "generate_dependencies_cache", Command::GenerateDependenciesCache)
     }
 
     #[tool(description = "Rebuild dependencies. Pass true for full rebuild, false for mod-specific only.")]
     pub async fn rebuild_dependencies(&self, params: Parameters<BoolArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::RebuildDependencies(params.0.value))
+        send_and_respond!(self, "rebuild_dependencies", Command::RebuildDependencies(params.0.value))
     }
 
     #[tool(description = "Check if there is a dependency database loaded. Pass true to ensure AssKit data is included.")]
     pub async fn is_there_a_dependency_database(&self, params: Parameters<BoolArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::IsThereADependencyDatabase(params.0.value))
+        send_and_respond!(self, "is_there_a_dependency_database", Command::IsThereADependencyDatabase(params.0.value))
     }
 
     #[tool(description = "Get the table names of all DB files in dependency PackFiles.")]
     pub async fn get_table_list_from_dependency_pack_file(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::GetTableListFromDependencyPackFile)
+        send_and_respond!(self, "get_table_list_from_dependency_pack_file", Command::GetTableListFromDependencyPackFile)
     }
 
     #[tool(description = "Get custom table names (start_pos_, twad_ prefixes) from the schema.")]
     pub async fn get_custom_table_list(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::GetCustomTableList)
+        send_and_respond!(self, "get_custom_table_list", Command::GetCustomTableList)
     }
 
     #[tool(description = "Get the version of a table from the dependency database.")]
     pub async fn get_table_version_from_dependency_pack_file(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::GetTableVersionFromDependencyPackFile(params.0.value))
+        send_and_respond!(self, "get_table_version_from_dependency_pack_file", Command::GetTableVersionFromDependencyPackFile(params.0.value))
     }
 
     #[tool(description = "Get the definition of a table from the dependency database.")]
     pub async fn get_table_definition_from_dependency_pack_file(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::GetTableDefinitionFromDependencyPackFile(params.0.value))
+        send_and_respond!(self, "get_table_definition_from_dependency_pack_file", Command::GetTableDefinitionFromDependencyPackFile(params.0.value))
     }
 
     #[tool(description = "Get table data from dependencies by table name.")]
     pub async fn get_tables_from_dependencies(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::GetTablesFromDependencies(params.0.value))
+        send_and_respond!(self, "get_tables_from_dependencies", Command::GetTablesFromDependencies(params.0.value))
     }
 
     #[tool(description = "Import files from dependencies into the pack identified by `pack_key`. Pass BTreeMap<DataSource, Vec<ContainerPath>> as JSON.")]
     pub async fn import_dependencies_to_open_pack_file(&self, params: Parameters<ImportDependenciesArgs>) -> Result<CallToolResult, McpError> {
         let paths: BTreeMap<DataSource, Vec<rpfm_lib::files::ContainerPath>> = serde_json::from_str(&params.0.paths).unwrap();
-        send_and_respond!(self, Command::ImportDependenciesToOpenPackFile(params.0.pack_key, paths))
+        send_and_respond!(self, "import_dependencies_to_open_pack_file", Command::ImportDependenciesToOpenPackFile(params.0.pack_key, paths))
     }
 
     #[tool(description = "Get files from all known sources (PackFile, GameFiles, ParentFiles). Pass Vec<ContainerPath> as JSON.")]
     pub async fn get_rfiles_from_all_sources(&self, params: Parameters<GetRFilesFromAllSourcesArgs>) -> Result<CallToolResult, McpError> {
         let paths: Vec<rpfm_lib::files::ContainerPath> = serde_json::from_str(&params.0.paths).unwrap();
-        send_and_respond!(self, Command::GetRFilesFromAllSources(paths, params.0.lowercase))
+        send_and_respond!(self, "get_rfiles_from_all_sources", Command::GetRFilesFromAllSources(paths, params.0.lowercase))
     }
 
     #[tool(description = "Get all file names under a path in all dependencies. Pass ContainerPath as JSON.")]
     pub async fn get_packed_files_names_starting_with_path_from_all_sources(&self, params: Parameters<ContainerPathArg>) -> Result<CallToolResult, McpError> {
         let path: rpfm_lib::files::ContainerPath = serde_json::from_str(&params.0.path).unwrap();
-        send_and_respond!(self, Command::GetPackedFilesNamesStartingWitPathFromAllSources(path))
+        send_and_respond!(self, "get_packed_files_names_starting_with_path_from_all_sources", Command::GetPackedFilesNamesStartingWitPathFromAllSources(path))
     }
 
     #[tool(description = "Get local art set IDs from campaign_character_arts_tables in the pack identified by `pack_key`.")]
     pub async fn local_art_set_ids(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::LocalArtSetIds(params.0.pack_key))
+        send_and_respond!(self, "local_art_set_ids", Command::LocalArtSetIds(params.0.pack_key))
     }
 
     #[tool(description = "Get art set IDs from dependencies' campaign_character_arts_tables.")]
     pub async fn dependencies_art_set_ids(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::DependenciesArtSetIds)
+        send_and_respond!(self, "dependencies_art_set_ids", Command::DependenciesArtSetIds)
     }
 
     //-----------------------------------------------------------------------//
@@ -1013,47 +1031,47 @@ impl McpServer {
     #[tool(description = "Run a global search across the pack identified by `pack_key`. Pass GlobalSearch as JSON.")]
     pub async fn global_search(&self, params: Parameters<GlobalSearchArgs>) -> Result<CallToolResult, McpError> {
         let search = serde_json::from_str(&params.0.search).unwrap();
-        send_and_respond!(self, Command::GlobalSearch(params.0.pack_key, search))
+        send_and_respond!(self, "global_search", Command::GlobalSearch(params.0.pack_key, search))
     }
 
     #[tool(description = "Replace specific matches in a global search for the pack identified by `pack_key`. Pass GlobalSearch and Vec<MatchHolder> as JSON.")]
     pub async fn global_search_replace_matches(&self, params: Parameters<GlobalSearchReplaceMatchesArgs>) -> Result<CallToolResult, McpError> {
         let search = serde_json::from_str(&params.0.search).unwrap();
         let matches = serde_json::from_str(&params.0.matches).unwrap();
-        send_and_respond!(self, Command::GlobalSearchReplaceMatches(params.0.pack_key, search, matches))
+        send_and_respond!(self, "global_search_replace_matches", Command::GlobalSearchReplaceMatches(params.0.pack_key, search, matches))
     }
 
     #[tool(description = "Replace all matches in a global search for the pack identified by `pack_key`. Pass GlobalSearch as JSON.")]
     pub async fn global_search_replace_all(&self, params: Parameters<GlobalSearchArgs>) -> Result<CallToolResult, McpError> {
         let search = serde_json::from_str(&params.0.search).unwrap();
-        send_and_respond!(self, Command::GlobalSearchReplaceAll(params.0.pack_key, search))
+        send_and_respond!(self, "global_search_replace_all", Command::GlobalSearchReplaceAll(params.0.pack_key, search))
     }
 
     #[tool(description = "Find all references to a value in the pack identified by `pack_key`. Pass HashMap<String, Vec<String>> as JSON for the reference map.")]
     pub async fn search_references(&self, params: Parameters<SearchReferencesArgs>) -> Result<CallToolResult, McpError> {
         let map: HashMap<String, Vec<String>> = serde_json::from_str(&params.0.reference_map).unwrap();
-        send_and_respond!(self, Command::SearchReferences(params.0.pack_key, map, params.0.value))
+        send_and_respond!(self, "search_references", Command::SearchReferences(params.0.pack_key, map, params.0.value))
     }
 
     #[tool(description = "Get reference data for columns in a definition for the pack identified by `pack_key`. Pass Definition as JSON.")]
     pub async fn get_reference_data_from_definition(&self, params: Parameters<GetReferenceDataFromDefinitionArgs>) -> Result<CallToolResult, McpError> {
         let def = serde_json::from_str(&params.0.definition).unwrap();
-        send_and_respond!(self, Command::GetReferenceDataFromDefinition(params.0.pack_key, params.0.table_name, def, params.0.force))
+        send_and_respond!(self, "get_reference_data_from_definition", Command::GetReferenceDataFromDefinition(params.0.pack_key, params.0.table_name, def, params.0.force))
     }
 
     #[tool(description = "Go to the definition of a reference in the pack identified by `pack_key`. Provide table name, column name, and values to search.")]
     pub async fn go_to_definition(&self, params: Parameters<GoToDefinitionArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::GoToDefinition(params.0.pack_key, params.0.table_name, params.0.column_name, params.0.values))
+        send_and_respond!(self, "go_to_definition", Command::GoToDefinition(params.0.pack_key, params.0.table_name, params.0.column_name, params.0.values))
     }
 
     #[tool(description = "Go to a loc key's location in the pack identified by `pack_key`.")]
     pub async fn go_to_loc(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::GoToLoc(params.0.pack_key, params.0.value))
+        send_and_respond!(self, "go_to_loc", Command::GoToLoc(params.0.pack_key, params.0.value))
     }
 
     #[tool(description = "Get the source data of a loc key in the pack identified by `pack_key`.")]
     pub async fn get_source_data_from_loc_key(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::GetSourceDataFromLocKey(params.0.pack_key, params.0.value))
+        send_and_respond!(self, "get_source_data_from_loc_key", Command::GetSourceDataFromLocKey(params.0.pack_key, params.0.value))
     }
 
     //-----------------------------------------------------------------------//
@@ -1063,76 +1081,76 @@ impl McpServer {
     #[tool(description = "Save the provided schema to disk. Pass Schema as JSON.")]
     pub async fn save_schema(&self, params: Parameters<SaveSchemaArgs>) -> Result<CallToolResult, McpError> {
         let schema = serde_json::from_str(&params.0.schema).unwrap();
-        send_and_respond!(self, Command::SaveSchema(schema))
+        send_and_respond!(self, "save_schema", Command::SaveSchema(schema))
     }
 
     #[tool(description = "Update the currently loaded schema with data from the game's Assembly Kit.")]
     pub async fn update_current_schema_from_asskit(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::UpdateCurrentSchemaFromAssKit)
+        send_and_respond!(self, "update_current_schema_from_asskit", Command::UpdateCurrentSchemaFromAssKit)
     }
 
     #[tool(description = "Update schemas from the remote repository.")]
     pub async fn update_schemas(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::UpdateSchemas)
+        send_and_respond!(self, "update_schemas", Command::UpdateSchemas)
     }
 
     #[tool(description = "Check if a schema is currently loaded.")]
     pub async fn is_schema_loaded(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::IsSchemaLoaded)
+        send_and_respond!(self, "is_schema_loaded", Command::IsSchemaLoaded)
     }
 
     #[tool(description = "Get the current schema.")]
     pub async fn get_schema(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::Schema)
+        send_and_respond!(self, "get_schema", Command::Schema)
     }
 
     #[tool(description = "Get all definitions for a table name.")]
     pub async fn definitions_by_table_name(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::DefinitionsByTableName(params.0.value))
+        send_and_respond!(self, "definitions_by_table_name", Command::DefinitionsByTableName(params.0.value))
     }
 
     #[tool(description = "Get a specific definition by table name and version.")]
     pub async fn definition_by_table_name_and_version(&self, params: Parameters<StringI32Args>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::DefinitionByTableNameAndVersion(params.0.name, params.0.version))
+        send_and_respond!(self, "definition_by_table_name_and_version", Command::DefinitionByTableNameAndVersion(params.0.name, params.0.version))
     }
 
     #[tool(description = "Delete a definition by table name and version.")]
     pub async fn delete_definition(&self, params: Parameters<StringI32Args>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::DeleteDefinition(params.0.name, params.0.version))
+        send_and_respond!(self, "delete_definition", Command::DeleteDefinition(params.0.name, params.0.version))
     }
 
     #[tool(description = "Get columns that reference a table's definition. Pass Definition as JSON.")]
     pub async fn referencing_columns_for_definition(&self, params: Parameters<ReferencingColumnsForDefinitionArgs>) -> Result<CallToolResult, McpError> {
         let def = serde_json::from_str(&params.0.definition).unwrap();
-        send_and_respond!(self, Command::ReferencingColumnsForDefinition(params.0.table_name, def))
+        send_and_respond!(self, "referencing_columns_for_definition", Command::ReferencingColumnsForDefinition(params.0.table_name, def))
     }
 
     #[tool(description = "Get the processed fields from a definition (bitwise expansion, enum conversion applied). Pass Definition as JSON.")]
     pub async fn fields_processed(&self, params: Parameters<DefinitionArg>) -> Result<CallToolResult, McpError> {
         let def = serde_json::from_str(&params.0.definition).unwrap();
-        send_and_respond!(self, Command::FieldsProcessed(def))
+        send_and_respond!(self, "fields_processed", Command::FieldsProcessed(def))
     }
 
     #[tool(description = "Save local schema patches. Pass HashMap<String, DefinitionPatch> as JSON.")]
     pub async fn save_local_schema_patch(&self, params: Parameters<SchemaPatchArgs>) -> Result<CallToolResult, McpError> {
         let patches = serde_json::from_str(&params.0.patches).unwrap();
-        send_and_respond!(self, Command::SaveLocalSchemaPatch(patches))
+        send_and_respond!(self, "save_local_schema_patch", Command::SaveLocalSchemaPatch(patches))
     }
 
     #[tool(description = "Remove local schema patches for a table.")]
     pub async fn remove_local_schema_patches_for_table(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::RemoveLocalSchemaPatchesForTable(params.0.value))
+        send_and_respond!(self, "remove_local_schema_patches_for_table", Command::RemoveLocalSchemaPatchesForTable(params.0.value))
     }
 
     #[tool(description = "Remove local schema patches for a specific field in a table.")]
     pub async fn remove_local_schema_patches_for_table_and_field(&self, params: Parameters<SettingsSetStringArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::RemoveLocalSchemaPatchesForTableAndField(params.0.key, params.0.value))
+        send_and_respond!(self, "remove_local_schema_patches_for_table_and_field", Command::RemoveLocalSchemaPatchesForTableAndField(params.0.key, params.0.value))
     }
 
     #[tool(description = "Import a schema patch. Pass HashMap<String, DefinitionPatch> as JSON.")]
     pub async fn import_schema_patch(&self, params: Parameters<SchemaPatchArgs>) -> Result<CallToolResult, McpError> {
         let patches = serde_json::from_str(&params.0.patches).unwrap();
-        send_and_respond!(self, Command::ImportSchemaPatch(patches))
+        send_and_respond!(self, "import_schema_patch", Command::ImportSchemaPatch(patches))
     }
 
     //-----------------------------------------------------------------------//
@@ -1142,40 +1160,40 @@ impl McpServer {
     #[tool(description = "Merge multiple compatible tables into one in the pack identified by `pack_key`. Pass Vec<ContainerPath> as JSON.")]
     pub async fn merge_files(&self, params: Parameters<MergeFilesArgs>) -> Result<CallToolResult, McpError> {
         let paths: Vec<rpfm_lib::files::ContainerPath> = serde_json::from_str(&params.0.paths).unwrap();
-        send_and_respond!(self, Command::MergeFiles(params.0.pack_key, paths, params.0.merged_path, params.0.delete_source))
+        send_and_respond!(self, "merge_files", Command::MergeFiles(params.0.pack_key, paths, params.0.merged_path, params.0.delete_source))
     }
 
     #[tool(description = "Update a table to a newer version in the pack identified by `pack_key`. Pass ContainerPath as JSON.")]
     pub async fn update_table(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
         let path: rpfm_lib::files::ContainerPath = serde_json::from_str(&params.0.value).unwrap();
-        send_and_respond!(self, Command::UpdateTable(params.0.pack_key, path))
+        send_and_respond!(self, "update_table", Command::UpdateTable(params.0.pack_key, path))
     }
 
     #[tool(description = "Trigger a cascade edition on all referenced data in the pack identified by `pack_key`. Pass Definition and Vec<(Field, String, String)> as JSON.")]
     pub async fn cascade_edition(&self, params: Parameters<CascadeEditionArgs>) -> Result<CallToolResult, McpError> {
         let def = serde_json::from_str(&params.0.definition).unwrap();
         let changes = serde_json::from_str(&params.0.changes).unwrap();
-        send_and_respond!(self, Command::CascadeEdition(params.0.pack_key, params.0.table_name, def, changes))
+        send_and_respond!(self, "cascade_edition", Command::CascadeEdition(params.0.pack_key, params.0.table_name, def, changes))
     }
 
     #[tool(description = "Get table paths by table name from the pack identified by `pack_key`.")]
     pub async fn get_tables_by_table_name(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::GetTablesByTableName(params.0.pack_key, params.0.value))
+        send_and_respond!(self, "get_tables_by_table_name", Command::GetTablesByTableName(params.0.pack_key, params.0.value))
     }
 
     #[tool(description = "Add keys to the key_deletes table in the pack identified by `pack_key`.")]
     pub async fn add_keys_to_key_deletes(&self, params: Parameters<AddKeysToKeyDeletesArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::AddKeysToKeyDeletes(params.0.pack_key, params.0.table_file_name, params.0.key_table_name, params.0.keys))
+        send_and_respond!(self, "add_keys_to_key_deletes", Command::AddKeysToKeyDeletes(params.0.pack_key, params.0.table_file_name, params.0.key_table_name, params.0.keys))
     }
 
     #[tool(description = "Export a table from the pack identified by `pack_key` to a TSV file.")]
     pub async fn export_tsv(&self, params: Parameters<TsvExportArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::ExportTSV(params.0.pack_key, params.0.table_path, params.0.tsv_path, DataSource::PackFile))
+        send_and_respond!(self, "export_tsv", Command::ExportTSV(params.0.pack_key, params.0.table_path, params.0.tsv_path, DataSource::PackFile))
     }
 
     #[tool(description = "Import a TSV file to a table in the pack identified by `pack_key`.")]
     pub async fn import_tsv(&self, params: Parameters<TsvImportArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::ImportTSV(params.0.pack_key, params.0.table_path, params.0.tsv_path))
+        send_and_respond!(self, "import_tsv", Command::ImportTSV(params.0.pack_key, params.0.table_path, params.0.tsv_path))
     }
 
     //-----------------------------------------------------------------------//
@@ -1184,24 +1202,24 @@ impl McpServer {
 
     #[tool(description = "Run a full diagnostics check over all open packs.")]
     pub async fn diagnostics_check(&self, params: Parameters<DiagnosticsCheckArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::DiagnosticsCheck(params.0.ignored, params.0.check_ak_only_refs))
+        send_and_respond!(self, "diagnostics_check", Command::DiagnosticsCheck(params.0.ignored, params.0.check_ak_only_refs))
     }
 
     #[tool(description = "Update diagnostics for changed files across all open packs. Pass Diagnostics and Vec<ContainerPath> as JSON.")]
     pub async fn diagnostics_update(&self, params: Parameters<DiagnosticsUpdateArgs>) -> Result<CallToolResult, McpError> {
         let diag = serde_json::from_str(&params.0.diagnostics).unwrap();
         let paths: Vec<rpfm_lib::files::ContainerPath> = serde_json::from_str(&params.0.paths).unwrap();
-        send_and_respond!(self, Command::DiagnosticsUpdate(diag, paths, params.0.check_ak_only_refs))
+        send_and_respond!(self, "diagnostics_update", Command::DiagnosticsUpdate(diag, paths, params.0.check_ak_only_refs))
     }
 
     #[tool(description = "Add a line to the ignored diagnostics list for the pack identified by `pack_key`.")]
     pub async fn add_line_to_pack_ignored_diagnostics(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::AddLineToPackIgnoredDiagnostics(params.0.pack_key, params.0.value))
+        send_and_respond!(self, "add_line_to_pack_ignored_diagnostics", Command::AddLineToPackIgnoredDiagnostics(params.0.pack_key, params.0.value))
     }
 
     #[tool(description = "Export missing table definitions for the pack identified by `pack_key` to a file (for debugging).")]
     pub async fn get_missing_definitions(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::GetMissingDefinitions(params.0.pack_key))
+        send_and_respond!(self, "get_missing_definitions", Command::GetMissingDefinitions(params.0.pack_key))
     }
 
     //-----------------------------------------------------------------------//
@@ -1210,18 +1228,18 @@ impl McpServer {
 
     #[tool(description = "Get all notes under a path in the pack identified by `pack_key`.")]
     pub async fn notes_for_path(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::NotesForPath(params.0.pack_key, params.0.value))
+        send_and_respond!(self, "notes_for_path", Command::NotesForPath(params.0.pack_key, params.0.value))
     }
 
     #[tool(description = "Add a note to the pack identified by `pack_key`. Pass Note as JSON.")]
     pub async fn add_note(&self, params: Parameters<AddNoteArgs>) -> Result<CallToolResult, McpError> {
         let note = serde_json::from_str(&params.0.note).unwrap();
-        send_and_respond!(self, Command::AddNote(params.0.pack_key, note))
+        send_and_respond!(self, "add_note", Command::AddNote(params.0.pack_key, note))
     }
 
     #[tool(description = "Delete a note by path and ID in the pack identified by `pack_key`.")]
     pub async fn delete_note(&self, params: Parameters<DeleteNoteArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::DeleteNote(params.0.pack_key, params.0.path, params.0.id))
+        send_and_respond!(self, "delete_note", Command::DeleteNote(params.0.pack_key, params.0.path, params.0.id))
     }
 
     //-----------------------------------------------------------------------//
@@ -1231,12 +1249,12 @@ impl McpServer {
     #[tool(description = "Optimize the pack identified by `pack_key`. Pass OptimizerOptions as JSON.")]
     pub async fn optimize_pack_file(&self, params: Parameters<OptimizePackFileArgs>) -> Result<CallToolResult, McpError> {
         let options = serde_json::from_str(&params.0.options).unwrap();
-        send_and_respond!(self, Command::OptimizePackFile(params.0.pack_key, options))
+        send_and_respond!(self, "optimize_pack_file", Command::OptimizePackFile(params.0.pack_key, options))
     }
 
     #[tool(description = "Get the default optimizer options.")]
     pub async fn get_optimizer_options(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::OptimizerOptions)
+        send_and_respond!(self, "get_optimizer_options", Command::OptimizerOptions)
     }
 
     //-----------------------------------------------------------------------//
@@ -1245,47 +1263,47 @@ impl McpServer {
 
     #[tool(description = "Check if there is an RPFM update available.")]
     pub async fn check_updates(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::CheckUpdates)
+        send_and_respond!(self, "check_updates", Command::CheckUpdates)
     }
 
     #[tool(description = "Check if there is a schema update available.")]
     pub async fn check_schema_updates(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::CheckSchemaUpdates)
+        send_and_respond!(self, "check_schema_updates", Command::CheckSchemaUpdates)
     }
 
     #[tool(description = "Check for Lua autogen updates.")]
     pub async fn check_lua_autogen_updates(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::CheckLuaAutogenUpdates)
+        send_and_respond!(self, "check_lua_autogen_updates", Command::CheckLuaAutogenUpdates)
     }
 
     #[tool(description = "Check for Empire/Napoleon Assembly Kit updates.")]
     pub async fn check_empire_and_napoleon_ak_updates(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::CheckEmpireAndNapoleonAKUpdates)
+        send_and_respond!(self, "check_empire_and_napoleon_ak_updates", Command::CheckEmpireAndNapoleonAKUpdates)
     }
 
     #[tool(description = "Check for translation updates.")]
     pub async fn check_translations_updates(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::CheckTranslationsUpdates)
+        send_and_respond!(self, "check_translations_updates", Command::CheckTranslationsUpdates)
     }
 
     #[tool(description = "Update the Lua autogen repository.")]
     pub async fn update_lua_autogen(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::UpdateLuaAutogen)
+        send_and_respond!(self, "update_lua_autogen", Command::UpdateLuaAutogen)
     }
 
     #[tool(description = "Update the program to the latest version.")]
     pub async fn update_main_program(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::UpdateMainProgram)
+        send_and_respond!(self, "update_main_program", Command::UpdateMainProgram)
     }
 
     #[tool(description = "Update the Empire/Napoleon Assembly Kit files.")]
     pub async fn update_empire_and_napoleon_ak(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::UpdateEmpireAndNapoleonAK)
+        send_and_respond!(self, "update_empire_and_napoleon_ak", Command::UpdateEmpireAndNapoleonAK)
     }
 
     #[tool(description = "Update the translations repository.")]
     pub async fn update_translations(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::UpdateTranslations)
+        send_and_respond!(self, "update_translations", Command::UpdateTranslations)
     }
 
     //-----------------------------------------------------------------------//
@@ -1294,42 +1312,42 @@ impl McpServer {
 
     #[tool(description = "Get a boolean setting value by key.")]
     pub async fn settings_get_bool(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::SettingsGetBool(params.0.value))
+        send_and_respond!(self, "settings_get_bool", Command::SettingsGetBool(params.0.value))
     }
 
     #[tool(description = "Get an i32 setting value by key.")]
     pub async fn settings_get_i32(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::SettingsGetI32(params.0.value))
+        send_and_respond!(self, "settings_get_i32", Command::SettingsGetI32(params.0.value))
     }
 
     #[tool(description = "Get an f32 setting value by key.")]
     pub async fn settings_get_f32(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::SettingsGetF32(params.0.value))
+        send_and_respond!(self, "settings_get_f32", Command::SettingsGetF32(params.0.value))
     }
 
     #[tool(description = "Get a string setting value by key.")]
     pub async fn settings_get_string(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::SettingsGetString(params.0.value))
+        send_and_respond!(self, "settings_get_string", Command::SettingsGetString(params.0.value))
     }
 
     #[tool(description = "Get a PathBuf setting value by key.")]
     pub async fn settings_get_path_buf(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::SettingsGetPathBuf(params.0.value))
+        send_and_respond!(self, "settings_get_path_buf", Command::SettingsGetPathBuf(params.0.value))
     }
 
     #[tool(description = "Get a Vec<String> setting value by key.")]
     pub async fn settings_get_vec_string(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::SettingsGetVecString(params.0.value))
+        send_and_respond!(self, "settings_get_vec_string", Command::SettingsGetVecString(params.0.value))
     }
 
     #[tool(description = "Get a raw bytes setting value by key.")]
     pub async fn settings_get_vec_raw(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::SettingsGetVecRaw(params.0.value))
+        send_and_respond!(self, "settings_get_vec_raw", Command::SettingsGetVecRaw(params.0.value))
     }
 
     #[tool(description = "Get all settings at once (bool, i32, f32, and string maps).")]
     pub async fn settings_get_all(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::SettingsGetAll)
+        send_and_respond!(self, "settings_get_all", Command::SettingsGetAll)
     }
 
     //-----------------------------------------------------------------------//
@@ -1338,52 +1356,52 @@ impl McpServer {
 
     #[tool(description = "Set a boolean setting value.")]
     pub async fn settings_set_bool(&self, params: Parameters<SettingsSetBoolArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::SettingsSetBool(params.0.key, params.0.value))
+        send_and_respond!(self, "settings_set_bool", Command::SettingsSetBool(params.0.key, params.0.value))
     }
 
     #[tool(description = "Set an i32 setting value.")]
     pub async fn settings_set_i32(&self, params: Parameters<SettingsSetI32Args>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::SettingsSetI32(params.0.key, params.0.value))
+        send_and_respond!(self, "settings_set_i32", Command::SettingsSetI32(params.0.key, params.0.value))
     }
 
     #[tool(description = "Set an f32 setting value.")]
     pub async fn settings_set_f32(&self, params: Parameters<SettingsSetF32Args>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::SettingsSetF32(params.0.key, params.0.value))
+        send_and_respond!(self, "settings_set_f32", Command::SettingsSetF32(params.0.key, params.0.value))
     }
 
     #[tool(description = "Set a string setting value.")]
     pub async fn settings_set_string(&self, params: Parameters<SettingsSetStringArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::SettingsSetString(params.0.key, params.0.value))
+        send_and_respond!(self, "settings_set_string", Command::SettingsSetString(params.0.key, params.0.value))
     }
 
     #[tool(description = "Set a PathBuf setting value.")]
     pub async fn settings_set_path_buf(&self, params: Parameters<SettingsSetPathBufArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::SettingsSetPathBuf(params.0.key, params.0.value))
+        send_and_respond!(self, "settings_set_path_buf", Command::SettingsSetPathBuf(params.0.key, params.0.value))
     }
 
     #[tool(description = "Set a Vec<String> setting value.")]
     pub async fn settings_set_vec_string(&self, params: Parameters<SettingsSetVecStringArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::SettingsSetVecString(params.0.key, params.0.value))
+        send_and_respond!(self, "settings_set_vec_string", Command::SettingsSetVecString(params.0.key, params.0.value))
     }
 
     #[tool(description = "Set a raw bytes setting value.")]
     pub async fn settings_set_vec_raw(&self, params: Parameters<SettingsSetVecRawArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::SettingsSetVecRaw(params.0.key, params.0.value))
+        send_and_respond!(self, "settings_set_vec_raw", Command::SettingsSetVecRaw(params.0.key, params.0.value))
     }
 
     #[tool(description = "Backup the current settings to memory.")]
     pub async fn backup_settings(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::BackupSettings)
+        send_and_respond!(self, "backup_settings", Command::BackupSettings)
     }
 
     #[tool(description = "Clear all settings and reset to defaults.")]
     pub async fn clear_settings(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::ClearSettings)
+        send_and_respond!(self, "clear_settings", Command::ClearSettings)
     }
 
     #[tool(description = "Restore settings from the backup.")]
     pub async fn restore_backup_settings(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::RestoreBackupSettings)
+        send_and_respond!(self, "restore_backup_settings", Command::RestoreBackupSettings)
     }
 
     //-----------------------------------------------------------------------//
@@ -1392,47 +1410,47 @@ impl McpServer {
 
     #[tool(description = "Get the config path.")]
     pub async fn config_path(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::ConfigPath)
+        send_and_respond!(self, "config_path", Command::ConfigPath)
     }
 
     #[tool(description = "Get the Assembly Kit path for the current game.")]
     pub async fn assembly_kit_path(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::AssemblyKitPath)
+        send_and_respond!(self, "assembly_kit_path", Command::AssemblyKitPath)
     }
 
     #[tool(description = "Get the backup autosave path.")]
     pub async fn backup_autosave_path(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::BackupAutosavePath)
+        send_and_respond!(self, "backup_autosave_path", Command::BackupAutosavePath)
     }
 
     #[tool(description = "Get the old Assembly Kit data path.")]
     pub async fn old_ak_data_path(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::OldAkDataPath)
+        send_and_respond!(self, "old_ak_data_path", Command::OldAkDataPath)
     }
 
     #[tool(description = "Get the schemas path.")]
     pub async fn schemas_path(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::SchemasPath)
+        send_and_respond!(self, "schemas_path", Command::SchemasPath)
     }
 
     #[tool(description = "Get the table profiles path.")]
     pub async fn table_profiles_path(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::TableProfilesPath)
+        send_and_respond!(self, "table_profiles_path", Command::TableProfilesPath)
     }
 
     #[tool(description = "Get the translations local path.")]
     pub async fn translations_local_path(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::TranslationsLocalPath)
+        send_and_respond!(self, "translations_local_path", Command::TranslationsLocalPath)
     }
 
     #[tool(description = "Get the dependencies cache path.")]
     pub async fn dependencies_cache_path(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::DependenciesCachePath)
+        send_and_respond!(self, "dependencies_cache_path", Command::DependenciesCachePath)
     }
 
     #[tool(description = "Clear a config path.")]
     pub async fn settings_clear_path(&self, params: Parameters<PathArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::SettingsClearPath(params.0.path))
+        send_and_respond!(self, "settings_clear_path", Command::SettingsClearPath(params.0.path))
     }
 
     //-----------------------------------------------------------------------//
@@ -1441,85 +1459,85 @@ impl McpServer {
 
     #[tool(description = "Get the info about the pack identified by `pack_key` and the list of files it contains.")]
     pub async fn open_pack_info(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::GetPackFileDataForTreeView(params.0.pack_key))
+        send_and_respond!(self, "open_pack_info", Command::GetPackFileDataForTreeView(params.0.pack_key))
     }
 
     #[tool(description = "Initialize a MyMod folder for mod development.")]
     pub async fn initialize_my_mod_folder(&self, params: Parameters<InitializeMyModFolderArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::InitializeMyModFolder(params.0.name, params.0.game, params.0.sublime, params.0.vscode, params.0.gitignore))
+        send_and_respond!(self, "initialize_my_mod_folder", Command::InitializeMyModFolder(params.0.name, params.0.game, params.0.sublime, params.0.vscode, params.0.gitignore))
     }
 
     #[tool(description = "Live export the pack identified by `pack_key` to the game folder for testing.")]
     pub async fn live_export(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::LiveExport(params.0.pack_key))
+        send_and_respond!(self, "live_export", Command::LiveExport(params.0.pack_key))
     }
 
     #[tool(description = "Patch the SiegeAI of a Siege Map in the pack identified by `pack_key` for Warhammer games.")]
     pub async fn patch_siege_ai(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::PatchSiegeAI(params.0.pack_key))
+        send_and_respond!(self, "patch_siege_ai", Command::PatchSiegeAI(params.0.pack_key))
     }
 
     #[tool(description = "Pack map tiles into the pack identified by `pack_key`. Pass Vec<(PathBuf, String)> as JSON for tiles.")]
     pub async fn pack_map(&self, params: Parameters<PackMapArgs>) -> Result<CallToolResult, McpError> {
         let tiles: Vec<(PathBuf, String)> = serde_json::from_str(&params.0.tiles).unwrap();
-        send_and_respond!(self, Command::PackMap(params.0.pack_key, params.0.tile_maps, tiles))
+        send_and_respond!(self, "pack_map", Command::PackMap(params.0.pack_key, params.0.tile_maps, tiles))
     }
 
     #[tool(description = "Generate all missing loc entries for the pack identified by `pack_key`.")]
     pub async fn generate_missing_loc_data(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::GenerateMissingLocData(params.0.pack_key))
+        send_and_respond!(self, "generate_missing_loc_data", Command::GenerateMissingLocData(params.0.pack_key))
     }
 
     #[tool(description = "Get pack translation data for a language from the pack identified by `pack_key`.")]
     pub async fn get_pack_translation(&self, params: Parameters<GetPackTranslationArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::GetPackTranslation(params.0.pack_key, params.0.language))
+        send_and_respond!(self, "get_pack_translation", Command::GetPackTranslation(params.0.pack_key, params.0.language))
     }
 
     #[tool(description = "Get campaign IDs for starpos building in the pack identified by `pack_key`.")]
     pub async fn build_starpos_get_campaign_ids(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::BuildStarposGetCampaingIds(params.0.pack_key))
+        send_and_respond!(self, "build_starpos_get_campaign_ids", Command::BuildStarposGetCampaingIds(params.0.pack_key))
     }
 
     #[tool(description = "Check if victory conditions file exists for starpos building in the pack identified by `pack_key`.")]
     pub async fn build_starpos_check_victory_conditions(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::BuildStarposCheckVictoryConditions(params.0.pack_key))
+        send_and_respond!(self, "build_starpos_check_victory_conditions", Command::BuildStarposCheckVictoryConditions(params.0.pack_key))
     }
 
     #[tool(description = "Build starpos (pre-processing step) for the pack identified by `pack_key`.")]
     pub async fn build_starpos(&self, params: Parameters<BuildStarposArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::BuildStarpos(params.0.pack_key, params.0.campaign_id, params.0.process_hlp_spd))
+        send_and_respond!(self, "build_starpos", Command::BuildStarpos(params.0.pack_key, params.0.campaign_id, params.0.process_hlp_spd))
     }
 
     #[tool(description = "Build starpos (post-processing step) for the pack identified by `pack_key`.")]
     pub async fn build_starpos_post(&self, params: Parameters<BuildStarposArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::BuildStarposPost(params.0.pack_key, params.0.campaign_id, params.0.process_hlp_spd))
+        send_and_respond!(self, "build_starpos_post", Command::BuildStarposPost(params.0.pack_key, params.0.campaign_id, params.0.process_hlp_spd))
     }
 
     #[tool(description = "Clean up starpos temporary files for the pack identified by `pack_key`.")]
     pub async fn build_starpos_cleanup(&self, params: Parameters<BuildStarposArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::BuildStarposCleanup(params.0.pack_key, params.0.campaign_id, params.0.process_hlp_spd))
+        send_and_respond!(self, "build_starpos_cleanup", Command::BuildStarposCleanup(params.0.pack_key, params.0.campaign_id, params.0.process_hlp_spd))
     }
 
     #[tool(description = "Update animation IDs with an offset in the pack identified by `pack_key`.")]
     pub async fn update_anim_ids(&self, params: Parameters<UpdateAnimIdsArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::UpdateAnimIds(params.0.pack_key, params.0.starting_id, params.0.offset))
+        send_and_respond!(self, "update_anim_ids", Command::UpdateAnimIds(params.0.pack_key, params.0.starting_id, params.0.offset))
     }
 
     #[tool(description = "Get animation paths by skeleton name.")]
     pub async fn get_anim_paths_by_skeleton_name(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::GetAnimPathsBySkeletonName(params.0.value))
+        send_and_respond!(self, "get_anim_paths_by_skeleton_name", Command::GetAnimPathsBySkeletonName(params.0.value))
     }
 
     #[tool(description = "Export a RigidModel to glTF format. Pass RigidModel as JSON.")]
     pub async fn export_rigid_to_gltf(&self, params: Parameters<ExportRigidToGltfArgs>) -> Result<CallToolResult, McpError> {
         let rigid = serde_json::from_str(&params.0.rigid_model).unwrap();
-        send_and_respond!(self, Command::ExportRigidToGltf(rigid, params.0.output_path))
+        send_and_respond!(self, "export_rigid_to_gltf", Command::ExportRigidToGltf(rigid, params.0.output_path))
     }
 
     #[tool(description = "Change the format of a ca_vp8 video file in the pack identified by `pack_key`. Pass SupportedFormats as JSON.")]
     pub async fn set_video_format(&self, params: Parameters<SetVideoFormatArgs>) -> Result<CallToolResult, McpError> {
         let format = serde_json::from_str(&params.0.format).unwrap();
-        send_and_respond!(self, Command::SetVideoFormat(params.0.pack_key, params.0.path, format))
+        send_and_respond!(self, "set_video_format", Command::SetVideoFormat(params.0.pack_key, params.0.path, format))
     }
 
     //-----------------------------------------------------------------------//
@@ -1528,6 +1546,6 @@ impl McpServer {
 
     #[tool(description = "List all currently open packs with their keys and metadata. Use this to get valid pack_key values for other tools.")]
     pub async fn list_open_packs(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, Command::ListOpenPacks)
+        send_and_respond!(self, "list_open_packs", Command::ListOpenPacks)
     }
 }
