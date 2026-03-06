@@ -48,9 +48,9 @@ use qt_core::QVariant;
 
 use tokio::runtime::Runtime;
 
-use std::sync::LazyLock;
+use std::path::PathBuf;
 use std::process::Command as SystemCommand;
-use std::sync::{Arc, atomic::{AtomicBool, AtomicPtr}, RwLock};
+use std::sync::{Arc, atomic::{AtomicBool, AtomicPtr}, LazyLock, RwLock};
 
 use rpfm_lib::games::{GameInfo, supported_games::{SupportedGames, KEY_WARHAMMER_3}};
 use rpfm_log::*;
@@ -204,6 +204,8 @@ const GITHUB_URL: &str = "https://github.com/Frodo45127/rpfm";
 const PATREON_URL: &str = "https://www.patreon.com/RPFM";
 const DISCORD_URL: &str = "https://discord.gg/moddingden";
 
+const SENTRY_DSN_KEY: &str = "https://a8bf0a98ed43467d841ec433fb3d75a8:aeb106a185a0439fb7598598e0160ab2@o152833.ingest.sentry.io/1205298";
+
 /// Variable to keep the locale fallback data (english locales) used by the UI loaded and available.
 static LOCALE_FALLBACK: LazyLock<Locale> = LazyLock::new(|| {
     match Locale::initialize_fallback() {
@@ -222,6 +224,15 @@ static LOCALE: LazyLock<Locale> = LazyLock::new(|| {
 fn main() {
     let tokio_runtime = Runtime::new().unwrap();
     let _tokio_guard = tokio_runtime.enter();
+
+    // Sentry client guard, so we can reuse it later on and keep it in scope for the entire duration of the program.
+    *SENTRY_DSN.write().unwrap() = SENTRY_DSN_KEY.to_owned();
+    let guard = Logger::init(&PathBuf::from("."), true, false, release_name!()).expect("Failed to initialize logging system.");
+    if guard.is_enabled() {
+        info!("Sentry logging support on RPFM_UI enabled. Starting...");
+    } else {
+        info!("Sentry logging support on RPFM_UI disabled. Starting...");
+    }
 
     // This needs to be initialized before anything else.
     unsafe {

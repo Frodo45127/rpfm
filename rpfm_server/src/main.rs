@@ -44,7 +44,7 @@ static GLOBAL: MiMalloc = MiMalloc;
 //                                  Constants
 //-------------------------------------------------------------------------------//
 
-const SENTRY_DSN_KEY: &str = "https://a8bf0a98ed43467d841ec433fb3d75a8:aeb106a185a0439fb7598598e0160ab2@o152833.ingest.sentry.io/1205298";
+const SENTRY_DSN_KEY: &str = "https://ed9c0bdfc2bce3385cdabd643059f412@o152833.ingest.us.sentry.io/4510998756065280";
 
 const DEFAULT_ADDRESS: [u8; 4] = [127, 0, 0, 1];
 const DEFAULT_PORT: u16 = 45127;
@@ -61,7 +61,6 @@ const APP_NAME: &str = "rpfm";
 async fn main() {
 
     // Setup tracing subscriber for logging, redirecting to stderr to avoid interfering with MCP.
-    // TODO: Migrate lib's logging to tracing.
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer()
             .with_writer(std::io::stderr)
@@ -69,7 +68,6 @@ async fn main() {
         .init();
 
     // Sentry client guard, so we can reuse it later on and keep it in scope for the entire duration of the program.
-    // TODO: See if I can get rid of this global.
     *SENTRY_DSN.write().unwrap() = SENTRY_DSN_KEY.to_owned();
     let guard = Logger::init(&{
         init_config_path().expect("Error while trying to initialize config path. We're fucked.");
@@ -77,9 +75,9 @@ async fn main() {
     }, true, false, release_name!()).expect("Failed to initialize logging system.");
 
     if guard.is_enabled() {
-        info!("Sentry Logging support enabled. Starting...");
+        info!("Sentry logging support for RPFM SERVER enabled. Starting...");
     } else {
-        info!("Sentry Logging support disabled. Starting...");
+        info!("Sentry logging support for RPFM SERVER disabled. Starting...");
     }
 
     // Create the session manager to handle per-client sessions,
