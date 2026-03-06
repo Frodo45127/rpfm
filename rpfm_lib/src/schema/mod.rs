@@ -94,7 +94,6 @@ use std::path::Path;
 #[cfg(feature = "integration_assembly_kit")]use crate::integrations::assembly_kit::localisable_fields::RawLocalisableField;
 #[cfg(feature = "integration_assembly_kit")]use crate::integrations::assembly_kit::table_definition::RawDefinition;
 #[cfg(feature = "integration_assembly_kit")]use crate::integrations::assembly_kit::table_definition::RawField;
-#[cfg(feature = "integration_log")] use crate::integrations::log::*;
 #[cfg(feature = "integration_sqlite")] use rusqlite::types::Type;
 
 use crate::error::Result;
@@ -1250,66 +1249,6 @@ impl Schema {
     pub fn export_definitions_to_str(definitions: &HashMap<String, Definition>) -> Result<String> {
         let config = PrettyConfig::default();
         ron::ser::to_string_pretty(&definitions, config).map_err(From::from)
-    }
-
-    /// Uploads patches to Sentry for debugging/analysis.
-    ///
-    /// This function serializes the patches to RON format and sends them to Sentry as an
-    /// informational event for tracking schema changes and debugging purposes.
-    ///
-    /// # Arguments
-    ///
-    /// * `sentry_guard` - The Sentry client guard
-    /// * `game_name` - Name of the game the patches are for
-    /// * `patches` - The patches to upload
-    ///
-    /// # Returns
-    ///
-    /// Returns [`Ok`] if the upload succeeds, or an error if serialization or upload fails.
-    ///
-    /// # Feature
-    ///
-    /// This function requires the `integration_log` feature.
-    #[cfg(feature = "integration_log")]
-    pub fn upload_patches(sentry_guard: &ClientInitGuard, game_name: &str, patches: HashMap<String, DefinitionPatch>) -> Result<()> {
-        let level = Level::Info;
-        let message = format!("Schema Patch for: {} - {}.", game_name, crate::utils::current_time()?);
-        let config = PrettyConfig::default();
-        let mut data = vec![];
-        ron::ser::to_writer_pretty(&mut data, &patches, config)?;
-        let file_name = "patch.txt";
-
-        Logger::send_event(sentry_guard, level, &message, Some((file_name, &data)))
-    }
-
-    /// Uploads definitions to Sentry for debugging/analysis.
-    ///
-    /// This function serializes the definitions to RON format and sends them to Sentry as an
-    /// informational event for tracking schema changes and debugging purposes.
-    ///
-    /// # Arguments
-    ///
-    /// * `sentry_guard` - The Sentry client guard
-    /// * `game_name` - Name of the game the definitions are for
-    /// * `definitions` - The definitions to upload
-    ///
-    /// # Returns
-    ///
-    /// Returns [`Ok`] if the upload succeeds, or an error if serialization or upload fails.
-    ///
-    /// # Feature
-    ///
-    /// This function requires the `integration_log` feature.
-    #[cfg(feature = "integration_log")]
-    pub fn upload_definitions(sentry_guard: &ClientInitGuard, game_name: &str, definitions: HashMap<String, Definition>) -> Result<()> {
-        let level = Level::Info;
-        let message = format!("Schema Definition for: {} - {}.", game_name, crate::utils::current_time()?);
-        let config = PrettyConfig::default();
-        let mut data = vec![];
-        ron::ser::to_writer_pretty(&mut data, &definitions, config)?;
-        let file_name = "definition.txt";
-
-        Logger::send_event(sentry_guard, level, &message, Some((file_name, &data)))
     }
 }
 

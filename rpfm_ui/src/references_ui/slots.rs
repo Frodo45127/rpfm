@@ -17,7 +17,7 @@ use qt_core::SlotOfQModelIndex;
 
 use std::rc::Rc;
 
-use rpfm_lib::integrations::log::*;
+use rpfm_log::*;
 
 use rpfm_ui_common::clone;
 

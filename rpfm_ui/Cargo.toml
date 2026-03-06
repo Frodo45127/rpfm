@@ -25,7 +25,8 @@ default = ["enable_tools"]
 [dependencies]
 
 # Internal dependencies.
-rpfm_lib = { workspace = true, features = ["integration_log", "integration_git"] }
+rpfm_lib = { workspace = true, features = ["integration_git"] }
+rpfm_log.workspace = true
 rpfm_extensions = { workspace = true }
 rpfm_ui_common = { workspace = true }
 rpfm_ipc = { workspace = true }

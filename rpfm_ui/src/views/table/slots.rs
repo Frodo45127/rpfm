@@ -33,7 +33,7 @@ use std::sync::{Arc, atomic::Ordering, RwLock};
 use rpfm_ipc::helpers::DataSource;
 
 use rpfm_lib::files::{ContainerPath, RFileDecoded};
-use rpfm_lib::integrations::log::*;
+use rpfm_log::*;
 
 use rpfm_ui_common::clone;
 use rpfm_ui_common::utils::{atomic_from_ptr, ref_from_atomic};

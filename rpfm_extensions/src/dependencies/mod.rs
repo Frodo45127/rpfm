@@ -96,6 +96,7 @@
 
 use getset::{Getters, MutGetters};
 use itertools::{Either, Itertools};
+use log::{info, error};
 use rayon::prelude::*;
 use serde_derive::{Serialize, Deserialize};
 
@@ -113,7 +114,7 @@ use rpfm_lib::binary::WriteBytes;
 use rpfm_lib::error::{Result, RLibError};
 use rpfm_lib::files::{Container, ContainerPath, db::DB, DecodeableExtraData, FileType, pack::Pack, RFile, RFileDecoded, table::Table};
 use rpfm_lib::games::{GameInfo, supported_games::*};
-use rpfm_lib::integrations::{assembly_kit::table_data::RawTable, log::{info, error}};
+use rpfm_lib::integrations::assembly_kit::table_data::RawTable;
 use rpfm_lib::schema::{Definition, DefinitionPatch, Field, FieldType, Schema};
 use rpfm_lib::utils::{current_time, files_from_subdir, last_modified_time_from_files, starts_with_case_insensitive};
 

@@ -731,7 +731,6 @@ pub enum RLibError {
     XmlRsError(#[from] serde_xml_rs::Error),
 
     /// Wrapper for [`log::SetLoggerError`] errors.
-    #[cfg(feature = "integration_log")]
     #[error(transparent)]
     LogError(#[from] log::SetLoggerError),
 

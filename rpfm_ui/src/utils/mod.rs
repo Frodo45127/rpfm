@@ -39,7 +39,7 @@ use std::fmt::Display;
 use std::fs::File;
 use std::io::Read;
 
-use rpfm_lib::integrations::log::*;
+use rpfm_log::*;
 
 use rpfm_ui_common::ASSETS_PATH;
 use rpfm_ui_common::utils::*;

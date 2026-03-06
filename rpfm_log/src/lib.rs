@@ -55,7 +55,7 @@
 //! # Example
 //!
 //! ```no_run
-//! use rpfm_lib::integrations::log::{Logger, info, warn, error};
+//! use rpfm_log::{Logger, info, warn, error};
 //! use std::path::Path;
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -83,6 +83,7 @@
 
 use backtrace::Backtrace;
 pub use log::{error, info, warn};
+use ron::ser::PrettyConfig;
 pub use sentry::{ClientInitGuard, Envelope, integrations::log::SentryLogger, protocol::*, release_name, end_session, end_session_with_status};
 use serde_derive::Serialize;
 use simplelog::{ColorChoice, CombinedLogger, LevelFilter, SharedLogger, TermLogger, TerminalMode};
@@ -93,9 +94,7 @@ use std::io::{BufWriter, Write};
 use std::{panic, panic::PanicHookInfo};
 use std::path::Path;
 use std::sync::{Arc, LazyLock, RwLock};
-
-use crate::error::Result;
-use crate::utils::current_time;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Current version of the crate from Cargo.toml.
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -109,6 +108,34 @@ pub static SENTRY_DSN: LazyLock<Arc<RwLock<String>>> = LazyLock::new(|| Arc::new
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
+
+/// Error type for the logging crate.
+#[derive(Debug, thiserror::Error)]
+pub enum LogError {
+
+    /// Wrapper for [`std::io::Error`].
+    #[error(transparent)]
+    IoError(#[from] std::io::Error),
+
+    /// Wrapper for [`toml::ser::Error`].
+    #[error(transparent)]
+    TomlSerError(#[from] toml::ser::Error),
+
+    /// Wrapper for [`log::SetLoggerError`].
+    #[error(transparent)]
+    LogError(#[from] log::SetLoggerError),
+
+    /// Wrapper for [`ron::Error`].
+    #[error(transparent)]
+    RonError(#[from] ron::Error),
+
+    /// Wrapper for [`std::time::SystemTimeError`].
+    #[error(transparent)]
+    SystemTimeError(#[from] std::time::SystemTimeError),
+}
+
+/// Result type for the logging crate.
+pub type Result<T> = std::result::Result<T, LogError>;
 
 /// Crash report data structure.
 ///
@@ -185,7 +212,7 @@ impl Logger {
     /// # Example
     ///
     /// ```no_run
-    /// # use rpfm_lib::integrations::log::Logger;
+    /// # use rpfm_log::Logger;
     /// # use std::path::Path;
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let _guard = Logger::init(
@@ -320,7 +347,8 @@ impl Logger {
     ///
     /// Returns [`Ok`] if the report was saved successfully, or an error if file I/O fails.
     pub fn save(&self, path: &Path) -> Result<()> {
-        let file_path = path.join(format!("error-report-{}.toml", current_time()?));
+        let current_time = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
+        let file_path = path.join(format!("error-report-{}.toml", current_time));
         let mut file = BufWriter::new(File::create(file_path)?);
         file.write_all(toml::to_string_pretty(&self)?.as_bytes())?;
         Ok(())
@@ -350,7 +378,7 @@ impl Logger {
     /// # Example
     ///
     /// ```no_run
-    /// # use rpfm_lib::integrations::log::{Logger, Level};
+    /// # use rpfm_log::{Logger, Level};
     /// # fn example(sentry_guard: &sentry::ClientInitGuard) -> Result<(), Box<dyn std::error::Error>> {
     /// // Send a simple event
     /// Logger::send_event(sentry_guard, Level::Info, "Schema updated", None)?;
@@ -388,5 +416,47 @@ impl Logger {
 
         // TODO: Make this fail in case of sentry being not working?
         Ok(())
+    }
+
+    /// Uploads schema patches to Sentry for debugging/analysis.
+    ///
+    /// Serializes the data to RON format and sends it as an informational Sentry event.
+    ///
+    /// # Arguments
+    ///
+    /// * `sentry_guard` - The Sentry client guard
+    /// * `game_name` - Name of the game the patches are for
+    /// * `patches` - The data to upload (must implement `Serialize`)
+    pub fn upload_patches(sentry_guard: &ClientInitGuard, game_name: &str, patches: &impl serde::Serialize) -> Result<()> {
+        let current_time = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
+        let level = Level::Info;
+        let message = format!("Schema Patch for: {} - {}.", game_name, current_time);
+        let config = PrettyConfig::default();
+        let mut data = vec![];
+        ron::ser::to_writer_pretty(&mut data, patches, config)?;
+        let file_name = "patch.txt";
+
+        Self::send_event(sentry_guard, level, &message, Some((file_name, &data)))
+    }
+
+    /// Uploads schema definitions to Sentry for debugging/analysis.
+    ///
+    /// Serializes the data to RON format and sends it as an informational Sentry event.
+    ///
+    /// # Arguments
+    ///
+    /// * `sentry_guard` - The Sentry client guard
+    /// * `game_name` - Name of the game the definitions are for
+    /// * `definitions` - The data to upload (must implement `Serialize`)
+    pub fn upload_definitions(sentry_guard: &ClientInitGuard, game_name: &str, definitions: &impl serde::Serialize) -> Result<()> {
+        let current_time = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
+        let level = Level::Info;
+        let message = format!("Schema Definition for: {} - {}.", game_name, current_time);
+        let config = PrettyConfig::default();
+        let mut data = vec![];
+        ron::ser::to_writer_pretty(&mut data, definitions, config)?;
+        let file_name = "definition.txt";
+
+        Self::send_event(sentry_guard, level, &message, Some((file_name, &data)))
     }
 }

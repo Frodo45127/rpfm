@@ -21,7 +21,7 @@ use qt_core::QBox;
 use qt_core::{SlotOfBool, SlotNoArgs, SlotOfQString};
 
 use rpfm_lib::files::ContainerPath;
-use rpfm_lib::integrations::log::*;
+use rpfm_log::*;
 
 use rpfm_ui_common::clone;
 

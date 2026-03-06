@@ -55,8 +55,8 @@ use cpp_core::Ptr;
 
 #[cfg(feature = "support_model_renderer")] use std::collections::HashMap;
 
-#[cfg(feature = "support_model_renderer")] use rpfm_lib::integrations::log;
 #[cfg(feature = "support_model_renderer")] use rpfm_lib::files::ContainerPath;
+#[cfg(feature = "support_model_renderer")] use rpfm_log::info;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::Command;
@@ -562,7 +562,7 @@ pub extern fn assets_request_callback(missing_files: *mut QListOfQString, out: *
             paths.push(ContainerPath::File(path));
         }
 
-        log::info!("Paths requested by model renderer: {:#?}", &paths.iter().map(|x| format!(" - {}", x.path_raw())).collect::<Vec<_>>());
+        info!("Paths requested by model renderer: {:#?}", &paths.iter().map(|x| format!(" - {}", x.path_raw())).collect::<Vec<_>>());
 
         let receiver = CENTRAL_COMMAND.read().unwrap().send_background(Command::GetRFilesFromAllSources(paths.clone(), true));
         let response = CentralCommand::recv(&receiver);
@@ -612,7 +612,7 @@ pub extern fn anim_paths_by_skeleton_callback(skeleton_name: *mut QString, out: 
         let skeleton_name = skeleton_name.as_ref().unwrap().to_std_string();
         let out = out.as_mut().unwrap();
 
-        log::info!("Anim Paths requested for skeleton: {}", &skeleton_name);
+        info!("Anim Paths requested for skeleton: {}", &skeleton_name);
 
         let receiver = CENTRAL_COMMAND.read().unwrap().send_background(Command::GetAnimPathsBySkeletonName(skeleton_name));
         let response = CentralCommand::recv(&receiver);

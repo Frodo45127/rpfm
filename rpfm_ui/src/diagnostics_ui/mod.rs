@@ -56,7 +56,7 @@ use rpfm_extensions::diagnostics::{*, anim_fragment_battle::*, config::*, depend
 use rpfm_ipc::helpers::DataSource;
 
 use rpfm_lib::files::{ContainerPath, portrait_settings::Variant};
-use rpfm_lib::integrations::log::info;
+use rpfm_log::info;
 
 use rpfm_ui_common::utils::{atomic_from_cpp_box, find_widget, load_template, ref_from_atomic};
 

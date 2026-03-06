@@ -41,7 +41,8 @@ use rpfm_lib::compression::CompressionFormat;
 use rpfm_lib::files::{animpack::AnimPack, Container, ContainerPath, db::DB, DecodeableExtraData, EncodeableExtraData, FileType, loc::Loc, pack::*, portrait_settings::PortraitSettings, RFile, RFileDecoded, table::{DecodedData, Table}, text::*};
 use rpfm_lib::games::{GameInfo, LUA_REPO, LUA_BRANCH, LUA_REMOTE, OLD_AK_REPO, OLD_AK_BRANCH, OLD_AK_REMOTE, pfh_file_type::PFHFileType, supported_games::*, VanillaDBTableNameLogic};
 use rpfm_lib::games::{TRANSLATIONS_REPO, TRANSLATIONS_BRANCH, TRANSLATIONS_REMOTE};
-use rpfm_lib::integrations::{assembly_kit::*, git::*, log::*};
+use rpfm_lib::integrations::{assembly_kit::*, git::*};
+use rpfm_log::*;
 use rpfm_lib::schema::*;
 use rpfm_lib::utils::*;
 

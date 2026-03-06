@@ -130,8 +130,9 @@ println!("Deleted {} files, optimized {} files", deleted.len(), optimized.len())
 ## Related Crates
 
 - **rpfm_lib** - Core library for file format handling
+- **rpfm_log** - Crash reporting and structured logging with Sentry integration
 - **rpfm_ui** - Qt-based desktop application
-- **rpfm_cli** - Command-line interface
+- **rpfm_server** - WebSocket/MCP backend server
 
 ## Documentation
 

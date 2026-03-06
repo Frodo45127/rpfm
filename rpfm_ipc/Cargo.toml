@@ -7,7 +7,7 @@ edition.workspace = true
 
 [dependencies]
 # Internal dependencies.
-rpfm_lib = { workspace = true, features = ["integration_log", "integration_git", "integration_assembly_kit", "support_error_bitcode"] }
+rpfm_lib = { workspace = true, features = ["integration_git", "integration_assembly_kit", "support_error_bitcode"] }
 rpfm_extensions.workspace = true
 
 # Serialization support.

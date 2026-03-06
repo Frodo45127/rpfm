@@ -19,7 +19,7 @@ use std::sync::Arc;
 
 use rpfm_ipc::helpers::SessionInfo;
 use rpfm_ipc::messages::{Command, Response};
-use rpfm_lib::integrations::log::{Logger, SENTRY_DSN, error, info, release_name};
+use rpfm_log::{Logger, SENTRY_DSN, error, info, release_name};
 
 use crate::server_mcp::McpServer;
 use crate::session::SessionManager;

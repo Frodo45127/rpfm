@@ -17,7 +17,7 @@ use std::rc::Rc;
 use rpfm_ipc::helpers::DataSource;
 
 use rpfm_lib::files::{pack::{RESERVED_NAME_DEPENDENCIES_MANAGER, RESERVED_NAME_DEPENDENCIES_MANAGER_V2, RESERVED_NAME_NOTES}, ContainerPath};
-use rpfm_lib::integrations::log::info;
+use rpfm_log::info;
 
 use crate::app_ui::AppUI;
 use crate::pack_tree::*;

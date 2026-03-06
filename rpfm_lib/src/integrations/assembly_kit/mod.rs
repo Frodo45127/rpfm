@@ -85,6 +85,7 @@
 //! # }
 //! ```
 
+use log::info;
 use rayon::prelude::*;
 use serde_xml_rs::from_reader;
 
@@ -97,7 +98,6 @@ use crate::error::{Result, RLibError};
 use crate::games::GameInfo;
 use crate::files::db::DB;
 use crate::schema::*;
-#[cfg(feature = "integration_log")] use crate::integrations::log::info;
 
 use self::localisable_fields::RawLocalisableFields;
 use self::table_data::RawTable;
@@ -371,7 +371,7 @@ pub fn update_schema_from_raw_files(
     unfound_fields.sort();
     unfound_fields.retain(|table| !game_info.ak_lost_fields().contains(table));
 
-    #[cfg(feature = "integration_log")] info!("Update from raw: fields still not found :{unfound_fields:#?}");
+    info!("Update from raw: fields still not found :{unfound_fields:#?}");
 
     schema.save(schema_path)?;
 

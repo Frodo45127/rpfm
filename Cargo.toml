@@ -4,6 +4,7 @@ resolver = "2"
 members = [
     # Libs
     "rpfm_lib",
+    "rpfm_log",
     "rpfm_extensions",
     "rpfm_ipc",
     "rpfm_ui_common",
@@ -31,6 +32,7 @@ debug = true
 [workspace.dependencies]
 # Internal workspace dependencies.
 rpfm_lib = { path = "rpfm_lib", version = "4.7.100" }
+rpfm_log = { path = "rpfm_log" }
 rpfm_extensions = { path = "rpfm_extensions", version = "4.7.100" }
 rpfm_ui_common = { path = "rpfm_ui_common" }
 rpfm_ipc = { path = "rpfm_ipc" }
@@ -48,6 +50,7 @@ futures = "^0.3"
 getset = "^0.1"
 image = "^0.25"
 itertools = "^0.14"
+log = { version = "^0.4", features = ["std"] }
 open = "^5"
 qt_core = "^0.5"
 qt_gui = "^0.5"

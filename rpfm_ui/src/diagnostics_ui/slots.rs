@@ -24,7 +24,7 @@ use getset::Getters;
 use std::rc::Rc;
 
 use rpfm_ipc::helpers::DataSource;
-use rpfm_lib::integrations::log::*;
+use rpfm_log::*;
 use rpfm_lib::files::ContainerPath;
 use rpfm_ui_common::clone;
 

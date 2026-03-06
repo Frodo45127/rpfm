@@ -1,0 +1,29 @@
+[package]
+name = "rpfm_log"
+description = "Logging and crash reporting for RPFM."
+license = "MIT"
+repository = "https://github.com/Frodo45127/rpfm"
+readme = "README.md"
+
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+
+# Logging support.
+backtrace = "^0.3"
+log.workspace = true
+os_info = "^3.0"
+sentry = { version = "^0", features = ["log"] }
+simplelog = "^0.12"
+
+# Serialization support.
+serde.workspace = true
+serde_derive.workspace = true
+ron.workspace = true
+toml.workspace = true
+
+# Error handling.
+thiserror.workspace = true

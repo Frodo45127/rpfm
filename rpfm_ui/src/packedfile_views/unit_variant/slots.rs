@@ -23,7 +23,7 @@ use getset::Getters;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use rpfm_lib::integrations::log::info;
+use rpfm_log::info;
 
 use rpfm_ui_common::clone;
 

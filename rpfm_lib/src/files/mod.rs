@@ -139,7 +139,7 @@
 use crc_fast::{checksum, CrcAlgorithm};
 use csv::{QuoteStyle, ReaderBuilder, WriterBuilder};
 use getset::*;
-#[cfg(feature = "integration_log")] use log::warn;
+use log::warn;
 use rayon::prelude::*;
 use serde_derive::{Serialize, Deserialize};
 
@@ -943,10 +943,7 @@ pub trait Container {
 
                         // If it fails to extract as tsv, extract as binary.
                         if result.is_err() {
-
-                            #[cfg(feature = "integration_log")] {
-                                warn!("File with path {} failed to extract as TSV. Extracting it as binary.", rfile.path_in_container_raw());
-                            }
+                            warn!("File with path {} failed to extract as TSV. Extracting it as binary.", rfile.path_in_container_raw());
 
                             let extracted_path = rfile.sanitize_and_create_file(&destination_path, extra_data)?;
                             extracted_paths.push(extracted_path);
@@ -1010,10 +1007,7 @@ pub trait Container {
 
                             // If it fails to extract as tsv, extract as binary.
                             if result.is_err() {
-
-                                #[cfg(feature = "integration_log")] {
-                                    warn!("File with path {} failed to extract as TSV. Extracting it as binary.", rfile.path_in_container_raw());
-                                }
+                                warn!("File with path {} failed to extract as TSV. Extracting it as binary.", rfile.path_in_container_raw());
 
                                 let extracted_path = rfile.sanitize_and_create_file(&destination_path, extra_data)?;
                                 extracted_paths.push(extracted_path);
@@ -1137,11 +1131,8 @@ pub trait Container {
                 if extension.to_string_lossy() == "tsv" {
                     tsv_imported = true;
                     let rfile = RFile::tsv_import_from_path(source_path, schema);
-                    if let Err(_error) = rfile {
-
-                        #[cfg(feature = "integration_log")] {
-                            warn!("File with path {} failed to import as TSV. Importing it as binary. If you're using the CLI - did you forget to provide schema with --tsv-as-binary flag? Error was: {}", &source_path.to_string_lossy(), _error);
-                        }
+                    if let Err(error) = rfile {
+                        warn!("File with path {} failed to import as TSV. Importing it as binary. If you're using the CLI - did you forget to provide schema with --tsv-as-binary flag? Error was: {}", &source_path.to_string_lossy(), error);
 
                         tsv_imported = false;
                         RFile::new_from_file_path(source_path)
@@ -1260,11 +1251,8 @@ pub trait Container {
                     if extension.to_string_lossy() == "tsv" {
                         tsv_imported = true;
                         let rfile = RFile::tsv_import_from_path(&file_path, schema);
-                        if let Err(_error) = rfile {
-
-                            #[cfg(feature = "integration_log")] {
-                                warn!("File with path {} failed to import as TSV. Importing it as binary. If you're using the CLI - did you forget to provide schema with --tsv-as-binary flag? Error was: {}", &file_path.to_string_lossy(), _error);
-                            }
+                        if let Err(error) = rfile {
+                            warn!("File with path {} failed to import as TSV. Importing it as binary. If you're using the CLI - did you forget to provide schema with --tsv-as-binary flag? Error was: {}", &file_path.to_string_lossy(), error);
 
                             tsv_imported = false;
                             RFile::new_from_file_path(&file_path)
@@ -1782,12 +1770,10 @@ pub trait Container {
                             self.paths_cache_mut().remove(&path_lower);
                         }
                     },
-                    #[cfg(feature = "integration_log")]None => { warn!("remove_path received a valid path, but we don't have casing equivalence for it. This is a bug. {path_lower}, {path}"); },
-                    #[cfg(not(feature = "integration_log"))]None => { dbg!("remove_path received a valid path, but we don't have casing equivalence for it. This is a bug. {path_lower}, {path}"); },
+                    None => { warn!("remove_path received a valid path, but we don't have casing equivalence for it. This is a bug. {path_lower}, {path}"); },
                 }
             }
-            #[cfg(feature = "integration_log")] None => { warn!("remove_path received an invalid path. This is a bug. {path_lower}, {path}"); },
-            #[cfg(not(feature = "integration_log"))]None => { dbg!("remove_path received an invalid path. This is a bug. {path_lower}, {path}"); },
+            None => { warn!("remove_path received an invalid path. This is a bug. {path_lower}, {path}"); },
         }
     }
 
@@ -2872,11 +2858,9 @@ impl RFile {
         let sanitized_destination_path = sanitize_path(destination_path);
 
         if sanitized_destination_path != destination_path {
-            #[cfg(feature = "integration_log")] {
-                warn!("Filename sanitized from '{}' to '{}' due to invalid Windows characters",
-                      destination_path.to_owned().file_name().unwrap_or_default().to_string_lossy(),
-                      sanitized_destination_path.file_name().unwrap_or_default().to_string_lossy());
-            }
+            warn!("Filename sanitized from '{}' to '{}' due to invalid Windows characters",
+                  destination_path.to_owned().file_name().unwrap_or_default().to_string_lossy(),
+                  sanitized_destination_path.file_name().unwrap_or_default().to_string_lossy());
         }
 
         let mut file = BufWriter::new(File::create(&sanitized_destination_path)?);

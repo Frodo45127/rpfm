@@ -37,7 +37,7 @@ use cpp_core::StaticUpcast;
 
 use anyhow::{anyhow, Result};
 
-use rpfm_lib::integrations::log::*;
+use log::*;
 
 use std::fmt::Display;
 use std::fs::File;

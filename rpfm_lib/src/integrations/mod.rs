@@ -44,21 +44,6 @@
 //!
 //! See `git` module for details.
 //!
-//! ## Logging and Crash Reporting
-//!
-//! **Feature**: `integration_log`
-//!
-//! Provides structured logging and automatic crash report uploading via Sentry.
-//! This helps with debugging and collecting error reports from users.
-//!
-//! Key capabilities:
-//! - Structured logging with multiple levels
-//! - Automatic crash report generation
-//! - Sentry integration for error tracking
-//! - User-friendly error reporting
-//!
-//! See `log` module for details.
-//!
 //! # Usage
 //!
 //! Each integration is completely optional. Enable only the features you need in your `Cargo.toml`:
@@ -70,4 +55,3 @@
 
 #[cfg(feature = "integration_assembly_kit")] pub mod assembly_kit;
 #[cfg(feature = "integration_git")] pub mod git;
-#[cfg(feature = "integration_log")] pub mod log;

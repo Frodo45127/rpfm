@@ -102,7 +102,7 @@
 
 use directories::ProjectDirs;
 use getset::*;
-#[cfg(feature = "integration_log")] use log::{info, warn};
+use log::{info, warn};
 use steamlocate::SteamDir;
 
 use std::collections::HashMap;
@@ -1355,16 +1355,10 @@ impl GameInfo {
                         // Default to english if we can't find the proper one.
                         _ => ENGLISH.to_owned(),
                     };
-
-                    #[cfg(feature = "integration_log")] {
-                        info!("Language file found, using {language} language.");
-                    }
-
+                    info!("Language file found, using {language} language.");
                     Ok(Some(language))
                 } else {
-                    #[cfg(feature = "integration_log")] {
-                        warn!("Missing or unreadable language file under {}. Using english language.", game_path.to_string_lossy());
-                    }
+                    warn!("Missing or unreadable language file under {}. Using english language.", game_path.to_string_lossy());
                     Ok(Some(ENGLISH.to_owned()))
                 }
             }

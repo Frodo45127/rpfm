@@ -38,7 +38,7 @@ use std::sync::atomic::AtomicPtr;
 use rpfm_ipc::helpers::DataSource;
 
 use rpfm_lib::games::supported_games::*;
-use rpfm_lib::integrations::log::*;
+use rpfm_log::*;
 
 use rpfm_ui_common::ASSETS_PATH;
 use rpfm_ui_common::PROGRAM_PATH;

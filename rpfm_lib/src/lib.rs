@@ -65,7 +65,6 @@
 //!
 //! - `integration_assembly_kit`: Enable Assembly Kit raw table parsing
 //! - `integration_git`: Enable Git repository operations
-//! - `integration_log`: Enable logging and Sentry crash reporting
 //!
 //! # Examples
 //!

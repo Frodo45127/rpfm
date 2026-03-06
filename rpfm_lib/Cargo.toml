@@ -20,7 +20,6 @@ enable_content_inspector = []
 
 integration_assembly_kit = ["dep:serde-xml-rs"]
 integration_git = ["dep:git2"]
-integration_log = ["dep:backtrace", "dep:log", "dep:os_info", "dep:sentry", "dep:simplelog"]
 integration_sqlite = ["dep:rusqlite", "dep:r2d2_sqlite", "dep:r2d2"]
 
 support_uic = []
@@ -94,11 +93,7 @@ memchr = "^2.5"
 float_eq.workspace = true
 
 # Logging support.
-backtrace = { version = "^0.3", optional = true }
-log = { version = "^0.4", optional = true, features = ["std"] }
-os_info = { version = "^3.0", optional = true }
-sentry = { version = "^0", optional = true, features = ["log"] }
-simplelog = { version = "^0.12", optional = true }
+log.workspace = true
 
 # Support for finding unsupported text files.
 content_inspector = { version = "^0.2" }

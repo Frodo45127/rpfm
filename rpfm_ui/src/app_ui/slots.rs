@@ -51,7 +51,7 @@ use rpfm_ipc::helpers::{ContainerInfo, DataSource};
 
 use rpfm_lib::files::{ContainerPath, table::Table};
 use rpfm_lib::games::supported_games::*;
-use rpfm_lib::integrations::log::*;
+use rpfm_log::*;
 
 use rpfm_ui_common::clone;
 use rpfm_ui_common::utils::{create_grid_layout, ref_from_atomic};

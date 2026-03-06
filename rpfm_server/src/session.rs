@@ -24,7 +24,7 @@ use std::sync::{Arc, Mutex, RwLock, atomic::{AtomicBool, AtomicU32, Ordering}};
 
 use rpfm_ipc::helpers::SessionInfo;
 use rpfm_ipc::messages::{Command, Response};
-use rpfm_lib::integrations::log::info;
+use rpfm_log::info;
 
 use crate::background_thread;
 

@@ -92,13 +92,12 @@ if let Ok(RFileDecoded::DB(db)) = file.decoded() {
 
 - `integration_assembly_kit` - Enable Assembly Kit raw table parsing
 - `integration_git` - Enable Git repository operations
-- `integration_log` - Enable logging and Sentry crash reporting
-
 ## Related Crates
 
 - **rpfm_extensions** - Higher-level features (dependencies, diagnostics, search, optimizer)
+- **rpfm_log** - Crash reporting and structured logging with Sentry integration
 - **rpfm_ui** - Qt-based desktop application
-- **rpfm_cli** - Command-line interface
+- **rpfm_server** - WebSocket/MCP backend server
 
 ## Documentation
 

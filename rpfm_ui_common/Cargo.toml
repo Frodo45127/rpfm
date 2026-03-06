@@ -18,7 +18,10 @@ support_uic = ["rpfm_lib/support_uic"]
 [dependencies]
 
 # Internal dependencies.
-rpfm_lib = { workspace = true, features = ["integration_log"] }
+rpfm_lib.workspace = true
+
+# Logging support.
+log.workspace = true
 
 # Error managing.
 anyhow.workspace = true

@@ -15,7 +15,7 @@ use qt_core::SlotNoArgs;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use rpfm_lib::integrations::log::*;
+use rpfm_log::*;
 
 use rpfm_ui_common::clone;
 

@@ -27,7 +27,7 @@ use std::sync::{Arc, RwLock, RwLockReadGuard};
 
 use rpfm_ipc::helpers::DataSource;
 
-use rpfm_lib::integrations::log::*;
+use rpfm_log::*;
 use rpfm_lib::files::{atlas::Atlas, ContainerPath, db::DB, loc::Loc, FileType, RFileDecoded, table::Table, text::Text};
 
 use rpfm_ui_common::utils::create_grid_layout;

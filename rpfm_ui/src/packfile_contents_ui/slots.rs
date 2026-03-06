@@ -39,7 +39,7 @@ use rpfm_lib::compression::CompressionFormat;
 use rpfm_lib::files::{ContainerPath, FileType, pack::*};
 use rpfm_lib::games::pfh_file_type::PFHFileType;
 use rpfm_lib::games::supported_games::*;
-use rpfm_lib::integrations::log::*;
+use rpfm_log::*;
 use rpfm_lib::utils::*;
 
 use rpfm_ui_common::clone;

@@ -432,7 +432,7 @@ impl SubToolVariantUnitEditor {
 
         // Log in debug mode, for debugging.
         if cfg!(debug_assertions) {
-            log::info!("{:#?}", data.iter().sorted_by_key(|x| x.0).collect::<std::collections::BTreeMap<&String, &String>>());
+            info!("{:#?}", data.iter().sorted_by_key(|x| x.0).collect::<std::collections::BTreeMap<&String, &String>>());
         }
 
         if let Err(error) = self.tool.load_definition_to_detailed_view_editor(&data, "unit_variants", &UNIT_VARIANTS_CUSTOM_FIELDS) {
@@ -477,7 +477,7 @@ impl SubToolVariantUnitEditor {
 
         // Log in debug mode, for debugging.
         if cfg!(debug_assertions) {
-            log::info!("{:#?}", data.iter().sorted_by_key(|x| x.0).collect::<std::collections::BTreeMap<&String, &String>>());
+            info!("{:#?}", data.iter().sorted_by_key(|x| x.0).collect::<std::collections::BTreeMap<&String, &String>>());
         }
 
         if let Err(error) = self.tool.load_definition_to_detailed_view_editor(&data, "unit_variants_colours", &UNIT_VARIANTS_COLOURS_CUSTOM_FIELDS) {
@@ -680,7 +680,7 @@ impl SubToolVariantUnitEditor {
         }
 
         if cfg!(debug_assertions) {
-            log::info!("{:#?}", data.iter().sorted_by_key(|x| x.0).collect::<std::collections::BTreeMap<&String, &String>>());
+            info!("{:#?}", data.iter().sorted_by_key(|x| x.0).collect::<std::collections::BTreeMap<&String, &String>>());
         }
         self.faction_list_model.item_from_index(index).set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&data).unwrap())), UNIT_DATA);
     }
@@ -729,7 +729,7 @@ impl SubToolVariantUnitEditor {
 
         // Log in debug mode, for debugging.
         if cfg!(debug_assertions) {
-            log::info!("{:#?}", data.iter().sorted_by_key(|x| x.0).collect::<std::collections::BTreeMap<&String, &String>>());
+            info!("{:#?}", data.iter().sorted_by_key(|x| x.0).collect::<std::collections::BTreeMap<&String, &String>>());
         }
 
         if let Err(error) = self.tool.save_definition_from_detailed_view_editor(&mut data, "unit_variants_colours", &UNIT_VARIANTS_COLOURS_CUSTOM_FIELDS) {
@@ -752,7 +752,7 @@ impl SubToolVariantUnitEditor {
         }
 
         if cfg!(debug_assertions) {
-            log::info!("{:#?}", data.iter().sorted_by_key(|x| x.0).collect::<std::collections::BTreeMap<&String, &String>>());
+            info!("{:#?}", data.iter().sorted_by_key(|x| x.0).collect::<std::collections::BTreeMap<&String, &String>>());
         }
 
         self.unit_variants_colours_list_model.item_from_index(index).set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&data).unwrap())), UNIT_DATA);

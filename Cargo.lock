@@ -4435,6 +4435,7 @@ dependencies = [
  "gltf",
  "gltf-json",
  "itertools 0.14.0",
+ "log",
  "open",
  "rayon",
  "regex",
@@ -4461,7 +4462,6 @@ dependencies = [
 name = "rpfm_lib"
 version = "4.7.100"
 dependencies = [
- "backtrace",
  "base64 0.22.1",
  "bitcode",
  "bitflags 2.11.0",
@@ -4485,7 +4485,6 @@ dependencies = [
  "lzma-rs",
  "memchr",
  "nalgebra",
- "os_info",
  "pelite",
  "r2d2",
  "r2d2_sqlite",
@@ -4494,17 +4493,31 @@ dependencies = [
  "regex",
  "ron",
  "rusqlite",
- "sentry",
  "serde",
  "serde-xml-rs",
  "serde_derive",
  "serde_json",
- "simplelog",
  "steamlocate",
  "thiserror 2.0.18",
  "toml 0.9.12+spec-1.1.0",
  "uuid",
  "zstd",
+]
+
+[[package]]
+name = "rpfm_log"
+version = "4.7.100"
+dependencies = [
+ "backtrace",
+ "log",
+ "os_info",
+ "ron",
+ "sentry",
+ "serde",
+ "serde_derive",
+ "simplelog",
+ "thiserror 2.0.18",
+ "toml 0.9.12+spec-1.1.0",
 ]
 
 [[package]]
@@ -4525,6 +4538,7 @@ dependencies = [
  "rpfm_extensions",
  "rpfm_ipc",
  "rpfm_lib",
+ "rpfm_log",
  "schemars",
  "self_update",
  "serde",
@@ -4566,6 +4580,7 @@ dependencies = [
  "rpfm_extensions",
  "rpfm_ipc",
  "rpfm_lib",
+ "rpfm_log",
  "rpfm_ui_common",
  "self_update",
  "serde",
@@ -4586,6 +4601,7 @@ dependencies = [
  "cpp_core",
  "fluent-bundle",
  "getset",
+ "log",
  "qt_core",
  "qt_gui",
  "qt_ui_tools",

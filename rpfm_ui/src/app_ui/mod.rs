@@ -77,7 +77,7 @@ use rpfm_ipc::helpers::{ContainerInfo, DataSource, NewFile};
 
 use rpfm_lib::files::{animpack, ContainerPath, FileType, loc, text, pack::*, portrait_settings, text::TextFormat};
 use rpfm_lib::games::supported_games::*;
-use rpfm_lib::integrations::log::*;
+use rpfm_log::*;
 use rpfm_lib::utils::*;
 
 use rpfm_ui_common::utils::{create_grid_layout, find_widget, load_template};

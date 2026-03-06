@@ -27,7 +27,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 pub use rpfm_ipc::messages::{Command, Response, Message as IpcMessage};
 
-use rpfm_lib::integrations::log::*;
+use rpfm_log::*;
 
 use crate::CENTRAL_COMMAND;
 

@@ -53,7 +53,7 @@ use std::process::Command as SystemCommand;
 use std::sync::{Arc, atomic::{AtomicBool, AtomicPtr}, RwLock};
 
 use rpfm_lib::games::{GameInfo, supported_games::{SupportedGames, KEY_WARHAMMER_3}};
-use rpfm_lib::integrations::log::*;
+use rpfm_log::*;
 
 use rpfm_ui_common::APP_NAME;
 use rpfm_ui_common::ASSETS_PATH;

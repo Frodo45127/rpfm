@@ -53,7 +53,7 @@ use std::sync::RwLock;
 
 use rpfm_lib::files::{ContainerPath, FileType, RFile, text::{Text, TextFormat}};
 use rpfm_lib::games::supported_games::*;
-use rpfm_lib::integrations::log;
+use rpfm_log::info;
 
 use rpfm_ui_common::utils::*;
 
@@ -568,7 +568,7 @@ impl ToolUnitEditor {
 
         // Log in debug mode, for debugging.
         if cfg!(debug_assertions) {
-            log::info!("{:#?}", data.iter().sorted_by_key(|x| x.0).collect::<std::collections::BTreeMap<&String, &String>>());
+            info!("{:#?}", data.iter().sorted_by_key(|x| x.0).collect::<std::collections::BTreeMap<&String, &String>>());
         }
 
         //-----------------------------------------------------------------------//
@@ -695,7 +695,7 @@ impl ToolUnitEditor {
         }
 
         if cfg!(debug_assertions) {
-            log::info!("{:#?}", data.iter().sorted_by_key(|x| x.0).collect::<std::collections::BTreeMap<&String, &String>>());
+            info!("{:#?}", data.iter().sorted_by_key(|x| x.0).collect::<std::collections::BTreeMap<&String, &String>>());
         }
         self.unit_list_model.item_from_index(index).set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&data).unwrap())), UNIT_DATA);
     }
@@ -1013,13 +1013,13 @@ impl ToolUnitEditor {
 
         // Log in debug mode, for debugging.
         if cfg!(debug_assertions) {
-            log::info!("{:#?}", variant_data.iter().sorted_by_key(|x| x.0).collect::<std::collections::BTreeMap<&String, &String>>());
+            info!("{:#?}", variant_data.iter().sorted_by_key(|x| x.0).collect::<std::collections::BTreeMap<&String, &String>>());
         }
 
         let new_data = SubToolVariantUnitEditor::new(self.tool.main_widget().as_ref().unwrap(), &variant_data, self.tool.pack_key())?;
         if let Some(new_data) = new_data {
             if cfg!(debug_assertions) {
-                log::info!("{:#?}", new_data.iter().sorted_by_key(|x| x.0).collect::<std::collections::BTreeMap<&String, &String>>());
+                info!("{:#?}", new_data.iter().sorted_by_key(|x| x.0).collect::<std::collections::BTreeMap<&String, &String>>());
             }
 
             // Delete old variant entries before re-adding them.
