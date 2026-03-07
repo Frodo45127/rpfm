@@ -96,6 +96,10 @@
 # Compilation folder for Rust & Company.
 /target/
 
+# Doc-related folders.
+/docs/
+/book/
+
 # Ignore autogen folder on debug builds.
 /tw_autogen/
 
