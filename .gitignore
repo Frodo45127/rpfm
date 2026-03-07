@@ -181,3 +181,5 @@ Nuget.exe
 /.flatpak-builder/
 /build-dir/
 /flatpak-build-dir/
+/flatpak-repo/
+rpfm.flatpak
