@@ -1,0 +1,1859 @@
+<!DOCTYPE HTML>
+<html lang="en" class="rust sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Commands - Rusted PackFile Manager Documentation</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="favicon-8114d1fc.png">
+        <link rel="stylesheet" href="css/variables-8adf115d.css">
+        <link rel="stylesheet" href="css/general-2459343d.css">
+        <link rel="stylesheet" href="css/chrome-ae938929.css">
+        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="langtabs-0bb573a3.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "rust";
+            const default_dark_theme = "ayu";
+            window.path_to_searchindex_js = "searchindex-1f368938.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc-998c2bd7.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('rust')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Rusted PackFile Manager Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="commands"><a class="header" href="#commands">Commands</a></h1>
+<p>This page documents all commands that can be sent to the RPFM server. Each command is wrapped in a <a href="./chapter_server_0.html#message-format">Message</a> with a unique <code>id</code>.</p>
+<p>Commands with no parameters are serialized as plain strings. Commands with parameters use the <code>{ "CommandName": params }</code> format. See the <a href="./chapter_server_0.html#serialization-convention">serialization convention</a> for details.</p>
+<p>Most commands that operate on a specific pack take a <code>pack_key</code> string as their first parameter. The pack key is returned by <code>OpenPackFiles</code> or <code>NewPack</code> when you open or create a pack.</p>
+<hr>
+<h2 id="lifecycle"><a class="header" href="#lifecycle">Lifecycle</a></h2>
+<h3 id="exit"><a class="header" href="#exit">Exit</a></h3>
+<p>Close the background thread. <strong>Do not use directly</strong> — the server manages this internally.</p>
+<p>Response: None (breaks the server loop).</p>
+<h3 id="clientdisconnecting"><a class="header" href="#clientdisconnecting">ClientDisconnecting</a></h3>
+<p>Signal that the client is intentionally disconnecting. Allows the server to clean up the session immediately.</p>
+<p>Response: <code>"Success"</code></p>
+<pre><code class="language-json">{ "id": 1, "data": "ClientDisconnecting" }
+</code></pre>
+<hr>
+<h2 id="packfile-operations"><a class="header" href="#packfile-operations">PackFile Operations</a></h2>
+<h3 id="newpack"><a class="header" href="#newpack">NewPack</a></h3>
+<p>Create a new empty Pack.</p>
+<p>Response: <code>{ String: string }</code> — the assigned pack key.</p>
+<pre><code class="language-json">{ "id": 1, "data": "NewPack" }
+</code></pre>
+<h3 id="openpackfiles"><a class="header" href="#openpackfiles">OpenPackFiles</a></h3>
+<p>Open one or more Pack files and merge them into the current session.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>paths</code></td><td>string[]</td><td>Filesystem paths to open</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ StringContainerInfo: [string, ContainerInfo] }</code> — pack key and metadata.</p>
+<pre><code class="language-json">{ "id": 1, "data": { "OpenPackFiles": ["/path/to/my_mod.pack"] } }
+</code></pre>
+<h3 id="loadallcapackfiles"><a class="header" href="#loadallcapackfiles">LoadAllCAPackFiles</a></h3>
+<p>Open all CA Pack files for the selected game as one merged Pack.</p>
+<p>Response: <code>{ StringContainerInfo: [string, ContainerInfo] }</code></p>
+<pre><code class="language-json">{ "id": 1, "data": "LoadAllCAPackFiles" }
+</code></pre>
+<h3 id="listopenpacks"><a class="header" href="#listopenpacks">ListOpenPacks</a></h3>
+<p>List all currently open packs with their keys and metadata.</p>
+<p>Response: <code>{ VecStringContainerInfo: [string, ContainerInfo][] }</code></p>
+<pre><code class="language-json">{ "id": 1, "data": "ListOpenPacks" }
+</code></pre>
+<h3 id="closepack"><a class="header" href="#closepack">ClosePack</a></h3>
+<p>Close a specific open Pack.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to close</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>"Success"</code></p>
+<pre><code class="language-json">{ "id": 1, "data": { "ClosePack": "my_mod.pack" } }
+</code></pre>
+<h3 id="closeallpacks"><a class="header" href="#closeallpacks">CloseAllPacks</a></h3>
+<p>Close all currently open Packs.</p>
+<p>Response: <code>"Success"</code></p>
+<pre><code class="language-json">{ "id": 1, "data": "CloseAllPacks" }
+</code></pre>
+<h3 id="savepack"><a class="header" href="#savepack">SavePack</a></h3>
+<p>Save a specific open Pack to disk.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to save</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ ContainerInfo: ContainerInfo }</code></p>
+<pre><code class="language-json">{ "id": 1, "data": { "SavePack": "my_mod.pack" } }
+</code></pre>
+<h3 id="savepackas"><a class="header" href="#savepackas">SavePackAs</a></h3>
+<p>Save a specific open Pack to a new path.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to save</td></tr>
+<tr><td><code>path</code></td><td>string</td><td>Destination path</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ ContainerInfo: ContainerInfo }</code></p>
+<pre><code class="language-json">{ "id": 1, "data": { "SavePackAs": ["my_mod.pack", "/path/to/new_mod.pack"] } }
+</code></pre>
+<h3 id="cleanandsavepackas"><a class="header" href="#cleanandsavepackas">CleanAndSavePackAs</a></h3>
+<p>Clean a Pack from corrupted/undecoded files and save to disk. Only use if the Pack is otherwise unsaveable.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to clean</td></tr>
+<tr><td><code>path</code></td><td>string</td><td>Destination path</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ ContainerInfo: ContainerInfo }</code></p>
+<pre><code class="language-json">{ "id": 1, "data": { "CleanAndSavePackAs": ["my_mod.pack", "/path/to/cleaned.pack"] } }
+</code></pre>
+<h3 id="getpackfiledatafortreeview"><a class="header" href="#getpackfiledatafortreeview">GetPackFileDataForTreeView</a></h3>
+<p>Get tree view data (container info and file list) for a specific pack.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to query</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ ContainerInfoVecRFileInfo: [ContainerInfo, RFileInfo[]] }</code></p>
+<pre><code class="language-json">{ "id": 1, "data": { "GetPackFileDataForTreeView": "my_mod.pack" } }
+</code></pre>
+<h3 id="getpackedfilesinfo"><a class="header" href="#getpackedfilesinfo">GetPackedFilesInfo</a></h3>
+<p>Get metadata for one or more packed files by path.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to query</td></tr>
+<tr><td><code>paths</code></td><td>string[]</td><td>Internal file paths</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ VecRFileInfo: RFileInfo[] }</code></p>
+<pre><code class="language-json">{ "id": 1, "data": { "GetPackedFilesInfo": ["my_mod.pack", ["db/units_tables/data"]] } }
+</code></pre>
+<h3 id="getrfileinfo"><a class="header" href="#getrfileinfo">GetRFileInfo</a></h3>
+<p>Get the info of a single packed file.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to query</td></tr>
+<tr><td><code>path</code></td><td>string</td><td>Internal file path</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ OptionRFileInfo: RFileInfo | null }</code></p>
+<pre><code class="language-json">{ "id": 1, "data": { "GetRFileInfo": ["my_mod.pack", "db/units_tables/data"] } }
+</code></pre>
+<h3 id="getpackfilepath"><a class="header" href="#getpackfilepath">GetPackFilePath</a></h3>
+<p>Get the filesystem path of a specific open Pack.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to query</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ PathBuf: string }</code></p>
+<h3 id="getpackfilename"><a class="header" href="#getpackfilename">GetPackFileName</a></h3>
+<p>Get the file name of a specific open Pack.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to query</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ String: string }</code></p>
+<h3 id="setpackfiletype"><a class="header" href="#setpackfiletype">SetPackFileType</a></h3>
+<p>Change the PFH type of a specific open Pack (e.g., Mod, Movie, Boot).</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to modify</td></tr>
+<tr><td><code>type</code></td><td>PFHFileType</td><td>New file type</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>"Success"</code></p>
+<h3 id="changeindexincludestimestamp"><a class="header" href="#changeindexincludestimestamp">ChangeIndexIncludesTimestamp</a></h3>
+<p>Toggle the “Index Includes Timestamp” flag for a specific pack.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to modify</td></tr>
+<tr><td><code>enabled</code></td><td>boolean</td><td>New flag value</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>"Success"</code></p>
+<h3 id="changecompressionformat"><a class="header" href="#changecompressionformat">ChangeCompressionFormat</a></h3>
+<p>Change the compression format of a specific open Pack.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to modify</td></tr>
+<tr><td><code>format</code></td><td>CompressionFormat</td><td>New format</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ CompressionFormat: CompressionFormat }</code> — actual format set (may differ if unsupported).</p>
+<h3 id="optimizepackfile"><a class="header" href="#optimizepackfile">OptimizePackFile</a></h3>
+<p>Run the optimizer over a specific open Pack.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to optimize</td></tr>
+<tr><td><code>options</code></td><td>OptimizerOptions</td><td>Optimization config</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ HashSetStringHashSetString: [string[], string[]] }</code> — deleted and added paths.</p>
+<h3 id="patchsiegeai"><a class="header" href="#patchsiegeai">PatchSiegeAI</a></h3>
+<p>Patch Siege AI for Warhammer siege maps in a specific pack.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to patch</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ StringVecContainerPath: [string, ContainerPath[]] }</code></p>
+<hr>
+<h2 id="game-selection"><a class="header" href="#game-selection">Game Selection</a></h2>
+<h3 id="getgameselected"><a class="header" href="#getgameselected">GetGameSelected</a></h3>
+<p>Get the currently selected game key.</p>
+<p>Response: <code>{ String: string }</code></p>
+<pre><code class="language-json">{ "id": 1, "data": "GetGameSelected" }
+</code></pre>
+<h3 id="setgameselected"><a class="header" href="#setgameselected">SetGameSelected</a></h3>
+<p>Change the selected game. Optionally rebuilds dependencies.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>game_key</code></td><td>string</td><td>Game identifier (e.g., <code>"warhammer_3"</code>)</td></tr>
+<tr><td><code>rebuild</code></td><td>boolean</td><td>Whether to rebuild dependencies</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ CompressionFormatDependenciesInfo: [CompressionFormat, DependenciesInfo | null] }</code></p>
+<pre><code class="language-json">{ "id": 1, "data": { "SetGameSelected": ["warhammer_3", true] } }
+</code></pre>
+<h3 id="generatedependenciescache"><a class="header" href="#generatedependenciescache">GenerateDependenciesCache</a></h3>
+<p>Generate the dependencies cache for the currently selected game.</p>
+<p>Response: <code>{ DependenciesInfo: DependenciesInfo }</code></p>
+<h3 id="updatecurrentschemafromasskit"><a class="header" href="#updatecurrentschemafromasskit">UpdateCurrentSchemaFromAssKit</a></h3>
+<p>Update the current schema with data from the game’s Assembly Kit.</p>
+<p>Response: <code>"Success"</code></p>
+<hr>
+<h2 id="packedfile-operations"><a class="header" href="#packedfile-operations">PackedFile Operations</a></h2>
+<h3 id="newpackedfile"><a class="header" href="#newpackedfile">NewPackedFile</a></h3>
+<p>Create a new packed file inside a specific open Pack.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Target pack</td></tr>
+<tr><td><code>path</code></td><td>string</td><td>Internal path for the file</td></tr>
+<tr><td><code>spec</code></td><td>NewFile</td><td>File type specification</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>"Success"</code></p>
+<pre><code class="language-json">{ "id": 1, "data": { "NewPackedFile": ["my_mod.pack", "db/units_tables/data", { "DB": ["data", "units_tables", 4] }] } }
+</code></pre>
+<h3 id="addpackedfiles"><a class="header" href="#addpackedfiles">AddPackedFiles</a></h3>
+<p>Add files from the filesystem to a specific open Pack.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Target pack</td></tr>
+<tr><td><code>source_paths</code></td><td>string[]</td><td>Filesystem paths to add</td></tr>
+<tr><td><code>dest_paths</code></td><td>ContainerPath[]</td><td>Destination paths inside the pack</td></tr>
+<tr><td><code>ignore_paths</code></td><td>string[] or null</td><td>Paths to exclude (optional)</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ VecContainerPathOptionString: [ContainerPath[], string | null] }</code> — added paths and optional error.</p>
+<h3 id="decodepackedfile"><a class="header" href="#decodepackedfile">DecodePackedFile</a></h3>
+<p>Decode a packed file for display.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack containing the file</td></tr>
+<tr><td><code>path</code></td><td>string</td><td>Internal path</td></tr>
+<tr><td><code>source</code></td><td>DataSource</td><td>Data source to decode from</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: Type-specific (e.g., <code>{ DBRFileInfo: [DB, RFileInfo] }</code>, <code>{ TextRFileInfo: [Text, RFileInfo] }</code>, <code>"Unknown"</code>, etc.)</p>
+<pre><code class="language-json">{ "id": 1, "data": { "DecodePackedFile": ["my_mod.pack", "db/units_tables/data", "PackFile"] } }
+</code></pre>
+<h3 id="savepackedfilefromview"><a class="header" href="#savepackedfilefromview">SavePackedFileFromView</a></h3>
+<p>Save an edited packed file back to the Pack.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Target pack</td></tr>
+<tr><td><code>path</code></td><td>string</td><td>Internal path</td></tr>
+<tr><td><code>data</code></td><td>RFileDecoded</td><td>Decoded file content</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>"Success"</code></p>
+<h3 id="deletepackedfiles"><a class="header" href="#deletepackedfiles">DeletePackedFiles</a></h3>
+<p>Delete packed files from a specific open Pack.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to modify</td></tr>
+<tr><td><code>paths</code></td><td>ContainerPath[]</td><td>Paths to delete</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ VecContainerPath: ContainerPath[] }</code> — deleted paths.</p>
+<pre><code class="language-json">{ "id": 1, "data": { "DeletePackedFiles": ["my_mod.pack", [{ "File": "db/units_tables/data" }]] } }
+</code></pre>
+<h3 id="extractpackedfiles"><a class="header" href="#extractpackedfiles">ExtractPackedFiles</a></h3>
+<p>Extract packed files to the filesystem.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to extract from</td></tr>
+<tr><td><code>paths_by_source</code></td><td>Record&lt;DataSource, ContainerPath[]&gt;</td><td>Files grouped by data source</td></tr>
+<tr><td><code>dest_path</code></td><td>string</td><td>Filesystem destination</td></tr>
+<tr><td><code>as_tsv</code></td><td>boolean</td><td>Export tables as TSV</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ StringVecPathBuf: [string, string[]] }</code></p>
+<pre><code class="language-json">{ "id": 1, "data": { "ExtractPackedFiles": ["my_mod.pack", { "PackFile": [{ "File": "db/units_tables/data" }] }, "/tmp/extract", false] } }
+</code></pre>
+<h3 id="renamepackedfiles"><a class="header" href="#renamepackedfiles">RenamePackedFiles</a></h3>
+<p>Rename packed files in a specific Pack.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to modify</td></tr>
+<tr><td><code>renames</code></td><td>[ContainerPath, ContainerPath][]</td><td>Array of <code>[old_path, new_path]</code> pairs</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ VecContainerPathContainerPath: [ContainerPath, ContainerPath][] }</code></p>
+<h3 id="folderexists"><a class="header" href="#folderexists">FolderExists</a></h3>
+<p>Check if a folder exists in a specific open Pack.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to check</td></tr>
+<tr><td><code>path</code></td><td>string</td><td>Folder path</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ Bool: boolean }</code></p>
+<h3 id="packedfileexists"><a class="header" href="#packedfileexists">PackedFileExists</a></h3>
+<p>Check if a packed file exists in a specific open Pack.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to check</td></tr>
+<tr><td><code>path</code></td><td>string</td><td>File path</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ Bool: boolean }</code></p>
+<h3 id="getpackedfilerawdata"><a class="header" href="#getpackedfilerawdata">GetPackedFileRawData</a></h3>
+<p>Get the raw binary data of a packed file.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to query</td></tr>
+<tr><td><code>path</code></td><td>string</td><td>Internal file path</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ VecU8: number[] }</code></p>
+<h3 id="addpackedfilesfrompackfile"><a class="header" href="#addpackedfilesfrompackfile">AddPackedFilesFromPackFile</a></h3>
+<p>Copy packed files from one Pack into another.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>target_key</code></td><td>string</td><td>Destination pack key</td></tr>
+<tr><td><code>source_key</code></td><td>string</td><td>Source pack key</td></tr>
+<tr><td><code>paths</code></td><td>ContainerPath[]</td><td>Paths to copy</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ VecContainerPath: ContainerPath[] }</code></p>
+<h3 id="addpackedfilesfrompackfiletoanimpack"><a class="header" href="#addpackedfilesfrompackfiletoanimpack">AddPackedFilesFromPackFileToAnimpack</a></h3>
+<p>Copy packed files from the main Pack into an AnimPack.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack containing animpack</td></tr>
+<tr><td><code>animpack_path</code></td><td>string</td><td>Path to the AnimPack</td></tr>
+<tr><td><code>paths</code></td><td>ContainerPath[]</td><td>Paths to copy</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ VecContainerPath: ContainerPath[] }</code></p>
+<h3 id="addpackedfilesfromanimpack"><a class="header" href="#addpackedfilesfromanimpack">AddPackedFilesFromAnimpack</a></h3>
+<p>Copy packed files from an AnimPack into the main Pack.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Target pack</td></tr>
+<tr><td><code>source</code></td><td>DataSource</td><td>Data source</td></tr>
+<tr><td><code>animpack_path</code></td><td>string</td><td>Path to the AnimPack</td></tr>
+<tr><td><code>paths</code></td><td>ContainerPath[]</td><td>Paths to copy</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ VecContainerPath: ContainerPath[] }</code></p>
+<h3 id="deletefromanimpack"><a class="header" href="#deletefromanimpack">DeleteFromAnimpack</a></h3>
+<p>Delete packed files from an AnimPack.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack containing animpack</td></tr>
+<tr><td><code>animpack_path</code></td><td>string</td><td>Path to the AnimPack</td></tr>
+<tr><td><code>paths</code></td><td>ContainerPath[]</td><td>Paths to delete</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>"Success"</code></p>
+<h3 id="importdependenciestoopenpackfile"><a class="header" href="#importdependenciestoopenpackfile">ImportDependenciesToOpenPackFile</a></h3>
+<p>Import files from dependencies into a specific open Pack.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Target pack</td></tr>
+<tr><td><code>sources</code></td><td>Record&lt;DataSource, ContainerPath[]&gt;</td><td>Files to import by source</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ VecContainerPathVecString: [ContainerPath[], string[]] }</code> — added paths, failed paths.</p>
+<h3 id="savepackedfilestopackfileandclean"><a class="header" href="#savepackedfilestopackfileandclean">SavePackedFilesToPackFileAndClean</a></h3>
+<p>Save packed files to a specific Pack and optionally run optimizer.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Target pack</td></tr>
+<tr><td><code>files</code></td><td>RFile[]</td><td>Files to save</td></tr>
+<tr><td><code>optimize</code></td><td>boolean</td><td>Run optimizer</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ VecContainerPathVecContainerPath: [ContainerPath[], ContainerPath[]] }</code> — added and deleted paths.</p>
+<h3 id="getpackedfilesnamesstartingwitpathfromallsources"><a class="header" href="#getpackedfilesnamesstartingwitpathfromallsources">GetPackedFilesNamesStartingWitPathFromAllSources</a></h3>
+<p>Get all file names under a path from all dependency sources.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>path</code></td><td>ContainerPath</td><td>Path prefix</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ HashMapDataSourceHashSetContainerPath: Record&lt;DataSource, ContainerPath[]&gt; }</code></p>
+<hr>
+<h2 id="dependency-commands"><a class="header" href="#dependency-commands">Dependency Commands</a></h2>
+<h3 id="rebuilddependencies"><a class="header" href="#rebuilddependencies">RebuildDependencies</a></h3>
+<p>Rebuild the dependencies by combining deps from all open packs.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>rebuild_all</code></td><td>boolean</td><td>true = all dependencies, false = mod-specific</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ DependenciesInfo: DependenciesInfo }</code></p>
+<pre><code class="language-json">{ "id": 1, "data": { "RebuildDependencies": true } }
+</code></pre>
+<h3 id="isthereadependencydatabase"><a class="header" href="#isthereadependencydatabase">IsThereADependencyDatabase</a></h3>
+<p>Check if a dependency database is loaded.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>require_asskit</code></td><td>boolean</td><td>Check that AssKit data is included</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ Bool: boolean }</code></p>
+<h3 id="gettablelistfromdependencypackfile"><a class="header" href="#gettablelistfromdependencypackfile">GetTableListFromDependencyPackFile</a></h3>
+<p>Get all DB table names from dependency Pack files.</p>
+<p>Response: <code>{ VecString: string[] }</code></p>
+<h3 id="getcustomtablelist"><a class="header" href="#getcustomtablelist">GetCustomTableList</a></h3>
+<p>Get custom table names (start_pos_, twad_ prefixes) from the schema.</p>
+<p>Response: <code>{ VecString: string[] }</code></p>
+<h3 id="localartsetids"><a class="header" href="#localartsetids">LocalArtSetIds</a></h3>
+<p>Get local art set IDs from campaign_character_arts_tables in a specific pack.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to query</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ HashSetString: string[] }</code></p>
+<h3 id="dependenciesartsetids"><a class="header" href="#dependenciesartsetids">DependenciesArtSetIds</a></h3>
+<p>Get art set IDs from dependencies’ campaign_character_arts_tables.</p>
+<p>Response: <code>{ HashSetString: string[] }</code></p>
+<h3 id="gettableversionfromdependencypackfile"><a class="header" href="#gettableversionfromdependencypackfile">GetTableVersionFromDependencyPackFile</a></h3>
+<p>Get the version of a table from the dependency database.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>table_name</code></td><td>string</td><td>Table to query</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ I32: number }</code></p>
+<h3 id="gettabledefinitionfromdependencypackfile"><a class="header" href="#gettabledefinitionfromdependencypackfile">GetTableDefinitionFromDependencyPackFile</a></h3>
+<p>Get the definition of a table from the dependency database.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>table_name</code></td><td>string</td><td>Table to query</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ Definition: Definition }</code></p>
+<h3 id="mergefiles"><a class="header" href="#mergefiles">MergeFiles</a></h3>
+<p>Merge multiple compatible tables into one.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack containing the files</td></tr>
+<tr><td><code>paths</code></td><td>ContainerPath[]</td><td>Files to merge</td></tr>
+<tr><td><code>merged_path</code></td><td>string</td><td>Destination path for result</td></tr>
+<tr><td><code>delete_sources</code></td><td>boolean</td><td>Delete source files after</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ String: string }</code> — merged path.</p>
+<h3 id="updatetable"><a class="header" href="#updatetable">UpdateTable</a></h3>
+<p>Update a table to a newer schema version.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack containing table</td></tr>
+<tr><td><code>path</code></td><td>ContainerPath</td><td>Table path</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ I32I32VecStringVecString: [old_ver, new_ver, deleted_fields, added_fields] }</code></p>
+<h3 id="getdependencypackfileslist"><a class="header" href="#getdependencypackfileslist">GetDependencyPackFilesList</a></h3>
+<p>Get the list of Pack files marked as dependencies of a specific Pack.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to query</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ VecBoolString: [boolean, string][] }</code> — <code>[enabled, pack_name]</code> pairs.</p>
+<h3 id="setdependencypackfileslist"><a class="header" href="#setdependencypackfileslist">SetDependencyPackFilesList</a></h3>
+<p>Set the list of Pack files marked as dependencies.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to modify</td></tr>
+<tr><td><code>deps</code></td><td>[boolean, string][]</td><td><code>[enabled, pack_name]</code> pairs</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>"Success"</code></p>
+<h3 id="getrfilesfromallsources"><a class="header" href="#getrfilesfromallsources">GetRFilesFromAllSources</a></h3>
+<p>Get packed files from all known sources.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>paths</code></td><td>ContainerPath[]</td><td>Paths to retrieve</td></tr>
+<tr><td><code>lowercase</code></td><td>boolean</td><td>Normalize paths to lowercase</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ HashMapDataSourceHashMapStringRFile: Record&lt;DataSource, Record&lt;string, RFile&gt;&gt; }</code></p>
+<hr>
+<h2 id="search-commands"><a class="header" href="#search-commands">Search Commands</a></h2>
+<h3 id="globalsearch"><a class="header" href="#globalsearch">GlobalSearch</a></h3>
+<p>Perform a global search across a specific pack.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to search</td></tr>
+<tr><td><code>config</code></td><td>GlobalSearch</td><td>Search configuration</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ GlobalSearchVecRFileInfo: [GlobalSearch, RFileInfo[]] }</code></p>
+<pre><code class="language-json">{
+  "id": 1,
+  "data": {
+    "GlobalSearch": ["my_mod.pack", {
+      "pattern": "cavalry",
+      "replace_text": "",
+      "case_sensitive": false,
+      "use_regex": false,
+      "source": "Pack",
+      "search_on": { "db": true, "loc": true, "text": true },
+      "matches": {},
+      "game_key": "warhammer_3"
+    }]
+  }
+}
+</code></pre>
+<h3 id="globalsearchreplacematches"><a class="header" href="#globalsearchreplacematches">GlobalSearchReplaceMatches</a></h3>
+<p>Replace specific matches in a global search.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to modify</td></tr>
+<tr><td><code>config</code></td><td>GlobalSearch</td><td>Search config</td></tr>
+<tr><td><code>matches</code></td><td>MatchHolder[]</td><td>Matches to replace</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ GlobalSearchVecRFileInfo: [GlobalSearch, RFileInfo[]] }</code></p>
+<h3 id="globalsearchreplaceall"><a class="header" href="#globalsearchreplaceall">GlobalSearchReplaceAll</a></h3>
+<p>Replace all matches in a global search.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to modify</td></tr>
+<tr><td><code>config</code></td><td>GlobalSearch</td><td>Search config</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ GlobalSearchVecRFileInfo: [GlobalSearch, RFileInfo[]] }</code></p>
+<h3 id="getreferencedatafromdefinition"><a class="header" href="#getreferencedatafromdefinition">GetReferenceDataFromDefinition</a></h3>
+<p>Get reference data for columns in a table definition.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to query</td></tr>
+<tr><td><code>table_name</code></td><td>string</td><td>Name of the table</td></tr>
+<tr><td><code>definition</code></td><td>Definition</td><td>Table definition</td></tr>
+<tr><td><code>force_local</code></td><td>boolean</td><td>Force regeneration from local</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ HashMapI32TableReferences: Record&lt;number, TableReferences&gt; }</code></p>
+<h3 id="searchreferences"><a class="header" href="#searchreferences">SearchReferences</a></h3>
+<p>Find all references to a value across tables in a specific pack.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to search</td></tr>
+<tr><td><code>table_columns</code></td><td>Record&lt;string, string[]&gt;</td><td>Map of table name to column names</td></tr>
+<tr><td><code>search_value</code></td><td>string</td><td>Value to search for</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ VecDataSourceStringStringUsizeUsize: [DataSource, string, string, number, number][] }</code></p>
+<hr>
+<h2 id="navigation-commands"><a class="header" href="#navigation-commands">Navigation Commands</a></h2>
+<h3 id="gotodefinition"><a class="header" href="#gotodefinition">GoToDefinition</a></h3>
+<p>Go to the definition of a table reference.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to search</td></tr>
+<tr><td><code>table_name</code></td><td>string</td><td>Table name</td></tr>
+<tr><td><code>column_name</code></td><td>string</td><td>Column name</td></tr>
+<tr><td><code>values</code></td><td>string[]</td><td>Values to search for</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ DataSourceStringUsizeUsize: [DataSource, string, number, number] }</code></p>
+<h3 id="gotoloc"><a class="header" href="#gotoloc">GoToLoc</a></h3>
+<p>Navigate to a loc key’s location.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to search</td></tr>
+<tr><td><code>loc_key</code></td><td>string</td><td>Loc key to find</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ DataSourceStringUsizeUsize: [DataSource, string, number, number] }</code></p>
+<h3 id="getsourcedatafromlockey"><a class="header" href="#getsourcedatafromlockey">GetSourceDataFromLocKey</a></h3>
+<p>Get the source data (table, column, values) of a loc key.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to search</td></tr>
+<tr><td><code>loc_key</code></td><td>string</td><td>Loc key to look up</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ OptionStringStringVecString: [string, string, string[]] | null }</code></p>
+<hr>
+<h2 id="cascade-edition"><a class="header" href="#cascade-edition">Cascade Edition</a></h2>
+<h3 id="cascadeedition"><a class="header" href="#cascadeedition">CascadeEdition</a></h3>
+<p>Trigger a cascade edition on all referenced data in a specific pack.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to modify</td></tr>
+<tr><td><code>table</code></td><td>string</td><td>Table name</td></tr>
+<tr><td><code>definition</code></td><td>Definition</td><td>Table definition</td></tr>
+<tr><td><code>changes</code></td><td>[Field, string, string][]</td><td><code>[field, old_value, new_value]</code> tuples</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ VecContainerPathVecRFileInfo: [ContainerPath[], RFileInfo[]] }</code></p>
+<hr>
+<h2 id="video-commands"><a class="header" href="#video-commands">Video Commands</a></h2>
+<h3 id="setvideoformat"><a class="header" href="#setvideoformat">SetVideoFormat</a></h3>
+<p>Change the format of a ca_vp8 video packed file.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack containing file</td></tr>
+<tr><td><code>path</code></td><td>string</td><td>Internal file path</td></tr>
+<tr><td><code>format</code></td><td>SupportedFormats</td><td>Target video format</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>"Success"</code></p>
+<hr>
+<h2 id="schema-commands"><a class="header" href="#schema-commands">Schema Commands</a></h2>
+<h3 id="saveschema"><a class="header" href="#saveschema">SaveSchema</a></h3>
+<p>Save a schema to disk.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>schema</code></td><td>Schema</td><td>Complete schema to save</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>"Success"</code></p>
+<h3 id="cleancache"><a class="header" href="#cleancache">CleanCache</a></h3>
+<p>Encode and clean the internal cache for specified paths.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to clean</td></tr>
+<tr><td><code>paths</code></td><td>ContainerPath[]</td><td>Paths to process</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>"Success"</code></p>
+<h3 id="isschemaloaded"><a class="header" href="#isschemaloaded">IsSchemaLoaded</a></h3>
+<p>Check if a schema is loaded in memory.</p>
+<p>Response: <code>{ Bool: boolean }</code></p>
+<h3 id="schema"><a class="header" href="#schema">Schema</a></h3>
+<p>Get the currently loaded schema.</p>
+<p>Response: <code>{ Schema: Schema }</code></p>
+<h3 id="definitionsbytablename"><a class="header" href="#definitionsbytablename">DefinitionsByTableName</a></h3>
+<p>Get all definitions (all versions) for a table name.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>table_name</code></td><td>string</td><td>Table to query</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ VecDefinition: Definition[] }</code></p>
+<h3 id="definitionbytablenameandversion"><a class="header" href="#definitionbytablenameandversion">DefinitionByTableNameAndVersion</a></h3>
+<p>Get a specific definition by table name and version.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>table_name</code></td><td>string</td><td>Table name</td></tr>
+<tr><td><code>version</code></td><td>number</td><td>Version number</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ Definition: Definition }</code></p>
+<h3 id="deletedefinition"><a class="header" href="#deletedefinition">DeleteDefinition</a></h3>
+<p>Delete a definition by table name and version.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>table_name</code></td><td>string</td><td>Table name</td></tr>
+<tr><td><code>version</code></td><td>number</td><td>Version number</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>"Success"</code></p>
+<h3 id="referencingcolumnsfordefinition"><a class="header" href="#referencingcolumnsfordefinition">ReferencingColumnsForDefinition</a></h3>
+<p>Get columns from other tables that reference a given table/definition.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>table_name</code></td><td>string</td><td>Referenced table</td></tr>
+<tr><td><code>definition</code></td><td>Definition</td><td>Table definition</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ HashMapStringHashMapStringVecString: Record&lt;string, Record&lt;string, string[]&gt;&gt; }</code></p>
+<h3 id="fieldsprocessed"><a class="header" href="#fieldsprocessed">FieldsProcessed</a></h3>
+<p>Get the processed fields from a definition (bitwise expansion, enum conversion, colour merging applied).</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>definition</code></td><td>Definition</td><td>Definition to process</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ VecField: Field[] }</code></p>
+<hr>
+<h2 id="tsv-commands"><a class="header" href="#tsv-commands">TSV Commands</a></h2>
+<h3 id="exporttsv"><a class="header" href="#exporttsv">ExportTSV</a></h3>
+<p>Export a table as a TSV file.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack containing table</td></tr>
+<tr><td><code>path</code></td><td>string</td><td>Internal table path</td></tr>
+<tr><td><code>dest</code></td><td>string</td><td>Filesystem output path</td></tr>
+<tr><td><code>source</code></td><td>DataSource</td><td>Data source</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>"Success"</code></p>
+<h3 id="importtsv"><a class="header" href="#importtsv">ImportTSV</a></h3>
+<p>Import a TSV file as a table.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Target pack</td></tr>
+<tr><td><code>path</code></td><td>string</td><td>Internal destination path</td></tr>
+<tr><td><code>tsv_path</code></td><td>string</td><td>Filesystem TSV path</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ RFileDecoded: RFileDecoded }</code></p>
+<hr>
+<h2 id="external-program-commands"><a class="header" href="#external-program-commands">External Program Commands</a></h2>
+<h3 id="opencontainingfolder"><a class="header" href="#opencontainingfolder">OpenContainingFolder</a></h3>
+<p>Open the folder containing a specific open Pack in the file manager.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack whose folder to open</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>"Success"</code></p>
+<h3 id="openpackedfileinexternalprogram"><a class="header" href="#openpackedfileinexternalprogram">OpenPackedFileInExternalProgram</a></h3>
+<p>Open a packed file in an external program.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack containing file</td></tr>
+<tr><td><code>source</code></td><td>DataSource</td><td>Data source</td></tr>
+<tr><td><code>path</code></td><td>ContainerPath</td><td>File path</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ PathBuf: string }</code> — extracted temporary path.</p>
+<h3 id="savepackedfilefromexternalview"><a class="header" href="#savepackedfilefromexternalview">SavePackedFileFromExternalView</a></h3>
+<p>Save a packed file that was edited in an external program.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Target pack</td></tr>
+<tr><td><code>path</code></td><td>string</td><td>Internal path</td></tr>
+<tr><td><code>ext_path</code></td><td>string</td><td>External file path</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>"Success"</code></p>
+<hr>
+<h2 id="diagnostics-commands"><a class="header" href="#diagnostics-commands">Diagnostics Commands</a></h2>
+<h3 id="diagnosticscheck"><a class="header" href="#diagnosticscheck">DiagnosticsCheck</a></h3>
+<p>Run a full diagnostics check over the open packs.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_keys</code></td><td>string[]</td><td>Pack keys to check</td></tr>
+<tr><td><code>check_ak</code></td><td>boolean</td><td>Check AssKit-only references</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ Diagnostics: Diagnostics }</code></p>
+<h3 id="diagnosticsupdate"><a class="header" href="#diagnosticsupdate">DiagnosticsUpdate</a></h3>
+<p>Run a partial diagnostics update on specific paths.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>diagnostics</code></td><td>Diagnostics</td><td>Existing diagnostics state</td></tr>
+<tr><td><code>paths</code></td><td>ContainerPath[]</td><td>Paths to re-check</td></tr>
+<tr><td><code>check_ak</code></td><td>boolean</td><td>Check AssKit-only references</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ Diagnostics: Diagnostics }</code></p>
+<h3 id="addlinetopackignoreddiagnostics"><a class="header" href="#addlinetopackignoreddiagnostics">AddLineToPackIgnoredDiagnostics</a></h3>
+<p>Add a line to a specific pack’s ignored diagnostics list.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to modify</td></tr>
+<tr><td><code>line</code></td><td>string</td><td>Diagnostic key to ignore</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>"Success"</code></p>
+<hr>
+<h2 id="pack-settings-commands"><a class="header" href="#pack-settings-commands">Pack Settings Commands</a></h2>
+<h3 id="getpacksettings"><a class="header" href="#getpacksettings">GetPackSettings</a></h3>
+<p>Get the settings of a specific open Pack.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to query</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ PackSettings: PackSettings }</code></p>
+<h3 id="setpacksettings"><a class="header" href="#setpacksettings">SetPackSettings</a></h3>
+<p>Set the settings of a specific open Pack.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to modify</td></tr>
+<tr><td><code>settings</code></td><td>PackSettings</td><td>New settings</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>"Success"</code></p>
+<hr>
+<h2 id="notes-commands"><a class="header" href="#notes-commands">Notes Commands</a></h2>
+<h3 id="notesforpath"><a class="header" href="#notesforpath">NotesForPath</a></h3>
+<p>Get all notes under a given path in a specific pack.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to query</td></tr>
+<tr><td><code>path</code></td><td>string</td><td>Path prefix</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ VecNote: Note[] }</code></p>
+<h3 id="addnote"><a class="header" href="#addnote">AddNote</a></h3>
+<p>Add a note to a specific pack.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Target pack</td></tr>
+<tr><td><code>note</code></td><td>Note</td><td>Note to add</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ Note: Note }</code></p>
+<h3 id="deletenote"><a class="header" href="#deletenote">DeleteNote</a></h3>
+<p>Delete a note from a specific pack.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to modify</td></tr>
+<tr><td><code>path</code></td><td>string</td><td>Note path</td></tr>
+<tr><td><code>note_id</code></td><td>number</td><td>Note ID</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>"Success"</code></p>
+<hr>
+<h2 id="schema-patch-commands"><a class="header" href="#schema-patch-commands">Schema Patch Commands</a></h2>
+<h3 id="savelocalschemapatch"><a class="header" href="#savelocalschemapatch">SaveLocalSchemaPatch</a></h3>
+<p>Save local schema patches to disk.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>patches</code></td><td>Record&lt;string, DefinitionPatch&gt;</td><td>Table name to patches</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>"Success"</code></p>
+<h3 id="removelocalschemapatchesfortable"><a class="header" href="#removelocalschemapatchesfortable">RemoveLocalSchemaPatchesForTable</a></h3>
+<p>Remove all local schema patches for a table.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>table_name</code></td><td>string</td><td>Table name</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>"Success"</code></p>
+<h3 id="removelocalschemapatchesfortableandfield"><a class="header" href="#removelocalschemapatchesfortableandfield">RemoveLocalSchemaPatchesForTableAndField</a></h3>
+<p>Remove local schema patches for a specific field in a table.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>table_name</code></td><td>string</td><td>Table name</td></tr>
+<tr><td><code>field_name</code></td><td>string</td><td>Field name</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>"Success"</code></p>
+<h3 id="importschemapatch"><a class="header" href="#importschemapatch">ImportSchemaPatch</a></h3>
+<p>Import schema patches into local patches.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>patches</code></td><td>Record&lt;string, DefinitionPatch&gt;</td><td>Table name to patches</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>"Success"</code></p>
+<hr>
+<h2 id="loc-generation-commands"><a class="header" href="#loc-generation-commands">Loc Generation Commands</a></h2>
+<h3 id="generatemissinglocdata"><a class="header" href="#generatemissinglocdata">GenerateMissingLocData</a></h3>
+<p>Generate all missing loc entries for a specific open Pack.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to generate for</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ VecContainerPath: ContainerPath[] }</code></p>
+<hr>
+<h2 id="update-commands"><a class="header" href="#update-commands">Update Commands</a></h2>
+<h3 id="checkupdates"><a class="header" href="#checkupdates">CheckUpdates</a></h3>
+<p>Check if there is an RPFM update available.</p>
+<p>Response: <code>{ APIResponse: APIResponse }</code></p>
+<h3 id="checkschemaupdates"><a class="header" href="#checkschemaupdates">CheckSchemaUpdates</a></h3>
+<p>Check if there is a schema update available.</p>
+<p>Response: <code>{ APIResponseGit: GitResponse }</code></p>
+<h3 id="updateschemas"><a class="header" href="#updateschemas">UpdateSchemas</a></h3>
+<p>Download and apply schema updates.</p>
+<p>Response: <code>"Success"</code></p>
+<h3 id="updatemainprogram"><a class="header" href="#updatemainprogram">UpdateMainProgram</a></h3>
+<p>Update RPFM to the latest version.</p>
+<p>Response: <code>"Success"</code></p>
+<h3 id="checkluaautogenupdates"><a class="header" href="#checkluaautogenupdates">CheckLuaAutogenUpdates</a></h3>
+<p>Check for updates on the tw_autogen repository.</p>
+<p>Response: <code>{ APIResponseGit: GitResponse }</code></p>
+<h3 id="updateluaautogen"><a class="header" href="#updateluaautogen">UpdateLuaAutogen</a></h3>
+<p>Update the tw_autogen repository.</p>
+<p>Response: <code>"Success"</code></p>
+<h3 id="checkempireandnapoleonakupdates"><a class="header" href="#checkempireandnapoleonakupdates">CheckEmpireAndNapoleonAKUpdates</a></h3>
+<p>Check for updates on the old Assembly Kit files repository.</p>
+<p>Response: <code>{ APIResponseGit: GitResponse }</code></p>
+<h3 id="updateempireandnapoleonak"><a class="header" href="#updateempireandnapoleonak">UpdateEmpireAndNapoleonAK</a></h3>
+<p>Update the old Assembly Kit files repository.</p>
+<p>Response: <code>"Success"</code></p>
+<h3 id="checktranslationsupdates"><a class="header" href="#checktranslationsupdates">CheckTranslationsUpdates</a></h3>
+<p>Check for translation updates.</p>
+<p>Response: <code>{ APIResponseGit: GitResponse }</code></p>
+<h3 id="updatetranslations"><a class="header" href="#updatetranslations">UpdateTranslations</a></h3>
+<p>Update the translations repository.</p>
+<p>Response: <code>"Success"</code></p>
+<hr>
+<h2 id="mymod-commands"><a class="header" href="#mymod-commands">MyMod Commands</a></h2>
+<h3 id="initializemymodfolder"><a class="header" href="#initializemymodfolder">InitializeMyModFolder</a></h3>
+<p>Initialize a MyMod folder structure.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>mod_name</code></td><td>string</td><td>Name of the mod</td></tr>
+<tr><td><code>game_key</code></td><td>string</td><td>Target game</td></tr>
+<tr><td><code>sublime</code></td><td>boolean</td><td>Create Sublime Text project</td></tr>
+<tr><td><code>vscode</code></td><td>boolean</td><td>Create VS Code project</td></tr>
+<tr><td><code>gitignore</code></td><td>string or null</td><td>Gitignore content (null = no git)</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ PathBuf: string }</code> — path to the new pack.</p>
+<h3 id="liveexport"><a class="header" href="#liveexport">LiveExport</a></h3>
+<p>Live-export a specific Pack to the game’s data folder.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to export</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>"Success"</code></p>
+<hr>
+<h2 id="translation-commands"><a class="header" href="#translation-commands">Translation Commands</a></h2>
+<h3 id="getpacktranslation"><a class="header" href="#getpacktranslation">GetPackTranslation</a></h3>
+<p>Get pack translation data for a language from a specific pack.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to query</td></tr>
+<tr><td><code>language</code></td><td>string</td><td>Language code</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ PackTranslation: PackTranslation }</code></p>
+<hr>
+<h2 id="starpos-commands"><a class="header" href="#starpos-commands">Starpos Commands</a></h2>
+<h3 id="buildstarpos"><a class="header" href="#buildstarpos">BuildStarpos</a></h3>
+<p>Build starpos (pre-processing step) for a specific pack.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Target pack</td></tr>
+<tr><td><code>campaign_id</code></td><td>string</td><td>Campaign identifier</td></tr>
+<tr><td><code>process_hlp_spd</code></td><td>boolean</td><td>Process HLP/SPD data</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>"Success"</code></p>
+<h3 id="buildstarpospost"><a class="header" href="#buildstarpospost">BuildStarposPost</a></h3>
+<p>Build starpos (post-processing step) for a specific pack.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Target pack</td></tr>
+<tr><td><code>campaign_id</code></td><td>string</td><td>Campaign identifier</td></tr>
+<tr><td><code>process_hlp_spd</code></td><td>boolean</td><td>Process HLP/SPD data</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ VecContainerPath: ContainerPath[] }</code></p>
+<h3 id="buildstarposcleanup"><a class="header" href="#buildstarposcleanup">BuildStarposCleanup</a></h3>
+<p>Clean up starpos temporary files for a specific pack.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Target pack</td></tr>
+<tr><td><code>campaign_id</code></td><td>string</td><td>Campaign identifier</td></tr>
+<tr><td><code>process_hlp_spd</code></td><td>boolean</td><td>Process HLP/SPD data</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>"Success"</code></p>
+<h3 id="buildstarposgetcampaingids"><a class="header" href="#buildstarposgetcampaingids">BuildStarposGetCampaingIds</a></h3>
+<p>Get campaign IDs available for starpos building from a specific pack.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to query</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ HashSetString: string[] }</code></p>
+<h3 id="buildstarposcheckvictoryconditions"><a class="header" href="#buildstarposcheckvictoryconditions">BuildStarposCheckVictoryConditions</a></h3>
+<p>Check if victory conditions file exists in a specific pack.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to check</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>"Success"</code></p>
+<hr>
+<h2 id="animation-commands"><a class="header" href="#animation-commands">Animation Commands</a></h2>
+<h3 id="updateanimids"><a class="header" href="#updateanimids">UpdateAnimIds</a></h3>
+<p>Update animation IDs with an offset in a specific pack.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to modify</td></tr>
+<tr><td><code>starting_id</code></td><td>number</td><td>Starting ID</td></tr>
+<tr><td><code>offset</code></td><td>number</td><td>ID offset</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ VecContainerPath: ContainerPath[] }</code></p>
+<h3 id="getanimpathsbyskeletonname"><a class="header" href="#getanimpathsbyskeletonname">GetAnimPathsBySkeletonName</a></h3>
+<p>Get animation paths by skeleton name.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>skeleton_name</code></td><td>string</td><td>Skeleton name</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ HashSetString: string[] }</code></p>
+<hr>
+<h2 id="table-commands"><a class="header" href="#table-commands">Table Commands</a></h2>
+<h3 id="gettablesfromdependencies"><a class="header" href="#gettablesfromdependencies">GetTablesFromDependencies</a></h3>
+<p>Get tables from dependencies by table name.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>table_name</code></td><td>string</td><td>Table to query</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ VecRFile: RFile[] }</code></p>
+<h3 id="gettablesbytablename"><a class="header" href="#gettablesbytablename">GetTablesByTableName</a></h3>
+<p>Get table paths by table name from a specific Pack.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to query</td></tr>
+<tr><td><code>table_name</code></td><td>string</td><td>Table name</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ VecString: string[] }</code></p>
+<h3 id="addkeystokeydeletes"><a class="header" href="#addkeystokeydeletes">AddKeysToKeyDeletes</a></h3>
+<p>Add keys to the key_deletes table in a specific pack.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Target pack</td></tr>
+<tr><td><code>table_file_name</code></td><td>string</td><td>Table file name</td></tr>
+<tr><td><code>key_table_name</code></td><td>string</td><td>Key table name</td></tr>
+<tr><td><code>keys</code></td><td>string[]</td><td>Keys to add</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ OptionContainerPath: ContainerPath | null }</code></p>
+<hr>
+<h2 id="map-packing-commands"><a class="header" href="#map-packing-commands">Map Packing Commands</a></h2>
+<h3 id="packmap"><a class="header" href="#packmap">PackMap</a></h3>
+<p>Pack map tiles into a specific Pack.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Target pack</td></tr>
+<tr><td><code>tile_maps</code></td><td>string[]</td><td>Tile map paths</td></tr>
+<tr><td><code>tiles</code></td><td>[string, string][]</td><td><code>[tile_path, tile_name]</code> pairs</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>{ VecContainerPathVecContainerPath: [ContainerPath[], ContainerPath[]] }</code> — added and deleted paths.</p>
+<hr>
+<h2 id="3d-export-commands"><a class="header" href="#3d-export-commands">3D Export Commands</a></h2>
+<h3 id="exportrigidtogltf"><a class="header" href="#exportrigidtogltf">ExportRigidToGltf</a></h3>
+<p>Export a RigidModel to glTF format.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>model</code></td><td>RigidModel</td><td>Model to export</td></tr>
+<tr><td><code>output_path</code></td><td>string</td><td>Output file path</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>"Success"</code></p>
+<hr>
+<h2 id="settings-commands"><a class="header" href="#settings-commands">Settings Commands</a></h2>
+<h3 id="settings-getters"><a class="header" href="#settings-getters">Settings Getters</a></h3>
+<p>All settings getters take a single <code>key</code> string parameter and return the value in a typed wrapper:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Command</th><th>Response Type</th></tr>
+</thead>
+<tbody>
+<tr><td><code>SettingsGetBool</code></td><td><code>{ Bool: boolean }</code></td></tr>
+<tr><td><code>SettingsGetI32</code></td><td><code>{ I32: number }</code></td></tr>
+<tr><td><code>SettingsGetF32</code></td><td><code>{ F32: number }</code></td></tr>
+<tr><td><code>SettingsGetString</code></td><td><code>{ String: string }</code></td></tr>
+<tr><td><code>SettingsGetPathBuf</code></td><td><code>{ PathBuf: string }</code></td></tr>
+<tr><td><code>SettingsGetVecString</code></td><td><code>{ VecString: string[] }</code></td></tr>
+<tr><td><code>SettingsGetVecRaw</code></td><td><code>{ VecU8: number[] }</code></td></tr>
+</tbody>
+</table>
+</div>
+<pre><code class="language-json">{ "id": 1, "data": { "SettingsGetString": "game_selected" } }
+</code></pre>
+<h3 id="settingsgetall"><a class="header" href="#settingsgetall">SettingsGetAll</a></h3>
+<p>Get all settings at once (batch loading). Much more efficient than individual calls.</p>
+<p>Response: <code>{ SettingsAll: [Record&lt;string, boolean&gt;, Record&lt;string, number&gt;, Record&lt;string, number&gt;, Record&lt;string, string&gt;] }</code> — bool, i32, f32, and string settings.</p>
+<pre><code class="language-json">{ "id": 1, "data": "SettingsGetAll" }
+</code></pre>
+<h3 id="settings-setters"><a class="header" href="#settings-setters">Settings Setters</a></h3>
+<p>All settings setters take a <code>[key, value]</code> tuple and return <code>"Success"</code>:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Command</th><th>Value Type</th></tr>
+</thead>
+<tbody>
+<tr><td><code>SettingsSetBool</code></td><td>boolean</td></tr>
+<tr><td><code>SettingsSetI32</code></td><td>number</td></tr>
+<tr><td><code>SettingsSetF32</code></td><td>number</td></tr>
+<tr><td><code>SettingsSetString</code></td><td>string</td></tr>
+<tr><td><code>SettingsSetPathBuf</code></td><td>string</td></tr>
+<tr><td><code>SettingsSetVecString</code></td><td>string[]</td></tr>
+<tr><td><code>SettingsSetVecRaw</code></td><td>number[]</td></tr>
+</tbody>
+</table>
+</div>
+<pre><code class="language-json">{ "id": 1, "data": { "SettingsSetString": ["game_selected", "warhammer_3"] } }
+</code></pre>
+<h3 id="settingsclearpath"><a class="header" href="#settingsclearpath">SettingsClearPath</a></h3>
+<p>Clear a specific config path entry.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>path</code></td><td>string</td><td>Path to clear</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>"Success"</code></p>
+<hr>
+<h2 id="path-commands"><a class="header" href="#path-commands">Path Commands</a></h2>
+<p>These commands return filesystem paths used by RPFM. All respond with <code>{ PathBuf: string }</code>:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Command</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>ConfigPath</code></td><td>Config directory path</td></tr>
+<tr><td><code>AssemblyKitPath</code></td><td>Assembly Kit path for current game</td></tr>
+<tr><td><code>BackupAutosavePath</code></td><td>Backup autosave directory</td></tr>
+<tr><td><code>OldAkDataPath</code></td><td>Old AK data directory</td></tr>
+<tr><td><code>SchemasPath</code></td><td>Schemas directory</td></tr>
+<tr><td><code>TableProfilesPath</code></td><td>Table profiles directory</td></tr>
+<tr><td><code>TranslationsLocalPath</code></td><td>Translations local directory</td></tr>
+<tr><td><code>DependenciesCachePath</code></td><td>Dependencies cache directory</td></tr>
+</tbody>
+</table>
+</div>
+<pre><code class="language-json">{ "id": 1, "data": "SchemasPath" }
+</code></pre>
+<hr>
+<h2 id="settings-backup-commands"><a class="header" href="#settings-backup-commands">Settings Backup Commands</a></h2>
+<h3 id="backupsettings"><a class="header" href="#backupsettings">BackupSettings</a></h3>
+<p>Backup current settings to memory (for restore on cancel).</p>
+<p>Response: <code>"Success"</code></p>
+<h3 id="clearsettings"><a class="header" href="#clearsettings">ClearSettings</a></h3>
+<p>Clear all settings and reset to defaults.</p>
+<p>Response: <code>"Success"</code></p>
+<h3 id="restorebackupsettings"><a class="header" href="#restorebackupsettings">RestoreBackupSettings</a></h3>
+<p>Restore settings from the in-memory backup.</p>
+<p>Response: <code>"Success"</code></p>
+<h3 id="optimizeroptions"><a class="header" href="#optimizeroptions">OptimizerOptions</a></h3>
+<p>Get the optimizer options configuration.</p>
+<p>Response: <code>{ OptimizerOptions: OptimizerOptions }</code></p>
+<hr>
+<h2 id="debug-commands"><a class="header" href="#debug-commands">Debug Commands</a></h2>
+<h3 id="getmissingdefinitions"><a class="header" href="#getmissingdefinitions">GetMissingDefinitions</a></h3>
+<p>Export missing table definitions from a specific pack to a file (for debugging/development).</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to export from</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>"Success"</code></p>
+<hr>
+<h2 id="autosave-commands"><a class="header" href="#autosave-commands">Autosave Commands</a></h2>
+<h3 id="triggerbackupautosave"><a class="header" href="#triggerbackupautosave">TriggerBackupAutosave</a></h3>
+<p>Trigger an autosave backup of a specific Pack.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pack_key</code></td><td>string</td><td>Pack to back up</td></tr>
+</tbody>
+</table>
+</div>
+<p>Response: <code>"Success"</code></p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="chapter_server_1.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="chapter_server_3.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="chapter_server_1.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="chapter_server_3.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr-ef4e11c1.min.js"></script>
+        <script src="mark-09e88c2c.min.js"></script>
+        <script src="searcher-c2a407aa.js"></script>
+
+        <script src="clipboard-1626706a.min.js"></script>
+        <script src="highlight-abc7f01d.js"></script>
+        <script src="book-a0b12cfe.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="langtabs-57c6b578.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

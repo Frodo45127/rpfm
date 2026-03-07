@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>DB Decoder - Rusted PackFile Manager Documentation</title>
+        <title>Client Example - Rusted PackFile Manager Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -175,47 +175,472 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="db-decoder"><a class="header" href="#db-decoder">DB Decoder</a></h1>
-<p><img src="./images/image23.png" alt="Decoding your life, one step at a time."></p>
-<p>RPFM has an integrated <strong>DB decoder</strong>, to speed up a lot the decoding process of the <strong>definition</strong> of a table. It can be opened by right-clicking on a table file and selecting <code>Open/Open with Decoder</code>. Only works on tables.</p>
-<p>The decoder screen is a bit complex so, like Jack the Ripper, let’s check it in parts, one at a time. Starting by the left we have this:</p>
-<p><img src="./images/image24.png" alt="Raw data… like raw meat, but less toxic."></p>
-<p>This is the <code>PackedFile's Data</code> view. It’s similar to a hexadecimal editor, but far less powerful, and it’s not editable. In the middle you have <strong>Raw Hexadecimal Data</strong>, and in the right, you have a <strong>Decoded version</strong> of that data. To make it easier to work with it, both scrolling and selection are synchronised between both views. So you can select a byte in the middle view, and it’ll get selected in the right one too. The colour code here means:</p>
+                        <h1 id="client-example"><a class="header" href="#client-example">Client Example</a></h1>
+<p>This page provides a complete client implementation example in TypeScript. The same patterns apply to any language with WebSocket and JSON support.</p>
+<h2 id="typescript-client"><a class="header" href="#typescript-client">TypeScript Client</a></h2>
+<p>The following class wraps the WebSocket connection and provides typed convenience methods for common operations.</p>
+<h3 id="connection-and-session-handling"><a class="header" href="#connection-and-session-handling">Connection and Session Handling</a></h3>
+<div class="langtabs">
+<div class="langtabs-header"><button class="langtabs-tab active" data-lang="typescript-0"><i class="langtabs-icon devicon-typescript-plain"></i>TypeScript</button><button class="langtabs-tab" data-lang="csharp-1"><i class="langtabs-icon devicon-csharp-plain"></i>C#</button></div>
+<div class="langtabs-content">
+<div class="langtabs-code active" data-lang="typescript-0">
+<pre><code class="language-typescript">class RpfmClient {
+  private ws: WebSocket;
+  private nextId = 1;
+  private pending = new Map&lt;number, {
+    resolve: (resp: any) =&gt; void;
+    reject: (err: Error) =&gt; void;
+  }&gt;();
+  public sessionId: number | null = null;
+
+  constructor(url = "ws://127.0.0.1:45127/ws") {
+    this.ws = new WebSocket(url);
+    this.ws.onmessage = (event) =&gt; {
+      const msg = JSON.parse(event.data);
+
+      // Handle SessionConnected (unsolicited, id=0)
+      if (typeof msg.data === "object" &amp;&amp; "SessionConnected" in msg.data) {
+        this.sessionId = msg.data.SessionConnected;
+        console.log(`Connected to session ${this.sessionId}`);
+        return;
+      }
+
+      const handler = this.pending.get(msg.id);
+      if (handler) {
+        this.pending.delete(msg.id);
+        if (typeof msg.data === "object" &amp;&amp; "Error" in msg.data) {
+          handler.reject(new Error(msg.data.Error));
+        } else {
+          handler.resolve(msg.data);
+        }
+      }
+    };
+  }
+
+  send(command: object | string): Promise&lt;any&gt; {
+    return new Promise((resolve, reject) =&gt; {
+      const id = this.nextId++;
+      this.pending.set(id, { resolve, reject });
+      this.ws.send(JSON.stringify({ id, data: command }));
+    });
+  }
+</code></pre>
+</div>
+
+<div class="langtabs-code" data-lang="csharp-1">
+<pre><code class="language-csharp">using System.Collections.Concurrent;
+using System.Net.WebSockets;
+using System.Text;
+using System.Text.Json;
+
+public class RpfmClient : IDisposable
+{
+    private readonly ClientWebSocket _ws = new();
+    private int _nextId = 1;
+    private readonly ConcurrentDictionary&lt;int, TaskCompletionSource&lt;JsonElement&gt;&gt; _pending = new();
+    public int? SessionId { get; private set; }
+
+    public async Task ConnectAsync(string url = "ws://127.0.0.1:45127/ws")
+    {
+        await _ws.ConnectAsync(new Uri(url), CancellationToken.None);
+        _ = Task.Run(ReceiveLoop);
+    }
+
+    private async Task ReceiveLoop()
+    {
+        var buffer = new byte[65536];
+        while (_ws.State == WebSocketState.Open)
+        {
+            var result = await _ws.ReceiveAsync(buffer, CancellationToken.None);
+            var json = Encoding.UTF8.GetString(buffer, 0, result.Count);
+            var msg = JsonDocument.Parse(json).RootElement;
+
+            var data = msg.GetProperty("data");
+
+            // Handle SessionConnected (unsolicited, id=0)
+            if (data.ValueKind == JsonValueKind.Object
+                &amp;&amp; data.TryGetProperty("SessionConnected", out var sid))
+            {
+                SessionId = sid.GetInt32();
+                Console.WriteLine($"Connected to session {SessionId}");
+                continue;
+            }
+
+            var id = msg.GetProperty("id").GetInt32();
+            if (_pending.TryRemove(id, out var tcs))
+            {
+                if (data.ValueKind == JsonValueKind.Object
+                    &amp;&amp; data.TryGetProperty("Error", out var err))
+                {
+                    tcs.SetException(new Exception(err.GetString()));
+                }
+                else
+                {
+                    tcs.SetResult(data);
+                }
+            }
+        }
+    }
+
+    public async Task&lt;JsonElement&gt; SendAsync(object command)
+    {
+        var id = Interlocked.Increment(ref _nextId);
+        var tcs = new TaskCompletionSource&lt;JsonElement&gt;();
+        _pending[id] = tcs;
+
+        var msg = JsonSerializer.Serialize(new { id, data = command });
+        var bytes = Encoding.UTF8.GetBytes(msg);
+        await _ws.SendAsync(bytes, WebSocketMessageType.Text, true, CancellationToken.None);
+
+        return await tcs.Task;
+    }
+</code></pre>
+</div>
+</div>
+</div>
+
+<p>Key points:</p>
 <ul>
-<li><strong>Red</strong> : header of the table. It contains certain info about what’s in the table, like his uuid, amount of rows,….</li>
-<li><strong>Yellow</strong> : the part of the table already decoded following the structure from the fields table.</li>
-<li><strong>Magenta</strong> : the byte where the next field after all the fields from the fields table starts.</li>
+<li>Each request gets a unique <code>id</code> for correlation</li>
+<li>The <code>SessionConnected</code> message arrives immediately on connection with <code>id: 0</code></li>
+<li>Error responses are automatically converted to rejected promises</li>
+<li>Multiple requests can be in flight simultaneously</li>
 </ul>
-<p>Next, to the right, we have this:</p>
-<p><img src="./images/image25.png" alt="Fields…. like normal ones, but with less cows."></p>
-<p>This is the <code>Fields List</code>. Here are all the columns this table has, including their title, type, if they are a <code>key</code> column, their relation with other tables/columns, the decoded data on each field of the first row of the table, and a <em>Description</em> field, to add commentaries that’ll show up when hovering the header of that column with the mouse.</p>
-<p>If we right-click in any field of the table, we have these three self-explanatory options to help us with the decoding:</p>
-<p><img src="./images/image26.png" alt="Moving up and down….."></p>
-<p>And finally, under the <code>Fields List</code>, we have this:</p>
-<p><img src="./images/image27.png" alt="The guts of the decoder, exposed."></p>
-<p>The <code>Current Field Decoded</code> will show up the field that starts in the magenta byte of the <code>PackedFile's Data</code> view, decoded in the different types the tables use. It’s use is simple: check what type makes more sense (for example, in the screenshot, it’s evidently a <code>StringU8</code>), and click the <code>Use this</code> button in his row. Doing that will add a field of that type to the <code>Fields List</code>, and it’ll update the <code>PackedFile's Data</code> View to show where the next field starts. Keep doing that until you think you’ve decoded the complete first row of the table, hit <code>Finish It!</code> at the right bottom corner, and select the table again. If the decoding is correct, the table will open. And that’s how <s>I met your mother</s> you decode a table.</p>
-<p>Under <code>Current Field Decoded</code> we have <code>Selected Field Decoded</code>. It does the same that <code>Current Field Decoded</code>, but from the byte you selected in the <code>PackedFile's Data</code> View. Just select a byte and it’ll try to decode any possible field starting from it. It’s for helping decoding complex tables.</p>
-<p>To the right, we have some information about the table, and the <code>Versions List</code> (a list of versions of that table we have a definition for). If we right-click in one of them, we can load that version (useful to have something to start when a table gets <em>updated</em> in a patch) or delete it (in case we make a totally disaster and don’t want it to be in the schema).</p>
-<p>In the information of the table, the version number is only editable for version 0 tables. Usually, RPFM treats all versions as unique per-game, but version 0 really means <em><strong>no version</strong></em>, so in older games, like empire, there can be multiple “version 0” tables with different definitions. For that, when a version 0 table is decoded, you can set its version to be negative, which will act as an alternative definition for that version 0 table.</p>
-<p>It’s only for Empire/Napoleon. Don’t use it in recent games.</p>
-<p><img src="./images/image28.png" alt="Because no more is needed."></p>
-<p>And at the bottom, we have:</p>
+<h3 id="typed-convenience-methods"><a class="header" href="#typed-convenience-methods">Typed Convenience Methods</a></h3>
+<div class="langtabs">
+<div class="langtabs-header"><button class="langtabs-tab active" data-lang="typescript-0"><i class="langtabs-icon devicon-typescript-plain"></i>TypeScript</button><button class="langtabs-tab" data-lang="csharp-1"><i class="langtabs-icon devicon-csharp-plain"></i>C#</button></div>
+<div class="langtabs-content">
+<div class="langtabs-code active" data-lang="typescript-0">
+<pre><code class="language-typescript">  // --- Pack management ---
+
+  async openPack(paths: string[]): Promise&lt;[string, any]&gt; {
+    const resp = await this.send({ OpenPackFiles: paths });
+    return resp.StringContainerInfo;
+  }
+
+  async listOpenPacks(): Promise&lt;[string, any][]&gt; {
+    const resp = await this.send("ListOpenPacks");
+    return resp.VecStringContainerInfo;
+  }
+
+  async closePack(packKey: string): Promise&lt;void&gt; {
+    await this.send({ ClosePack: packKey });
+  }
+
+  async closeAllPacks(): Promise&lt;void&gt; {
+    await this.send("CloseAllPacks");
+  }
+
+  async savePack(packKey: string): Promise&lt;any&gt; {
+    const resp = await this.send({ SavePack: packKey });
+    return resp.ContainerInfo;
+  }
+
+  async savePackAs(packKey: string, path: string): Promise&lt;any&gt; {
+    const resp = await this.send({ SavePackAs: [packKey, path] });
+    return resp.ContainerInfo;
+  }
+
+  // --- File operations ---
+
+  async getTreeView(packKey: string): Promise&lt;[any, any[]]&gt; {
+    const resp = await this.send({ GetPackFileDataForTreeView: packKey });
+    return resp.ContainerInfoVecRFileInfo;
+  }
+
+  async decodeFile(packKey: string, path: string, source = "PackFile"): Promise&lt;any&gt; {
+    return this.send({ DecodePackedFile: [packKey, path, source] });
+  }
+
+  async deleteFiles(packKey: string, paths: any[]): Promise&lt;any[]&gt; {
+    const resp = await this.send({ DeletePackedFiles: [packKey, paths] });
+    return resp.VecContainerPath;
+  }
+
+  async extractFiles(
+    packKey: string,
+    paths: Record&lt;string, any[]&gt;,
+    destPath: string,
+    asTsv = false,
+  ): Promise&lt;[string, string[]]&gt; {
+    const resp = await this.send({
+      ExtractPackedFiles: [packKey, paths, destPath, asTsv]
+    });
+    return resp.StringVecPathBuf;
+  }
+
+  // --- Game selection ---
+
+  async setGame(gameKey: string, rebuildDeps: boolean): Promise&lt;void&gt; {
+    await this.send({ SetGameSelected: [gameKey, rebuildDeps] });
+  }
+
+  // --- Settings ---
+
+  async getSetting(key: string): Promise&lt;string&gt; {
+    const resp = await this.send({ SettingsGetString: key });
+    return resp.String;
+  }
+
+  async getAllSettings(): Promise&lt;{
+    bools: Record&lt;string, boolean&gt;;
+    ints: Record&lt;string, number&gt;;
+    floats: Record&lt;string, number&gt;;
+    strings: Record&lt;string, string&gt;;
+  }&gt; {
+    const resp = await this.send("SettingsGetAll");
+    const [bools, ints, floats, strings] = resp.SettingsAll;
+    return { bools, ints, floats, strings };
+  }
+
+  // --- Lifecycle ---
+
+  async disconnect(): Promise&lt;void&gt; {
+    await this.send("ClientDisconnecting");
+    this.ws.close();
+  }
+}
+</code></pre>
+</div>
+
+<div class="langtabs-code" data-lang="csharp-1">
+<pre><code class="language-csharp">    // --- Pack management ---
+
+    public async Task&lt;JsonElement&gt; OpenPackAsync(string[] paths)
+    {
+        var resp = await SendAsync(new { OpenPackFiles = paths });
+        return resp.GetProperty("StringContainerInfo");
+    }
+
+    public async Task&lt;JsonElement&gt; ListOpenPacksAsync()
+    {
+        var resp = await SendAsync("ListOpenPacks");
+        return resp.GetProperty("VecStringContainerInfo");
+    }
+
+    public async Task ClosePackAsync(string packKey)
+    {
+        await SendAsync(new { ClosePack = packKey });
+    }
+
+    public async Task CloseAllPacksAsync()
+    {
+        await SendAsync("CloseAllPacks");
+    }
+
+    public async Task&lt;JsonElement&gt; SavePackAsync(string packKey)
+    {
+        var resp = await SendAsync(new { SavePack = packKey });
+        return resp.GetProperty("ContainerInfo");
+    }
+
+    public async Task&lt;JsonElement&gt; SavePackAsAsync(string packKey, string path)
+    {
+        var resp = await SendAsync(new { SavePackAs = new[] { packKey, path } });
+        return resp.GetProperty("ContainerInfo");
+    }
+
+    // --- File operations ---
+
+    public async Task&lt;JsonElement&gt; GetTreeViewAsync(string packKey)
+    {
+        var resp = await SendAsync(new { GetPackFileDataForTreeView = packKey });
+        return resp.GetProperty("ContainerInfoVecRFileInfo");
+    }
+
+    public async Task&lt;JsonElement&gt; DecodeFileAsync(
+        string packKey, string path, string source = "PackFile")
+    {
+        return await SendAsync(new { DecodePackedFile = new[] { packKey, path, source } });
+    }
+
+    public async Task&lt;JsonElement&gt; DeleteFilesAsync(string packKey, object[] paths)
+    {
+        var resp = await SendAsync(new { DeletePackedFiles = new object[] { packKey, paths } });
+        return resp.GetProperty("VecContainerPath");
+    }
+
+    public async Task&lt;JsonElement&gt; ExtractFilesAsync(
+        string packKey,
+        Dictionary&lt;string, object[]&gt; paths,
+        string destPath,
+        bool asTsv = false)
+    {
+        var resp = await SendAsync(
+            new { ExtractPackedFiles = new object[] { packKey, paths, destPath, asTsv } });
+        return resp.GetProperty("StringVecPathBuf");
+    }
+
+    // --- Game selection ---
+
+    public async Task SetGameAsync(string gameKey, bool rebuildDeps)
+    {
+        await SendAsync(new { SetGameSelected = new object[] { gameKey, rebuildDeps } });
+    }
+
+    // --- Settings ---
+
+    public async Task&lt;string&gt; GetSettingAsync(string key)
+    {
+        var resp = await SendAsync(new { SettingsGetString = key });
+        return resp.GetProperty("String").GetString()!;
+    }
+
+    public async Task&lt;JsonElement&gt; GetAllSettingsAsync()
+    {
+        var resp = await SendAsync("SettingsGetAll");
+        return resp.GetProperty("SettingsAll");
+    }
+
+    // --- Lifecycle ---
+
+    public async Task DisconnectAsync()
+    {
+        await SendAsync("ClientDisconnecting");
+        await _ws.CloseAsync(
+            WebSocketCloseStatus.NormalClosure, "done", CancellationToken.None);
+    }
+
+    public void Dispose() =&gt; _ws.Dispose();
+}
+</code></pre>
+</div>
+</div>
+</div>
+
+<h3 id="usage-example"><a class="header" href="#usage-example">Usage Example</a></h3>
+<div class="langtabs">
+<div class="langtabs-header"><button class="langtabs-tab active" data-lang="typescript-0"><i class="langtabs-icon devicon-typescript-plain"></i>TypeScript</button><button class="langtabs-tab" data-lang="csharp-1"><i class="langtabs-icon devicon-csharp-plain"></i>C#</button></div>
+<div class="langtabs-content">
+<div class="langtabs-code active" data-lang="typescript-0">
+<pre><code class="language-typescript">async function main() {
+  const client = new RpfmClient();
+
+  // Wait for connection
+  await new Promise&lt;void&gt;((resolve) =&gt; {
+    client["ws"].onopen = () =&gt; resolve();
+  });
+  console.log(`Session ID: ${client.sessionId}`);
+
+  // Select a game
+  await client.setGame("warhammer_3", true);
+
+  // Open a pack file
+  const [packKey, containerInfo] = await client.openPack([
+    "/home/user/mods/my_mod.pack"
+  ]);
+  console.log(`Opened pack: ${containerInfo.file_name} (key: ${packKey})`);
+
+  // Get the file tree
+  const [info, files] = await client.getTreeView(packKey);
+  console.log(`Pack contains ${files.length} files`);
+
+  // Decode a DB table
+  const decoded = await client.decodeFile(
+    packKey,
+    "db/units_tables/data",
+    "PackFile"
+  );
+  if ("DBRFileInfo" in decoded) {
+    const [db, fileInfo] = decoded.DBRFileInfo;
+    console.log(`Table: ${db.table.table_name}, rows: ${db.table.table_data.length}`);
+  }
+
+  // Extract files to disk
+  const [extractPath, extractedFiles] = await client.extractFiles(
+    packKey,
+    { PackFile: [{ File: "db/units_tables/data" }] },
+    "/tmp/extracted"
+  );
+  console.log(`Extracted ${extractedFiles.length} files to ${extractPath}`);
+
+  // Save and disconnect
+  await client.savePack(packKey);
+  await client.disconnect();
+}
+
+main().catch(console.error);
+</code></pre>
+</div>
+
+<div class="langtabs-code" data-lang="csharp-1">
+<pre><code class="language-csharp">using var client = new RpfmClient();
+await client.ConnectAsync();
+
+// Wait briefly for SessionConnected
+await Task.Delay(500);
+Console.WriteLine($"Session ID: {client.SessionId}");
+
+// Select a game
+await client.SetGameAsync("warhammer_3", true);
+
+// Open a pack file
+var packResult = await client.OpenPackAsync(new[] { "/home/user/mods/my_mod.pack" });
+var packKey = packResult[0].GetString()!;
+var containerInfo = packResult[1];
+Console.WriteLine($"Opened pack: {containerInfo.GetProperty("file_name")} (key: {packKey})");
+
+// Get the file tree
+var treeView = await client.GetTreeViewAsync(packKey);
+var files = treeView[1];
+Console.WriteLine($"Pack contains {files.GetArrayLength()} files");
+
+// Decode a DB table
+var decoded = await client.DecodeFileAsync(packKey, "db/units_tables/data", "PackFile");
+if (decoded.TryGetProperty("DBRFileInfo", out var dbResult))
+{
+    var db = dbResult[0];
+    var table = db.GetProperty("table");
+    Console.WriteLine(
+        $"Table: {table.GetProperty("table_name")}, " +
+        $"rows: {table.GetProperty("table_data").GetArrayLength()}");
+}
+
+// Extract files to disk
+var extractResult = await client.ExtractFilesAsync(
+    packKey,
+    new Dictionary&lt;string, object[]&gt;
+    {
+        ["PackFile"] = new object[] { new { File = "db/units_tables/data" } }
+    },
+    "/tmp/extracted");
+var extractPath = extractResult[0].GetString();
+var extractedFiles = extractResult[1];
+Console.WriteLine($"Extracted {extractedFiles.GetArrayLength()} files to {extractPath}");
+
+// Save and disconnect
+await client.SavePackAsync(packKey);
+await client.DisconnectAsync();
+</code></pre>
+</div>
+</div>
+</div>
+
+<h2 id="adapting-to-other-languages"><a class="header" href="#adapting-to-other-languages">Adapting to Other Languages</a></h2>
+<p>The protocol is language-agnostic. To implement a client in another language:</p>
+<ol>
+<li><strong>Connect</strong> to <code>ws://127.0.0.1:45127/ws</code> using any WebSocket library</li>
+<li><strong>Send</strong> JSON messages in the format <code>{ "id": &lt;number&gt;, "data": &lt;command&gt; }</code></li>
+<li><strong>Receive</strong> JSON messages and match responses by <code>id</code></li>
+<li><strong>Handle</strong> the <code>SessionConnected</code> message (id=0) on connect</li>
+<li><strong>Send</strong> <code>ClientDisconnecting</code> before closing the connection</li>
+</ol>
+<p>The JSON serialization follows Rust’s serde conventions:</p>
 <ul>
-<li><code>Import from Assembly Kit</code>: it tries to import the definition for this table from the assembly kit files. It tries.</li>
-<li><code>Test Definition</code>: test the definition to see if it can decode the table correctly. If it fails, it’ll show a json version of the rows of the table that it could decode.</li>
-<li><code>Remove all fields</code>: removes all decoded fields, returning the table to a clean state.</li>
-<li><code>Finish It!</code>: Save the <code>Fields List</code> as a new definition for that version of the table in the schema. The definition is inmediatly available after that, so the changes can be used immediately.</li>
+<li>Unit variants: <code>"VariantName"</code></li>
+<li>Newtype variants: <code>{ "VariantName": value }</code></li>
+<li>Tuple variants: <code>{ "VariantName": [v1, v2, ...] }</code></li>
 </ul>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="chapter_4_12.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="chapter_server_3.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="chapter_5_1.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="chapter_server_5.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -225,11 +650,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="chapter_4_12.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="chapter_server_3.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="chapter_5_1.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="chapter_server_5.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>

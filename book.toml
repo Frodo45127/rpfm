@@ -1,11 +1,16 @@
 [book]
 authors = ["Ismael Gutiérrez González"]
-multilingual = false
 src = "./docs_src"
 title = "Rusted PackFile Manager Documentation"
 
 [build]
 build-dir = "./docs"
 
+[preprocessor.langtabs]
+command = "mdbook-langtabs"
+
 [output.html]
 default-theme = "rust"
+preferred-dark-theme = "ayu"
+additional-css = ["langtabs.css"]
+additional-js = ["langtabs.js"]

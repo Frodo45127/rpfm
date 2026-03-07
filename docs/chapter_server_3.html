@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>DB Decoder - Rusted PackFile Manager Documentation</title>
+        <title>Responses - Rusted PackFile Manager Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -175,47 +175,185 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="db-decoder"><a class="header" href="#db-decoder">DB Decoder</a></h1>
-<p><img src="./images/image23.png" alt="Decoding your life, one step at a time."></p>
-<p>RPFM has an integrated <strong>DB decoder</strong>, to speed up a lot the decoding process of the <strong>definition</strong> of a table. It can be opened by right-clicking on a table file and selecting <code>Open/Open with Decoder</code>. Only works on tables.</p>
-<p>The decoder screen is a bit complex so, like Jack the Ripper, let’s check it in parts, one at a time. Starting by the left we have this:</p>
-<p><img src="./images/image24.png" alt="Raw data… like raw meat, but less toxic."></p>
-<p>This is the <code>PackedFile's Data</code> view. It’s similar to a hexadecimal editor, but far less powerful, and it’s not editable. In the middle you have <strong>Raw Hexadecimal Data</strong>, and in the right, you have a <strong>Decoded version</strong> of that data. To make it easier to work with it, both scrolling and selection are synchronised between both views. So you can select a byte in the middle view, and it’ll get selected in the right one too. The colour code here means:</p>
+                        <h1 id="responses"><a class="header" href="#responses">Responses</a></h1>
+<p>This page documents all possible responses from the RPFM server. Each response is wrapped in a <a href="./chapter_server_0.html#message-format">Message</a> with the same <code>id</code> as the originating command.</p>
+<p>Responses follow the same <a href="./chapter_server_0.html#serialization-convention">serialization convention</a> as commands:</p>
 <ul>
-<li><strong>Red</strong> : header of the table. It contains certain info about what’s in the table, like his uuid, amount of rows,….</li>
-<li><strong>Yellow</strong> : the part of the table already decoded following the structure from the fields table.</li>
-<li><strong>Magenta</strong> : the byte where the next field after all the fields from the fields table starts.</li>
+<li>Unit responses are plain strings: <code>"Success"</code></li>
+<li>Responses with data use a named wrapper: <code>{ "Bool": true }</code>, <code>{ "Error": "File not found" }</code></li>
 </ul>
-<p>Next, to the right, we have this:</p>
-<p><img src="./images/image25.png" alt="Fields…. like normal ones, but with less cows."></p>
-<p>This is the <code>Fields List</code>. Here are all the columns this table has, including their title, type, if they are a <code>key</code> column, their relation with other tables/columns, the decoded data on each field of the first row of the table, and a <em>Description</em> field, to add commentaries that’ll show up when hovering the header of that column with the mouse.</p>
-<p>If we right-click in any field of the table, we have these three self-explanatory options to help us with the decoding:</p>
-<p><img src="./images/image26.png" alt="Moving up and down….."></p>
-<p>And finally, under the <code>Fields List</code>, we have this:</p>
-<p><img src="./images/image27.png" alt="The guts of the decoder, exposed."></p>
-<p>The <code>Current Field Decoded</code> will show up the field that starts in the magenta byte of the <code>PackedFile's Data</code> view, decoded in the different types the tables use. It’s use is simple: check what type makes more sense (for example, in the screenshot, it’s evidently a <code>StringU8</code>), and click the <code>Use this</code> button in his row. Doing that will add a field of that type to the <code>Fields List</code>, and it’ll update the <code>PackedFile's Data</code> View to show where the next field starts. Keep doing that until you think you’ve decoded the complete first row of the table, hit <code>Finish It!</code> at the right bottom corner, and select the table again. If the decoding is correct, the table will open. And that’s how <s>I met your mother</s> you decode a table.</p>
-<p>Under <code>Current Field Decoded</code> we have <code>Selected Field Decoded</code>. It does the same that <code>Current Field Decoded</code>, but from the byte you selected in the <code>PackedFile's Data</code> View. Just select a byte and it’ll try to decode any possible field starting from it. It’s for helping decoding complex tables.</p>
-<p>To the right, we have some information about the table, and the <code>Versions List</code> (a list of versions of that table we have a definition for). If we right-click in one of them, we can load that version (useful to have something to start when a table gets <em>updated</em> in a patch) or delete it (in case we make a totally disaster and don’t want it to be in the schema).</p>
-<p>In the information of the table, the version number is only editable for version 0 tables. Usually, RPFM treats all versions as unique per-game, but version 0 really means <em><strong>no version</strong></em>, so in older games, like empire, there can be multiple “version 0” tables with different definitions. For that, when a version 0 table is decoded, you can set its version to be negative, which will act as an alternative definition for that version 0 table.</p>
-<p>It’s only for Empire/Napoleon. Don’t use it in recent games.</p>
-<p><img src="./images/image28.png" alt="Because no more is needed."></p>
-<p>And at the bottom, we have:</p>
-<ul>
-<li><code>Import from Assembly Kit</code>: it tries to import the definition for this table from the assembly kit files. It tries.</li>
-<li><code>Test Definition</code>: test the definition to see if it can decode the table correctly. If it fails, it’ll show a json version of the rows of the table that it could decode.</li>
-<li><code>Remove all fields</code>: removes all decoded fields, returning the table to a clean state.</li>
-<li><code>Finish It!</code>: Save the <code>Fields List</code> as a new definition for that version of the table in the schema. The definition is inmediatly available after that, so the changes can be used immediately.</li>
-</ul>
+<pre><code class="language-json">{ "id": 1, "data": "Success" }
+{ "id": 2, "data": { "Error": "File not found" } }
+{ "id": 3, "data": { "ContainerInfoVecRFileInfo": [{ ... }, [{ ... }]] } }
+</code></pre>
+<hr>
+<h2 id="generic-responses"><a class="header" href="#generic-responses">Generic Responses</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Response</th><th>Payload</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>Success</code></td><td><em>(none)</em></td><td>Operation completed successfully</td></tr>
+<tr><td><code>Error</code></td><td>string</td><td>Human-readable error message</td></tr>
+<tr><td><code>SessionConnected</code></td><td>number</td><td>Session ID (unsolicited, sent on connect with id=0)</td></tr>
+<tr><td><code>Unknown</code></td><td><em>(none)</em></td><td>Returned for unsupported/unrecognized file types</td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<h2 id="file-type-decoded-responses"><a class="header" href="#file-type-decoded-responses">File-Type Decoded Responses</a></h2>
+<p>These are returned by <code>DecodePackedFile</code>. Each carries a tuple of <code>[DecodedData, RFileInfo]</code>:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Response</th><th>Payload Type</th></tr>
+</thead>
+<tbody>
+<tr><td><code>AnimFragmentBattleRFileInfo</code></td><td><code>[AnimFragmentBattle, RFileInfo]</code></td></tr>
+<tr><td><code>AnimPackRFileInfo</code></td><td><code>[RFileInfo[], RFileInfo]</code></td></tr>
+<tr><td><code>AnimsTableRFileInfo</code></td><td><code>[AnimsTable, RFileInfo]</code></td></tr>
+<tr><td><code>AtlasRFileInfo</code></td><td><code>[Atlas, RFileInfo]</code></td></tr>
+<tr><td><code>AudioRFileInfo</code></td><td><code>[Audio, RFileInfo]</code></td></tr>
+<tr><td><code>BmdRFileInfo</code></td><td><code>[Bmd, RFileInfo]</code></td></tr>
+<tr><td><code>DBRFileInfo</code></td><td><code>[DB, RFileInfo]</code></td></tr>
+<tr><td><code>ESFRFileInfo</code></td><td><code>[ESF, RFileInfo]</code></td></tr>
+<tr><td><code>GroupFormationsRFileInfo</code></td><td><code>[GroupFormations, RFileInfo]</code></td></tr>
+<tr><td><code>ImageRFileInfo</code></td><td><code>[Image, RFileInfo]</code></td></tr>
+<tr><td><code>LocRFileInfo</code></td><td><code>[Loc, RFileInfo]</code></td></tr>
+<tr><td><code>MatchedCombatRFileInfo</code></td><td><code>[MatchedCombat, RFileInfo]</code></td></tr>
+<tr><td><code>PortraitSettingsRFileInfo</code></td><td><code>[PortraitSettings, RFileInfo]</code></td></tr>
+<tr><td><code>RigidModelRFileInfo</code></td><td><code>[RigidModel, RFileInfo]</code></td></tr>
+<tr><td><code>TextRFileInfo</code></td><td><code>[Text, RFileInfo]</code></td></tr>
+<tr><td><code>UICRFileInfo</code></td><td><code>[UIC, RFileInfo]</code></td></tr>
+<tr><td><code>UnitVariantRFileInfo</code></td><td><code>[UnitVariant, RFileInfo]</code></td></tr>
+<tr><td><code>VideoInfoRFileInfo</code></td><td><code>[VideoInfo, RFileInfo]</code></td></tr>
+<tr><td><code>VMDRFileInfo</code></td><td><code>[Text, RFileInfo]</code></td></tr>
+<tr><td><code>WSModelRFileInfo</code></td><td><code>[Text, RFileInfo]</code></td></tr>
+</tbody>
+</table>
+</div>
+<p>Example:</p>
+<pre><code class="language-json">{
+  "id": 5,
+  "data": {
+    "DBRFileInfo": [
+      { "mysterious_byte": true, "guid": "", "table": { ... } },
+      { "path": "db/units_tables/data", "container_name": "my_mod.pack", "timestamp": null, "file_type": "DB" }
+    ]
+  }
+}
+</code></pre>
+<hr>
+<h2 id="scalar-responses"><a class="header" href="#scalar-responses">Scalar Responses</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Response</th><th>Payload Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>Bool</code></td><td>boolean</td><td>Boolean value</td></tr>
+<tr><td><code>F32</code></td><td>number</td><td>32-bit float</td></tr>
+<tr><td><code>I32</code></td><td>number</td><td>32-bit integer</td></tr>
+<tr><td><code>I32I32</code></td><td>[number, number]</td><td>Pair of integers</td></tr>
+<tr><td><code>String</code></td><td>string</td><td>String value</td></tr>
+<tr><td><code>PathBuf</code></td><td>string</td><td>Filesystem path</td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<h2 id="collection-responses"><a class="header" href="#collection-responses">Collection Responses</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Response</th><th>Payload Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>VecBoolString</code></td><td>[boolean, string][]</td><td>Boolean-string pairs</td></tr>
+<tr><td><code>VecContainerPath</code></td><td>ContainerPath[]</td><td>List of container paths</td></tr>
+<tr><td><code>VecContainerPathContainerPath</code></td><td>[ContainerPath, ContainerPath][]</td><td>Pairs of container paths (renames)</td></tr>
+<tr><td><code>VecContainerPathOptionString</code></td><td>[ContainerPath[], string or null]</td><td>Paths with optional error message</td></tr>
+<tr><td><code>VecContainerPathVecContainerPath</code></td><td>[ContainerPath[], ContainerPath[]]</td><td>Two lists of paths (added, deleted)</td></tr>
+<tr><td><code>VecContainerPathVecRFileInfo</code></td><td>[ContainerPath[], RFileInfo[]]</td><td>Paths and file info</td></tr>
+<tr><td><code>VecContainerPathVecString</code></td><td>[ContainerPath[], string[]]</td><td>Paths and string list</td></tr>
+<tr><td><code>VecDataSourceStringStringUsizeUsize</code></td><td>[DataSource, string, string, number, number][]</td><td>Reference search results</td></tr>
+<tr><td><code>VecDefinition</code></td><td>Definition[]</td><td>List of definitions</td></tr>
+<tr><td><code>VecField</code></td><td>Field[]</td><td>List of fields</td></tr>
+<tr><td><code>VecNote</code></td><td>Note[]</td><td>List of notes</td></tr>
+<tr><td><code>VecRFile</code></td><td>RFile[]</td><td>List of raw files</td></tr>
+<tr><td><code>VecRFileInfo</code></td><td>RFileInfo[]</td><td>List of file metadata</td></tr>
+<tr><td><code>VecString</code></td><td>string[]</td><td>List of strings</td></tr>
+<tr><td><code>VecStringContainerInfo</code></td><td>[string, ContainerInfo][]</td><td>Pack key + metadata pairs</td></tr>
+<tr><td><code>VecU8</code></td><td>number[]</td><td>Raw byte data</td></tr>
+<tr><td><code>HashSetString</code></td><td>string[]</td><td>Set of strings</td></tr>
+<tr><td><code>HashSetStringHashSetString</code></td><td>[string[], string[]]</td><td>Two sets of strings</td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<h2 id="compound-responses"><a class="header" href="#compound-responses">Compound Responses</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Response</th><th>Payload Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>APIResponse</code></td><td>APIResponse</td><td>Program update check result</td></tr>
+<tr><td><code>APIResponseGit</code></td><td>GitResponse</td><td>Git update check result</td></tr>
+<tr><td><code>CompressionFormat</code></td><td>CompressionFormat</td><td>Pack compression format</td></tr>
+<tr><td><code>CompressionFormatDependenciesInfo</code></td><td>[CompressionFormat, DependenciesInfo or null]</td><td>Format + optional dependencies info</td></tr>
+<tr><td><code>ContainerInfo</code></td><td>ContainerInfo</td><td>Pack metadata</td></tr>
+<tr><td><code>ContainerInfoVecRFileInfo</code></td><td>[ContainerInfo, RFileInfo[]]</td><td>Pack metadata + file list</td></tr>
+<tr><td><code>StringContainerInfo</code></td><td>[string, ContainerInfo]</td><td>Pack key + metadata</td></tr>
+<tr><td><code>DataSourceStringUsizeUsize</code></td><td>[DataSource, string, number, number]</td><td>Navigation result</td></tr>
+<tr><td><code>Definition</code></td><td>Definition</td><td>Table definition</td></tr>
+<tr><td><code>DependenciesInfo</code></td><td>DependenciesInfo</td><td>Dependencies information</td></tr>
+<tr><td><code>Diagnostics</code></td><td>Diagnostics</td><td>Diagnostics report</td></tr>
+<tr><td><code>GlobalSearchVecRFileInfo</code></td><td>[GlobalSearch, RFileInfo[]]</td><td>Search results + modified files</td></tr>
+<tr><td><code>HashMapDataSourceHashMapStringRFile</code></td><td>Record&lt;DataSource, Record&lt;string, RFile&gt;&gt;</td><td>Files by source and path</td></tr>
+<tr><td><code>HashMapDataSourceHashSetContainerPath</code></td><td>Record&lt;DataSource, ContainerPath[]&gt;</td><td>Paths by data source</td></tr>
+<tr><td><code>HashMapI32TableReferences</code></td><td>Record&lt;number, TableReferences&gt;</td><td>Column references by index</td></tr>
+<tr><td><code>HashMapStringHashMapStringVecString</code></td><td>Record&lt;string, Record&lt;string, string[]&gt;&gt;</td><td>Nested string maps</td></tr>
+<tr><td><code>I32I32VecStringVecString</code></td><td>[number, number, string[], string[]]</td><td>Version change result</td></tr>
+<tr><td><code>Note</code></td><td>Note</td><td>Single note</td></tr>
+<tr><td><code>OptimizerOptions</code></td><td>OptimizerOptions</td><td>Optimizer configuration</td></tr>
+<tr><td><code>OptionContainerPath</code></td><td>ContainerPath or null</td><td>Optional container path</td></tr>
+<tr><td><code>OptionRFileInfo</code></td><td>RFileInfo or null</td><td>Optional file info</td></tr>
+<tr><td><code>OptionStringStringVecString</code></td><td>[string, string, string[]] or null</td><td>Optional loc source data</td></tr>
+<tr><td><code>PackSettings</code></td><td>PackSettings</td><td>Pack settings</td></tr>
+<tr><td><code>PackTranslation</code></td><td>PackTranslation</td><td>Translation data</td></tr>
+<tr><td><code>RFileDecoded</code></td><td>RFileDecoded</td><td>Decoded file content</td></tr>
+<tr><td><code>Schema</code></td><td>Schema</td><td>Full schema</td></tr>
+<tr><td><code>StringVecContainerPath</code></td><td>[string, ContainerPath[]]</td><td>String + path list</td></tr>
+<tr><td><code>StringVecPathBuf</code></td><td>[string, string[]]</td><td>String + filesystem paths</td></tr>
+<tr><td><code>Text</code></td><td>Text</td><td>Text file content</td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<h2 id="batch-settings-response"><a class="header" href="#batch-settings-response">Batch Settings Response</a></h2>
+<h3 id="settingsall"><a class="header" href="#settingsall">SettingsAll</a></h3>
+<p>Returned by <code>SettingsGetAll</code>. Contains all settings in one payload:</p>
+<pre><code class="language-json">{
+  "SettingsAll": [
+    { "setting_bool_key": true },
+    { "setting_i32_key": 42 },
+    { "setting_f32_key": 1.5 },
+    { "setting_string_key": "value" }
+  ]
+}
+</code></pre>
+<p>The array contains <code>[bool_settings, i32_settings, f32_settings, string_settings]</code>.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="chapter_4_12.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="chapter_server_2.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="chapter_5_1.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="chapter_server_4.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -225,11 +363,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="chapter_4_12.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="chapter_server_2.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="chapter_5_1.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="chapter_server_4.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>

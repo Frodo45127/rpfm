@@ -1,0 +1,613 @@
+<!DOCTYPE HTML>
+<html lang="en" class="rust sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>MCP Interface - Rusted PackFile Manager Documentation</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="favicon-8114d1fc.png">
+        <link rel="stylesheet" href="css/variables-8adf115d.css">
+        <link rel="stylesheet" href="css/general-2459343d.css">
+        <link rel="stylesheet" href="css/chrome-ae938929.css">
+        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="langtabs-0bb573a3.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "rust";
+            const default_dark_theme = "ayu";
+            window.path_to_searchindex_js = "searchindex-1f368938.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc-998c2bd7.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('rust')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Rusted PackFile Manager Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="mcp-interface"><a class="header" href="#mcp-interface">MCP Interface</a></h1>
+<p>In addition to the <a href="./chapter_server_0.html">WebSocket protocol</a>, the RPFM Server exposes a <strong>Model Context Protocol (MCP)</strong> interface at <code>/mcp</code>. This allows AI assistants (such as Claude, Cursor, or any MCP-compatible client) to interact with RPFM programmatically using the standard <a href="https://modelcontextprotocol.io/">MCP specification</a>.</p>
+<h2 id="transport"><a class="header" href="#transport">Transport</a></h2>
+<p>The MCP endpoint uses <strong>Streamable HTTP</strong> transport:</p>
+<pre><code>POST http://127.0.0.1:45127/mcp
+</code></pre>
+<p>Each MCP connection gets its own RPFM session, just like WebSocket connections.</p>
+<h2 id="how-it-differs-from-websocket"><a class="header" href="#how-it-differs-from-websocket">How It Differs from WebSocket</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Aspect</th><th>WebSocket (<code>/ws</code>)</th><th>MCP (<code>/mcp</code>)</th></tr>
+</thead>
+<tbody>
+<tr><td>Protocol</td><td>Custom JSON messages with <code>id</code>/<code>data</code> envelope</td><td>Standard MCP (JSON-RPC 2.0)</td></tr>
+<tr><td>Transport</td><td>WebSocket</td><td>Streamable HTTP</td></tr>
+<tr><td>Interaction model</td><td>Send <code>Command</code>, receive <code>Response</code></td><td>Call named <strong>tools</strong>, receive JSON results</td></tr>
+<tr><td>Session control</td><td>Manual via <code>?session_id=</code> and <code>ClientDisconnecting</code></td><td>Managed automatically by the MCP transport</td></tr>
+<tr><td>Intended clients</td><td>Custom scripts, GUIs</td><td>AI assistants and MCP-compatible tools</td></tr>
+</tbody>
+</table>
+</div>
+<p>Both interfaces expose the same underlying functionality — every MCP tool maps to an internal <code>Command</code> and returns its <code>Response</code> serialized as JSON.</p>
+<h2 id="connecting"><a class="header" href="#connecting">Connecting</a></h2>
+<h3 id="claude-desktop"><a class="header" href="#claude-desktop">Claude Desktop</a></h3>
+<p>Add the server to your <code>claude_desktop_config.json</code>:</p>
+<pre><code class="language-json">{
+  "mcpServers": {
+    "rpfm": {
+      "url": "http://127.0.0.1:45127/mcp"
+    }
+  }
+}
+</code></pre>
+<h3 id="other-mcp-clients"><a class="header" href="#other-mcp-clients">Other MCP Clients</a></h3>
+<p>Any MCP client that supports Streamable HTTP transport can connect. Point it to <code>http://127.0.0.1:45127/mcp</code>.</p>
+<h2 id="tool-reference"><a class="header" href="#tool-reference">Tool Reference</a></h2>
+<p>The MCP interface exposes <strong>145 tools</strong> organized by category. Each tool accepts typed JSON arguments and returns the server’s <code>Response</code> serialized as JSON text.</p>
+<h3 id="generic"><a class="header" href="#generic">Generic</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Tool</th><th>Description</th><th>Arguments</th></tr>
+</thead>
+<tbody>
+<tr><td><code>call_command</code></td><td>Call any IPC command directly (for commands not yet wrapped as named tools)</td><td><code>command</code>: JSON string of the Command enum</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="pack-lifecycle"><a class="header" href="#pack-lifecycle">Pack Lifecycle</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Tool</th><th>Description</th><th>Key Arguments</th></tr>
+</thead>
+<tbody>
+<tr><td><code>new_pack</code></td><td>Create a new empty PackFile</td><td><em>(none)</em></td></tr>
+<tr><td><code>open_packfiles</code></td><td>Open one or more PackFiles</td><td><code>paths</code>: file paths</td></tr>
+<tr><td><code>save_packfile</code></td><td>Save a pack</td><td><code>pack_key</code></td></tr>
+<tr><td><code>close_pack</code></td><td>Close a pack without saving</td><td><code>pack_key</code></td></tr>
+<tr><td><code>save_pack_as</code></td><td>Save a pack to a new path</td><td><code>pack_key</code>, <code>path</code></td></tr>
+<tr><td><code>clean_and_save_pack_as</code></td><td>Save a clean copy (use if normal save fails)</td><td><code>pack_key</code>, <code>path</code></td></tr>
+<tr><td><code>trigger_backup_autosave</code></td><td>Trigger a backup autosave</td><td><code>pack_key</code></td></tr>
+<tr><td><code>load_all_ca_pack_files</code></td><td>Open all vanilla CA PackFiles for the selected game</td><td><em>(none)</em></td></tr>
+<tr><td><code>list_open_packs</code></td><td>List all open packs with their keys and metadata</td><td><em>(none)</em></td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="pack-metadata"><a class="header" href="#pack-metadata">Pack Metadata</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Tool</th><th>Description</th><th>Key Arguments</th></tr>
+</thead>
+<tbody>
+<tr><td><code>set_pack_file_type</code></td><td>Set the pack type (PFHFileType as JSON)</td><td><code>pack_key</code>, <code>pack_file_type</code></td></tr>
+<tr><td><code>change_compression_format</code></td><td>Change compression format</td><td><code>pack_key</code>, <code>format</code></td></tr>
+<tr><td><code>change_index_includes_timestamp</code></td><td>Toggle timestamp in pack index</td><td><code>pack_key</code>, <code>value</code></td></tr>
+<tr><td><code>get_pack_file_path</code></td><td>Get the file path of a pack</td><td><code>pack_key</code></td></tr>
+<tr><td><code>get_pack_file_name</code></td><td>Get the file name of a pack</td><td><code>pack_key</code></td></tr>
+<tr><td><code>get_pack_settings</code></td><td>Get pack settings</td><td><code>pack_key</code></td></tr>
+<tr><td><code>set_pack_settings</code></td><td>Set pack settings (PackSettings as JSON)</td><td><code>pack_key</code>, <code>settings</code></td></tr>
+<tr><td><code>get_dependency_pack_files_list</code></td><td>Get dependency pack list</td><td><code>pack_key</code></td></tr>
+<tr><td><code>set_dependency_pack_files_list</code></td><td>Set dependency pack list</td><td><code>pack_key</code>, <code>list</code></td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="file-operations"><a class="header" href="#file-operations">File Operations</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Tool</th><th>Description</th><th>Key Arguments</th></tr>
+</thead>
+<tbody>
+<tr><td><code>decode_packed_file</code></td><td>Decode a file from a pack</td><td><code>pack_key</code>, <code>path</code>, <code>source</code></td></tr>
+<tr><td><code>new_packed_file</code></td><td>Create a new file inside a pack</td><td><code>pack_key</code>, <code>path</code>, <code>new_file</code></td></tr>
+<tr><td><code>add_packed_files</code></td><td>Add files from disk to a pack</td><td><code>pack_key</code>, <code>source_paths</code>, <code>destination_paths</code></td></tr>
+<tr><td><code>add_packed_files_from_pack_file</code></td><td>Add files from another PackFile</td><td><code>pack_key</code>, <code>source_pack_path</code>, <code>container_paths</code></td></tr>
+<tr><td><code>add_packed_files_from_pack_file_to_animpack</code></td><td>Add files to an AnimPack</td><td><code>pack_key</code>, <code>animpack_path</code>, <code>container_paths</code></td></tr>
+<tr><td><code>add_packed_files_from_animpack</code></td><td>Add files from an AnimPack</td><td><code>pack_key</code>, <code>source</code>, <code>animpack_path</code>, <code>container_paths</code></td></tr>
+<tr><td><code>delete_packed_files</code></td><td>Delete files from a pack</td><td><code>pack_key</code>, <code>paths</code></td></tr>
+<tr><td><code>delete_from_animpack</code></td><td>Delete files from an AnimPack</td><td><code>pack_key</code>, <code>animpack_path</code>, <code>container_paths</code></td></tr>
+<tr><td><code>extract_packed_files</code></td><td>Extract files to disk</td><td><code>pack_key</code>, <code>source_paths</code>, <code>destination_path</code>, <code>export_as_tsv</code></td></tr>
+<tr><td><code>rename_packed_files</code></td><td>Rename files in a pack</td><td><code>pack_key</code>, <code>renames</code></td></tr>
+<tr><td><code>save_packed_file_from_view</code></td><td>Save an edited decoded file back</td><td><code>pack_key</code>, <code>path</code>, <code>data</code></td></tr>
+<tr><td><code>save_packed_file_from_external_view</code></td><td>Save a file from an external program</td><td><code>pack_key</code>, <code>internal_path</code>, <code>external_path</code></td></tr>
+<tr><td><code>save_packed_files_to_pack_file_and_clean</code></td><td>Save files and optionally optimize</td><td><code>pack_key</code>, <code>files</code>, <code>optimize</code></td></tr>
+<tr><td><code>get_packed_file_raw_data</code></td><td>Get raw binary data of a file</td><td><code>pack_key</code>, <code>value</code></td></tr>
+<tr><td><code>open_packed_file_in_external_program</code></td><td>Open a file in an external program</td><td><code>pack_key</code>, <code>source</code>, <code>container_path</code></td></tr>
+<tr><td><code>open_containing_folder</code></td><td>Open the pack’s folder in file manager</td><td><code>pack_key</code></td></tr>
+<tr><td><code>clean_cache</code></td><td>Clean the decode cache</td><td><code>pack_key</code>, <code>paths</code></td></tr>
+<tr><td><code>folder_exists</code></td><td>Check if a folder exists in a pack</td><td><code>pack_key</code>, <code>value</code></td></tr>
+<tr><td><code>packed_file_exists</code></td><td>Check if a file exists in a pack</td><td><code>pack_key</code>, <code>value</code></td></tr>
+<tr><td><code>get_packed_files_info</code></td><td>Get info of one or more files</td><td><code>pack_key</code>, <code>values</code></td></tr>
+<tr><td><code>get_rfile_info</code></td><td>Get info of a single file</td><td><code>pack_key</code>, <code>value</code></td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="game-selection"><a class="header" href="#game-selection">Game Selection</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Tool</th><th>Description</th><th>Key Arguments</th></tr>
+</thead>
+<tbody>
+<tr><td><code>get_game_selected</code></td><td>Get the currently selected game</td><td><em>(none)</em></td></tr>
+<tr><td><code>set_game_selected</code></td><td>Set the current game</td><td><code>game_name</code>, <code>rebuild_dependencies</code></td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="dependencies"><a class="header" href="#dependencies">Dependencies</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Tool</th><th>Description</th><th>Key Arguments</th></tr>
+</thead>
+<tbody>
+<tr><td><code>generate_dependencies_cache</code></td><td>Generate the dependencies cache</td><td><em>(none)</em></td></tr>
+<tr><td><code>rebuild_dependencies</code></td><td>Rebuild dependencies</td><td><code>value</code> (true = full)</td></tr>
+<tr><td><code>is_there_a_dependency_database</code></td><td>Check if a dependency database is loaded</td><td><code>value</code></td></tr>
+<tr><td><code>get_table_list_from_dependency_pack_file</code></td><td>Get table names from dependency packs</td><td><em>(none)</em></td></tr>
+<tr><td><code>get_custom_table_list</code></td><td>Get custom table names from schema</td><td><em>(none)</em></td></tr>
+<tr><td><code>get_table_version_from_dependency_pack_file</code></td><td>Get table version from dependencies</td><td><code>value</code></td></tr>
+<tr><td><code>get_table_definition_from_dependency_pack_file</code></td><td>Get table definition from dependencies</td><td><code>value</code></td></tr>
+<tr><td><code>get_tables_from_dependencies</code></td><td>Get table data by name</td><td><code>value</code></td></tr>
+<tr><td><code>import_dependencies_to_open_pack_file</code></td><td>Import files from dependencies</td><td><code>pack_key</code>, <code>paths</code></td></tr>
+<tr><td><code>get_rfiles_from_all_sources</code></td><td>Get files from all sources</td><td><code>paths</code>, <code>lowercase</code></td></tr>
+<tr><td><code>get_packed_files_names_starting_with_path_from_all_sources</code></td><td>Get file names under a path</td><td><code>path</code></td></tr>
+<tr><td><code>local_art_set_ids</code></td><td>Get local art set IDs</td><td><code>pack_key</code></td></tr>
+<tr><td><code>dependencies_art_set_ids</code></td><td>Get art set IDs from dependencies</td><td><em>(none)</em></td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="search"><a class="header" href="#search">Search</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Tool</th><th>Description</th><th>Key Arguments</th></tr>
+</thead>
+<tbody>
+<tr><td><code>global_search</code></td><td>Run a global search</td><td><code>pack_key</code>, <code>search</code></td></tr>
+<tr><td><code>global_search_replace_matches</code></td><td>Replace specific matches</td><td><code>pack_key</code>, <code>search</code>, <code>matches</code></td></tr>
+<tr><td><code>global_search_replace_all</code></td><td>Replace all matches</td><td><code>pack_key</code>, <code>search</code></td></tr>
+<tr><td><code>search_references</code></td><td>Find all references to a value</td><td><code>pack_key</code>, <code>reference_map</code>, <code>value</code></td></tr>
+<tr><td><code>get_reference_data_from_definition</code></td><td>Get reference data for columns</td><td><code>pack_key</code>, <code>table_name</code>, <code>definition</code>, <code>force</code></td></tr>
+<tr><td><code>go_to_definition</code></td><td>Go to a reference’s definition</td><td><code>pack_key</code>, <code>table_name</code>, <code>column_name</code>, <code>values</code></td></tr>
+<tr><td><code>go_to_loc</code></td><td>Go to a loc key’s location</td><td><code>pack_key</code>, <code>value</code></td></tr>
+<tr><td><code>get_source_data_from_loc_key</code></td><td>Get source data of a loc key</td><td><code>pack_key</code>, <code>value</code></td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="schema"><a class="header" href="#schema">Schema</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Tool</th><th>Description</th><th>Key Arguments</th></tr>
+</thead>
+<tbody>
+<tr><td><code>save_schema</code></td><td>Save a schema to disk</td><td><code>schema</code></td></tr>
+<tr><td><code>update_current_schema_from_asskit</code></td><td>Update schema from Assembly Kit</td><td><em>(none)</em></td></tr>
+<tr><td><code>update_schemas</code></td><td>Update schemas from remote repository</td><td><em>(none)</em></td></tr>
+<tr><td><code>is_schema_loaded</code></td><td>Check if a schema is loaded</td><td><em>(none)</em></td></tr>
+<tr><td><code>get_schema</code></td><td>Get the current schema</td><td><em>(none)</em></td></tr>
+<tr><td><code>definitions_by_table_name</code></td><td>Get definitions for a table</td><td><code>value</code></td></tr>
+<tr><td><code>definition_by_table_name_and_version</code></td><td>Get a definition by name and version</td><td><code>name</code>, <code>version</code></td></tr>
+<tr><td><code>delete_definition</code></td><td>Delete a definition</td><td><code>name</code>, <code>version</code></td></tr>
+<tr><td><code>referencing_columns_for_definition</code></td><td>Get columns referencing a table</td><td><code>table_name</code>, <code>definition</code></td></tr>
+<tr><td><code>fields_processed</code></td><td>Get processed fields from a definition</td><td><code>definition</code></td></tr>
+<tr><td><code>save_local_schema_patch</code></td><td>Save local schema patches</td><td><code>patches</code></td></tr>
+<tr><td><code>remove_local_schema_patches_for_table</code></td><td>Remove patches for a table</td><td><code>value</code></td></tr>
+<tr><td><code>remove_local_schema_patches_for_table_and_field</code></td><td>Remove patches for a field</td><td><code>key</code>, <code>value</code></td></tr>
+<tr><td><code>import_schema_patch</code></td><td>Import a schema patch</td><td><code>patches</code></td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="table-operations"><a class="header" href="#table-operations">Table Operations</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Tool</th><th>Description</th><th>Key Arguments</th></tr>
+</thead>
+<tbody>
+<tr><td><code>merge_files</code></td><td>Merge compatible tables into one</td><td><code>pack_key</code>, <code>paths</code>, <code>merged_path</code>, <code>delete_source</code></td></tr>
+<tr><td><code>update_table</code></td><td>Update a table to a newer version</td><td><code>pack_key</code>, <code>value</code></td></tr>
+<tr><td><code>cascade_edition</code></td><td>Cascade edit across referenced data</td><td><code>pack_key</code>, <code>table_name</code>, <code>definition</code>, <code>changes</code></td></tr>
+<tr><td><code>get_tables_by_table_name</code></td><td>Get table paths by name</td><td><code>pack_key</code>, <code>value</code></td></tr>
+<tr><td><code>add_keys_to_key_deletes</code></td><td>Add keys to key_deletes table</td><td><code>pack_key</code>, <code>table_file_name</code>, <code>key_table_name</code>, <code>keys</code></td></tr>
+<tr><td><code>export_tsv</code></td><td>Export a table to TSV</td><td><code>pack_key</code>, <code>tsv_path</code>, <code>table_path</code></td></tr>
+<tr><td><code>import_tsv</code></td><td>Import a TSV file to a table</td><td><code>pack_key</code>, <code>tsv_path</code>, <code>table_path</code></td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="diagnostics"><a class="header" href="#diagnostics">Diagnostics</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Tool</th><th>Description</th><th>Key Arguments</th></tr>
+</thead>
+<tbody>
+<tr><td><code>diagnostics_check</code></td><td>Run a full diagnostics check</td><td><code>ignored</code>, <code>check_ak_only_refs</code></td></tr>
+<tr><td><code>diagnostics_update</code></td><td>Update diagnostics for changed files</td><td><code>diagnostics</code>, <code>paths</code>, <code>check_ak_only_refs</code></td></tr>
+<tr><td><code>add_line_to_pack_ignored_diagnostics</code></td><td>Add to ignored diagnostics</td><td><code>pack_key</code>, <code>value</code></td></tr>
+<tr><td><code>get_missing_definitions</code></td><td>Export missing table definitions</td><td><code>pack_key</code></td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="notes"><a class="header" href="#notes">Notes</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Tool</th><th>Description</th><th>Key Arguments</th></tr>
+</thead>
+<tbody>
+<tr><td><code>notes_for_path</code></td><td>Get notes under a path</td><td><code>pack_key</code>, <code>value</code></td></tr>
+<tr><td><code>add_note</code></td><td>Add a note</td><td><code>pack_key</code>, <code>note</code></td></tr>
+<tr><td><code>delete_note</code></td><td>Delete a note</td><td><code>pack_key</code>, <code>path</code>, <code>id</code></td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="optimization"><a class="header" href="#optimization">Optimization</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Tool</th><th>Description</th><th>Key Arguments</th></tr>
+</thead>
+<tbody>
+<tr><td><code>optimize_pack_file</code></td><td>Optimize a pack</td><td><code>pack_key</code>, <code>options</code></td></tr>
+<tr><td><code>get_optimizer_options</code></td><td>Get default optimizer options</td><td><em>(none)</em></td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="updates"><a class="header" href="#updates">Updates</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Tool</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>check_updates</code></td><td>Check for RPFM updates</td></tr>
+<tr><td><code>check_schema_updates</code></td><td>Check for schema updates</td></tr>
+<tr><td><code>check_lua_autogen_updates</code></td><td>Check for Lua autogen updates</td></tr>
+<tr><td><code>check_empire_and_napoleon_ak_updates</code></td><td>Check for Empire/Napoleon AK updates</td></tr>
+<tr><td><code>check_translations_updates</code></td><td>Check for translation updates</td></tr>
+<tr><td><code>update_lua_autogen</code></td><td>Update Lua autogen</td></tr>
+<tr><td><code>update_main_program</code></td><td>Update the program</td></tr>
+<tr><td><code>update_empire_and_napoleon_ak</code></td><td>Update Empire/Napoleon AK files</td></tr>
+<tr><td><code>update_translations</code></td><td>Update translations</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="settings"><a class="header" href="#settings">Settings</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Tool</th><th>Description</th><th>Key Arguments</th></tr>
+</thead>
+<tbody>
+<tr><td><code>settings_get_bool</code></td><td>Get a boolean setting</td><td><code>value</code> (key)</td></tr>
+<tr><td><code>settings_get_i32</code></td><td>Get an i32 setting</td><td><code>value</code> (key)</td></tr>
+<tr><td><code>settings_get_f32</code></td><td>Get an f32 setting</td><td><code>value</code> (key)</td></tr>
+<tr><td><code>settings_get_string</code></td><td>Get a string setting</td><td><code>value</code> (key)</td></tr>
+<tr><td><code>settings_get_path_buf</code></td><td>Get a PathBuf setting</td><td><code>value</code> (key)</td></tr>
+<tr><td><code>settings_get_vec_string</code></td><td>Get a Vec&lt;String&gt; setting</td><td><code>value</code> (key)</td></tr>
+<tr><td><code>settings_get_vec_raw</code></td><td>Get a raw bytes setting</td><td><code>value</code> (key)</td></tr>
+<tr><td><code>settings_get_all</code></td><td>Get all settings at once</td><td><em>(none)</em></td></tr>
+<tr><td><code>settings_set_bool</code></td><td>Set a boolean setting</td><td><code>key</code>, <code>value</code></td></tr>
+<tr><td><code>settings_set_i32</code></td><td>Set an i32 setting</td><td><code>key</code>, <code>value</code></td></tr>
+<tr><td><code>settings_set_f32</code></td><td>Set an f32 setting</td><td><code>key</code>, <code>value</code></td></tr>
+<tr><td><code>settings_set_string</code></td><td>Set a string setting</td><td><code>key</code>, <code>value</code></td></tr>
+<tr><td><code>settings_set_path_buf</code></td><td>Set a PathBuf setting</td><td><code>key</code>, <code>value</code></td></tr>
+<tr><td><code>settings_set_vec_string</code></td><td>Set a Vec&lt;String&gt; setting</td><td><code>key</code>, <code>value</code></td></tr>
+<tr><td><code>settings_set_vec_raw</code></td><td>Set a raw bytes setting</td><td><code>key</code>, <code>value</code></td></tr>
+<tr><td><code>backup_settings</code></td><td>Backup settings to memory</td><td><em>(none)</em></td></tr>
+<tr><td><code>clear_settings</code></td><td>Clear all settings</td><td><em>(none)</em></td></tr>
+<tr><td><code>restore_backup_settings</code></td><td>Restore settings from backup</td><td><em>(none)</em></td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="path-queries"><a class="header" href="#path-queries">Path Queries</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Tool</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>config_path</code></td><td>Get the config path</td></tr>
+<tr><td><code>assembly_kit_path</code></td><td>Get the Assembly Kit path</td></tr>
+<tr><td><code>backup_autosave_path</code></td><td>Get the backup autosave path</td></tr>
+<tr><td><code>old_ak_data_path</code></td><td>Get the old AK data path</td></tr>
+<tr><td><code>schemas_path</code></td><td>Get the schemas path</td></tr>
+<tr><td><code>table_profiles_path</code></td><td>Get the table profiles path</td></tr>
+<tr><td><code>translations_local_path</code></td><td>Get the translations local path</td></tr>
+<tr><td><code>dependencies_cache_path</code></td><td>Get the dependencies cache path</td></tr>
+<tr><td><code>settings_clear_path</code></td><td>Clear a config path</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="specialized"><a class="header" href="#specialized">Specialized</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Tool</th><th>Description</th><th>Key Arguments</th></tr>
+</thead>
+<tbody>
+<tr><td><code>open_pack_info</code></td><td>Get pack info and file list</td><td><code>pack_key</code></td></tr>
+<tr><td><code>initialize_my_mod_folder</code></td><td>Initialize a MyMod folder</td><td><code>name</code>, <code>game</code>, <code>sublime</code>, <code>vscode</code>, <code>gitignore</code></td></tr>
+<tr><td><code>live_export</code></td><td>Live export a pack for testing</td><td><code>pack_key</code></td></tr>
+<tr><td><code>patch_siege_ai</code></td><td>Patch SiegeAI for Warhammer maps</td><td><code>pack_key</code></td></tr>
+<tr><td><code>pack_map</code></td><td>Pack map tiles</td><td><code>pack_key</code>, <code>tile_maps</code>, <code>tiles</code></td></tr>
+<tr><td><code>generate_missing_loc_data</code></td><td>Generate missing loc entries</td><td><code>pack_key</code></td></tr>
+<tr><td><code>get_pack_translation</code></td><td>Get translation data</td><td><code>pack_key</code>, <code>language</code></td></tr>
+<tr><td><code>build_starpos_get_campaign_ids</code></td><td>Get campaign IDs for starpos</td><td><code>pack_key</code></td></tr>
+<tr><td><code>build_starpos_check_victory_conditions</code></td><td>Check victory conditions file</td><td><code>pack_key</code></td></tr>
+<tr><td><code>build_starpos</code></td><td>Build starpos (pre-processing)</td><td><code>pack_key</code>, <code>campaign_id</code>, <code>process_hlp_spd</code></td></tr>
+<tr><td><code>build_starpos_post</code></td><td>Build starpos (post-processing)</td><td><code>pack_key</code>, <code>campaign_id</code>, <code>process_hlp_spd</code></td></tr>
+<tr><td><code>build_starpos_cleanup</code></td><td>Clean up starpos temp files</td><td><code>pack_key</code>, <code>campaign_id</code>, <code>process_hlp_spd</code></td></tr>
+<tr><td><code>update_anim_ids</code></td><td>Update animation IDs</td><td><code>pack_key</code>, <code>starting_id</code>, <code>offset</code></td></tr>
+<tr><td><code>get_anim_paths_by_skeleton_name</code></td><td>Get anim paths by skeleton</td><td><code>value</code></td></tr>
+<tr><td><code>export_rigid_to_gltf</code></td><td>Export RigidModel to glTF</td><td><code>rigid_model</code>, <code>output_path</code></td></tr>
+<tr><td><code>set_video_format</code></td><td>Change video format</td><td><code>pack_key</code>, <code>path</code>, <code>format</code></td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="response-format"><a class="header" href="#response-format">Response Format</a></h2>
+<p>All MCP tool responses are JSON-serialized versions of the server’s internal <code>Response</code> enum. The same <a href="./chapter_server_0.html#serialization-convention">serialization convention</a> applies — refer to the <a href="./chapter_server_3.html">Responses</a> page for the full list of response types and their payloads.</p>
+<h2 id="typical-workflow"><a class="header" href="#typical-workflow">Typical Workflow</a></h2>
+<p>A typical MCP session follows this pattern:</p>
+<ol>
+<li><strong>Set the game</strong>: <code>set_game_selected</code> with the game key and <code>rebuild_dependencies: true</code></li>
+<li><strong>Open a pack</strong>: <code>open_packfiles</code> with the file path(s)</li>
+<li><strong>Browse files</strong>: <code>open_pack_info</code> to get the pack’s file tree</li>
+<li><strong>Read data</strong>: <code>decode_packed_file</code> to decode individual files</li>
+<li><strong>Modify data</strong>: <code>save_packed_file_from_view</code> to save edited data back</li>
+<li><strong>Save</strong>: <code>save_packfile</code> to write changes to disk</li>
+</ol>
+<h3 id="example-reading-a-db-table"><a class="header" href="#example-reading-a-db-table">Example: Reading a DB Table</a></h3>
+<p>Call <code>set_game_selected</code>:</p>
+<pre><code class="language-json">{ "game_name": "warhammer_3", "rebuild_dependencies": true }
+</code></pre>
+<p>Call <code>open_packfiles</code>:</p>
+<pre><code class="language-json">{ "paths": ["/path/to/my_mod.pack"] }
+</code></pre>
+<p>The response contains the <code>pack_key</code> — use it in subsequent calls:</p>
+<p>Call <code>decode_packed_file</code>:</p>
+<pre><code class="language-json">{ "pack_key": "the_pack_key", "path": "db/units_tables/data", "source": "PackFile" }
+</code></pre>
+<p>The response will be a <code>DBRFileInfo</code> containing the decoded table data and file metadata.</p>
+<h3 id="common-pack_key-pattern"><a class="header" href="#common-pack_key-pattern">Common <code>pack_key</code> Pattern</a></h3>
+<p>Most tools require a <code>pack_key</code> argument to identify which open pack to operate on. After opening a pack with <code>open_packfiles</code>, the response includes the key. You can also call <code>list_open_packs</code> at any time to see all open packs and their keys.</p>
+<h3 id="json-string-arguments"><a class="header" href="#json-string-arguments">JSON String Arguments</a></h3>
+<p>Some tools accept complex types (like <code>ContainerPath</code>, <code>Definition</code>, <code>GlobalSearch</code>) as JSON strings. These must be passed as a <strong>serialized JSON string</strong> in the argument field — not as a nested object. For example:</p>
+<pre><code class="language-json">{
+  "pack_key": "my_pack",
+  "paths": "[{\"File\": \"db/units_tables/data\"}]"
+}
+</code></pre>
+<p>Refer to the <a href="./chapter_server_1.html">Shared Types</a> page for the structure of these types.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="chapter_server_4.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="chapter_comp.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="chapter_server_4.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="chapter_comp.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr-ef4e11c1.min.js"></script>
+        <script src="mark-09e88c2c.min.js"></script>
+        <script src="searcher-c2a407aa.js"></script>
+
+        <script src="clipboard-1626706a.min.js"></script>
+        <script src="highlight-abc7f01d.js"></script>
+        <script src="book-a0b12cfe.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="langtabs-57c6b578.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

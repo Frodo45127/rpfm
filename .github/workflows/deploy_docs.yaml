@@ -1,0 +1,13 @@
+name: Deploy mdBook
+on: [push]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # To push a branch
+      pull-requests: write  # To create a PR from that branch
+    steps:
+      - uses: actions/checkout@v4
+      - uses: XAMPPRocky/deploy-mdbook@v1.1
+        with:
+            token: ${{ secrets.GITHUB_TOKEN }}
