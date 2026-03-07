@@ -116,7 +116,6 @@
 //!
 //! - `rpfm_extensions`: Higher-level features (dependencies, diagnostics, search, optimizer)
 //! - `rpfm_ui`: Qt-based desktop application
-//! - `rpfm_cli`: Command-line interface
 
 // Disabled `Clippy` linters, with the reasons why they were disabled.
 #![allow(

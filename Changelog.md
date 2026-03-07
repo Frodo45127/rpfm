@@ -8,18 +8,26 @@ If you're looking for the changes included in the latest beta (against the lates
 
 ## [Unreleased]
 ### Added
-- Implemented basic support for using RPFM Server as an MCP Server.
-- Implemented basic Typescript documentation for the new RPFM Server.
+- Implemented full support for using RPFM Server as an MCP Server.
+- Implemented extensive Typescript/C# documentation for the new RPFM Server, as part of RPFM's manual.
 - Implemented support for flatpak builds.
+- Implemented support for opening and editing multiple packs simultaneously.
+- Updated simplified chinese translation, thanks to SZY.
 
 ### Changed
 - Decoupled UI from Backend into RPFM UI and RPFM Server.
 - Greatly expanded documentation for the entire project.
 - Reduced size of dependencies cache on disk by about 20%.
 - Update checks are now no longer blocking the backend until they're done.
+- Migrated docs to autodeploy through an action, removing their artifacts from the repo.
+
+### Removed
+- Removed cli tool. If you use it, consider migrating to the new RPFM Server.
 
 ### Fixed
 - Fixed RPFM erroring out when trying to read incomplete portrait settings files.
+- Fixed rare hang when diagnosing big packs.
+- Fixed crash reports being broken since the client/server split.
 
 ## [4.7.4]
 ### Added

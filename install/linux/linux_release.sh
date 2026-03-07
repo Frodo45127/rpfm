@@ -31,7 +31,6 @@ echo "Build directory: ${BUILD_DIR}"
 
 # Build release binaries.
 cargo clean
-cargo build --release --bin rpfm_cli
 cargo build --release --bin rpfm_server
 cargo build --release --features "enable_tools" --bin rpfm_ui
 
@@ -46,7 +45,6 @@ mkdir -p "$BUILD_DIR/usr/share/applications"
 mkdir -p "$BUILD_DIR/usr/share/licenses/rpfm"
 
 # Binaries.
-cp target/release/rpfm_cli "$BUILD_DIR/usr/bin/rpfm_cli"
 cp target/release/rpfm_server "$BUILD_DIR/usr/bin/rpfm_server"
 cp target/release/rpfm_ui "$BUILD_DIR/usr/bin/rpfm_ui"
 

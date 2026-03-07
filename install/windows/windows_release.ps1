@@ -3,7 +3,6 @@ Set-Variable -Name "RPFM_PATH" -Value ((Get-Location).path)
 Set-Variable -Name "RPFM_VERSION" -Value (Select-String -Path Cargo.toml -Pattern '^version = \"(.*)\"$').Matches.Groups[1].value
 
 # Build the tools.
-cargo build --release --bin rpfm_cli
 cargo build --release --bin rpfm_server
 cargo build --release --features "enable_tools" --bin rpfm_ui
 
@@ -119,9 +118,6 @@ Copy-Item $RPFM_PATH/target/release/rpfm_server.exe I:\deploy\rpfm-release-asset
 Copy-Item $RPFM_PATH/target/release/rpfm_server.pdb I:\deploy\rpfm-release-assets
 Copy-Item $RPFM_PATH/target/release/rpfm_ui.exe I:\deploy\rpfm-release-assets
 Copy-Item $RPFM_PATH/target/release/rpfm_ui.pdb I:\deploy\rpfm-release-assets
-Copy-Item $RPFM_PATH/target/release/rpfm_cli.exe I:\deploy\rpfm-release-assets
-Copy-Item $RPFM_PATH/target/release/rpfm_cli.pdb I:\deploy\rpfm-release-assets
-
 mkdir icons
 mkdir locale
 mkdir ui

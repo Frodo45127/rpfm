@@ -29,7 +29,6 @@ package() {
     # The executables.
     install -D -m755 "$srcdir/$_programname/target/release/rpfm_server" "$pkgdir/usr/bin/rpfm_server"
     install -D -m755 "$srcdir/$_programname/target/release/rpfm_ui" "$pkgdir/usr/bin/rpfm_ui"
-    install -D -m755 "$srcdir/$_programname/target/release/rpfm_cli" "$pkgdir/usr/bin/rpfm_cli"
 
     # The icons.
     cd "$srcdir/$_programname/icons/"

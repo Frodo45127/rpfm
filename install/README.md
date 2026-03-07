@@ -14,9 +14,11 @@ install/
 │   │   ├── rpfm-git/          Source build package (clones and compiles from git)
 │   │   └── rpfm.desktop       Desktop entry for application menu integration
 │   └── flatpak/               Flatpak containerized build
-│       ├── com.github.frodo45127.rpfm.yaml   Flatpak manifest
-│       ├── cargo-sources.json                Vendored dependency manifest
-│       └── README.md                         Flatpak-specific build instructions
+│       ├── com.github.frodo45127.rpfm.yaml          Flatpak manifest
+│       ├── com.github.frodo45127.rpfm.desktop       Desktop entry for Flatpak
+│       ├── com.github.frodo45127.rpfm.metainfo.xml  AppStream metadata (license, version)
+│       ├── cargo-sources.json                       Vendored dependency manifest
+│       └── README.md                                Flatpak-specific build instructions
 ├── macos/                     macOS (placeholder — see macos/README.md)
 │   └── README.md              Build notes and packaging considerations
 └── windows/                   Windows packaging
@@ -55,7 +57,6 @@ Official release builds use these cargo feature flags:
 
 | Binary | Features |
 |---|---|
-| `rpfm_cli` | (default) |
 | `rpfm_server` | (default) |
 | `rpfm_ui` | `enable_tools` |
 
@@ -97,5 +98,5 @@ This regenerates `cargo-sources.json` from `Cargo.lock`, then builds and install
 
 ## CI/CD
 
-- **`.github/workflows/test.yml`** — Runs on push/PR to master/develop: builds libs, CLI, and runs tests
+- **`.github/workflows/test.yml`** — Runs on push/PR to master/develop: builds libs and runs tests
 - **`.github/workflows/post_release.yaml`** — Triggered when a release is published: publishes the `rpfm-bin` AUR package for stable releases

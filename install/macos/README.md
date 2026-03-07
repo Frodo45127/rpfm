@@ -14,7 +14,6 @@ There is no automated macOS build or packaging script yet. This document describ
 From the repository root:
 
 ```bash
-cargo build --release --bin rpfm_cli
 cargo build --release --bin rpfm_server
 cargo build --release --features "enable_tools" --bin rpfm_ui
 ```
