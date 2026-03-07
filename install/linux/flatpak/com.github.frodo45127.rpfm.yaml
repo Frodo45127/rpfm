@@ -71,6 +71,12 @@ modules:
       # Install the desktop file
       - install -Dm644 install/linux/flatpak/com.github.frodo45127.rpfm.desktop /app/share/applications/com.github.frodo45127.rpfm.desktop
 
+      # Install the metainfo file (license and version info)
+      - install -Dm644 install/linux/flatpak/com.github.frodo45127.rpfm.metainfo.xml /app/share/metainfo/com.github.frodo45127.rpfm.metainfo.xml
+
+      # Install the license file
+      - install -Dm644 LICENSE /app/share/licenses/com.github.frodo45127.rpfm/LICENSE
+
     sources:
       - type: dir
         path: ../../..

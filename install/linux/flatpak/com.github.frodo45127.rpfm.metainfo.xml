@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.github.frodo45127.rpfm</id>
+  <name>RPFM</name>
+  <summary>A modding tool for Total War games</summary>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+  <developer id="com.github.frodo45127">
+    <name>Frodo45127</name>
+  </developer>
+  <description>
+    <p>
+      RPFM is a modding tool for Total War games that allows you to create, view,
+      and edit Pack Files and other formats used by Total War games.
+    </p>
+  </description>
+  <launchable type="desktop-id">com.github.frodo45127.rpfm.desktop</launchable>
+  <url type="homepage">https://github.com/Frodo45127/rpfm</url>
+  <url type="bugtracker">https://github.com/Frodo45127/rpfm/issues</url>
+  <content_rating type="oars-1.1" />
+  <releases>
+    <release version="4.7.100" date="2026-03-07" />
+  </releases>
+</component>

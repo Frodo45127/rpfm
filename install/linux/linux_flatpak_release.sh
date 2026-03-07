@@ -2,8 +2,8 @@
 #
 # Flatpak build script for RPFM.
 #
-# Regenerates cargo-sources.json from Cargo.lock, then builds and installs
-# the RPFM Flatpak package locally.
+# Regenerates cargo-sources.json from Cargo.lock, then builds a
+# redistributable Flatpak bundle (.flatpak) for the RPFM package.
 #
 # Prerequisites:
 #   - flatpak and flatpak-builder installed
@@ -28,6 +28,9 @@ FLATPAK_DIR="$SCRIPT_DIR/flatpak"
 MANIFEST="$FLATPAK_DIR/com.github.frodo45127.rpfm.yaml"
 CARGO_SOURCES="$FLATPAK_DIR/cargo-sources.json"
 BUILD_DIR="$REPO_ROOT/flatpak-build-dir"
+REPO_DIR="$REPO_ROOT/flatpak-repo"
+BUNDLE="$REPO_ROOT/rpfm.flatpak"
+METAINFO="$FLATPAK_DIR/com.github.frodo45127.rpfm.metainfo.xml"
 
 SKIP_CARGO_SOURCES=false
 for arg in "$@"; do
@@ -63,10 +66,22 @@ else
     echo "Skipping cargo-sources.json regeneration (using existing file)."
 fi
 
-# Build and install the Flatpak.
+# Update metainfo version and date from Cargo.toml.
+VERSION=$(grep -m1 '^version' Cargo.toml | sed 's/.*"\(.*\)"/\1/')
+DATE=$(date +%Y-%m-%d)
+echo "Updating metainfo: version=${VERSION}, date=${DATE}"
+sed -i "s/<release version=\"[^\"]*\" date=\"[^\"]*\"/<release version=\"${VERSION}\" date=\"${DATE}\"/" "$METAINFO"
+
+# Build the Flatpak into a local repo.
 echo "Building Flatpak..."
 echo "Build directory: ${BUILD_DIR}"
+echo "Repository: ${REPO_DIR}"
 
-flatpak-builder --force-clean --install --user "$BUILD_DIR" "$MANIFEST"
+flatpak-builder --force-clean --repo="$REPO_DIR" "$BUILD_DIR" "$MANIFEST"
 
-echo "Done. Run with: flatpak run com.github.frodo45127.rpfm"
+# Export as a redistributable bundle.
+echo "Creating redistributable bundle: ${BUNDLE}"
+flatpak build-bundle "$REPO_DIR" "$BUNDLE" com.github.frodo45127.rpfm
+
+echo "Done. Bundle created at: ${BUNDLE}"
+echo "Install with: flatpak install --user rpfm.flatpak"
