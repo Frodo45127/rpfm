@@ -15,7 +15,7 @@ TEMPLATE = lib
 
 # We only want the release version, as this lib is not going to get "advanced" stuff.
 # In case you want to build the debug version, change the following line, removing the "release".
-CONFIG += staticlib debug
+CONFIG += staticlib release
 
 DEFINES += QT_RPFM_EXTENSIONS_LIBRARY
 
