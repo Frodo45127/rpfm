@@ -183,3 +183,6 @@ Nuget.exe
 /flatpak-build-dir/
 /flatpak-repo/
 rpfm.flatpak
+
+# Release artifacts.
+rpfm-v*
