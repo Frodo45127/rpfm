@@ -211,12 +211,14 @@ impl PackTranslation {
             let was_removed = tr.removed;
             tr.removed = !merged_loc_hash.contains_key(&**tr_key);
 
-            // If the line has been removed, unmark it for translation,
-            // If the line has been re-added, force a retranslation.
+            // If the line has been removed, unmark it for translation.
+            // If the line has been re-added, only flag for retranslation if the original value changed or there's no translation yet.
             if tr.removed {
                 tr.needs_retranslation = false;
             } else if was_removed {
-                tr.needs_retranslation = true;
+                if let Some(current_value) = merged_loc_hash.get(&**tr_key) {
+                    tr.needs_retranslation = tr.value_translated.is_empty() || *current_value != tr.value_original;
+                }
             }
         }
 
@@ -260,6 +262,7 @@ impl PackTranslation {
             }
         }
 
+        let tr_copy = translations.translations().clone();
         translations.translations_mut().par_iter_mut().for_each(|(tr_key, tr)| {
             if !tr.removed {
 
@@ -287,7 +290,7 @@ impl PackTranslation {
                 // If the value is equal to another value in the english translation (but with a different key), we may be able to reuse it.
                 //
                 // Note that this is prone to give wrong translations as it doesn't have any context, so we only do it for lines that are not yet translated.
-                else if tr.value_translated().trim().is_empty() {
+                else if tr.value_translated().trim().is_empty() || *tr.needs_retranslation() {
                     if let Some((key, _)) = base_english.iter().find(|(_, value)| *value == tr.value_original()) {
                         if let Some(value_tr) = base_local_fixes.get(key) {
                             tr.value_translated = value_tr.to_owned();
@@ -296,6 +299,10 @@ impl PackTranslation {
                             tr.value_translated = value_tr.to_owned();
                             tr.needs_retranslation = false;
                         }
+                    } else if let Some((_, value_tr)) = tr_copy.iter()
+                        .find(|(_, tr_copy)| *tr_copy.value_original() == *tr.value_original() && !*tr_copy.needs_retranslation() && *tr.needs_retranslation()) {
+                        tr.value_translated = value_tr.value_translated().to_owned();
+                        tr.needs_retranslation = false;
                     }
                 }
             }
