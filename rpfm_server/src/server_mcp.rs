@@ -10,7 +10,7 @@
 
 use rmcp::ErrorData as McpError;
 use rmcp::handler::server::{tool::ToolRouter, wrapper::Parameters};
-use rmcp::model::{CallToolResult, Content, ServerCapabilities, ServerInfo};
+use rmcp::model::{CallToolResult, Content, ErrorCode, ServerCapabilities, ServerInfo};
 use rmcp::schemars::JsonSchema;
 use rmcp::{tool, tool_handler, tool_router};
 use serde::{Deserialize, Serialize};
@@ -21,6 +21,7 @@ use std::path::PathBuf;
 
 use rpfm_ipc::helpers::DataSource;
 use rpfm_ipc::messages::Command;
+use rpfm_lib::files::{ContainerPath, RFile, RFileDecoded};
 use rpfm_log::sentry;
 
 use crate::session::{Session, recv_response};
@@ -51,8 +52,22 @@ macro_rules! send_and_respond {
 
         tx.finish();
 
-        Ok(CallToolResult::success(vec![Content::text(serde_json::to_string(&response).unwrap())]))
+        let json = serde_json::to_string(&response).map_err(|e| McpError {
+            code: ErrorCode::INTERNAL_ERROR,
+            message: format!("Failed to serialize response: {e}").into(),
+            data: None,
+        })?;
+        Ok(CallToolResult::success(vec![Content::text(json)]))
     }};
+}
+
+/// Parse a JSON string into the expected type, returning an MCP INVALID_PARAMS error on failure.
+fn parse_json<T: serde::de::DeserializeOwned>(input: &str) -> Result<T, McpError> {
+    serde_json::from_str(input).map_err(|e| McpError {
+        code: ErrorCode::INVALID_PARAMS,
+        message: format!("Invalid JSON parameter: {e}").into(),
+        data: None,
+    })
 }
 
 //-------------------------------------------------------------------------------//
@@ -715,7 +730,7 @@ impl McpServer {
 
     #[tool(name = "call_command", description = "Call any IPC command directly. Use this for commands not yet wrapped as named tools.")]
     pub async fn call_command(&self, params: Parameters<CallCommandArgs>) -> Result<CallToolResult, McpError> {
-        let command: Command = serde_json::from_str(&params.0.command).unwrap();
+        let command: Command = parse_json(&params.0.command)?;
         send_and_respond!(self, "call_command", command)
     }
 
@@ -769,13 +784,13 @@ impl McpServer {
 
     #[tool(description = "Set the type of the pack identified by `pack_key`. Pass the PFHFileType as JSON.")]
     pub async fn set_pack_file_type(&self, params: Parameters<SetPackFileTypeArgs>) -> Result<CallToolResult, McpError> {
-        let pfh_type = serde_json::from_str(&params.0.pack_file_type).unwrap();
+        let pfh_type = parse_json(&params.0.pack_file_type)?;
         send_and_respond!(self, "set_pack_file_type", Command::SetPackFileType(params.0.pack_key, pfh_type))
     }
 
     #[tool(description = "Change the compression format of the pack identified by `pack_key`. Pass the CompressionFormat as JSON.")]
     pub async fn change_compression_format(&self, params: Parameters<ChangeCompressionFormatArgs>) -> Result<CallToolResult, McpError> {
-        let format = serde_json::from_str(&params.0.format).unwrap();
+        let format = parse_json(&params.0.format)?;
         send_and_respond!(self, "change_compression_format", Command::ChangeCompressionFormat(params.0.pack_key, format))
     }
 
@@ -801,7 +816,7 @@ impl McpServer {
 
     #[tool(description = "Set the settings of the pack identified by `pack_key`. Pass PackSettings as JSON.")]
     pub async fn set_pack_settings(&self, params: Parameters<SetPackSettingsArgs>) -> Result<CallToolResult, McpError> {
-        let settings = serde_json::from_str(&params.0.settings).unwrap();
+        let settings = parse_json(&params.0.settings)?;
         send_and_respond!(self, "set_pack_settings", Command::SetPackSettings(params.0.pack_key, settings))
     }
 
@@ -812,7 +827,7 @@ impl McpServer {
 
     #[tool(description = "Set the list of PackFiles marked as dependencies for the pack identified by `pack_key`. Pass Vec<(bool, String)> as JSON.")]
     pub async fn set_dependency_pack_files_list(&self, params: Parameters<SetDependencyPackFilesListArgs>) -> Result<CallToolResult, McpError> {
-        let list = serde_json::from_str(&params.0.list).unwrap();
+        let list = parse_json(&params.0.list)?;
         send_and_respond!(self, "set_dependency_pack_files_list", Command::SetDependencyPackFilesList(params.0.pack_key, list))
     }
 
@@ -827,61 +842,61 @@ impl McpServer {
 
     #[tool(description = "Create a new file inside the pack identified by `pack_key`. Pass the NewFile type as JSON.")]
     pub async fn new_packed_file(&self, params: Parameters<NewPackedFileArgs>) -> Result<CallToolResult, McpError> {
-        let new_file = serde_json::from_str(&params.0.new_file).unwrap();
+        let new_file = parse_json(&params.0.new_file)?;
         send_and_respond!(self, "new_packed_file", Command::NewPackedFile(params.0.pack_key, params.0.path, new_file))
     }
 
     #[tool(description = "Add files from disk to the pack identified by `pack_key`. Pass destination ContainerPaths as JSON.")]
     pub async fn add_packed_files(&self, params: Parameters<AddPackedFilesArgs>) -> Result<CallToolResult, McpError> {
-        let dest: Vec<rpfm_lib::files::ContainerPath> = serde_json::from_str(&params.0.destination_paths).unwrap();
+        let dest: Vec<ContainerPath> = parse_json(&params.0.destination_paths)?;
         send_and_respond!(self, "add_packed_files", Command::AddPackedFiles(params.0.pack_key, params.0.source_paths, dest, params.0.ignore_paths))
     }
 
     #[tool(description = "Add files from another PackFile to the pack identified by `pack_key`. Pass ContainerPaths as JSON.")]
     pub async fn add_packed_files_from_pack_file(&self, params: Parameters<AddPackedFilesFromPackFileArgs>) -> Result<CallToolResult, McpError> {
-        let paths: Vec<rpfm_lib::files::ContainerPath> = serde_json::from_str(&params.0.container_paths).unwrap();
+        let paths: Vec<ContainerPath> = parse_json(&params.0.container_paths)?;
         send_and_respond!(self, "add_packed_files_from_pack_file", Command::AddPackedFilesFromPackFile(params.0.pack_key, params.0.source_pack_path, paths))
     }
 
     #[tool(description = "Add files from the pack identified by `pack_key` to an AnimPack. Pass ContainerPaths as JSON.")]
     pub async fn add_packed_files_from_pack_file_to_animpack(&self, params: Parameters<AddPackedFilesFromPackFileToAnimpackArgs>) -> Result<CallToolResult, McpError> {
-        let paths: Vec<rpfm_lib::files::ContainerPath> = serde_json::from_str(&params.0.container_paths).unwrap();
+        let paths: Vec<ContainerPath> = parse_json(&params.0.container_paths)?;
         send_and_respond!(self, "add_packed_files_from_pack_file_to_animpack", Command::AddPackedFilesFromPackFileToAnimpack(params.0.pack_key, params.0.animpack_path, paths))
     }
 
     #[tool(description = "Add files from an AnimPack to the pack identified by `pack_key`. Pass ContainerPaths as JSON.")]
     pub async fn add_packed_files_from_animpack(&self, params: Parameters<AddPackedFilesFromAnimpackArgs>) -> Result<CallToolResult, McpError> {
-        let paths: Vec<rpfm_lib::files::ContainerPath> = serde_json::from_str(&params.0.container_paths).unwrap();
+        let paths: Vec<ContainerPath> = parse_json(&params.0.container_paths)?;
         send_and_respond!(self, "add_packed_files_from_animpack", Command::AddPackedFilesFromAnimpack(params.0.pack_key, params.0.source, params.0.animpack_path, paths))
     }
 
     #[tool(description = "Delete files from the pack identified by `pack_key`. Pass Vec<ContainerPath> as JSON.")]
     pub async fn delete_packed_files(&self, params: Parameters<ContainerPathsArg>) -> Result<CallToolResult, McpError> {
-        let paths: Vec<rpfm_lib::files::ContainerPath> = serde_json::from_str(&params.0.paths).unwrap();
+        let paths: Vec<ContainerPath> = parse_json(&params.0.paths)?;
         send_and_respond!(self, "delete_packed_files", Command::DeletePackedFiles(params.0.pack_key, paths))
     }
 
     #[tool(description = "Delete files from an AnimPack in the pack identified by `pack_key`. Pass ContainerPaths as JSON.")]
     pub async fn delete_from_animpack(&self, params: Parameters<DeleteFromAnimpackArgs>) -> Result<CallToolResult, McpError> {
-        let paths: Vec<rpfm_lib::files::ContainerPath> = serde_json::from_str(&params.0.container_paths).unwrap();
+        let paths: Vec<ContainerPath> = parse_json(&params.0.container_paths)?;
         send_and_respond!(self, "delete_from_animpack", Command::DeleteFromAnimpack(params.0.pack_key, params.0.animpack_path, paths))
     }
 
     #[tool(description = "Extract files from the pack identified by `pack_key` to disk. Pass source paths as JSON BTreeMap<DataSource, Vec<ContainerPath>>.")]
     pub async fn extract_packed_files(&self, params: Parameters<ExtractPackedFilesArgs>) -> Result<CallToolResult, McpError> {
-        let source: BTreeMap<DataSource, Vec<rpfm_lib::files::ContainerPath>> = serde_json::from_str(&params.0.source_paths).unwrap();
+        let source: BTreeMap<DataSource, Vec<ContainerPath>> = parse_json(&params.0.source_paths)?;
         send_and_respond!(self, "extract_packed_files", Command::ExtractPackedFiles(params.0.pack_key, source, params.0.destination_path, params.0.export_as_tsv))
     }
 
     #[tool(description = "Rename files in the pack identified by `pack_key`. Pass Vec<(ContainerPath, ContainerPath)> as JSON.")]
     pub async fn rename_packed_files(&self, params: Parameters<RenamePackedFilesArgs>) -> Result<CallToolResult, McpError> {
-        let renames: Vec<(rpfm_lib::files::ContainerPath, rpfm_lib::files::ContainerPath)> = serde_json::from_str(&params.0.renames).unwrap();
+        let renames: Vec<(ContainerPath, ContainerPath)> = parse_json(&params.0.renames)?;
         send_and_respond!(self, "rename_packed_files", Command::RenamePackedFiles(params.0.pack_key, renames))
     }
 
     #[tool(description = "Save an edited decoded file back to the pack identified by `pack_key`. Pass RFileDecoded as JSON.")]
     pub async fn save_packed_file_from_view(&self, params: Parameters<SavePackedFileFromViewArgs>) -> Result<CallToolResult, McpError> {
-        let data: rpfm_lib::files::RFileDecoded = serde_json::from_str(&params.0.data).unwrap();
+        let data: RFileDecoded = parse_json(&params.0.data)?;
         send_and_respond!(self, "save_packed_file_from_view", Command::SavePackedFileFromView(params.0.pack_key, params.0.path, data))
     }
 
@@ -892,7 +907,7 @@ impl McpServer {
 
     #[tool(description = "Save files to the pack identified by `pack_key` and optionally clean. Pass Vec<RFile> as JSON.")]
     pub async fn save_packed_files_to_pack_file_and_clean(&self, params: Parameters<SavePackedFilesToPackFileAndCleanArgs>) -> Result<CallToolResult, McpError> {
-        let files: Vec<rpfm_lib::files::RFile> = serde_json::from_str(&params.0.files).unwrap();
+        let files: Vec<RFile> = parse_json(&params.0.files)?;
         send_and_respond!(self, "save_packed_files_to_pack_file_and_clean", Command::SavePackedFilesToPackFileAndClean(params.0.pack_key, files, params.0.optimize))
     }
 
@@ -903,7 +918,7 @@ impl McpServer {
 
     #[tool(description = "Open a file in an external program from the pack identified by `pack_key`. Pass ContainerPath as JSON.")]
     pub async fn open_packed_file_in_external_program(&self, params: Parameters<OpenPackedFileInExternalProgramArgs>) -> Result<CallToolResult, McpError> {
-        let cp: rpfm_lib::files::ContainerPath = serde_json::from_str(&params.0.container_path).unwrap();
+        let cp: ContainerPath = parse_json(&params.0.container_path)?;
         send_and_respond!(self, "open_packed_file_in_external_program", Command::OpenPackedFileInExternalProgram(params.0.pack_key, params.0.source, cp))
     }
 
@@ -914,7 +929,7 @@ impl McpServer {
 
     #[tool(description = "Clean the decode cache for the provided paths in the pack identified by `pack_key`. Pass Vec<ContainerPath> as JSON.")]
     pub async fn clean_cache(&self, params: Parameters<ContainerPathsArg>) -> Result<CallToolResult, McpError> {
-        let paths: Vec<rpfm_lib::files::ContainerPath> = serde_json::from_str(&params.0.paths).unwrap();
+        let paths: Vec<ContainerPath> = parse_json(&params.0.paths)?;
         send_and_respond!(self, "clean_cache", Command::CleanCache(params.0.pack_key, paths))
     }
 
@@ -998,19 +1013,19 @@ impl McpServer {
 
     #[tool(description = "Import files from dependencies into the pack identified by `pack_key`. Pass BTreeMap<DataSource, Vec<ContainerPath>> as JSON.")]
     pub async fn import_dependencies_to_open_pack_file(&self, params: Parameters<ImportDependenciesArgs>) -> Result<CallToolResult, McpError> {
-        let paths: BTreeMap<DataSource, Vec<rpfm_lib::files::ContainerPath>> = serde_json::from_str(&params.0.paths).unwrap();
+        let paths: BTreeMap<DataSource, Vec<ContainerPath>> = parse_json(&params.0.paths)?;
         send_and_respond!(self, "import_dependencies_to_open_pack_file", Command::ImportDependenciesToOpenPackFile(params.0.pack_key, paths))
     }
 
     #[tool(description = "Get files from all known sources (PackFile, GameFiles, ParentFiles). Pass Vec<ContainerPath> as JSON.")]
     pub async fn get_rfiles_from_all_sources(&self, params: Parameters<GetRFilesFromAllSourcesArgs>) -> Result<CallToolResult, McpError> {
-        let paths: Vec<rpfm_lib::files::ContainerPath> = serde_json::from_str(&params.0.paths).unwrap();
+        let paths: Vec<ContainerPath> = parse_json(&params.0.paths)?;
         send_and_respond!(self, "get_rfiles_from_all_sources", Command::GetRFilesFromAllSources(paths, params.0.lowercase))
     }
 
     #[tool(description = "Get all file names under a path in all dependencies. Pass ContainerPath as JSON.")]
     pub async fn get_packed_files_names_starting_with_path_from_all_sources(&self, params: Parameters<ContainerPathArg>) -> Result<CallToolResult, McpError> {
-        let path: rpfm_lib::files::ContainerPath = serde_json::from_str(&params.0.path).unwrap();
+        let path: ContainerPath = parse_json(&params.0.path)?;
         send_and_respond!(self, "get_packed_files_names_starting_with_path_from_all_sources", Command::GetPackedFilesNamesStartingWitPathFromAllSources(path))
     }
 
@@ -1030,32 +1045,32 @@ impl McpServer {
 
     #[tool(description = "Run a global search across the pack identified by `pack_key`. Pass GlobalSearch as JSON.")]
     pub async fn global_search(&self, params: Parameters<GlobalSearchArgs>) -> Result<CallToolResult, McpError> {
-        let search = serde_json::from_str(&params.0.search).unwrap();
+        let search = parse_json(&params.0.search)?;
         send_and_respond!(self, "global_search", Command::GlobalSearch(params.0.pack_key, search))
     }
 
     #[tool(description = "Replace specific matches in a global search for the pack identified by `pack_key`. Pass GlobalSearch and Vec<MatchHolder> as JSON.")]
     pub async fn global_search_replace_matches(&self, params: Parameters<GlobalSearchReplaceMatchesArgs>) -> Result<CallToolResult, McpError> {
-        let search = serde_json::from_str(&params.0.search).unwrap();
-        let matches = serde_json::from_str(&params.0.matches).unwrap();
+        let search = parse_json(&params.0.search)?;
+        let matches = parse_json(&params.0.matches)?;
         send_and_respond!(self, "global_search_replace_matches", Command::GlobalSearchReplaceMatches(params.0.pack_key, search, matches))
     }
 
     #[tool(description = "Replace all matches in a global search for the pack identified by `pack_key`. Pass GlobalSearch as JSON.")]
     pub async fn global_search_replace_all(&self, params: Parameters<GlobalSearchArgs>) -> Result<CallToolResult, McpError> {
-        let search = serde_json::from_str(&params.0.search).unwrap();
+        let search = parse_json(&params.0.search)?;
         send_and_respond!(self, "global_search_replace_all", Command::GlobalSearchReplaceAll(params.0.pack_key, search))
     }
 
     #[tool(description = "Find all references to a value in the pack identified by `pack_key`. Pass HashMap<String, Vec<String>> as JSON for the reference map.")]
     pub async fn search_references(&self, params: Parameters<SearchReferencesArgs>) -> Result<CallToolResult, McpError> {
-        let map: HashMap<String, Vec<String>> = serde_json::from_str(&params.0.reference_map).unwrap();
+        let map: HashMap<String, Vec<String>> = parse_json(&params.0.reference_map)?;
         send_and_respond!(self, "search_references", Command::SearchReferences(params.0.pack_key, map, params.0.value))
     }
 
     #[tool(description = "Get reference data for columns in a definition for the pack identified by `pack_key`. Pass Definition as JSON.")]
     pub async fn get_reference_data_from_definition(&self, params: Parameters<GetReferenceDataFromDefinitionArgs>) -> Result<CallToolResult, McpError> {
-        let def = serde_json::from_str(&params.0.definition).unwrap();
+        let def = parse_json(&params.0.definition)?;
         send_and_respond!(self, "get_reference_data_from_definition", Command::GetReferenceDataFromDefinition(params.0.pack_key, params.0.table_name, def, params.0.force))
     }
 
@@ -1080,7 +1095,7 @@ impl McpServer {
 
     #[tool(description = "Save the provided schema to disk. Pass Schema as JSON.")]
     pub async fn save_schema(&self, params: Parameters<SaveSchemaArgs>) -> Result<CallToolResult, McpError> {
-        let schema = serde_json::from_str(&params.0.schema).unwrap();
+        let schema = parse_json(&params.0.schema)?;
         send_and_respond!(self, "save_schema", Command::SaveSchema(schema))
     }
 
@@ -1121,19 +1136,19 @@ impl McpServer {
 
     #[tool(description = "Get columns that reference a table's definition. Pass Definition as JSON.")]
     pub async fn referencing_columns_for_definition(&self, params: Parameters<ReferencingColumnsForDefinitionArgs>) -> Result<CallToolResult, McpError> {
-        let def = serde_json::from_str(&params.0.definition).unwrap();
+        let def = parse_json(&params.0.definition)?;
         send_and_respond!(self, "referencing_columns_for_definition", Command::ReferencingColumnsForDefinition(params.0.table_name, def))
     }
 
     #[tool(description = "Get the processed fields from a definition (bitwise expansion, enum conversion applied). Pass Definition as JSON.")]
     pub async fn fields_processed(&self, params: Parameters<DefinitionArg>) -> Result<CallToolResult, McpError> {
-        let def = serde_json::from_str(&params.0.definition).unwrap();
+        let def = parse_json(&params.0.definition)?;
         send_and_respond!(self, "fields_processed", Command::FieldsProcessed(def))
     }
 
     #[tool(description = "Save local schema patches. Pass HashMap<String, DefinitionPatch> as JSON.")]
     pub async fn save_local_schema_patch(&self, params: Parameters<SchemaPatchArgs>) -> Result<CallToolResult, McpError> {
-        let patches = serde_json::from_str(&params.0.patches).unwrap();
+        let patches = parse_json(&params.0.patches)?;
         send_and_respond!(self, "save_local_schema_patch", Command::SaveLocalSchemaPatch(patches))
     }
 
@@ -1149,7 +1164,7 @@ impl McpServer {
 
     #[tool(description = "Import a schema patch. Pass HashMap<String, DefinitionPatch> as JSON.")]
     pub async fn import_schema_patch(&self, params: Parameters<SchemaPatchArgs>) -> Result<CallToolResult, McpError> {
-        let patches = serde_json::from_str(&params.0.patches).unwrap();
+        let patches = parse_json(&params.0.patches)?;
         send_and_respond!(self, "import_schema_patch", Command::ImportSchemaPatch(patches))
     }
 
@@ -1159,20 +1174,20 @@ impl McpServer {
 
     #[tool(description = "Merge multiple compatible tables into one in the pack identified by `pack_key`. Pass Vec<ContainerPath> as JSON.")]
     pub async fn merge_files(&self, params: Parameters<MergeFilesArgs>) -> Result<CallToolResult, McpError> {
-        let paths: Vec<rpfm_lib::files::ContainerPath> = serde_json::from_str(&params.0.paths).unwrap();
+        let paths: Vec<ContainerPath> = parse_json(&params.0.paths)?;
         send_and_respond!(self, "merge_files", Command::MergeFiles(params.0.pack_key, paths, params.0.merged_path, params.0.delete_source))
     }
 
     #[tool(description = "Update a table to a newer version in the pack identified by `pack_key`. Pass ContainerPath as JSON.")]
     pub async fn update_table(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
-        let path: rpfm_lib::files::ContainerPath = serde_json::from_str(&params.0.value).unwrap();
+        let path: ContainerPath = parse_json(&params.0.value)?;
         send_and_respond!(self, "update_table", Command::UpdateTable(params.0.pack_key, path))
     }
 
     #[tool(description = "Trigger a cascade edition on all referenced data in the pack identified by `pack_key`. Pass Definition and Vec<(Field, String, String)> as JSON.")]
     pub async fn cascade_edition(&self, params: Parameters<CascadeEditionArgs>) -> Result<CallToolResult, McpError> {
-        let def = serde_json::from_str(&params.0.definition).unwrap();
-        let changes = serde_json::from_str(&params.0.changes).unwrap();
+        let def = parse_json(&params.0.definition)?;
+        let changes = parse_json(&params.0.changes)?;
         send_and_respond!(self, "cascade_edition", Command::CascadeEdition(params.0.pack_key, params.0.table_name, def, changes))
     }
 
@@ -1207,8 +1222,8 @@ impl McpServer {
 
     #[tool(description = "Update diagnostics for changed files across all open packs. Pass Diagnostics and Vec<ContainerPath> as JSON.")]
     pub async fn diagnostics_update(&self, params: Parameters<DiagnosticsUpdateArgs>) -> Result<CallToolResult, McpError> {
-        let diag = serde_json::from_str(&params.0.diagnostics).unwrap();
-        let paths: Vec<rpfm_lib::files::ContainerPath> = serde_json::from_str(&params.0.paths).unwrap();
+        let diag = parse_json(&params.0.diagnostics)?;
+        let paths: Vec<ContainerPath> = parse_json(&params.0.paths)?;
         send_and_respond!(self, "diagnostics_update", Command::DiagnosticsUpdate(diag, paths, params.0.check_ak_only_refs))
     }
 
@@ -1233,7 +1248,7 @@ impl McpServer {
 
     #[tool(description = "Add a note to the pack identified by `pack_key`. Pass Note as JSON.")]
     pub async fn add_note(&self, params: Parameters<AddNoteArgs>) -> Result<CallToolResult, McpError> {
-        let note = serde_json::from_str(&params.0.note).unwrap();
+        let note = parse_json(&params.0.note)?;
         send_and_respond!(self, "add_note", Command::AddNote(params.0.pack_key, note))
     }
 
@@ -1248,7 +1263,7 @@ impl McpServer {
 
     #[tool(description = "Optimize the pack identified by `pack_key`. Pass OptimizerOptions as JSON.")]
     pub async fn optimize_pack_file(&self, params: Parameters<OptimizePackFileArgs>) -> Result<CallToolResult, McpError> {
-        let options = serde_json::from_str(&params.0.options).unwrap();
+        let options = parse_json(&params.0.options)?;
         send_and_respond!(self, "optimize_pack_file", Command::OptimizePackFile(params.0.pack_key, options))
     }
 
@@ -1479,7 +1494,7 @@ impl McpServer {
 
     #[tool(description = "Pack map tiles into the pack identified by `pack_key`. Pass Vec<(PathBuf, String)> as JSON for tiles.")]
     pub async fn pack_map(&self, params: Parameters<PackMapArgs>) -> Result<CallToolResult, McpError> {
-        let tiles: Vec<(PathBuf, String)> = serde_json::from_str(&params.0.tiles).unwrap();
+        let tiles: Vec<(PathBuf, String)> = parse_json(&params.0.tiles)?;
         send_and_respond!(self, "pack_map", Command::PackMap(params.0.pack_key, params.0.tile_maps, tiles))
     }
 
@@ -1530,13 +1545,13 @@ impl McpServer {
 
     #[tool(description = "Export a RigidModel to glTF format. Pass RigidModel as JSON.")]
     pub async fn export_rigid_to_gltf(&self, params: Parameters<ExportRigidToGltfArgs>) -> Result<CallToolResult, McpError> {
-        let rigid = serde_json::from_str(&params.0.rigid_model).unwrap();
+        let rigid = parse_json(&params.0.rigid_model)?;
         send_and_respond!(self, "export_rigid_to_gltf", Command::ExportRigidToGltf(rigid, params.0.output_path))
     }
 
     #[tool(description = "Change the format of a ca_vp8 video file in the pack identified by `pack_key`. Pass SupportedFormats as JSON.")]
     pub async fn set_video_format(&self, params: Parameters<SetVideoFormatArgs>) -> Result<CallToolResult, McpError> {
-        let format = serde_json::from_str(&params.0.format).unwrap();
+        let format = parse_json(&params.0.format)?;
         send_and_respond!(self, "set_video_format", Command::SetVideoFormat(params.0.pack_key, params.0.path, format))
     }
 
