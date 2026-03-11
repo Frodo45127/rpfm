@@ -113,7 +113,7 @@ async fn main() {
             axum::serve(listener, app).await.unwrap();
         }
         Err(err) => {
-            error!("Failed to bind to address {}: {}", addr, err);
+            error!("Failed to bind to address {}: {}\n\nThis usually means you got another copy of the server running. Either use that one, or stop it and try again.", addr, err);
         }
     }
 }
