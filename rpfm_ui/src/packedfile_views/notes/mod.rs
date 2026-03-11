@@ -132,10 +132,19 @@ impl NotesView {
     }
 
     /// This function loads all notes affecting the path of the view.
+    ///
+    /// Notes only exist for files from open packs. If there is no pack_key set
+    /// (e.g. when viewing dependency/AssKit/parent files with no pack open),
+    /// we skip the backend call entirely to avoid crashes.
     pub unsafe fn load_data(&self) {
         self.model.clear();
 
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::NotesForPath(self.pack_key.read().unwrap().clone(), self.path.read().unwrap().to_owned()));
+        let pack_key = self.pack_key.read().unwrap().clone();
+        if pack_key.is_empty() {
+            return;
+        }
+
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::NotesForPath(pack_key, self.path.read().unwrap().to_owned()));
         let response = CentralCommand::recv(&receiver);
         match response {
             Response::VecNote(mut notes) => {
