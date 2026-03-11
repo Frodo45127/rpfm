@@ -2,6 +2,13 @@
 Set-Variable -Name "RPFM_PATH" -Value ((Get-Location).path)
 Set-Variable -Name "RPFM_VERSION" -Value (Select-String -Path Cargo.toml -Pattern '^version = \"(.*)\"$').Matches.Groups[1].value
 
+# Clean qt_rpfm_extensions so stale artifacts are not reused.
+if (Test-Path "$RPFM_PATH\3rdparty\src\qt_rpfm_extensions\Makefile") {
+    Push-Location "$RPFM_PATH\3rdparty\src\qt_rpfm_extensions"
+    nmake clean 2>$null
+    Pop-Location
+}
+
 # Build the tools.
 cargo build --release --bin rpfm_server
 cargo build --release --features "enable_tools" --bin rpfm_ui

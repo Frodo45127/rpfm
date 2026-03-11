@@ -29,6 +29,11 @@ BUILD_DIR="$(mktemp -d)"
 echo "Building RPFM v${VERSION} for ${TARGET}..."
 echo "Build directory: ${BUILD_DIR}"
 
+# Clean and rebuild qt_rpfm_extensions so stale artifacts are not reused.
+if [ -f "3rdparty/src/qt_rpfm_extensions/Makefile" ]; then
+    make -C 3rdparty/src/qt_rpfm_extensions clean || true
+fi
+
 # Build release binaries.
 cargo clean
 cargo build --release --bin rpfm_server
