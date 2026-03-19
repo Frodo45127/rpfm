@@ -9,10 +9,18 @@
 //---------------------------------------------------------------------------//
 
 use rmcp::ErrorData as McpError;
-use rmcp::handler::server::{tool::ToolRouter, wrapper::Parameters};
-use rmcp::model::{CallToolResult, Content, ErrorCode, ServerCapabilities, ServerInfo};
+use rmcp::handler::server::{router::prompt::PromptRouter, tool::ToolRouter, wrapper::Parameters};
+use rmcp::model::{
+    Annotated, CallToolResult, CompletionInfo, CompleteRequestParam, CompleteResult,
+    Content, ErrorCode, GetPromptRequestParam, GetPromptResult,
+    ListPromptsResult, ListResourcesResult, ListResourceTemplatesResult,
+    PaginatedRequestParam, PromptMessage, PromptMessageRole,
+    RawResource, ReadResourceRequestParam, ReadResourceResult,
+    ResourceContents, ServerCapabilities, ServerInfo, SetLevelRequestParam,
+};
 use rmcp::schemars::JsonSchema;
-use rmcp::{tool, tool_handler, tool_router};
+use rmcp::service::RequestContext;
+use rmcp::{prompt, prompt_handler, prompt_router, tool, tool_handler, tool_router, RoleServer};
 use serde::{Deserialize, Serialize};
 
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -20,7 +28,7 @@ use std::sync::Arc;
 use std::path::PathBuf;
 
 use rpfm_ipc::helpers::DataSource;
-use rpfm_ipc::messages::Command;
+use rpfm_ipc::messages::{Command, Response};
 use rpfm_lib::files::{ContainerPath, RFile, RFileDecoded};
 use rpfm_log::sentry;
 
@@ -52,13 +60,28 @@ macro_rules! send_and_respond {
 
         tx.finish();
 
+        let is_error = matches!(&response, Response::Error(_));
+
         let json = serde_json::to_string(&response).map_err(|e| McpError {
             code: ErrorCode::INTERNAL_ERROR,
             message: format!("Failed to serialize response: {e}").into(),
             data: None,
         })?;
-        Ok(CallToolResult::success(vec![Content::text(json)]))
+
+        if is_error {
+            Ok(CallToolResult::error(vec![Content::text(json)]))
+        } else {
+            Ok(CallToolResult::success(vec![Content::text(json)]))
+        }
     }};
+}
+
+/// Build an Annotated<RawResource> with common fields set.
+fn resource(uri: &str, name: &str, description: &str, mime_type: &str) -> Annotated<RawResource> {
+    let mut raw = RawResource::new(uri, name);
+    raw.description = Some(description.into());
+    raw.mime_type = Some(mime_type.into());
+    Annotated { raw, annotations: None }
 }
 
 /// Parse a JSON string into the expected type, returning an MCP INVALID_PARAMS error on failure.
@@ -78,6 +101,7 @@ fn parse_json<T: serde::de::DeserializeOwned>(input: &str) -> Result<T, McpError
 pub struct McpServer {
     session: Arc<Session>,
     tool_router: ToolRouter<Self>,
+    prompt_router: PromptRouter<Self>,
 }
 
 // -- Generic / Existing Args --
@@ -704,13 +728,480 @@ pub struct GetPackTranslationArgs {
 //-------------------------------------------------------------------------------//
 
 #[tool_handler]
+#[prompt_handler]
 impl rmcp::ServerHandler for McpServer {
     fn get_info(&self) -> ServerInfo {
         ServerInfo {
-            instructions: Some("This is a Model Context Protocol (MCP) server for RPFM (Rusted PackFile Manager). It allows you to interact with RFile and PackFiles using various tools.".into()),
-            capabilities: ServerCapabilities::builder().enable_tools().build(),
+            instructions: Some("\
+This is the MCP server for RPFM (Rusted PackFile Manager), a tool for modding Total War games by \
+Creative Assembly. It lets you read, edit, create, and manage PackFiles (.pack) — the archive \
+format used by all modern Total War titles.
+
+## Key Concepts
+
+- **PackFile**: An archive containing game data files (DB tables, localisation, textures, models, etc.). \
+  Mods are distributed as PackFiles.
+- **pack_key**: When you open one or more PackFiles, each gets a unique key string. Use `list_open_packs` \
+  to discover available keys. Most tools require a `pack_key` parameter.
+- **DataSource**: Where data lives — `\"PackFile\"` (the user's mod), `\"GameFiles\"` (vanilla game data), \
+  `\"ParentFiles\"` (dependency mods), `\"AssKitFiles\"` (Assembly Kit data), `\"ExternalFile\"` (disk file).
+- **ContainerPath**: A path inside a pack — either `{\"File\": \"db/land_units_tables/my_table\"}` or \
+  `{\"Folder\": \"db/land_units_tables\"}`. Use an empty string for root folder.
+
+## Required Initialization Sequence
+
+1. **Set the game** — Call `set_game_selected` with the game key (e.g. `\"warhammer_3\"`) and \
+   `rebuild_dependencies: true`. This loads schemas and vanilla data.
+2. **Open a pack** — Call `open_packfiles` with filesystem path(s). Note the returned pack key(s).
+3. **Verify schema** — Call `is_schema_loaded`; if false, call `update_schemas` first.
+
+## Supported Games
+
+Valid game keys: `pharaoh_dynasties`, `pharaoh`, `warhammer_3`, `troy`, `three_kingdoms`, \
+`warhammer_2`, `warhammer`, `thrones_of_britannia`, `attila`, `rome_2`, `shogun_2`, `napoleon`, \
+`empire`, `arena`.
+
+## Common File Path Conventions
+
+- DB tables: `db/<table_name>/<file_name>` (e.g. `db/land_units_tables/my_mod`)
+- Localisation: `text/db/<file_name>.loc`
+- Scripts: `script/<path>.lua`
+- Images: `ui/<path>.png`
+
+## Pack File Types (PFHFileType)
+
+`\"Boot\"`, `\"Release\"`, `\"Patch\"`, `\"Mod\"` (default for mods), `\"Movie\"`.
+
+## Compression Formats
+
+`\"None\"` (default), `\"Lzma1\"` (legacy), `\"Lz4\"` (WH3 6.2+), `\"Zstd\"` (WH3 6.2+).
+
+## Creating New Files (NewFile)
+
+- DB table: `{\"DB\": [\"file_name\", \"table_name\", version]}` — e.g. `{\"DB\": [\"my_mod\", \"land_units_tables\", 0]}`
+- Loc file: `{\"Loc\": \"file_name\"}`
+- Text file: `{\"Text\": [\"file_name\", \"Plain\"]}` — formats: `\"Plain\"`, `\"Html\"`, `\"Xml\"`, `\"Lua\"`, `\"Cpp\"`, `\"Json\"`, `\"Markdown\"`, `\"Smithy\"`
+- AnimPack: `{\"AnimPack\": \"file_name\"}`
+- PortraitSettings: `{\"PortraitSettings\": [\"file_name\", version, [[\"entry_key\", \"entry_value\"]]]}`
+- VMD: `{\"VMD\": \"file_name\"}`
+- WSModel: `{\"WSModel\": \"file_name\"}`
+
+## Resources
+
+Use `resources/list` and `resources/read` to browse reference data: valid enum values, game lists, \
+and example JSON payloads without needing tool calls.
+
+## Responses
+
+All tool responses are JSON-serialized. On failure, an error message is returned instead of the expected data.
+".into()),
+            capabilities: ServerCapabilities::builder()
+                .enable_tools()
+                .enable_prompts()
+                .enable_resources()
+                .enable_completions()
+                .enable_logging()
+                .build(),
             ..Default::default()
         }
+    }
+
+    //-----------------------------------------------------------------------//
+    // Resources
+    //-----------------------------------------------------------------------//
+
+    async fn list_resources(
+        &self,
+        _request: Option<PaginatedRequestParam>,
+        _context: RequestContext<RoleServer>,
+    ) -> Result<ListResourcesResult, McpError> {
+        let resources = vec![
+            resource("rpfm://games", "games", "List of all supported Total War game keys.", "application/json"),
+            resource("rpfm://enums/PFHFileType", "PFHFileType", "Valid PackFile type values (Boot, Release, Patch, Mod, Movie).", "application/json"),
+            resource("rpfm://enums/CompressionFormat", "CompressionFormat", "Valid compression format values (None, Lzma1, Lz4, Zstd).", "application/json"),
+            resource("rpfm://enums/DataSource", "DataSource", "Valid data source values indicating where data comes from.", "application/json"),
+            resource("rpfm://enums/ContainerPath", "ContainerPath", "ContainerPath enum variants with JSON examples.", "application/json"),
+            resource("rpfm://enums/NewFile", "NewFile", "NewFile enum variants for creating files inside packs, with JSON examples.", "application/json"),
+            resource("rpfm://enums/SupportedFormats", "SupportedFormats", "Valid video format values (CaVp8, Ivf).", "application/json"),
+            resource("rpfm://examples/global_search", "GlobalSearch example", "Example JSON for the GlobalSearch struct used by search tools.", "application/json"),
+            resource("rpfm://examples/optimizer_options", "OptimizerOptions example", "Example JSON for OptimizerOptions with all boolean fields.", "application/json"),
+            resource("rpfm://reference/initialization", "Initialization guide", "Step-by-step guide for initializing the RPFM MCP server session.", "text/plain"),
+            resource("rpfm://reference/path_conventions", "Path conventions", "Common file path conventions inside Total War PackFiles.", "text/plain"),
+        ];
+        Ok(ListResourcesResult {
+            resources,
+            ..Default::default()
+        })
+    }
+
+    async fn list_resource_templates(
+        &self,
+        _request: Option<PaginatedRequestParam>,
+        _context: RequestContext<RoleServer>,
+    ) -> Result<ListResourceTemplatesResult, McpError> {
+        Ok(ListResourceTemplatesResult {
+            resource_templates: vec![],
+            ..Default::default()
+        })
+    }
+
+    async fn read_resource(
+        &self,
+        request: ReadResourceRequestParam,
+        _context: RequestContext<RoleServer>,
+    ) -> Result<ReadResourceResult, McpError> {
+        let uri = &request.uri;
+        let content = match uri.as_str() {
+            "rpfm://games" => serde_json::json!({
+                "supported_games": [
+                    {"key": "pharaoh_dynasties", "display_name": "Total War: Pharaoh Dynasties"},
+                    {"key": "pharaoh", "display_name": "Total War: Pharaoh"},
+                    {"key": "warhammer_3", "display_name": "Total War: Warhammer III"},
+                    {"key": "troy", "display_name": "A Total War Saga: Troy"},
+                    {"key": "three_kingdoms", "display_name": "Total War: Three Kingdoms"},
+                    {"key": "warhammer_2", "display_name": "Total War: Warhammer II"},
+                    {"key": "warhammer", "display_name": "Total War: Warhammer"},
+                    {"key": "thrones_of_britannia", "display_name": "A Total War Saga: Thrones of Britannia"},
+                    {"key": "attila", "display_name": "Total War: Attila"},
+                    {"key": "rome_2", "display_name": "Total War: Rome II"},
+                    {"key": "shogun_2", "display_name": "Total War: Shogun 2"},
+                    {"key": "napoleon", "display_name": "Total War: Napoleon"},
+                    {"key": "empire", "display_name": "Total War: Empire"},
+                    {"key": "arena", "display_name": "Total War: Arena"}
+                ]
+            }).to_string(),
+
+            "rpfm://enums/PFHFileType" => serde_json::json!({
+                "enum": "PFHFileType",
+                "description": "The type/priority of a PackFile. Games load packs in type order (Boot first, Movie last).",
+                "variants": [
+                    {"name": "Boot", "value": 0, "description": "Core game boot files, loaded first."},
+                    {"name": "Release", "value": 1, "description": "Main game data files."},
+                    {"name": "Patch", "value": 2, "description": "Official patch and update files."},
+                    {"name": "Mod", "value": 3, "description": "User mod files. This is the default for mods."},
+                    {"name": "Movie", "value": 4, "description": "Cinematic and always-loaded files, loaded last."}
+                ],
+                "json_example": "\"Mod\""
+            }).to_string(),
+
+            "rpfm://enums/CompressionFormat" => serde_json::json!({
+                "enum": "CompressionFormat",
+                "description": "Compression algorithm for pack file data.",
+                "variants": [
+                    {"name": "None", "description": "No compression (default)."},
+                    {"name": "Lzma1", "description": "Legacy LZMA compression (all PFH5 games)."},
+                    {"name": "Lz4", "description": "LZ4 compression (Warhammer 3 v6.2+)."},
+                    {"name": "Zstd", "description": "Zstandard compression (Warhammer 3 v6.2+)."}
+                ],
+                "json_example": "\"None\""
+            }).to_string(),
+
+            "rpfm://enums/DataSource" => serde_json::json!({
+                "enum": "DataSource",
+                "description": "Identifies where data comes from when working with files.",
+                "variants": [
+                    {"name": "PackFile", "description": "Data from the user's currently open pack (mod files)."},
+                    {"name": "GameFiles", "description": "Data from vanilla game files."},
+                    {"name": "ParentFiles", "description": "Data from parent/dependency pack files."},
+                    {"name": "AssKitFiles", "description": "Data from the Assembly Kit (modding tools)."},
+                    {"name": "ExternalFile", "description": "Data from an external file on disk."}
+                ],
+                "json_example": "\"PackFile\""
+            }).to_string(),
+
+            "rpfm://enums/ContainerPath" => serde_json::json!({
+                "enum": "ContainerPath",
+                "description": "A path reference inside a PackFile, pointing to either a file or a folder.",
+                "variants": [
+                    {
+                        "name": "File",
+                        "description": "Path to a single file inside the pack.",
+                        "json_example": {"File": "db/land_units_tables/my_table"}
+                    },
+                    {
+                        "name": "Folder",
+                        "description": "Path to a folder inside the pack. Use empty string for root.",
+                        "json_example": {"Folder": "db/land_units_tables"}
+                    }
+                ],
+                "usage_notes": "Most tools accept a JSON array of ContainerPath objects, e.g. [{\"File\": \"path1\"}, {\"Folder\": \"path2\"}]"
+            }).to_string(),
+
+            "rpfm://enums/NewFile" => serde_json::json!({
+                "enum": "NewFile",
+                "description": "Specifies what type of file to create inside a pack.",
+                "variants": [
+                    {
+                        "name": "DB",
+                        "description": "Create a new DB table. Args: [file_name, table_name, version].",
+                        "json_example": {"DB": ["my_mod", "land_units_tables", 0]}
+                    },
+                    {
+                        "name": "Loc",
+                        "description": "Create a new localisation file. Arg: file_name.",
+                        "json_example": {"Loc": "my_mod"}
+                    },
+                    {
+                        "name": "Text",
+                        "description": "Create a new text file. Args: [file_name, format]. Formats: Bat, Cpp, Html, Hlsl, Json, Js, Css, Lua, Markdown, Plain, Python, Sql, Xml, Yaml.",
+                        "json_example": {"Text": ["my_script", "Lua"]}
+                    },
+                    {
+                        "name": "AnimPack",
+                        "description": "Create a new AnimPack file. Arg: file_name.",
+                        "json_example": {"AnimPack": "my_anim"}
+                    },
+                    {
+                        "name": "PortraitSettings",
+                        "description": "Create a new portrait settings file. Args: [file_name, version, entries].",
+                        "json_example": {"PortraitSettings": ["my_portraits", 3, []]}
+                    },
+                    {
+                        "name": "VMD",
+                        "description": "Create a new VMD file. Arg: file_name.",
+                        "json_example": {"VMD": "my_vmd"}
+                    },
+                    {
+                        "name": "WSModel",
+                        "description": "Create a new WSModel file. Arg: file_name.",
+                        "json_example": {"WSModel": "my_model"}
+                    }
+                ]
+            }).to_string(),
+
+            "rpfm://enums/SupportedFormats" => serde_json::json!({
+                "enum": "SupportedFormats",
+                "description": "Video format options for CA VP8 video files.",
+                "variants": [
+                    {"name": "CaVp8", "description": "CA's custom VP8 format (default)."},
+                    {"name": "Ivf", "description": "Standard VP8 IVF format."}
+                ],
+                "json_example": "\"CaVp8\""
+            }).to_string(),
+
+            "rpfm://examples/global_search" => serde_json::json!({
+                "description": "Example GlobalSearch JSON for use with global_search, global_search_replace_all, etc.",
+                "example": {
+                    "pattern": "old_unit_name",
+                    "replace_text": "new_unit_name",
+                    "case_sensitive": false,
+                    "use_regex": false,
+                    "sources": [{"Pack": "my_mod.pack"}],
+                    "search_on": {
+                        "anim": false, "anim_fragment_battle": false, "anim_pack": false,
+                        "anims_table": false, "atlas": false, "audio": false, "bmd": false,
+                        "db": true, "esf": false, "group_formations": false, "image": false,
+                        "loc": true, "matched_combat": false, "pack": false,
+                        "portrait_settings": false, "rigid_model": false, "sound_bank": false,
+                        "text": true, "uic": false, "unit_variant": false, "unknown": false,
+                        "video": false, "schema": false
+                    },
+                    "matches": {"db": {}, "loc": {}, "text": {}, "schema": {}},
+                    "game_key": "warhammer_3"
+                },
+                "notes": "The `matches` field is populated by the search results. When calling `global_search`, pass it empty. The `sources` field uses SearchSource: {\"Pack\": \"key\"}, \"ParentFiles\", \"GameFiles\", \"AssKitFiles\"."
+            }).to_string(),
+
+            "rpfm://examples/optimizer_options" => serde_json::json!({
+                "description": "OptimizerOptions struct with all boolean fields for pack optimization.",
+                "example": {
+                    "pack_remove_itm_files": true,
+                    "db_import_datacores_into_twad_key_deletes": false,
+                    "db_optimize_datacored_tables": false,
+                    "table_remove_duplicated_entries": true,
+                    "table_remove_itm_entries": true,
+                    "table_remove_itnr_entries": true,
+                    "table_remove_empty_file": true,
+                    "text_remove_unused_xml_map_folders": false,
+                    "text_remove_unused_xml_prefab_folder": false,
+                    "text_remove_agf_files": false,
+                    "text_remove_model_statistics_files": false,
+                    "pts_remove_unused_art_sets": false,
+                    "pts_remove_unused_variants": false,
+                    "pts_remove_empty_masks": false,
+                    "pts_remove_empty_file": false
+                },
+                "field_descriptions": {
+                    "pack_remove_itm_files": "Remove files identical to vanilla (Identical To Master).",
+                    "db_import_datacores_into_twad_key_deletes": "Import datacored tables into TWAD key deletes.",
+                    "db_optimize_datacored_tables": "Optimize datacored tables.",
+                    "table_remove_duplicated_entries": "Remove duplicate rows in tables.",
+                    "table_remove_itm_entries": "Remove rows identical to vanilla.",
+                    "table_remove_itnr_entries": "Remove rows identical to vanilla that are not referenced.",
+                    "table_remove_empty_file": "Remove tables with no rows.",
+                    "text_remove_unused_xml_map_folders": "Remove unused XML files in map folders.",
+                    "text_remove_unused_xml_prefab_folder": "Remove unused XML files in prefab folders.",
+                    "text_remove_agf_files": "Remove AGF files.",
+                    "text_remove_model_statistics_files": "Remove model statistics files.",
+                    "pts_remove_unused_art_sets": "Remove unused art sets in portrait settings.",
+                    "pts_remove_unused_variants": "Remove unused variants in portrait settings.",
+                    "pts_remove_empty_masks": "Remove empty masks in portrait settings.",
+                    "pts_remove_empty_file": "Remove empty portrait settings files."
+                }
+            }).to_string(),
+
+            "rpfm://reference/initialization" => "\
+RPFM MCP Server Initialization Guide
+=====================================
+
+Before you can work with PackFiles, you must initialize the server session:
+
+Step 1: Set the game
+    Call: set_game_selected(game_name: \"warhammer_3\", rebuild_dependencies: true)
+    This loads the correct schemas and vanilla game data for the selected title.
+    Valid game keys: pharaoh_dynasties, pharaoh, warhammer_3, troy, three_kingdoms,
+    warhammer_2, warhammer, thrones_of_britannia, attila, rome_2, shogun_2,
+    napoleon, empire, arena.
+
+Step 2: Verify schema is loaded
+    Call: is_schema_loaded()
+    If it returns false, call update_schemas() to download the latest schemas.
+
+Step 3: Open a PackFile
+    Call: open_packfiles(paths: [\"/path/to/my_mod.pack\"])
+    The response returns pack info including the pack_key you'll use for all
+    subsequent operations.
+
+Step 4: Verify dependencies (optional but recommended)
+    Call: is_there_a_dependency_database(value: true)
+    If false, call generate_dependencies_cache() to build the dependency database.
+
+After initialization, use list_open_packs() to see all open pack keys at any time.
+".to_string(),
+
+            "rpfm://reference/path_conventions" => "\
+Total War PackFile Path Conventions
+====================================
+
+Files inside PackFiles follow specific path conventions:
+
+DB Tables:
+    db/<table_name>/<file_name>
+    Example: db/land_units_tables/my_mod
+    Example: db/unit_stats_land_tables/custom_units
+
+Localisation (Loc) files:
+    text/db/<file_name>.loc
+    text/<file_name>.loc
+    Example: text/db/my_mod.loc
+
+Scripts:
+    script/<path>.lua
+    script/campaign/mod/<script_name>.lua
+    Example: script/campaign/mod/my_mod_script.lua
+
+UI Images:
+    ui/<path>.png
+    Path may vary depending on the purpose of the image.
+
+Models and Animations:
+    variantmeshes/<path>
+    animations/<path>
+    Example: variantmeshes/wh_variantmodels/hu1/my_unit/my_unit.wsmodel
+
+Audio:
+    audio/<path>.bnk
+
+Maps:
+    terrain/tiles/battle/<map_name>/
+".to_string(),
+
+            _ => {
+                return Err(McpError {
+                    code: ErrorCode::INVALID_PARAMS,
+                    message: format!("Unknown resource URI: {uri}").into(),
+                    data: None,
+                });
+            }
+        };
+
+        Ok(ReadResourceResult {
+            contents: vec![ResourceContents::text(content, uri.clone())],
+        })
+    }
+
+    //-----------------------------------------------------------------------//
+    // Completions
+    //-----------------------------------------------------------------------//
+
+    async fn complete(
+        &self,
+        request: CompleteRequestParam,
+        _context: RequestContext<RoleServer>,
+    ) -> Result<CompleteResult, McpError> {
+        let argument_name = &request.argument.name;
+        let partial = &request.argument.value;
+
+        let candidates: Vec<String> = match argument_name.as_str() {
+            "game_name" | "game_key" | "game" => {
+                let games = vec![
+                    "pharaoh_dynasties", "pharaoh", "warhammer_3", "troy",
+                    "three_kingdoms", "warhammer_2", "warhammer",
+                    "thrones_of_britannia", "attila", "rome_2", "shogun_2",
+                    "napoleon", "empire", "arena",
+                ];
+                games.into_iter()
+                    .filter(|g| g.starts_with(partial))
+                    .map(String::from)
+                    .collect()
+            },
+            "pack_file_type" => {
+                let types = vec!["\"Boot\"", "\"Release\"", "\"Patch\"", "\"Mod\"", "\"Movie\""];
+                types.into_iter()
+                    .filter(|t| t.starts_with(partial))
+                    .map(String::from)
+                    .collect()
+            },
+            "format" => {
+                // Could be CompressionFormat or SupportedFormats depending on tool
+                let formats = vec![
+                    "\"None\"", "\"Lzma1\"", "\"Lz4\"", "\"Zstd\"",
+                    "\"CaVp8\"", "\"Ivf\"",
+                ];
+                formats.into_iter()
+                    .filter(|f| f.starts_with(partial))
+                    .map(String::from)
+                    .collect()
+            },
+            "source" => {
+                let sources = vec![
+                    "\"PackFile\"", "\"GameFiles\"", "\"ParentFiles\"",
+                    "\"AssKitFiles\"", "\"ExternalFile\"",
+                ];
+                sources.into_iter()
+                    .filter(|s| s.starts_with(partial))
+                    .map(String::from)
+                    .collect()
+            },
+            _ => vec![],
+        };
+
+        let total = candidates.len() as u32;
+        let values: Vec<String> = candidates.into_iter().take(100).collect();
+        let has_more = total > 100;
+
+        Ok(CompleteResult {
+            completion: CompletionInfo {
+                values,
+                total: Some(total),
+                has_more: Some(has_more),
+            },
+        })
+    }
+
+    //-----------------------------------------------------------------------//
+    // Logging
+    //-----------------------------------------------------------------------//
+
+    async fn set_level(
+        &self,
+        _request: SetLevelRequestParam,
+        _context: RequestContext<RoleServer>,
+    ) -> Result<(), McpError> {
+        // Acknowledge the logging level request. RPFM uses its own logging
+        // infrastructure (rpfm_log/sentry), so we accept the request but
+        // don't change the internal log level.
+        Ok(())
     }
 }
 
@@ -720,7 +1211,8 @@ impl McpServer {
     pub fn new(session: Arc<Session>) -> Self {
         Self {
             session,
-            tool_router: McpServer::tool_router()
+            tool_router: McpServer::tool_router(),
+            prompt_router: McpServer::prompt_router(),
         }
     }
 
@@ -782,13 +1274,13 @@ impl McpServer {
     // Pack Metadata
     //-----------------------------------------------------------------------//
 
-    #[tool(description = "Set the type of the pack identified by `pack_key`. Pass the PFHFileType as JSON.")]
+    #[tool(description = "Set the type of the pack identified by `pack_key`. Valid PFHFileType values: \"Boot\", \"Release\", \"Patch\", \"Mod\", \"Movie\". Example: pack_file_type = \"\\\"Mod\\\"\"")]
     pub async fn set_pack_file_type(&self, params: Parameters<SetPackFileTypeArgs>) -> Result<CallToolResult, McpError> {
         let pfh_type = parse_json(&params.0.pack_file_type)?;
         send_and_respond!(self, "set_pack_file_type", Command::SetPackFileType(params.0.pack_key, pfh_type))
     }
 
-    #[tool(description = "Change the compression format of the pack identified by `pack_key`. Pass the CompressionFormat as JSON.")]
+    #[tool(description = "Change the compression format of the pack identified by `pack_key`. Valid formats: \"None\", \"Lzma1\" (legacy), \"Lz4\" (WH3 6.2+), \"Zstd\" (WH3 6.2+). Example: format = \"\\\"None\\\"\"")]
     pub async fn change_compression_format(&self, params: Parameters<ChangeCompressionFormatArgs>) -> Result<CallToolResult, McpError> {
         let format = parse_json(&params.0.format)?;
         send_and_respond!(self, "change_compression_format", Command::ChangeCompressionFormat(params.0.pack_key, format))
@@ -814,7 +1306,7 @@ impl McpServer {
         send_and_respond!(self, "get_pack_settings", Command::GetPackSettings(params.0.pack_key))
     }
 
-    #[tool(description = "Set the settings of the pack identified by `pack_key`. Pass PackSettings as JSON.")]
+    #[tool(description = "Set the settings of the pack identified by `pack_key`. The `settings` is a PackSettings JSON object containing pack-level configuration.")]
     pub async fn set_pack_settings(&self, params: Parameters<SetPackSettingsArgs>) -> Result<CallToolResult, McpError> {
         let settings = parse_json(&params.0.settings)?;
         send_and_respond!(self, "set_pack_settings", Command::SetPackSettings(params.0.pack_key, settings))
@@ -825,7 +1317,7 @@ impl McpServer {
         send_and_respond!(self, "get_dependency_pack_files_list", Command::GetDependencyPackFilesList(params.0.pack_key))
     }
 
-    #[tool(description = "Set the list of PackFiles marked as dependencies for the pack identified by `pack_key`. Pass Vec<(bool, String)> as JSON.")]
+    #[tool(description = "Set the list of PackFiles marked as dependencies for the pack identified by `pack_key`. The `list` is a JSON array of [enabled, pack_name] pairs, e.g. [[true, \"other_mod.pack\"], [false, \"disabled_mod.pack\"]].")]
     pub async fn set_dependency_pack_files_list(&self, params: Parameters<SetDependencyPackFilesListArgs>) -> Result<CallToolResult, McpError> {
         let list = parse_json(&params.0.list)?;
         send_and_respond!(self, "set_dependency_pack_files_list", Command::SetDependencyPackFilesList(params.0.pack_key, list))
@@ -835,66 +1327,66 @@ impl McpServer {
     // File Operations
     //-----------------------------------------------------------------------//
 
-    #[tool(description = "Decode a file from the pack identified by `pack_key`. The parameters are the path of the file inside the data source, and in what data source it is.")]
+    #[tool(description = "Decode a file from the pack identified by `pack_key`. The `path` is the internal file path (e.g. \"db/land_units_tables/my_mod\"). The `source` is the data source: \"PackFile\" (user mod), \"GameFiles\" (vanilla), \"ParentFiles\" (dependency mods), \"AssKitFiles\", or \"ExternalFile\". Returns the decoded file content as JSON (RFileDecoded).")]
     pub async fn decode_packed_file(&self, params: Parameters<DecodePackedFileArgs>) -> Result<CallToolResult, McpError> {
         send_and_respond!(self, "decode_packed_file", Command::DecodePackedFile(params.0.pack_key, params.0.path, params.0.source))
     }
 
-    #[tool(description = "Create a new file inside the pack identified by `pack_key`. Pass the NewFile type as JSON.")]
+    #[tool(description = "Create a new file inside the pack identified by `pack_key`. The `path` is the destination path (e.g. \"db/land_units_tables/my_mod\"). NewFile types: {\"DB\": [\"file_name\", \"table_name\", version]}, {\"Loc\": \"name\"}, {\"Text\": [\"name\", \"Plain\"]}, {\"AnimPack\": \"name\"}, {\"VMD\": \"name\"}, {\"WSModel\": \"name\"}, {\"PortraitSettings\": [\"name\", version, []]}.")]
     pub async fn new_packed_file(&self, params: Parameters<NewPackedFileArgs>) -> Result<CallToolResult, McpError> {
         let new_file = parse_json(&params.0.new_file)?;
         send_and_respond!(self, "new_packed_file", Command::NewPackedFile(params.0.pack_key, params.0.path, new_file))
     }
 
-    #[tool(description = "Add files from disk to the pack identified by `pack_key`. Pass destination ContainerPaths as JSON.")]
+    #[tool(description = "Add files from disk to the pack identified by `pack_key`. The `source_paths` are filesystem paths. The `destination_paths` is a JSON array of ContainerPath: [{\"File\": \"db/table/file\"}, {\"Folder\": \"ui/images\"}]. Optionally set `ignore_paths` to skip certain files.")]
     pub async fn add_packed_files(&self, params: Parameters<AddPackedFilesArgs>) -> Result<CallToolResult, McpError> {
         let dest: Vec<ContainerPath> = parse_json(&params.0.destination_paths)?;
         send_and_respond!(self, "add_packed_files", Command::AddPackedFiles(params.0.pack_key, params.0.source_paths, dest, params.0.ignore_paths))
     }
 
-    #[tool(description = "Add files from another PackFile to the pack identified by `pack_key`. Pass ContainerPaths as JSON.")]
+    #[tool(description = "Add files from another PackFile to the pack identified by `pack_key`. The `source_pack_path` is the pack path. The `container_paths` is a JSON array of ContainerPath: [{\"File\": \"path\"}].")]
     pub async fn add_packed_files_from_pack_file(&self, params: Parameters<AddPackedFilesFromPackFileArgs>) -> Result<CallToolResult, McpError> {
         let paths: Vec<ContainerPath> = parse_json(&params.0.container_paths)?;
         send_and_respond!(self, "add_packed_files_from_pack_file", Command::AddPackedFilesFromPackFile(params.0.pack_key, params.0.source_pack_path, paths))
     }
 
-    #[tool(description = "Add files from the pack identified by `pack_key` to an AnimPack. Pass ContainerPaths as JSON.")]
+    #[tool(description = "Add files from the pack identified by `pack_key` to an AnimPack. The `container_paths` is a JSON array of ContainerPath, e.g. [{\"File\": \"animations/anim.anim\"}]. The `animpack_path` is the AnimPack's internal path.")]
     pub async fn add_packed_files_from_pack_file_to_animpack(&self, params: Parameters<AddPackedFilesFromPackFileToAnimpackArgs>) -> Result<CallToolResult, McpError> {
         let paths: Vec<ContainerPath> = parse_json(&params.0.container_paths)?;
         send_and_respond!(self, "add_packed_files_from_pack_file_to_animpack", Command::AddPackedFilesFromPackFileToAnimpack(params.0.pack_key, params.0.animpack_path, paths))
     }
 
-    #[tool(description = "Add files from an AnimPack to the pack identified by `pack_key`. Pass ContainerPaths as JSON.")]
+    #[tool(description = "Add files from an AnimPack to the pack identified by `pack_key`. The `source` is the DataSource (\"PackFile\", \"GameFiles\", etc.). The `animpack_path` is the AnimPack's internal path. The `container_paths` is a JSON array of ContainerPath, e.g. [{\"File\": \"animations/anim.anim\"}].")]
     pub async fn add_packed_files_from_animpack(&self, params: Parameters<AddPackedFilesFromAnimpackArgs>) -> Result<CallToolResult, McpError> {
         let paths: Vec<ContainerPath> = parse_json(&params.0.container_paths)?;
         send_and_respond!(self, "add_packed_files_from_animpack", Command::AddPackedFilesFromAnimpack(params.0.pack_key, params.0.source, params.0.animpack_path, paths))
     }
 
-    #[tool(description = "Delete files from the pack identified by `pack_key`. Pass Vec<ContainerPath> as JSON.")]
+    #[tool(description = "Delete files from the pack identified by `pack_key`. The `paths` is a JSON array of ContainerPath: [{\"File\": \"path/to/file\"}, {\"Folder\": \"path/to/folder\"}].")]
     pub async fn delete_packed_files(&self, params: Parameters<ContainerPathsArg>) -> Result<CallToolResult, McpError> {
         let paths: Vec<ContainerPath> = parse_json(&params.0.paths)?;
         send_and_respond!(self, "delete_packed_files", Command::DeletePackedFiles(params.0.pack_key, paths))
     }
 
-    #[tool(description = "Delete files from an AnimPack in the pack identified by `pack_key`. Pass ContainerPaths as JSON.")]
+    #[tool(description = "Delete files from an AnimPack in the pack identified by `pack_key`. The `animpack_path` is the AnimPack's internal path. The `container_paths` is a JSON array of ContainerPath, e.g. [{\"File\": \"animations/anim.anim\"}].")]
     pub async fn delete_from_animpack(&self, params: Parameters<DeleteFromAnimpackArgs>) -> Result<CallToolResult, McpError> {
         let paths: Vec<ContainerPath> = parse_json(&params.0.container_paths)?;
         send_and_respond!(self, "delete_from_animpack", Command::DeleteFromAnimpack(params.0.pack_key, params.0.animpack_path, paths))
     }
 
-    #[tool(description = "Extract files from the pack identified by `pack_key` to disk. Pass source paths as JSON BTreeMap<DataSource, Vec<ContainerPath>>.")]
+    #[tool(description = "Extract files from the pack identified by `pack_key` to disk. The `source_paths` is a JSON object mapping DataSource to ContainerPath arrays, e.g. {\"PackFile\": [{\"File\": \"db/table/file\"}]}. Set `export_as_tsv: true` to export tables as TSV files.")]
     pub async fn extract_packed_files(&self, params: Parameters<ExtractPackedFilesArgs>) -> Result<CallToolResult, McpError> {
         let source: BTreeMap<DataSource, Vec<ContainerPath>> = parse_json(&params.0.source_paths)?;
         send_and_respond!(self, "extract_packed_files", Command::ExtractPackedFiles(params.0.pack_key, source, params.0.destination_path, params.0.export_as_tsv))
     }
 
-    #[tool(description = "Rename files in the pack identified by `pack_key`. Pass Vec<(ContainerPath, ContainerPath)> as JSON.")]
+    #[tool(description = "Rename files in the pack identified by `pack_key`. The `renames` is a JSON array of [old, new] ContainerPath pairs, e.g. [[{\"File\": \"old/path\"}, {\"File\": \"new/path\"}]].")]
     pub async fn rename_packed_files(&self, params: Parameters<RenamePackedFilesArgs>) -> Result<CallToolResult, McpError> {
         let renames: Vec<(ContainerPath, ContainerPath)> = parse_json(&params.0.renames)?;
         send_and_respond!(self, "rename_packed_files", Command::RenamePackedFiles(params.0.pack_key, renames))
     }
 
-    #[tool(description = "Save an edited decoded file back to the pack identified by `pack_key`. Pass RFileDecoded as JSON.")]
+    #[tool(description = "Save an edited decoded file back to the pack identified by `pack_key`. The `path` is the internal path (e.g. \"db/land_units_tables/my_mod\"). The `data` is the modified RFileDecoded JSON (same structure returned by `decode_packed_file`).")]
     pub async fn save_packed_file_from_view(&self, params: Parameters<SavePackedFileFromViewArgs>) -> Result<CallToolResult, McpError> {
         let data: RFileDecoded = parse_json(&params.0.data)?;
         send_and_respond!(self, "save_packed_file_from_view", Command::SavePackedFileFromView(params.0.pack_key, params.0.path, data))
@@ -905,7 +1397,7 @@ impl McpServer {
         send_and_respond!(self, "save_packed_file_from_external_view", Command::SavePackedFileFromExternalView(params.0.pack_key, params.0.internal_path, params.0.external_path))
     }
 
-    #[tool(description = "Save files to the pack identified by `pack_key` and optionally clean. Pass Vec<RFile> as JSON.")]
+    #[tool(description = "Save files to the pack identified by `pack_key` and optionally optimize afterward. The `files` is a JSON array of RFile objects (as returned by decode/get operations). Set `optimize` to true to remove unchanged data after saving.")]
     pub async fn save_packed_files_to_pack_file_and_clean(&self, params: Parameters<SavePackedFilesToPackFileAndCleanArgs>) -> Result<CallToolResult, McpError> {
         let files: Vec<RFile> = parse_json(&params.0.files)?;
         send_and_respond!(self, "save_packed_files_to_pack_file_and_clean", Command::SavePackedFilesToPackFileAndClean(params.0.pack_key, files, params.0.optimize))
@@ -916,7 +1408,7 @@ impl McpServer {
         send_and_respond!(self, "get_packed_file_raw_data", Command::GetPackedFileRawData(params.0.pack_key, params.0.value))
     }
 
-    #[tool(description = "Open a file in an external program from the pack identified by `pack_key`. Pass ContainerPath as JSON.")]
+    #[tool(description = "Open a file in the system's default program from the pack identified by `pack_key`. The `source` is the DataSource (\"PackFile\", \"GameFiles\", etc.). The `container_path` is a ContainerPath JSON, e.g. {\"File\": \"db/table/file\"}.")]
     pub async fn open_packed_file_in_external_program(&self, params: Parameters<OpenPackedFileInExternalProgramArgs>) -> Result<CallToolResult, McpError> {
         let cp: ContainerPath = parse_json(&params.0.container_path)?;
         send_and_respond!(self, "open_packed_file_in_external_program", Command::OpenPackedFileInExternalProgram(params.0.pack_key, params.0.source, cp))
@@ -927,7 +1419,7 @@ impl McpServer {
         send_and_respond!(self, "open_containing_folder", Command::OpenContainingFolder(params.0.pack_key))
     }
 
-    #[tool(description = "Clean the decode cache for the provided paths in the pack identified by `pack_key`. Pass Vec<ContainerPath> as JSON.")]
+    #[tool(description = "Clean the decode cache for the provided paths in the pack identified by `pack_key`. The `paths` is a JSON array of ContainerPath, e.g. [{\"File\": \"db/land_units_tables/my_mod\"}, {\"Folder\": \"db\"}].")]
     pub async fn clean_cache(&self, params: Parameters<ContainerPathsArg>) -> Result<CallToolResult, McpError> {
         let paths: Vec<ContainerPath> = parse_json(&params.0.paths)?;
         send_and_respond!(self, "clean_cache", Command::CleanCache(params.0.pack_key, paths))
@@ -962,7 +1454,7 @@ impl McpServer {
         send_and_respond!(self, "get_game_selected", Command::GetGameSelected)
     }
 
-    #[tool(description = "Set the current game selected. You need to set this to one of the valid games after opening a pack.")]
+    #[tool(description = "Set the current game. Valid game keys: pharaoh_dynasties, pharaoh, warhammer_3, troy, three_kingdoms, warhammer_2, warhammer, thrones_of_britannia, attila, rome_2, shogun_2, napoleon, empire, arena. Set rebuild_dependencies to true on first call to load schemas and vanilla data.")]
     pub async fn set_game_selected(&self, params: Parameters<SetGameSelectedArgs>) -> Result<CallToolResult, McpError> {
         send_and_respond!(self, "set_game_selected", Command::SetGameSelected(params.0.game_name, params.0.rebuild_dependencies))
     }
@@ -1011,19 +1503,19 @@ impl McpServer {
         send_and_respond!(self, "get_tables_from_dependencies", Command::GetTablesFromDependencies(params.0.value))
     }
 
-    #[tool(description = "Import files from dependencies into the pack identified by `pack_key`. Pass BTreeMap<DataSource, Vec<ContainerPath>> as JSON.")]
+    #[tool(description = "Import files from dependencies into the pack identified by `pack_key`. The `paths` is a JSON object mapping DataSource to ContainerPath arrays, e.g. {\"GameFiles\": [{\"File\": \"db/table/file\"}]}.")]
     pub async fn import_dependencies_to_open_pack_file(&self, params: Parameters<ImportDependenciesArgs>) -> Result<CallToolResult, McpError> {
         let paths: BTreeMap<DataSource, Vec<ContainerPath>> = parse_json(&params.0.paths)?;
         send_and_respond!(self, "import_dependencies_to_open_pack_file", Command::ImportDependenciesToOpenPackFile(params.0.pack_key, paths))
     }
 
-    #[tool(description = "Get files from all known sources (PackFile, GameFiles, ParentFiles). Pass Vec<ContainerPath> as JSON.")]
+    #[tool(description = "Get files from all known sources (PackFile, GameFiles, ParentFiles). The `paths` is a JSON array of ContainerPath, e.g. [{\"File\": \"db/land_units_tables/some_file\"}]. Set `lowercase` to true to normalize path casing.")]
     pub async fn get_rfiles_from_all_sources(&self, params: Parameters<GetRFilesFromAllSourcesArgs>) -> Result<CallToolResult, McpError> {
         let paths: Vec<ContainerPath> = parse_json(&params.0.paths)?;
         send_and_respond!(self, "get_rfiles_from_all_sources", Command::GetRFilesFromAllSources(paths, params.0.lowercase))
     }
 
-    #[tool(description = "Get all file names under a path in all dependencies. Pass ContainerPath as JSON.")]
+    #[tool(description = "Get all file names under a path prefix across all data sources (PackFile, GameFiles, ParentFiles). The `path` is a ContainerPath JSON, e.g. {\"Folder\": \"db/land_units_tables\"} to list all files under that folder.")]
     pub async fn get_packed_files_names_starting_with_path_from_all_sources(&self, params: Parameters<ContainerPathArg>) -> Result<CallToolResult, McpError> {
         let path: ContainerPath = parse_json(&params.0.path)?;
         send_and_respond!(self, "get_packed_files_names_starting_with_path_from_all_sources", Command::GetPackedFilesNamesStartingWitPathFromAllSources(path))
@@ -1043,32 +1535,32 @@ impl McpServer {
     // Search
     //-----------------------------------------------------------------------//
 
-    #[tool(description = "Run a global search across the pack identified by `pack_key`. Pass GlobalSearch as JSON.")]
+    #[tool(description = "Run a global search across the pack identified by `pack_key`. The `search` is a GlobalSearch JSON with fields: pattern (string), replace_text (string), case_sensitive (bool), use_regex (bool), search_on ({db: bool, loc: bool, text: bool, ...}), sources ([{\"Pack\": \"key\"}]), game_key (string). See the `rpfm://examples/global_search` resource for a full example.")]
     pub async fn global_search(&self, params: Parameters<GlobalSearchArgs>) -> Result<CallToolResult, McpError> {
         let search = parse_json(&params.0.search)?;
         send_and_respond!(self, "global_search", Command::GlobalSearch(params.0.pack_key, search))
     }
 
-    #[tool(description = "Replace specific matches in a global search for the pack identified by `pack_key`. Pass GlobalSearch and Vec<MatchHolder> as JSON.")]
+    #[tool(description = "Replace specific matches in a global search for the pack identified by `pack_key`. The `search` is the same GlobalSearch JSON used in `global_search` (see `rpfm://examples/global_search` resource). The `matches` is a JSON array of MatchHolder objects from the search results — include only the matches you want to replace.")]
     pub async fn global_search_replace_matches(&self, params: Parameters<GlobalSearchReplaceMatchesArgs>) -> Result<CallToolResult, McpError> {
         let search = parse_json(&params.0.search)?;
         let matches = parse_json(&params.0.matches)?;
         send_and_respond!(self, "global_search_replace_matches", Command::GlobalSearchReplaceMatches(params.0.pack_key, search, matches))
     }
 
-    #[tool(description = "Replace all matches in a global search for the pack identified by `pack_key`. Pass GlobalSearch as JSON.")]
+    #[tool(description = "Replace all matches in a global search for the pack identified by `pack_key`. The `search` is a GlobalSearch JSON with the `replace_text` field set to the replacement string. See `rpfm://examples/global_search` resource for the full structure.")]
     pub async fn global_search_replace_all(&self, params: Parameters<GlobalSearchArgs>) -> Result<CallToolResult, McpError> {
         let search = parse_json(&params.0.search)?;
         send_and_respond!(self, "global_search_replace_all", Command::GlobalSearchReplaceAll(params.0.pack_key, search))
     }
 
-    #[tool(description = "Find all references to a value in the pack identified by `pack_key`. Pass HashMap<String, Vec<String>> as JSON for the reference map.")]
+    #[tool(description = "Find all references to a value in the pack identified by `pack_key`. The `reference_map` is a JSON object mapping table names to column name arrays, e.g. {\"land_units_tables\": [\"key\", \"unit\"]}. The `value` is the string to search for across those columns.")]
     pub async fn search_references(&self, params: Parameters<SearchReferencesArgs>) -> Result<CallToolResult, McpError> {
         let map: HashMap<String, Vec<String>> = parse_json(&params.0.reference_map)?;
         send_and_respond!(self, "search_references", Command::SearchReferences(params.0.pack_key, map, params.0.value))
     }
 
-    #[tool(description = "Get reference data for columns in a definition for the pack identified by `pack_key`. Pass Definition as JSON.")]
+    #[tool(description = "Get valid reference values for columns in a table definition for the pack identified by `pack_key`. The `definition` is a Definition JSON (as returned by `get_table_definition_from_dependency_pack_file`). Set `force` to true to regenerate cached reference data.")]
     pub async fn get_reference_data_from_definition(&self, params: Parameters<GetReferenceDataFromDefinitionArgs>) -> Result<CallToolResult, McpError> {
         let def = parse_json(&params.0.definition)?;
         send_and_respond!(self, "get_reference_data_from_definition", Command::GetReferenceDataFromDefinition(params.0.pack_key, params.0.table_name, def, params.0.force))
@@ -1093,7 +1585,7 @@ impl McpServer {
     // Schema
     //-----------------------------------------------------------------------//
 
-    #[tool(description = "Save the provided schema to disk. Pass Schema as JSON.")]
+    #[tool(description = "Save the provided schema to disk. The `schema` is the full Schema JSON object (as returned by `get_schema`). Use this after modifying definitions or applying patches.")]
     pub async fn save_schema(&self, params: Parameters<SaveSchemaArgs>) -> Result<CallToolResult, McpError> {
         let schema = parse_json(&params.0.schema)?;
         send_and_respond!(self, "save_schema", Command::SaveSchema(schema))
@@ -1134,19 +1626,19 @@ impl McpServer {
         send_and_respond!(self, "delete_definition", Command::DeleteDefinition(params.0.name, params.0.version))
     }
 
-    #[tool(description = "Get columns that reference a table's definition. Pass Definition as JSON.")]
+    #[tool(description = "Get columns from other tables that reference the given table's definition. The `definition` is a Definition JSON (as returned by `get_table_definition_from_dependency_pack_file` or `definitions_by_table_name`).")]
     pub async fn referencing_columns_for_definition(&self, params: Parameters<ReferencingColumnsForDefinitionArgs>) -> Result<CallToolResult, McpError> {
         let def = parse_json(&params.0.definition)?;
         send_and_respond!(self, "referencing_columns_for_definition", Command::ReferencingColumnsForDefinition(params.0.table_name, def))
     }
 
-    #[tool(description = "Get the processed fields from a definition (bitwise expansion, enum conversion applied). Pass Definition as JSON.")]
+    #[tool(description = "Get the processed fields from a definition with bitwise expansion and enum conversions applied (useful for display). The `definition` is a Definition JSON (as returned by `get_table_definition_from_dependency_pack_file`).")]
     pub async fn fields_processed(&self, params: Parameters<DefinitionArg>) -> Result<CallToolResult, McpError> {
         let def = parse_json(&params.0.definition)?;
         send_and_respond!(self, "fields_processed", Command::FieldsProcessed(def))
     }
 
-    #[tool(description = "Save local schema patches. Pass HashMap<String, DefinitionPatch> as JSON.")]
+    #[tool(description = "Save local schema patches to customize column metadata without modifying the upstream schema. The `patches` is a JSON object mapping table names to DefinitionPatch objects, e.g. {\"land_units_tables\": {\"field_patches\": {...}}}.")]
     pub async fn save_local_schema_patch(&self, params: Parameters<SchemaPatchArgs>) -> Result<CallToolResult, McpError> {
         let patches = parse_json(&params.0.patches)?;
         send_and_respond!(self, "save_local_schema_patch", Command::SaveLocalSchemaPatch(patches))
@@ -1162,7 +1654,7 @@ impl McpServer {
         send_and_respond!(self, "remove_local_schema_patches_for_table_and_field", Command::RemoveLocalSchemaPatchesForTableAndField(params.0.key, params.0.value))
     }
 
-    #[tool(description = "Import a schema patch. Pass HashMap<String, DefinitionPatch> as JSON.")]
+    #[tool(description = "Import a schema patch from an external source. The `patches` is a JSON object mapping table names to DefinitionPatch objects (same format as `save_local_schema_patch`).")]
     pub async fn import_schema_patch(&self, params: Parameters<SchemaPatchArgs>) -> Result<CallToolResult, McpError> {
         let patches = parse_json(&params.0.patches)?;
         send_and_respond!(self, "import_schema_patch", Command::ImportSchemaPatch(patches))
@@ -1172,19 +1664,19 @@ impl McpServer {
     // Table Operations
     //-----------------------------------------------------------------------//
 
-    #[tool(description = "Merge multiple compatible tables into one in the pack identified by `pack_key`. Pass Vec<ContainerPath> as JSON.")]
+    #[tool(description = "Merge multiple compatible tables into one in the pack identified by `pack_key`. The `paths` is a JSON array of ContainerPath for the tables to merge, e.g. [{\"File\": \"db/land_units_tables/table1\"}, {\"File\": \"db/land_units_tables/table2\"}]. The `merged_path` is the destination path. Set `delete_source` to true to remove the original files.")]
     pub async fn merge_files(&self, params: Parameters<MergeFilesArgs>) -> Result<CallToolResult, McpError> {
         let paths: Vec<ContainerPath> = parse_json(&params.0.paths)?;
         send_and_respond!(self, "merge_files", Command::MergeFiles(params.0.pack_key, paths, params.0.merged_path, params.0.delete_source))
     }
 
-    #[tool(description = "Update a table to a newer version in the pack identified by `pack_key`. Pass ContainerPath as JSON.")]
+    #[tool(description = "Update a table to the latest schema version in the pack identified by `pack_key`. The `value` is a ContainerPath JSON, e.g. {\"File\": \"db/land_units_tables/my_mod\"}.")]
     pub async fn update_table(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
         let path: ContainerPath = parse_json(&params.0.value)?;
         send_and_respond!(self, "update_table", Command::UpdateTable(params.0.pack_key, path))
     }
 
-    #[tool(description = "Trigger a cascade edition on all referenced data in the pack identified by `pack_key`. Pass Definition and Vec<(Field, String, String)> as JSON.")]
+    #[tool(description = "Trigger a cascade edition on all referenced data in the pack identified by `pack_key`. When a key value changes, this propagates the change to all referencing tables. The `definition` is a Definition JSON for the source table. The `changes` is a JSON array of [field, old_value, new_value] tuples, e.g. [[field_json, \"old_key\", \"new_key\"]].")]
     pub async fn cascade_edition(&self, params: Parameters<CascadeEditionArgs>) -> Result<CallToolResult, McpError> {
         let def = parse_json(&params.0.definition)?;
         let changes = parse_json(&params.0.changes)?;
@@ -1220,7 +1712,7 @@ impl McpServer {
         send_and_respond!(self, "diagnostics_check", Command::DiagnosticsCheck(params.0.ignored, params.0.check_ak_only_refs))
     }
 
-    #[tool(description = "Update diagnostics for changed files across all open packs. Pass Diagnostics and Vec<ContainerPath> as JSON.")]
+    #[tool(description = "Update diagnostics incrementally for changed files across all open packs. The `diagnostics` is the Diagnostics JSON from a previous `diagnostics_check` call. The `paths` is a JSON array of ContainerPath for the files that changed, e.g. [{\"File\": \"db/land_units_tables/my_mod\"}].")]
     pub async fn diagnostics_update(&self, params: Parameters<DiagnosticsUpdateArgs>) -> Result<CallToolResult, McpError> {
         let diag = parse_json(&params.0.diagnostics)?;
         let paths: Vec<ContainerPath> = parse_json(&params.0.paths)?;
@@ -1246,7 +1738,7 @@ impl McpServer {
         send_and_respond!(self, "notes_for_path", Command::NotesForPath(params.0.pack_key, params.0.value))
     }
 
-    #[tool(description = "Add a note to the pack identified by `pack_key`. Pass Note as JSON.")]
+    #[tool(description = "Add a note to the pack identified by `pack_key`. The `note` is a Note JSON object with fields: path (string — the file or folder path to attach the note to), id (u64), text (string — the note content).")]
     pub async fn add_note(&self, params: Parameters<AddNoteArgs>) -> Result<CallToolResult, McpError> {
         let note = parse_json(&params.0.note)?;
         send_and_respond!(self, "add_note", Command::AddNote(params.0.pack_key, note))
@@ -1261,7 +1753,7 @@ impl McpServer {
     // Optimization
     //-----------------------------------------------------------------------//
 
-    #[tool(description = "Optimize the pack identified by `pack_key`. Pass OptimizerOptions as JSON.")]
+    #[tool(description = "Optimize the pack identified by `pack_key` by removing unchanged/duplicate data. The `options` is an OptimizerOptions JSON with boolean fields: pack_remove_itm_files, table_remove_duplicated_entries, table_remove_itm_entries, table_remove_itnr_entries, table_remove_empty_file, db_optimize_datacored_tables, etc. See the `rpfm://examples/optimizer_options` resource for all fields.")]
     pub async fn optimize_pack_file(&self, params: Parameters<OptimizePackFileArgs>) -> Result<CallToolResult, McpError> {
         let options = parse_json(&params.0.options)?;
         send_and_respond!(self, "optimize_pack_file", Command::OptimizePackFile(params.0.pack_key, options))
@@ -1492,7 +1984,7 @@ impl McpServer {
         send_and_respond!(self, "patch_siege_ai", Command::PatchSiegeAI(params.0.pack_key))
     }
 
-    #[tool(description = "Pack map tiles into the pack identified by `pack_key`. Pass Vec<(PathBuf, String)> as JSON for tiles.")]
+    #[tool(description = "Pack map tiles into the pack identified by `pack_key`. The `tile_maps` is a list of tile map file paths on disk. The `tiles` is a JSON array of [path, name] pairs, e.g. [[\"/path/to/tile\", \"tile_name\"]].")]
     pub async fn pack_map(&self, params: Parameters<PackMapArgs>) -> Result<CallToolResult, McpError> {
         let tiles: Vec<(PathBuf, String)> = parse_json(&params.0.tiles)?;
         send_and_respond!(self, "pack_map", Command::PackMap(params.0.pack_key, params.0.tile_maps, tiles))
@@ -1543,13 +2035,13 @@ impl McpServer {
         send_and_respond!(self, "get_anim_paths_by_skeleton_name", Command::GetAnimPathsBySkeletonName(params.0.value))
     }
 
-    #[tool(description = "Export a RigidModel to glTF format. Pass RigidModel as JSON.")]
+    #[tool(description = "Export a RigidModel to glTF format. The `rigid_model` is a RigidModel JSON object (as returned by decoding a .rigid_model_v2 file with `decode_packed_file`). The `output_path` is the destination file path on disk.")]
     pub async fn export_rigid_to_gltf(&self, params: Parameters<ExportRigidToGltfArgs>) -> Result<CallToolResult, McpError> {
         let rigid = parse_json(&params.0.rigid_model)?;
         send_and_respond!(self, "export_rigid_to_gltf", Command::ExportRigidToGltf(rigid, params.0.output_path))
     }
 
-    #[tool(description = "Change the format of a ca_vp8 video file in the pack identified by `pack_key`. Pass SupportedFormats as JSON.")]
+    #[tool(description = "Change the format of a ca_vp8 video file in the pack identified by `pack_key`. Valid formats: \"CaVp8\" (CA custom VP8) or \"Ivf\" (standard VP8 IVF).")]
     pub async fn set_video_format(&self, params: Parameters<SetVideoFormatArgs>) -> Result<CallToolResult, McpError> {
         let format = parse_json(&params.0.format)?;
         send_and_respond!(self, "set_video_format", Command::SetVideoFormat(params.0.pack_key, params.0.path, format))
@@ -1562,5 +2054,498 @@ impl McpServer {
     #[tool(description = "List all currently open packs with their keys and metadata. Use this to get valid pack_key values for other tools.")]
     pub async fn list_open_packs(&self) -> Result<CallToolResult, McpError> {
         send_and_respond!(self, "list_open_packs", Command::ListOpenPacks)
+    }
+
+    //-----------------------------------------------------------------------//
+    // Additional tools
+    //-----------------------------------------------------------------------//
+
+    #[tool(description = "Close all currently open packs without saving. Any unsaved changes will be lost.")]
+    pub async fn close_all_packs(&self) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self, "close_all_packs", Command::CloseAllPacks)
+    }
+
+}
+
+//-------------------------------------------------------------------------------//
+//                              MCP Prompts
+//-------------------------------------------------------------------------------//
+
+#[prompt_router]
+impl McpServer {
+
+    #[prompt(name = "open_and_inspect_pack", description = "Walk through opening a PackFile and inspecting its contents.")]
+    pub async fn open_and_inspect_pack(&self) -> Vec<PromptMessage> {
+        vec![PromptMessage::new_text(
+            PromptMessageRole::User,
+            "\
+You are an assistant helping the user inspect a Total War PackFile using the RPFM MCP server.
+
+Follow these steps in order:
+
+1. **Open the pack** – Call `open_packfiles` with the filesystem path(s) the user provides.
+   The response contains one or more pack keys; remember them for subsequent calls.
+
+2. **Select the game** – Call `set_game_selected` with the correct game key (e.g. `\"warhammer_3\"`)
+   and `rebuild_dependencies: true` so that schemas and dependency data are loaded.
+
+3. **List pack contents** – Call `open_pack_info` with the pack key to get the full file tree.
+   Present the tree to the user in a readable format.
+
+4. **Decode specific files** – When the user asks about a file, call `decode_packed_file` with the
+   pack key, the internal path (e.g. `\"db/land_units_tables/my_table\"`), and
+   `source: \"PackFile\"`. The decoded JSON will contain the table rows, schema, etc.
+
+5. **Inspect metadata** – Use `get_pack_settings`, `get_pack_file_name`, or
+   `get_dependency_pack_files_list` to answer questions about the pack itself.
+
+Important notes:
+- Always call `list_open_packs` if you are unsure which pack key to use.
+- If a file fails to decode, check `is_schema_loaded`; if false, call `update_schemas` first.
+- When done, optionally call `close_pack` to free resources.
+",
+        )]
+    }
+
+    #[prompt(name = "edit_db_table", description = "Guide for reading, modifying, and saving a DB table inside a pack.")]
+    pub async fn edit_db_table(&self) -> Vec<PromptMessage> {
+        vec![PromptMessage::new_text(
+            PromptMessageRole::User,
+            "\
+You are an assistant helping the user edit a DB table inside a Total War PackFile.
+
+Workflow:
+
+1. **Open the pack** – `open_packfiles` → note the `pack_key`.
+2. **Set the game** – `set_game_selected` with `rebuild_dependencies: true`.
+3. **Decode the table** – `decode_packed_file` with the DB path
+   (e.g. `\"db/unit_stats_land_tables/my_table\"`) and `source: \"PackFile\"`.
+   The response is an `RFileDecoded` JSON containing the table data and definition.
+4. **Modify rows** – Edit the decoded JSON: add, remove, or change rows/cells.
+   Each row is typically a list of `DecodedData` values matching the table's
+   fields processed list (retrievable via the `FieldsProcessed` message).
+5. **Save back** – Call `save_packed_file_from_view` with the pack key, the same path,
+   and the modified `RFileDecoded` JSON as the `data` parameter.
+6. **Save the pack** – Call `save_packfile` (or `save_pack_as` for a new path).
+
+Tips:
+- Use `get_table_definition_from_dependency_pack_file` to see the expected column schema.
+- Use `get_reference_data_from_definition` to discover valid values for referenced columns.
+- After saving, you can run `diagnostics_check` to validate the pack.
+",
+        )]
+    }
+
+    #[prompt(name = "create_new_mod", description = "Step-by-step guide for creating a new mod PackFile from scratch.")]
+    pub async fn create_new_mod(&self) -> Vec<PromptMessage> {
+        vec![PromptMessage::new_text(
+            PromptMessageRole::User,
+            "\
+You are an assistant helping the user create a new Total War mod from scratch.
+
+Workflow:
+
+1. **Set the game** – `set_game_selected` with the target game key and
+   `rebuild_dependencies: true`.
+
+2. **Create the pack** – `new_pack` returns a new empty pack and its pack key.
+
+3. **Set pack type** – `set_pack_file_type` to `\"Mod\"` (the standard type for mods).
+
+4. **Add DB tables** – For each table you need:
+   a. Call `new_packed_file` with the pack key, the path (e.g. `\"db/land_units_tables/my_mod\"`),
+      and the `new_file` JSON set to `\"DB\"` with the table name.
+   b. Decode, edit, and save as described in the `edit_db_table` workflow.
+
+5. **Add Loc files** – For localisation:
+   a. `new_packed_file` with path `\"text/db/my_mod.loc\"` and `new_file` set to `\"Loc\"`.
+   b. Decode, add key/value rows, and save.
+
+6. **Add other files** – Use `add_packed_files` to import assets from disk (images, models, etc.).
+
+7. **Save the pack** – `save_pack_as` to write the final `.pack` file to disk.
+
+Optional steps:
+- `initialize_my_mod_folder` to set up a mod development folder with IDE support.
+- `optimize_pack_file` to strip unchanged rows that match vanilla data.
+- `diagnostics_check` to validate everything before release.
+",
+        )]
+    }
+
+    #[prompt(name = "search_and_replace", description = "Find and replace values across all files in a pack.")]
+    pub async fn search_and_replace(&self) -> Vec<PromptMessage> {
+        vec![PromptMessage::new_text(
+            PromptMessageRole::User,
+            "\
+You are an assistant helping the user search for and replace data across a PackFile.
+
+Workflow:
+
+1. **Open the pack** and **set the game** (see `open_and_inspect_pack` prompt).
+
+2. **Run a global search** – Call `global_search` with the pack key and a `GlobalSearch`
+   JSON object. The search object specifies the pattern, whether to use regex, which file
+   types to include (DB, Loc, Text), and the replacement string.
+
+3. **Review matches** – The response contains all matches grouped by file.
+   Present them to the user for review.
+
+4. **Replace selectively** – Call `global_search_replace_matches` with the same search
+   object and a `Vec<MatchHolder>` containing only the matches the user approved.
+
+5. **Or replace all** – If the user confirms a blanket replace, call
+   `global_search_replace_all` with the search object.
+
+6. **Save** – `save_packfile` to persist changes.
+
+Related tools:
+- `search_references` – Find all rows that reference a specific value across tables.
+- `go_to_definition` – Jump to where a referenced key is defined.
+- `go_to_loc` – Find the loc entry for a given key.
+",
+        )]
+    }
+
+    #[prompt(name = "manage_dependencies", description = "Set up and work with game dependencies and vanilla data.")]
+    pub async fn manage_dependencies(&self) -> Vec<PromptMessage> {
+        vec![PromptMessage::new_text(
+            PromptMessageRole::User,
+            "\
+You are an assistant helping the user work with dependency data (vanilla game files).
+
+Workflow:
+
+1. **Set the game** – `set_game_selected` with `rebuild_dependencies: true`.
+
+2. **Check dependency database** – `is_there_a_dependency_database` with `true` to verify
+   that game data (including Assembly Kit data) is loaded.
+   If it returns false, call `generate_dependencies_cache` first.
+
+3. **Browse vanilla tables** – `get_table_list_from_dependency_pack_file` returns all
+   DB table names from the vanilla game files.
+
+4. **Read vanilla data** – `get_tables_from_dependencies` with a table name to get
+   all rows from vanilla for that table.
+
+5. **Get definitions** – `get_table_definition_from_dependency_pack_file` to get the
+   schema definition for any table.
+
+6. **Import from vanilla** – `import_dependencies_to_open_pack_file` to copy specific
+   files from vanilla into your mod pack.
+
+7. **Open CA packs** – `load_all_ca_pack_files` opens all vanilla packs as one merged
+   read-only pack for full browsing.
+
+8. **Cross-source lookups** – `get_rfiles_from_all_sources` retrieves files by path
+   from PackFile, GameFiles, and ParentFiles simultaneously.
+
+Tips:
+- Use `get_packed_files_names_starting_with_path_from_all_sources` to discover files
+  under a given path prefix across all sources.
+- `set_dependency_pack_files_list` lets you mark other mods as dependencies of your pack.
+",
+        )]
+    }
+
+    #[prompt(name = "run_diagnostics", description = "Validate a pack and fix common issues.")]
+    pub async fn run_diagnostics(&self) -> Vec<PromptMessage> {
+        vec![PromptMessage::new_text(
+            PromptMessageRole::User,
+            "\
+You are an assistant helping the user validate a Total War mod PackFile.
+
+Workflow:
+
+1. **Open the pack** and **set the game** with `rebuild_dependencies: true`.
+
+2. **Generate dependencies** – If dependencies have not been generated yet,
+   call `generate_dependencies` to build the dependency data needed for diagnostics.
+
+3. **Run full diagnostics** – `diagnostics_check` with an empty `ignored` list
+   and `check_ak_only_refs: false` (or `true` to include Assembly Kit references).
+   The response contains all warnings and errors grouped by category.
+
+4. **Review results** – Present the diagnostic results to the user, grouped by severity.
+   Common issues include:
+   - Invalid references (a column references a key that does not exist)
+   - Duplicate keys
+   - Empty loc entries
+   - Outdated table versions
+
+5. **Fix issues** – For each issue:
+   - Decode the affected file with `decode_packed_file`.
+   - Apply the fix (correct a reference, remove a duplicate row, etc.).
+   - Save with `save_packed_file_from_view`.
+
+6. **Ignore false positives** – Use `add_line_to_pack_ignored_diagnostics` to suppress
+   specific diagnostic lines that are intentional.
+
+7. **Re-check** – After fixes, call `diagnostics_check` again to confirm all issues
+   are resolved.
+
+8. **Optimize** – Optionally run `optimize_pack_file` to remove rows that are identical
+   to vanilla, reducing pack size.
+",
+        )]
+    }
+
+    #[prompt(name = "schema_operations", description = "Work with table schemas: inspect, update, and patch definitions.")]
+    pub async fn schema_operations(&self) -> Vec<PromptMessage> {
+        vec![PromptMessage::new_text(
+            PromptMessageRole::User,
+            "\
+You are an assistant helping the user manage RPFM table schemas.
+
+Workflow:
+
+1. **Check schema status** – `is_schema_loaded` to verify a schema is loaded.
+   If not, call `update_schemas` to download the latest from the repository.
+
+2. **Get the full schema** – `get_schema` returns the entire schema object.
+
+3. **Inspect a table definition** – `definitions_by_table_name` with a table name
+   returns all known versions. Use `definition_by_table_name_and_version` for a
+   specific version.
+
+4. **See processed fields** – `fields_processed` takes a Definition JSON and returns
+   fields with bitwise expansion and enum conversions applied (useful for display).
+
+5. **Find referencing columns** – `referencing_columns_for_definition` shows which
+   other tables reference a given table's columns.
+
+6. **Patch a definition** – To customise column metadata (descriptions, references,
+   default values) without modifying the upstream schema:
+   a. Build a `HashMap<String, DefinitionPatch>` with your changes.
+   b. Call `save_local_schema_patch` to persist it locally.
+   c. Use `remove_local_schema_patches_for_table` or
+      `remove_local_schema_patches_for_table_and_field` to undo patches.
+
+7. **Import patches** – `import_schema_patch` applies a patch from another source.
+
+8. **Update from Assembly Kit** – `update_current_schema_from_asskit` merges
+   definition data from the game's Assembly Kit into the loaded schema.
+
+9. **Save the schema** – `save_schema` writes the current in-memory schema to disk.
+",
+        )]
+    }
+
+    #[prompt(name = "file_operations", description = "Add, remove, rename, extract, and move files within packs.")]
+    pub async fn file_operations(&self) -> Vec<PromptMessage> {
+        vec![PromptMessage::new_text(
+            PromptMessageRole::User,
+            "\
+You are an assistant helping the user manage files inside a Total War PackFile.
+
+Common operations:
+
+**Add files from disk:**
+- `add_packed_files` – Import files from the filesystem into the pack. Provide source
+  filesystem paths and destination `ContainerPath` entries as JSON.
+
+**Add files from another pack:**
+- `add_packed_files_from_pack_file` – Copy files between two open packs.
+
+**Create new files:**
+- `new_packed_file` – Create a blank DB table, Loc file, or other file type inside the pack.
+
+**Delete files:**
+- `delete_packed_files` – Remove files by their `ContainerPath` list.
+
+**Rename / move files:**
+- `rename_packed_files` – Pass a list of `(old_path, new_path)` tuples.
+
+**Extract to disk:**
+- `extract_packed_files` – Export files from the pack to a folder on disk.
+  Set `export_as_tsv: true` to export tables as TSV files.
+
+**AnimPack operations:**
+- `add_packed_files_from_pack_file_to_animpack` – Add files to an AnimPack.
+- `add_packed_files_from_animpack` – Extract files from an AnimPack.
+- `delete_from_animpack` – Remove files from an AnimPack.
+
+**File info:**
+- `get_packed_files_info` / `get_rfile_info` – Get metadata about files.
+- `folder_exists` / `packed_file_exists` – Check if a path exists.
+- `get_packed_file_raw_data` – Get the raw binary content of a file.
+
+**Merge tables:**
+- `merge_files` – Combine multiple compatible tables into one.
+
+**External editing:**
+- `open_packed_file_in_external_program` – Open a file in the system's default editor.
+- `save_packed_file_from_external_view` – Re-import after external editing.
+
+Always call `save_packfile` or `save_pack_as` when done to persist changes.
+",
+        )]
+    }
+
+    #[prompt(name = "troubleshooting", description = "Diagnose and fix common issues with RPFM and PackFiles.")]
+    pub async fn troubleshooting(&self) -> Vec<PromptMessage> {
+        vec![PromptMessage::new_text(
+            PromptMessageRole::User,
+            "\
+You are an assistant helping the user troubleshoot common RPFM and PackFile issues.
+
+## Common Issues and Solutions
+
+### 1. Schema not loaded
+**Symptom**: Files fail to decode, or `decode_packed_file` returns raw data.
+**Solution**:
+- Call `is_schema_loaded()` – if false, call `update_schemas()`.
+- Make sure `set_game_selected` was called with `rebuild_dependencies: true`.
+
+### 2. Dependencies not available
+**Symptom**: References show as invalid, diagnostics report missing keys.
+**Solution**:
+- Call `is_there_a_dependency_database(true)` – if false, call `generate_dependencies_cache()`.
+- Ensure the game path is configured correctly in settings.
+
+### 3. Pack won't save
+**Symptom**: `save_packfile` returns an error.
+**Solution**:
+- Check if the file is read-only or locked by another process.
+- Try `save_pack_as` to a different path.
+- As a last resort, use `clean_and_save_pack_as` to recover from corruption.
+
+### 4. Table version mismatch
+**Symptom**: Table data looks wrong or has missing columns after a game update.
+**Solution**:
+- Call `update_schemas()` to get the latest table definitions.
+- Use `update_table` to migrate the table to the current version.
+- Check `get_table_definition_from_dependency_pack_file` for the expected schema.
+
+### 5. Wrong game selected
+**Symptom**: Tables decode with wrong columns or fail to decode, dependencies are for a different game.
+**Solution**:
+- Call `get_game_selected()` to verify the current game.
+- Call `set_game_selected` with the correct game key and `rebuild_dependencies: true`.
+
+### 6. Diagnostics show many reference errors
+**Symptom**: `diagnostics_check` reports hundreds of invalid references.
+**Solution**:
+- Ensure dependencies are loaded (`is_there_a_dependency_database(true)`).
+- Check if the pack depends on other mods via `get_dependency_pack_files_list`.
+- Some references are Assembly Kit only; re-run with `check_ak_only_refs: true`.
+- Use `add_line_to_pack_ignored_diagnostics` for intentional deviations.
+
+### Diagnostic Tools
+- `diagnostics_check` – Full pack validation.
+- `get_game_selected` – Verify game context.
+- `is_schema_loaded` – Check schema status.
+- `is_there_a_dependency_database` – Check dependency database status.
+- `list_open_packs` – Verify which packs are open.
+- `config_path` / `schemas_path` – Verify RPFM paths.
+",
+        )]
+    }
+
+    #[prompt(name = "tsv_workflow", description = "Import and export tables as TSV files for batch editing in spreadsheets.")]
+    pub async fn tsv_workflow(&self) -> Vec<PromptMessage> {
+        vec![PromptMessage::new_text(
+            PromptMessageRole::User,
+            "\
+You are an assistant helping the user work with TSV (Tab-Separated Values) files for batch editing \
+Total War mod data in spreadsheets.
+
+## Export Workflow (Pack → TSV → Spreadsheet)
+
+1. **Open the pack** and **set the game** with `rebuild_dependencies: true`.
+
+2. **Export a single table as TSV**:
+   Call `export_tsv` with:
+   - `pack_key`: the pack key
+   - `tsv_path`: destination path on disk (e.g. `/home/user/my_table.tsv`)
+   - `table_path`: the internal path (e.g. `db/land_units_tables/my_mod`)
+
+3. **Export all tables as TSV**:
+   Call `extract_packed_files` with `export_as_tsv: true`.
+   This exports all tables in the pack as TSV files to the destination folder.
+
+4. **Edit in a spreadsheet**: Open the TSV file in LibreOffice Calc, Excel, or Google Sheets.
+   - Keep the header rows intact (they contain schema metadata).
+   - Tab-separated values — do not change the delimiter.
+
+## Import Workflow (Spreadsheet → TSV → Pack)
+
+1. **Save the spreadsheet as TSV** (tab-delimited, UTF-8 encoding).
+
+2. **Import the TSV back**:
+   Call `import_tsv` with:
+   - `pack_key`: the target pack key
+   - `tsv_path`: path to the TSV file on disk
+   - `table_path`: the internal path where the table should go
+
+3. **Verify**: Call `decode_packed_file` to confirm the data imported correctly.
+
+4. **Save the pack**: Call `save_packfile` to persist changes.
+
+## Tips
+- TSV files include metadata headers that RPFM uses for schema matching.
+  Do not delete or modify these header rows.
+- Use `get_table_definition_from_dependency_pack_file` to understand column types
+  before editing.
+- After import, run `diagnostics_check` to validate references.
+",
+        )]
+    }
+
+    #[prompt(name = "translation_workflow", description = "Work with localisation and translation data in PackFiles.")]
+    pub async fn translation_workflow(&self) -> Vec<PromptMessage> {
+        vec![PromptMessage::new_text(
+            PromptMessageRole::User,
+            "\
+You are an assistant helping the user work with localisation (translation) data in Total War mods.
+
+## Understanding Loc Files
+
+Loc files contain key-value pairs for in-game text. Each entry has:
+- A **key** (unique identifier referenced by DB tables)
+- A **value** (the displayed text in the game)
+
+## Viewing Existing Translations
+
+1. **Open the pack** and **set the game**.
+
+2. **Decode a loc file**:
+   Call `decode_packed_file` with the loc file path (e.g. `text/db/my_mod.loc`)
+   and `source: \"PackFile\"`.
+
+3. **Get translation overview**:
+   Call `get_pack_translation` with the pack key and a language code
+   (e.g. `\"en\"`, `\"fr\"`, `\"de\"`, `\"es\"`, `\"it\"`, `\"zh\"`, `\"ru\"`, etc.).
+
+## Creating New Translations
+
+1. **Create a new loc file**:
+   Call `new_packed_file` with path `\"text/db/my_mod.loc\"` and
+   `new_file = {\"Loc\": \"my_mod\"}`.
+
+2. **Decode it**: `decode_packed_file` to get the empty structure.
+
+3. **Add entries**: Modify the decoded JSON to add key-value rows.
+   Each row is typically `[\"key_string\", \"Displayed text in game\"]`.
+
+4. **Save back**: `save_packed_file_from_view` with the modified data.
+
+## Generating Missing Loc Data
+
+Call `generate_missing_loc_data` with the pack key to auto-generate
+loc entries for DB fields that reference loc keys but don't have entries yet.
+
+## Finding Loc Keys
+
+- Use `go_to_loc` with a loc key to find its source loc file.
+- Use `get_source_data_from_loc_key` to find where a loc key is referenced.
+- Use `global_search` with `search_on.loc: true` to search across all loc files.
+
+## Tips
+- Loc keys follow naming conventions like `<table>_<loc_column_name>_<keys_concatenated>`.
+- Use `search_references` to find all DB columns that reference a specific loc key.
+- After adding translations, run `diagnostics_check` to verify all references.
+",
+        )]
     }
 }
