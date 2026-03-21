@@ -220,12 +220,12 @@ impl DependenciesUI {
         app_ui.toggle_main_window(false);
 
         let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::ImportDependenciesToOpenPackFile(pack_key, paths_by_source));
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::ImportDependenciesToOpenPackFile(pack_key.clone(), paths_by_source));
         let response = CentralCommand::recv(&receiver);
         match response {
             Response::VecContainerPathVecString(paths, not_added_paths) => {
                 if !paths.is_empty() {
-                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(paths.to_vec()), DataSource::PackFile);
+                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(paths.to_vec()), DataSource::PackFile, &pack_key);
 
                     UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
 

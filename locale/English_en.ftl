@@ -722,6 +722,10 @@ diagnostics_colum_path = Path
 diagnostics_colum_message = Message
 
 context_menu_copy_path = Copy Path
+context_menu_cut = Cut
+context_menu_duplicate = Duplicate
+copy_success = Files copied to clipboard.
+cut_success = Files cut to clipboard.
 mymod_open_mymod_folder = Open MyMod Folder
 open_from_autosave = Open From Autosave
 

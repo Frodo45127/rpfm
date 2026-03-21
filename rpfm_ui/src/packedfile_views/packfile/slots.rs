@@ -82,7 +82,7 @@ impl PackFileExtraViewSlots {
                     // Ask the Background Thread to move the files, and send him the path.
                     app_ui.toggle_main_window(false);
                     let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::AddPackedFilesFromPackFile(pack_key, pack_file_view.pack_file_path.read().unwrap().to_string_lossy().to_string(), item_types));
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::AddPackedFilesFromPackFile(pack_key.clone(), pack_file_view.pack_file_path.read().unwrap().to_string_lossy().to_string(), item_types));
                     let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::VecContainerPath(paths_ok) => {
@@ -100,8 +100,8 @@ impl PackFileExtraViewSlots {
                             }
 
                             // Update the TreeView.
-                            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(paths_ok.to_vec()), DataSource::PackFile);
-                            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths_ok.to_vec()), DataSource::PackFile);
+                            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(paths_ok.to_vec()), DataSource::PackFile, &pack_key);
+                            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths_ok.to_vec()), DataSource::PackFile, &pack_key);
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                         },
                         Response::Error(error) => show_dialog(app_ui.main_window(), error, false),

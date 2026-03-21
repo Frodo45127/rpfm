@@ -1504,7 +1504,7 @@ pub trait Container {
     fn files_by_type(&self, file_types: &[FileType]) -> Vec<&RFile> {
         self.files()
             .iter()
-            .filter(|(_, file)| { dbg!(file.file_type); file_types.contains(&file.file_type) })
+            .filter(|(_, file)| file_types.contains(&file.file_type))
             .map(|(_, file)| file)
             .collect()
     }

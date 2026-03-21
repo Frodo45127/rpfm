@@ -483,7 +483,7 @@ impl GlobalSearchUI {
                 self.load_schema_matches_to_ui(global_search.matches().schema());
 
                 UI_STATE.set_global_search(&global_search);
-                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile);
+                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile, "");
             },
             Response::Error(error) => show_dialog(&self.dock_widget, error, false),
             _ => unimplemented!()
@@ -634,7 +634,7 @@ impl GlobalSearchUI {
 
                 self.matches_table_and_text_tree_view.set_animated(true);
 
-                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile);
+                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile, "");
             },
             Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
             _ => unimplemented!()
@@ -678,7 +678,7 @@ impl GlobalSearchUI {
                     }
                 }
 
-                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile);
+                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile, "");
             },
             Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
             _ => unimplemented!()
@@ -735,7 +735,7 @@ impl GlobalSearchUI {
         let data_source = match source_type {
             0 => {
                 let pack_key = file_item.data_1a(MATCH_PACK_KEY).to_string().to_std_string();
-                let tree_index = pack_file_contents_ui.packfile_contents_tree_view().expand_treeview_to_item_in_pack(&path, DataSource::PackFile, &pack_key);
+                let tree_index = pack_file_contents_ui.packfile_contents_tree_view().expand_treeview_to_item(&path, DataSource::PackFile, &pack_key);
 
                 // Manually select the open PackedFile, then open it. This means we can open PackedFiles nor in out filter.
                 UI_STATE.set_packfile_contents_read_only(true);
@@ -752,7 +752,7 @@ impl GlobalSearchUI {
             },
 
             1 => {
-                let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(&path, DataSource::ParentFiles);
+                let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(&path, DataSource::ParentFiles, "");
                 if let Some(ref tree_index) = tree_index {
                     if tree_index.is_valid() {
                         let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view().static_upcast::<QObject>());
@@ -763,7 +763,7 @@ impl GlobalSearchUI {
                 DataSource::ParentFiles
             },
             2 => {
-                let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(&path, DataSource::GameFiles);
+                let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(&path, DataSource::GameFiles, "");
                 if let Some(ref tree_index) = tree_index {
                     if tree_index.is_valid() {
                         let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view().static_upcast::<QObject>());
@@ -774,7 +774,7 @@ impl GlobalSearchUI {
                 DataSource::GameFiles
             },
             3 => {
-                let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(&path, DataSource::AssKitFiles);
+                let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(&path, DataSource::AssKitFiles, "");
                 if let Some(ref tree_index) = tree_index {
                     if tree_index.is_valid() {
                         let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view().static_upcast::<QObject>());

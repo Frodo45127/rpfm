@@ -114,6 +114,10 @@ pub struct PackFileContentsUI {
     context_menu_delete: QPtr<QAction>,
     context_menu_extract: QPtr<QAction>,
     context_menu_copy_path: QPtr<QAction>,
+    context_menu_copy: QPtr<QAction>,
+    context_menu_cut: QPtr<QAction>,
+    context_menu_paste: QPtr<QAction>,
+    context_menu_duplicate: QPtr<QAction>,
     context_menu_open_decoder: QPtr<QAction>,
     context_menu_open_dependency_manager: QPtr<QAction>,
     context_menu_open_containing_folder: QPtr<QAction>,
@@ -250,6 +254,10 @@ impl PackFileContentsUI {
         let context_menu_delete = add_action_to_menu(&packfile_contents_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "pack_tree_context_menu", "delete", "context_menu_delete", Some(packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_extract = add_action_to_menu(&packfile_contents_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "pack_tree_context_menu", "extract", "context_menu_extract", Some(packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_copy_path = add_action_to_menu(&packfile_contents_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "pack_tree_context_menu", "copy_path", "context_menu_copy_path", Some(packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>()));
+        let context_menu_copy = add_action_to_menu(&packfile_contents_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "pack_tree_context_menu", "copy", "context_menu_copy", Some(packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>()));
+        let context_menu_cut = add_action_to_menu(&packfile_contents_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "pack_tree_context_menu", "cut", "context_menu_cut", Some(packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>()));
+        let context_menu_paste = add_action_to_menu(&packfile_contents_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "pack_tree_context_menu", "paste", "context_menu_paste", Some(packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>()));
+        let context_menu_duplicate = add_action_to_menu(&packfile_contents_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "pack_tree_context_menu", "duplicate", "context_menu_duplicate", Some(packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_open_decoder = add_action_to_menu(&menu_open.static_upcast(), app_ui.shortcuts().as_ref(), "pack_tree_context_menu", "open_in_decoder", "context_menu_open_decoder", Some(packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_open_dependency_manager = add_action_to_menu(&menu_open.static_upcast(), app_ui.shortcuts().as_ref(), "pack_tree_context_menu", "open_dependency_manager", "context_menu_open_dependency_manager", Some(packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_open_containing_folder = add_action_to_menu(&menu_open.static_upcast(), app_ui.shortcuts().as_ref(), "pack_tree_context_menu", "open_containing_folder", "context_menu_open_containing_folder", Some(packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>()));
@@ -343,6 +351,7 @@ impl PackFileContentsUI {
         // Configure the `Contextual Menu` for the `PackFile` TreeView.
         packfile_contents_tree_view_context_menu.insert_separator(menu_open.menu_action());
         packfile_contents_tree_view_context_menu.insert_separator(&context_menu_rename);
+        packfile_contents_tree_view_context_menu.insert_separator(&context_menu_copy);
         packfile_contents_tree_view_context_menu.insert_separator(&context_menu_merge_tables);
 
         // Disable all the Contextual Menu actions by default.
@@ -360,6 +369,10 @@ impl PackFileContentsUI {
         context_menu_rename.set_enabled(false);
         context_menu_extract.set_enabled(false);
         context_menu_copy_path.set_enabled(false);
+        context_menu_copy.set_enabled(false);
+        context_menu_cut.set_enabled(false);
+        context_menu_paste.set_enabled(false);
+        context_menu_duplicate.set_enabled(false);
         context_menu_open_decoder.set_enabled(false);
         context_menu_open_dependency_manager.set_enabled(false);
         context_menu_open_containing_folder.set_enabled(false);
@@ -404,6 +417,10 @@ impl PackFileContentsUI {
             context_menu_delete,
             context_menu_extract,
             context_menu_copy_path,
+            context_menu_copy,
+            context_menu_cut,
+            context_menu_paste,
+            context_menu_duplicate,
 
             context_menu_open_decoder,
             context_menu_open_dependency_manager,
@@ -472,12 +489,12 @@ impl PackFileContentsUI {
         }
 
         let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::AddPackedFiles(pack_key, paths.to_vec(), paths_in_container.to_vec(), paths_to_ignore));
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::AddPackedFiles(pack_key.clone(), paths.to_vec(), paths_in_container.to_vec(), paths_to_ignore));
         let response = CentralCommand::recv(&receiver);
         match response {
             Response::VecContainerPathOptionString(paths, error) => {
                 if !paths.is_empty() {
-                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths.to_vec()), DataSource::PackFile);
+                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths.to_vec()), DataSource::PackFile, &pack_key);
 
                     UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
 
@@ -725,5 +742,32 @@ impl PackFileContentsUI {
         }
 
         None
+    }
+
+    /// Returns the selected items grouped by their pack key.
+    ///
+    /// Each selected item is resolved to its root pack node to determine the pack key,
+    /// then grouped into a `BTreeMap<String, Vec<ContainerPath>>`.
+    pub unsafe fn selected_items_grouped_by_pack_key(&self) -> BTreeMap<String, Vec<ContainerPath>> {
+        let tree_view = &self.packfile_contents_tree_view;
+        let filter: QPtr<QSortFilterProxyModel> = tree_view.model().static_downcast();
+        let model: QPtr<qt_gui::QStandardItemModel> = filter.source_model().static_downcast();
+
+        let indexes_visual = tree_view.selection_model().selection().indexes();
+        let mut result: BTreeMap<String, Vec<ContainerPath>> = BTreeMap::new();
+
+        for i in 0..indexes_visual.count_0a() {
+            let source_index = filter.map_to_source(indexes_visual.at(i));
+            let item = model.item_from_index(&source_index);
+            if item.is_null() {
+                continue;
+            }
+
+            let container_path = <QPtr<QTreeView> as PackTree>::get_type_from_item(item, &model);
+            let pack_key = tree_view.get_pack_key_from_index(model.index_from_item(item)).unwrap_or_default();
+            result.entry(pack_key).or_default().push(container_path);
+        }
+
+        result
     }
 }

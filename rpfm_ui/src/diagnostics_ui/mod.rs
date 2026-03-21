@@ -1026,7 +1026,7 @@ impl DiagnosticsUI {
         let pack_key = model.item_2a(model_index.row(), 3).text().to_std_string();
         let item_path = model.item_2a(model_index.row(), 4);
         let path = item_path.text().to_std_string();
-        let tree_index = pack_file_contents_ui.packfile_contents_tree_view().expand_treeview_to_item_in_pack(&path, DataSource::PackFile, &pack_key);
+        let tree_index = pack_file_contents_ui.packfile_contents_tree_view().expand_treeview_to_item(&path, DataSource::PackFile, &pack_key);
 
         let diagnostic_type = model.item_2a(model_index.row(), 1).text().to_std_string();
         if diagnostic_type == "DependencyManager" {

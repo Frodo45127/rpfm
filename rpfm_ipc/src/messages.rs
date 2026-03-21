@@ -393,6 +393,41 @@ pub enum Command {
     /// - [`Response::VecContainerPath`] (deleted paths).
     DeletePackedFiles(String, Vec<ContainerPath>),
 
+    /// Copy one or more PackedFiles to the internal clipboard.
+    /// The field is a map of pack key to the paths to copy from that pack.
+    /// This stores path references in a server-side clipboard for later pasting.
+    ///
+    /// Response:
+    /// - [`Response::Success`] on success.
+    /// - [`Response::Error`] on failure.
+    CopyPackedFiles(BTreeMap<String, Vec<ContainerPath>>),
+
+    /// Cut one or more PackedFiles to the internal clipboard.
+    /// Same as copy, but the files will be removed from the source pack on paste.
+    /// The field is a map of pack key to the paths to cut from that pack.
+    ///
+    /// Response:
+    /// - [`Response::Success`] on success.
+    /// - [`Response::Error`] on failure.
+    CutPackedFiles(BTreeMap<String, Vec<ContainerPath>>),
+
+    /// Paste PackedFiles from the internal clipboard into a pack.
+    /// First field is the target pack key, second is the destination folder path.
+    ///
+    /// Response:
+    /// - [`Response::VecContainerPathVecContainerPathString`] (added paths, cut-deleted paths, source pack key) on success.
+    /// - [`Response::Error`] on failure.
+    PastePackedFiles(String, String),
+
+    /// Duplicate one or more PackedFiles in-place within the same pack.
+    /// First field is the pack key, second is the paths to duplicate.
+    /// Files are cloned with a numeric suffix added to avoid name collisions.
+    ///
+    /// Response:
+    /// - [`Response::VecContainerPath`] (new duplicated paths) on success.
+    /// - [`Response::Error`] on failure.
+    DuplicatePackedFiles(String, Vec<ContainerPath>),
+
     /// Extract one or more PackedFiles from a pack.
     /// First field is the pack key, then paths by data source, extraction path, whether to export tables as TSV.
     ///
@@ -1328,6 +1363,8 @@ pub enum Response {
     VecContainerPathContainerPath(Vec<(ContainerPath, ContainerPath)>),
     VecContainerPathOptionString(Vec<ContainerPath>, Option<String>),
     VecContainerPathVecContainerPath(Vec<ContainerPath>, Vec<ContainerPath>),
+    VecContainerPathBTreeMapStringVecContainerPath(Vec<ContainerPath>, BTreeMap<String, Vec<ContainerPath>>),
+    VecContainerPathVecContainerPathString(Vec<ContainerPath>, Vec<ContainerPath>, String),
     VecContainerPathVecRFileInfo(Vec<ContainerPath>, Vec<RFileInfo>),
     VecContainerPathVecString(Vec<ContainerPath>, Vec<String>),
     VecDataSourceStringStringUsizeUsize(Vec<(DataSource, String, String, usize, usize)>),

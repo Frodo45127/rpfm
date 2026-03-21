@@ -1251,7 +1251,7 @@ impl TableView {
         table.generate_twad_key_deletes_keys(&mut keys);
 
         let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::AddKeysToKeyDeletes(pack_key, file_name.to_string(), table_name, keys));
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::AddKeysToKeyDeletes(pack_key.clone(), file_name.to_string(), table_name, keys));
         let response = CentralCommand::recv(&receiver);
         match response {
             Response::OptionContainerPath(path) => {
@@ -1259,9 +1259,9 @@ impl TableView {
                     let edited_paths = vec![path];
 
                     // If it worked, get the list of edited PackedFiles and update the TreeView to reflect the change.
-                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Modify(edited_paths.to_vec()), DataSource::PackFile);
-                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::MarkAlwaysModified(edited_paths.to_vec()), DataSource::PackFile);
-                    //pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile);
+                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Modify(edited_paths.to_vec()), DataSource::PackFile, &pack_key);
+                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::MarkAlwaysModified(edited_paths.to_vec()), DataSource::PackFile, &pack_key);
+                    //pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile, &pack_key);
 
                     // Before finishing, reload all edited views.
                     let mut open_packedfiles = UI_STATE.set_open_packedfiles();
@@ -3027,15 +3027,15 @@ impl TableView {
                 .collect::<Vec<_>>();
 
             let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::CascadeEdition(pack_key, table_name, definition, changes));
+            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::CascadeEdition(pack_key.clone(), table_name, definition, changes));
             let response = CentralCommand::recv(&receiver);
             match response {
                 Response::VecContainerPathVecRFileInfo(edited_paths, packed_files_info) => {
 
                     // If it worked, get the list of edited PackedFiles and update the TreeView to reflect the change.
-                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Modify(edited_paths.to_vec()), DataSource::PackFile);
-                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::MarkAlwaysModified(edited_paths.to_vec()), DataSource::PackFile);
-                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile);
+                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Modify(edited_paths.to_vec()), DataSource::PackFile, &pack_key);
+                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::MarkAlwaysModified(edited_paths.to_vec()), DataSource::PackFile, &pack_key);
+                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile, &pack_key);
 
                     // Before finishing, reload all edited views.
                     let mut open_packedfiles = UI_STATE.set_open_packedfiles();
@@ -3418,7 +3418,7 @@ impl TableView {
                     Response::DataSourceStringUsizeUsize(data_source, path, column, row) => {
                         match data_source {
                             DataSource::PackFile => {
-                                let tree_index = pack_file_contents_ui.packfile_contents_tree_view().expand_treeview_to_item(&path, data_source);
+                                let tree_index = pack_file_contents_ui.packfile_contents_tree_view().expand_treeview_to_item(&path, data_source, "");
                                 if let Some(ref tree_index) = tree_index {
                                     if tree_index.is_valid() {
                                         let _blocker = QSignalBlocker::from_q_object(pack_file_contents_ui.packfile_contents_tree_view().static_upcast::<QObject>());
@@ -3430,7 +3430,7 @@ impl TableView {
                             DataSource::ParentFiles |
                             DataSource::AssKitFiles |
                             DataSource::GameFiles => {
-                                let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(&path, DataSource::GameFiles);
+                                let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(&path, DataSource::GameFiles, "");
                                 if let Some(ref tree_index) = tree_index {
                                     if tree_index.is_valid() {
                                         let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view().static_upcast::<QObject>());
@@ -3547,7 +3547,7 @@ impl TableView {
                                 let mut paths = files.keys().collect::<Vec<_>>();
                                 paths.sort();
                                 if let Some(path) = paths.first() {
-                                    let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(path, DataSource::GameFiles);
+                                    let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(path, DataSource::GameFiles, "");
                                     if let Some(ref tree_index) = tree_index {
                                         if tree_index.is_valid() {
                                             let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view().static_upcast::<QObject>());
@@ -3564,7 +3564,7 @@ impl TableView {
                                 let mut paths = files.keys().collect::<Vec<_>>();
                                 paths.sort();
                                 if let Some(path) = paths.first() {
-                                    let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(path, DataSource::ParentFiles);
+                                    let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(path, DataSource::ParentFiles, "");
                                     if let Some(ref tree_index) = tree_index {
                                         if tree_index.is_valid() {
                                             let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view().static_upcast::<QObject>());
@@ -3581,7 +3581,7 @@ impl TableView {
                                 let mut paths = files.keys().collect::<Vec<_>>();
                                 paths.sort();
                                 if let Some(path) = paths.first() {
-                                    let tree_index = pack_file_contents_ui.packfile_contents_tree_view().expand_treeview_to_item(path, DataSource::PackFile);
+                                    let tree_index = pack_file_contents_ui.packfile_contents_tree_view().expand_treeview_to_item(path, DataSource::PackFile, "");
                                     if let Some(ref tree_index) = tree_index {
                                         if tree_index.is_valid() {
                                             let _blocker = QSignalBlocker::from_q_object(pack_file_contents_ui.packfile_contents_tree_view().static_upcast::<QObject>());
@@ -3668,7 +3668,7 @@ impl TableView {
                     Response::DataSourceStringUsizeUsize(data_source, path, column, row) => {
                         match data_source {
                             DataSource::PackFile => {
-                                let tree_index = pack_file_contents_ui.packfile_contents_tree_view().expand_treeview_to_item(&path, data_source);
+                                let tree_index = pack_file_contents_ui.packfile_contents_tree_view().expand_treeview_to_item(&path, data_source, "");
                                 if let Some(ref tree_index) = tree_index {
                                     if tree_index.is_valid() {
                                         let _blocker = QSignalBlocker::from_q_object(pack_file_contents_ui.packfile_contents_tree_view().static_upcast::<QObject>());
@@ -3680,7 +3680,7 @@ impl TableView {
                             DataSource::ParentFiles |
                             DataSource::AssKitFiles |
                             DataSource::GameFiles => {
-                                let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(&path, data_source);
+                                let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(&path, data_source, "");
                                 if let Some(ref tree_index) = tree_index {
                                     if tree_index.is_valid() {
                                         let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view().static_upcast::<QObject>());

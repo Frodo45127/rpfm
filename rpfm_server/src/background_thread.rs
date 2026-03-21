@@ -81,6 +81,27 @@ fn pack_key_from_path(path: &std::path::Path) -> String {
     path.to_string_lossy().to_string()
 }
 
+/// Expand selected paths into file path entries for the clipboard.
+///
+/// Returns `(file_path, base_path, source_pack_key)` per file. Only paths are stored,
+/// not the file data itself — the actual `RFile` is cloned from the source pack at paste time.
+///
+/// - For a selected file `a/b/c`, the base path is `a/b` (parent folder), so pasting gives just `c`.
+/// - For a selected folder `a/b`, the base path is `a` (parent of folder), so pasting preserves `b/...`.
+fn clipboard_entries_from_paths(pack: &Pack, paths: &[ContainerPath], pack_key: &str) -> Vec<(String, String, String)> {
+    let mut result = Vec::new();
+    for path in paths {
+        let base_path = match path.path_raw().rfind('/') {
+            Some(pos) => path.path_raw()[..pos].to_string(),
+            None => String::new(),
+        };
+        for file in pack.files_by_paths(&[path.clone()], false) {
+            result.push((file.path_in_container_raw().to_string(), base_path.clone(), pack_key.to_string()));
+        }
+    }
+    result
+}
+
 /// Looks up a pack by key. If not found, sends a "Pack not found" error and returns `None`.
 fn get_pack<'a>(packs: &'a BTreeMap<String, Pack>, pack_key: &str, sender: &UnboundedSender<Response>) -> Option<&'a Pack> {
     match packs.get(pack_key) {
@@ -108,6 +129,10 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
 
     // All open packs, keyed by their full file path (or a generated name for new/unsaved packs).
     let mut packs: BTreeMap<String, Pack> = BTreeMap::new();
+
+    // Internal clipboard for copy/cut/paste operations.
+    let mut clipboard_entries: Vec<(String, String, String)> = Vec::new(); // (file_path, base_path, source_pack_key) per entry.
+    let mut clipboard_is_cut: bool = false;
 
     // Preload the default game's dependencies.
     let mut dependencies = Arc::new(RwLock::new(Dependencies::default()));
@@ -1112,6 +1137,185 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
             Command::DeletePackedFiles(pack_key, paths) => {
                 match packs.get_mut(&pack_key) {
                     Some(pack) => CentralCommand::send_back(&sender, Response::VecContainerPath(paths.iter().flat_map(|path| pack.remove(path)).collect())),
+                    None => CentralCommand::send_back(&sender, Response::Error(format!("Pack not found: {}", pack_key))),
+                }
+            }
+
+            // Copy files to the internal clipboard.
+            Command::CopyPackedFiles(paths_by_pack) => {
+                clipboard_entries.clear();
+                for (pack_key, paths) in &paths_by_pack {
+                    if let Some(pack) = packs.get(pack_key) {
+                        clipboard_entries.extend(clipboard_entries_from_paths(pack, paths, pack_key));
+                    }
+                }
+                clipboard_is_cut = false;
+                CentralCommand::send_back(&sender, Response::Success);
+            }
+
+            // Cut files to the internal clipboard.
+            Command::CutPackedFiles(paths_by_pack) => {
+                clipboard_entries.clear();
+                for (pack_key, paths) in &paths_by_pack {
+                    if let Some(pack) = packs.get(pack_key) {
+                        clipboard_entries.extend(clipboard_entries_from_paths(pack, paths, pack_key));
+                    }
+                }
+                clipboard_is_cut = true;
+                CentralCommand::send_back(&sender, Response::Success);
+            }
+
+            // Paste files from the internal clipboard into a pack.
+            Command::PastePackedFiles(target_key, destination_path) => {
+                if clipboard_entries.is_empty() {
+                    CentralCommand::send_back(&sender, Response::Error("Clipboard is empty.".to_string()));
+                } else {
+
+                    // Clone files from their source packs and compute their new paths.
+                    // We collect all cloned files first so we don't hold borrows while mutating.
+                    let mut files_to_insert: Vec<RFile> = Vec::with_capacity(clipboard_entries.len());
+                    for (file_path, base_path, source_key) in &clipboard_entries {
+                        if let Some(source_pack) = packs.get(source_key) {
+                            let path_as_container = ContainerPath::File(file_path.clone());
+                            let found = source_pack.files_by_paths(&[path_as_container], false);
+                            if let Some(file) = found.first() {
+                                let mut new_file = (*file).clone();
+
+                                // Compute relative path by stripping this file's base path.
+                                let relative_path = if !base_path.is_empty() && file_path.starts_with(base_path) {
+                                    file_path[base_path.len()..].trim_start_matches('/')
+                                } else {
+                                    file_path
+                                };
+                                let new_path = if destination_path.is_empty() {
+                                    relative_path.to_string()
+                                } else {
+                                    format!("{}/{}", destination_path.trim_end_matches('/'), relative_path)
+                                };
+                                new_file.set_path_in_container_raw(&new_path);
+                                files_to_insert.push(new_file);
+                            }
+                        }
+                    }
+
+                    // If it was a cut operation, delete the files from their respective source packs.
+                    let mut cut_deleted_by_pack: BTreeMap<String, Vec<ContainerPath>> = BTreeMap::new();
+                    if clipboard_is_cut {
+                        for (file_path, _, source_key) in &clipboard_entries {
+                            if let Some(source_pack) = packs.get_mut(source_key) {
+                                let removed = source_pack.remove(&ContainerPath::File(file_path.clone()));
+                                cut_deleted_by_pack.entry(source_key.clone()).or_default().extend(removed);
+                            }
+                        }
+                    }
+
+                    // Insert the cloned files into the target pack.
+                    match packs.get_mut(&target_key) {
+                        Some(target_pack) => {
+                            let mut added_paths = Vec::with_capacity(files_to_insert.len());
+                            for new_file in files_to_insert {
+                                if let Ok(Some(path)) = target_pack.insert(new_file) {
+                                    added_paths.push(path);
+                                }
+                            }
+
+                            // Force decoding of table/locs, so they're in memory for the diagnostics to work.
+                            if let Some(ref schema) = schema {
+                                let mut decode_extra_data = DecodeableExtraData::default();
+                                decode_extra_data.set_schema(Some(schema));
+                                let extra_data = Some(decode_extra_data);
+
+                                let mut files = target_pack.files_by_paths_mut(&added_paths, false);
+                                files.par_iter_mut()
+                                    .filter(|file| file.file_type() == FileType::DB || file.file_type() == FileType::Loc)
+                                    .for_each(|file| {
+                                        let _ = file.decode(&extra_data, true, false);
+                                    });
+                            }
+
+                            CentralCommand::send_back(&sender, Response::VecContainerPathBTreeMapStringVecContainerPath(added_paths, cut_deleted_by_pack));
+
+                            // Clear clipboard after a cut-paste operation.
+                            if clipboard_is_cut {
+                                clipboard_entries.clear();
+                                clipboard_is_cut = false;
+                            }
+                        }
+                        None => CentralCommand::send_back(&sender, Response::Error(format!("Target pack not found: {}", target_key))),
+                    }
+                }
+            }
+
+            // Duplicate files in-place within the same pack.
+            Command::DuplicatePackedFiles(pack_key, paths) => {
+                match packs.get_mut(&pack_key) {
+                    Some(pack) => {
+                        // First, clone all the files we want to duplicate.
+                        let files_to_dup: Vec<RFile> = pack.files_by_paths(&paths, false)
+                            .into_iter()
+                            .cloned()
+                            .collect();
+
+                        let mut added_paths = Vec::with_capacity(files_to_dup.len());
+                        for file in files_to_dup {
+                            let old_path = file.path_in_container_raw().to_string();
+
+                            // Generate a new name with a numeric suffix: "name.ext" -> "name1.ext", "name1.ext" -> "name2.ext", etc.
+                            let new_path = if let Some(dot_pos) = old_path.rfind('.') {
+                                let (base, ext) = old_path.split_at(dot_pos);
+
+                                // Find and increment any trailing number in the base name.
+                                let base_trimmed = base.trim_end_matches(|c: char| c.is_ascii_digit());
+                                let suffix_str = &base[base_trimmed.len()..];
+                                let mut counter = suffix_str.parse::<u32>().unwrap_or(0) + 1;
+
+                                // Keep incrementing until we find a name that doesn't exist.
+                                loop {
+                                    let candidate = format!("{}{}{}", base_trimmed, counter, ext);
+                                    if !pack.has_file(&candidate) {
+                                        break candidate;
+                                    }
+                                    counter += 1;
+                                }
+                            } else {
+                                // No extension, just append a number.
+                                let base_trimmed = old_path.trim_end_matches(|c: char| c.is_ascii_digit());
+                                let suffix_str = &old_path[base_trimmed.len()..];
+                                let mut counter = suffix_str.parse::<u32>().unwrap_or(0) + 1;
+
+                                loop {
+                                    let candidate = format!("{}{}", base_trimmed, counter);
+                                    if !pack.has_file(&candidate) {
+                                        break candidate;
+                                    }
+                                    counter += 1;
+                                }
+                            };
+
+                            let mut new_file = file;
+                            new_file.set_path_in_container_raw(&new_path);
+
+                            if let Ok(Some(path)) = pack.insert(new_file) {
+                                added_paths.push(path);
+                            }
+                        }
+
+                        // Force decoding of table/locs, so they're in memory for the diagnostics to work.
+                        if let Some(ref schema) = schema {
+                            let mut decode_extra_data = DecodeableExtraData::default();
+                            decode_extra_data.set_schema(Some(schema));
+                            let extra_data = Some(decode_extra_data);
+
+                            let mut files = pack.files_by_paths_mut(&added_paths, false);
+                            files.par_iter_mut()
+                                .filter(|file| file.file_type() == FileType::DB || file.file_type() == FileType::Loc)
+                                .for_each(|file| {
+                                    let _ = file.decode(&extra_data, true, false);
+                                });
+                        }
+
+                        CentralCommand::send_back(&sender, Response::VecContainerPath(added_paths));
+                    }
                     None => CentralCommand::send_back(&sender, Response::Error(format!("Pack not found: {}", pack_key))),
                 }
             }

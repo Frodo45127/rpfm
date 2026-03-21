@@ -214,7 +214,7 @@ impl ReferencesUI {
 
         match reference_data_source {
             DataSource::PackFile => {
-                let tree_index = pack_file_contents_ui.packfile_contents_tree_view().expand_treeview_to_item(&reference_path, reference_data_source);
+                let tree_index = pack_file_contents_ui.packfile_contents_tree_view().expand_treeview_to_item(&reference_path, reference_data_source, "");
                 if let Some(ref tree_index) = tree_index {
                     if tree_index.is_valid() {
                         let _blocker = QSignalBlocker::from_q_object(pack_file_contents_ui.packfile_contents_tree_view().static_upcast::<QObject>());
@@ -226,7 +226,7 @@ impl ReferencesUI {
             DataSource::ParentFiles |
             DataSource::AssKitFiles |
             DataSource::GameFiles => {
-                let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(&reference_path, reference_data_source);
+                let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(&reference_path, reference_data_source, "");
                 if let Some(ref tree_index) = tree_index {
                     if tree_index.is_valid() {
                         let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view().static_upcast::<QObject>());

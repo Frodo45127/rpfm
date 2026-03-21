@@ -95,17 +95,17 @@ impl PackedFileAnimPackViewSlots {
                     // Ask the Background Thread to copy the files, and send him the path.
                     app_ui.toggle_main_window(false);
                     let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::AddPackedFilesFromPackFileToAnimpack(pack_key, view.path().read().unwrap().to_owned(), item_types));
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::AddPackedFilesFromPackFileToAnimpack(pack_key.clone(), view.path().read().unwrap().to_owned(), item_types));
                     let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::VecContainerPath(paths_ok) => {
 
                             // Update the AnimPack TreeView with the new files.
-                            view.anim_pack_tree_view.update_treeview(true, TreeViewOperation::Add(paths_ok.to_vec()), DataSource::PackFile);
-                            view.anim_pack_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths_ok.to_vec()), DataSource::PackFile);
+                            view.anim_pack_tree_view.update_treeview(true, TreeViewOperation::Add(paths_ok.to_vec()), DataSource::PackFile, &pack_key);
+                            view.anim_pack_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths_ok.to_vec()), DataSource::PackFile, &pack_key);
 
                             // Mark the AnimPack in the PackFile as modified.
-                            view.pack_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![ContainerPath::File(view.path().read().unwrap().to_owned()); 1]), DataSource::PackFile);
+                            view.pack_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![ContainerPath::File(view.path().read().unwrap().to_owned()); 1]), DataSource::PackFile, &pack_key);
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                         },
                         Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
@@ -139,14 +139,14 @@ impl PackedFileAnimPackViewSlots {
                     // Ask the Background Thread to copy the files, and send him the path.
                     app_ui.toggle_main_window(false);
                     let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::AddPackedFilesFromAnimpack(pack_key, *view.data_source.read().unwrap(), view.path().read().unwrap().to_owned(), item_types));
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::AddPackedFilesFromAnimpack(pack_key.clone(), *view.data_source.read().unwrap(), view.path().read().unwrap().to_owned(), item_types));
                     let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::VecContainerPath(paths_ok) => {
 
                             // Update the AnimPack TreeView with the new files.
-                            view.pack_tree_view.update_treeview(true, TreeViewOperation::Add(paths_ok.to_vec()), DataSource::PackFile);
-                            view.pack_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths_ok.to_vec()), DataSource::PackFile);
+                            view.pack_tree_view.update_treeview(true, TreeViewOperation::Add(paths_ok.to_vec()), DataSource::PackFile, &pack_key);
+                            view.pack_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths_ok.to_vec()), DataSource::PackFile, &pack_key);
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
 
                             // Reload all the views belonging to overwritten files.
@@ -185,16 +185,16 @@ impl PackedFileAnimPackViewSlots {
 
                     // Ask the backend to delete them.
                     let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::DeleteFromAnimpack(pack_key, view.path().read().unwrap().to_owned(), item_types.clone()));
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::DeleteFromAnimpack(pack_key.clone(), view.path().read().unwrap().to_owned(), item_types.clone()));
                     let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::Success => {
 
                             // If it works, remove them from the view.
-                            view.anim_pack_tree_view.update_treeview(true, TreeViewOperation::Delete(item_types, settings_bool("delete_empty_folders_on_delete")), DataSource::PackFile);
+                            view.anim_pack_tree_view.update_treeview(true, TreeViewOperation::Delete(item_types, settings_bool("delete_empty_folders_on_delete")), DataSource::PackFile, &pack_key);
 
                             // Mark the AnimPack in the PackFile as modified.
-                            view.pack_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![ContainerPath::File(view.path().read().unwrap().to_owned()); 1]), DataSource::PackFile);
+                            view.pack_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![ContainerPath::File(view.path().read().unwrap().to_owned()); 1]), DataSource::PackFile, &pack_key);
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                         }
 

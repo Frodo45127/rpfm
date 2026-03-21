@@ -155,7 +155,7 @@ impl PackedFileAnimPackView {
         let container_info = From::from(file_info);
         build_data.data = Some((container_info, files_info.to_vec()));
         build_data.editable = false;
-        anim_pack_tree_view.update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
+        anim_pack_tree_view.update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile, "");
 
         // Create and configure the widgets to control the `TreeView`s filter.
         anim_pack_filter_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
@@ -211,7 +211,7 @@ impl PackedFileAnimPackView {
         let container_info = From::from(data.0);
         build_data.data = Some((container_info, data.1));
         build_data.editable = false;
-        self.anim_pack_tree_view.update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
+        self.anim_pack_tree_view.update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile, "");
     }
 
     /// Function to filter the TreeViews.

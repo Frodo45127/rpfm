@@ -371,7 +371,7 @@ impl AppUISlots {
                     }
 
                     // Clean the treeview markers and file views.
-                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile);
+                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile, "");
                     for file_view in UI_STATE.get_open_packedfiles().iter() {
                         file_view.clean();
                     }
@@ -417,7 +417,7 @@ impl AppUISlots {
                         // Update the TreeView.
                         let mut build_data = BuildData::new();
                         build_data.editable = true;
-                        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
+                        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile, "");
                         global_search_ui.update_pack_sources(&pack_file_contents_ui);
 
                         match GAME_SELECTED.read().unwrap().key() {
@@ -478,10 +478,10 @@ impl AppUISlots {
                                 diagnostics_ui.diagnostics_table_model().clear();
 
                                 // Clear the tree views.
-                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Clear, DataSource::PackFile);
-                                dependencies_ui.dependencies_tree_view().update_treeview(true, TreeViewOperation::Clear, DataSource::ParentFiles);
-                                dependencies_ui.dependencies_tree_view().update_treeview(true, TreeViewOperation::Clear, DataSource::GameFiles);
-                                dependencies_ui.dependencies_tree_view().update_treeview(true, TreeViewOperation::Clear, DataSource::AssKitFiles);
+                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Clear, DataSource::PackFile, "");
+                                dependencies_ui.dependencies_tree_view().update_treeview(true, TreeViewOperation::Clear, DataSource::ParentFiles, "");
+                                dependencies_ui.dependencies_tree_view().update_treeview(true, TreeViewOperation::Clear, DataSource::GameFiles, "");
+                                dependencies_ui.dependencies_tree_view().update_treeview(true, TreeViewOperation::Clear, DataSource::AssKitFiles, "");
 
                                 // Reset the operational mode.
                                 UI_STATE.set_operational_mode(&app_ui, None);
@@ -543,7 +543,7 @@ impl AppUISlots {
                                 // Rebuild the tree view from the new session's pack file data.
                                 let mut build_data = BuildData::new();
                                 build_data.editable = true;
-                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
+                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile, "");
                                 global_search_ui.update_pack_sources(&pack_file_contents_ui);
 
                                 // Re-enable the main window.
@@ -746,7 +746,7 @@ impl AppUISlots {
 
                                                     let mut build_data = BuildData::new();
                                                     build_data.editable = true;
-                                                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
+                                                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile, &pack_key);
                                                     let packfile_item = pack_file_contents_ui.packfile_contents_tree_model().item_1a(0);
                                                     packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
                                                     packfile_item.set_text(&QString::from_std_str(full_mod_name));
@@ -860,9 +860,9 @@ impl AppUISlots {
                     if mod_deleted {
                         UI_STATE.set_operational_mode(&app_ui, None);
                         let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                        let _ = CENTRAL_COMMAND.read().unwrap().send(Command::ClosePack(pack_key));
+                        let _ = CENTRAL_COMMAND.read().unwrap().send(Command::ClosePack(pack_key.clone()));
                         AppUI::enable_packfile_actions(&app_ui, &PathBuf::new(), false);
-                        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Clear, DataSource::PackFile);
+                        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Clear, DataSource::PackFile, &pack_key);
                         global_search_ui.update_pack_sources(&pack_file_contents_ui);
                         UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
 
@@ -1040,9 +1040,9 @@ impl AppUISlots {
                             let mut asskit_build_data = BuildData::new();
                             asskit_build_data.data = Some((ContainerInfo::default(), response.asskit_tables().to_vec()));
 
-                            dependencies_ui.dependencies_tree_view().update_treeview(true, TreeViewOperation::Build(parent_build_data), DataSource::ParentFiles);
-                            dependencies_ui.dependencies_tree_view().update_treeview(true, TreeViewOperation::Build(game_build_data), DataSource::GameFiles);
-                            dependencies_ui.dependencies_tree_view().update_treeview(true, TreeViewOperation::Build(asskit_build_data), DataSource::AssKitFiles);
+                            dependencies_ui.dependencies_tree_view().update_treeview(true, TreeViewOperation::Build(parent_build_data), DataSource::ParentFiles, "");
+                            dependencies_ui.dependencies_tree_view().update_treeview(true, TreeViewOperation::Build(game_build_data), DataSource::GameFiles, "");
+                            dependencies_ui.dependencies_tree_view().update_treeview(true, TreeViewOperation::Build(asskit_build_data), DataSource::AssKitFiles, "");
 
                             wait_dialog.done(1);
                             show_dialog(&app_ui.main_window, tr("generate_dependency_cache_success"), true)
@@ -1480,7 +1480,7 @@ impl AppUISlots {
                         // Find it in the relevant TreeView and select it.
                         match file_view.data_source() {
                             DataSource::PackFile => {
-                                let tree_index = pack_file_contents_ui.packfile_contents_tree_view().expand_treeview_to_item(&file_view.path_read(), DataSource::PackFile);
+                                let tree_index = pack_file_contents_ui.packfile_contents_tree_view().expand_treeview_to_item(&file_view.path_read(), DataSource::PackFile, "");
 
                                 // Manually select the open PackedFile, then open it. This means we can open PackedFiles nor in out filter.
                                 UI_STATE.set_packfile_contents_read_only(true);
@@ -1496,7 +1496,7 @@ impl AppUISlots {
                             },
 
                             DataSource::ParentFiles => {
-                                let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(&file_view.path_read(), DataSource::ParentFiles);
+                                let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(&file_view.path_read(), DataSource::ParentFiles, "");
                                 if let Some(ref tree_index) = tree_index {
                                     if tree_index.is_valid() {
                                         let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view().static_upcast::<QObject>());
@@ -1506,7 +1506,7 @@ impl AppUISlots {
                                 }
                             },
                             DataSource::GameFiles => {
-                                let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(&file_view.path_read(), DataSource::GameFiles);
+                                let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(&file_view.path_read(), DataSource::GameFiles, "");
                                 if let Some(ref tree_index) = tree_index {
                                     if tree_index.is_valid() {
                                         let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view().static_upcast::<QObject>());
@@ -1516,7 +1516,7 @@ impl AppUISlots {
                                 }
                             },
                             DataSource::AssKitFiles => {
-                                let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(&file_view.path_read(), DataSource::AssKitFiles);
+                                let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(&file_view.path_read(), DataSource::AssKitFiles, "");
                                 if let Some(ref tree_index) = tree_index {
                                     if tree_index.is_valid() {
                                         let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view().static_upcast::<QObject>());

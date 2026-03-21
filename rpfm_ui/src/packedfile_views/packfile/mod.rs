@@ -126,7 +126,7 @@ impl PackFileExtraView {
         let mut build_data = BuildData::new();
         build_data.path = Some(pack_file_path.clone());
         build_data.editable = false;
-        tree_view.update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
+        tree_view.update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile, "");
 
         // Create the extra actions for the TreeView.
         let context_menu = QMenu::from_q_widget(pack_file_view.main_widget());

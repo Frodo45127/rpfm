@@ -88,6 +88,10 @@ pub struct PackFileContentsSlots {
     pub contextual_menu_extract: QBox<SlotOfBool>,
     pub contextual_menu_rename: QBox<SlotOfBool>,
     pub contextual_menu_copy_path: QBox<SlotOfBool>,
+    pub contextual_menu_copy: QBox<SlotOfBool>,
+    pub contextual_menu_cut: QBox<SlotOfBool>,
+    pub contextual_menu_paste: QBox<SlotOfBool>,
+    pub contextual_menu_duplicate: QBox<SlotOfBool>,
 
     pub contextual_menu_new_packed_file_anim_pack: QBox<SlotOfBool>,
     pub contextual_menu_new_packed_file_db: QBox<SlotOfBool>,
@@ -203,7 +207,7 @@ impl PackFileContentsSlots {
 
                 // Send the renaming data to the Background Thread, wait for a response.
                 let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::RenamePackedFiles(pack_key, renaming_data_background.to_vec()));
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::RenamePackedFiles(pack_key.clone(), renaming_data_background.to_vec()));
                 let response = CentralCommand::recv(&receiver);
                 match response {
                     Response::VecContainerPathContainerPath(renamed_items) => {
@@ -247,7 +251,7 @@ impl PackFileContentsSlots {
                             .filter(|path| matches!(path, ContainerPath::Folder(_)))
                             .collect::<Vec<_>>();
 
-                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Move(renamed_items, folders_to_move), DataSource::PackFile);
+                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Move(renamed_items, folders_to_move), DataSource::PackFile, &pack_key);
 
                         UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                     },
@@ -322,235 +326,298 @@ impl PackFileContentsSlots {
         // Slot to enable/disable contextual actions depending on the selected item.
         let contextual_menu_enabler = SlotNoArgs::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             pack_file_contents_ui => move || {
-                let (contents, files, folders, _) = <QPtr<QTreeView> as PackTree>::get_combination_from_main_treeview_selection(&pack_file_contents_ui);
-                match contents {
+                let (contents, files, folders, _, multi_pack) = <QPtr<QTreeView> as PackTree>::get_combination_from_main_treeview_selection(&pack_file_contents_ui);
 
-                    // Only one or more files selected.
-                    1 => {
-
-                        // These options are valid for 1 or more files.
-                        pack_file_contents_ui.context_menu_add_file.set_enabled(false);
-                        pack_file_contents_ui.context_menu_add_folder.set_enabled(false);
-                        pack_file_contents_ui.context_menu_add_from_packfile.set_enabled(true);
-                        pack_file_contents_ui.context_menu_new_folder.set_enabled(false);
-                        pack_file_contents_ui.context_menu_new_packed_file_anim_pack.set_enabled(false);
-                        pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(true);
-                        pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(false);
-                        pack_file_contents_ui.context_menu_new_packed_file_portrait_settings.set_enabled(false);
-                        pack_file_contents_ui.context_menu_new_packed_file_text.set_enabled(false);
-                        pack_file_contents_ui.context_menu_delete.set_enabled(true);
-                        pack_file_contents_ui.context_menu_extract.set_enabled(true);
-                        pack_file_contents_ui.context_menu_rename.set_enabled(true);
-                        pack_file_contents_ui.context_menu_open_dependency_manager.set_enabled(false);
-                        pack_file_contents_ui.context_menu_open_containing_folder.set_enabled(false);
-                        pack_file_contents_ui.context_menu_open_packfile_settings.set_enabled(false);
-                        pack_file_contents_ui.context_menu_open_notes.set_enabled(true);
-
-                        // These options are limited to only 1 file selected, and should not be usable if multiple files
-                        // are selected.
-                        let enabled = files == 1;
-                        pack_file_contents_ui.context_menu_open_with_external_program.set_enabled(enabled);
-                        pack_file_contents_ui.context_menu_open_decoder.set_enabled(enabled);
-                        pack_file_contents_ui.context_menu_new_queek_packed_file.set_enabled(enabled);
-                        pack_file_contents_ui.context_menu_update_table.set_enabled(enabled);
-                        pack_file_contents_ui.context_menu_copy_path.set_enabled(enabled);
-
-                        // Only if we have multiple files selected, we give the option to merge. Further checks are done when clicked.
-                        let enabled = files > 1;
-                        pack_file_contents_ui.context_menu_merge_tables.set_enabled(enabled);
-                    },
-
-                    // Only one or more folders selected.
-                    2 => {
-
-                        // These options are valid for 1 or more folders.
-                        pack_file_contents_ui.context_menu_add_from_packfile.set_enabled(true);
-                        pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(true);
-                        pack_file_contents_ui.context_menu_merge_tables.set_enabled(false);
-                        pack_file_contents_ui.context_menu_delete.set_enabled(true);
-                        pack_file_contents_ui.context_menu_extract.set_enabled(true);
-                        pack_file_contents_ui.context_menu_rename.set_enabled(true);
-                        pack_file_contents_ui.context_menu_open_decoder.set_enabled(false);
-                        pack_file_contents_ui.context_menu_open_dependency_manager.set_enabled(false);
-                        pack_file_contents_ui.context_menu_open_containing_folder.set_enabled(false);
-                        pack_file_contents_ui.context_menu_open_packfile_settings.set_enabled(false);
-                        pack_file_contents_ui.context_menu_open_with_external_program.set_enabled(false);
-                        pack_file_contents_ui.context_menu_open_notes.set_enabled(true);
-                        pack_file_contents_ui.context_menu_update_table.set_enabled(false);
-
-                        // These options are limited to only 1 folder selected.
-                        let enabled = folders == 1;
-                        pack_file_contents_ui.context_menu_add_file.set_enabled(enabled);
-                        pack_file_contents_ui.context_menu_add_folder.set_enabled(enabled);
-                        pack_file_contents_ui.context_menu_new_folder.set_enabled(enabled);
-                        pack_file_contents_ui.context_menu_new_packed_file_anim_pack.set_enabled(enabled);
-                        pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(enabled);
-                        pack_file_contents_ui.context_menu_new_packed_file_portrait_settings.set_enabled(enabled);
-                        pack_file_contents_ui.context_menu_new_packed_file_text.set_enabled(enabled);
-                        pack_file_contents_ui.context_menu_new_queek_packed_file.set_enabled(enabled);
-                        pack_file_contents_ui.context_menu_copy_path.set_enabled(enabled);
-                    },
-
-                    // One or more files and one or more folders selected.
-                    3 => {
-                        pack_file_contents_ui.context_menu_add_file.set_enabled(false);
-                        pack_file_contents_ui.context_menu_add_folder.set_enabled(false);
-                        pack_file_contents_ui.context_menu_add_from_packfile.set_enabled(true);
-                        pack_file_contents_ui.context_menu_new_folder.set_enabled(false);
-                        pack_file_contents_ui.context_menu_new_packed_file_anim_pack.set_enabled(false);
-                        pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(true);
-                        pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(false);
-                        pack_file_contents_ui.context_menu_new_packed_file_portrait_settings.set_enabled(false);
-                        pack_file_contents_ui.context_menu_new_packed_file_text.set_enabled(false);
-                        pack_file_contents_ui.context_menu_new_queek_packed_file.set_enabled(false);
-                        pack_file_contents_ui.context_menu_merge_tables.set_enabled(false);
-                        pack_file_contents_ui.context_menu_delete.set_enabled(true);
-                        pack_file_contents_ui.context_menu_extract.set_enabled(true);
-                        pack_file_contents_ui.context_menu_rename.set_enabled(false);
-                        pack_file_contents_ui.context_menu_copy_path.set_enabled(false);
-                        pack_file_contents_ui.context_menu_open_decoder.set_enabled(false);
-                        pack_file_contents_ui.context_menu_open_dependency_manager.set_enabled(false);
-                        pack_file_contents_ui.context_menu_open_containing_folder.set_enabled(false);
-                        pack_file_contents_ui.context_menu_open_packfile_settings.set_enabled(false);
-                        pack_file_contents_ui.context_menu_open_with_external_program.set_enabled(false);
-                        pack_file_contents_ui.context_menu_open_notes.set_enabled(true);
-                        pack_file_contents_ui.context_menu_update_table.set_enabled(false);
-                    },
-
-                    // One PackFile (you cannot have two in the same TreeView) selected.
-                    4 => {
-                        pack_file_contents_ui.context_menu_add_file.set_enabled(true);
-                        pack_file_contents_ui.context_menu_add_folder.set_enabled(true);
-                        pack_file_contents_ui.context_menu_add_from_packfile.set_enabled(true);
-                        pack_file_contents_ui.context_menu_new_folder.set_enabled(true);
-                        pack_file_contents_ui.context_menu_new_packed_file_anim_pack.set_enabled(true);
-                        pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(true);
-                        pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(true);
-                        pack_file_contents_ui.context_menu_new_packed_file_portrait_settings.set_enabled(true);
-                        pack_file_contents_ui.context_menu_new_packed_file_text.set_enabled(true);
-                        pack_file_contents_ui.context_menu_new_queek_packed_file.set_enabled(false);
-                        pack_file_contents_ui.context_menu_merge_tables.set_enabled(false);
-                        pack_file_contents_ui.context_menu_delete.set_enabled(true);
-                        pack_file_contents_ui.context_menu_extract.set_enabled(true);
-                        pack_file_contents_ui.context_menu_rename.set_enabled(false);
-                        pack_file_contents_ui.context_menu_copy_path.set_enabled(false);
-                        pack_file_contents_ui.context_menu_open_decoder.set_enabled(false);
-                        pack_file_contents_ui.context_menu_open_dependency_manager.set_enabled(true);
-                        pack_file_contents_ui.context_menu_open_containing_folder.set_enabled(true);
-                        pack_file_contents_ui.context_menu_open_packfile_settings.set_enabled(true);
-                        pack_file_contents_ui.context_menu_open_with_external_program.set_enabled(false);
-                        pack_file_contents_ui.context_menu_open_notes.set_enabled(true);
-                        pack_file_contents_ui.context_menu_update_table.set_enabled(false);
-                    },
-
-                    // PackFile and one or more files selected.
-                    5 => {
-                        pack_file_contents_ui.context_menu_add_file.set_enabled(false);
-                        pack_file_contents_ui.context_menu_add_folder.set_enabled(false);
-                        pack_file_contents_ui.context_menu_add_from_packfile.set_enabled(true);
-                        pack_file_contents_ui.context_menu_new_folder.set_enabled(false);
-                        pack_file_contents_ui.context_menu_new_packed_file_anim_pack.set_enabled(false);
-                        pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(true);
-                        pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(false);
-                        pack_file_contents_ui.context_menu_new_packed_file_text.set_enabled(false);
-                        pack_file_contents_ui.context_menu_new_queek_packed_file.set_enabled(false);
-                        pack_file_contents_ui.context_menu_merge_tables.set_enabled(false);
-                        pack_file_contents_ui.context_menu_delete.set_enabled(true);
-                        pack_file_contents_ui.context_menu_extract.set_enabled(true);
-                        pack_file_contents_ui.context_menu_rename.set_enabled(false);
-                        pack_file_contents_ui.context_menu_copy_path.set_enabled(false);
-                        pack_file_contents_ui.context_menu_open_decoder.set_enabled(false);
-                        pack_file_contents_ui.context_menu_open_dependency_manager.set_enabled(false);
-                        pack_file_contents_ui.context_menu_open_containing_folder.set_enabled(false);
-                        pack_file_contents_ui.context_menu_open_packfile_settings.set_enabled(false);
-                        pack_file_contents_ui.context_menu_open_with_external_program.set_enabled(false);
-                        pack_file_contents_ui.context_menu_open_notes.set_enabled(true);
-                        pack_file_contents_ui.context_menu_update_table.set_enabled(false);
-                    },
-
-                    // PackFile and one or more folders selected.
-                    6 => {
-                        pack_file_contents_ui.context_menu_add_file.set_enabled(false);
-                        pack_file_contents_ui.context_menu_add_folder.set_enabled(false);
-                        pack_file_contents_ui.context_menu_add_from_packfile.set_enabled(true);
-                        pack_file_contents_ui.context_menu_new_folder.set_enabled(false);
-                        pack_file_contents_ui.context_menu_new_packed_file_anim_pack.set_enabled(false);
-                        pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(true);
-                        pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(false);
-                        pack_file_contents_ui.context_menu_new_packed_file_portrait_settings.set_enabled(false);
-                        pack_file_contents_ui.context_menu_new_packed_file_text.set_enabled(false);
-                        pack_file_contents_ui.context_menu_new_queek_packed_file.set_enabled(false);
-                        pack_file_contents_ui.context_menu_delete.set_enabled(true);
-                        pack_file_contents_ui.context_menu_extract.set_enabled(true);
-                        pack_file_contents_ui.context_menu_rename.set_enabled(false);
-                        pack_file_contents_ui.context_menu_copy_path.set_enabled(false);
-                        pack_file_contents_ui.context_menu_open_decoder.set_enabled(false);
-                        pack_file_contents_ui.context_menu_open_dependency_manager.set_enabled(false);
-                        pack_file_contents_ui.context_menu_open_containing_folder.set_enabled(false);
-                        pack_file_contents_ui.context_menu_open_packfile_settings.set_enabled(false);
-                        pack_file_contents_ui.context_menu_open_with_external_program.set_enabled(false);
-                        pack_file_contents_ui.context_menu_open_notes.set_enabled(true);
-                        pack_file_contents_ui.context_menu_update_table.set_enabled(false);
-                    },
-
-                    // PackFile, one or more files, and one or more folders selected.
-                    7 => {
-                        pack_file_contents_ui.context_menu_add_file.set_enabled(false);
-                        pack_file_contents_ui.context_menu_add_folder.set_enabled(false);
-                        pack_file_contents_ui.context_menu_add_from_packfile.set_enabled(true);
-                        pack_file_contents_ui.context_menu_new_folder.set_enabled(false);
-                        pack_file_contents_ui.context_menu_new_packed_file_anim_pack.set_enabled(false);
-                        pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(true);
-                        pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(false);
-                        pack_file_contents_ui.context_menu_new_packed_file_portrait_settings.set_enabled(false);
-                        pack_file_contents_ui.context_menu_new_packed_file_text.set_enabled(false);
-                        pack_file_contents_ui.context_menu_new_queek_packed_file.set_enabled(false);
-                        pack_file_contents_ui.context_menu_merge_tables.set_enabled(false);
-                        pack_file_contents_ui.context_menu_delete.set_enabled(true);
-                        pack_file_contents_ui.context_menu_extract.set_enabled(true);
-                        pack_file_contents_ui.context_menu_rename.set_enabled(false);
-                        pack_file_contents_ui.context_menu_copy_path.set_enabled(false);
-                        pack_file_contents_ui.context_menu_open_decoder.set_enabled(false);
-                        pack_file_contents_ui.context_menu_open_dependency_manager.set_enabled(false);
-                        pack_file_contents_ui.context_menu_open_containing_folder.set_enabled(false);
-                        pack_file_contents_ui.context_menu_open_packfile_settings.set_enabled(false);
-                        pack_file_contents_ui.context_menu_open_with_external_program.set_enabled(false);
-                        pack_file_contents_ui.context_menu_open_notes.set_enabled(true);
-                        pack_file_contents_ui.context_menu_update_table.set_enabled(false);
-                    },
-
-                    // No paths selected, none selected, invalid path selected, or invalid value.
-                    0 | 8..=255 => {
-                        pack_file_contents_ui.context_menu_add_file.set_enabled(false);
-                        pack_file_contents_ui.context_menu_add_folder.set_enabled(false);
-                        pack_file_contents_ui.context_menu_add_from_packfile.set_enabled(false);
-                        pack_file_contents_ui.context_menu_new_folder.set_enabled(false);
-                        pack_file_contents_ui.context_menu_new_packed_file_anim_pack.set_enabled(false);
-                        pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(false);
-                        pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(false);
-                        pack_file_contents_ui.context_menu_new_packed_file_portrait_settings.set_enabled(false);
-                        pack_file_contents_ui.context_menu_new_packed_file_text.set_enabled(false);
-                        pack_file_contents_ui.context_menu_new_queek_packed_file.set_enabled(false);
-                        pack_file_contents_ui.context_menu_merge_tables.set_enabled(false);
-                        pack_file_contents_ui.context_menu_delete.set_enabled(false);
-                        pack_file_contents_ui.context_menu_extract.set_enabled(false);
-                        pack_file_contents_ui.context_menu_rename.set_enabled(false);
-                        pack_file_contents_ui.context_menu_copy_path.set_enabled(false);
-                        pack_file_contents_ui.context_menu_open_decoder.set_enabled(false);
-                        pack_file_contents_ui.context_menu_open_dependency_manager.set_enabled(false);
-                        pack_file_contents_ui.context_menu_open_containing_folder.set_enabled(false);
-                        pack_file_contents_ui.context_menu_open_packfile_settings.set_enabled(false);
-                        pack_file_contents_ui.context_menu_open_with_external_program.set_enabled(false);
-                        pack_file_contents_ui.context_menu_open_notes.set_enabled(false);
-                        pack_file_contents_ui.context_menu_update_table.set_enabled(false);
-                    },
-                }
-
-                // If there is anything selected, we can generate missing loc data.
-                if files > 0 || folders > 0 {
-                    pack_file_contents_ui.context_menu_generate_missing_loc_data.set_enabled(true);
+                // Disable all actions if we're selecting stuff from different packs.
+                if multi_pack {
+                    pack_file_contents_ui.context_menu_add_file.set_enabled(false);
+                    pack_file_contents_ui.context_menu_add_folder.set_enabled(false);
+                    pack_file_contents_ui.context_menu_add_from_packfile.set_enabled(false);
+                    pack_file_contents_ui.context_menu_new_folder.set_enabled(false);
+                    pack_file_contents_ui.context_menu_new_packed_file_anim_pack.set_enabled(false);
+                    pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(false);
+                    pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(false);
+                    pack_file_contents_ui.context_menu_new_packed_file_portrait_settings.set_enabled(false);
+                    pack_file_contents_ui.context_menu_new_packed_file_text.set_enabled(false);
+                    pack_file_contents_ui.context_menu_new_queek_packed_file.set_enabled(false);
+                    pack_file_contents_ui.context_menu_merge_tables.set_enabled(false);
+                    pack_file_contents_ui.context_menu_delete.set_enabled(false);
+                    pack_file_contents_ui.context_menu_extract.set_enabled(false);
+                    pack_file_contents_ui.context_menu_rename.set_enabled(false);
+                    pack_file_contents_ui.context_menu_copy_path.set_enabled(false);
+                    pack_file_contents_ui.context_menu_copy.set_enabled(true);
+                    pack_file_contents_ui.context_menu_cut.set_enabled(true);
+                    pack_file_contents_ui.context_menu_paste.set_enabled(false);
+                    pack_file_contents_ui.context_menu_duplicate.set_enabled(false);
+                    pack_file_contents_ui.context_menu_open_decoder.set_enabled(false);
+                    pack_file_contents_ui.context_menu_open_dependency_manager.set_enabled(false);
+                    pack_file_contents_ui.context_menu_open_containing_folder.set_enabled(false);
+                    pack_file_contents_ui.context_menu_open_packfile_settings.set_enabled(false);
+                    pack_file_contents_ui.context_menu_open_with_external_program.set_enabled(false);
+                    pack_file_contents_ui.context_menu_open_notes.set_enabled(false);
+                    pack_file_contents_ui.context_menu_update_table.set_enabled(false);
                 } else {
-                    pack_file_contents_ui.context_menu_generate_missing_loc_data.set_enabled(false);
+                    match contents {
+
+                        // Only one or more files selected.
+                        1 => {
+
+                            // These options are valid for 1 or more files.
+                            pack_file_contents_ui.context_menu_add_file.set_enabled(false);
+                            pack_file_contents_ui.context_menu_add_folder.set_enabled(false);
+                            pack_file_contents_ui.context_menu_add_from_packfile.set_enabled(true);
+                            pack_file_contents_ui.context_menu_new_folder.set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_packed_file_anim_pack.set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(true);
+                            pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_packed_file_portrait_settings.set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_packed_file_text.set_enabled(false);
+                            pack_file_contents_ui.context_menu_delete.set_enabled(true);
+                            pack_file_contents_ui.context_menu_extract.set_enabled(true);
+                            pack_file_contents_ui.context_menu_rename.set_enabled(true);
+                            pack_file_contents_ui.context_menu_copy.set_enabled(true);
+                            pack_file_contents_ui.context_menu_cut.set_enabled(true);
+                            pack_file_contents_ui.context_menu_paste.set_enabled(true);
+                            pack_file_contents_ui.context_menu_duplicate.set_enabled(true);
+                            pack_file_contents_ui.context_menu_open_dependency_manager.set_enabled(false);
+                            pack_file_contents_ui.context_menu_open_containing_folder.set_enabled(false);
+                            pack_file_contents_ui.context_menu_open_packfile_settings.set_enabled(false);
+                            pack_file_contents_ui.context_menu_open_notes.set_enabled(true);
+
+                            // These options are limited to only 1 file selected, and should not be usable if multiple files
+                            // are selected.
+                            let enabled = files == 1;
+                            pack_file_contents_ui.context_menu_open_with_external_program.set_enabled(enabled);
+                            pack_file_contents_ui.context_menu_open_decoder.set_enabled(enabled);
+                            pack_file_contents_ui.context_menu_new_queek_packed_file.set_enabled(enabled);
+                            pack_file_contents_ui.context_menu_update_table.set_enabled(enabled);
+                            pack_file_contents_ui.context_menu_copy_path.set_enabled(enabled);
+
+                            // Only if we have multiple files selected, we give the option to merge. Further checks are done when clicked.
+                            let enabled = files > 1;
+                            pack_file_contents_ui.context_menu_merge_tables.set_enabled(enabled);
+                        },
+
+                        // Only one or more folders selected.
+                        2 => {
+
+                            // These options are valid for 1 or more folders.
+                            pack_file_contents_ui.context_menu_add_from_packfile.set_enabled(true);
+                            pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(true);
+                            pack_file_contents_ui.context_menu_merge_tables.set_enabled(false);
+                            pack_file_contents_ui.context_menu_delete.set_enabled(true);
+                            pack_file_contents_ui.context_menu_extract.set_enabled(true);
+                            pack_file_contents_ui.context_menu_rename.set_enabled(true);
+                            pack_file_contents_ui.context_menu_copy.set_enabled(true);
+                            pack_file_contents_ui.context_menu_cut.set_enabled(true);
+                            pack_file_contents_ui.context_menu_paste.set_enabled(true);
+                            pack_file_contents_ui.context_menu_duplicate.set_enabled(false);
+                            pack_file_contents_ui.context_menu_open_decoder.set_enabled(false);
+                            pack_file_contents_ui.context_menu_open_dependency_manager.set_enabled(false);
+                            pack_file_contents_ui.context_menu_open_containing_folder.set_enabled(false);
+                            pack_file_contents_ui.context_menu_open_packfile_settings.set_enabled(false);
+                            pack_file_contents_ui.context_menu_open_with_external_program.set_enabled(false);
+                            pack_file_contents_ui.context_menu_open_notes.set_enabled(true);
+                            pack_file_contents_ui.context_menu_update_table.set_enabled(false);
+
+                            // These options are limited to only 1 folder selected.
+                            let enabled = folders == 1;
+                            pack_file_contents_ui.context_menu_add_file.set_enabled(enabled);
+                            pack_file_contents_ui.context_menu_add_folder.set_enabled(enabled);
+                            pack_file_contents_ui.context_menu_new_folder.set_enabled(enabled);
+                            pack_file_contents_ui.context_menu_new_packed_file_anim_pack.set_enabled(enabled);
+                            pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(enabled);
+                            pack_file_contents_ui.context_menu_new_packed_file_portrait_settings.set_enabled(enabled);
+                            pack_file_contents_ui.context_menu_new_packed_file_text.set_enabled(enabled);
+                            pack_file_contents_ui.context_menu_new_queek_packed_file.set_enabled(enabled);
+                            pack_file_contents_ui.context_menu_copy_path.set_enabled(enabled);
+                        },
+
+                        // One or more files and one or more folders selected.
+                        3 => {
+                            pack_file_contents_ui.context_menu_add_file.set_enabled(false);
+                            pack_file_contents_ui.context_menu_add_folder.set_enabled(false);
+                            pack_file_contents_ui.context_menu_add_from_packfile.set_enabled(true);
+                            pack_file_contents_ui.context_menu_new_folder.set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_packed_file_anim_pack.set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(true);
+                            pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_packed_file_portrait_settings.set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_packed_file_text.set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_queek_packed_file.set_enabled(false);
+                            pack_file_contents_ui.context_menu_merge_tables.set_enabled(false);
+                            pack_file_contents_ui.context_menu_delete.set_enabled(true);
+                            pack_file_contents_ui.context_menu_extract.set_enabled(true);
+                            pack_file_contents_ui.context_menu_rename.set_enabled(false);
+                            pack_file_contents_ui.context_menu_copy_path.set_enabled(false);
+                            pack_file_contents_ui.context_menu_copy.set_enabled(true);
+                            pack_file_contents_ui.context_menu_cut.set_enabled(true);
+                            pack_file_contents_ui.context_menu_paste.set_enabled(true);
+                            pack_file_contents_ui.context_menu_duplicate.set_enabled(false);
+                            pack_file_contents_ui.context_menu_open_decoder.set_enabled(false);
+                            pack_file_contents_ui.context_menu_open_dependency_manager.set_enabled(false);
+                            pack_file_contents_ui.context_menu_open_containing_folder.set_enabled(false);
+                            pack_file_contents_ui.context_menu_open_packfile_settings.set_enabled(false);
+                            pack_file_contents_ui.context_menu_open_with_external_program.set_enabled(false);
+                            pack_file_contents_ui.context_menu_open_notes.set_enabled(true);
+                            pack_file_contents_ui.context_menu_update_table.set_enabled(false);
+                        },
+
+                        // One PackFile (you cannot have two in the same TreeView) selected.
+                        4 => {
+                            pack_file_contents_ui.context_menu_add_file.set_enabled(true);
+                            pack_file_contents_ui.context_menu_add_folder.set_enabled(true);
+                            pack_file_contents_ui.context_menu_add_from_packfile.set_enabled(true);
+                            pack_file_contents_ui.context_menu_new_folder.set_enabled(true);
+                            pack_file_contents_ui.context_menu_new_packed_file_anim_pack.set_enabled(true);
+                            pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(true);
+                            pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(true);
+                            pack_file_contents_ui.context_menu_new_packed_file_portrait_settings.set_enabled(true);
+                            pack_file_contents_ui.context_menu_new_packed_file_text.set_enabled(true);
+                            pack_file_contents_ui.context_menu_new_queek_packed_file.set_enabled(false);
+                            pack_file_contents_ui.context_menu_merge_tables.set_enabled(false);
+                            pack_file_contents_ui.context_menu_delete.set_enabled(true);
+                            pack_file_contents_ui.context_menu_extract.set_enabled(true);
+                            pack_file_contents_ui.context_menu_rename.set_enabled(false);
+                            pack_file_contents_ui.context_menu_copy_path.set_enabled(false);
+                            pack_file_contents_ui.context_menu_copy.set_enabled(false);
+                            pack_file_contents_ui.context_menu_cut.set_enabled(false);
+                            pack_file_contents_ui.context_menu_paste.set_enabled(true);
+                            pack_file_contents_ui.context_menu_duplicate.set_enabled(false);
+                            pack_file_contents_ui.context_menu_open_decoder.set_enabled(false);
+                            pack_file_contents_ui.context_menu_open_dependency_manager.set_enabled(true);
+                            pack_file_contents_ui.context_menu_open_containing_folder.set_enabled(true);
+                            pack_file_contents_ui.context_menu_open_packfile_settings.set_enabled(true);
+                            pack_file_contents_ui.context_menu_open_with_external_program.set_enabled(false);
+                            pack_file_contents_ui.context_menu_open_notes.set_enabled(true);
+                            pack_file_contents_ui.context_menu_update_table.set_enabled(false);
+                        },
+
+                        // PackFile and one or more files selected.
+                        5 => {
+                            pack_file_contents_ui.context_menu_add_file.set_enabled(false);
+                            pack_file_contents_ui.context_menu_add_folder.set_enabled(false);
+                            pack_file_contents_ui.context_menu_add_from_packfile.set_enabled(true);
+                            pack_file_contents_ui.context_menu_new_folder.set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_packed_file_anim_pack.set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(true);
+                            pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_packed_file_text.set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_queek_packed_file.set_enabled(false);
+                            pack_file_contents_ui.context_menu_merge_tables.set_enabled(false);
+                            pack_file_contents_ui.context_menu_delete.set_enabled(true);
+                            pack_file_contents_ui.context_menu_extract.set_enabled(true);
+                            pack_file_contents_ui.context_menu_rename.set_enabled(false);
+                            pack_file_contents_ui.context_menu_copy_path.set_enabled(false);
+                            pack_file_contents_ui.context_menu_copy.set_enabled(true);
+                            pack_file_contents_ui.context_menu_cut.set_enabled(true);
+                            pack_file_contents_ui.context_menu_paste.set_enabled(true);
+                            pack_file_contents_ui.context_menu_duplicate.set_enabled(false);
+                            pack_file_contents_ui.context_menu_open_decoder.set_enabled(false);
+                            pack_file_contents_ui.context_menu_open_dependency_manager.set_enabled(false);
+                            pack_file_contents_ui.context_menu_open_containing_folder.set_enabled(false);
+                            pack_file_contents_ui.context_menu_open_packfile_settings.set_enabled(false);
+                            pack_file_contents_ui.context_menu_open_with_external_program.set_enabled(false);
+                            pack_file_contents_ui.context_menu_open_notes.set_enabled(true);
+                            pack_file_contents_ui.context_menu_update_table.set_enabled(false);
+                        },
+
+                        // PackFile and one or more folders selected.
+                        6 => {
+                            pack_file_contents_ui.context_menu_add_file.set_enabled(false);
+                            pack_file_contents_ui.context_menu_add_folder.set_enabled(false);
+                            pack_file_contents_ui.context_menu_add_from_packfile.set_enabled(true);
+                            pack_file_contents_ui.context_menu_new_folder.set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_packed_file_anim_pack.set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(true);
+                            pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_packed_file_portrait_settings.set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_packed_file_text.set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_queek_packed_file.set_enabled(false);
+                            pack_file_contents_ui.context_menu_delete.set_enabled(true);
+                            pack_file_contents_ui.context_menu_extract.set_enabled(true);
+                            pack_file_contents_ui.context_menu_rename.set_enabled(false);
+                            pack_file_contents_ui.context_menu_copy_path.set_enabled(false);
+                            pack_file_contents_ui.context_menu_copy.set_enabled(true);
+                            pack_file_contents_ui.context_menu_cut.set_enabled(true);
+                            pack_file_contents_ui.context_menu_paste.set_enabled(true);
+                            pack_file_contents_ui.context_menu_duplicate.set_enabled(false);
+                            pack_file_contents_ui.context_menu_open_decoder.set_enabled(false);
+                            pack_file_contents_ui.context_menu_open_dependency_manager.set_enabled(false);
+                            pack_file_contents_ui.context_menu_open_containing_folder.set_enabled(false);
+                            pack_file_contents_ui.context_menu_open_packfile_settings.set_enabled(false);
+                            pack_file_contents_ui.context_menu_open_with_external_program.set_enabled(false);
+                            pack_file_contents_ui.context_menu_open_notes.set_enabled(true);
+                            pack_file_contents_ui.context_menu_update_table.set_enabled(false);
+                        },
+
+                        // PackFile, one or more files, and one or more folders selected.
+                        7 => {
+                            pack_file_contents_ui.context_menu_add_file.set_enabled(false);
+                            pack_file_contents_ui.context_menu_add_folder.set_enabled(false);
+                            pack_file_contents_ui.context_menu_add_from_packfile.set_enabled(true);
+                            pack_file_contents_ui.context_menu_new_folder.set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_packed_file_anim_pack.set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(true);
+                            pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_packed_file_portrait_settings.set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_packed_file_text.set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_queek_packed_file.set_enabled(false);
+                            pack_file_contents_ui.context_menu_merge_tables.set_enabled(false);
+                            pack_file_contents_ui.context_menu_delete.set_enabled(true);
+                            pack_file_contents_ui.context_menu_extract.set_enabled(true);
+                            pack_file_contents_ui.context_menu_rename.set_enabled(false);
+                            pack_file_contents_ui.context_menu_copy_path.set_enabled(false);
+                            pack_file_contents_ui.context_menu_copy.set_enabled(true);
+                            pack_file_contents_ui.context_menu_cut.set_enabled(true);
+                            pack_file_contents_ui.context_menu_paste.set_enabled(true);
+                            pack_file_contents_ui.context_menu_duplicate.set_enabled(false);
+                            pack_file_contents_ui.context_menu_open_decoder.set_enabled(false);
+                            pack_file_contents_ui.context_menu_open_dependency_manager.set_enabled(false);
+                            pack_file_contents_ui.context_menu_open_containing_folder.set_enabled(false);
+                            pack_file_contents_ui.context_menu_open_packfile_settings.set_enabled(false);
+                            pack_file_contents_ui.context_menu_open_with_external_program.set_enabled(false);
+                            pack_file_contents_ui.context_menu_open_notes.set_enabled(true);
+                            pack_file_contents_ui.context_menu_update_table.set_enabled(false);
+                        },
+
+                        // No paths selected, none selected, invalid path selected, or invalid value.
+                        0 | 8..=255 => {
+                            pack_file_contents_ui.context_menu_add_file.set_enabled(false);
+                            pack_file_contents_ui.context_menu_add_folder.set_enabled(false);
+                            pack_file_contents_ui.context_menu_add_from_packfile.set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_folder.set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_packed_file_anim_pack.set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_packed_file_portrait_settings.set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_packed_file_text.set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_queek_packed_file.set_enabled(false);
+                            pack_file_contents_ui.context_menu_merge_tables.set_enabled(false);
+                            pack_file_contents_ui.context_menu_delete.set_enabled(false);
+                            pack_file_contents_ui.context_menu_extract.set_enabled(false);
+                            pack_file_contents_ui.context_menu_rename.set_enabled(false);
+                            pack_file_contents_ui.context_menu_copy_path.set_enabled(false);
+                            pack_file_contents_ui.context_menu_copy.set_enabled(false);
+                            pack_file_contents_ui.context_menu_cut.set_enabled(false);
+                            pack_file_contents_ui.context_menu_paste.set_enabled(false);
+                            pack_file_contents_ui.context_menu_duplicate.set_enabled(false);
+                            pack_file_contents_ui.context_menu_open_decoder.set_enabled(false);
+                            pack_file_contents_ui.context_menu_open_dependency_manager.set_enabled(false);
+                            pack_file_contents_ui.context_menu_open_containing_folder.set_enabled(false);
+                            pack_file_contents_ui.context_menu_open_packfile_settings.set_enabled(false);
+                            pack_file_contents_ui.context_menu_open_with_external_program.set_enabled(false);
+                            pack_file_contents_ui.context_menu_open_notes.set_enabled(false);
+                            pack_file_contents_ui.context_menu_update_table.set_enabled(false);
+                        },
+                    }
+
+                    // If there is anything selected, we can generate missing loc data.
+                    if files > 0 || folders > 0 {
+                        pack_file_contents_ui.context_menu_generate_missing_loc_data.set_enabled(true);
+                    } else {
+                        pack_file_contents_ui.context_menu_generate_missing_loc_data.set_enabled(false);
+                    }
                 }
 
                 // Ask the other thread if there is a Dependency Database and a Schema loaded.
@@ -939,15 +1006,15 @@ impl PackFileContentsSlots {
                     let mut selected_items = <QPtr<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
 
                     let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::DeletePackedFiles(pack_key, selected_items.clone()));
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::DeletePackedFiles(pack_key.clone(), selected_items.clone()));
                     let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::VecContainerPath(items) => {
 
                             selected_items.extend_from_slice(&items);
                             let items = ContainerPath::dedup(&selected_items);
-                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(items.to_vec(), settings_bool("delete_empty_folders_on_delete")), DataSource::PackFile);
-                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(items.to_vec()), DataSource::PackFile);
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(items.to_vec(), settings_bool("delete_empty_folders_on_delete")), DataSource::PackFile, &pack_key);
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(items.to_vec()), DataSource::PackFile, &pack_key);
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
 
                             // Remove all the deleted PackedFiles from the cache.
@@ -1039,7 +1106,7 @@ impl PackFileContentsSlots {
 
                             // Send the renaming data to the Background Thread, wait for a response.
                             let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::RenamePackedFiles(pack_key, renaming_data_background.to_vec()));
+                            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::RenamePackedFiles(pack_key.clone(), renaming_data_background.to_vec()));
                             let response = CentralCommand::recv(&receiver);
                             match response {
                                 Response::VecContainerPathContainerPath(renamed_items) => {
@@ -1088,7 +1155,7 @@ impl PackFileContentsSlots {
                                         .filter(|path| matches!(path, ContainerPath::Folder(_)))
                                         .collect::<Vec<_>>();
 
-                                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Move(renamed_items, folders_to_move), DataSource::PackFile);
+                                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Move(renamed_items, folders_to_move), DataSource::PackFile, &pack_key);
 
                                     UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                                 },
@@ -1109,6 +1176,151 @@ impl PackFileContentsSlots {
                 QGuiApplication::clipboard().set_text_1a(&QString::from_std_str(&selected_paths[0]));
             }
         }));
+
+        // What happens when we trigger the "Copy" action in the Contextual Menu.
+        let contextual_menu_copy = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui => move |_| {
+                info!("Triggering `Copy` By Slot");
+
+                let paths_by_pack = pack_file_contents_ui.selected_items_grouped_by_pack_key();
+                if paths_by_pack.is_empty() {
+                    return;
+                }
+
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::CopyPackedFiles(paths_by_pack));
+                let response = CentralCommand::recv(&receiver);
+                match response {
+                    Response::Success => log_to_status_bar(&tr("copy_success")),
+                    Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
+                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                }
+            }
+        ));
+
+        // What happens when we trigger the "Cut" action in the Contextual Menu.
+        let contextual_menu_cut = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui => move |_| {
+                info!("Triggering `Cut` By Slot");
+
+                let paths_by_pack = pack_file_contents_ui.selected_items_grouped_by_pack_key();
+                if paths_by_pack.is_empty() {
+                    return;
+                }
+
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::CutPackedFiles(paths_by_pack));
+                let response = CentralCommand::recv(&receiver);
+                match response {
+                    Response::Success => log_to_status_bar(&tr("cut_success")),
+                    Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
+                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                }
+            }
+        ));
+
+        // What happens when we trigger the "Paste" action in the Contextual Menu.
+        let contextual_menu_paste = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui => move |_| {
+                info!("Triggering `Paste` By Slot");
+
+                // Get the destination path from the selection. Do nothing if nothing is selected.
+                let selected_items = <QPtr<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
+                if selected_items.is_empty() {
+                    return;
+                }
+
+                let destination_path = match &selected_items[0] {
+                    ContainerPath::Folder(path) => path.clone(),
+                    ContainerPath::File(path) => {
+                        // It's a file, so use its parent folder.
+                        match path.rfind('/') {
+                            Some(pos) => path[..pos].to_string(),
+                            None => String::new(),
+                        }
+                    }
+                };
+
+                let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::PastePackedFiles(pack_key.clone(), destination_path));
+                let response = CentralCommand::recv(&receiver);
+                match response {
+                    Response::VecContainerPathBTreeMapStringVecContainerPath(added_paths, deleted_by_pack) => {
+                        if !added_paths.is_empty() {
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(added_paths.to_vec()), DataSource::PackFile, &pack_key);
+                            UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
+                        }
+
+                        // If it was a cut operation, remove deleted items from each source pack's tree.
+                        for (source_pack_key, deleted_paths) in &deleted_by_pack {
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(deleted_paths.to_vec(), false), DataSource::PackFile, source_pack_key);
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(deleted_paths.to_vec()), DataSource::PackFile, source_pack_key);
+
+                            // Remove all the deleted PackedFiles from the cache, but only for views from the source pack.
+                            for item in deleted_paths {
+                                match item {
+                                    ContainerPath::File(path) => { let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, DataSource::PackFile, false); },
+                                    ContainerPath::Folder(path) => {
+                                        let mut paths_to_remove = vec![];
+                                        {
+                                            let open_packedfiles = UI_STATE.set_open_packedfiles();
+                                            for view in open_packedfiles.iter().filter(|x| x.data_source() == DataSource::PackFile && x.pack_key_copy() == *source_pack_key) {
+                                                let packed_file_path = view.path_read();
+                                                if !packed_file_path.is_empty() && packed_file_path.starts_with(path) {
+                                                    paths_to_remove.push(packed_file_path.to_owned());
+                                                }
+                                            }
+                                        }
+                                        for path in paths_to_remove {
+                                            let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, &path, DataSource::PackFile, false);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
+                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                }
+            }
+        ));
+
+        // What happens when we trigger the "Duplicate" action in the Contextual Menu.
+        let contextual_menu_duplicate = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui => move |_| {
+                info!("Triggering `Duplicate` By Slot");
+
+                let selected_items = <QPtr<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
+                if selected_items.is_empty() {
+                    return;
+                }
+
+                // Only duplicate files, not folders.
+                let file_items: Vec<ContainerPath> = selected_items.into_iter()
+                    .filter(|item| matches!(item, ContainerPath::File(_)))
+                    .collect();
+
+                if file_items.is_empty() {
+                    return;
+                }
+
+                let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::DuplicatePackedFiles(pack_key.clone(), file_items));
+                let response = CentralCommand::recv(&receiver);
+                match response {
+                    Response::VecContainerPath(added_paths) => {
+                        if !added_paths.is_empty() {
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(added_paths.to_vec()), DataSource::PackFile, &pack_key);
+                            UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
+                        }
+                    },
+                    Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
+                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                }
+            }
+        ));
 
         // What happens when we trigger the "Create AnimPack" Action.
         let contextual_menu_new_packed_file_anim_pack = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
@@ -1173,13 +1385,13 @@ impl PackFileContentsSlots {
 
                         // Check if the folder exists.
                         let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::FolderExists(pack_key, complete_path.to_owned()));
+                        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::FolderExists(pack_key.clone(), complete_path.to_owned()));
                         let response = CentralCommand::recv(&receiver);
                         let folder_exists = if let Response::Bool(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
 
                         // If the folder already exists, return an error.
                         if folder_exists { return show_dialog(app_ui.main_window(), "That folder already exists in the current path.", false)}
-                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![ContainerPath::Folder(complete_path); 1]), DataSource::PackFile);
+                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![ContainerPath::Folder(complete_path); 1]), DataSource::PackFile, &pack_key);
                         UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                     }
                 }
@@ -1351,7 +1563,7 @@ impl PackFileContentsSlots {
 
                     let selected_paths_cont = selected_paths.iter().map(|x| ContainerPath::File(x.to_owned())).collect::<Vec<_>>();
                     let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::MergeFiles(pack_key, selected_paths_cont.to_vec(), path_to_add, delete_source_files));
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::MergeFiles(pack_key.clone(), selected_paths_cont.to_vec(), path_to_add, delete_source_files));
                     let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::String(path_to_add) => {
@@ -1360,10 +1572,10 @@ impl PackFileContentsSlots {
                             if delete_source_files {
                                 selected_paths.iter().for_each(|x| { let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, x, DataSource::PackFile, false); });
                                 let paths_to_delete = selected_paths_cont.iter().filter(|path| path.path_raw() != path_to_add).cloned().collect::<Vec<_>>();
-                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(paths_to_delete, true), DataSource::PackFile);
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(paths_to_delete, true), DataSource::PackFile, &pack_key);
                             }
 
-                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![ContainerPath::File(path_to_add); 1]), DataSource::PackFile);
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![ContainerPath::File(path_to_add); 1]), DataSource::PackFile, &pack_key);
 
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                         }
@@ -1402,7 +1614,7 @@ impl PackFileContentsSlots {
                     }
 
                     let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::UpdateTable(pack_key, item_type.clone()));
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::UpdateTable(pack_key.clone(), item_type.clone()));
                     let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::I32I32VecStringVecString(old_version, new_version, fields_deleted, fields_added) => {
@@ -1417,8 +1629,8 @@ impl PackFileContentsSlots {
 
                             show_dialog(app_ui.main_window(), message, true);
 
-                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Modify(vec![item_type.clone(); 1]), DataSource::PackFile);
-                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![item_type.clone(); 1]), DataSource::PackFile);
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Modify(vec![item_type.clone(); 1]), DataSource::PackFile, &pack_key);
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![item_type.clone(); 1]), DataSource::PackFile, &pack_key);
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                         }
 
@@ -1440,11 +1652,11 @@ impl PackFileContentsSlots {
             let _ = AppUI::back_to_back_end_all(&app_ui, &pack_file_contents_ui);
 
             let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GenerateMissingLocData(pack_key));
+            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GenerateMissingLocData(pack_key.clone()));
             let response = CentralCommand::recv(&receiver);
             match response {
                 Response::VecContainerPath(paths_to_add) => {
-                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths_to_add.to_vec()), DataSource::PackFile);
+                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths_to_add.to_vec()), DataSource::PackFile, &pack_key);
 
                     // Reload correctly the UI.
                     for path in &paths_to_add {
@@ -1681,11 +1893,11 @@ impl PackFileContentsSlots {
                 GlobalSearchUI::clear(&global_search_ui);
 
                 let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::PatchSiegeAI(pack_key));
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::PatchSiegeAI(pack_key.clone()));
                 let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
                 match response {
                     Response::StringVecContainerPath(message, paths) => {
-                        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Delete(paths, true), DataSource::PackFile);
+                        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Delete(paths, true), DataSource::PackFile, &pack_key);
                         show_dialog(app_ui.main_window(), message, true);
                     }
                     Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
@@ -1729,11 +1941,11 @@ impl PackFileContentsSlots {
 
                 if let Ok(Some((tile_maps, tiles))) = AppUI::pack_map_dialog(&app_ui, &pack_file_contents_ui) {
                     let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::PackMap(pack_key, tile_maps, tiles));
+                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::PackMap(pack_key.clone(), tile_maps, tiles));
                     let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
                     match response {
                         Response::VecContainerPathVecContainerPath(paths_to_add, paths_to_delete) => {
-                            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(paths_to_add.to_vec()), DataSource::PackFile);
+                            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(paths_to_add.to_vec()), DataSource::PackFile, &pack_key);
 
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
 
@@ -1747,7 +1959,7 @@ impl PackFileContentsSlots {
                                 let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, DataSource::PackFile, false);
                             }
 
-                            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Delete(paths_to_delete.to_vec(), settings_bool("delete_empty_folders_on_delete")), DataSource::PackFile);
+                            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Delete(paths_to_delete.to_vec(), settings_bool("delete_empty_folders_on_delete")), DataSource::PackFile, &pack_key);
 
                             for path in &paths_to_delete {
                                 let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path.path_raw(), DataSource::PackFile, false);
@@ -1787,14 +1999,14 @@ impl PackFileContentsSlots {
                         let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
                         let file_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
                         let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::CleanAndSavePackAs(pack_key, path));
+                        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::CleanAndSavePackAs(pack_key.clone(), path));
                         let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
                         match response {
                             Response::ContainerInfo(pack_file_info) => {
                                 let mut build_data = BuildData::new();
                                 build_data.editable = true;
-                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
-                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile);
+                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile, &pack_key);
+                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile, &pack_key);
 
                                 let packfile_item = pack_file_contents_ui.packfile_contents_tree_model().item_1a(0);
                                 packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
@@ -1873,6 +2085,10 @@ impl PackFileContentsSlots {
             contextual_menu_extract,
             contextual_menu_rename,
             contextual_menu_copy_path,
+            contextual_menu_copy,
+            contextual_menu_cut,
+            contextual_menu_paste,
+            contextual_menu_duplicate,
 
             contextual_menu_new_packed_file_anim_pack,
             contextual_menu_new_packed_file_db,
