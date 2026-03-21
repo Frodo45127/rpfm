@@ -340,6 +340,28 @@ pub struct RenamePackedFilesArgs {
 }
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
+pub struct CopyOrCutPackedFilesArgs {
+    /// A JSON object mapping pack key to ContainerPath arrays, e.g. {"my_pack.pack": [{"File": "db/table/file"}]}.
+    pub paths_by_pack: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema, Serialize)]
+pub struct PastePackedFilesArgs {
+    /// The key of the target pack to paste into.
+    pub pack_key: String,
+    /// The destination folder path inside the pack (use empty string for root).
+    pub destination_path: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema, Serialize)]
+pub struct DuplicatePackedFilesArgs {
+    /// The key of the target pack.
+    pub pack_key: String,
+    /// The JSON representation of Vec<ContainerPath> for files to duplicate.
+    pub paths: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct SavePackedFileFromViewArgs {
     /// The key of the target pack.
     pub pack_key: String,
@@ -1386,6 +1408,29 @@ impl McpServer {
         send_and_respond!(self, "rename_packed_files", Command::RenamePackedFiles(params.0.pack_key, renames))
     }
 
+    #[tool(description = "Copy files to the internal clipboard. The `paths_by_pack` is a JSON object mapping pack key to ContainerPath arrays, e.g. {\"my_pack.pack\": [{\"File\": \"db/table/file\"}]}. Use `paste_packed_files` to paste afterwards.")]
+    pub async fn copy_packed_files(&self, params: Parameters<CopyOrCutPackedFilesArgs>) -> Result<CallToolResult, McpError> {
+        let paths_by_pack: BTreeMap<String, Vec<ContainerPath>> = parse_json(&params.0.paths_by_pack)?;
+        send_and_respond!(self, "copy_packed_files", Command::CopyPackedFiles(paths_by_pack))
+    }
+
+    #[tool(description = "Cut files to the internal clipboard. Same as copy, but files will be removed from the source pack on paste. The `paths_by_pack` is a JSON object mapping pack key to ContainerPath arrays. Use `paste_packed_files` to paste afterwards.")]
+    pub async fn cut_packed_files(&self, params: Parameters<CopyOrCutPackedFilesArgs>) -> Result<CallToolResult, McpError> {
+        let paths_by_pack: BTreeMap<String, Vec<ContainerPath>> = parse_json(&params.0.paths_by_pack)?;
+        send_and_respond!(self, "cut_packed_files", Command::CutPackedFiles(paths_by_pack))
+    }
+
+    #[tool(description = "Paste files from the internal clipboard into the pack identified by `pack_key`. The `destination_path` is the folder path to paste into (empty string for root). Returns the added paths, any cut-deleted paths, and the source pack key.")]
+    pub async fn paste_packed_files(&self, params: Parameters<PastePackedFilesArgs>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self, "paste_packed_files", Command::PastePackedFiles(params.0.pack_key, params.0.destination_path))
+    }
+
+    #[tool(description = "Duplicate files in-place within the same pack. Files are cloned with a numeric suffix to avoid name collisions. The `paths` is a JSON array of ContainerPath, e.g. [{\"File\": \"db/table/file\"}].")]
+    pub async fn duplicate_packed_files(&self, params: Parameters<DuplicatePackedFilesArgs>) -> Result<CallToolResult, McpError> {
+        let paths: Vec<ContainerPath> = parse_json(&params.0.paths)?;
+        send_and_respond!(self, "duplicate_packed_files", Command::DuplicatePackedFiles(params.0.pack_key, paths))
+    }
+
     #[tool(description = "Save an edited decoded file back to the pack identified by `pack_key`. The `path` is the internal path (e.g. \"db/land_units_tables/my_mod\"). The `data` is the modified RFileDecoded JSON (same structure returned by `decode_packed_file`).")]
     pub async fn save_packed_file_from_view(&self, params: Parameters<SavePackedFileFromViewArgs>) -> Result<CallToolResult, McpError> {
         let data: RFileDecoded = parse_json(&params.0.data)?;
@@ -2355,6 +2400,12 @@ Common operations:
 
 **Rename / move files:**
 - `rename_packed_files` – Pass a list of `(old_path, new_path)` tuples.
+
+**Copy / Cut / Paste / Duplicate:**
+- `copy_packed_files` – Copy files to the internal clipboard for later pasting.
+- `cut_packed_files` – Cut files to the internal clipboard (removed from source on paste).
+- `paste_packed_files` – Paste clipboard contents into a pack at the given folder path.
+- `duplicate_packed_files` – Clone files in-place with a numeric suffix.
 
 **Extract to disk:**
 - `extract_packed_files` – Export files from the pack to a folder on disk.
