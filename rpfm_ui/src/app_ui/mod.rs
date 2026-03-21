@@ -67,7 +67,7 @@ use time::OffsetDateTime;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::OsStr;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::{atomic::Ordering, RwLock};
 
@@ -1070,8 +1070,6 @@ impl AppUI {
                         build_data.editable = true;
                         build_data.pack_key = Some(pack_key.clone());
                         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::AddPack(build_data), DataSource::PackFile, &pack_key);
-
-                        Self::enable_packfile_actions(app_ui, pack_file_path, true);
                     }
                     Response::Error(error) => {
                         app_ui.toggle_main_window(true);
@@ -1097,6 +1095,8 @@ impl AppUI {
                 _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
             }
         }
+
+        Self::enable_packfile_actions(app_ui, true);
 
         // Close the Global Search stuff and reset the filter's history.
         GlobalSearchUI::clear(global_search_ui);
@@ -1282,9 +1282,7 @@ impl AppUI {
     /// This function enables/disables the actions on the main window, depending on the current state of the Application.
     ///
     /// You have to pass `enable = true` if you are trying to enable actions, and `false` to disable them.
-    ///
-    /// TODO: Check how to rework this for multiple packs.
-    pub unsafe fn enable_packfile_actions(app_ui: &Rc<Self>, _pack_path: &Path, enable: bool) {
+    pub unsafe fn enable_packfile_actions(app_ui: &Rc<Self>, enable: bool) {
 
         // If the game is Arena, no matter what we're doing, these ones ALWAYS have to be disabled.
         let game_selected = GAME_SELECTED.read().unwrap().clone();
@@ -1635,7 +1633,7 @@ impl AppUI {
                     let response = CentralCommand::recv(&receiver);
                     if let Response::VecStringContainerInfo(remaining) = response {
                         if remaining.is_empty() {
-                            Self::enable_packfile_actions(&app_ui, &std::path::PathBuf::new(), false);
+                            Self::enable_packfile_actions(&app_ui, false);
                         }
                     }
 
@@ -3715,19 +3713,6 @@ impl AppUI {
         force_full_dependency_reload: bool
     ) {
 
-        // Optimization: get this before starting the entire game change. Otherwise, we'll hang the thread near the end.
-        let pack_path = if let Some(pack_key) = pack_file_contents_ui.pack_key_from_selection_or_first() {
-            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackFilePath(pack_key));
-            let response = CentralCommand::recv(&receiver);
-            match response {
-                Response::PathBuf(path) => path,
-                Response::Error(_) => PathBuf::new(),
-                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-            }
-        } else {
-            PathBuf::new()
-        };
-
         // Get the new `Game Selected` and clean his name up, so it ends up like "x_y".
         let mut new_game_selected = app_ui.game_selected_group.checked_action().text().to_std_string();
         if let Some(index) = new_game_selected.find('&') { new_game_selected.remove(index); }
@@ -3824,9 +3809,9 @@ impl AppUI {
         }
 
         // Disable the pack-related actions and, if we have a pack open, re-enable them.
-        AppUI::enable_packfile_actions(app_ui, &pack_path, false);
+        AppUI::enable_packfile_actions(app_ui, false);
         if pack_file_contents_ui.packfile_contents_tree_model().row_count_0a() != 0 {
-            AppUI::enable_packfile_actions(app_ui, &pack_path, true);
+            AppUI::enable_packfile_actions(app_ui, true);
         }
 
         // If we have the setting enabled, ask the backend to generate the missing definition list.
@@ -3877,7 +3862,7 @@ impl AppUI {
         global_search_ui.update_pack_sources(pack_file_contents_ui);
 
         // Enable the actions available for the PackFile from the `MenuBar`.
-        AppUI::enable_packfile_actions(app_ui, &PathBuf::new(), true);
+        AppUI::enable_packfile_actions(app_ui, true);
 
         // Set the current "Operational Mode" to Normal, as this is a "New" mod.
         UI_STATE.set_operational_mode(app_ui, None);

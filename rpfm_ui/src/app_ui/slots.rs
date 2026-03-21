@@ -751,7 +751,7 @@ impl AppUISlots {
                                                     packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
                                                     packfile_item.set_text(&QString::from_std_str(full_mod_name));
 
-                                                    AppUI::enable_packfile_actions(&app_ui, &PathBuf::from(pack_file_info.file_path()), true);
+                                                    AppUI::enable_packfile_actions(&app_ui, true);
 
                                                     UI_STATE.set_operational_mode(&app_ui, Some(&mymod_pack_path));
                                                     UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
@@ -861,7 +861,7 @@ impl AppUISlots {
                         UI_STATE.set_operational_mode(&app_ui, None);
                         let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
                         let _ = CENTRAL_COMMAND.read().unwrap().send(Command::ClosePack(pack_key.clone()));
-                        AppUI::enable_packfile_actions(&app_ui, &PathBuf::new(), false);
+                        AppUI::enable_packfile_actions(&app_ui, false);
                         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Clear, DataSource::PackFile, &pack_key);
                         global_search_ui.update_pack_sources(&pack_file_contents_ui);
                         UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
