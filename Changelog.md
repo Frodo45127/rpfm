@@ -13,6 +13,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - Implemented support for flatpak builds.
 - Implemented support for opening and editing multiple packs simultaneously.
 - Updated simplified chinese translation, thanks to SZY.
+- Implemented support for Copy/Cut/Paste/Duplicate files.
 
 ### Changed
 - Decoupled UI from Backend into RPFM UI and RPFM Server.
@@ -28,6 +29,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - Fixed RPFM erroring out when trying to read incomplete portrait settings files.
 - Fixed rare hang when diagnosing big packs.
 - Fixed crash reports being broken since the client/server split.
+- Fixed a bug in the Translator where it would incorrectly mark for retranslations lines that had been deleted then readded to the mod.
 
 ## [4.7.4]
 ### Added
