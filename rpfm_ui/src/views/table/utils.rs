@@ -1188,7 +1188,15 @@ pub unsafe fn setup_item_delegates(
     table_references: &HashMap<i32, TableReferences>,
     timer: &QBox<QTimer>
 ) {
-    let table_object = table_view.static_upcast::<QObject>().as_ptr();
+
+    // Set up delegates on both the main table view and its frozen overlay, so that
+    // frozen columns render cells (flags, colours, etc.) identically to normal ones.
+    let frozen_view = get_frozen_view_safe(table_view);
+    let mut table_objects = vec![table_view.static_upcast::<QObject>().as_ptr()];
+    if !frozen_view.is_null() {
+        table_objects.push(frozen_view.static_upcast::<QObject>().as_ptr());
+    }
+
     let enable_lookups = settings_bool("enable_lookups");
 
     for (column, field) in definition.fields_processed().iter().enumerate() {
@@ -1232,30 +1240,34 @@ pub unsafe fn setup_item_delegates(
                 });
             }
 
-            new_combobox_item_delegate_safe(&table_object, column as i32, values.into_ptr(), lookups.into_ptr(), true, &timer.as_ptr(), true);
+            for table_object in &table_objects {
+                new_combobox_item_delegate_safe(table_object, column as i32, values.as_ptr(), lookups.as_ptr(), true, &timer.as_ptr(), true);
+            }
         }
 
         else {
-            match field.field_type() {
-                FieldType::Boolean => new_generic_item_delegate_safe(&table_object, column as i32, &timer.as_ptr(), true),
-                FieldType::F32 => new_doublespinbox_item_delegate_safe(&table_object, column as i32, &timer.as_ptr(), true),
-                FieldType::F64 => new_doublespinbox_item_delegate_safe(&table_object, column as i32, &timer.as_ptr(), true),
-                FieldType::I16 => new_spinbox_item_delegate_safe(&table_object, column as i32, 16, &timer.as_ptr(), true),
-                FieldType::I32 => new_spinbox_item_delegate_safe(&table_object, column as i32, 32, &timer.as_ptr(), true),
+            for table_object in &table_objects {
+                match field.field_type() {
+                    FieldType::Boolean => new_generic_item_delegate_safe(table_object, column as i32, &timer.as_ptr(), true),
+                    FieldType::F32 => new_doublespinbox_item_delegate_safe(table_object, column as i32, &timer.as_ptr(), true),
+                    FieldType::F64 => new_doublespinbox_item_delegate_safe(table_object, column as i32, &timer.as_ptr(), true),
+                    FieldType::I16 => new_spinbox_item_delegate_safe(table_object, column as i32, 16, &timer.as_ptr(), true),
+                    FieldType::I32 => new_spinbox_item_delegate_safe(table_object, column as i32, 32, &timer.as_ptr(), true),
 
-                // LongInteger uses normal string controls due to QSpinBox being limited to i32.
-                FieldType::I64 => new_spinbox_item_delegate_safe(&table_object, column as i32, 64, &timer.as_ptr(), true),
-                FieldType::OptionalI16 => new_spinbox_item_delegate_safe(&table_object, column as i32, 16, &timer.as_ptr(), true),
-                FieldType::OptionalI32 => new_spinbox_item_delegate_safe(&table_object, column as i32, 32, &timer.as_ptr(), true),
+                    // LongInteger uses normal string controls due to QSpinBox being limited to i32.
+                    FieldType::I64 => new_spinbox_item_delegate_safe(table_object, column as i32, 64, &timer.as_ptr(), true),
+                    FieldType::OptionalI16 => new_spinbox_item_delegate_safe(table_object, column as i32, 16, &timer.as_ptr(), true),
+                    FieldType::OptionalI32 => new_spinbox_item_delegate_safe(table_object, column as i32, 32, &timer.as_ptr(), true),
 
-                // LongInteger uses normal string controls due to QSpinBox being limited to i32.
-                FieldType::OptionalI64 => new_spinbox_item_delegate_safe(&table_object, column as i32, 64, &timer.as_ptr(), true),
-                FieldType::ColourRGB => new_colour_item_delegate_safe(&table_object, column as i32, &timer.as_ptr(), true),
-                FieldType::StringU8 |
-                FieldType::StringU16 |
-                FieldType::OptionalStringU8 |
-                FieldType::OptionalStringU16 => new_qstring_item_delegate_safe(&table_object, column as i32, &timer.as_ptr(), true),
-                FieldType::SequenceU16(_) | FieldType::SequenceU32(_) => new_generic_item_delegate_safe(&table_object, column as i32, &timer.as_ptr(), true),
+                    // LongInteger uses normal string controls due to QSpinBox being limited to i32.
+                    FieldType::OptionalI64 => new_spinbox_item_delegate_safe(table_object, column as i32, 64, &timer.as_ptr(), true),
+                    FieldType::ColourRGB => new_colour_item_delegate_safe(table_object, column as i32, &timer.as_ptr(), true),
+                    FieldType::StringU8 |
+                    FieldType::StringU16 |
+                    FieldType::OptionalStringU8 |
+                    FieldType::OptionalStringU16 => new_qstring_item_delegate_safe(table_object, column as i32, &timer.as_ptr(), true),
+                    FieldType::SequenceU16(_) | FieldType::SequenceU32(_) => new_generic_item_delegate_safe(table_object, column as i32, &timer.as_ptr(), true),
+                }
             }
         }
     }

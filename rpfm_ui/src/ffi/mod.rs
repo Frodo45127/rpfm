@@ -322,6 +322,12 @@ pub fn toggle_freezer_safe(table: &QBox<QTableView>, column: i32) {
     unsafe { toggle_freezer(table.as_mut_raw_ptr(), column) };
 }
 
+// This function returns the inner frozen QTableView from a QTableViewFrozen.
+extern "C" { fn get_frozen_view(table: *mut QTableView) -> *mut QTableView; }
+pub unsafe fn get_frozen_view_safe(table: &QPtr<QTableView>) -> QPtr<QTableView> {
+    QPtr::from_raw(get_frozen_view(table.as_mut_raw_ptr()))
+}
+
 //---------------------------------------------------------------------------//
 // KTextEditor stuff.
 //---------------------------------------------------------------------------//

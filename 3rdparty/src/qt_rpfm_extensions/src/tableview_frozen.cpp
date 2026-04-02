@@ -28,6 +28,15 @@ extern "C" void toggle_freezer(QTableView* tableView, int column) {
     }
 }
 
+// Function to get the inner frozen QTableView from a QTableViewFrozen.
+extern "C" QTableView* get_frozen_view(QTableView* tableView) {
+    QTableViewFrozen* tableViewFrozen = dynamic_cast<QTableViewFrozen*>(tableView);
+    if (tableViewFrozen) {
+        return tableViewFrozen->tableViewFrozen;
+    }
+    return nullptr;
+}
+
 //-----------------------------------------------------------
 // Private calls.
 //-----------------------------------------------------------
@@ -42,6 +51,7 @@ QTableViewFrozen::QTableViewFrozen(QWidget* parent, void (*generate_tooltip_mess
     generateTooltipMessage = generate_tooltip_message;
 
     // Connect the header's resize signal of both QTableViews together, so they keep the same size.
+    // Use blockSignals to prevent feedback loops between main↔frozen resize syncs.
     connect(
         horizontalHeader(),
         &QHeaderView::sectionResized,
@@ -54,6 +64,19 @@ QTableViewFrozen::QTableViewFrozen(QWidget* parent, void (*generate_tooltip_mess
         &QHeaderView::sectionResized,
         this,
         &QTableViewFrozen::updateSectionHeight
+    );
+
+    // Sync column resizes from the frozen view back to the main view.
+    connect(
+        tableViewFrozen->horizontalHeader(),
+        &QHeaderView::sectionResized,
+        this,
+        [this](int logicalIndex, int /*oldSize*/, int newSize) {
+            horizontalHeader()->blockSignals(true);
+            setColumnWidth(logicalIndex, newSize);
+            horizontalHeader()->blockSignals(false);
+            updateFrozenTableGeometry();
+        }
     );
 
     // Connect the vertical scrollbars, so both QTableViews are kept in sync.
@@ -102,7 +125,7 @@ QTableViewFrozen::QTableViewFrozen(QWidget* parent, void (*generate_tooltip_mess
     // Configure the QTableViews to "fit" above the normal QTableView, using his same model.
     tableViewFrozen->setFocusPolicy(Qt::NoFocus);
     tableViewFrozen->verticalHeader()->hide();
-    tableViewFrozen->horizontalHeader()->setSectionResizeMode(QHeaderView::Fixed);
+    tableViewFrozen->horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);
 
     // Configure (almost) the same way both tables.
     horizontalHeader()->setSectionsMovable(true);
@@ -158,7 +181,9 @@ void QTableViewFrozen::setModel(QAbstractItemModel* model) {
 
 // Function to change the width columns at the same time we resize them in the main QTableView.
 void QTableViewFrozen::updateSectionWidth(int logicalIndex, int /* oldSize */, int newSize) {
+    tableViewFrozen->horizontalHeader()->blockSignals(true);
     tableViewFrozen->setColumnWidth(logicalIndex, newSize);
+    tableViewFrozen->horizontalHeader()->blockSignals(false);
     updateFrozenTableGeometry();
 }
 
@@ -257,12 +282,33 @@ void QTableViewFrozen::toggleFreezer(int column) {
 
     if (frozenColumns.contains(column)) {
         frozenColumns.removeOne(column);
-        tableViewFrozen->setColumnHidden(column, true);
     }
     else {
         frozenColumns.append(column);
-        tableViewFrozen->setColumnHidden(column, false);
     }
+
+    // Ensure every column in the frozen view matches the expected state. We can't rely
+    // on setModel's hide loop because the source model has 0 columns at that point
+    // (data is loaded afterwards), so columns added later are never hidden.
+    if (model()) {
+        QHeaderView* frozenHeader = tableViewFrozen->horizontalHeader();
+        frozenHeader->blockSignals(true);
+        for (int i = 0; i < model()->columnCount(); ++i) {
+            bool shouldBeVisible = frozenColumns.contains(i);
+            tableViewFrozen->setColumnHidden(i, !shouldBeVisible);
+            if (shouldBeVisible) {
+                tableViewFrozen->setColumnWidth(i, columnWidth(i));
+                frozenHeader->setSectionResizeMode(i, QHeaderView::Interactive);
+            }
+        }
+        frozenHeader->blockSignals(false);
+
+        // Sync row heights from the main view.
+        for (int row = 0; row < model()->rowCount(); ++row) {
+            tableViewFrozen->setRowHeight(row, rowHeight(row));
+        }
+    }
+
     updateFrozenTableGeometry();
 }
 

@@ -7,6 +7,7 @@
 
 extern "C" QTableView* new_tableview_frozen(QWidget* parent = nullptr, void (*generate_tooltip_message)(QTableView* view, int globalPosX, int globalPosY) = nullptr);
 extern "C" void toggle_freezer(QTableView* tableView = nullptr, int column = 0);
+extern "C" QTableView* get_frozen_view(QTableView* tableView = nullptr);
 
 class QTableViewFrozen : public QTableView {
      Q_OBJECT
