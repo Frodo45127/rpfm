@@ -83,7 +83,8 @@ pub struct PackFileContentsSlots {
 
     pub contextual_menu_add_file: QBox<SlotOfBool>,
     pub contextual_menu_add_folder: QBox<SlotOfBool>,
-    pub contextual_menu_add_from_packfile: QBox<SlotOfBool>,
+    pub contextual_menu_copy_to_pack_about_to_show: QBox<SlotNoArgs>,
+    pub contextual_menu_copy_to_pack: QBox<qt_widgets::SlotOfQAction>,
     pub contextual_menu_delete: QBox<SlotOfBool>,
     pub contextual_menu_extract: QBox<SlotOfBool>,
     pub contextual_menu_rename: QBox<SlotOfBool>,
@@ -332,7 +333,7 @@ impl PackFileContentsSlots {
                 if multi_pack {
                     pack_file_contents_ui.context_menu_add_file.set_enabled(false);
                     pack_file_contents_ui.context_menu_add_folder.set_enabled(false);
-                    pack_file_contents_ui.context_menu_add_from_packfile.set_enabled(false);
+                    pack_file_contents_ui.context_menu_copy_to_pack.menu_action().set_enabled(false);
                     pack_file_contents_ui.context_menu_new_folder.set_enabled(false);
                     pack_file_contents_ui.context_menu_new_packed_file_anim_pack.set_enabled(false);
                     pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(false);
@@ -365,7 +366,7 @@ impl PackFileContentsSlots {
                             // These options are valid for 1 or more files.
                             pack_file_contents_ui.context_menu_add_file.set_enabled(false);
                             pack_file_contents_ui.context_menu_add_folder.set_enabled(false);
-                            pack_file_contents_ui.context_menu_add_from_packfile.set_enabled(true);
+                            pack_file_contents_ui.context_menu_copy_to_pack.menu_action().set_enabled(true);
                             pack_file_contents_ui.context_menu_new_folder.set_enabled(false);
                             pack_file_contents_ui.context_menu_new_packed_file_anim_pack.set_enabled(false);
                             pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(true);
@@ -402,7 +403,7 @@ impl PackFileContentsSlots {
                         2 => {
 
                             // These options are valid for 1 or more folders.
-                            pack_file_contents_ui.context_menu_add_from_packfile.set_enabled(true);
+                            pack_file_contents_ui.context_menu_copy_to_pack.menu_action().set_enabled(true);
                             pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(true);
                             pack_file_contents_ui.context_menu_merge_tables.set_enabled(false);
                             pack_file_contents_ui.context_menu_delete.set_enabled(true);
@@ -437,7 +438,7 @@ impl PackFileContentsSlots {
                         3 => {
                             pack_file_contents_ui.context_menu_add_file.set_enabled(false);
                             pack_file_contents_ui.context_menu_add_folder.set_enabled(false);
-                            pack_file_contents_ui.context_menu_add_from_packfile.set_enabled(true);
+                            pack_file_contents_ui.context_menu_copy_to_pack.menu_action().set_enabled(true);
                             pack_file_contents_ui.context_menu_new_folder.set_enabled(false);
                             pack_file_contents_ui.context_menu_new_packed_file_anim_pack.set_enabled(false);
                             pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(true);
@@ -467,7 +468,7 @@ impl PackFileContentsSlots {
                         4 => {
                             pack_file_contents_ui.context_menu_add_file.set_enabled(true);
                             pack_file_contents_ui.context_menu_add_folder.set_enabled(true);
-                            pack_file_contents_ui.context_menu_add_from_packfile.set_enabled(true);
+                            pack_file_contents_ui.context_menu_copy_to_pack.menu_action().set_enabled(true);
                             pack_file_contents_ui.context_menu_new_folder.set_enabled(true);
                             pack_file_contents_ui.context_menu_new_packed_file_anim_pack.set_enabled(true);
                             pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(true);
@@ -497,7 +498,7 @@ impl PackFileContentsSlots {
                         5 => {
                             pack_file_contents_ui.context_menu_add_file.set_enabled(false);
                             pack_file_contents_ui.context_menu_add_folder.set_enabled(false);
-                            pack_file_contents_ui.context_menu_add_from_packfile.set_enabled(true);
+                            pack_file_contents_ui.context_menu_copy_to_pack.menu_action().set_enabled(true);
                             pack_file_contents_ui.context_menu_new_folder.set_enabled(false);
                             pack_file_contents_ui.context_menu_new_packed_file_anim_pack.set_enabled(false);
                             pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(true);
@@ -526,7 +527,7 @@ impl PackFileContentsSlots {
                         6 => {
                             pack_file_contents_ui.context_menu_add_file.set_enabled(false);
                             pack_file_contents_ui.context_menu_add_folder.set_enabled(false);
-                            pack_file_contents_ui.context_menu_add_from_packfile.set_enabled(true);
+                            pack_file_contents_ui.context_menu_copy_to_pack.menu_action().set_enabled(true);
                             pack_file_contents_ui.context_menu_new_folder.set_enabled(false);
                             pack_file_contents_ui.context_menu_new_packed_file_anim_pack.set_enabled(false);
                             pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(true);
@@ -555,7 +556,7 @@ impl PackFileContentsSlots {
                         7 => {
                             pack_file_contents_ui.context_menu_add_file.set_enabled(false);
                             pack_file_contents_ui.context_menu_add_folder.set_enabled(false);
-                            pack_file_contents_ui.context_menu_add_from_packfile.set_enabled(true);
+                            pack_file_contents_ui.context_menu_copy_to_pack.menu_action().set_enabled(true);
                             pack_file_contents_ui.context_menu_new_folder.set_enabled(false);
                             pack_file_contents_ui.context_menu_new_packed_file_anim_pack.set_enabled(false);
                             pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(true);
@@ -585,7 +586,7 @@ impl PackFileContentsSlots {
                         0 | 8..=255 => {
                             pack_file_contents_ui.context_menu_add_file.set_enabled(false);
                             pack_file_contents_ui.context_menu_add_folder.set_enabled(false);
-                            pack_file_contents_ui.context_menu_add_from_packfile.set_enabled(false);
+                            pack_file_contents_ui.context_menu_copy_to_pack.menu_action().set_enabled(false);
                             pack_file_contents_ui.context_menu_new_folder.set_enabled(false);
                             pack_file_contents_ui.context_menu_new_packed_file_anim_pack.set_enabled(false);
                             pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(false);
@@ -954,45 +955,93 @@ impl PackFileContentsSlots {
             }
         ));
 
-        // What happens when we trigger the "Add From PackFile" action in the Contextual Menu.
-        let contextual_menu_add_from_packfile = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
-            app_ui,
-            pack_file_contents_ui,
-            global_search_ui,
-            diagnostics_ui,
-            dependencies_ui,
-            references_ui => move |_| {
-                info!("Triggering `Add From PackFile` By Slot");
+        // What happens when the "Copy To Pack" submenu is about to show.
+        // We populate it dynamically with the list of other open packs.
+        let contextual_menu_copy_to_pack_about_to_show = SlotNoArgs::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            pack_file_contents_ui => move || {
+                info!("Triggering `Copy To Pack About To Show` By Slot");
 
-                // Create the FileDialog to get the PackFile to open, configure it and run it.
-                let file_dialog = QFileDialog::from_q_widget_q_string(
-                    app_ui.main_window(),
-                    &qtr("context_menu_select_packfile"),
-                );
+                let menu = &pack_file_contents_ui.context_menu_copy_to_pack;
+                menu.clear();
 
-                file_dialog.set_name_filter(&QString::from_std_str("PackFiles (*.pack)"));
-                if file_dialog.exec() == 1 {
-                    let path_str = file_dialog.selected_files().at(0).to_std_string();
+                // Get the source pack key from current selection.
+                let source_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
 
-                    // DON'T ALLOW TO LOAD THE SAME PACKFILE WE HAVE ALREADY OPEN!!!!
-                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackFileDataForTreeView(pack_key));
-                    let response = CentralCommand::recv(&receiver);
-                    match response {
-                        Response::ContainerInfoVecRFileInfo((pack_file_info, _)) => {
-                            if pack_file_info.file_path() == &path_str {
-                                 return show_dialog(app_ui.main_window(), "You cannot add PackedFile to the same PackFile you're adding from. It's like putting a bag of holding into a bag of holding.", false);
-                            }
-                        },
-                        Response::Error(error) => return show_dialog(app_ui.main_window(), error, false),
-                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                // Query all open packs from the server.
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::ListOpenPacks);
+                let response = CentralCommand::recv(&receiver);
+                if let Response::VecStringContainerInfo(pack_list) = response {
+                    for (pack_key, pack_info) in &pack_list {
+                        // Skip the source pack itself.
+                        if *pack_key == source_key {
+                            continue;
+                        }
+
+                        // Use the file name from the pack path as the display name, or fallback to the key.
+                        let display_name = std::path::Path::new(pack_info.file_path())
+                            .file_name()
+                            .map(|n| n.to_string_lossy().to_string())
+                            .unwrap_or_else(|| pack_key.clone());
+
+                        let action = menu.add_action_q_string(&QString::from_std_str(&display_name));
+                        action.set_data(&qt_core::QVariant::from_q_string(&QString::from_std_str(pack_key)));
                     }
-
-                    app_ui.toggle_main_window(false);
-                    AppUI::open_special_view(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, SpecialView::Pack(path_str));
-
-                    app_ui.toggle_main_window(true);
                 }
+
+                // If the menu is empty, add a disabled placeholder.
+                if menu.is_empty() {
+                    let action = menu.add_action_q_string(&qtr("context_menu_copy_to_pack_no_packs"));
+                    action.set_enabled(false);
+                }
+            }
+        ));
+
+        // What happens when a pack is selected from the "Copy To Pack" submenu.
+        let contextual_menu_copy_to_pack = qt_widgets::SlotOfQAction::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui => move |action| {
+                info!("Triggering `Copy To Pack` By Slot");
+
+                let target_key = action.data().to_string().to_std_string();
+                if target_key.is_empty() {
+                    return;
+                }
+
+                let source_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                let selected_items = <QPtr<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
+                if selected_items.is_empty() {
+                    return;
+                }
+
+                app_ui.toggle_main_window(false);
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::AddPackedFilesFromPackFile(target_key.clone(), source_key, selected_items));
+                let response = CentralCommand::recv(&receiver);
+                match response {
+                    Response::VecContainerPath(paths_ok) => {
+
+                        // If any of the files were already open in the target pack, reload their views.
+                        for path in &paths_ok {
+                            if let ContainerPath::File(path) = path {
+                                let mut open_packedfiles = UI_STATE.set_open_packedfiles();
+                                if let Some(file_view) = open_packedfiles.iter_mut().find(|x| *x.path_read() == *path && x.data_source() == DataSource::PackFile) {
+                                    if file_view.reload(path, &pack_file_contents_ui).is_err() {
+                                        let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, DataSource::PackFile, false);
+                                    }
+                                }
+                            }
+                        }
+
+                        // Update the target pack's tree view.
+                        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(paths_ok.to_vec()), DataSource::PackFile, &target_key);
+                        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths_ok.to_vec()), DataSource::PackFile, &target_key);
+                        UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
+                    },
+                    Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
+                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                }
+
+                app_ui.toggle_main_window(true);
+                PackFileContentsUI::start_delayed_updates_timer(&pack_file_contents_ui);
             }
         ));
 
@@ -2080,7 +2129,8 @@ impl PackFileContentsSlots {
 
             contextual_menu_add_file,
             contextual_menu_add_folder,
-            contextual_menu_add_from_packfile,
+            contextual_menu_copy_to_pack_about_to_show,
+            contextual_menu_copy_to_pack,
             contextual_menu_delete,
             contextual_menu_extract,
             contextual_menu_rename,

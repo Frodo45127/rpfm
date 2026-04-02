@@ -96,7 +96,7 @@ use crate::GAME_SELECTED;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::NEW_FILE_VIEW_CREATED;
 use crate::pack_tree::{BuildData, new_pack_file_tooltip, PackTree, TreeViewOperation};
-use crate::packedfile_views::{anim_fragment_battle::*, animpack::*, anims_table::*, audio::FileAudioView, bmd::FileBMDView, decoder::*, dependencies_manager::*, esf::*, external::*, group_formations::*, image::*, matched_combat::*, FileView, packfile::PackFileExtraView, packfile_settings::*, portrait_settings::PortraitSettingsView, rigidmodel::*, SpecialView, table::*, text::*, unit_variant::*, video::*, vmd::*};
+use crate::packedfile_views::{anim_fragment_battle::*, animpack::*, anims_table::*, audio::FileAudioView, bmd::FileBMDView, decoder::*, dependencies_manager::*, esf::*, external::*, group_formations::*, image::*, matched_combat::*, FileView, packfile_settings::*, portrait_settings::PortraitSettingsView, rigidmodel::*, SpecialView, table::*, text::*, unit_variant::*, video::*, vmd::*};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::references_ui::ReferencesUI;
 use crate::STATUS_BAR;
@@ -2558,7 +2558,6 @@ impl AppUI {
                     fake_path.push_str(DECODER_EXTENSION);
                     (fake_path, qtr("decoder_title"))
                 },
-                SpecialView::Pack(ref path) => (path.to_owned(), QString::from_std_str(path)),
                 SpecialView::PackSettings => (RESERVED_NAME_SETTINGS.to_owned(), qtr("settings")),
                 SpecialView::PackDependencies => (RESERVED_NAME_DEPENDENCIES_MANAGER_V2.to_owned(), qtr("table_dependency_manager_title")),
             };
@@ -2608,18 +2607,6 @@ impl AppUI {
                         Err(error) => return show_dialog(&app_ui.main_window, error, false),
                     }
                 }
-                SpecialView::Pack(ref path) => {
-                    tab.set_path(&(RESERVED_NAME_EXTRA_PACKFILE.to_owned() + "/" + path));
-                    let pathbuf = PathBuf::from(path.to_owned());
-                    match PackFileExtraView::new_view(&mut tab, app_ui, pack_file_contents_ui, pathbuf) {
-                        Ok(_) => {
-                            app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &QString::from_std_str(path));
-                            app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
-                            UI_STATE.set_open_packedfiles().push(tab);
-                        }
-                        Err(error) => show_dialog(&app_ui.main_window, error, false),
-                    }
-                },
                 SpecialView::PackSettings => {
                     match PackFileSettingsView::new_view(&mut tab, app_ui, pack_file_contents_ui) {
                         Ok(_) => {

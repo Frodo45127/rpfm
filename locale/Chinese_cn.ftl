@@ -321,7 +321,7 @@ treeview_collapse_all = 全部折叠
 
 tt_context_menu_add_file = 向当前打开的 PackFile 添加一个或多个文件。现有文件不会被覆盖！
 tt_context_menu_add_folder = 向当前打开的 PackFile 添加一个文件夹。现有文件不会被覆盖！
-tt_context_menu_add_from_packfile = 从另一个 PackFile 向当前打开的 PackFile 添加文件。现有文件不会被覆盖！
+tt_context_menu_copy_to_pack = Copy the selected files/folders to another open PackFile.
 tt_context_menu_check_tables = 检查当前打开的 PackFile 中的所有 DB 数据表是否存在依赖错误。
 tt_context_menu_new_folder = 打开创建空文件夹的对话框。由于 PackFile 的构建方式，如果文件夹保持为空，它们在保存时不会被保留。
 tt_context_menu_new_packed_file_anim_pack = 打开创建 AnimPack 的对话框。
@@ -382,8 +382,8 @@ context_menu_add_file = 添加文件
 context_menu_add_files = 添加多个文件
 context_menu_add_folder = 添加文件夹
 context_menu_add_folders = 添加多个文件夹
-context_menu_add_from_packfile = 从 PackFile 添加
-context_menu_select_packfile = 选择 PackFile
+context_menu_copy_to_pack = Copy To Pack
+context_menu_copy_to_pack_no_packs = No other packs open
 context_menu_extract_packfile = 提取 PackFile
 
 context_menu_new_folder = 创建文件夹

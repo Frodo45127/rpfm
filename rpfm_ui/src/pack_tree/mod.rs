@@ -32,7 +32,7 @@ use rayon::prelude::*;
 use time::OffsetDateTime;
 
 use std::cmp::Ordering;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::rc::Rc;
 
 use rpfm_ipc::helpers::{ContainerInfo, DataSource, RFileInfo};
@@ -239,9 +239,6 @@ pub enum TreeViewOperation {
 /// This struct represents the data needed to build a TreeView.
 #[derive(Clone, Debug)]
 pub struct BuildData {
-
-    /// The path on disk of the PackFile we're trying to open, in case it has one.
-    pub path: Option<PathBuf>,
 
     /// The "data" to load this instead of a PackFile from the backend.
     pub data: Option<(ContainerInfo, Vec<RFileInfo>)>,
@@ -2023,7 +2020,6 @@ impl BuildData {
     /// This function creates a new build data for a non-editable PackFile.
     pub fn new() -> Self {
         Self {
-            path: None,
             data: None,
             editable: false,
             pack_key: None,

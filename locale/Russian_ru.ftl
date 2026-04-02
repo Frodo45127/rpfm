@@ -1366,9 +1366,7 @@ tt_context_menu_add_file = Добавить один или более файл�
     { -tt-files-overwrite(overwritten: "false") }
 tt_context_menu_add_folder = Добавить папку в рабочий { -packfile(capitalization: "lower") }.
     { -tt-files-overwrite(overwritten: "false") }
-tt_context_menu_add_from_packfile = Добавить файлы из другого
-    { -packfile(case: "genitive", capitalization: "lower") } в рабочий { -packfile(capitalization: "lower") }.
-    { -tt-files-overwrite(overwritten: "false") }
+tt_context_menu_copy_to_pack = Copy the selected files/folders to another open PackFile.
 tt_context_menu_check_tables = Проверить все { -db(number: "other", capitalization: "lower", includeOriginalText: "true") }
     рабочего { -packfile(case: "genitive", capitalization: "lower") } на предмет наличия ошибок зависимостей.
 tt_context_menu_new_folder = { -tt-open-dialog }
@@ -1489,8 +1487,8 @@ context_menu_add_file = Доб&авить файл
 context_menu_add_files = Добавить файлы
 context_menu_add_folder = Добавить &папку
 context_menu_add_folders = Добавить папки
-context_menu_add_from_packfile = Добавить из { -packfile(case: "genitive") }
-context_menu_select_packfile = Выбрать { -packfile }
+context_menu_copy_to_pack = Copy To Pack
+context_menu_copy_to_pack_no_packs = No other packs open
 context_menu_extract_packfile = Извлечь { -packfile }
 
 -local-create = Создать

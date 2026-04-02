@@ -330,7 +330,7 @@ treeview_collapse_all = Collapse All
 
 tt_context_menu_add_file = Add one or more files to the currently open PackFile. Existing files are not overwritten!
 tt_context_menu_add_folder = Add a folder to the currently open PackFile. Existing files are not overwritten!
-tt_context_menu_add_from_packfile = Add files from another PackFile to the currently open PackFile. Existing files are not overwritten!
+tt_context_menu_copy_to_pack = Copy the selected files/folders to another open PackFile.
 tt_context_menu_check_tables = Check all the DB Tables of the currently open PackFile for dependency errors.
 tt_context_menu_new_folder = Open the dialog to create an empty folder. Due to how the PackFiles are done, these are NOT KEPT ON SAVING if they stay empty.
 tt_context_menu_new_packed_file_anim_pack = Open the dialog to create an AnimPack.
@@ -392,8 +392,8 @@ context_menu_add_file = Add File
 context_menu_add_files = Add File/s
 context_menu_add_folder = Add Folder
 context_menu_add_folders = Add Folder/s
-context_menu_add_from_packfile = Add from PackFile
-context_menu_select_packfile = Select PackFile
+context_menu_copy_to_pack = Copy To Pack
+context_menu_copy_to_pack_no_packs = No other packs open
 context_menu_extract_packfile = Extract PackFile
 
 context_menu_new_folder = Create Folder

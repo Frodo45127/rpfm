@@ -56,7 +56,6 @@ use self::group_formations::FileGroupFormationsDebugView;
 use self::image::PackedFileImageView;
 use self::matched_combat::FileMatchedCombatDebugView;
 use self::notes::NotesView;
-use self::packfile::PackFileExtraView;
 use self::packfile_settings::PackFileSettingsView;
 use self::portrait_settings::PortraitSettingsView;
 use self::rigidmodel::RigidModelView;
@@ -83,7 +82,6 @@ pub mod group_formations;
 pub mod image;
 pub mod matched_combat;
 pub mod notes;
-pub mod packfile;
 pub mod packfile_settings;
 pub mod portrait_settings;
 pub mod rigidmodel;
@@ -144,7 +142,6 @@ pub enum View {
     GroupFormationsDebug(Arc<FileGroupFormationsDebugView>),
     Image(PackedFileImageView),
     MatchedCombatDebug(Arc<FileMatchedCombatDebugView>),
-    #[allow(dead_code)] PackFile(Arc<PackFileExtraView>),
     PackSettings(Arc<PackFileSettingsView>),
     PortraitSettings(Arc<PortraitSettingsView>),
     RigidModel(Arc<RigidModelView>),
@@ -163,7 +160,6 @@ pub enum View {
 
 pub enum SpecialView {
     Decoder(String),
-    Pack(String),
     PackSettings,
     PackDependencies,
 }
@@ -362,7 +358,6 @@ impl FileView {
                             View::GroupFormationsDebug(_) => return Ok(()),
                             View::Image(_) => return Ok(()),
                             View::MatchedCombatDebug(_) => return Ok(()),
-                            View::PackFile(_) => return Ok(()),
                             View::PackSettings(view) => {
                                 let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
                                 let _ = CENTRAL_COMMAND.read().unwrap().send(Command::SetPackSettings(pack_key, view.save_view()));
