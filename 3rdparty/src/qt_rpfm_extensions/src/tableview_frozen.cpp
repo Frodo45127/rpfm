@@ -23,7 +23,9 @@ extern "C" QTableView* new_tableview_frozen(QWidget* parent, void (*generate_too
 // Function to freeze an specific column.
 extern "C" void toggle_freezer(QTableView* tableView, int column) {
     QTableViewFrozen* tableViewFrozen = dynamic_cast<QTableViewFrozen*>(tableView);
-    tableViewFrozen->toggleFreezer(column);
+    if (tableViewFrozen) {
+        tableViewFrozen->toggleFreezer(column);
+    }
 }
 
 //-----------------------------------------------------------
@@ -35,12 +37,9 @@ QTableViewFrozen::QTableViewFrozen(QWidget* parent, void (*generate_tooltip_mess
 
     this->setParent(parent);
     frozenColumns = QList<int>();
+    sortSyncInProgress = false;
     tableViewFrozen = new QTableView(this);
     generateTooltipMessage = generate_tooltip_message;
-
-    if (generateTooltipMessage != nullptr) {
-        qDebug("non-nul");
-    }
 
     // Connect the header's resize signal of both QTableViews together, so they keep the same size.
     connect(
@@ -73,18 +72,31 @@ QTableViewFrozen::QTableViewFrozen(QWidget* parent, void (*generate_tooltip_mess
     );
 
     // Connect the sort indicators of both QTableViews, so they're kept in sync.
+    // Use a guard flag to prevent infinite recursion from bidirectional connections.
     connect(
         horizontalHeader(),
         &QHeaderView::sortIndicatorChanged,
-        tableViewFrozen->horizontalHeader(),
-        &QHeaderView::setSortIndicator
+        this,
+        [this](int logicalIndex, Qt::SortOrder order) {
+            if (!sortSyncInProgress) {
+                sortSyncInProgress = true;
+                tableViewFrozen->horizontalHeader()->setSortIndicator(logicalIndex, order);
+                sortSyncInProgress = false;
+            }
+        }
     );
 
     connect(
         tableViewFrozen->horizontalHeader(),
         &QHeaderView::sortIndicatorChanged,
-        horizontalHeader(),
-        &QHeaderView::setSortIndicator
+        this,
+        [this](int logicalIndex, Qt::SortOrder order) {
+            if (!sortSyncInProgress) {
+                sortSyncInProgress = true;
+                horizontalHeader()->setSortIndicator(logicalIndex, order);
+                sortSyncInProgress = false;
+            }
+        }
     );
 
     // Configure the QTableViews to "fit" above the normal QTableView, using his same model.
@@ -113,7 +125,6 @@ QTableViewFrozen::QTableViewFrozen(QWidget* parent, void (*generate_tooltip_mess
     tableViewFrozen->setVerticalScrollMode(ScrollPerPixel);
     tableViewFrozen->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     tableViewFrozen->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    //tableViewFrozen->setSelectionModel(selectionModel());
     tableViewFrozen->show();
 
     // Place the Frozen QTableView above the normal one.
@@ -125,9 +136,9 @@ QTableViewFrozen::QTableViewFrozen(QWidget* parent, void (*generate_tooltip_mess
     );
 }
 
-// Destructor. Nothing to see here, keep scrolling.
+// Destructor.
 QTableViewFrozen::~QTableViewFrozen() {
-    delete tableViewFrozen;
+    // tableViewFrozen is a child of this, Qt handles its deletion automatically.
 }
 
 // Override of setModel to assign the same model to both views.
@@ -136,8 +147,10 @@ void QTableViewFrozen::setModel(QAbstractItemModel* model) {
     QTableView::setModel(model);
 
     QSortFilterProxyModel* filterModelFrozen = dynamic_cast<QSortFilterProxyModel*>(this->model());
-    for(int col = 0; col < filterModelFrozen->sourceModel()->columnCount(); col++) {
-        tableViewFrozen->setColumnHidden(col, true);
+    if (filterModelFrozen && filterModelFrozen->sourceModel()) {
+        for(int col = 0; col < filterModelFrozen->sourceModel()->columnCount(); col++) {
+            tableViewFrozen->setColumnHidden(col, true);
+        }
     }
 
     updateFrozenTableGeometry();
@@ -172,10 +185,14 @@ QModelIndex QTableViewFrozen::moveCursor(
 ) {
     QModelIndex current = QTableView::moveCursor(cursorAction, modifiers);
 
+    QSortFilterProxyModel* model = dynamic_cast<QSortFilterProxyModel*>(this->model());
+    if (!model || !model->sourceModel()) {
+        return current;
+    }
+
     // We need to get this done dinamically, depending on the amount and size of frozen columns.
     int frozen_columns = 0;
     int frozen_width = 0;
-    QSortFilterProxyModel* model = dynamic_cast<QSortFilterProxyModel*>(this->model());
     for (int i = 0; i < model->sourceModel()->columnCount(); ++i) {
         if (!tableViewFrozen->isColumnHidden(i)) {
             frozen_columns += 1;
@@ -203,9 +220,13 @@ void QTableViewFrozen::scrollTo(const QModelIndex & index, ScrollHint hint) {
 // Function to update the geometry of the frozen QTableView when needed, to keep it at the right size.
 void QTableViewFrozen::updateFrozenTableGeometry() {
 
+    QSortFilterProxyModel* frozenTableModel = dynamic_cast<QSortFilterProxyModel*>(tableViewFrozen->model());
+    if (!frozenTableModel || !frozenTableModel->sourceModel()) {
+        return;
+    }
+
     // It's simple, we get the width of every visible column, then use that as our width.
     int width = 0;
-    QSortFilterProxyModel* frozenTableModel = dynamic_cast<QSortFilterProxyModel*>(tableViewFrozen->model());
     width += frozenColumns.count();
     for (int i = 0; i < frozenTableModel->sourceModel()->columnCount(); ++i) {
         if (frozenColumns.contains(i)) {

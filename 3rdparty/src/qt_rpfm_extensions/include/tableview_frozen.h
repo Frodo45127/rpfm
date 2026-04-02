@@ -27,8 +27,8 @@ protected:
 private:
     QList<int> frozenColumns;
     QPoint _lastPosition;
+    bool sortSyncInProgress;
     void (*generateTooltipMessage)(QTableView* view, int globalPosX, int globalPosY);
-    void init();
     void updateFrozenTableGeometry();
 
 public slots:
