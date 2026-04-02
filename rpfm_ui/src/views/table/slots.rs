@@ -103,6 +103,7 @@ pub struct TableViewSlots {
     pub profile_delete: QBox<SlotOfQString>,
     pub profile_new: QBox<SlotNoArgs>,
     pub profile_set_as_default: QBox<SlotOfQString>,
+    pub toggle_flagged_rows_filter: QBox<SlotOfBool>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -925,6 +926,13 @@ impl TableViewSlots {
             }
         ));
 
+        let toggle_flagged_rows_filter = SlotOfBool::new(&view.table_view, clone!(
+            view => move |_| {
+                info!("Triggering `Toggle Flagged Rows Filter` By Slot");
+                view.filter_table();
+            }
+        ));
+
         // Return the slots, so we can keep them alive for the duration of the view.
         Self {
             delayed_updates,
@@ -971,6 +979,7 @@ impl TableViewSlots {
             profile_delete,
             profile_new,
             profile_set_as_default,
+            toggle_flagged_rows_filter,
         }
     }
 }

@@ -83,4 +83,12 @@ pub unsafe fn set_connections(ui: &Arc<TableView>, slots: &TableViewSlots) {
     ui.signal_mapper_profile_apply.mapped2().connect(&slots.profile_apply);
     ui.signal_mapper_profile_delete.mapped2().connect(&slots.profile_delete);
     ui.signal_mapper_profile_set_as_default.mapped2().connect(&slots.profile_set_as_default);
+
+    ui.flagged_rows_filter_added.toggled().connect(&slots.toggle_flagged_rows_filter);
+    ui.flagged_rows_filter_modified.toggled().connect(&slots.toggle_flagged_rows_filter);
+    ui.flagged_rows_filter_added_vs_vanilla.toggled().connect(&slots.toggle_flagged_rows_filter);
+    ui.flagged_rows_filter_modified_vs_vanilla.toggled().connect(&slots.toggle_flagged_rows_filter);
+    ui.flagged_rows_filter_error.toggled().connect(&slots.toggle_flagged_rows_filter);
+    ui.flagged_rows_filter_warning.toggled().connect(&slots.toggle_flagged_rows_filter);
+    ui.flagged_rows_filter_info.toggled().connect(&slots.toggle_flagged_rows_filter);
 }

@@ -29,6 +29,7 @@ use qt_widgets::QMenu;
 use qt_widgets::QPushButton;
 use qt_widgets::QTableView;
 use qt_widgets::QTextEdit;
+use qt_widgets::QToolButton;
 use qt_widgets::QScrollArea;
 use qt_widgets::QSpinBox;
 use qt_widgets::QWidget;
@@ -259,6 +260,15 @@ pub struct TableView {
 
     _table_status_bar: QBox<QWidget>,
     table_status_bar_line_counter_label: QBox<QLabel>,
+    _flagged_rows_filter_button: QBox<QToolButton>,
+    _flagged_rows_filter_menu: QBox<QMenu>,
+    flagged_rows_filter_added: QPtr<QAction>,
+    flagged_rows_filter_modified: QPtr<QAction>,
+    flagged_rows_filter_added_vs_vanilla: QPtr<QAction>,
+    flagged_rows_filter_modified_vs_vanilla: QPtr<QAction>,
+    flagged_rows_filter_error: QPtr<QAction>,
+    flagged_rows_filter_warning: QPtr<QAction>,
+    flagged_rows_filter_info: QPtr<QAction>,
 
     #[getset(skip)]
     search_view: Arc<RwLock<Option<Arc<SearchView>>>>,
@@ -415,6 +425,37 @@ impl TableView {
         let table_status_bar_grid = create_grid_layout(table_status_bar.static_upcast());
         let table_status_bar_line_counter_label = QLabel::from_q_string_q_widget(&qtre("line_counter", &["0", "0"]), &table_status_bar);
         table_status_bar_grid.add_widget_5a(&table_status_bar_line_counter_label, 0, 0, 1, 1);
+
+        let flagged_rows_filter_button = QToolButton::new_1a(&table_status_bar);
+        flagged_rows_filter_button.set_text(&qtr("table_filter_show_flagged_rows"));
+        flagged_rows_filter_button.set_tool_tip(&qtr("table_filter_show_flagged_rows_tip"));
+        flagged_rows_filter_button.set_popup_mode(qt_widgets::q_tool_button::ToolButtonPopupMode::InstantPopup);
+
+        let flagged_rows_filter_menu = QMenu::from_q_widget(&flagged_rows_filter_button);
+
+        let flagged_rows_filter_added = flagged_rows_filter_menu.add_action_q_string(&qtr("table_filter_flag_added"));
+        flagged_rows_filter_added.set_checkable(true);
+
+        let flagged_rows_filter_modified = flagged_rows_filter_menu.add_action_q_string(&qtr("table_filter_flag_modified"));
+        flagged_rows_filter_modified.set_checkable(true);
+
+        let flagged_rows_filter_added_vs_vanilla = flagged_rows_filter_menu.add_action_q_string(&qtr("table_filter_flag_added_vs_vanilla"));
+        flagged_rows_filter_added_vs_vanilla.set_checkable(true);
+
+        let flagged_rows_filter_modified_vs_vanilla = flagged_rows_filter_menu.add_action_q_string(&qtr("table_filter_flag_modified_vs_vanilla"));
+        flagged_rows_filter_modified_vs_vanilla.set_checkable(true);
+
+        let flagged_rows_filter_error = flagged_rows_filter_menu.add_action_q_string(&qtr("table_filter_flag_error"));
+        flagged_rows_filter_error.set_checkable(true);
+
+        let flagged_rows_filter_warning = flagged_rows_filter_menu.add_action_q_string(&qtr("table_filter_flag_warning"));
+        flagged_rows_filter_warning.set_checkable(true);
+
+        let flagged_rows_filter_info = flagged_rows_filter_menu.add_action_q_string(&qtr("table_filter_flag_info"));
+        flagged_rows_filter_info.set_checkable(true);
+
+        flagged_rows_filter_button.set_menu(&flagged_rows_filter_menu);
+        table_status_bar_grid.add_widget_5a(&flagged_rows_filter_button, 0, 1, 1, 1);
 
         layout.add_widget_5a(&table_view, 1, 0, 1, 1);
         layout.add_widget_5a(&table_status_bar, 2, 0, 1, 2);
@@ -682,6 +723,15 @@ impl TableView {
 
             _table_status_bar: table_status_bar,
             table_status_bar_line_counter_label,
+            _flagged_rows_filter_button: flagged_rows_filter_button,
+            _flagged_rows_filter_menu: flagged_rows_filter_menu,
+            flagged_rows_filter_added,
+            flagged_rows_filter_modified,
+            flagged_rows_filter_added_vs_vanilla,
+            flagged_rows_filter_modified_vs_vanilla,
+            flagged_rows_filter_error,
+            flagged_rows_filter_warning,
+            flagged_rows_filter_info,
 
             search_view: Arc::new(RwLock::new(None)),
 
@@ -1296,6 +1346,7 @@ impl TableView {
         let mut match_groups = vec![];
         let mut variant_to_search = vec![];
         let mut show_edited_cells = vec![];
+        let mut flagged_row_roles = vec![];
 
         let filters = self.filters.read().unwrap();
         for filter in filters.iter() {
@@ -1343,8 +1394,17 @@ impl TableView {
             }
         }
 
+        // Collect active flagged row roles from the dropdown menu.
+        if self.flagged_rows_filter_added.is_checked() { flagged_row_roles.push(ITEM_IS_ADDED); }
+        if self.flagged_rows_filter_modified.is_checked() { flagged_row_roles.push(ITEM_IS_MODIFIED); }
+        if self.flagged_rows_filter_added_vs_vanilla.is_checked() { flagged_row_roles.push(ITEM_IS_ADDED_VS_VANILLA); }
+        if self.flagged_rows_filter_modified_vs_vanilla.is_checked() { flagged_row_roles.push(ITEM_IS_MODIFIED_VS_VANILLA); }
+        if self.flagged_rows_filter_error.is_checked() { flagged_row_roles.push(ITEM_HAS_ERROR); }
+        if self.flagged_rows_filter_warning.is_checked() { flagged_row_roles.push(ITEM_HAS_WARNING); }
+        if self.flagged_rows_filter_info.is_checked() { flagged_row_roles.push(ITEM_HAS_INFO); }
+
         // Filter whatever it's in that column by the text we got.
-        trigger_tableview_filter_safe(&self.table_filter, &columns, patterns, &use_nott, &use_regex, &sensitivity, &show_blank_cells, &match_groups, &variant_to_search, &show_edited_cells);
+        trigger_tableview_filter_safe(&self.table_filter, &columns, patterns, &use_nott, &use_regex, &sensitivity, &show_blank_cells, &match_groups, &variant_to_search, &show_edited_cells, &flagged_row_roles);
 
         // Update the line count.
         self.update_line_counter();

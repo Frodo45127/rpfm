@@ -18,7 +18,8 @@ extern "C" void trigger_tableview_filter(
     QList<int> show_blank_cells = QList<int>(),
     QList<int> match_groups_per_column = QList<int>(),
     QList<int> variant_to_search = QList<int>(),
-    QList<int> show_edited_cells = QList<int>()
+    QList<int> show_edited_cells = QList<int>(),
+    QList<int> flagged_row_roles = QList<int>()
 );
 
 class QTableViewSortFilterProxyModel : public QSortFilterProxyModel
@@ -35,6 +36,7 @@ public:
     QList<int> match_groups_per_column;
     QList<int> variant_to_search;
     QList<int> show_edited_cells;
+    QList<int> flagged_row_roles;
 
     explicit QTableViewSortFilterProxyModel(QObject *parent = nullptr);
     bool filterAcceptsRow(int source_row, const QModelIndex & source_parent) const;

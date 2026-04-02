@@ -22,7 +22,8 @@ extern "C" void trigger_tableview_filter(
     QList<int> show_blank_cells,
     QList<int> match_groups_per_column,
     QList<int> variant_to_search,
-    QList<int> show_edited_cells
+    QList<int> show_edited_cells,
+    QList<int> flagged_row_roles
 ) {
     QTableViewSortFilterProxyModel* filter2 = static_cast<QTableViewSortFilterProxyModel*>(filter);
     filter2->columns = columns;
@@ -34,6 +35,7 @@ extern "C" void trigger_tableview_filter(
     filter2->match_groups_per_column = match_groups_per_column;
     filter2->variant_to_search = variant_to_search;
     filter2->show_edited_cells = show_edited_cells;
+    filter2->flagged_row_roles = flagged_row_roles;
     filter2->setFilterKeyColumn(0);
 }
 
@@ -43,7 +45,32 @@ QTableViewSortFilterProxyModel::QTableViewSortFilterProxyModel(QObject *parent):
 // Function called when the filter changes.
 bool QTableViewSortFilterProxyModel::filterAcceptsRow(int source_row, const QModelIndex &source_parent) const {
 
-    // If we have no filters, show everything.
+    // If flag-based row filtering is enabled, check if any cell in the row has one of the selected flags.
+    if (!flagged_row_roles.isEmpty()) {
+        QStandardItemModel* model = static_cast<QStandardItemModel*>(sourceModel());
+        int col_count = model->columnCount(source_parent);
+        bool has_flag = false;
+
+        for (int col = 0; col < col_count && !has_flag; ++col) {
+            QModelIndex idx = model->index(source_row, col, source_parent);
+            QStandardItem *item = model->itemFromIndex(idx);
+            if (!item) continue;
+
+            for (int role : flagged_row_roles) {
+                QVariant v = item->data(role);
+                if (!v.isNull() && v.toBool()) {
+                    has_flag = true;
+                    break;
+                }
+            }
+        }
+
+        if (!has_flag) {
+            return false;
+        }
+    }
+
+    // If we have no filters, show everything (unless already filtered by flags above).
     if (patterns.isEmpty()) {
         return true;
     }

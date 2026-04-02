@@ -972,6 +972,15 @@ context_menu_go_to_loc = Go To Loc Entry:  {"{"}{"}"}
 loc_key_not_found = The loc entry couldn't be found.
 table_filter_show_blank_cells = Show Blank Cells
 table_filter_show_edited_cells = Show Edited Cells
+table_filter_show_flagged_rows = Flagged Only
+table_filter_show_flagged_rows_tip = Show only rows matching selected flags. Click to choose which flags to filter by.
+table_filter_flag_added = Added
+table_filter_flag_modified = Modified
+table_filter_flag_added_vs_vanilla = New vs Vanilla
+table_filter_flag_modified_vs_vanilla = Changed vs Vanilla
+table_filter_flag_error = Diagnostic Error
+table_filter_flag_warning = Diagnostic Warning
+table_filter_flag_info = Diagnostic Info
 special_stuff_rescue_packfile = Rescue PackFile
 are_you_sure_rescue_packfile = Are you sure you want to do this? This is a dangerous option that should never be used unless the dev or RPFM tells you to specifically use it.
     So again, are you sure you want to use this?
