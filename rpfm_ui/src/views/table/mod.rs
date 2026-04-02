@@ -1172,6 +1172,10 @@ impl TableView {
 
         // The add to key deletes menu works a bit different. Must be enabled only in supported games, regardless of pack source.
         let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+        if pack_key.is_empty() {
+            return;
+        }
+
         let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetTablesByTableName(pack_key, KEY_DELETES_TABLE_NAME.to_owned()));
         let response = CentralCommand::recv(&receiver);
         match response {
