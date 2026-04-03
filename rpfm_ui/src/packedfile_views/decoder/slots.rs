@@ -34,7 +34,7 @@ use rpfm_ui_common::clone;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
-use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::communications::{Command, send_ipc_command_result};
 use crate::packedfile_views::DataSource;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::UI_STATE;
@@ -591,12 +591,9 @@ impl PackedFileDecoderViewSlots {
 
                         let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
                         let _ = CENTRAL_COMMAND.read().unwrap().send(Command::CleanCache(pack_key, packed_files_to_save));
-                        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SaveSchema(schema));
-                        let response = CentralCommand::recv(&receiver);
-                        match response {
-                            Response::Success => show_dialog(&view.table_view, "Schema successfully saved.", true),
-                            Response::Error(error) => show_dialog(&view.table_view, error, false),
-                            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                        match send_ipc_command_result(Command::SaveSchema(schema), response_extractor!()) {
+                            Ok(()) => show_dialog(&view.table_view, "Schema successfully saved.", true),
+                            Err(error) => show_dialog(&view.table_view, error, false),
                         }
 
                         view.load_versions_list();

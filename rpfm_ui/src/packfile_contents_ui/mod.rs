@@ -55,8 +55,7 @@ use rpfm_lib::files::{ContainerPath, pack::RESERVED_NAME_NOTES};
 use rpfm_ui_common::utils::{find_widget, load_template};
 
 use crate::app_ui::AppUI;
-use crate::CENTRAL_COMMAND;
-use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::communications::{Command, Response, send_ipc_command, send_ipc_command_result, send_ipc_command_result_async};
 use crate::ffi::*;
 use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::settings_ui::backend::{settings_bool, settings_path_buf, settings_set_bool};
@@ -509,10 +508,8 @@ impl PackFileContentsUI {
         }
 
         let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::AddPackedFiles(pack_key.clone(), paths.to_vec(), paths_in_container.to_vec(), paths_to_ignore));
-        let response = CentralCommand::recv(&receiver);
-        match response {
-            Response::VecContainerPathOptionString(paths, error) => {
+        match send_ipc_command_result(Command::AddPackedFiles(pack_key.clone(), paths.to_vec(), paths_in_container.to_vec(), paths_to_ignore), response_extractor!(Response::VecContainerPathOptionString, paths, error)) {
+            Ok((paths, error)) => {
                 if !paths.is_empty() {
                     pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths.to_vec()), DataSource::PackFile, &pack_key);
 
@@ -534,9 +531,7 @@ impl PackFileContentsUI {
                     show_dialog(app_ui.main_window(), error, false);
                 }
             }
-
-            Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
-            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+            Err(error) => show_dialog(app_ui.main_window(), error, false),
         }
 
         // Re-enable the Main Window.
@@ -661,12 +656,7 @@ impl PackFileContentsUI {
 
         // Query the selected pack's operational mode for extraction path logic.
         let selected_pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackOperationalMode(selected_pack_key));
-        let response = CentralCommand::recv(&receiver);
-        let pack_mode = match response {
-            Response::OperationalMode(mode) => mode,
-            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-        };
+        let pack_mode = send_ipc_command(Command::GetPackOperationalMode(selected_pack_key), response_extractor!(Response::OperationalMode));
 
         let extraction_path = match pack_mode {
 
@@ -719,13 +709,10 @@ impl PackFileContentsUI {
             let mut paths_by_source = BTreeMap::new();
             paths_by_source.insert(DataSource::PackFile, items_to_extract);
             let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::ExtractPackedFiles(pack_key, paths_by_source, extraction_path, extract_tables_as_tsv));
             app_ui.toggle_main_window(false);
-            let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
-            match response {
-                Response::StringVecPathBuf(result, _) => show_message_info(app_ui.message_widget(), result),
-                Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
-                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+            match send_ipc_command_result_async(Command::ExtractPackedFiles(pack_key, paths_by_source, extraction_path, extract_tables_as_tsv), response_extractor!(Response::StringVecPathBuf, result, _paths)) {
+                Ok((result, _)) => show_message_info(app_ui.message_widget(), result),
+                Err(error) => show_dialog(app_ui.main_window(), error, false),
             }
             app_ui.toggle_main_window(true);
         }

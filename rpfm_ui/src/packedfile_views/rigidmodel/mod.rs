@@ -41,7 +41,7 @@ use qt_core::QVariant;
 use cpp_core::CppBox;
 use cpp_core::CppDeletable;
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use getset::*;
 
 use std::collections::BTreeMap;
@@ -55,7 +55,7 @@ use rpfm_ui_common::utils::{find_widget, load_template};
 #[cfg(feature = "support_model_renderer")] use rpfm_ui_common::settings::setting_bool;
 #[cfg(feature = "support_model_renderer")] use rpfm_ui_common::utils::show_dialog;
 
-use crate::{communications::*, CENTRAL_COMMAND};
+use crate::communications::*;
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
@@ -572,13 +572,8 @@ impl RigidModelView {
 
         if !extraction_path.is_empty() {
             let rigid = self.data.read().unwrap().clone();
-            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::ExportRigidToGltf(rigid, extraction_path.to_std_string()));
-            let response = CentralCommand::recv(&receiver);
-            match response {
-                Response::Success => Ok(()),
-                Response::Error(error) => return Err(anyhow!(error)),
-                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-            }
+            send_ipc_command_result(Command::ExportRigidToGltf(rigid, extraction_path.to_std_string()), response_extractor!())?;
+            Ok(())
         } else {
             Ok(())
         }

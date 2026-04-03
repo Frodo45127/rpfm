@@ -60,7 +60,6 @@ use rpfm_ui_common::utils::*;
 
 use crate::app_ui::AppUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::ffi::*;
 use crate::packedfile_views::{FileView, View, ViewType};
@@ -814,28 +813,21 @@ impl PortraitSettingsView {
 
         // Do not bother doing this if we have no paths.
         if search {
-            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetRFilesFromAllSources(paths, false));
-            let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
-            match response {
-                Response::HashMapDataSourceHashMapStringRFile(mut files) => {
-                    let diffuse_loaded = Self::load_variant_image_to_label(diffuse, &self.diffuse_label, &mut files);
-                    let mask_1_loaded = Self::load_variant_image_to_label(mask_1, &self.mask_1_label, &mut files);
-                    let mask_2_loaded = Self::load_variant_image_to_label(mask_2, &self.mask_2_label, &mut files);
-                    let mask_3_loaded = Self::load_variant_image_to_label(mask_3, &self.mask_3_label, &mut files);
+            let mut files = send_ipc_command_async(Command::GetRFilesFromAllSources(paths, false), response_extractor!(Response::HashMapDataSourceHashMapStringRFile));
+            let diffuse_loaded = Self::load_variant_image_to_label(diffuse, &self.diffuse_label, &mut files);
+            let mask_1_loaded = Self::load_variant_image_to_label(mask_1, &self.mask_1_label, &mut files);
+            let mask_2_loaded = Self::load_variant_image_to_label(mask_2, &self.mask_2_label, &mut files);
+            let mask_3_loaded = Self::load_variant_image_to_label(mask_3, &self.mask_3_label, &mut files);
 
-                    self.diffuse_groupbox.set_visible(diffuse_loaded);
-                    self.mask_1_groupbox.set_visible(mask_1_loaded);
-                    self.mask_2_groupbox.set_visible(mask_2_loaded);
-                    self.mask_3_groupbox.set_visible(mask_3_loaded);
+            self.diffuse_groupbox.set_visible(diffuse_loaded);
+            self.mask_1_groupbox.set_visible(mask_1_loaded);
+            self.mask_2_groupbox.set_visible(mask_2_loaded);
+            self.mask_3_groupbox.set_visible(mask_3_loaded);
 
-                    Self::load_variant_image_to_label(&diffuse.to_lowercase().replace("/portholes/", "/units/"), &self.diffuse_icon_label, &mut files);
-                    Self::load_variant_image_to_label(&mask_1.to_lowercase().replace("/portholes/", "/units/"), &self.mask_1_icon_label, &mut files);
-                    Self::load_variant_image_to_label(&mask_2.to_lowercase().replace("/portholes/", "/units/"), &self.mask_2_icon_label, &mut files);
-                    Self::load_variant_image_to_label(&mask_3.to_lowercase().replace("/portholes/", "/units/"), &self.mask_3_icon_label, &mut files);
-                },
-
-                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-            }
+            Self::load_variant_image_to_label(&diffuse.to_lowercase().replace("/portholes/", "/units/"), &self.diffuse_icon_label, &mut files);
+            Self::load_variant_image_to_label(&mask_1.to_lowercase().replace("/portholes/", "/units/"), &self.mask_1_icon_label, &mut files);
+            Self::load_variant_image_to_label(&mask_2.to_lowercase().replace("/portholes/", "/units/"), &self.mask_2_icon_label, &mut files);
+            Self::load_variant_image_to_label(&mask_3.to_lowercase().replace("/portholes/", "/units/"), &self.mask_3_icon_label, &mut files);
         }
     }
 

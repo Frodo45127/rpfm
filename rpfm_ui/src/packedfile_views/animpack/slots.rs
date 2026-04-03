@@ -23,7 +23,6 @@ use rpfm_lib::files::ContainerPath;
 use rpfm_ui_common::clone;
 
 use crate::app_ui::AppUI;
-use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::packedfile_views::animpack::PackedFileAnimPackView;
 use crate::pack_tree::{PackTree, TreeViewOperation};
@@ -95,10 +94,8 @@ impl PackedFileAnimPackViewSlots {
                     // Ask the Background Thread to copy the files, and send him the path.
                     app_ui.toggle_main_window(false);
                     let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::AddPackedFilesFromPackFileToAnimpack(pack_key.clone(), view.path().read().unwrap().to_owned(), item_types));
-                    let response = CentralCommand::recv(&receiver);
-                    match response {
-                        Response::VecContainerPath(paths_ok) => {
+                    match send_ipc_command_result(Command::AddPackedFilesFromPackFileToAnimpack(pack_key.clone(), view.path().read().unwrap().to_owned(), item_types), response_extractor!(Response::VecContainerPath)) {
+                        Ok(paths_ok) => {
 
                             // Update the AnimPack TreeView with the new files.
                             view.anim_pack_tree_view.update_treeview(true, TreeViewOperation::Add(paths_ok.to_vec()), DataSource::PackFile, &pack_key);
@@ -108,8 +105,7 @@ impl PackedFileAnimPackViewSlots {
                             view.pack_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![ContainerPath::File(view.path().read().unwrap().to_owned()); 1]), DataSource::PackFile, &pack_key);
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                         },
-                        Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
-                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                        Err(error) => show_dialog(app_ui.main_window(), error, false),
                     }
 
                     // Re-enable and re-focus the Main Window.
@@ -139,10 +135,8 @@ impl PackedFileAnimPackViewSlots {
                     // Ask the Background Thread to copy the files, and send him the path.
                     app_ui.toggle_main_window(false);
                     let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::AddPackedFilesFromAnimpack(pack_key.clone(), *view.data_source.read().unwrap(), view.path().read().unwrap().to_owned(), item_types));
-                    let response = CentralCommand::recv(&receiver);
-                    match response {
-                        Response::VecContainerPath(paths_ok) => {
+                    match send_ipc_command_result(Command::AddPackedFilesFromAnimpack(pack_key.clone(), *view.data_source.read().unwrap(), view.path().read().unwrap().to_owned(), item_types), response_extractor!(Response::VecContainerPath)) {
+                        Ok(paths_ok) => {
 
                             // Update the AnimPack TreeView with the new files.
                             view.pack_tree_view.update_treeview(true, TreeViewOperation::Add(paths_ok.to_vec()), DataSource::PackFile, &pack_key);
@@ -158,8 +152,7 @@ impl PackedFileAnimPackViewSlots {
                                 }
                             }
                         },
-                        Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
-                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                        Err(error) => show_dialog(app_ui.main_window(), error, false),
                     }
 
                     // Re-enable and re-focus the Main Window.
@@ -185,10 +178,8 @@ impl PackedFileAnimPackViewSlots {
 
                     // Ask the backend to delete them.
                     let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::DeleteFromAnimpack(pack_key.clone(), view.path().read().unwrap().to_owned(), item_types.clone()));
-                    let response = CentralCommand::recv(&receiver);
-                    match response {
-                        Response::Success => {
+                    match send_ipc_command_result(Command::DeleteFromAnimpack(pack_key.clone(), view.path().read().unwrap().to_owned(), item_types.clone()), response_extractor!()) {
+                        Ok(()) => {
 
                             // If it works, remove them from the view.
                             view.anim_pack_tree_view.update_treeview(true, TreeViewOperation::Delete(item_types, settings_bool("delete_empty_folders_on_delete")), DataSource::PackFile, &pack_key);
@@ -198,8 +189,7 @@ impl PackedFileAnimPackViewSlots {
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                         }
 
-                        Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
-                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                        Err(error) => show_dialog(app_ui.main_window(), error, false),
                     }
                 }
             }

@@ -144,35 +144,26 @@ impl NotesView {
             return;
         }
 
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::NotesForPath(pack_key, self.path.read().unwrap().to_owned()));
-        let response = CentralCommand::recv(&receiver);
-        match response {
-            Response::VecNote(mut notes) => {
-                if !notes.is_empty() {
-                    notes.sort_by_key(|note| *note.id());
-                    notes.iter().for_each(|note| self.add_item_to_notes_list(note));
+        let mut notes = send_ipc_command(Command::NotesForPath(pack_key, self.path.read().unwrap().to_owned()), response_extractor!(Response::VecNote));
+        if !notes.is_empty() {
+            notes.sort_by_key(|note| *note.id());
+            notes.iter().for_each(|note| self.add_item_to_notes_list(note));
 
-                    let parent = self.list.parent().static_downcast::<QWidget>();
-                    let grandparent = parent.parent().static_downcast::<QWidget>();
-                    let layout = grandparent.layout().static_downcast::<QGridLayout>();
-                    parent.set_visible(true);
-                    layout.add_widget_5a(parent, 0, 99, layout.row_count(), 1);
-                }
-            },
-            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-        };
+            let parent = self.list.parent().static_downcast::<QWidget>();
+            let grandparent = parent.parent().static_downcast::<QWidget>();
+            let layout = grandparent.layout().static_downcast::<QGridLayout>();
+            parent.set_visible(true);
+            layout.add_widget_5a(parent, 0, 99, layout.row_count(), 1);
+        }
     }
 
     /// This function saves a note on the currently open Pack.
     pub unsafe fn save_data(&self, note: Note) {
 
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::AddNote(self.pack_key.read().unwrap().clone(), note));
-        let response = CentralCommand::recv(&receiver);
-        match response {
-            Response::Note(note) => self.add_item_to_notes_list(&note),
-            Response::Error(error) => show_dialog(&self.list, error, false),
-            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-        };
+        match send_ipc_command_result(Command::AddNote(self.pack_key.read().unwrap().clone(), note), response_extractor!(Response::Note)) {
+            Ok(note) => self.add_item_to_notes_list(&note),
+            Err(error) => show_dialog(&self.list, error, false),
+        }
     }
 
     /// This function loads the new note dialog, and returns an error if it fails for any reason.

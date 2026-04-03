@@ -57,7 +57,7 @@ use rpfm_ui_common::utils::{create_grid_layout, ref_from_atomic};
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
-use crate::communications::{CentralCommand, THREADS_COMMUNICATION_ERROR, Command, Response};
+use crate::communications::{THREADS_COMMUNICATION_ERROR, Command, Response, send_ipc_command, send_ipc_command_result, send_ipc_command_result_async, send_ipc_command_async};
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::DISCORD_URL;
@@ -265,9 +265,7 @@ impl AppUISlots {
             diagnostics_ui => move || {
                 info!("Triggering `Open PackFile Menu` By Slot");
 
-                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::IsThereADependencyDatabase(false));
-                let response = CentralCommand::recv(&receiver);
-                let generated = if let Response::Bool(generated) = response { generated } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}") };
+                let generated = send_ipc_command(Command::IsThereADependencyDatabase(false), response_extractor!(Response::Bool));
                 app_ui.packfile_load_all_ca_packfiles().set_enabled(!generated);
 
                 AppUI::build_pack_submenus(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui);
@@ -373,45 +371,35 @@ impl AppUISlots {
                 info!("Triggering `Save All` By Slot");
 
                 // Get all open packs from the server.
-                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::ListOpenPacks);
-                let response = CentralCommand::recv(&receiver);
-                if let Response::VecStringContainerInfo(pack_list) = response {
-                    for (pack_key, _) in &pack_list {
+                let pack_list = send_ipc_command(Command::ListOpenPacks, response_extractor!(Response::VecStringContainerInfo));
+                for (pack_key, _) in &pack_list {
 
-                        // Get the pack's file path.
-                        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackFilePath(pack_key.clone()));
-                        let response = CentralCommand::recv(&receiver);
-                        let path = match response {
-                            Response::PathBuf(path) => path,
-                            Response::Error(error) => {
-                                show_dialog(&app_ui.main_window, error, false);
-                                continue;
-                            }
-                            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-                        };
+                    // Get the pack's file path.
+                    let path = match send_ipc_command_result(Command::GetPackFilePath(pack_key.clone()), response_extractor!(Response::PathBuf)) {
+                        Ok(path) => path,
+                        Err(error) => {
+                            show_dialog(&app_ui.main_window, error, false);
+                            continue;
+                        }
+                    };
 
-                        // If the pack has a valid path on disk, save it. Otherwise, skip (save-as would
-                        // require a dialog per pack which is disruptive for save-all).
-                        if path.is_file() {
-                            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SavePack(pack_key.clone()));
-                            let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
-                            match response {
-                                Response::ContainerInfo(_) => {},
-                                Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
-                                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-                            }
+                    // If the pack has a valid path on disk, save it. Otherwise, skip (save-as would
+                    // require a dialog per pack which is disruptive for save-all).
+                    if path.is_file() {
+                        if let Err(error) = send_ipc_command_result_async(Command::SavePack(pack_key.clone()), response_extractor!(Response::ContainerInfo)) {
+                            show_dialog(&app_ui.main_window, error, false);
                         }
                     }
-
-                    // Clean the treeview markers and file views.
-                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile, "");
-                    for file_view in UI_STATE.get_open_packedfiles().iter() {
-                        file_view.clean();
-                    }
-                    UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
-
-                    log_to_status_bar("All packs saved.");
                 }
+
+                // Clean the treeview markers and file views.
+                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile, "");
+                for file_view in UI_STATE.get_open_packedfiles().iter() {
+                    file_view.clean();
+                }
+                UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
+
+                log_to_status_bar("All packs saved.");
             }
         ));
 
@@ -440,12 +428,8 @@ impl AppUISlots {
                 GlobalSearchUI::clear(&global_search_ui);
                 let _ = AppUI::purge_them_all(&app_ui, &pack_file_contents_ui, false);
 
-                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::LoadAllCAPackFiles);
-                let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
-                match response {
-
-                    // If it's success....
-                    Response::ContainerInfo(_) => {
+                match send_ipc_command_result_async(Command::LoadAllCAPackFiles, response_extractor!(Response::ContainerInfo)) {
+                    Ok(_) => {
 
                         // Update the TreeView.
                         let mut build_data = BuildData::new();
@@ -474,13 +458,9 @@ impl AppUISlots {
                         UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
                     }
 
-                    // If we got an error...
-                    Response::Error(error) => {
+                    Err(error) => {
                         show_dialog(&app_ui.main_window, error, false);
                     }
-
-                    // In ANY other situation, it's a message problem.
-                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                 }
 
                 // Always reenable the Main Window.
@@ -532,41 +512,33 @@ impl AppUISlots {
 
                                 // Now sync the UI state from the new session.
                                 // Get the game selected from the backend and update the UI checkbox.
-                                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetGameSelected);
-                                let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
-                                match response {
-                                    Response::String(game_key) => {
-                                        info!("New session game selected: {}", game_key);
+                                let game_key = send_ipc_command_async(Command::GetGameSelected, response_extractor!(Response::String));
+                                info!("New session game selected: {}", game_key);
 
-                                        // Update the game selection checkbox (without triggering the slot).
-                                        app_ui.game_selected_group.block_signals(true);
-                                        match game_key.as_str() {
-                                            KEY_PHARAOH_DYNASTIES => app_ui.game_selected_pharaoh_dynasties.set_checked(true),
-                                            KEY_PHARAOH => app_ui.game_selected_pharaoh.set_checked(true),
-                                            KEY_WARHAMMER_3 => app_ui.game_selected_warhammer_3.set_checked(true),
-                                            KEY_TROY => app_ui.game_selected_troy.set_checked(true),
-                                            KEY_THREE_KINGDOMS => app_ui.game_selected_three_kingdoms.set_checked(true),
-                                            KEY_WARHAMMER_2 => app_ui.game_selected_warhammer_2.set_checked(true),
-                                            KEY_WARHAMMER => app_ui.game_selected_warhammer.set_checked(true),
-                                            KEY_THRONES_OF_BRITANNIA => app_ui.game_selected_thrones_of_britannia.set_checked(true),
-                                            KEY_ATTILA => app_ui.game_selected_attila.set_checked(true),
-                                            KEY_ROME_2 => app_ui.game_selected_rome_2.set_checked(true),
-                                            KEY_SHOGUN_2 => app_ui.game_selected_shogun_2.set_checked(true),
-                                            KEY_NAPOLEON => app_ui.game_selected_napoleon.set_checked(true),
-                                            KEY_EMPIRE => app_ui.game_selected_empire.set_checked(true),
-                                            KEY_ARENA => app_ui.game_selected_arena.set_checked(true),
-                                            _ => {}
-                                        }
-                                        app_ui.game_selected_group.block_signals(false);
+                                // Update the game selection checkbox (without triggering the slot).
+                                app_ui.game_selected_group.block_signals(true);
+                                match game_key.as_str() {
+                                    KEY_PHARAOH_DYNASTIES => app_ui.game_selected_pharaoh_dynasties.set_checked(true),
+                                    KEY_PHARAOH => app_ui.game_selected_pharaoh.set_checked(true),
+                                    KEY_WARHAMMER_3 => app_ui.game_selected_warhammer_3.set_checked(true),
+                                    KEY_TROY => app_ui.game_selected_troy.set_checked(true),
+                                    KEY_THREE_KINGDOMS => app_ui.game_selected_three_kingdoms.set_checked(true),
+                                    KEY_WARHAMMER_2 => app_ui.game_selected_warhammer_2.set_checked(true),
+                                    KEY_WARHAMMER => app_ui.game_selected_warhammer.set_checked(true),
+                                    KEY_THRONES_OF_BRITANNIA => app_ui.game_selected_thrones_of_britannia.set_checked(true),
+                                    KEY_ATTILA => app_ui.game_selected_attila.set_checked(true),
+                                    KEY_ROME_2 => app_ui.game_selected_rome_2.set_checked(true),
+                                    KEY_SHOGUN_2 => app_ui.game_selected_shogun_2.set_checked(true),
+                                    KEY_NAPOLEON => app_ui.game_selected_napoleon.set_checked(true),
+                                    KEY_EMPIRE => app_ui.game_selected_empire.set_checked(true),
+                                    KEY_ARENA => app_ui.game_selected_arena.set_checked(true),
+                                    _ => {}
+                                }
+                                app_ui.game_selected_group.block_signals(false);
 
-                                        // Update the GAME_SELECTED static and trigger a full dependency reload.
-                                        if SUPPORTED_GAMES.game(&game_key).is_some() {
-                                            AppUI::change_game_selected(&app_ui, &pack_file_contents_ui, &dependencies_ui, true, true);
-                                        }
-                                    }
-                                    _ => {
-                                        error!("Failed to get game selected from new session: {:?}", response);
-                                    }
+                                // Update the GAME_SELECTED static and trigger a full dependency reload.
+                                if SUPPORTED_GAMES.game(&game_key).is_some() {
+                                    AppUI::change_game_selected(&app_ui, &pack_file_contents_ui, &dependencies_ui, true, true);
                                 }
 
                                 // Rebuild the tree view from the new session's pack file data.
@@ -785,12 +757,7 @@ impl AppUISlots {
                                                     // Mark this pack as a MyMod on the server.
                                                     let mod_name_for_mode = mymod_pack_path.file_name().unwrap().to_string_lossy().to_string();
                                                     let game_folder_for_mode = mymod_pack_path.parent().and_then(|p| p.file_name()).map(|f| f.to_string_lossy().to_string()).unwrap_or_default();
-                                                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SetPackOperationalMode(pack_key.clone(), OperationalMode::MyMod(game_folder_for_mode, mod_name_for_mode)));
-                                                    let response = CentralCommand::recv(&receiver);
-                                                    match response {
-                                                        Response::Success => {},
-                                                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-                                                    }
+                                                    send_ipc_command(Command::SetPackOperationalMode(pack_key.clone(), OperationalMode::MyMod(game_folder_for_mode, mod_name_for_mode)), response_extractor!());
 
                                                     UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
 
@@ -1178,12 +1145,9 @@ impl AppUISlots {
                 // If there is no problem, ere we go.
                 app_ui.toggle_main_window(false);
 
-                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::UpdateCurrentSchemaFromAssKit);
-                let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
-                match response {
-                    Response::Success => show_dialog(&app_ui.main_window, tr("update_current_schema_from_asskit_success"), true),
-                    Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
-                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                match send_ipc_command_result_async(Command::UpdateCurrentSchemaFromAssKit, response_extractor!()) {
+                    Ok(_) => show_dialog(&app_ui.main_window, tr("update_current_schema_from_asskit_success"), true),
+                    Err(error) => show_dialog(&app_ui.main_window, error, false),
                 }
 
                 app_ui.toggle_main_window(true);
@@ -1216,12 +1180,9 @@ impl AppUISlots {
                 if dialog.exec() == 1 {
                     match serde_json::from_str(&patch_text_edit.to_plain_text().to_std_string()) {
                         Ok(patch) => {
-                            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::ImportSchemaPatch(patch));
-                            let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
-                            match response {
-                                Response::Success => show_dialog(&app_ui.main_window, tr("import_schema_patch_success"), true),
-                                Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
-                                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                            match send_ipc_command_result_async(Command::ImportSchemaPatch(patch), response_extractor!()) {
+                                Ok(_) => show_dialog(&app_ui.main_window, tr("import_schema_patch_success"), true),
+                                Err(error) => show_dialog(&app_ui.main_window, error, false),
                             }
                         },
                         Err(error) => show_dialog(&app_ui.main_window, error, false),

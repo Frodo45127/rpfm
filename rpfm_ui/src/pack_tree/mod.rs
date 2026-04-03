@@ -43,8 +43,7 @@ use rpfm_lib::utils::*;
 use rpfm_ui_common::FULL_DATE_FORMAT;
 use rpfm_ui_common::utils::{atomic_from_cpp_box, atomic_from_ptr, ref_from_atomic};
 
-use crate::CENTRAL_COMMAND;
-use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::communications::{Command, Response, send_ipc_command};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::TREEVIEW_ICONS;
 use crate::settings_ui::backend::settings_bool;
@@ -1007,10 +1006,7 @@ impl PackTree for QPtr<QTreeView> {
                             data
                         }
                         else if let Some(ref pack_key) = build_data.pack_key {
-                            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackFileDataForTreeView(pack_key.to_string()));
-                            let response = CentralCommand::recv(&receiver);
-                            if let Response::ContainerInfoVecRFileInfo(data) = response { data }
-                            else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}") }
+                            send_ipc_command(Command::GetPackFileDataForTreeView(pack_key.to_string()), response_extractor!(Response::ContainerInfoVecRFileInfo))
                         }
                         else {
                             panic!("Build for DataSource::PackFile requires either data or a pack_key");
@@ -1290,9 +1286,7 @@ impl PackTree for QPtr<QTreeView> {
                 let root = root_for_pack_key(&model, pack_key);
                 let resolved_pack_key = root.data_1a(ITEM_PACK_KEY).to_string().to_std_string();
                 let item_paths = item_types.par_iter().map(|item| item.path_raw().to_owned()).collect::<Vec<_>>();
-                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackedFilesInfo(resolved_pack_key, item_paths));
-                let response = CentralCommand::recv(&receiver);
-                let files_info = if let Response::VecRFileInfo(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
+                let files_info = send_ipc_command(Command::GetPackedFilesInfo(resolved_pack_key, item_paths), response_extractor!(Response::VecRFileInfo));
 
                 // Mark the base Pack as modified and having received additions.
                 if !item_types.is_empty() {
@@ -1623,9 +1617,7 @@ impl PackTree for QPtr<QTreeView> {
                             let variant = root.data_1a(ITEM_PACK_KEY);
                             if variant.is_valid() && !variant.is_null() { variant.to_string().to_std_string() } else { String::new() }
                         };
-                        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetRFileInfo(pack_key, path.to_owned()));
-                        let response = CentralCommand::recv(&receiver);
-                        let packed_file_info = if let Response::OptionRFileInfo(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
+                        let packed_file_info = send_ipc_command(Command::GetRFileInfo(pack_key, path.to_owned()), response_extractor!(Response::OptionRFileInfo));
                         if let Some(info) = packed_file_info {
                             let tooltip = new_packed_file_tooltip(&info);
                             if !tooltip.is_empty() {
@@ -1669,9 +1661,7 @@ impl PackTree for QPtr<QTreeView> {
                     .collect::<Vec<String>>();
 
                 let resolved_pack_key = root_for_pack_key(&model, pack_key).data_1a(ITEM_PACK_KEY).to_string().to_std_string();
-                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackedFilesInfo(resolved_pack_key, new_paths));
-                let response = CentralCommand::recv(&receiver);
-                let files_info = if let Response::VecRFileInfo(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
+                let files_info = send_ipc_command(Command::GetPackedFilesInfo(resolved_pack_key, new_paths), response_extractor!(Response::VecRFileInfo));
 
                 for (source_path, new_path) in &moved_paths  {
                     let taken_row = Self::take_row_from_path(source_path, &model, pack_key);
@@ -1724,9 +1714,7 @@ impl PackTree for QPtr<QTreeView> {
                                         let variant = root.data_1a(ITEM_PACK_KEY);
                                         if variant.is_valid() && !variant.is_null() { variant.to_string().to_std_string() } else { String::new() }
                                     };
-                                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetRFileInfo(pack_key, path.to_owned()));
-                                    let response = CentralCommand::recv(&receiver);
-                                    let packed_file_info = if let Response::OptionRFileInfo(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
+                                    let packed_file_info = send_ipc_command(Command::GetRFileInfo(pack_key, path.to_owned()), response_extractor!(Response::OptionRFileInfo));
                                     if let Some(info) = packed_file_info {
                                         let tooltip = new_packed_file_tooltip(&info);
                                         if !tooltip.is_empty() {

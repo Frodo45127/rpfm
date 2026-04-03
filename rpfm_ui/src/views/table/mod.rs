@@ -93,7 +93,6 @@ use rpfm_ui_common::clone;
 use rpfm_ui_common::utils::{atomic_from_ptr, create_grid_layout, find_widget, ptr_from_atomic, ref_from_atomic};
 
 use crate::app_ui::AppUI;
-use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
@@ -1226,44 +1225,38 @@ impl TableView {
             return;
         }
 
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetTablesByTableName(pack_key, KEY_DELETES_TABLE_NAME.to_owned()));
-        let response = CentralCommand::recv(&receiver);
-        match response {
-            Response::VecString(paths) => {
-                view.context_menu_add_to_twad_key_deletes_m.clear();
+        let paths = send_ipc_command(Command::GetTablesByTableName(pack_key, KEY_DELETES_TABLE_NAME.to_owned()), response_extractor!(Response::VecString));
+        view.context_menu_add_to_twad_key_deletes_m.clear();
 
-                let mut context_menu_add_to_twad_key_deletes = vec![];
-                for path in &paths {
-                    let path_split = path.split('/').collect::<Vec<_>>();
-                    if let Some(file_name) = path_split.last() {
-                        if !file_name.is_empty() {
-                            let file_name = file_name.to_string();
-                            let action = view.context_menu_add_to_twad_key_deletes_m.add_action_q_string(&QString::from_std_str(&file_name));
+        let mut context_menu_add_to_twad_key_deletes = vec![];
+        for path in &paths {
+            let path_split = path.split('/').collect::<Vec<_>>();
+            if let Some(file_name) = path_split.last() {
+                if !file_name.is_empty() {
+                    let file_name = file_name.to_string();
+                    let action = view.context_menu_add_to_twad_key_deletes_m.add_action_q_string(&QString::from_std_str(&file_name));
 
-                            // Create the slot for that action.
-                            let slot = SlotNoArgs::new(&action, clone!(
-                                app_ui,
-                                pack_file_contents_ui,
-                                view,
-                                file_name => move || {
-                                if let Err(error) = view.add_selection_to_key_deletes(&app_ui, &pack_file_contents_ui, &file_name) {
-                                    show_dialog(&view.table_view, error, true);
-                                }
-                            }));
-
-                            action.triggered().connect(&slot);
-                            context_menu_add_to_twad_key_deletes.push(action);
+                    // Create the slot for that action.
+                    let slot = SlotNoArgs::new(&action, clone!(
+                        app_ui,
+                        pack_file_contents_ui,
+                        view,
+                        file_name => move || {
+                        if let Err(error) = view.add_selection_to_key_deletes(&app_ui, &pack_file_contents_ui, &file_name) {
+                            show_dialog(&view.table_view, error, true);
                         }
-                    }
-                }
+                    }));
 
-                if !context_menu_add_to_twad_key_deletes.is_empty() && GAME_SELECTED.read().unwrap().key() == KEY_WARHAMMER_3 {
-                    view.context_menu_add_to_twad_key_deletes_m.set_enabled(true);
-                } else {
-                    view.context_menu_add_to_twad_key_deletes_m.set_enabled(false);
+                    action.triggered().connect(&slot);
+                    context_menu_add_to_twad_key_deletes.push(action);
                 }
             }
-            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+        }
+
+        if !context_menu_add_to_twad_key_deletes.is_empty() && GAME_SELECTED.read().unwrap().key() == KEY_WARHAMMER_3 {
+            view.context_menu_add_to_twad_key_deletes_m.set_enabled(true);
+        } else {
+            view.context_menu_add_to_twad_key_deletes_m.set_enabled(false);
         }
     }
 
@@ -1305,34 +1298,27 @@ impl TableView {
         table.generate_twad_key_deletes_keys(&mut keys);
 
         let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::AddKeysToKeyDeletes(pack_key.clone(), file_name.to_string(), table_name, keys));
-        let response = CentralCommand::recv(&receiver);
-        match response {
-            Response::OptionContainerPath(path) => {
-                if let Some(path) = path {
-                    let edited_paths = vec![path];
+        let path = send_ipc_command_result(Command::AddKeysToKeyDeletes(pack_key.clone(), file_name.to_string(), table_name, keys), response_extractor!(Response::OptionContainerPath))?;
+        if let Some(path) = path {
+            let edited_paths = vec![path];
 
-                    // If it worked, get the list of edited PackedFiles and update the TreeView to reflect the change.
-                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Modify(edited_paths.to_vec()), DataSource::PackFile, &pack_key);
-                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::MarkAlwaysModified(edited_paths.to_vec()), DataSource::PackFile, &pack_key);
-                    //pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile, &pack_key);
+            // If it worked, get the list of edited PackedFiles and update the TreeView to reflect the change.
+            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Modify(edited_paths.to_vec()), DataSource::PackFile, &pack_key);
+            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::MarkAlwaysModified(edited_paths.to_vec()), DataSource::PackFile, &pack_key);
+            //pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile, &pack_key);
 
-                    // Before finishing, reload all edited views.
-                    let mut open_packedfiles = UI_STATE.set_open_packedfiles();
-                    edited_paths.iter().for_each(|path| {
-                        if let Some(file_view) = open_packedfiles.iter_mut().find(|x| *x.path_read() == path.path_raw() && x.data_source() == DataSource::PackFile) {
-                            if file_view.reload(path.path_raw(), pack_file_contents_ui).is_err() {
-                                let _ = AppUI::purge_that_one_specifically(app_ui, pack_file_contents_ui, path.path_raw(), DataSource::PackFile, false);
-                            }
-                        }
-                    });
+            // Before finishing, reload all edited views.
+            let mut open_packedfiles = UI_STATE.set_open_packedfiles();
+            edited_paths.iter().for_each(|path| {
+                if let Some(file_view) = open_packedfiles.iter_mut().find(|x| *x.path_read() == path.path_raw() && x.data_source() == DataSource::PackFile) {
+                    if file_view.reload(path.path_raw(), pack_file_contents_ui).is_err() {
+                        let _ = AppUI::purge_that_one_specifically(app_ui, pack_file_contents_ui, path.path_raw(), DataSource::PackFile, false);
+                    }
                 }
-
-                Ok(())
-            },
-            Response::Error(error) => Err(anyhow!(error)),
-            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+            });
         }
+
+        Ok(())
     }
 
     /// Function to filter the table.
@@ -3091,33 +3077,27 @@ impl TableView {
                 .collect::<Vec<_>>();
 
             let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::CascadeEdition(pack_key.clone(), table_name, definition, changes));
-            let response = CentralCommand::recv(&receiver);
-            match response {
-                Response::VecContainerPathVecRFileInfo(edited_paths, packed_files_info) => {
+            let (edited_paths, packed_files_info) = send_ipc_command(Command::CascadeEdition(pack_key.clone(), table_name, definition, changes), response_extractor!(Response::VecContainerPathVecRFileInfo, v1, v2));
 
-                    // If it worked, get the list of edited PackedFiles and update the TreeView to reflect the change.
-                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Modify(edited_paths.to_vec()), DataSource::PackFile, &pack_key);
-                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::MarkAlwaysModified(edited_paths.to_vec()), DataSource::PackFile, &pack_key);
-                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile, &pack_key);
+            // If it worked, get the list of edited PackedFiles and update the TreeView to reflect the change.
+            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Modify(edited_paths.to_vec()), DataSource::PackFile, &pack_key);
+            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::MarkAlwaysModified(edited_paths.to_vec()), DataSource::PackFile, &pack_key);
+            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile, &pack_key);
 
-                    // Before finishing, reload all edited views.
-                    let mut open_packedfiles = UI_STATE.set_open_packedfiles();
-                    edited_paths.iter().for_each(|path| {
-                        if let Some(file_view) = open_packedfiles.iter_mut().find(|x| *x.path_read() == path.path_raw() && x.data_source() == DataSource::PackFile) {
-                            if file_view.reload(path.path_raw(), pack_file_contents_ui).is_err() {
-                                let _ = AppUI::purge_that_one_specifically(app_ui, pack_file_contents_ui, path.path_raw(), DataSource::PackFile, false);
-                            }
-                        }
-                    });
-
-                    app_ui.toggle_main_window(true);
-
-                    // Now it's safe to trigger the timer.
-                    self.start_delayed_updates_timer();
+            // Before finishing, reload all edited views.
+            let mut open_packedfiles = UI_STATE.set_open_packedfiles();
+            edited_paths.iter().for_each(|path| {
+                if let Some(file_view) = open_packedfiles.iter_mut().find(|x| *x.path_read() == path.path_raw() && x.data_source() == DataSource::PackFile) {
+                    if file_view.reload(path.path_raw(), pack_file_contents_ui).is_err() {
+                        let _ = AppUI::purge_that_one_specifically(app_ui, pack_file_contents_ui, path.path_raw(), DataSource::PackFile, false);
+                    }
                 }
-                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-            }
+            });
+
+            app_ui.toggle_main_window(true);
+
+            // Now it's safe to trigger the timer.
+            self.start_delayed_updates_timer();
         }
 
         // If we didn't do anything, but we cut a timer, continue it.
@@ -3230,12 +3210,9 @@ impl TableView {
         button_box.button(StandardButton::RestoreDefaults).released().connect(&SlotNoArgs::new(self.table_view(), clone!(
             dialog,
             edited_table_name => move || {
-                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::RemoveLocalSchemaPatchesForTable(edited_table_name.to_owned()));
-                let response = CentralCommand::recv(&receiver);
-                match response {
-                    Response::Success => show_dialog(&dialog, tr("patch_removed_table"), true),
-                    Response::Error(error) => show_dialog(&dialog, error.to_string(), false),
-                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                match send_ipc_command_result(Command::RemoveLocalSchemaPatchesForTable(edited_table_name.to_owned()), response_extractor!()) {
+                    Ok(()) => show_dialog(&dialog, tr("patch_removed_table"), true),
+                    Err(error) => show_dialog(&dialog, error.to_string(), false),
                 }
 
                 dialog.close();
@@ -3246,12 +3223,9 @@ impl TableView {
             dialog,
             field,
             edited_table_name => move || {
-                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::RemoveLocalSchemaPatchesForTableAndField(edited_table_name.to_owned(), field.name().to_owned()));
-                let response = CentralCommand::recv(&receiver);
-                match response {
-                    Response::Success => show_dialog(&dialog, tr("patch_removed_column"), true),
-                    Response::Error(error) => show_dialog(&dialog, error.to_string(), false),
-                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                match send_ipc_command_result(Command::RemoveLocalSchemaPatchesForTableAndField(edited_table_name.to_owned(), field.name().to_owned()), response_extractor!()) {
+                    Ok(()) => show_dialog(&dialog, tr("patch_removed_column"), true),
+                    Err(error) => show_dialog(&dialog, error.to_string(), false),
                 }
 
                 dialog.close();
@@ -3364,12 +3338,9 @@ impl TableView {
             table_data.insert(field.name().to_owned(), column_data);
             patch.insert(edited_table_name.to_owned(), table_data);
 
-            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SaveLocalSchemaPatch(patch));
-            let response = CentralCommand::recv(&receiver);
-            match response {
-                Response::Success => show_dialog(self.table_view(), tr("patch_success"), true),
-                Response::Error(error) => return Err(anyhow!(error)),
-                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+            match send_ipc_command_result(Command::SaveLocalSchemaPatch(patch), response_extractor!()) {
+                Ok(()) => show_dialog(self.table_view(), tr("patch_success"), true),
+                Err(error) => return Err(error),
             }
         }
 
@@ -3453,12 +3424,7 @@ impl TableView {
                 FileType::Loc => {
                     let index_row = self.table_filter.map_to_source(self.table_view.selection_model().selection().indexes().at(0)).row();
                     let key = self.table_model.index_2a(index_row, 0).data_0a().to_string().to_std_string();
-                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetSourceDataFromLocKey(pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default(), key));
-                    let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
-                    match response {
-                        Response::OptionStringStringVecString(response) => response,
-                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-                    }
+                    send_ipc_command_async(Command::GetSourceDataFromLocKey(pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default(), key), response_extractor!(Response::OptionStringStringVecString))
                 }
                 _ => None,
             };
@@ -3474,12 +3440,10 @@ impl TableView {
                 });
 
                 // Then ask the backend to do the heavy work.
-                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GoToDefinition(pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default(), ref_table, ref_column, ref_data));
-                let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
-                match response {
+                match send_ipc_command_result_async(Command::GoToDefinition(pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default(), ref_table, ref_column, ref_data), response_extractor!(Response::DataSourceStringUsizeUsize, v1, v2, v3, v4)) {
 
                     // We receive a path/column/row, so we know what to open/select.
-                    Response::DataSourceStringUsizeUsize(data_source, path, column, row) => {
+                    Ok((data_source, path, column, row)) => {
                         match data_source {
                             DataSource::PackFile => {
                                 let tree_index = pack_file_contents_ui.packfile_contents_tree_view().expand_treeview_to_item(&path, data_source, "");
@@ -3533,8 +3497,7 @@ impl TableView {
                         }
                     }
 
-                    Response::Error(error) => error_message = error.to_string(),
-                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                    Err(error) => error_message = error.to_string(),
                 }
             } else {
                 error_message = tr("source_data_for_field_not_found");
@@ -3594,78 +3557,72 @@ impl TableView {
                 if !paths.is_empty() {
 
                     // Ask the backend to know what paths we have as files.
-                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetRFilesFromAllSources(paths.clone(), true));
-                    let response = CentralCommand::recv(&receiver);
-                    match response {
-                        Response::HashMapDataSourceHashMapStringRFile(mut files) => {
-                            let mut file = None;
+                    let mut files = send_ipc_command(Command::GetRFilesFromAllSources(paths.clone(), true), response_extractor!(Response::HashMapDataSourceHashMapStringRFile));
+                    let mut file = None;
 
-                            // Set the current file as non-preview, so it doesn't close when opening the source one.
-                            if let Some(packed_file_path) = self.get_packed_file_path() {
-                                if let Some(file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.path_read() == *packed_file_path && x.data_source() == self.get_data_source()) {
-                                    file_view.set_is_preview(false);
+                    // Set the current file as non-preview, so it doesn't close when opening the source one.
+                    if let Some(packed_file_path) = self.get_packed_file_path() {
+                        if let Some(file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.path_read() == *packed_file_path && x.data_source() == self.get_data_source()) {
+                            file_view.set_is_preview(false);
+                        }
+                    }
+
+                    if let Some(files) = files.remove(&DataSource::GameFiles) {
+                        let mut paths = files.keys().collect::<Vec<_>>();
+                        paths.sort();
+                        if let Some(path) = paths.first() {
+                            let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(path, DataSource::GameFiles, "");
+                            if let Some(ref tree_index) = tree_index {
+                                if tree_index.is_valid() {
+                                    let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view().static_upcast::<QObject>());
+                                    dependencies_ui.dependencies_tree_view().scroll_to_1a(tree_index.as_ref().unwrap());
+                                    dependencies_ui.dependencies_tree_view().selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
                                 }
                             }
 
-                            if let Some(files) = files.remove(&DataSource::GameFiles) {
-                                let mut paths = files.keys().collect::<Vec<_>>();
-                                paths.sort();
-                                if let Some(path) = paths.first() {
-                                    let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(path, DataSource::GameFiles, "");
-                                    if let Some(ref tree_index) = tree_index {
-                                        if tree_index.is_valid() {
-                                            let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view().static_upcast::<QObject>());
-                                            dependencies_ui.dependencies_tree_view().scroll_to_1a(tree_index.as_ref().unwrap());
-                                            dependencies_ui.dependencies_tree_view().selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
-                                        }
-                                    }
+                            file = Some((DataSource::GameFiles, path.to_string()));
+                        }
+                    }
 
-                                    file = Some((DataSource::GameFiles, path.to_string()));
+                    if let Some(files) = files.remove(&DataSource::ParentFiles) {
+                        let mut paths = files.keys().collect::<Vec<_>>();
+                        paths.sort();
+                        if let Some(path) = paths.first() {
+                            let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(path, DataSource::ParentFiles, "");
+                            if let Some(ref tree_index) = tree_index {
+                                if tree_index.is_valid() {
+                                    let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view().static_upcast::<QObject>());
+                                    dependencies_ui.dependencies_tree_view().scroll_to_1a(tree_index.as_ref().unwrap());
+                                    dependencies_ui.dependencies_tree_view().selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
                                 }
                             }
 
-                            if let Some(files) = files.remove(&DataSource::ParentFiles) {
-                                let mut paths = files.keys().collect::<Vec<_>>();
-                                paths.sort();
-                                if let Some(path) = paths.first() {
-                                    let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(path, DataSource::ParentFiles, "");
-                                    if let Some(ref tree_index) = tree_index {
-                                        if tree_index.is_valid() {
-                                            let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view().static_upcast::<QObject>());
-                                            dependencies_ui.dependencies_tree_view().scroll_to_1a(tree_index.as_ref().unwrap());
-                                            dependencies_ui.dependencies_tree_view().selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
-                                        }
-                                    }
+                            file = Some((DataSource::ParentFiles, path.to_string()));
+                        }
+                    }
 
-                                    file = Some((DataSource::ParentFiles, path.to_string()));
+                    if let Some(files) = files.remove(&DataSource::PackFile) {
+                        let mut paths = files.keys().collect::<Vec<_>>();
+                        paths.sort();
+                        if let Some(path) = paths.first() {
+                            let tree_index = pack_file_contents_ui.packfile_contents_tree_view().expand_treeview_to_item(path, DataSource::PackFile, "");
+                            if let Some(ref tree_index) = tree_index {
+                                if tree_index.is_valid() {
+                                    let _blocker = QSignalBlocker::from_q_object(pack_file_contents_ui.packfile_contents_tree_view().static_upcast::<QObject>());
+                                    pack_file_contents_ui.packfile_contents_tree_view().scroll_to_1a(tree_index.as_ref().unwrap());
+                                    pack_file_contents_ui.packfile_contents_tree_view().selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
+
                                 }
                             }
 
-                            if let Some(files) = files.remove(&DataSource::PackFile) {
-                                let mut paths = files.keys().collect::<Vec<_>>();
-                                paths.sort();
-                                if let Some(path) = paths.first() {
-                                    let tree_index = pack_file_contents_ui.packfile_contents_tree_view().expand_treeview_to_item(path, DataSource::PackFile, "");
-                                    if let Some(ref tree_index) = tree_index {
-                                        if tree_index.is_valid() {
-                                            let _blocker = QSignalBlocker::from_q_object(pack_file_contents_ui.packfile_contents_tree_view().static_upcast::<QObject>());
-                                            pack_file_contents_ui.packfile_contents_tree_view().scroll_to_1a(tree_index.as_ref().unwrap());
-                                            pack_file_contents_ui.packfile_contents_tree_view().selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
+                            file = Some((DataSource::PackFile, path.to_string()));
+                        }
+                    }
 
-                                        }
-                                    }
-
-                                    file = Some((DataSource::PackFile, path.to_string()));
-                                }
-                            }
-
-                            // If we have a file and its data source, open it.
-                            if let Some((data_source, path)) = file {
-                                AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui, Some(path.to_owned()), true, false, data_source);
-                            }
-                        },
-                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-                    };
+                    // If we have a file and its data source, open it.
+                    if let Some((data_source, path)) = file {
+                        AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui, Some(path.to_owned()), true, false, data_source);
+                    }
                 } else {
                     error_message = tr("file_for_field_not_found");
                 }
@@ -3724,12 +3681,10 @@ impl TableView {
                 let loc_key = format!("{table_name}_{loc_column_name}_{key}");
 
                 // Then ask the backend to do the heavy work.
-                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GoToLoc(pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default(), loc_key));
-                let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
-                match response {
+                match send_ipc_command_result_async(Command::GoToLoc(pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default(), loc_key), response_extractor!(Response::DataSourceStringUsizeUsize, v1, v2, v3, v4)) {
 
                     // We receive a path/column/row, so we know what to open/select.
-                    Response::DataSourceStringUsizeUsize(data_source, path, column, row) => {
+                    Ok((data_source, path, column, row)) => {
                         match data_source {
                             DataSource::PackFile => {
                                 let tree_index = pack_file_contents_ui.packfile_contents_tree_view().expand_treeview_to_item(&path, data_source, "");
@@ -3783,8 +3738,7 @@ impl TableView {
                         }
                     }
 
-                    Response::Error(error) => error_message = error.to_string(),
-                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                    Err(error) => error_message = error.to_string(),
                 }
             }
         }

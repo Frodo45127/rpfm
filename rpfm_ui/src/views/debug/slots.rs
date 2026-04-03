@@ -19,8 +19,7 @@ use std::sync::Arc;
 
 use rpfm_ui_common::clone;
 
-use crate::CENTRAL_COMMAND;
-use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::communications::{Command, send_ipc_command_result_async};
 use crate::views::debug::DebugView;
 use crate::utils::{log_to_status_bar, show_dialog, tr};
 
@@ -51,14 +50,9 @@ impl DebugViewSlots {
             match view.save_view() {
                 Ok(decoded_packed_file) => {
                     let pack_key = String::new();
-                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SavePackedFileFromView(pack_key, view.get_path(), decoded_packed_file));
-                    let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
-                    match response {
-                        Response::Success => log_to_status_bar(&tr("debug_view_save_success")),
-                        Response::Error(error) => show_dialog(&view.editor, error, false),
-
-                        // In ANY other situation, it's a message problem.
-                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                    match send_ipc_command_result_async(Command::SavePackedFileFromView(pack_key, view.get_path(), decoded_packed_file), response_extractor!()) {
+                        Ok(()) => log_to_status_bar(&tr("debug_view_save_success")),
+                        Err(error) => show_dialog(&view.editor, error, false),
                     }
                 }
                 Err(error) => show_dialog(&view.editor, error, false),

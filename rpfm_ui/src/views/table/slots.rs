@@ -557,10 +557,8 @@ impl TableViewSlots {
                         let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
 
                         let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::ImportTSV(pack_key, packed_file_path.read().unwrap().to_owned(), path));
-                        let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
-                        match response {
-                            Response::RFileDecoded(data) => {
+                        match send_ipc_command_result_async(Command::ImportTSV(pack_key, packed_file_path.read().unwrap().to_owned(), path), response_extractor!(Response::RFileDecoded)) {
+                            Ok(data) => {
                                 let data = match data {
                                     RFileDecoded::DB(data) => TableType::DB(data),
                                     RFileDecoded::Loc(data) => TableType::Loc(data),
@@ -620,8 +618,7 @@ impl TableViewSlots {
                                     set_modified(true, &packed_file_path.read().unwrap(), &app_ui, &pack_file_contents_ui);
                                 }
                             },
-                            Response::Error(error) => return show_dialog(&view.table_view, error, false),
-                            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                            Err(error) => return show_dialog(&view.table_view, error, false),
                         }
 
                         //unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
@@ -661,12 +658,8 @@ impl TableViewSlots {
                         }
 
                         let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::ExportTSV(pack_key, packed_file_path.read().unwrap().to_string(), path, view.get_data_source()));
-                        let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
-                        match response {
-                            Response::Success => (),
-                            Response::Error(error) => show_dialog(&view.table_view, error, false),
-                            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                        if let Err(error) = send_ipc_command_result_async(Command::ExportTSV(pack_key, packed_file_path.read().unwrap().to_string(), path, view.get_data_source()), response_extractor!()) {
+                            show_dialog(&view.table_view, error, false);
                         }
                     }
                 }
@@ -752,20 +745,17 @@ impl TableViewSlots {
 
                                 let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
                                 let selected_value = index.data_0a().to_string().to_std_string();
-                                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SearchReferences(pack_key, reference_data.clone(), selected_value));
-                                let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
-                                match response {
-                                    Response::VecDataSourceStringStringUsizeUsize(data) => {
+                                match send_ipc_command_result_async(Command::SearchReferences(pack_key, reference_data.clone(), selected_value), response_extractor!(Response::VecDataSourceStringStringUsizeUsize)) {
+                                    Ok(data) => {
                                         references_ui.load_references_to_ui(data);
 
                                         // Reenable the table.
                                         references_ui.references_table_view().set_enabled(true);
                                     }
-                                    Response::Error(error) => {
+                                    Err(error) => {
                                         references_ui.references_table_view().set_enabled(true);
                                         show_dialog(&view.table_view, error, false);
                                     }
-                                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                                 }
                             }
                         }

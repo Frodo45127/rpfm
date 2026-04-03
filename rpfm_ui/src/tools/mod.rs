@@ -37,7 +37,7 @@ use qt_core::WindowType;
 
 use cpp_core::{CastInto, DynamicCast, Ptr, StaticUpcast};
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use getset::*;
 use itertools::Itertools;
 use rayon::prelude::*;
@@ -55,8 +55,7 @@ use rpfm_lib::files::{ContainerPath, db::DB, loc::Loc, RFile, RFileDecoded, tabl
 use rpfm_lib::schema::{Definition, FieldType};
 
 use crate::app_ui::AppUI;
-use crate::CENTRAL_COMMAND;
-use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::communications::{Command, Response, send_ipc_command, send_ipc_command_result};
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::*;
@@ -187,12 +186,8 @@ impl Tool {
             return Err(ToolsError::SchemaNotFound.into());
         }
 
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::IsThereADependencyDatabase(true));
-        let response = CentralCommand::recv(&receiver);
-        match response {
-            Response::Bool(it_is) => if !it_is { return Err(ToolsError::DependenciesCacheNotGeneratedorOutOfDate.into()); },
-            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-        }
+        let it_is = send_ipc_command(Command::IsThereADependencyDatabase(true), response_extractor!(Response::Bool));
+        if !it_is { return Err(ToolsError::DependenciesCacheNotGeneratedorOutOfDate.into()); }
 
         // Load the UI Template. All templates must be simple widgets.
         let dialog = new_q_dialog_custom_safe(parent.cast_into(), are_you_sure_dialog);
@@ -254,21 +249,13 @@ impl Tool {
         // If either the PackFile exists, or it didn't but now it does, then me need to check, file by file, to see if we can merge
         // the data edited by the tool into the current files, or we have to insert the files as new.
         let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SavePackedFilesToPackFileAndClean(pack_key.clone(), packed_files.to_vec(), self.optimize));
-        let response = CentralCommand::recv(&receiver);
-        match response {
-            Response::VecContainerPathVecContainerPath(paths_to_add, paths_to_delete) => {
+        let (paths_to_add, paths_to_delete) = send_ipc_command_result(Command::SavePackedFilesToPackFileAndClean(pack_key.clone(), packed_files.to_vec(), self.optimize), response_extractor!(Response::VecContainerPathVecContainerPath, v1, v2))?;
 
-                // Update the TreeView.
-                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(paths_to_add.to_vec()), DataSource::PackFile, &pack_key);
-                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths_to_add), DataSource::PackFile, &pack_key);
-                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Delete(paths_to_delete, true), DataSource::PackFile, &pack_key);
-                UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
-            }
-
-            Response::Error(error) => return Err(anyhow!(error)),
-            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}")
-        }
+        // Update the TreeView.
+        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(paths_to_add.to_vec()), DataSource::PackFile, &pack_key);
+        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths_to_add), DataSource::PackFile, &pack_key);
+        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Delete(paths_to_delete, true), DataSource::PackFile, &pack_key);
+        UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
 
         // Reload the paths edited by the tool whose views are open.
         self.reload_used_paths(app_ui, pack_file_contents_ui);
@@ -1213,14 +1200,6 @@ impl Tool {
 
     /// This function returns the last compatible definition for the provided table.
     pub fn get_table_definition(table_name: &str) -> Result<Definition> {
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetTableDefinitionFromDependencyPackFile(table_name.to_owned()));
-        let response = CentralCommand::recv(&receiver);
-        let definition = match response {
-            Response::Definition(data) => data,
-            Response::Error(error) => return Err(anyhow!(error)),
-            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-        };
-
-        Ok(definition)
+        send_ipc_command_result(Command::GetTableDefinitionFromDependencyPackFile(table_name.to_owned()), response_extractor!(Response::Definition))
     }
 }

@@ -1094,37 +1094,30 @@ pub unsafe fn get_vanilla_hashed_tables(file_type: FileType, table_name: &str) -
         FileType::DB => {
 
             // Call the backend passing it the files we have open (so we don't get them from the backend too), and get the frontend data while we wait for it to finish.
-            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetTablesFromDependencies(table_name.to_owned()));
-            let response = CentralCommand::recv(&receiver);
-            match response {
-                Response::VecRFile(files) => {
-                    let mut data = Vec::with_capacity(files.len());
-                    for file in files {
+            let files = send_ipc_command_result(Command::GetTablesFromDependencies(table_name.to_owned()), response_extractor!(Response::VecRFile))?;
+            let mut data = Vec::with_capacity(files.len());
+            for file in files {
 
-                        if let Ok(RFileDecoded::DB(table)) = file.decoded() {
-                            let definition = table.definition();
-                            let key_pos = definition.key_column_positions();
+                if let Ok(RFileDecoded::DB(table)) = file.decoded() {
+                    let definition = table.definition();
+                    let key_pos = definition.key_column_positions();
 
-                            if !key_pos.is_empty() {
-                                let mut hashes = HashMap::new();
-                                for (index, row) in table.data().iter().enumerate() {
-                                    let keys = key_pos.iter()
-                                        .map(|x| row[*x].data_to_string())
-                                        .join("");
+                    if !key_pos.is_empty() {
+                        let mut hashes = HashMap::new();
+                        for (index, row) in table.data().iter().enumerate() {
+                            let keys = key_pos.iter()
+                                .map(|x| row[*x].data_to_string())
+                                .join("");
 
-                                    hashes.insert(keys, index as i32);
-                                }
-
-                                data.push((table.clone(), hashes));
-                            }
+                            hashes.insert(keys, index as i32);
                         }
-                    }
 
-                    Ok(data)
-                },
-                Response::Error(error) => Err(anyhow!(error)),
-                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                        data.push((table.clone(), hashes));
+                    }
+                }
             }
+
+            Ok(data)
         }
 
         _ => Ok(vec![])
@@ -1140,13 +1133,7 @@ pub unsafe fn get_reference_data(file_type: FileType, table_name: &str, definiti
         FileType::DB => {
 
             // Call the backend passing it the files we have open (so we don't get them from the backend too), and get the frontend data while we wait for it to finish.
-            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetReferenceDataFromDefinition(pack_key.to_owned(), table_name.to_owned(), definition.clone(), force_regen));
-            let response = CentralCommand::recv(&receiver);
-            match response {
-                Response::HashMapI32TableReferences(dependency_data) => Ok(dependency_data),
-                Response::Error(error) => Err(anyhow!(error)),
-                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-            }
+            send_ipc_command_result(Command::GetReferenceDataFromDefinition(pack_key.to_owned(), table_name.to_owned(), definition.clone(), force_regen), response_extractor!(Response::HashMapI32TableReferences))
         }
         FileType::RigidModel => Ok(texture_type_strings()),
 
@@ -1461,43 +1448,37 @@ pub unsafe fn request_backend_files(data: &[Vec<DecodedData>], column: usize, fi
         ).collect::<Vec<_>>();
 
     if !paths.is_empty() {
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetRFilesFromAllSources(paths, true));
-        let response = CentralCommand::recv(&receiver);
-        match response {
-            Response::HashMapDataSourceHashMapStringRFile(mut files) => {
-                let mut files_merge = HashMap::new();
-                if let Some(files) = files.remove(&DataSource::GameFiles) {
-                    files_merge.extend(files);
-                }
-
-                if let Some(files) = files.remove(&DataSource::ParentFiles) {
-                    files_merge.extend(files);
-                }
-
-                if let Some(files) = files.remove(&DataSource::PackFile) {
-                    files_merge.extend(files);
-                }
-
-                let icons = files_merge.par_iter_mut()
-                    .filter_map(|(path, file)| {
-                        if file.file_type() == FileType::Image {
-                            if let Ok(Some(RFileDecoded::Image(data))) = file.decode(&None, false, true) {
-                                let byte_array = QByteArray::from_slice(data.data());
-                                let image = QPixmap::new();
-
-                                if image.load_from_data_q_byte_array(&byte_array) {
-                                    let icon = QIcon::from_q_pixmap(&image);
-                                    Some((path.to_owned(), atomic_from_ptr(icon.into_ptr())))
-                                } else { None }
-                            } else { None }
-                        } else { None }
-                    })
-                    .collect::<HashMap<String, AtomicPtr<QIcon>>>();
-
-                map.insert(column as i32, (base_path.join(";"), icons));
-            },
-            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+        let mut files = send_ipc_command(Command::GetRFilesFromAllSources(paths, true), response_extractor!(Response::HashMapDataSourceHashMapStringRFile));
+        let mut files_merge = HashMap::new();
+        if let Some(files) = files.remove(&DataSource::GameFiles) {
+            files_merge.extend(files);
         }
+
+        if let Some(files) = files.remove(&DataSource::ParentFiles) {
+            files_merge.extend(files);
+        }
+
+        if let Some(files) = files.remove(&DataSource::PackFile) {
+            files_merge.extend(files);
+        }
+
+        let icons = files_merge.par_iter_mut()
+            .filter_map(|(path, file)| {
+                if file.file_type() == FileType::Image {
+                    if let Ok(Some(RFileDecoded::Image(data))) = file.decode(&None, false, true) {
+                        let byte_array = QByteArray::from_slice(data.data());
+                        let image = QPixmap::new();
+
+                        if image.load_from_data_q_byte_array(&byte_array) {
+                            let icon = QIcon::from_q_pixmap(&image);
+                            Some((path.to_owned(), atomic_from_ptr(icon.into_ptr())))
+                        } else { None }
+                    } else { None }
+                } else { None }
+            })
+            .collect::<HashMap<String, AtomicPtr<QIcon>>>();
+
+        map.insert(column as i32, (base_path.join(";"), icons));
     }
 
     Ok(())

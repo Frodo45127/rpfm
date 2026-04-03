@@ -50,7 +50,7 @@ use rpfm_lib::games::{*, supported_games::*};
 use rpfm_lib::integrations::git::GitResponse;
 
 use crate::CENTRAL_COMMAND;
-use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR, send_ipc_command, send_ipc_command_result};
 use crate::references_ui::ReferencesUI;
 use crate::settings_ui::backend::{settings_path_buf, settings_string, translations_local_path};
 use crate::views::table::{TableType, TableView, utils::get_table_from_view};
@@ -285,71 +285,63 @@ impl ToolTranslator {
 
         // Get the list of colours supported by the game. They're in the ui_colours table in the modern games.
         let mut colors = HashMap::new();
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetRFilesFromAllSources(vec![ContainerPath::Folder("db/ui_colours_tables".to_owned())], false));
-        let response = CentralCommand::recv(&receiver);
-        match response {
-            Response::HashMapDataSourceHashMapStringRFile(mut files) => {
-                let mut files_merge = HashMap::new();
-                if let Some(files) = files.remove(&DataSource::GameFiles) {
-                    files_merge.extend(files);
-                }
+        let mut files = send_ipc_command(Command::GetRFilesFromAllSources(vec![ContainerPath::Folder("db/ui_colours_tables".to_owned())], false), response_extractor!(Response::HashMapDataSourceHashMapStringRFile));
+        {
+            let mut files_merge = HashMap::new();
+            if let Some(files) = files.remove(&DataSource::GameFiles) {
+                files_merge.extend(files);
+            }
 
-                if let Some(files) = files.remove(&DataSource::ParentFiles) {
-                    files_merge.extend(files);
-                }
+            if let Some(files) = files.remove(&DataSource::ParentFiles) {
+                files_merge.extend(files);
+            }
 
-                if let Some(files) = files.remove(&DataSource::PackFile) {
-                    files_merge.extend(files);
-                }
+            if let Some(files) = files.remove(&DataSource::PackFile) {
+                files_merge.extend(files);
+            }
 
-                for (_, rfile) in files_merge {
-                    if let Ok(RFileDecoded::DB(table)) = rfile.decoded() {
-                        if let Some(key_col) = table.column_position_by_name("key") {
-                            if let Some(col_col) = table.column_position_by_name("unnamed colour group_1") {
-                                for row in table.data().iter() {
-                                    colors.insert(row[key_col].data_to_string().to_string(), row[col_col].data_to_string().to_string());
-                                }
+            for (_, rfile) in files_merge {
+                if let Ok(RFileDecoded::DB(table)) = rfile.decoded() {
+                    if let Some(key_col) = table.column_position_by_name("key") {
+                        if let Some(col_col) = table.column_position_by_name("unnamed colour group_1") {
+                            for row in table.data().iter() {
+                                colors.insert(row[key_col].data_to_string().to_string(), row[col_col].data_to_string().to_string());
                             }
                         }
                     }
                 }
-            },
-            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-        };
+            }
+        }
 
         // Get the list of tagged images from the dbs.
         let mut tagged_images = HashMap::new();
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetRFilesFromAllSources(vec![ContainerPath::Folder("db/ui_tagged_images_tables".to_owned())], false));
-        let response = CentralCommand::recv(&receiver);
-        match response {
-            Response::HashMapDataSourceHashMapStringRFile(mut files) => {
-                let mut files_merge = HashMap::new();
-                if let Some(files) = files.remove(&DataSource::GameFiles) {
-                    files_merge.extend(files);
-                }
+        let mut files = send_ipc_command(Command::GetRFilesFromAllSources(vec![ContainerPath::Folder("db/ui_tagged_images_tables".to_owned())], false), response_extractor!(Response::HashMapDataSourceHashMapStringRFile));
+        {
+            let mut files_merge = HashMap::new();
+            if let Some(files) = files.remove(&DataSource::GameFiles) {
+                files_merge.extend(files);
+            }
 
-                if let Some(files) = files.remove(&DataSource::ParentFiles) {
-                    files_merge.extend(files);
-                }
+            if let Some(files) = files.remove(&DataSource::ParentFiles) {
+                files_merge.extend(files);
+            }
 
-                if let Some(files) = files.remove(&DataSource::PackFile) {
-                    files_merge.extend(files);
-                }
+            if let Some(files) = files.remove(&DataSource::PackFile) {
+                files_merge.extend(files);
+            }
 
-                for (_, rfile) in files_merge {
-                    if let Ok(RFileDecoded::DB(table)) = rfile.decoded() {
-                        if let Some(key_col) = table.column_position_by_name("key") {
-                            if let Some(path_col) = table.column_position_by_name("image_path") {
-                                for row in table.data().iter() {
-                                    tagged_images.insert(row[key_col].data_to_string().to_string(), row[path_col].data_to_string().to_string());
-                                }
+            for (_, rfile) in files_merge {
+                if let Ok(RFileDecoded::DB(table)) = rfile.decoded() {
+                    if let Some(key_col) = table.column_position_by_name("key") {
+                        if let Some(path_col) = table.column_position_by_name("image_path") {
+                            for row in table.data().iter() {
+                                tagged_images.insert(row[key_col].data_to_string().to_string(), row[path_col].data_to_string().to_string());
                             }
                         }
                     }
                 }
-            },
-            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-        };
+            }
+        }
 
         // Check if the repo needs updating, and update it if so.
         let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::CheckTranslationsUpdates);
@@ -380,13 +372,7 @@ impl ToolTranslator {
 
         // Unlike other tools, data is loaded here, because we need it to generate the table widget.
         let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackTranslation(pack_key, language));
-        let response = CentralCommand::recv(&receiver);
-        let data = match response {
-            Response::PackTranslation(data) => data,
-            Response::Error(error) => return Err(anyhow!(error)),
-            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-        };
+        let data = send_ipc_command_result(Command::GetPackTranslation(pack_key, language), response_extractor!(Response::PackTranslation))?;
 
         let table_data = TableType::TranslatorTable(data.to_table()?);
         let table = TableView::new_view(&table_view_container, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile)))?;
@@ -1030,32 +1016,28 @@ impl ToolTranslator {
             // Get the list of tagged images from the dbs.
             let image_data = STANDARD.encode({
                 let mut d = vec![];
-                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetRFilesFromAllSources(vec![ContainerPath::File(path.to_owned())], false));
-                let response = CentralCommand::recv(&receiver);
-                match response {
-                    Response::HashMapDataSourceHashMapStringRFile(mut files) => {
-                        let mut files_merge = HashMap::new();
-                        if let Some(files) = files.remove(&DataSource::GameFiles) {
-                            files_merge.extend(files);
-                        }
+                let mut files = send_ipc_command(Command::GetRFilesFromAllSources(vec![ContainerPath::File(path.to_owned())], false), response_extractor!(Response::HashMapDataSourceHashMapStringRFile));
+                {
+                    let mut files_merge = HashMap::new();
+                    if let Some(files) = files.remove(&DataSource::GameFiles) {
+                        files_merge.extend(files);
+                    }
 
-                        if let Some(files) = files.remove(&DataSource::ParentFiles) {
-                            files_merge.extend(files);
-                        }
+                    if let Some(files) = files.remove(&DataSource::ParentFiles) {
+                        files_merge.extend(files);
+                    }
 
-                        if let Some(files) = files.remove(&DataSource::PackFile) {
-                            files_merge.extend(files);
-                        }
+                    if let Some(files) = files.remove(&DataSource::PackFile) {
+                        files_merge.extend(files);
+                    }
 
-                        for (_, mut rfile) in files_merge {
-                            if let Ok(Some(RFileDecoded::Image(data))) = rfile.decode(&None, false, true) {
-                                d = data.data().to_vec();
-                                break;
-                            }
+                    for (_, mut rfile) in files_merge {
+                        if let Ok(Some(RFileDecoded::Image(data))) = rfile.decode(&None, false, true) {
+                            d = data.data().to_vec();
+                            break;
                         }
-                    },
-                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-                };
+                    }
+                }
 
                 d
             });

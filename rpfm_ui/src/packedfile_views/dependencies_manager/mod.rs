@@ -22,7 +22,6 @@ use rpfm_ipc::helpers::RFileInfo;
 use rpfm_lib::files::table::DecodedData;
 
 use crate::app_ui::AppUI;
-use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
@@ -61,14 +60,10 @@ impl DependenciesManagerView {
 
         // Get the decoded Table.
         let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetDependencyPackFilesList(pack_key));
-        let response = CentralCommand::recv(&receiver);
-        let table_data = match response {
-            Response::VecBoolString(table) => TableType::DependencyManager(table.iter()
-                .map(|(hard, pack)| vec![DecodedData::Boolean(hard.to_owned()), DecodedData::StringU8(pack.to_owned())])
-                .collect::<Vec<Vec<DecodedData>>>()),
-            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-        };
+        let table = send_ipc_command(Command::GetDependencyPackFilesList(pack_key), response_extractor!(Response::VecBoolString));
+        let table_data = TableType::DependencyManager(table.iter()
+            .map(|(hard, pack)| vec![DecodedData::Boolean(hard.to_owned()), DecodedData::StringU8(pack.to_owned())])
+            .collect::<Vec<Vec<DecodedData>>>());
 
         let table_view = TableView::new_view(
             file_view.main_widget(),

@@ -34,7 +34,7 @@ use rpfm_ui_common::utils::create_grid_layout;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
-use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR, send_ipc_command_result};
+use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR, send_ipc_command_async, send_ipc_command_result, send_ipc_command_result_async};
 use crate::ffi::get_text_safe;
 use crate::pack_tree::*;
 use crate::packfile_contents_ui::PackFileContentsUI;
@@ -432,25 +432,13 @@ impl FileView {
 
                         // Save the PackedFile, and trigger the stuff that needs to be triggered after a save.
                         let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SavePackedFileFromView(pack_key, self.path_copy(), data));
-                        let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
-                        match response {
-                            Response::Success => {
-                                Ok(())
-                            }
-
-                            // In ANY other situation, it's a message problem.
-                            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-                        }
+                        send_ipc_command_async(Command::SavePackedFileFromView(pack_key, self.path_copy(), data), response_extractor!());
+                        Ok(())
                     },
                     ViewType::External(view) => {
                         let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SavePackedFileFromExternalView(pack_key, self.path_copy(), view.get_external_path()));
-                        let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
-                        match response {
-                            Response::Success => {},
-                            Response::Error(error) => show_dialog(pack_file_contents_ui.packfile_contents_tree_view(), error, false),
-                            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                        if let Err(error) = send_ipc_command_result_async(Command::SavePackedFileFromExternalView(pack_key, self.path_copy(), view.get_external_path()), response_extractor!()) {
+                            show_dialog(pack_file_contents_ui.packfile_contents_tree_view(), error, false);
                         }
 
                         Ok(())

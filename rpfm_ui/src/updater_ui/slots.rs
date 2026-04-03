@@ -21,7 +21,6 @@ use std::rc::Rc;
 
 use rpfm_ui_common::clone;
 
-use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::utils::{qtr, show_dialog};
 use super::UpdaterUI;
@@ -48,13 +47,11 @@ impl UpdaterUISlots {
     pub unsafe fn new(ui: &Rc<UpdaterUI>) -> Self {
         let update_program = SlotNoArgs::new(ui.main_widget(), clone!(
             ui => move || {
-                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::UpdateMainProgram);
                 ui.update_program_button.set_text(&qtr("updater_update_program_updating"));
                 ui.update_program_button.set_enabled(false);
 
-                let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
-                match response {
-                    Response::Success => {
+                match send_ipc_command_result_async(Command::UpdateMainProgram, response_extractor!()) {
+                    Ok(()) => {
                         ui.update_program_button.set_text(&qtr("updater_update_program_updated"));
 
                         // Re-enable the button so it can be used to restart the program.
@@ -70,71 +67,61 @@ impl UpdaterUISlots {
                             exit(10);
                         }));
                     },
-                    Response::Error(error) => {
+                    Err(error) => {
                         show_dialog(ui.dialog(), error, false);
                         ui.update_program_button.set_text(&qtr("updater_update_program_error"));
                     }
-                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                 }
             }
         ));
 
         let update_schemas = SlotNoArgs::new(ui.main_widget(), clone!(
             ui => move || {
-                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::UpdateSchemas);
                 ui.update_schemas_button.set_text(&qtr("updater_update_schemas_updating"));
                 ui.update_schemas_button.set_enabled(false);
 
-                let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
-                match response {
-                    Response::Success => {
+                match send_ipc_command_result_async(Command::UpdateSchemas, response_extractor!()) {
+                    Ok(()) => {
                         ui.update_schemas_button.set_text(&qtr("updater_update_schemas_updated"));
                     },
-                    Response::Error(error) => {
+                    Err(error) => {
                         show_dialog(ui.dialog(), error, false);
                         ui.update_schemas_button.set_text(&qtr("updater_update_schemas_error"));
                     }
-                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                 }
             }
         ));
 
         let update_twautogen = SlotNoArgs::new(ui.main_widget(), clone!(
             ui => move || {
-                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::UpdateLuaAutogen);
                 ui.update_twautogen_button.set_text(&qtr("updater_update_twautogen_updating"));
                 ui.update_twautogen_button.set_enabled(false);
 
-                let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
-                match response {
-                    Response::Success => {
+                match send_ipc_command_result_async(Command::UpdateLuaAutogen, response_extractor!()) {
+                    Ok(()) => {
                         ui.update_twautogen_button.set_text(&qtr("updater_update_twautogen_updated"));
                     },
-                    Response::Error(error) => {
+                    Err(error) => {
                         show_dialog(ui.dialog(), error, false);
                         ui.update_twautogen_button.set_text(&qtr("updater_update_twautogen_error"));
                     }
-                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                 }
             }
         ));
 
         let update_old_ak = SlotNoArgs::new(ui.main_widget(), clone!(
             ui => move || {
-                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::UpdateEmpireAndNapoleonAK);
                 ui.update_old_ak_button.set_text(&qtr("updater_update_old_ak_updating"));
                 ui.update_old_ak_button.set_enabled(false);
 
-                let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
-                match response {
-                    Response::Success => {
+                match send_ipc_command_result_async(Command::UpdateEmpireAndNapoleonAK, response_extractor!()) {
+                    Ok(()) => {
                         ui.update_old_ak_button.set_text(&qtr("updater_update_old_ak_updated"));
                     },
-                    Response::Error(error) => {
+                    Err(error) => {
                         show_dialog(ui.dialog(), error, false);
                         ui.update_old_ak_button.set_text(&qtr("updater_update_old_ak_error"));
                     }
-                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                 }
             }
         ));

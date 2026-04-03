@@ -45,8 +45,7 @@ use std::collections::HashMap;
 
 use rpfm_lib::files::{ContainerPath, FileType};
 
-use crate::CENTRAL_COMMAND;
-use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::communications::{Command, Response, send_ipc_command};
 use crate::views::table::utils::get_reference_data;
 use self::slots::SubToolVariantUnitEditorSlots;
 use super::*;
@@ -379,9 +378,7 @@ impl SubToolVariantUnitEditor {
 
     /// This function loads all available icon paths to the UI.
     unsafe fn load_icon_paths(&self) -> Result<()> {
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackedFilesNamesStartingWitPathFromAllSources(ContainerPath::Folder(UNIT_ICONS_PATH.to_owned())));
-        let response = CentralCommand::recv(&receiver);
-        let icon_keys = if let Response::HashMapDataSourceHashSetContainerPath(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
+        let icon_keys = send_ipc_command(Command::GetPackedFilesNamesStartingWitPathFromAllSources(ContainerPath::Folder(UNIT_ICONS_PATH.to_owned())), response_extractor!(Response::HashMapDataSourceHashSetContainerPath));
         let icon_keys_sorted = icon_keys.values()
             .flat_map(|paths| paths.iter()
                 .map(|path| path.path_raw().to_owned())
@@ -400,9 +397,7 @@ impl SubToolVariantUnitEditor {
 
     /// This function loads all available variantmesh paths to the UI.
     unsafe fn load_variant_mesh_paths(&self) -> Result<()> {
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackedFilesNamesStartingWitPathFromAllSources(ContainerPath::Folder(VARIANT_MESH_PATH.to_owned())));
-        let response = CentralCommand::recv(&receiver);
-        let variant_keys = if let Response::HashMapDataSourceHashSetContainerPath(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
+        let variant_keys = send_ipc_command(Command::GetPackedFilesNamesStartingWitPathFromAllSources(ContainerPath::Folder(VARIANT_MESH_PATH.to_owned())), response_extractor!(Response::HashMapDataSourceHashSetContainerPath));
         let variant_keys_sorted = variant_keys.values()
             .flat_map(|paths| paths.iter()
                 .map(|path| path.path_raw().to_owned())
@@ -542,9 +537,7 @@ impl SubToolVariantUnitEditor {
                 ContainerPath::File(icon_path_tga_lowres.to_owned()),
             ];
 
-            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetRFilesFromAllSources(icon_paths, false));
-            let response = CentralCommand::recv(&receiver);
-            let images_data = if let Response::HashMapDataSourceHashMapStringRFile(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
+            let images_data = send_ipc_command(Command::GetRFilesFromAllSources(icon_paths, false), response_extractor!(Response::HashMapDataSourceHashMapStringRFile));
             let image_file = if let Some(image_file) = Tool::get_most_relevant_file(&images_data, &icon_path_png_lowres) {
                 Some(image_file)
             } else { Tool::get_most_relevant_file(&images_data, &icon_path_tga_lowres) };
@@ -593,9 +586,7 @@ impl SubToolVariantUnitEditor {
                 ContainerPath::File(variant_path.to_owned()),
             ];
 
-            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetRFilesFromAllSources(variant_paths, false));
-            let response = CentralCommand::recv(&receiver);
-            let variant_data = if let Response::HashMapDataSourceHashMapStringRFile(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
+            let variant_data = send_ipc_command(Command::GetRFilesFromAllSources(variant_paths, false), response_extractor!(Response::HashMapDataSourceHashMapStringRFile));
             let file = Tool::get_most_relevant_file(&variant_data, &variant_path);
 
             if let Some(mut file) = file {

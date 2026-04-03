@@ -57,8 +57,7 @@ use rpfm_log::info;
 
 use rpfm_ui_common::utils::*;
 
-use crate::CENTRAL_COMMAND;
-use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::communications::{Command, Response, send_ipc_command};
 use crate::tools::unit_editor::variant_unit_editor::SubToolVariantUnitEditor;
 use crate::views::table::utils::{clean_column_names, get_reference_data};
 
@@ -459,9 +458,7 @@ impl ToolUnitEditor {
     unsafe fn load_data(&self) -> Result<()> {
 
         // Note: this data is HashMap<DataSource, HashMap<Path, RFile>>.
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetRFilesFromAllSources(self.tool.used_paths.to_vec(), false));
-        let response = CentralCommand::recv(&receiver);
-        let mut data = if let Response::HashMapDataSourceHashMapStringRFile(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
+        let mut data = send_ipc_command(Command::GetRFilesFromAllSources(self.tool.used_paths.to_vec(), false), response_extractor!(Response::HashMapDataSourceHashMapStringRFile));
 
         let mut processed_data = HashMap::new();
 
@@ -626,9 +623,7 @@ impl ToolUnitEditor {
                 }
             }
 
-            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetRFilesFromAllSources(icon_paths.to_vec(), false));
-            let response = CentralCommand::recv(&receiver);
-            let images_data = if let Response::HashMapDataSourceHashMapStringRFile(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
+            let images_data = send_ipc_command(Command::GetRFilesFromAllSources(icon_paths.to_vec(), false), response_extractor!(Response::HashMapDataSourceHashMapStringRFile));
 
             let mut images_files = icon_paths.iter().filter_map(|path_type| {
                 if let ContainerPath::File(path) = path_type {

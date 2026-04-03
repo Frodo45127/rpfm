@@ -68,7 +68,6 @@ use rpfm_lib::schema::*;
 use rpfm_ui_common::utils::{create_grid_layout, ref_from_atomic};
 
 use crate::app_ui::AppUI;
-use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::ffi::{new_combobox_item_delegate_safe, new_spinbox_item_delegate_safe, new_qstring_item_delegate_safe};
 use crate::FONT_MONOSPACE;
@@ -182,13 +181,7 @@ impl PackedFileDecoderView {
             .ok_or_else(|| anyhow!("The decoder cannot be use for this file."))?;
 
         let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackedFileRawData(pack_key, path.to_owned()));
-        let response = CentralCommand::recv(&receiver);
-        let mut data = match response {
-            Response::VecU8(data) => Cursor::new(data),
-            Response::Error(error) => return Err(anyhow!(error)),
-            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-        };
+        let mut data = Cursor::new(send_ipc_command_result(Command::GetPackedFileRawData(pack_key, path.to_owned()), response_extractor!(Response::VecU8))?);
 
         // Create the hex view on the left side.
         let layout: QPtr<QGridLayout> = file_view.main_widget().layout().static_downcast();

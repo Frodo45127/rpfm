@@ -61,8 +61,7 @@ use rpfm_log::info;
 use rpfm_ui_common::utils::{atomic_from_cpp_box, find_widget, load_template, ref_from_atomic};
 
 use crate::app_ui::AppUI;
-use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
-use crate::CENTRAL_COMMAND;
+use crate::communications::{Command, Response, send_ipc_command_async};
 use crate::dependencies_ui::DependenciesUI;
 use crate::ffi::{new_tableview_filter_safe, scroll_to_pos_and_select_safe, trigger_tableview_filter_safe};
 use crate::global_search_ui::GlobalSearchUI;
@@ -524,18 +523,11 @@ impl DiagnosticsUI {
         app_ui.menu_bar_packfile().set_enabled(false);
         let diagnostics_ignored = diagnostics_ui.diagnostics_ignored();
         info!("Triggering check.");
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::DiagnosticsCheck(diagnostics_ignored, diagnostics_ui.diagnostics_button_check_ak_only_refs().is_checked()));
-        let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
-
-        match response {
-            Response::Diagnostics(diagnostics) => {
-                Self::load_diagnostics_to_ui(app_ui, diagnostics_ui, diagnostics.results());
-                Self::filter(app_ui, diagnostics_ui);
-                Self::update_level_counts(diagnostics_ui, diagnostics.results());
-                UI_STATE.set_diagnostics(&diagnostics);
-            }
-            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-        }
+        let diagnostics = send_ipc_command_async(Command::DiagnosticsCheck(diagnostics_ignored, diagnostics_ui.diagnostics_button_check_ak_only_refs().is_checked()), response_extractor!(Response::Diagnostics));
+        Self::load_diagnostics_to_ui(app_ui, diagnostics_ui, diagnostics.results());
+        Self::filter(app_ui, diagnostics_ui);
+        Self::update_level_counts(diagnostics_ui, diagnostics.results());
+        UI_STATE.set_diagnostics(&diagnostics);
 
         app_ui.menu_bar_packfile().set_enabled(true);
     }
@@ -553,18 +545,11 @@ impl DiagnosticsUI {
         let mut diagnostics = UI_STATE.get_diagnostics();
         *diagnostics.diagnostics_ignored_mut() = diagnostics_ui.diagnostics_ignored();
         info!("Triggering check update.");
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::DiagnosticsUpdate(diagnostics, paths, diagnostics_ui.diagnostics_button_check_ak_only_refs().is_checked()));
-        let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
-
-        match response {
-            Response::Diagnostics(diagnostics) => {
-                Self::load_diagnostics_to_ui(app_ui, diagnostics_ui, diagnostics.results());
-                Self::filter(app_ui, diagnostics_ui);
-                Self::update_level_counts(diagnostics_ui, diagnostics.results());
-                UI_STATE.set_diagnostics(&diagnostics);
-            }
-            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-        }
+        let diagnostics = send_ipc_command_async(Command::DiagnosticsUpdate(diagnostics, paths, diagnostics_ui.diagnostics_button_check_ak_only_refs().is_checked()), response_extractor!(Response::Diagnostics));
+        Self::load_diagnostics_to_ui(app_ui, diagnostics_ui, diagnostics.results());
+        Self::filter(app_ui, diagnostics_ui);
+        Self::update_level_counts(diagnostics_ui, diagnostics.results());
+        UI_STATE.set_diagnostics(&diagnostics);
 
         app_ui.menu_bar_packfile().set_enabled(true);
     }

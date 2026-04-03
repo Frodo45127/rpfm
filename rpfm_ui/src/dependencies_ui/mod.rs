@@ -46,8 +46,7 @@ use rpfm_lib::files::ContainerPath;
 use rpfm_ui_common::utils::{find_widget, load_template};
 
 use crate::app_ui::AppUI;
-use crate::CENTRAL_COMMAND;
-use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::communications::{Command, Response, send_ipc_command_result, send_ipc_command_result_async};
 use crate::ffi::*;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::{PackTree, TreeViewOperation};
@@ -220,10 +219,8 @@ impl DependenciesUI {
         app_ui.toggle_main_window(false);
 
         let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::ImportDependenciesToOpenPackFile(pack_key.clone(), paths_by_source));
-        let response = CentralCommand::recv(&receiver);
-        match response {
-            Response::VecContainerPathVecString(paths, not_added_paths) => {
+        match send_ipc_command_result(Command::ImportDependenciesToOpenPackFile(pack_key.clone(), paths_by_source), response_extractor!(Response::VecContainerPathVecString, v1, v2)) {
+            Ok((paths, not_added_paths)) => {
                 if !paths.is_empty() {
                     pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(paths.to_vec()), DataSource::PackFile, &pack_key);
 
@@ -250,8 +247,7 @@ impl DependenciesUI {
                 }
             }
 
-            Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
-            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+            Err(error) => show_dialog(app_ui.main_window(), error, false),
         }
 
         // Re-enable the Main Window.
@@ -282,13 +278,10 @@ impl DependenciesUI {
         } else { return };
 
         let pack_key = String::new();
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::ExtractPackedFiles(pack_key, paths_by_source, extraction_path, true));
         app_ui.toggle_main_window(false);
-        let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
-        match response {
-            Response::StringVecPathBuf(result, _) => show_message_info(app_ui.message_widget(), result),
-            Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
-            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+        match send_ipc_command_result_async(Command::ExtractPackedFiles(pack_key, paths_by_source, extraction_path, true), response_extractor!(Response::StringVecPathBuf, v1, v2)) {
+            Ok((result, _)) => show_message_info(app_ui.message_widget(), result),
+            Err(error) => show_dialog(app_ui.main_window(), error, false),
         }
         app_ui.toggle_main_window(true);
     }

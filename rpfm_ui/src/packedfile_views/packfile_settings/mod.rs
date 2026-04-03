@@ -25,7 +25,7 @@ use qt_core::QBox;
 use qt_core::QPtr;
 use qt_core::QString;
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 
 use std::collections::BTreeMap;
 use std::rc::Rc;
@@ -36,7 +36,6 @@ use rpfm_lib::files::pack::{PackSettings, SETTING_KEY_CF};
 use rpfm_ui_common::utils::create_grid_layout;
 
 use crate::app_ui::AppUI;
-use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::packedfile_views::{FileView, PackFileContentsUI};
 use crate::utils::qtr;
@@ -76,13 +75,7 @@ impl PackFileSettingsView {
     ) -> Result<()> {
 
         let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackSettings(pack_key));
-        let response = CentralCommand::recv(&receiver);
-        let settings = match response {
-            Response::PackSettings(settings) => settings,
-            Response::Error(error) => return Err(anyhow!(error)),
-            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-        };
+        let settings = send_ipc_command_result(Command::GetPackSettings(pack_key), response_extractor!(Response::PackSettings))?;
 
         let layout: QPtr<QGridLayout> = pack_file_view.main_widget().layout().static_downcast();
 

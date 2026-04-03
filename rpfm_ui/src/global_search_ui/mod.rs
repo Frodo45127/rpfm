@@ -75,8 +75,7 @@ use rpfm_lib::utils::closest_valid_char_byte;
 use rpfm_ui_common::utils::{atomic_from_cpp_box, find_widget, load_template, ptr_from_atomic, ref_from_atomic};
 
 use crate::app_ui::AppUI;
-use crate::CENTRAL_COMMAND;
-use crate::communications::{CentralCommand, Command, Response};
+use crate::communications::{Command, Response, send_ipc_command_result};
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::{kline_edit_configure_safe, new_treeview_filter_safe, scroll_to_row_safe, trigger_treeview_filter_safe};
@@ -447,20 +446,19 @@ impl GlobalSearchUI {
     pub unsafe fn search(&self, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
 
         // Create the global search and populate it with all the settings for the search.
-        let receiver = match self.search_data_from_ui(true, false) {
-            Some(global_search) => {
-                let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                CENTRAL_COMMAND.read().unwrap().send(Command::GlobalSearch(pack_key, global_search))
-            },
+        let global_search = match self.search_data_from_ui(true, false) {
+            Some(global_search) => global_search,
             None => return,
         };
+
+        let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
 
         // Setup all the column's data while waiting for the results.
         self.build_trees();
 
         // Load the results to their respective models. Then, store the GlobalSearch for future checks.
-        match CentralCommand::recv(&receiver) {
-            Response::GlobalSearchVecRFileInfo(global_search, packed_files_info) => {
+        match send_ipc_command_result(Command::GlobalSearch(pack_key, global_search), response_extractor!(Response::GlobalSearchVecRFileInfo, v1, v2)) {
+            Ok((global_search, packed_files_info)) => {
 
                 // Focus on the tree with the results. We do it before loading because it's quite a lot faster that way.
                 if !global_search.matches().db().is_empty() || !global_search.matches().loc().is_empty() || !global_search.matches().text().is_empty() {
@@ -485,8 +483,7 @@ impl GlobalSearchUI {
                 UI_STATE.set_global_search(&global_search);
                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile, "");
             },
-            Response::Error(error) => show_dialog(&self.dock_widget, error, false),
-            _ => unimplemented!()
+            Err(error) => show_dialog(&self.dock_widget, error, false),
         }
     }
 
@@ -574,18 +571,17 @@ impl GlobalSearchUI {
 
     /// This function replace the currently selected match with the provided text.
     pub unsafe fn replace_current(&self, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
-        let receiver = match self.search_data_from_ui(false, true) {
-            Some(global_search) => {
-                if !global_search.sources().iter().any(|s| matches!(s, SearchSource::Pack(_))) {
-                    return show_dialog(app_ui.main_window(), "The dependencies are read-only. You cannot do a Global Replace over them.", false);
-                }
-
-                let matches = self.matches_from_selection();
-                let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                CENTRAL_COMMAND.read().unwrap().send(Command::GlobalSearchReplaceMatches(pack_key, global_search, matches.to_vec()))
-            },
+        let global_search = match self.search_data_from_ui(false, true) {
+            Some(global_search) => global_search,
             None => return,
         };
+
+        if !global_search.sources().iter().any(|s| matches!(s, SearchSource::Pack(_))) {
+            return show_dialog(app_ui.main_window(), "The dependencies are read-only. You cannot do a Global Replace over them.", false);
+        }
+
+        let matches = self.matches_from_selection();
+        let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
 
         // Before rebuilding the tree, check what items are expanded, to re-expand them later.
         let filter_model: QPtr<QSortFilterProxyModel> = self.matches_table_and_text_tree_view.model().static_downcast();
@@ -600,8 +596,8 @@ impl GlobalSearchUI {
             }
         }
 
-        match CentralCommand::recv(&receiver) {
-            Response::GlobalSearchVecRFileInfo(global_search, packed_files_info) => {
+        match send_ipc_command_result(Command::GlobalSearchReplaceMatches(pack_key, global_search, matches.to_vec()), response_extractor!(Response::GlobalSearchVecRFileInfo, v1, v2)) {
+            Ok((global_search, packed_files_info)) => {
 
                 // Re-search to update the results.
                 UI_STATE.set_global_search(&global_search);
@@ -636,8 +632,7 @@ impl GlobalSearchUI {
 
                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile, "");
             },
-            Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
-            _ => unimplemented!()
+            Err(error) => show_dialog(app_ui.main_window(), error, false),
         }
     }
 
@@ -651,20 +646,19 @@ impl GlobalSearchUI {
 
         // Update the search results so we have all the ones we need to update.
         self.search(pack_file_contents_ui);
-        let receiver = match self.search_data_from_ui(false, true) {
-            Some(global_search) => {
-                if !global_search.sources().iter().any(|s| matches!(s, SearchSource::Pack(_))) {
-                    return show_dialog(app_ui.main_window(), "The dependencies are read-only. You cannot do a Global Replace over them.", false);
-                }
-
-                let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                CENTRAL_COMMAND.read().unwrap().send(Command::GlobalSearchReplaceAll(pack_key, global_search))
-            },
+        let global_search = match self.search_data_from_ui(false, true) {
+            Some(global_search) => global_search,
             None => return,
         };
 
-        match CentralCommand::recv(&receiver) {
-            Response::GlobalSearchVecRFileInfo(global_search, packed_files_info) => {
+        if !global_search.sources().iter().any(|s| matches!(s, SearchSource::Pack(_))) {
+            return show_dialog(app_ui.main_window(), "The dependencies are read-only. You cannot do a Global Replace over them.", false);
+        }
+
+        let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+
+        match send_ipc_command_result(Command::GlobalSearchReplaceAll(pack_key, global_search), response_extractor!(Response::GlobalSearchVecRFileInfo, v1, v2)) {
+            Ok((global_search, packed_files_info)) => {
 
                 // Re-search to update the results.
                 UI_STATE.set_global_search(&global_search);
@@ -680,8 +674,7 @@ impl GlobalSearchUI {
 
                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile, "");
             },
-            Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
-            _ => unimplemented!()
+            Err(error) => show_dialog(app_ui.main_window(), error, false),
         }
     }
 

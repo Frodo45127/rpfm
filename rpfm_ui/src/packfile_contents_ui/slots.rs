@@ -48,7 +48,7 @@ use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
-use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::communications::{Command, Response, send_ipc_command, send_ipc_command_result, send_ipc_command_result_async, send_ipc_command_async};
 use crate::global_search_ui::GlobalSearchUI;
 use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
@@ -213,10 +213,8 @@ impl PackFileContentsSlots {
 
                 // Send the renaming data to the Background Thread, wait for a response.
                 let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::RenamePackedFiles(pack_key.clone(), renaming_data_background.to_vec()));
-                let response = CentralCommand::recv(&receiver);
-                match response {
-                    Response::VecContainerPathContainerPath(renamed_items) => {
+                match send_ipc_command_result(Command::RenamePackedFiles(pack_key.clone(), renaming_data_background.to_vec()), response_extractor!(Response::VecContainerPathContainerPath)) {
+                    Ok(renamed_items) => {
                         let mut path_changes = vec![];
 
                         // TODO: Filter out reserved files with some generic logic.
@@ -261,8 +259,7 @@ impl PackFileContentsSlots {
 
                         UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                     },
-                    Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
-                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                    Err(error) => show_dialog(app_ui.main_window(), error, false),
                 }
             }
         ));
@@ -627,12 +624,7 @@ impl PackFileContentsSlots {
                 }
 
                 // Ask the other thread if there is a Dependency Database and a Schema loaded.
-                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::IsThereADependencyDatabase(false));
-                let response = CentralCommand::recv(&receiver);
-                let is_there_a_dependency_database = match response {
-                    Response::Bool(it_is) => it_is,
-                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-                };
+                let is_there_a_dependency_database = send_ipc_command(Command::IsThereADependencyDatabase(false), response_extractor!(Response::Bool));
 
                 // If there is no dependency_database or schema for our GameSelected, ALWAYS disable creating new DB Tables and exporting them.
                 if !is_there_a_dependency_database || !is_schema_loaded() {
@@ -660,41 +652,37 @@ impl PackFileContentsSlots {
                     let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
 
                     // Query the pack's operational mode for MyMod action visibility.
-                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackOperationalMode(pack_key.clone()));
-                    let response = CentralCommand::recv(&receiver);
-                    let is_mymod = matches!(response, Response::OperationalMode(OperationalMode::MyMod(..)));
+                    let mode = send_ipc_command(Command::GetPackOperationalMode(pack_key.clone()), response_extractor!(Response::OperationalMode));
+                    let is_mymod = matches!(mode, OperationalMode::MyMod(..));
                     pack_file_contents_ui.context_menu_mymod_import.set_visible(is_mymod);
                     pack_file_contents_ui.context_menu_mymod_export.set_visible(is_mymod);
                     pack_file_contents_ui.context_menu_mymod_delete.set_visible(is_mymod);
                     pack_file_contents_ui.context_menu_mymod_open_folder.set_visible(is_mymod);
 
-                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackFileDataForTreeView(pack_key));
-                    let response = CentralCommand::recv(&receiver);
-                    if let Response::ContainerInfoVecRFileInfo((ui_data, _)) = response {
-                        pack_file_contents_ui.context_menu_packfile_type_group.block_signals(true);
-                        match ui_data.pfh_file_type() {
-                            PFHFileType::Boot => pack_file_contents_ui.context_menu_packfile_type_boot.set_checked(true),
-                            PFHFileType::Release => pack_file_contents_ui.context_menu_packfile_type_release.set_checked(true),
-                            PFHFileType::Patch => pack_file_contents_ui.context_menu_packfile_type_patch.set_checked(true),
-                            PFHFileType::Mod => pack_file_contents_ui.context_menu_packfile_type_mod.set_checked(true),
-                            PFHFileType::Movie => pack_file_contents_ui.context_menu_packfile_type_movie.set_checked(true),
-                        }
-                        pack_file_contents_ui.context_menu_packfile_type_group.block_signals(false);
-
-                        pack_file_contents_ui.context_menu_compression_group.block_signals(true);
-                        match ui_data.compress() {
-                            CompressionFormat::None => pack_file_contents_ui.context_menu_compression_none.set_checked(true),
-                            CompressionFormat::Lzma1 => pack_file_contents_ui.context_menu_compression_lzma1.set_checked(true),
-                            CompressionFormat::Lz4 => pack_file_contents_ui.context_menu_compression_lz4.set_checked(true),
-                            CompressionFormat::Zstd => pack_file_contents_ui.context_menu_compression_zstd.set_checked(true),
-                        }
-                        pack_file_contents_ui.context_menu_compression_group.block_signals(false);
-
-                        pack_file_contents_ui.context_menu_data_is_encrypted.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_ENCRYPTED_DATA));
-                        pack_file_contents_ui.context_menu_index_includes_timestamp.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS));
-                        pack_file_contents_ui.context_menu_index_is_encrypted.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_ENCRYPTED_INDEX));
-                        pack_file_contents_ui.context_menu_header_is_extended.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_EXTENDED_HEADER));
+                    let (ui_data, _) = send_ipc_command(Command::GetPackFileDataForTreeView(pack_key), response_extractor!(Response::ContainerInfoVecRFileInfo));
+                    pack_file_contents_ui.context_menu_packfile_type_group.block_signals(true);
+                    match ui_data.pfh_file_type() {
+                        PFHFileType::Boot => pack_file_contents_ui.context_menu_packfile_type_boot.set_checked(true),
+                        PFHFileType::Release => pack_file_contents_ui.context_menu_packfile_type_release.set_checked(true),
+                        PFHFileType::Patch => pack_file_contents_ui.context_menu_packfile_type_patch.set_checked(true),
+                        PFHFileType::Mod => pack_file_contents_ui.context_menu_packfile_type_mod.set_checked(true),
+                        PFHFileType::Movie => pack_file_contents_ui.context_menu_packfile_type_movie.set_checked(true),
                     }
+                    pack_file_contents_ui.context_menu_packfile_type_group.block_signals(false);
+
+                    pack_file_contents_ui.context_menu_compression_group.block_signals(true);
+                    match ui_data.compress() {
+                        CompressionFormat::None => pack_file_contents_ui.context_menu_compression_none.set_checked(true),
+                        CompressionFormat::Lzma1 => pack_file_contents_ui.context_menu_compression_lzma1.set_checked(true),
+                        CompressionFormat::Lz4 => pack_file_contents_ui.context_menu_compression_lz4.set_checked(true),
+                        CompressionFormat::Zstd => pack_file_contents_ui.context_menu_compression_zstd.set_checked(true),
+                    }
+                    pack_file_contents_ui.context_menu_compression_group.block_signals(false);
+
+                    pack_file_contents_ui.context_menu_data_is_encrypted.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_ENCRYPTED_DATA));
+                    pack_file_contents_ui.context_menu_index_includes_timestamp.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS));
+                    pack_file_contents_ui.context_menu_index_is_encrypted.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_ENCRYPTED_INDEX));
+                    pack_file_contents_ui.context_menu_header_is_extended.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_EXTENDED_HEADER));
                 } else {
                     pack_file_contents_ui.context_menu_install.set_visible(false);
                     pack_file_contents_ui.context_menu_uninstall.set_visible(false);
@@ -730,12 +718,7 @@ impl PackFileContentsSlots {
 
                 // Query the selected pack's operational mode to set the initial directory.
                 let selected_pack_key_for_mode = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackOperationalMode(selected_pack_key_for_mode));
-                let response = CentralCommand::recv(&receiver);
-                let pack_mode = match response {
-                    Response::OperationalMode(mode) => mode,
-                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-                };
+                let pack_mode = send_ipc_command(Command::GetPackOperationalMode(selected_pack_key_for_mode), response_extractor!(Response::OperationalMode));
 
                 match pack_mode {
 
@@ -858,12 +841,7 @@ impl PackFileContentsSlots {
 
                 // Query the selected pack's operational mode to set the initial directory.
                 let selected_pack_key_for_mode = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackOperationalMode(selected_pack_key_for_mode));
-                let response = CentralCommand::recv(&receiver);
-                let pack_mode = match response {
-                    Response::OperationalMode(mode) => mode,
-                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-                };
+                let pack_mode = send_ipc_command(Command::GetPackOperationalMode(selected_pack_key_for_mode), response_extractor!(Response::OperationalMode));
 
                 match pack_mode {
 
@@ -1006,24 +984,21 @@ impl PackFileContentsSlots {
                 let source_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
 
                 // Query all open packs from the server.
-                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::ListOpenPacks);
-                let response = CentralCommand::recv(&receiver);
-                if let Response::VecStringContainerInfo(pack_list) = response {
-                    for (pack_key, pack_info) in &pack_list {
-                        // Skip the source pack itself.
-                        if *pack_key == source_key {
-                            continue;
-                        }
-
-                        // Use the file name from the pack path as the display name, or fallback to the key.
-                        let display_name = std::path::Path::new(pack_info.file_path())
-                            .file_name()
-                            .map(|n| n.to_string_lossy().to_string())
-                            .unwrap_or_else(|| pack_key.clone());
-
-                        let action = menu.add_action_q_string(&QString::from_std_str(&display_name));
-                        action.set_data(&qt_core::QVariant::from_q_string(&QString::from_std_str(pack_key)));
+                let pack_list = send_ipc_command(Command::ListOpenPacks, response_extractor!(Response::VecStringContainerInfo));
+                for (pack_key, pack_info) in &pack_list {
+                    // Skip the source pack itself.
+                    if *pack_key == source_key {
+                        continue;
                     }
+
+                    // Use the file name from the pack path as the display name, or fallback to the key.
+                    let display_name = std::path::Path::new(pack_info.file_path())
+                        .file_name()
+                        .map(|n| n.to_string_lossy().to_string())
+                        .unwrap_or_else(|| pack_key.clone());
+
+                    let action = menu.add_action_q_string(&QString::from_std_str(&display_name));
+                    action.set_data(&qt_core::QVariant::from_q_string(&QString::from_std_str(pack_key)));
                 }
 
                 // If the menu is empty, add a disabled placeholder.
@@ -1052,10 +1027,8 @@ impl PackFileContentsSlots {
                 }
 
                 app_ui.toggle_main_window(false);
-                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::AddPackedFilesFromPackFile(target_key.clone(), source_key, selected_items));
-                let response = CentralCommand::recv(&receiver);
-                match response {
-                    Response::VecContainerPath(paths_ok) => {
+                match send_ipc_command_result(Command::AddPackedFilesFromPackFile(target_key.clone(), source_key, selected_items), response_extractor!(Response::VecContainerPath)) {
+                    Ok(paths_ok) => {
 
                         // If any of the files were already open in the target pack, reload their views.
                         for path in &paths_ok {
@@ -1074,8 +1047,7 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths_ok.to_vec()), DataSource::PackFile, &target_key);
                         UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                     },
-                    Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
-                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                    Err(error) => show_dialog(app_ui.main_window(), error, false),
                 }
 
                 app_ui.toggle_main_window(true);
@@ -1093,42 +1065,36 @@ impl PackFileContentsSlots {
                     let mut selected_items = <QPtr<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
 
                     let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::DeletePackedFiles(pack_key.clone(), selected_items.clone()));
-                    let response = CentralCommand::recv(&receiver);
-                    match response {
-                        Response::VecContainerPath(items) => {
+                    let items = send_ipc_command(Command::DeletePackedFiles(pack_key.clone(), selected_items.clone()), response_extractor!(Response::VecContainerPath));
 
-                            selected_items.extend_from_slice(&items);
-                            let items = ContainerPath::dedup(&selected_items);
-                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(items.to_vec(), settings_bool("delete_empty_folders_on_delete")), DataSource::PackFile, &pack_key);
-                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(items.to_vec()), DataSource::PackFile, &pack_key);
-                            UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
+                    selected_items.extend_from_slice(&items);
+                    let items = ContainerPath::dedup(&selected_items);
+                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(items.to_vec(), settings_bool("delete_empty_folders_on_delete")), DataSource::PackFile, &pack_key);
+                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(items.to_vec()), DataSource::PackFile, &pack_key);
+                    UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
 
-                            // Remove all the deleted PackedFiles from the cache.
-                            for item in &items {
-                                match item {
-                                    ContainerPath::File(path) => { let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, DataSource::PackFile, false); },
-                                    ContainerPath::Folder(path) => {
-                                        let mut paths_to_remove = vec![];
-                                        {
-                                            let open_packedfiles = UI_STATE.set_open_packedfiles();
-                                            for packed_file_path in open_packedfiles.iter().filter(|x| x.data_source() == DataSource::PackFile).map(|x| x.path_read()) {
-                                                if !packed_file_path.is_empty() && packed_file_path.starts_with(path) {
-                                                    paths_to_remove.push(packed_file_path.to_owned());
-                                                }
-                                            }
+                    // Remove all the deleted PackedFiles from the cache.
+                    for item in &items {
+                        match item {
+                            ContainerPath::File(path) => { let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, DataSource::PackFile, false); },
+                            ContainerPath::Folder(path) => {
+                                let mut paths_to_remove = vec![];
+                                {
+                                    let open_packedfiles = UI_STATE.set_open_packedfiles();
+                                    for packed_file_path in open_packedfiles.iter().filter(|x| x.data_source() == DataSource::PackFile).map(|x| x.path_read()) {
+                                        if !packed_file_path.is_empty() && packed_file_path.starts_with(path) {
+                                            paths_to_remove.push(packed_file_path.to_owned());
                                         }
-
-                                        for path in paths_to_remove {
-                                            let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, &path, DataSource::PackFile, false);
-                                        }
-
                                     }
                                 }
+
+                                for path in paths_to_remove {
+                                    let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, &path, DataSource::PackFile, false);
+                                }
+
                             }
-                        },
-                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-                    };
+                        }
+                    }
                 }
             }
         ));
@@ -1193,10 +1159,8 @@ impl PackFileContentsSlots {
 
                             // Send the renaming data to the Background Thread, wait for a response.
                             let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::RenamePackedFiles(pack_key.clone(), renaming_data_background.to_vec()));
-                            let response = CentralCommand::recv(&receiver);
-                            match response {
-                                Response::VecContainerPathContainerPath(renamed_items) => {
+                            match send_ipc_command_result(Command::RenamePackedFiles(pack_key.clone(), renaming_data_background.to_vec()), response_extractor!(Response::VecContainerPathContainerPath)) {
+                                Ok(renamed_items) => {
                                     let mut path_changes = vec![];
 
                                     // TODO: Filter out reserved files with some generic logic.
@@ -1246,8 +1210,7 @@ impl PackFileContentsSlots {
 
                                     UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                                 },
-                                Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
-                                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                                Err(error) => show_dialog(app_ui.main_window(), error, false),
                             }
                         }
                     }
@@ -1275,12 +1238,9 @@ impl PackFileContentsSlots {
                     return;
                 }
 
-                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::CopyPackedFiles(paths_by_pack));
-                let response = CentralCommand::recv(&receiver);
-                match response {
-                    Response::Success => log_to_status_bar(&tr("copy_success")),
-                    Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
-                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                match send_ipc_command_result(Command::CopyPackedFiles(paths_by_pack), response_extractor!()) {
+                    Ok(()) => log_to_status_bar(&tr("copy_success")),
+                    Err(error) => show_dialog(app_ui.main_window(), error, false),
                 }
             }
         ));
@@ -1296,12 +1256,9 @@ impl PackFileContentsSlots {
                     return;
                 }
 
-                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::CutPackedFiles(paths_by_pack));
-                let response = CentralCommand::recv(&receiver);
-                match response {
-                    Response::Success => log_to_status_bar(&tr("cut_success")),
-                    Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
-                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                match send_ipc_command_result(Command::CutPackedFiles(paths_by_pack), response_extractor!()) {
+                    Ok(()) => log_to_status_bar(&tr("cut_success")),
+                    Err(error) => show_dialog(app_ui.main_window(), error, false),
                 }
             }
         ));
@@ -1330,10 +1287,8 @@ impl PackFileContentsSlots {
                 };
 
                 let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::PastePackedFiles(pack_key.clone(), destination_path));
-                let response = CentralCommand::recv(&receiver);
-                match response {
-                    Response::VecContainerPathBTreeMapStringVecContainerPath(added_paths, deleted_by_pack) => {
+                match send_ipc_command_result(Command::PastePackedFiles(pack_key.clone(), destination_path), response_extractor!(Response::VecContainerPathBTreeMapStringVecContainerPath, added_paths, deleted_by_pack)) {
+                    Ok((added_paths, deleted_by_pack)) => {
                         if !added_paths.is_empty() {
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(added_paths.to_vec()), DataSource::PackFile, &pack_key);
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
@@ -1367,8 +1322,7 @@ impl PackFileContentsSlots {
                             }
                         }
                     },
-                    Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
-                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                    Err(error) => show_dialog(app_ui.main_window(), error, false),
                 }
             }
         ));
@@ -1394,17 +1348,14 @@ impl PackFileContentsSlots {
                 }
 
                 let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::DuplicatePackedFiles(pack_key.clone(), file_items));
-                let response = CentralCommand::recv(&receiver);
-                match response {
-                    Response::VecContainerPath(added_paths) => {
+                match send_ipc_command_result(Command::DuplicatePackedFiles(pack_key.clone(), file_items), response_extractor!(Response::VecContainerPath)) {
+                    Ok(added_paths) => {
                         if !added_paths.is_empty() {
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(added_paths.to_vec()), DataSource::PackFile, &pack_key);
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                         }
                     },
-                    Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
-                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                    Err(error) => show_dialog(app_ui.main_window(), error, false),
                 }
             }
         ));
@@ -1472,9 +1423,7 @@ impl PackFileContentsSlots {
 
                         // Check if the folder exists.
                         let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::FolderExists(pack_key.clone(), complete_path.to_owned()));
-                        let response = CentralCommand::recv(&receiver);
-                        let folder_exists = if let Response::Bool(data) = response { data } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"); };
+                        let folder_exists = send_ipc_command(Command::FolderExists(pack_key.clone(), complete_path.to_owned()), response_extractor!(Response::Bool));
 
                         // If the folder already exists, return an error.
                         if folder_exists { return show_dialog(app_ui.main_window(), "That folder already exists in the current path.", false)}
@@ -1525,12 +1474,8 @@ impl PackFileContentsSlots {
             app_ui,
             pack_file_contents_ui => move |_| {
             let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::OpenContainingFolder(pack_key));
-            let response = CentralCommand::recv(&receiver);
-            match response {
-                Response::Success => {}
-                Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
-                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+            if let Err(error) = send_ipc_command_result(Command::OpenContainingFolder(pack_key), response_extractor!()) {
+                show_dialog(app_ui.main_window(), error, false);
             }
         }));
 
@@ -1650,10 +1595,8 @@ impl PackFileContentsSlots {
 
                     let selected_paths_cont = selected_paths.iter().map(|x| ContainerPath::File(x.to_owned())).collect::<Vec<_>>();
                     let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::MergeFiles(pack_key.clone(), selected_paths_cont.to_vec(), path_to_add, delete_source_files));
-                    let response = CentralCommand::recv(&receiver);
-                    match response {
-                        Response::String(path_to_add) => {
+                    match send_ipc_command_result(Command::MergeFiles(pack_key.clone(), selected_paths_cont.to_vec(), path_to_add, delete_source_files), response_extractor!(Response::String)) {
+                        Ok(path_to_add) => {
 
                             // If we want to delete the sources, do it now. Oh, and close them manually first, or the autocleanup will try to save them and fail miserably.
                             if delete_source_files {
@@ -1667,8 +1610,7 @@ impl PackFileContentsSlots {
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                         }
 
-                        Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
-                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                        Err(error) => show_dialog(app_ui.main_window(), error, false),
                     }
                 }
             }
@@ -1701,10 +1643,8 @@ impl PackFileContentsSlots {
                     }
 
                     let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::UpdateTable(pack_key.clone(), item_type.clone()));
-                    let response = CentralCommand::recv(&receiver);
-                    match response {
-                        Response::I32I32VecStringVecString(old_version, new_version, fields_deleted, fields_added) => {
+                    match send_ipc_command_result(Command::UpdateTable(pack_key.clone(), item_type.clone()), response_extractor!(Response::I32I32VecStringVecString, old_version, new_version, fields_deleted, fields_added)) {
+                        Ok((old_version, new_version, fields_deleted, fields_added)) => {
                             let mut message = tre("update_table_success", &[&old_version.to_string(), &new_version.to_string()]);
                             if !fields_deleted.is_empty() {
                                 message.push_str(&tre("update_table_success_files_deleted", &[&fields_deleted.iter().map(|x| format!("<li>{x}</li>")).join("")]));
@@ -1721,8 +1661,7 @@ impl PackFileContentsSlots {
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                         }
 
-                        Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
-                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                        Err(error) => show_dialog(app_ui.main_window(), error, false),
                     }
                 }
                 _ => unimplemented!()
@@ -1739,10 +1678,8 @@ impl PackFileContentsSlots {
             let _ = AppUI::back_to_back_end_all(&app_ui, &pack_file_contents_ui);
 
             let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GenerateMissingLocData(pack_key.clone()));
-            let response = CentralCommand::recv(&receiver);
-            match response {
-                Response::VecContainerPath(paths_to_add) => {
+            match send_ipc_command_result(Command::GenerateMissingLocData(pack_key.clone()), response_extractor!(Response::VecContainerPath)) {
+                Ok(paths_to_add) => {
                     pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths_to_add.to_vec()), DataSource::PackFile, &pack_key);
 
                     // Reload correctly the UI.
@@ -1756,8 +1693,7 @@ impl PackFileContentsSlots {
                     UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                 }
 
-                Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
-                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                Err(error) => show_dialog(app_ui.main_window(), error, false),
             }
         }));
 
@@ -1778,12 +1714,9 @@ impl PackFileContentsSlots {
                     Some(key) => key,
                     None => return show_dialog(app_ui.main_window(), "No pack is open.", false),
                 };
-                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackFilePath(pack_key));
-                let response = CentralCommand::recv(&receiver);
-                let pack_path = match response {
-                    Response::PathBuf(path) => path,
-                    Response::Error(error) => return show_dialog(app_ui.main_window(), error, false),
-                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                let pack_path = match send_ipc_command_result(Command::GetPackFilePath(pack_key), response_extractor!(Response::PathBuf)) {
+                    Ok(path) => path,
+                    Err(error) => return show_dialog(app_ui.main_window(), error, false),
                 };
                 let mut pack_image_path = pack_path.clone();
                 pack_image_path.set_extension("png");
@@ -1838,12 +1771,9 @@ impl PackFileContentsSlots {
                     Some(key) => key,
                     None => return show_dialog(app_ui.main_window(), "No pack is open.", false),
                 };
-                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackFilePath(pack_key));
-                let response = CentralCommand::recv(&receiver);
-                let pack_path = match response {
-                    Response::PathBuf(path) => path,
-                    Response::Error(error) => return show_dialog(app_ui.main_window(), error, false),
-                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                let pack_path = match send_ipc_command_result(Command::GetPackFilePath(pack_key), response_extractor!(Response::PathBuf)) {
+                    Ok(path) => path,
+                    Err(error) => return show_dialog(app_ui.main_window(), error, false),
                 };
 
                 if !pack_path.is_file() {
@@ -1918,21 +1848,15 @@ impl PackFileContentsSlots {
             pack_file_contents_ui => move |_| {
                 let compression_format = CompressionFormat::from(pack_file_contents_ui.context_menu_compression_group.checked_action().text().remove_q_string(&QString::from_std_str("&")).to_std_string().as_str());
                 let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::ChangeCompressionFormat(pack_key, compression_format));
-                let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
-                match response {
-                    Response::CompressionFormat(cf) => {
-                        pack_file_contents_ui.context_menu_compression_group.block_signals(true);
-                        match cf {
-                            CompressionFormat::None => pack_file_contents_ui.context_menu_compression_none.set_checked(true),
-                            CompressionFormat::Lzma1 => pack_file_contents_ui.context_menu_compression_lzma1.set_checked(true),
-                            CompressionFormat::Lz4 => pack_file_contents_ui.context_menu_compression_lz4.set_checked(true),
-                            CompressionFormat::Zstd => pack_file_contents_ui.context_menu_compression_zstd.set_checked(true),
-                        }
-                        pack_file_contents_ui.context_menu_compression_group.block_signals(false);
-                    },
-                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                let cf = send_ipc_command_async(Command::ChangeCompressionFormat(pack_key, compression_format), response_extractor!(Response::CompressionFormat));
+                pack_file_contents_ui.context_menu_compression_group.block_signals(true);
+                match cf {
+                    CompressionFormat::None => pack_file_contents_ui.context_menu_compression_none.set_checked(true),
+                    CompressionFormat::Lzma1 => pack_file_contents_ui.context_menu_compression_lzma1.set_checked(true),
+                    CompressionFormat::Lz4 => pack_file_contents_ui.context_menu_compression_lz4.set_checked(true),
+                    CompressionFormat::Zstd => pack_file_contents_ui.context_menu_compression_zstd.set_checked(true),
                 }
+                pack_file_contents_ui.context_menu_compression_group.block_signals(false);
                 UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
             }
         ));
@@ -1980,15 +1904,12 @@ impl PackFileContentsSlots {
                 GlobalSearchUI::clear(&global_search_ui);
 
                 let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::PatchSiegeAI(pack_key.clone()));
-                let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
-                match response {
-                    Response::StringVecContainerPath(message, paths) => {
+                match send_ipc_command_result_async(Command::PatchSiegeAI(pack_key.clone()), response_extractor!(Response::StringVecContainerPath, message, paths)) {
+                    Ok((message, paths)) => {
                         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Delete(paths, true), DataSource::PackFile, &pack_key);
                         show_dialog(app_ui.main_window(), message, true);
                     }
-                    Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
-                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}")
+                    Err(error) => show_dialog(app_ui.main_window(), error, false),
                 }
 
                 app_ui.toggle_main_window(true);
@@ -2005,12 +1926,9 @@ impl PackFileContentsSlots {
                 let _ = AppUI::back_to_back_end_all(&app_ui, &pack_file_contents_ui);
 
                 let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::LiveExport(pack_key));
-                let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
-                match response {
-                    Response::Success => show_message_info(app_ui.message_widget(), tr("live_export_success")),
-                    Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
-                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}")
+                match send_ipc_command_result_async(Command::LiveExport(pack_key), response_extractor!()) {
+                    Ok(()) => show_message_info(app_ui.message_widget(), tr("live_export_success")),
+                    Err(error) => show_dialog(app_ui.main_window(), error, false),
                 }
 
                 app_ui.toggle_main_window(true);
@@ -2028,10 +1946,8 @@ impl PackFileContentsSlots {
 
                 if let Ok(Some((tile_maps, tiles))) = AppUI::pack_map_dialog(&app_ui, &pack_file_contents_ui) {
                     let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::PackMap(pack_key.clone(), tile_maps, tiles));
-                    let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
-                    match response {
-                        Response::VecContainerPathVecContainerPath(paths_to_add, paths_to_delete) => {
+                    match send_ipc_command_result_async(Command::PackMap(pack_key.clone(), tile_maps, tiles), response_extractor!(Response::VecContainerPathVecContainerPath, paths_to_add, paths_to_delete)) {
+                        Ok((paths_to_add, paths_to_delete)) => {
                             pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(paths_to_add.to_vec()), DataSource::PackFile, &pack_key);
 
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
@@ -2052,8 +1968,7 @@ impl PackFileContentsSlots {
                                 let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path.path_raw(), DataSource::PackFile, false);
                             }
                         }
-                        Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
-                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}")
+                        Err(error) => show_dialog(app_ui.main_window(), error, false),
                     }
                 }
 
@@ -2086,10 +2001,8 @@ impl PackFileContentsSlots {
                         let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
                         let file_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
                         let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::CleanAndSavePackAs(pack_key.clone(), path));
-                        let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
-                        match response {
-                            Response::ContainerInfo(pack_file_info) => {
+                        match send_ipc_command_result_async(Command::CleanAndSavePackAs(pack_key.clone(), path), response_extractor!(Response::ContainerInfo)) {
+                            Ok(pack_file_info) => {
                                 let mut build_data = BuildData::new();
                                 build_data.editable = true;
                                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile, &pack_key);
@@ -2101,8 +2014,7 @@ impl PackFileContentsSlots {
 
                                 UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
                             }
-                            Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
-                            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                            Err(error) => show_dialog(app_ui.main_window(), error, false),
                         }
                     }
 
@@ -2162,12 +2074,7 @@ impl PackFileContentsSlots {
                     info!("Triggering `Delete MyMod` By Context Menu");
 
                     let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackOperationalMode(pack_key.clone()));
-                    let response = CentralCommand::recv(&receiver);
-                    let mode = match response {
-                        Response::OperationalMode(mode) => mode,
-                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-                    };
+                    let mode = send_ipc_command(Command::GetPackOperationalMode(pack_key.clone()), response_extractor!(Response::OperationalMode));
 
                     if let OperationalMode::MyMod(ref game_folder_name, ref mod_name) = mode {
                         let old_mod_name = mod_name.clone();
@@ -2216,12 +2123,7 @@ impl PackFileContentsSlots {
             app_ui,
             pack_file_contents_ui => move |_| {
                 let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackOperationalMode(pack_key));
-                let response = CentralCommand::recv(&receiver);
-                let mode = match response {
-                    Response::OperationalMode(mode) => mode,
-                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-                };
+                let mode = send_ipc_command(Command::GetPackOperationalMode(pack_key), response_extractor!(Response::OperationalMode));
 
                 if let OperationalMode::MyMod(ref game_folder_name, ref mod_name) = mode {
                     let mymods_base_path = settings_path_buf(MYMOD_BASE_PATH);
