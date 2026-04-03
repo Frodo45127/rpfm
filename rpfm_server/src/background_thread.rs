@@ -58,18 +58,20 @@ use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 pub const VANILLA_LOC_NAME: &str = "vanilla_english.tsv";
 pub const VANILLA_FIXES_NAME: &str = "vanilla_fixes_";
 
-const DEFAULT_PACK_NAME: &str = "new_pack.pack";
+const DEFAULT_PACK_STEM: &str = "new_pack";
+const DEFAULT_PACK_EXT: &str = ".pack";
 
-/// Derives a unique pack key for new (unsaved) packs. Appends a numeric suffix (_2, _3, etc.)
-/// if the base name is already taken.
-fn derive_new_pack_key(existing_keys: &BTreeMap<String, Pack>) -> String {
-    if !existing_keys.contains_key(DEFAULT_PACK_NAME) {
-        return DEFAULT_PACK_NAME.to_string();
+/// Derives a unique pack name for new (unsaved) packs. Appends a numeric suffix (_2, _3, etc.)
+/// to the stem if the base name is already taken. Returns a name like "new_pack.pack", "new_pack_2.pack", etc.
+fn derive_new_pack_name(existing_keys: &BTreeMap<String, Pack>) -> String {
+    let base = format!("{}{}", DEFAULT_PACK_STEM, DEFAULT_PACK_EXT);
+    if !existing_keys.contains_key(&base) {
+        return base;
     }
 
     let mut suffix = 2;
     loop {
-        let candidate = format!("{}_{}", DEFAULT_PACK_NAME, suffix);
+        let candidate = format!("{}_{}{}", DEFAULT_PACK_STEM, suffix, DEFAULT_PACK_EXT);
         if !existing_keys.contains_key(&candidate) {
             return candidate;
         }
@@ -228,13 +230,12 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
             // Create a new empty PackFile and insert into the map.
             Command::NewPack => {
                 let pack_version = game.pfh_version_by_file_type(PFHFileType::Mod);
-                let mut pack = Pack::new_with_name_and_version(DEFAULT_PACK_NAME, pack_version);
+                let key = derive_new_pack_name(&packs);
+                let mut pack = Pack::new_with_name_and_version(&key, pack_version);
 
                 if let Some(version_number) = game.game_version_number(&settings.path_buf(game.key())) {
                     pack.set_game_version(version_number);
                 }
-
-                let key = derive_new_pack_key(&packs);
                 session.add_pack_name(&key);
                 packs.insert(key.clone(), pack);
                 pack_modes.insert(key.clone(), OperationalMode::Normal);
@@ -246,7 +247,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 let key = if let Some(first_path) = paths.first() {
                     pack_key_from_path(first_path)
                 } else {
-                    DEFAULT_PACK_NAME.to_string()
+                    format!("{}{}", DEFAULT_PACK_STEM, DEFAULT_PACK_EXT)
                 };
 
                 if packs.contains_key(&key) {
