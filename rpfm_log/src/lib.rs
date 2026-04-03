@@ -258,8 +258,8 @@ impl Logger {
         let dsn = if cfg!(debug_assertions) { String::new() } else { SENTRY_DSN.read().unwrap().to_string() };
         let client_options = ClientOptions {
             release: release.clone(),
-            sample_rate: 1.0,
-            traces_sample_rate: 1.0,
+            sample_rate: 0.3,
+            traces_sample_rate: 0.3,
             enable_logs: true,
             auto_session_tracking: true,
             session_mode: SessionMode::Application,
