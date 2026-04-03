@@ -673,6 +673,8 @@ context_menu_cascade_edition = Rename References
 header_column = <b><i>Column Name</i></b>
 header_hidden = <b><i>Hidden</i></b>
 header_frozen = <b><i>Frozen</i></b>
+column_header_hide = Hide Column
+column_header_freeze = Freeze Column
 
 file_count = File Count:
 file_paths = File Paths:

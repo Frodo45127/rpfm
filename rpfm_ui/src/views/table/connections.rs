@@ -76,6 +76,10 @@ pub unsafe fn set_connections(ui: &Arc<TableView>, slots: &TableViewSlots) {
         .zip(slots.freeze_columns.iter())
         .for_each(|(x, y)| { x.state_changed().connect(y); });
 
+    // Header context menu for hide/freeze column actions.
+    ui.table_view_ptr().horizontal_header().set_context_menu_policy(qt_core::ContextMenuPolicy::CustomContextMenu);
+    ui.table_view_ptr().horizontal_header().custom_context_menu_requested().connect(&slots.header_context_menu);
+
     ui.table_view_ptr().double_clicked().connect(&slots.open_subtable);
 
     ui.timer_delayed_updates.timeout().connect(&slots.delayed_updates);

@@ -13,6 +13,7 @@ Module with the slots for Table Views.
 !*/
 
 use qt_widgets::SlotOfQPoint;
+use qt_widgets::QMenu;
 use qt_widgets::QFileDialog;
 use qt_widgets::q_file_dialog::AcceptMode;
 use qt_widgets::SlotOfIntSortOrder;
@@ -23,6 +24,7 @@ use qt_gui::SlotOfQStandardItem;
 
 use qt_core::QBox;
 use qt_core::QItemSelection;
+use qt_core::QString;
 use qt_core::QSignalBlocker;
 use qt_core::{SlotOfBool, SlotOfInt, SlotNoArgs, SlotOfQItemSelectionQItemSelection, SlotOfQModelIndex, SlotOfQString};
 
@@ -48,7 +50,7 @@ use crate::packedfile_views::utils::set_modified;
 use crate::references_ui::ReferencesUI;
 use crate::settings_ui::backend::settings_bool;
 use crate::UI_STATE;
-use crate::utils::{show_dialog, log_to_status_bar};
+use crate::utils::{show_dialog, log_to_status_bar, qtr};
 
 use super::utils::*;
 use super::*;
@@ -98,6 +100,7 @@ pub struct TableViewSlots {
     pub hide_show_columns_all: QBox<SlotOfInt>,
     pub freeze_columns: Vec<QBox<SlotOfInt>>,
     pub freeze_columns_all: QBox<SlotOfInt>,
+    pub header_context_menu: QBox<SlotOfQPoint>,
     pub open_subtable: QBox<SlotOfQModelIndex>,
     pub profile_apply: QBox<SlotOfQString>,
     pub profile_delete: QBox<SlotOfQString>,
@@ -862,6 +865,56 @@ impl TableViewSlots {
             }
         ));
 
+        let header_context_menu = SlotOfQPoint::new(&view.table_view, clone!(
+            mut view => move |pos| {
+
+                let header = view.table_view.horizontal_header();
+                let logical_index = header.logical_index_at_int(pos.x());
+                if logical_index < 0 { return; }
+
+                // Build the reverse mapping: logical column index -> sidebar checkbox index.
+                // The sidebar checkboxes are in sorted field order, not logical column order.
+                let fields = view.table_definition().fields_processed_sorted(settings_bool("tables_use_old_column_order"));
+                let fields_processed = view.table_definition().fields_processed();
+                let sidebar_index = fields.iter().enumerate().find_map(|(sidebar_pos, field)| {
+                    fields_processed.iter().position(|x| x == field).and_then(|col_idx| {
+                        if col_idx == logical_index as usize { Some(sidebar_pos) } else { None }
+                    })
+                });
+
+                let menu = QMenu::from_q_widget(header.as_ptr().static_upcast::<qt_widgets::QWidget>());
+
+                // "Hide Column" action.
+                let hide_action = menu.add_action_q_string(&qtr("column_header_hide"));
+                let is_hidden = view.table_view.is_column_hidden(logical_index);
+                hide_action.set_checkable(true);
+                hide_action.set_checked(is_hidden);
+
+                // "Freeze Column" action.
+                let is_frozen = sidebar_index.and_then(|idx| view.sidebar_freeze_checkboxes().get(idx).map(|cb| cb.is_checked())).unwrap_or(false);
+                let freeze_action = menu.add_action_q_string(&qtr("column_header_freeze"));
+                freeze_action.set_checkable(true);
+                freeze_action.set_checked(is_frozen);
+
+                let chosen = menu.exec_1a_mut(&qt_gui::QCursor::pos_0a());
+                if !chosen.is_null() {
+                    if chosen.as_mut_raw_ptr() == hide_action.as_mut_raw_ptr() {
+                        if let Some(idx) = sidebar_index {
+                            if let Some(cb) = view.sidebar_hide_checkboxes().get(idx) {
+                                cb.set_checked(!is_hidden);
+                            }
+                        }
+                    } else if chosen.as_mut_raw_ptr() == freeze_action.as_mut_raw_ptr() {
+                        if let Some(idx) = sidebar_index {
+                            if let Some(cb) = view.sidebar_freeze_checkboxes().get(idx) {
+                                cb.set_checked(!is_frozen);
+                            }
+                        }
+                    }
+                }
+            }
+        ));
+
         let open_subtable = SlotOfQModelIndex::new(&view.table_view, clone!(
             app_ui,
             pack_file_contents_ui,
@@ -974,6 +1027,7 @@ impl TableViewSlots {
             hide_show_columns_all,
             freeze_columns,
             freeze_columns_all,
+            header_context_menu,
             open_subtable,
             profile_apply,
             profile_delete,

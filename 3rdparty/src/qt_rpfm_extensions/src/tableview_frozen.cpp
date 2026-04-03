@@ -126,6 +126,25 @@ QTableViewFrozen::QTableViewFrozen(QWidget* parent, void (*generate_tooltip_mess
     tableViewFrozen->setFocusPolicy(Qt::NoFocus);
     tableViewFrozen->verticalHeader()->hide();
     tableViewFrozen->horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);
+    tableViewFrozen->horizontalHeader()->setContextMenuPolicy(Qt::CustomContextMenu);
+
+    // Forward the frozen header's context menu signal to the main header, so a single
+    // Rust slot can handle both. The position is mapped to the main header's coordinate space.
+    connect(
+        tableViewFrozen->horizontalHeader(),
+        &QWidget::customContextMenuRequested,
+        this,
+        [this](const QPoint& pos) {
+            // Map the frozen header position to a logical index, then to the main header's coordinate.
+            int logicalIndex = tableViewFrozen->horizontalHeader()->logicalIndexAt(pos.x());
+            if (logicalIndex >= 0) {
+                // Emit the main header's signal with a position that resolves to the same logical index.
+                int sectionPos = horizontalHeader()->sectionViewportPosition(logicalIndex);
+                QPoint mainPos(sectionPos + 1, pos.y());
+                emit horizontalHeader()->customContextMenuRequested(mainPos);
+            }
+        }
+    );
 
     // Configure (almost) the same way both tables.
     horizontalHeader()->setSectionsMovable(true);
@@ -148,7 +167,8 @@ QTableViewFrozen::QTableViewFrozen(QWidget* parent, void (*generate_tooltip_mess
     tableViewFrozen->setVerticalScrollMode(ScrollPerPixel);
     tableViewFrozen->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     tableViewFrozen->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    tableViewFrozen->show();
+    // Start hidden — it will be shown by updateFrozenTableGeometry when columns are frozen.
+    tableViewFrozen->hide();
 
     // Place the Frozen QTableView above the normal one.
     viewport()->stackUnder(tableViewFrozen);
@@ -250,32 +270,41 @@ void QTableViewFrozen::updateFrozenTableGeometry() {
         return;
     }
 
-    // It's simple, we get the width of every visible column, then use that as our width.
-    int width = 0;
-    width += frozenColumns.count();
+    // Calculate the total width of all frozen columns.
+    int frozenWidth = 0;
     for (int i = 0; i < frozenTableModel->sourceModel()->columnCount(); ++i) {
         if (frozenColumns.contains(i)) {
-            width += columnWidth(i);
+            frozenWidth += columnWidth(i);
         }
     }
 
-    if (frozenColumns.isEmpty()){
-        tableViewFrozen->verticalHeader()->hide();
-    }
-    else {
-        tableViewFrozen->verticalHeader()->show();
-    }
+    int vHeaderWidth = verticalHeader()->isVisible() ? verticalHeader()->width() : 0;
+    int fw = frameWidth();
 
     QMargins margins = viewportMargins();
-    margins.setLeft(verticalHeader()->width() + frameWidth() + width);
+    margins.setLeft(vHeaderWidth + fw + frozenWidth);
     setViewportMargins(margins);
 
-    tableViewFrozen->setGeometry(
-        verticalHeader()->width() + frameWidth(),
-        frameWidth(),
-        width,
-        viewport()->height()+horizontalHeader()->height()
-    );
+    if (frozenColumns.isEmpty()) {
+        tableViewFrozen->verticalHeader()->hide();
+        tableViewFrozen->hide();
+    } else {
+        // Show the frozen view's own vertical header to display row numbers,
+        // since the frozen view covers the main view's vertical header area.
+        tableViewFrozen->verticalHeader()->show();
+        tableViewFrozen->verticalHeader()->setDefaultSectionSize(verticalHeader()->defaultSectionSize());
+
+        // The frozen view covers from the vertical header area through the frozen columns.
+        // Its width includes the vertical header + frozen column data.
+        tableViewFrozen->setGeometry(
+            fw,
+            fw,
+            vHeaderWidth + frozenWidth,
+            viewport()->height() + horizontalHeader()->height()
+        );
+        tableViewFrozen->raise();
+        tableViewFrozen->show();
+    }
 }
 
 void QTableViewFrozen::toggleFreezer(int column) {
