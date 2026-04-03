@@ -21,7 +21,7 @@ use std::sync::atomic::AtomicPtr;
 use rpfm_lib::files::{anim, animpack, anim_fragment_battle, anims_table, atlas, audio, esf, bmd, bmd_vegetation, dat, FileType, font, group_formations, hlsl_compiled, image, loc, matched_combat, pack, portrait_settings, rigidmodel, sound_bank, text, text::*, unit_variant, video, uic};
 use rpfm_lib::{REGEX_DB, REGEX_PORTRAIT_SETTINGS};
 
-use crate::{ASSETS_PATH, ROOT_NODE_TYPE_EDITABLE_PACKFILE, ROOT_NODE_TYPE};
+use crate::{ASSETS_PATH, ROOT_NODE_TYPE_EDITABLE_PACKFILE, ROOT_NODE_TYPE_MYMOD_PACKFILE, ROOT_NODE_TYPE};
 use crate::utils::{atomic_from_cpp_box, ref_from_atomic_ref};
 
 //-------------------------------------------------------------------------------//
@@ -42,6 +42,7 @@ pub enum IconType {
 pub struct Icons {
     pub packfile_editable: AtomicPtr<QIcon>,
     pub packfile_locked: AtomicPtr<QIcon>,
+    pub packfile_mymod: AtomicPtr<QIcon>,
     pub folder: AtomicPtr<QIcon>,
     pub file: AtomicPtr<QIcon>,
 
@@ -105,6 +106,7 @@ impl Icons {
         Self {
             packfile_editable: atomic_from_cpp_box(Self::load_icon("packfile_editable", "application-x-compress")),
             packfile_locked: atomic_from_cpp_box(Self::load_icon("packfile_locked", "application-x-xz-compressed-tar")),
+            packfile_mymod: atomic_from_cpp_box(Self::load_icon("packfile_mymod", "application-x-compress")),
             folder: atomic_from_cpp_box(Self::load_icon("folder", "folder-orange")),
             file: atomic_from_cpp_box(Self::load_icon("file", "none")),
             anim: atomic_from_cpp_box(Self::load_icon("anim", "motion_path_animations")),
@@ -326,7 +328,10 @@ impl Icons {
             match file_type {
                 Some(file_type) => match file_type {
                     FileType::Pack => {
-                        if item.data_1a(ROOT_NODE_TYPE).to_int_0a() == ROOT_NODE_TYPE_EDITABLE_PACKFILE {
+                        let root_type = item.data_1a(ROOT_NODE_TYPE).to_int_0a();
+                        if root_type == ROOT_NODE_TYPE_MYMOD_PACKFILE {
+                            &self.packfile_mymod
+                        } else if root_type == ROOT_NODE_TYPE_EDITABLE_PACKFILE {
                             &self.packfile_editable
                         } else {
                             &self.packfile_locked

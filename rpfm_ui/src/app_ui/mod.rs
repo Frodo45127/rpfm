@@ -194,9 +194,6 @@ pub struct AppUI {
     //-------------------------------------------------------------------------------//
     mymod_open_mymod_folder: QPtr<QAction>,
     mymod_new: QPtr<QAction>,
-    mymod_delete_selected: QPtr<QAction>,
-    mymod_import: QPtr<QAction>,
-    mymod_export: QPtr<QAction>,
 
     mymod_open_pharaoh_dynasties: QPtr<QMenu>,
     mymod_open_pharaoh: QPtr<QMenu>,
@@ -441,9 +438,6 @@ impl AppUI {
         //-----------------------------------------------//
         let mymod_open_mymod_folder = add_action_to_menu(&menu_bar_mymod, shortcuts.as_ref(), "mymod_menu", "open_mymod_folder", "mymod_open_mymod_folder", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let mymod_new = add_action_to_menu(&menu_bar_mymod, shortcuts.as_ref(), "mymod_menu", "new_mymod", "mymod_new", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let mymod_delete_selected = add_action_to_menu(&menu_bar_mymod, shortcuts.as_ref(), "mymod_menu", "delete_mymod", "mymod_delete_selected", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let mymod_import = add_action_to_menu(&menu_bar_mymod, shortcuts.as_ref(), "mymod_menu", "import_mymod", "mymod_import", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
-        let mymod_export = add_action_to_menu(&menu_bar_mymod, shortcuts.as_ref(), "mymod_menu", "export_mymod", "mymod_export", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
 
         menu_bar_mymod.add_separator();
 
@@ -464,9 +458,6 @@ impl AppUI {
         menu_bar_mymod.insert_separator(&mymod_new);
 
         mymod_new.set_enabled(false);
-        mymod_delete_selected.set_enabled(false);
-        mymod_import.set_enabled(false);
-        mymod_export.set_enabled(false);
 
         mymod_open_pharaoh_dynasties.menu_action().set_visible(false);
         mymod_open_pharaoh.menu_action().set_visible(false);
@@ -659,9 +650,6 @@ impl AppUI {
             //-------------------------------------------------------------------------------//
             mymod_open_mymod_folder,
             mymod_new,
-            mymod_delete_selected,
-            mymod_import,
-            mymod_export,
 
             mymod_open_pharaoh_dynasties,
             mymod_open_pharaoh,
@@ -1015,10 +1003,6 @@ impl AppUI {
         additive: bool,
     ) -> Result<()> {
 
-        // Check if there are currently any packs open (before we open new ones).
-        // This is used to decide whether to run game selection logic in additive mode.
-        let had_packs_open = additive && pack_file_contents_ui.packfile_contents_tree_model().row_count_0a() != 0;
-
         // Destroy whatever it's in the PackedFile's view, to avoid data corruption. We don't care about this result.
         // Only needed when replacing packs, not when adding alongside existing ones.
         if !additive {
@@ -1068,6 +1052,7 @@ impl AppUI {
                     Response::StringContainerInfo(pack_key, _) => {
                         let mut build_data = BuildData::new();
                         build_data.editable = true;
+                        build_data.is_mymod = !game_folder.is_empty();
                         build_data.pack_key = Some(pack_key.clone());
                         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::AddPack(build_data), DataSource::PackFile, &pack_key);
                     }
@@ -1085,6 +1070,7 @@ impl AppUI {
                 Response::StringContainerInfo(pack_key, _) => {
                     let mut build_data = BuildData::new();
                     build_data.editable = true;
+                    build_data.is_mymod = !game_folder.is_empty();
                     build_data.pack_key = Some(pack_key.clone());
                     pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile, &pack_key);
                 }
@@ -1102,16 +1088,18 @@ impl AppUI {
         GlobalSearchUI::clear(global_search_ui);
         global_search_ui.update_pack_sources(pack_file_contents_ui);
 
-        // Operational mode logic: apply when opening the first pack(s).
-        if !had_packs_open {
-            if !game_folder.is_empty() && pack_file_paths.len() == 1 {
+        // Operational mode logic: mark the pack as MyMod on the server when opened from the MyMod menu.
+        if !game_folder.is_empty() && pack_file_paths.len() == 1 {
+            let path = &pack_file_paths[0];
+            let pack_key = path.to_string_lossy().to_string();
+            let mod_name = path.file_name().unwrap().to_string_lossy().to_string();
+            let game_folder_name = path.parent().and_then(|p| p.file_name()).map(|f| f.to_string_lossy().to_string()).unwrap_or_default();
 
-                // Set the current "Operational Mode" to `MyMod`.
-                UI_STATE.set_operational_mode(app_ui, Some(&pack_file_paths[0]));
-            } else if !additive {
-
-                // Reset the operational mode when replacing packs.
-                UI_STATE.set_operational_mode(app_ui, None);
+            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SetPackOperationalMode(pack_key, OperationalMode::MyMod(game_folder_name, mod_name)));
+            let response = CentralCommand::recv(&receiver);
+            match response {
+                Response::Success => {},
+                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
             }
         }
 
@@ -1239,7 +1227,6 @@ impl AppUI {
                         packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
                         packfile_item.set_text(&QString::from_std_str(file_name));
 
-                        UI_STATE.set_operational_mode(app_ui, None);
                         UI_STATE.set_is_modified(false, app_ui, pack_file_contents_ui);
                     }
                     Response::Error(error) => result = Err(anyhow!(error)),
@@ -1779,7 +1766,7 @@ impl AppUI {
                                         diagnostics_ui,
                                         game_folder_name => move |_| {
                                         if Self::are_you_sure(&app_ui, false, false) {
-                                            if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &dependencies_ui, &[pack_file.to_path_buf()], &game_folder_name, false) {
+                                            if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &dependencies_ui, &[pack_file.to_path_buf()], &game_folder_name, true) {
                                                 return show_dialog(&app_ui.main_window, error, false);
                                             }
 
@@ -3726,10 +3713,8 @@ impl AppUI {
                     *GAME_SELECTED.write().unwrap() = SUPPORTED_GAMES.game(&new_game_selected).unwrap();
                     dep_info = dependencies_info;
 
-                    // If we have a pack open, set the current "Operational Mode" to `Normal` (In case we were in `MyMod` mode).
-                    // We do not really support changing game selected while keep treating a mymod as a mymod.
+                    // Mark all open packs as modified after a game change.
                     if pack_file_contents_ui.packfile_contents_tree_model().row_count_0a() > 0 {
-                        UI_STATE.set_operational_mode(app_ui, None);
                         let tree_model = pack_file_contents_ui.packfile_contents_tree_model();
                         for row in 0..tree_model.row_count_0a() {
                             let root = tree_model.item_1a(row);
@@ -3851,8 +3836,6 @@ impl AppUI {
         // Enable the actions available for the PackFile from the `MenuBar`.
         AppUI::enable_packfile_actions(app_ui, true);
 
-        // Set the current "Operational Mode" to Normal, as this is a "New" mod.
-        UI_STATE.set_operational_mode(app_ui, None);
         UI_STATE.set_is_modified(false, app_ui, pack_file_contents_ui);
 
         // Force a dependency rebuild.
@@ -3878,10 +3861,18 @@ impl AppUI {
     pub unsafe fn import_mymod(
         app_ui: &Rc<Self>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        pack_key: &str,
     ) {
         app_ui.toggle_main_window(false);
 
-        match UI_STATE.get_operational_mode() {
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackOperationalMode(pack_key.to_string()));
+        let response = CentralCommand::recv(&receiver);
+        let mode = match response {
+            Response::OperationalMode(mode) => mode,
+            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+        };
+
+        match mode {
 
             // If we have a "MyMod" selected...
             OperationalMode::MyMod(ref game_folder_name, ref mod_name) => {

@@ -98,6 +98,11 @@ pub unsafe fn set_connections(ui: &PackFileContentsUI, slots: &PackFileContentsS
     ui.context_menu_build_starpos.triggered().connect(&slots.context_menu_build_starpos);
     ui.context_menu_update_anim_ids.triggered().connect(&slots.context_menu_update_anim_ids);
 
+    ui.context_menu_mymod_import.triggered().connect(&slots.context_menu_mymod_import);
+    ui.context_menu_mymod_export.triggered().connect(&slots.context_menu_mymod_export);
+    ui.context_menu_mymod_delete.triggered().connect(&slots.context_menu_mymod_delete);
+    ui.context_menu_mymod_open_folder.triggered().connect(&slots.context_menu_mymod_open_folder);
+
     ui.packfile_contents_tree_view_expand_all.triggered().connect(&slots.packfile_contents_tree_view_expand_all);
     ui.packfile_contents_tree_view_collapse_all.triggered().connect(&slots.packfile_contents_tree_view_collapse_all);
 

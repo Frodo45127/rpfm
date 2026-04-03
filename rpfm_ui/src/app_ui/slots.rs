@@ -41,7 +41,6 @@ use qt_core::QVariant;
 use qt_core::WidgetAttribute;
 
 use std::collections::BTreeMap;
-use std::fs::{remove_file, remove_dir_all};
 use std::path::PathBuf;
 use std::rc::Rc;
 
@@ -117,9 +116,6 @@ pub struct AppUISlots {
     pub mymod_open_menu: QBox<SlotNoArgs>,
     pub mymod_open_mymod_folder: QBox<SlotOfBool>,
     pub mymod_new: QBox<SlotOfBool>,
-    pub mymod_delete_selected: QBox<SlotOfBool>,
-    pub mymod_import: QBox<SlotOfBool>,
-    pub mymod_export: QBox<SlotOfBool>,
 
     //-----------------------------------------------//
     // `View` menu slots.
@@ -438,7 +434,6 @@ impl AppUISlots {
                             _ => unreachable!("load_all_ca_packs with game selected {}", GAME_SELECTED.read().unwrap().key()),
                         }
 
-                        UI_STATE.set_operational_mode(&app_ui, None);
                         UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
                     }
 
@@ -482,9 +477,6 @@ impl AppUISlots {
                                 dependencies_ui.dependencies_tree_view().update_treeview(true, TreeViewOperation::Clear, DataSource::ParentFiles, "");
                                 dependencies_ui.dependencies_tree_view().update_treeview(true, TreeViewOperation::Clear, DataSource::GameFiles, "");
                                 dependencies_ui.dependencies_tree_view().update_treeview(true, TreeViewOperation::Clear, DataSource::AssKitFiles, "");
-
-                                // Reset the operational mode.
-                                UI_STATE.set_operational_mode(&app_ui, None);
 
                                 // Disable the main window during reconnection.
                                 app_ui.toggle_main_window(false);
@@ -598,7 +590,6 @@ impl AppUISlots {
                             // If we changed the "MyMod's Folder" path, disable the MyMod mode and set it so the MyMod menu will be re-built
                             // next time we open the MyMod menu.
                             if mymod_path_old != mymod_path_new {
-                                UI_STATE.set_operational_mode(&app_ui, None);
                                 AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &diagnostics_ui, &global_search_ui, &dependencies_ui);
                             }
 
@@ -710,7 +701,7 @@ impl AppUISlots {
                             app_ui.toggle_main_window(false);
 
                             // Initialize the folder structure of the MyMod.
-                            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::InitializeMyModFolder(mod_name, mod_game, sublime_support, vscode_support, git_support));
+                            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::InitializeMyModFolder(mod_name.to_owned(), mod_game, sublime_support, vscode_support, git_support));
                             let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
                             match response {
                                 Response::PathBuf(mymod_pack_path) => {
@@ -726,8 +717,10 @@ impl AppUISlots {
                                         app_ui.timer_backup_autosave.start_0a();
                                     }
 
-                                    let pack_key_for_settings = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackSettings(pack_key_for_settings));
+                                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::NewPack);
+                                    let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
+                                    let pack_key = if let Response::String(key) = response { key } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}") };
+                                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackSettings(pack_key.to_owned()));
                                     let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
                                     match response {
                                         Response::PackSettings(mut pack_settings) => {
@@ -735,9 +728,6 @@ impl AppUISlots {
                                             // Prepare the settings depending on what we choose to ignore.
                                             pack_settings.settings_text_mut().insert("import_files_to_ignore".to_owned(), paths_ignore_on_import);
 
-                                            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::NewPack);
-                                            let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
-                                            let pack_key = if let Response::String(key) = response { key } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}") };
                                             let _ = CENTRAL_COMMAND.read().unwrap().send(Command::SetPackSettings(pack_key.clone(), pack_settings));
                                             let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SavePackAs(pack_key.clone(), mymod_pack_path.clone()));
                                             let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
@@ -745,7 +735,9 @@ impl AppUISlots {
                                                 Response::ContainerInfo(pack_file_info) => {
 
                                                     let mut build_data = BuildData::new();
+                                                    build_data.pack_key = Some(pack_key.to_owned());
                                                     build_data.editable = true;
+                                                    build_data.is_mymod = true;
                                                     pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile, &pack_key);
                                                     let packfile_item = pack_file_contents_ui.packfile_contents_tree_model().item_1a(0);
                                                     packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
@@ -753,7 +745,16 @@ impl AppUISlots {
 
                                                     AppUI::enable_packfile_actions(&app_ui, true);
 
-                                                    UI_STATE.set_operational_mode(&app_ui, Some(&mymod_pack_path));
+                                                    // Mark this pack as a MyMod on the server.
+                                                    let mod_name_for_mode = mymod_pack_path.file_name().unwrap().to_string_lossy().to_string();
+                                                    let game_folder_for_mode = mymod_pack_path.parent().and_then(|p| p.file_name()).map(|f| f.to_string_lossy().to_string()).unwrap_or_default();
+                                                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SetPackOperationalMode(pack_key.clone(), OperationalMode::MyMod(game_folder_for_mode, mod_name_for_mode)));
+                                                    let response = CentralCommand::recv(&receiver);
+                                                    match response {
+                                                        Response::Success => {},
+                                                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                                                    }
+
                                                     UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
 
                                                     AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &diagnostics_ui, &global_search_ui, &dependencies_ui);
@@ -789,102 +790,6 @@ impl AppUISlots {
                 }
             }
         ));
-
-        // This slot is used for the "Delete Selected MyMod" action.
-        let mymod_delete_selected = SlotOfBool::new(&app_ui.main_window, clone!(
-            app_ui,
-            pack_file_contents_ui,
-            dependencies_ui,
-            diagnostics_ui,
-            global_search_ui => move |_| {
-
-                // Ask before doing it, as this will permanently delete the mod from the Disk.
-                if AppUI::are_you_sure(&app_ui, true, false) {
-                    info!("Triggering `Delete MyMod` By Slot");
-
-                    // We want to keep our "MyMod" name for the success message, so we store it here.
-                    let old_mod_name: String;
-
-                    // Depending on our current "Mode", we choose what to do.
-                    let mod_deleted = match UI_STATE.get_operational_mode() {
-
-                        // If we have a "MyMod" selected, and everything we need it's configured,
-                        // copy the PackFile to the data folder of the selected game.
-                        OperationalMode::MyMod(ref game_folder_name, ref mod_name) => {
-                            old_mod_name = mod_name.to_owned();
-                            let mymods_base_path = settings_path_buf(MYMOD_BASE_PATH);
-                            if mymods_base_path.is_dir() {
-
-                                // We get the "MyMod"s PackFile path.
-                                let mut mymod_path = mymods_base_path;
-                                mymod_path.push(game_folder_name);
-                                mymod_path.push(mod_name);
-
-                                if !mymod_path.is_file() {
-                                    return show_dialog(&app_ui.main_window, "The Pack of the selected MyMod doesn't exists, so it can't be installed or removed.", false);
-                                }
-
-                                // Try to delete his PackFile. If it fails, return error.
-                                if remove_file(&mymod_path).is_err() {
-                                    return show_dialog(&app_ui.main_window, "Error deleting the MyMod's Pack.", false);
-                                }
-
-                                // Now we get his assets folder.
-                                let mut mymod_assets_path = mymod_path.clone();
-                                mymod_assets_path.pop();
-                                mymod_assets_path.push(mymod_path.file_stem().unwrap().to_string_lossy().as_ref());
-
-                                // We check that path exists. This is optional, so it should allow the deletion
-                                // process to continue with a warning.
-                                if !mymod_assets_path.is_dir() {
-                                    show_dialog(&app_ui.main_window, "The Mod's Pack has been deleted, but his assets folder is nowhere to be found.", false);
-                                }
-
-                                // If the assets folder exists, we try to delete it. Again, this is optional, so it should not stop the deleting process.
-                                else if remove_dir_all(&mymod_assets_path).is_err() {
-                                    show_dialog(&app_ui.main_window, "Error deleting the MyMod's Asset Folder.", false);
-                                }
-
-                                // Update the MyMod list and return true, as we have effectively deleted the MyMod.
-                                AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &diagnostics_ui, &global_search_ui, &dependencies_ui);
-                                true
-                            }
-                            else { return show_dialog(&app_ui.main_window, "MyMod path not configured. Go to <i>'PackFile/Settings'</i> and configure it.", false); }
-                        }
-
-                        // If we have no "MyMod" selected, return an error.
-                        OperationalMode::Normal => return show_dialog(&app_ui.main_window, "You can't delete the selected MyMod if there is no MyMod selected.", false),
-                    };
-
-                    // If we deleted the "MyMod", we allow chaos to form below.
-                    if mod_deleted {
-                        UI_STATE.set_operational_mode(&app_ui, None);
-                        let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                        let _ = CENTRAL_COMMAND.read().unwrap().send(Command::ClosePack(pack_key.clone()));
-                        AppUI::enable_packfile_actions(&app_ui, false);
-                        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Clear, DataSource::PackFile, &pack_key);
-                        global_search_ui.update_pack_sources(&pack_file_contents_ui);
-                        UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
-
-                        show_dialog(&app_ui.main_window, tre("mymod_delete_success", &[&old_mod_name]), true);
-                    }
-                }
-            }
-        ));
-
-        let mymod_import = SlotOfBool::new(&app_ui.main_window, clone!(
-            app_ui,
-            pack_file_contents_ui => move |_| {
-            info!("Triggering `Import MyMod` By Slot");
-            AppUI::import_mymod(&app_ui, &pack_file_contents_ui);
-        }));
-
-        let mymod_export = SlotOfBool::new(&app_ui.main_window, clone!(
-            app_ui,
-            pack_file_contents_ui => move |_| {
-            info!("Triggering `Export MyMod` By Slot");
-            AppUI::export_mymod(&app_ui, &pack_file_contents_ui, Some(vec![ContainerPath::Folder("".to_owned())]));
-        }));
 
         //-----------------------------------------------//
         // `View` menu logic.
@@ -1791,9 +1696,6 @@ impl AppUISlots {
             mymod_open_menu,
             mymod_open_mymod_folder,
             mymod_new,
-            mymod_delete_selected,
-            mymod_import,
-            mymod_export,
 
             //-----------------------------------------------//
             // `View` menu slots.

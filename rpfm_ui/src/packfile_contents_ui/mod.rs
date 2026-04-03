@@ -162,6 +162,14 @@ pub struct PackFileContentsUI {
     context_menu_update_anim_ids: QPtr<QAction>,
 
     //-------------------------------------------------------------------------------//
+    // MyMod actions (shown when a MyMod pack root is right-clicked).
+    //-------------------------------------------------------------------------------//
+    context_menu_mymod_import: QPtr<QAction>,
+    context_menu_mymod_export: QPtr<QAction>,
+    context_menu_mymod_delete: QPtr<QAction>,
+    context_menu_mymod_open_folder: QPtr<QAction>,
+
+    //-------------------------------------------------------------------------------//
     // Actions not in the UI.
     //-------------------------------------------------------------------------------//
     packfile_contents_tree_view_expand_all: QPtr<QAction>,
@@ -343,6 +351,13 @@ impl PackFileContentsUI {
         let context_menu_pack_map = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("special_stuff_pack_map"));
         let context_menu_update_anim_ids = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("special_stuff_update_anim_ids"));
 
+        // MyMod actions (only visible for MyMod packs).
+        packfile_contents_tree_view_context_menu.add_separator();
+        let context_menu_mymod_import = add_action_to_menu(&packfile_contents_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "mymod_menu", "import_mymod", "mymod_import", Some(packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>()));
+        let context_menu_mymod_export = add_action_to_menu(&packfile_contents_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "mymod_menu", "export_mymod", "mymod_export", Some(packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>()));
+        let context_menu_mymod_delete = add_action_to_menu(&packfile_contents_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "mymod_menu", "delete_mymod", "mymod_delete_selected", Some(packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>()));
+        let context_menu_mymod_open_folder = add_action_to_menu(&packfile_contents_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "mymod_menu", "open_mymod_folder", "mymod_open_mymod_folder", Some(packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>()));
+
         packfile_contents_tree_view_context_menu.add_separator();
 
         let packfile_contents_tree_view_expand_all = add_action_to_menu(&packfile_contents_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "pack_tree_context_menu", "expand_all", "treeview_expand_all", Some(packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>()));
@@ -465,6 +480,11 @@ impl PackFileContentsUI {
             context_menu_live_export,
             context_menu_pack_map,
             context_menu_update_anim_ids,
+
+            context_menu_mymod_import,
+            context_menu_mymod_export,
+            context_menu_mymod_delete,
+            context_menu_mymod_open_folder,
 
             //-------------------------------------------------------------------------------//
             // "Special" Actions for the TreeView.
@@ -639,7 +659,16 @@ impl PackFileContentsUI {
             None => <QPtr<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(pack_file_contents_ui),
         };
 
-        let extraction_path = match UI_STATE.get_operational_mode() {
+        // Query the selected pack's operational mode for extraction path logic.
+        let selected_pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackOperationalMode(selected_pack_key));
+        let response = CentralCommand::recv(&receiver);
+        let pack_mode = match response {
+            Response::OperationalMode(mode) => mode,
+            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+        };
+
+        let extraction_path = match pack_mode {
 
             // In MyMod mode we extract directly to the folder of the selected MyMod, keeping the folder structure.
             OperationalMode::MyMod(ref game_folder_name, ref mod_name) => {

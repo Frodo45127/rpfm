@@ -98,4 +98,5 @@ pub static APP_NAME: LazyLock<Arc<RwLock<String>>> = LazyLock::new(|| Arc::new(R
 
 pub const ROOT_NODE_TYPE: i32 = 23;
 pub const ROOT_NODE_TYPE_EDITABLE_PACKFILE: i32 = 0;
+pub const ROOT_NODE_TYPE_MYMOD_PACKFILE: i32 = 5;
 pub const ITEM_PACK_KEY: i32 = 25;

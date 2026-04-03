@@ -84,6 +84,23 @@ void QTreeItemDelegate::paint(QPainter *painter, const QStyleOptionViewItem &opt
                 painter->drawLine(QLineF(option.rect.x() + option.rect.width() - (lineWidth / 2), option.rect.y() + (lineWidth / 2), option.rect.x() + option.rect.width() - (lineWidth / 2), option.rect.y() + option.rect.height() - (lineWidth / 4)));
             }
 
+            // Draw "MyMod" label in italic on the right side for MyMod pack root nodes.
+            // Role 23 = ROOT_NODE_TYPE, value 5 = ROOT_NODE_TYPE_MYMOD_PACKFILE.
+            QVariant rootTypeVariant = item->data(23);
+            if (!rootTypeVariant.isNull() && rootTypeVariant.toInt() == 5) {
+                QFont italicFont = option.font;
+                italicFont.setItalic(true);
+                italicFont.setPointSizeF(italicFont.pointSizeF() * 0.85);
+                painter->setFont(italicFont);
+
+                QColor labelColor = option.palette.color(QPalette::Disabled, QPalette::Text);
+                painter->setPen(labelColor);
+
+                int rightMargin = 8;
+                QRect textRect = option.rect.adjusted(0, 0, -rightMargin, 0);
+                painter->drawText(textRect, Qt::AlignRight | Qt::AlignVCenter, "MyMod");
+            }
+
             // Remember to restore the painter so we can reuse it for other cells.
             painter->restore();
         }

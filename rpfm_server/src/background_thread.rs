@@ -36,6 +36,7 @@ use rpfm_extensions::optimizer::OptimizableContainer;
 use rpfm_extensions::translator::PackTranslation;
 
 use rpfm_ipc::{MYMOD_BASE_PATH, SECONDARY_PATH, helpers::*};
+use rpfm_ipc::messages::OperationalMode;
 
 use rpfm_lib::compression::CompressionFormat;
 use rpfm_lib::files::{animpack::AnimPack, Container, ContainerPath, db::DB, DecodeableExtraData, EncodeableExtraData, FileType, loc::Loc, pack::*, portrait_settings::PortraitSettings, RFile, RFileDecoded, table::{DecodedData, Table}, text::*};
@@ -130,6 +131,9 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
     // All open packs, keyed by their full file path (or a generated name for new/unsaved packs).
     let mut packs: BTreeMap<String, Pack> = BTreeMap::new();
 
+    // Per-pack operational mode (Normal or MyMod). Keyed by the same pack key as `packs`.
+    let mut pack_modes: BTreeMap<String, OperationalMode> = BTreeMap::new();
+
     // Internal clipboard for copy/cut/paste operations.
     let mut clipboard_entries: Vec<(String, String, String)> = Vec::new(); // (file_path, base_path, source_pack_key) per entry.
     let mut clipboard_is_cut: bool = false;
@@ -196,6 +200,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
             // Close a specific pack by key.
             Command::ClosePack(pack_key) => {
                 if packs.remove(&pack_key).is_some() {
+                    pack_modes.remove(&pack_key);
                     session.remove_pack_name(&pack_key);
                     CentralCommand::send_back(&sender, Response::Success);
                 } else {
@@ -208,6 +213,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                     session.remove_pack_name(&pack_key);
                 }
                 packs.clear();
+                pack_modes.clear();
                 CentralCommand::send_back(&sender, Response::Success);
             }
 
@@ -231,6 +237,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 let key = derive_new_pack_key(&packs);
                 session.add_pack_name(&key);
                 packs.insert(key.clone(), pack);
+                pack_modes.insert(key.clone(), OperationalMode::Normal);
                 CentralCommand::send_back(&sender, Response::String(key));
             }
 
@@ -266,6 +273,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
 
                             let info = ContainerInfo::from(&pack);
                             packs.insert(key.clone(), pack);
+                            pack_modes.insert(key.clone(), OperationalMode::Normal);
                             CentralCommand::send_back(&sender, Response::StringContainerInfo(key, info));
                         }
                         Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
@@ -301,6 +309,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
 
                             let info = ContainerInfo::from(&pack);
                             packs.insert(key.clone(), pack);
+                            pack_modes.insert(key.clone(), OperationalMode::Normal);
                             CentralCommand::send_back(&sender, Response::StringContainerInfo(key, info));
                         }
                         Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
@@ -2839,6 +2848,20 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                     }
                     None => CentralCommand::send_back(&sender, Response::Error(format!("Pack not found: {}", pack_key))),
                 }
+            },
+
+            Command::SetPackOperationalMode(pack_key, mode) => {
+                if packs.contains_key(&pack_key) {
+                    pack_modes.insert(pack_key, mode);
+                    CentralCommand::send_back(&sender, Response::Success);
+                } else {
+                    CentralCommand::send_back(&sender, Response::Error(format!("Pack not found: {}", pack_key)));
+                }
+            },
+
+            Command::GetPackOperationalMode(pack_key) => {
+                let mode = pack_modes.get(&pack_key).cloned().unwrap_or(OperationalMode::Normal);
+                CentralCommand::send_back(&sender, Response::OperationalMode(mode));
             },
 
             Command::AddLineToPackIgnoredDiagnostics(pack_key, line) => {

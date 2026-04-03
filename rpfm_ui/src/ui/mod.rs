@@ -157,8 +157,6 @@ impl UI {
         let font = QFont::from_q_string_int(&QString::from_std_str(font_name), font_size);
         QApplication::set_font_1a(&font);
 
-        // Here we also initialize the UI.
-        UI_STATE.set_operational_mode(&app_ui, None);
         UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
 
         // If we want the window to start maximized...

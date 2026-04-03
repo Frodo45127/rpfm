@@ -80,6 +80,9 @@ const ROOT_NODE_TYPE_GAME_DATA: i32 = 3;
 /// This const is used to identify a Parent data node.
 const ROOT_NODE_TYPE_PARENT_DATA: i32 = 4;
 
+/// This const is used to identify a MyMod PackFile.
+const ROOT_NODE_TYPE_MYMOD_PACKFILE: i32 = rpfm_ui_common::ROOT_NODE_TYPE_MYMOD_PACKFILE;
+
 /// This const is used to identify an item as a PackedFile.
 const ITEM_TYPE_FILE: i32 = 1;
 
@@ -246,6 +249,9 @@ pub struct BuildData {
     /// If this Tree is editable or not (for the root icon).
     pub editable: bool,
 
+    /// If this pack is a MyMod pack (uses a distinct icon and root node type).
+    pub is_mymod: bool,
+
     /// The pack key identifying this pack in the server's HashMap. Used for multi-pack support.
     pub pack_key: Option<String>,
 }
@@ -369,7 +375,7 @@ impl PackTree for QPtr<QTreeView> {
                 for row in 0..model.row_count_0a() {
                     let item = model.item_1a(row);
                     let root_type = item.data_1a(ROOT_NODE_TYPE).to_int_0a();
-                    if root_type == ROOT_NODE_TYPE_EDITABLE_PACKFILE || root_type == ROOT_NODE_TYPE_NON_EDITABLE_PACKFILE {
+                    if root_type == ROOT_NODE_TYPE_EDITABLE_PACKFILE || root_type == ROOT_NODE_TYPE_NON_EDITABLE_PACKFILE || root_type == ROOT_NODE_TYPE_MYMOD_PACKFILE {
                         if fallback_item.is_none() {
                             fallback_item = Some(item);
                         }
@@ -725,7 +731,8 @@ impl PackTree for QPtr<QTreeView> {
             } else {
                 match root_type {
                     ROOT_NODE_TYPE_EDITABLE_PACKFILE |
-                    ROOT_NODE_TYPE_NON_EDITABLE_PACKFILE => data_source = DataSource::PackFile,
+                    ROOT_NODE_TYPE_NON_EDITABLE_PACKFILE |
+                    ROOT_NODE_TYPE_MYMOD_PACKFILE => data_source = DataSource::PackFile,
                     ROOT_NODE_TYPE_PARENT_DATA => data_source = DataSource::ParentFiles,
                     ROOT_NODE_TYPE_GAME_DATA => data_source = DataSource::GameFiles,
                     ROOT_NODE_TYPE_ASSKIT => data_source = DataSource::AssKitFiles,
@@ -1018,7 +1025,9 @@ impl PackTree for QPtr<QTreeView> {
                         big_parent.set_data_2a(&QVariant::from_int(ITEM_TYPE_PACKFILE), ITEM_TYPE);
                         big_parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_PRISTINE), ITEM_STATUS);
 
-                        if build_data.editable {
+                        if build_data.is_mymod {
+                            big_parent.set_data_2a(&QVariant::from_int(ROOT_NODE_TYPE_MYMOD_PACKFILE), ROOT_NODE_TYPE);
+                        } else if build_data.editable {
                             big_parent.set_data_2a(&QVariant::from_int(ROOT_NODE_TYPE_EDITABLE_PACKFILE), ROOT_NODE_TYPE);
                         } else {
                             big_parent.set_data_2a(&QVariant::from_int(ROOT_NODE_TYPE_NON_EDITABLE_PACKFILE), ROOT_NODE_TYPE);
@@ -2022,6 +2031,7 @@ impl BuildData {
         Self {
             data: None,
             editable: false,
+            is_mymod: false,
             pack_key: None,
         }
     }

@@ -530,7 +530,7 @@ impl GlobalSearchUI {
         for row in 0..tree_model.row_count_0a() {
             let item = tree_model.item_1a(row);
             let root_type = item.data_1a(rpfm_ui_common::ROOT_NODE_TYPE).to_int_0a();
-            if root_type == rpfm_ui_common::ROOT_NODE_TYPE_EDITABLE_PACKFILE {
+            if root_type == rpfm_ui_common::ROOT_NODE_TYPE_EDITABLE_PACKFILE || root_type == rpfm_ui_common::ROOT_NODE_TYPE_MYMOD_PACKFILE {
                 let variant = item.data_1a(rpfm_ui_common::ITEM_PACK_KEY);
                 if variant.is_valid() && !variant.is_null() {
                     let key = variant.to_string().to_std_string();

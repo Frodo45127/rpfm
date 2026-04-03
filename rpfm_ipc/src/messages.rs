@@ -92,6 +92,26 @@ pub struct Message<T: Debug> {
     pub data: T,
 }
 
+/// This enum represents the current operational mode for a pack.
+///
+/// A pack can either be in normal mode or in MyMod mode, which links it to
+/// a specific game folder and mod name for import/export operations.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum OperationalMode {
+
+    /// MyMod mode enabled. Contains the game folder name (e.g. "warhammer_2") and the MyMod pack name.
+    MyMod(String, String),
+
+    /// Normal mode - no MyMod association.
+    Normal,
+}
+
+impl Default for OperationalMode {
+    fn default() -> Self {
+        Self::Normal
+    }
+}
+
 /// This enum defines the commands (messages) you can send to the background thread in order to execute actions.
 ///
 /// Each command should include the data needed for his own execution. For a more detailed explanation, check the
@@ -886,6 +906,18 @@ pub enum Command {
     /// - [`Response::Error`] on failure.
     LiveExport(String),
 
+    /// Set the operational mode for a specific pack.
+    /// First field is the pack key, second is the new operational mode.
+    ///
+    /// Response: [`Response::Success`].
+    SetPackOperationalMode(String, OperationalMode),
+
+    /// Get the operational mode for a specific pack.
+    /// The field is the pack key.
+    ///
+    /// Response: [`Response::OperationalMode`].
+    GetPackOperationalMode(String),
+
     //-----------------------------------------------------------------------//
     // Map Packing Commands
     //-----------------------------------------------------------------------//
@@ -1339,6 +1371,7 @@ pub enum Response {
     LocRFileInfo(Loc, RFileInfo),
     MatchedCombatRFileInfo(MatchedCombat, RFileInfo),
     Note(Note),
+    OperationalMode(OperationalMode),
     OptimizerOptions(OptimizerOptions),
     OptionContainerPath(Option<ContainerPath>),
     OptionRFileInfo(Option<RFileInfo>),
