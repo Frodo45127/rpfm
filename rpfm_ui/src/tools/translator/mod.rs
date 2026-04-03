@@ -517,7 +517,7 @@ impl ToolTranslator {
 
         // If we hit ok, save the data back to the Pack.
         if view.tool.get_ref_dialog().exec() == 1 {
-            view.save_data(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui)?;
+            view.save_data(app_ui, pack_file_contents_ui, global_search_ui, dependencies_ui)?;
         }
 
         // If nothing failed, it means we have successfully saved the data back to disk, or canceled.
@@ -530,7 +530,6 @@ impl ToolTranslator {
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         global_search_ui: &Rc<GlobalSearchUI>,
-        diagnostics_ui: &Rc<DiagnosticsUI>,
         dependencies_ui: &Rc<DependenciesUI>
     ) -> Result<()> {
 
@@ -563,7 +562,7 @@ impl ToolTranslator {
         let files_to_save = vec![loc];
 
         // Once we got the RFiles to save properly edited, call the generic tool `save` function to save them to a Pack.
-        self.tool.save(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, &files_to_save)
+        self.tool.save(app_ui, pack_file_contents_ui, global_search_ui, dependencies_ui, &files_to_save)
     }
 
     /// This function loads the data of a faction into the detailed view.

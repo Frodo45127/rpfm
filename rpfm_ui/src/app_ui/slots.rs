@@ -248,7 +248,7 @@ impl AppUISlots {
                 // Check first if there has been changes in the PackFile.
                 if AppUI::are_you_sure(&app_ui, false, false) {
                     info!("Triggering `New PackFile` By Slot");
-                    AppUI::new_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui);
+                    AppUI::new_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &dependencies_ui);
                 }
             }
         ));
@@ -977,7 +977,7 @@ impl AppUISlots {
                 info!("Triggering `Faction Painter Tool` By Slot");
 
                 app_ui.toggle_main_window(false);
-                if let Err(error) = ToolFactionPainter::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui) {
+                if let Err(error) = ToolFactionPainter::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &dependencies_ui) {
                     show_dialog(&app_ui.main_window, error, false);
                 }
                 app_ui.toggle_main_window(true);
@@ -997,7 +997,7 @@ impl AppUISlots {
                 info!("Triggering `Unit Editor Tool` By Slot");
 
                 app_ui.toggle_main_window(false);
-                if let Err(error) = ToolUnitEditor::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui) {
+                if let Err(error) = ToolUnitEditor::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &dependencies_ui) {
                     show_dialog(&app_ui.main_window, error, false);
                 }
                 app_ui.toggle_main_window(true);

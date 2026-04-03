@@ -242,14 +242,13 @@ impl Tool {
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         global_search_ui: &Rc<GlobalSearchUI>,
-        diagnostics_ui: &Rc<DiagnosticsUI>,
         dependencies_ui: &Rc<DependenciesUI>,
         packed_files: &[RFile]
     ) -> Result<()> {
 
         // First, check if we actually have an open PackFile. If we don't have one, we need to generate it and promp a save.
         if pack_file_contents_ui.packfile_contents_tree_model().row_count_0a() == 0 {
-            AppUI::new_packfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui);
+            AppUI::new_packfile(app_ui, pack_file_contents_ui, global_search_ui, dependencies_ui);
         }
 
         // If either the PackFile exists, or it didn't but now it does, then me need to check, file by file, to see if we can merge

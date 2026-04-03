@@ -3798,7 +3798,6 @@ impl AppUI {
         app_ui: &Rc<Self>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         global_search_ui: &Rc<GlobalSearchUI>,
-        diagnostics_ui: &Rc<DiagnosticsUI>,
         dependencies_ui: &Rc<DependenciesUI>
     ) {
 
@@ -3821,16 +3820,11 @@ impl AppUI {
             app_ui.toggle_main_window(false);
         }
 
-        // Close any open PackedFile and clear the global search panel.
-        let _ = AppUI::purge_the_local_ones(app_ui, pack_file_contents_ui, false);
-        GlobalSearchUI::clear(global_search_ui);
-        diagnostics_ui.diagnostics_table_model().clear();
-
-        // Update the TreeView.
+        // Update the TreeView, adding the new pack without closing existing ones.
         let mut build_data = BuildData::new();
         build_data.editable = true;
         build_data.pack_key = Some(pack_key.clone());
-        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile, &pack_key);
+        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::AddPack(build_data), DataSource::PackFile, &pack_key);
         global_search_ui.update_pack_sources(pack_file_contents_ui);
 
         // Enable the actions available for the PackFile from the `MenuBar`.
