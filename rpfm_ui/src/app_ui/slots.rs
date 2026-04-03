@@ -98,6 +98,12 @@ use crate::views::table::{*, utils::{get_reference_data, get_table_from_view, re
 pub struct AppUISlots {
 
     //-----------------------------------------------//
+    // Command Palette slots.
+    //-----------------------------------------------//
+    pub command_palette_open_files: QBox<SlotOfBool>,
+    pub command_palette_open_commands: QBox<SlotOfBool>,
+
+    //-----------------------------------------------//
     // `PackFile` menu slots.
     //-----------------------------------------------//
     pub packfile_new_packfile: QBox<SlotOfBool>,
@@ -214,6 +220,37 @@ impl AppUISlots {
         dependencies_ui: &Rc<DependenciesUI>,
         references_ui: &Rc<ReferencesUI>,
     ) -> Self {
+
+        //-----------------------------------------------//
+        // Command Palette logic.
+        //-----------------------------------------------//
+
+        let command_palette_open_files = SlotOfBool::new(&app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui,
+            dependencies_ui,
+            references_ui => move |_| {
+                info!("Triggering `Command Palette: Open File` By Slot");
+                crate::command_palette_ui::show_file_palette(
+                    &app_ui,
+                    &pack_file_contents_ui,
+                    &global_search_ui,
+                    &diagnostics_ui,
+                    &dependencies_ui,
+                    &references_ui,
+                );
+            }
+        ));
+
+        let command_palette_open_commands = SlotOfBool::new(&app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui => move |_| {
+                info!("Triggering `Command Palette: Open Commands` By Slot");
+                crate::command_palette_ui::show_command_palette(&app_ui, &pack_file_contents_ui);
+            }
+        ));
 
         //-----------------------------------------------//
         // `PackFile` menu logic.
@@ -1676,6 +1713,9 @@ impl AppUISlots {
 
         // And here... we return all the slots.
 		Self {
+
+            command_palette_open_files,
+            command_palette_open_commands,
 
             //-----------------------------------------------//
             // `PackFile` menu slots.

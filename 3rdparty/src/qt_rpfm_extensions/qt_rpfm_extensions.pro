@@ -55,11 +55,13 @@ SOURCES += \
     src/treeview_draggable.cpp \
     src/unit_variant_item_delegate.cpp \
     src/treeview_filter.cpp \
+    src/command_palette.cpp \
     src/q_dialog_custom.cpp
 
 INCLUDEPATH += include
 
 HEADERS += \
+    include/command_palette.h \
     include/colour_item_delegate.h \
     include/extended_q_styled_item_delegate.h \
     include/kline_edit_custom.h \

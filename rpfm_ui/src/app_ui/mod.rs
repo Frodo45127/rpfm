@@ -169,6 +169,12 @@ pub struct AppUI {
     menu_bar_debug: QPtr<QMenu>,
 
     //-------------------------------------------------------------------------------//
+    // Command Palette actions.
+    //-------------------------------------------------------------------------------//
+    command_palette_open_files: QPtr<QAction>,
+    command_palette_open_commands: QPtr<QAction>,
+
+    //-------------------------------------------------------------------------------//
     // `PackFile` menu.
     //-------------------------------------------------------------------------------//
     packfile_new_packfile: QPtr<QAction>,
@@ -392,6 +398,16 @@ impl AppUI {
         // This menu is hidden unless you enable it.
         let menu_bar_debug = menu_bar.add_menu_q_string(&qtr("menu_bar_debug"));
         menu_bar_debug.menu_action().set_visible(false);
+
+        //-----------------------------------------------//
+        // Command Palette actions (not in any menu, just shortcuts).
+        //-----------------------------------------------//
+        let command_palette_open_files = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "command_palette", "open_file_palette", "command_palette_open_files", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
+        let command_palette_open_commands = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "command_palette", "open_command_palette", "command_palette_open_commands", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
+
+        // Remove these from the menu — they're only needed for their shortcuts.
+        menu_bar_packfile.remove_action(&command_palette_open_files);
+        menu_bar_packfile.remove_action(&command_palette_open_commands);
 
         //-----------------------------------------------//
         // `PackFile` Menu.
@@ -621,6 +637,9 @@ impl AppUI {
             menu_bar_mymod,
             menu_bar_view,
             menu_bar_debug,
+
+            command_palette_open_files,
+            command_palette_open_commands,
 
             //-------------------------------------------------------------------------------//
             // "PackFile" menu.

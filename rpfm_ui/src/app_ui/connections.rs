@@ -26,6 +26,12 @@ use super::{AppUI, slots::AppUISlots};
 pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
 
     //-----------------------------------------------//
+    // Command Palette connections.
+    //-----------------------------------------------//
+    app_ui.command_palette_open_files.triggered().connect(&slots.command_palette_open_files);
+    app_ui.command_palette_open_commands.triggered().connect(&slots.command_palette_open_commands);
+
+    //-----------------------------------------------//
     // `PackFile` menu connections.
     //-----------------------------------------------//
     app_ui.menu_bar_packfile.about_to_show().connect(&slots.packfile_open_menu);

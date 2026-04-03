@@ -23,7 +23,7 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     new_action(pack_menu_actions, "uninstall_pack", "Uninstall Pack", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+Shift+U"), "format-align-vertical-bottom");
     new_action(pack_menu_actions, "load_all_ca_packs", "Load All CA Packs", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+G"), "dialog-object-properties");
     new_action(pack_menu_actions, "select_session", "Select Session", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""), "settings-configure");
-    new_action(pack_menu_actions, "settings", "Settings", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+P"), "settings-configure");
+    new_action(pack_menu_actions, "settings", "Settings", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+,"), "settings-configure");
     new_action(pack_menu_actions, "quit", "Quit", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""), "gtk-quit");
     pack_menu_actions->readSettings();
 
@@ -46,6 +46,13 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     new_action(view_menu_actions, "dependencies_panel", "Dependencies Panel", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""), "builder-view-left-pane-symbolic");
     new_action(view_menu_actions, "references_panel", "References Panel", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""), "builder-view-left-pane-symbolic");
     view_menu_actions->readSettings();
+
+    // Command Palette actions.
+    KActionCollection* command_palette_actions = new KActionCollection(parent, "command_palette");
+    command_palette_actions->setComponentDisplayName("Command Palette");
+    new_action(command_palette_actions, "open_file_palette", "Go to File", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+P"), "edit-find");
+    new_action(command_palette_actions, "open_command_palette", "Command Palette", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+Shift+P"), "run-build-configure");
+    command_palette_actions->readSettings();
 
     // Game Selected Menu actions.
     KActionCollection* game_selected_menu_actions = new KActionCollection(parent, "game_selected_menu");
@@ -255,6 +262,7 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     shortcuts->append(dynamic_cast<QObject*>(unit_variant_actions));
     shortcuts->append(dynamic_cast<QObject*>(text_editor_actions));
     shortcuts->append(dynamic_cast<QObject*>(translator_actions));
+    shortcuts->append(dynamic_cast<QObject*>(command_palette_actions));
 }
 
 extern "C" QAction* shortcut_action(QList<QObject*> const &shortcuts, QString const action_group, QString const action_name) {

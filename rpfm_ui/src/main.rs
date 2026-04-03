@@ -88,6 +88,7 @@ macro_rules! response_extractor {
 }
 
 mod app_ui;
+mod command_palette_ui;
 mod communications;
 mod dependencies_ui;
 mod diagnostics_ui;

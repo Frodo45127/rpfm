@@ -25,6 +25,7 @@ use qt_widgets::QTreeView;
 use qt_widgets::QWidget;
 
 #[cfg(feature = "enable_tools")] use qt_gui::QColor;
+use qt_gui::QIcon;
 use qt_gui::QPixmap;
 use qt_gui::QStandardItemModel;
 
@@ -326,6 +327,38 @@ pub fn toggle_freezer_safe(table: &QBox<QTableView>, column: i32) {
 extern "C" { fn get_frozen_view(table: *mut QTableView) -> *mut QTableView; }
 pub unsafe fn get_frozen_view_safe(table: &QPtr<QTableView>) -> QPtr<QTableView> {
     QPtr::from_raw(get_frozen_view(table.as_mut_raw_ptr()))
+}
+
+//---------------------------------------------------------------------------//
+// Command Palette stuff.
+//---------------------------------------------------------------------------//
+
+extern "C" { fn new_command_palette(parent: *mut QWidget) -> *mut QWidget; }
+pub fn new_command_palette_safe(parent: &Ptr<QWidget>) -> QBox<QWidget> {
+    unsafe { QBox::from_raw(new_command_palette(parent.as_mut_raw_ptr())) }
+}
+
+extern "C" { fn command_palette_show(palette: *mut QWidget); }
+pub unsafe fn command_palette_show_safe(palette: &QPtr<QWidget>) {
+    command_palette_show(palette.as_mut_raw_ptr())
+}
+
+extern "C" { fn command_palette_clear(palette: *mut QWidget); }
+pub unsafe fn command_palette_clear_safe(palette: &QPtr<QWidget>) {
+    command_palette_clear(palette.as_mut_raw_ptr())
+}
+
+extern "C" { fn command_palette_add_item(palette: *mut QWidget, display_text: *const QString, detail_text: *const QString, icon: *const QIcon); }
+pub unsafe fn command_palette_add_item_safe(palette: &QPtr<QWidget>, display_text: &QString, detail_text: &QString) {
+    command_palette_add_item(palette.as_mut_raw_ptr(), display_text as *const QString, detail_text as *const QString, std::ptr::null())
+}
+pub unsafe fn command_palette_add_item_with_icon_safe(palette: &QPtr<QWidget>, display_text: &QString, detail_text: &QString, icon: &QIcon) {
+    command_palette_add_item(palette.as_mut_raw_ptr(), display_text as *const QString, detail_text as *const QString, icon as *const QIcon)
+}
+
+extern "C" { fn command_palette_selected_index(palette: *mut QWidget) -> i32; }
+pub unsafe fn command_palette_selected_index_safe(palette: &QPtr<QWidget>) -> i32 {
+    command_palette_selected_index(palette.as_mut_raw_ptr())
 }
 
 //---------------------------------------------------------------------------//
