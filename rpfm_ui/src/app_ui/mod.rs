@@ -3994,6 +3994,18 @@ impl AppUI {
                 for id in &ids {
                     campaign_id_combobox.add_item_q_string(&QString::from_std_str(id));
                 }
+
+                // Restore the last selected campaign from pack settings.
+                let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackSettings(pack_key.clone()));
+                let response = CentralCommand::recv(&receiver);
+                if let Response::PackSettings(settings) = response {
+                    if let Some(last_campaign) = settings.setting_text("starpos_last_campaign") {
+                        let index = campaign_id_combobox.find_text_1a(&QString::from_std_str(last_campaign));
+                        if index >= 0 {
+                            campaign_id_combobox.set_current_index(index);
+                        }
+                    }
+                }
             },
 
             // In ANY other situation, it's a message problem.
@@ -4040,6 +4052,15 @@ impl AppUI {
         if dialog.exec() == 1 {
             let campaign_id = campaign_id_combobox.current_text().to_std_string();
             let process_hlp_spd_data = process_hlp_spd_data_checkbox.is_checked();
+
+            // Save the selected campaign to pack settings for next time.
+            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackSettings(pack_key.clone()));
+            let response = CentralCommand::recv(&receiver);
+            if let Response::PackSettings(mut settings) = response {
+                settings.settings_text_mut().insert("starpos_last_campaign".to_owned(), campaign_id.clone());
+                let _ = CENTRAL_COMMAND.read().unwrap().send(Command::SetPackSettings(pack_key.clone(), settings));
+            }
+
             let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::BuildStarposPost(pack_key.clone(), campaign_id, process_hlp_spd_data));
             let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
             match response {
