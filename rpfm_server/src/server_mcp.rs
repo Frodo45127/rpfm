@@ -84,13 +84,18 @@ fn resource(uri: &str, name: &str, description: &str, mime_type: &str) -> Annota
     Annotated { raw, annotations: None }
 }
 
-/// Parse a JSON string into the expected type, returning an MCP INVALID_PARAMS error on failure.
-fn parse_json<T: serde::de::DeserializeOwned>(input: &str) -> Result<T, McpError> {
-    serde_json::from_str(input).map_err(|e| McpError {
-        code: ErrorCode::INVALID_PARAMS,
-        message: format!("Invalid JSON parameter: {e}").into(),
-        data: None,
-    })
+/// Parse a JSON string into the expected type, returning a tool-level error on failure.
+///
+/// This is a macro (not a function) so that `return Ok(...)` exits the calling tool method,
+/// keeping invalid-JSON errors as tool results instead of protocol-level `McpError`s that
+/// would tear down the MCP session.
+macro_rules! parse_json {
+    ($input:expr) => {
+        match serde_json::from_str($input) {
+            Ok(v) => v,
+            Err(e) => return Ok(CallToolResult::error(vec![Content::text(format!("Invalid JSON parameter: {e}"))])),
+        }
+    };
 }
 
 //-------------------------------------------------------------------------------//
@@ -1018,7 +1023,15 @@ All tool responses are JSON-serialized. On failure, an error message is returned
                         "text": true, "uic": false, "unit_variant": false, "unknown": false,
                         "video": false, "schema": false
                     },
-                    "matches": {"db": {}, "loc": {}, "text": {}, "schema": {}},
+                    "matches": {
+                        "anim": [], "anim_fragment_battle": [], "anim_pack": [],
+                        "anims_table": [], "atlas": [], "audio": [], "bmd": [],
+                        "db": [], "esf": [], "group_formations": [], "image": [],
+                        "loc": [], "matched_combat": [], "pack": [],
+                        "portrait_settings": [], "rigid_model": [], "sound_bank": [],
+                        "text": [], "uic": [], "unit_variant": [], "unknown": [],
+                        "video": [], "schema": {"matches": []}
+                    },
                     "game_key": "warhammer_3"
                 },
                 "notes": "The `matches` field is populated by the search results. When calling `global_search`, pass it empty. The `sources` field uses SearchSource: {\"Pack\": \"key\"}, \"ParentFiles\", \"GameFiles\", \"AssKitFiles\"."
@@ -1244,7 +1257,7 @@ impl McpServer {
 
     #[tool(name = "call_command", description = "Call any IPC command directly. Use this for commands not yet wrapped as named tools.")]
     pub async fn call_command(&self, params: Parameters<CallCommandArgs>) -> Result<CallToolResult, McpError> {
-        let command: Command = parse_json(&params.0.command)?;
+        let command: Command = parse_json!(&params.0.command);
         send_and_respond!(self, "call_command", command)
     }
 
@@ -1298,13 +1311,13 @@ impl McpServer {
 
     #[tool(description = "Set the type of the pack identified by `pack_key`. Valid PFHFileType values: \"Boot\", \"Release\", \"Patch\", \"Mod\", \"Movie\". Example: pack_file_type = \"\\\"Mod\\\"\"")]
     pub async fn set_pack_file_type(&self, params: Parameters<SetPackFileTypeArgs>) -> Result<CallToolResult, McpError> {
-        let pfh_type = parse_json(&params.0.pack_file_type)?;
+        let pfh_type = parse_json!(&params.0.pack_file_type);
         send_and_respond!(self, "set_pack_file_type", Command::SetPackFileType(params.0.pack_key, pfh_type))
     }
 
     #[tool(description = "Change the compression format of the pack identified by `pack_key`. Valid formats: \"None\", \"Lzma1\" (legacy), \"Lz4\" (WH3 6.2+), \"Zstd\" (WH3 6.2+). Example: format = \"\\\"None\\\"\"")]
     pub async fn change_compression_format(&self, params: Parameters<ChangeCompressionFormatArgs>) -> Result<CallToolResult, McpError> {
-        let format = parse_json(&params.0.format)?;
+        let format = parse_json!(&params.0.format);
         send_and_respond!(self, "change_compression_format", Command::ChangeCompressionFormat(params.0.pack_key, format))
     }
 
@@ -1330,7 +1343,7 @@ impl McpServer {
 
     #[tool(description = "Set the settings of the pack identified by `pack_key`. The `settings` is a PackSettings JSON object containing pack-level configuration.")]
     pub async fn set_pack_settings(&self, params: Parameters<SetPackSettingsArgs>) -> Result<CallToolResult, McpError> {
-        let settings = parse_json(&params.0.settings)?;
+        let settings = parse_json!(&params.0.settings);
         send_and_respond!(self, "set_pack_settings", Command::SetPackSettings(params.0.pack_key, settings))
     }
 
@@ -1341,7 +1354,7 @@ impl McpServer {
 
     #[tool(description = "Set the list of PackFiles marked as dependencies for the pack identified by `pack_key`. The `list` is a JSON array of [enabled, pack_name] pairs, e.g. [[true, \"other_mod.pack\"], [false, \"disabled_mod.pack\"]].")]
     pub async fn set_dependency_pack_files_list(&self, params: Parameters<SetDependencyPackFilesListArgs>) -> Result<CallToolResult, McpError> {
-        let list = parse_json(&params.0.list)?;
+        let list = parse_json!(&params.0.list);
         send_and_respond!(self, "set_dependency_pack_files_list", Command::SetDependencyPackFilesList(params.0.pack_key, list))
     }
 
@@ -1356,67 +1369,67 @@ impl McpServer {
 
     #[tool(description = "Create a new file inside the pack identified by `pack_key`. The `path` is the destination path (e.g. \"db/land_units_tables/my_mod\"). NewFile types: {\"DB\": [\"file_name\", \"table_name\", version]}, {\"Loc\": \"name\"}, {\"Text\": [\"name\", \"Plain\"]}, {\"AnimPack\": \"name\"}, {\"VMD\": \"name\"}, {\"WSModel\": \"name\"}, {\"PortraitSettings\": [\"name\", version, []]}.")]
     pub async fn new_packed_file(&self, params: Parameters<NewPackedFileArgs>) -> Result<CallToolResult, McpError> {
-        let new_file = parse_json(&params.0.new_file)?;
+        let new_file = parse_json!(&params.0.new_file);
         send_and_respond!(self, "new_packed_file", Command::NewPackedFile(params.0.pack_key, params.0.path, new_file))
     }
 
     #[tool(description = "Add files from disk to the pack identified by `pack_key`. The `source_paths` are filesystem paths. The `destination_paths` is a JSON array of ContainerPath: [{\"File\": \"db/table/file\"}, {\"Folder\": \"ui/images\"}]. Optionally set `ignore_paths` to skip certain files.")]
     pub async fn add_packed_files(&self, params: Parameters<AddPackedFilesArgs>) -> Result<CallToolResult, McpError> {
-        let dest: Vec<ContainerPath> = parse_json(&params.0.destination_paths)?;
+        let dest: Vec<ContainerPath> = parse_json!(&params.0.destination_paths);
         send_and_respond!(self, "add_packed_files", Command::AddPackedFiles(params.0.pack_key, params.0.source_paths, dest, params.0.ignore_paths))
     }
 
     #[tool(description = "Add files from another PackFile to the pack identified by `pack_key`. The `source_pack_path` is the pack path. The `container_paths` is a JSON array of ContainerPath: [{\"File\": \"path\"}].")]
     pub async fn add_packed_files_from_pack_file(&self, params: Parameters<AddPackedFilesFromPackFileArgs>) -> Result<CallToolResult, McpError> {
-        let paths: Vec<ContainerPath> = parse_json(&params.0.container_paths)?;
+        let paths: Vec<ContainerPath> = parse_json!(&params.0.container_paths);
         send_and_respond!(self, "add_packed_files_from_pack_file", Command::AddPackedFilesFromPackFile(params.0.pack_key, params.0.source_pack_path, paths))
     }
 
     #[tool(description = "Add files from the pack identified by `pack_key` to an AnimPack. The `container_paths` is a JSON array of ContainerPath, e.g. [{\"File\": \"animations/anim.anim\"}]. The `animpack_path` is the AnimPack's internal path.")]
     pub async fn add_packed_files_from_pack_file_to_animpack(&self, params: Parameters<AddPackedFilesFromPackFileToAnimpackArgs>) -> Result<CallToolResult, McpError> {
-        let paths: Vec<ContainerPath> = parse_json(&params.0.container_paths)?;
+        let paths: Vec<ContainerPath> = parse_json!(&params.0.container_paths);
         send_and_respond!(self, "add_packed_files_from_pack_file_to_animpack", Command::AddPackedFilesFromPackFileToAnimpack(params.0.pack_key, params.0.animpack_path, paths))
     }
 
     #[tool(description = "Add files from an AnimPack to the pack identified by `pack_key`. The `source` is the DataSource (\"PackFile\", \"GameFiles\", etc.). The `animpack_path` is the AnimPack's internal path. The `container_paths` is a JSON array of ContainerPath, e.g. [{\"File\": \"animations/anim.anim\"}].")]
     pub async fn add_packed_files_from_animpack(&self, params: Parameters<AddPackedFilesFromAnimpackArgs>) -> Result<CallToolResult, McpError> {
-        let paths: Vec<ContainerPath> = parse_json(&params.0.container_paths)?;
+        let paths: Vec<ContainerPath> = parse_json!(&params.0.container_paths);
         send_and_respond!(self, "add_packed_files_from_animpack", Command::AddPackedFilesFromAnimpack(params.0.pack_key, params.0.source, params.0.animpack_path, paths))
     }
 
     #[tool(description = "Delete files from the pack identified by `pack_key`. The `paths` is a JSON array of ContainerPath: [{\"File\": \"path/to/file\"}, {\"Folder\": \"path/to/folder\"}].")]
     pub async fn delete_packed_files(&self, params: Parameters<ContainerPathsArg>) -> Result<CallToolResult, McpError> {
-        let paths: Vec<ContainerPath> = parse_json(&params.0.paths)?;
+        let paths: Vec<ContainerPath> = parse_json!(&params.0.paths);
         send_and_respond!(self, "delete_packed_files", Command::DeletePackedFiles(params.0.pack_key, paths))
     }
 
     #[tool(description = "Delete files from an AnimPack in the pack identified by `pack_key`. The `animpack_path` is the AnimPack's internal path. The `container_paths` is a JSON array of ContainerPath, e.g. [{\"File\": \"animations/anim.anim\"}].")]
     pub async fn delete_from_animpack(&self, params: Parameters<DeleteFromAnimpackArgs>) -> Result<CallToolResult, McpError> {
-        let paths: Vec<ContainerPath> = parse_json(&params.0.container_paths)?;
+        let paths: Vec<ContainerPath> = parse_json!(&params.0.container_paths);
         send_and_respond!(self, "delete_from_animpack", Command::DeleteFromAnimpack(params.0.pack_key, params.0.animpack_path, paths))
     }
 
     #[tool(description = "Extract files from the pack identified by `pack_key` to disk. The `source_paths` is a JSON object mapping DataSource to ContainerPath arrays, e.g. {\"PackFile\": [{\"File\": \"db/table/file\"}]}. Set `export_as_tsv: true` to export tables as TSV files.")]
     pub async fn extract_packed_files(&self, params: Parameters<ExtractPackedFilesArgs>) -> Result<CallToolResult, McpError> {
-        let source: BTreeMap<DataSource, Vec<ContainerPath>> = parse_json(&params.0.source_paths)?;
+        let source: BTreeMap<DataSource, Vec<ContainerPath>> = parse_json!(&params.0.source_paths);
         send_and_respond!(self, "extract_packed_files", Command::ExtractPackedFiles(params.0.pack_key, source, params.0.destination_path, params.0.export_as_tsv))
     }
 
     #[tool(description = "Rename files in the pack identified by `pack_key`. The `renames` is a JSON array of [old, new] ContainerPath pairs, e.g. [[{\"File\": \"old/path\"}, {\"File\": \"new/path\"}]].")]
     pub async fn rename_packed_files(&self, params: Parameters<RenamePackedFilesArgs>) -> Result<CallToolResult, McpError> {
-        let renames: Vec<(ContainerPath, ContainerPath)> = parse_json(&params.0.renames)?;
+        let renames: Vec<(ContainerPath, ContainerPath)> = parse_json!(&params.0.renames);
         send_and_respond!(self, "rename_packed_files", Command::RenamePackedFiles(params.0.pack_key, renames))
     }
 
     #[tool(description = "Copy files to the internal clipboard. The `paths_by_pack` is a JSON object mapping pack key to ContainerPath arrays, e.g. {\"my_pack.pack\": [{\"File\": \"db/table/file\"}]}. Use `paste_packed_files` to paste afterwards.")]
     pub async fn copy_packed_files(&self, params: Parameters<CopyOrCutPackedFilesArgs>) -> Result<CallToolResult, McpError> {
-        let paths_by_pack: BTreeMap<String, Vec<ContainerPath>> = parse_json(&params.0.paths_by_pack)?;
+        let paths_by_pack: BTreeMap<String, Vec<ContainerPath>> = parse_json!(&params.0.paths_by_pack);
         send_and_respond!(self, "copy_packed_files", Command::CopyPackedFiles(paths_by_pack))
     }
 
     #[tool(description = "Cut files to the internal clipboard. Same as copy, but files will be removed from the source pack on paste. The `paths_by_pack` is a JSON object mapping pack key to ContainerPath arrays. Use `paste_packed_files` to paste afterwards.")]
     pub async fn cut_packed_files(&self, params: Parameters<CopyOrCutPackedFilesArgs>) -> Result<CallToolResult, McpError> {
-        let paths_by_pack: BTreeMap<String, Vec<ContainerPath>> = parse_json(&params.0.paths_by_pack)?;
+        let paths_by_pack: BTreeMap<String, Vec<ContainerPath>> = parse_json!(&params.0.paths_by_pack);
         send_and_respond!(self, "cut_packed_files", Command::CutPackedFiles(paths_by_pack))
     }
 
@@ -1427,13 +1440,13 @@ impl McpServer {
 
     #[tool(description = "Duplicate files in-place within the same pack. Files are cloned with a numeric suffix to avoid name collisions. The `paths` is a JSON array of ContainerPath, e.g. [{\"File\": \"db/table/file\"}].")]
     pub async fn duplicate_packed_files(&self, params: Parameters<DuplicatePackedFilesArgs>) -> Result<CallToolResult, McpError> {
-        let paths: Vec<ContainerPath> = parse_json(&params.0.paths)?;
+        let paths: Vec<ContainerPath> = parse_json!(&params.0.paths);
         send_and_respond!(self, "duplicate_packed_files", Command::DuplicatePackedFiles(params.0.pack_key, paths))
     }
 
     #[tool(description = "Save an edited decoded file back to the pack identified by `pack_key`. The `path` is the internal path (e.g. \"db/land_units_tables/my_mod\"). The `data` is the modified RFileDecoded JSON (same structure returned by `decode_packed_file`).")]
     pub async fn save_packed_file_from_view(&self, params: Parameters<SavePackedFileFromViewArgs>) -> Result<CallToolResult, McpError> {
-        let data: RFileDecoded = parse_json(&params.0.data)?;
+        let data: RFileDecoded = parse_json!(&params.0.data);
         send_and_respond!(self, "save_packed_file_from_view", Command::SavePackedFileFromView(params.0.pack_key, params.0.path, data))
     }
 
@@ -1444,7 +1457,7 @@ impl McpServer {
 
     #[tool(description = "Save files to the pack identified by `pack_key` and optionally optimize afterward. The `files` is a JSON array of RFile objects (as returned by decode/get operations). Set `optimize` to true to remove unchanged data after saving.")]
     pub async fn save_packed_files_to_pack_file_and_clean(&self, params: Parameters<SavePackedFilesToPackFileAndCleanArgs>) -> Result<CallToolResult, McpError> {
-        let files: Vec<RFile> = parse_json(&params.0.files)?;
+        let files: Vec<RFile> = parse_json!(&params.0.files);
         send_and_respond!(self, "save_packed_files_to_pack_file_and_clean", Command::SavePackedFilesToPackFileAndClean(params.0.pack_key, files, params.0.optimize))
     }
 
@@ -1455,7 +1468,7 @@ impl McpServer {
 
     #[tool(description = "Open a file in the system's default program from the pack identified by `pack_key`. The `source` is the DataSource (\"PackFile\", \"GameFiles\", etc.). The `container_path` is a ContainerPath JSON, e.g. {\"File\": \"db/table/file\"}.")]
     pub async fn open_packed_file_in_external_program(&self, params: Parameters<OpenPackedFileInExternalProgramArgs>) -> Result<CallToolResult, McpError> {
-        let cp: ContainerPath = parse_json(&params.0.container_path)?;
+        let cp: ContainerPath = parse_json!(&params.0.container_path);
         send_and_respond!(self, "open_packed_file_in_external_program", Command::OpenPackedFileInExternalProgram(params.0.pack_key, params.0.source, cp))
     }
 
@@ -1466,7 +1479,7 @@ impl McpServer {
 
     #[tool(description = "Clean the decode cache for the provided paths in the pack identified by `pack_key`. The `paths` is a JSON array of ContainerPath, e.g. [{\"File\": \"db/land_units_tables/my_mod\"}, {\"Folder\": \"db\"}].")]
     pub async fn clean_cache(&self, params: Parameters<ContainerPathsArg>) -> Result<CallToolResult, McpError> {
-        let paths: Vec<ContainerPath> = parse_json(&params.0.paths)?;
+        let paths: Vec<ContainerPath> = parse_json!(&params.0.paths);
         send_and_respond!(self, "clean_cache", Command::CleanCache(params.0.pack_key, paths))
     }
 
@@ -1550,19 +1563,19 @@ impl McpServer {
 
     #[tool(description = "Import files from dependencies into the pack identified by `pack_key`. The `paths` is a JSON object mapping DataSource to ContainerPath arrays, e.g. {\"GameFiles\": [{\"File\": \"db/table/file\"}]}.")]
     pub async fn import_dependencies_to_open_pack_file(&self, params: Parameters<ImportDependenciesArgs>) -> Result<CallToolResult, McpError> {
-        let paths: BTreeMap<DataSource, Vec<ContainerPath>> = parse_json(&params.0.paths)?;
+        let paths: BTreeMap<DataSource, Vec<ContainerPath>> = parse_json!(&params.0.paths);
         send_and_respond!(self, "import_dependencies_to_open_pack_file", Command::ImportDependenciesToOpenPackFile(params.0.pack_key, paths))
     }
 
     #[tool(description = "Get files from all known sources (PackFile, GameFiles, ParentFiles). The `paths` is a JSON array of ContainerPath, e.g. [{\"File\": \"db/land_units_tables/some_file\"}]. Set `lowercase` to true to normalize path casing.")]
     pub async fn get_rfiles_from_all_sources(&self, params: Parameters<GetRFilesFromAllSourcesArgs>) -> Result<CallToolResult, McpError> {
-        let paths: Vec<ContainerPath> = parse_json(&params.0.paths)?;
+        let paths: Vec<ContainerPath> = parse_json!(&params.0.paths);
         send_and_respond!(self, "get_rfiles_from_all_sources", Command::GetRFilesFromAllSources(paths, params.0.lowercase))
     }
 
     #[tool(description = "Get all file names under a path prefix across all data sources (PackFile, GameFiles, ParentFiles). The `path` is a ContainerPath JSON, e.g. {\"Folder\": \"db/land_units_tables\"} to list all files under that folder.")]
     pub async fn get_packed_files_names_starting_with_path_from_all_sources(&self, params: Parameters<ContainerPathArg>) -> Result<CallToolResult, McpError> {
-        let path: ContainerPath = parse_json(&params.0.path)?;
+        let path: ContainerPath = parse_json!(&params.0.path);
         send_and_respond!(self, "get_packed_files_names_starting_with_path_from_all_sources", Command::GetPackedFilesNamesStartingWitPathFromAllSources(path))
     }
 
@@ -1582,32 +1595,32 @@ impl McpServer {
 
     #[tool(description = "Run a global search across the pack identified by `pack_key`. The `search` is a GlobalSearch JSON with fields: pattern (string), replace_text (string), case_sensitive (bool), use_regex (bool), search_on ({db: bool, loc: bool, text: bool, ...}), sources ([{\"Pack\": \"key\"}]), game_key (string). See the `rpfm://examples/global_search` resource for a full example.")]
     pub async fn global_search(&self, params: Parameters<GlobalSearchArgs>) -> Result<CallToolResult, McpError> {
-        let search = parse_json(&params.0.search)?;
+        let search = parse_json!(&params.0.search);
         send_and_respond!(self, "global_search", Command::GlobalSearch(params.0.pack_key, search))
     }
 
     #[tool(description = "Replace specific matches in a global search for the pack identified by `pack_key`. The `search` is the same GlobalSearch JSON used in `global_search` (see `rpfm://examples/global_search` resource). The `matches` is a JSON array of MatchHolder objects from the search results — include only the matches you want to replace.")]
     pub async fn global_search_replace_matches(&self, params: Parameters<GlobalSearchReplaceMatchesArgs>) -> Result<CallToolResult, McpError> {
-        let search = parse_json(&params.0.search)?;
-        let matches = parse_json(&params.0.matches)?;
+        let search = parse_json!(&params.0.search);
+        let matches = parse_json!(&params.0.matches);
         send_and_respond!(self, "global_search_replace_matches", Command::GlobalSearchReplaceMatches(params.0.pack_key, search, matches))
     }
 
     #[tool(description = "Replace all matches in a global search for the pack identified by `pack_key`. The `search` is a GlobalSearch JSON with the `replace_text` field set to the replacement string. See `rpfm://examples/global_search` resource for the full structure.")]
     pub async fn global_search_replace_all(&self, params: Parameters<GlobalSearchArgs>) -> Result<CallToolResult, McpError> {
-        let search = parse_json(&params.0.search)?;
+        let search = parse_json!(&params.0.search);
         send_and_respond!(self, "global_search_replace_all", Command::GlobalSearchReplaceAll(params.0.pack_key, search))
     }
 
     #[tool(description = "Find all references to a value in the pack identified by `pack_key`. The `reference_map` is a JSON object mapping table names to column name arrays, e.g. {\"land_units_tables\": [\"key\", \"unit\"]}. The `value` is the string to search for across those columns.")]
     pub async fn search_references(&self, params: Parameters<SearchReferencesArgs>) -> Result<CallToolResult, McpError> {
-        let map: HashMap<String, Vec<String>> = parse_json(&params.0.reference_map)?;
+        let map: HashMap<String, Vec<String>> = parse_json!(&params.0.reference_map);
         send_and_respond!(self, "search_references", Command::SearchReferences(params.0.pack_key, map, params.0.value))
     }
 
     #[tool(description = "Get valid reference values for columns in a table definition for the pack identified by `pack_key`. The `definition` is a Definition JSON (as returned by `get_table_definition_from_dependency_pack_file`). Set `force` to true to regenerate cached reference data.")]
     pub async fn get_reference_data_from_definition(&self, params: Parameters<GetReferenceDataFromDefinitionArgs>) -> Result<CallToolResult, McpError> {
-        let def = parse_json(&params.0.definition)?;
+        let def = parse_json!(&params.0.definition);
         send_and_respond!(self, "get_reference_data_from_definition", Command::GetReferenceDataFromDefinition(params.0.pack_key, params.0.table_name, def, params.0.force))
     }
 
@@ -1632,7 +1645,7 @@ impl McpServer {
 
     #[tool(description = "Save the provided schema to disk. The `schema` is the full Schema JSON object (as returned by `get_schema`). Use this after modifying definitions or applying patches.")]
     pub async fn save_schema(&self, params: Parameters<SaveSchemaArgs>) -> Result<CallToolResult, McpError> {
-        let schema = parse_json(&params.0.schema)?;
+        let schema = parse_json!(&params.0.schema);
         send_and_respond!(self, "save_schema", Command::SaveSchema(schema))
     }
 
@@ -1673,19 +1686,19 @@ impl McpServer {
 
     #[tool(description = "Get columns from other tables that reference the given table's definition. The `definition` is a Definition JSON (as returned by `get_table_definition_from_dependency_pack_file` or `definitions_by_table_name`).")]
     pub async fn referencing_columns_for_definition(&self, params: Parameters<ReferencingColumnsForDefinitionArgs>) -> Result<CallToolResult, McpError> {
-        let def = parse_json(&params.0.definition)?;
+        let def = parse_json!(&params.0.definition);
         send_and_respond!(self, "referencing_columns_for_definition", Command::ReferencingColumnsForDefinition(params.0.table_name, def))
     }
 
     #[tool(description = "Get the processed fields from a definition with bitwise expansion and enum conversions applied (useful for display). The `definition` is a Definition JSON (as returned by `get_table_definition_from_dependency_pack_file`).")]
     pub async fn fields_processed(&self, params: Parameters<DefinitionArg>) -> Result<CallToolResult, McpError> {
-        let def = parse_json(&params.0.definition)?;
+        let def = parse_json!(&params.0.definition);
         send_and_respond!(self, "fields_processed", Command::FieldsProcessed(def))
     }
 
     #[tool(description = "Save local schema patches to customize column metadata without modifying the upstream schema. The `patches` is a JSON object mapping table names to DefinitionPatch objects, e.g. {\"land_units_tables\": {\"field_patches\": {...}}}.")]
     pub async fn save_local_schema_patch(&self, params: Parameters<SchemaPatchArgs>) -> Result<CallToolResult, McpError> {
-        let patches = parse_json(&params.0.patches)?;
+        let patches = parse_json!(&params.0.patches);
         send_and_respond!(self, "save_local_schema_patch", Command::SaveLocalSchemaPatch(patches))
     }
 
@@ -1701,7 +1714,7 @@ impl McpServer {
 
     #[tool(description = "Import a schema patch from an external source. The `patches` is a JSON object mapping table names to DefinitionPatch objects (same format as `save_local_schema_patch`).")]
     pub async fn import_schema_patch(&self, params: Parameters<SchemaPatchArgs>) -> Result<CallToolResult, McpError> {
-        let patches = parse_json(&params.0.patches)?;
+        let patches = parse_json!(&params.0.patches);
         send_and_respond!(self, "import_schema_patch", Command::ImportSchemaPatch(patches))
     }
 
@@ -1711,20 +1724,20 @@ impl McpServer {
 
     #[tool(description = "Merge multiple compatible tables into one in the pack identified by `pack_key`. The `paths` is a JSON array of ContainerPath for the tables to merge, e.g. [{\"File\": \"db/land_units_tables/table1\"}, {\"File\": \"db/land_units_tables/table2\"}]. The `merged_path` is the destination path. Set `delete_source` to true to remove the original files.")]
     pub async fn merge_files(&self, params: Parameters<MergeFilesArgs>) -> Result<CallToolResult, McpError> {
-        let paths: Vec<ContainerPath> = parse_json(&params.0.paths)?;
+        let paths: Vec<ContainerPath> = parse_json!(&params.0.paths);
         send_and_respond!(self, "merge_files", Command::MergeFiles(params.0.pack_key, paths, params.0.merged_path, params.0.delete_source))
     }
 
     #[tool(description = "Update a table to the latest schema version in the pack identified by `pack_key`. The `value` is a ContainerPath JSON, e.g. {\"File\": \"db/land_units_tables/my_mod\"}.")]
     pub async fn update_table(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
-        let path: ContainerPath = parse_json(&params.0.value)?;
+        let path: ContainerPath = parse_json!(&params.0.value);
         send_and_respond!(self, "update_table", Command::UpdateTable(params.0.pack_key, path))
     }
 
     #[tool(description = "Trigger a cascade edition on all referenced data in the pack identified by `pack_key`. When a key value changes, this propagates the change to all referencing tables. The `definition` is a Definition JSON for the source table. The `changes` is a JSON array of [field, old_value, new_value] tuples, e.g. [[field_json, \"old_key\", \"new_key\"]].")]
     pub async fn cascade_edition(&self, params: Parameters<CascadeEditionArgs>) -> Result<CallToolResult, McpError> {
-        let def = parse_json(&params.0.definition)?;
-        let changes = parse_json(&params.0.changes)?;
+        let def = parse_json!(&params.0.definition);
+        let changes = parse_json!(&params.0.changes);
         send_and_respond!(self, "cascade_edition", Command::CascadeEdition(params.0.pack_key, params.0.table_name, def, changes))
     }
 
@@ -1759,8 +1772,8 @@ impl McpServer {
 
     #[tool(description = "Update diagnostics incrementally for changed files across all open packs. The `diagnostics` is the Diagnostics JSON from a previous `diagnostics_check` call. The `paths` is a JSON array of ContainerPath for the files that changed, e.g. [{\"File\": \"db/land_units_tables/my_mod\"}].")]
     pub async fn diagnostics_update(&self, params: Parameters<DiagnosticsUpdateArgs>) -> Result<CallToolResult, McpError> {
-        let diag = parse_json(&params.0.diagnostics)?;
-        let paths: Vec<ContainerPath> = parse_json(&params.0.paths)?;
+        let diag = parse_json!(&params.0.diagnostics);
+        let paths: Vec<ContainerPath> = parse_json!(&params.0.paths);
         send_and_respond!(self, "diagnostics_update", Command::DiagnosticsUpdate(diag, paths, params.0.check_ak_only_refs))
     }
 
@@ -1785,7 +1798,7 @@ impl McpServer {
 
     #[tool(description = "Add a note to the pack identified by `pack_key`. The `note` is a Note JSON object with fields: path (string — the file or folder path to attach the note to), id (u64), text (string — the note content).")]
     pub async fn add_note(&self, params: Parameters<AddNoteArgs>) -> Result<CallToolResult, McpError> {
-        let note = parse_json(&params.0.note)?;
+        let note = parse_json!(&params.0.note);
         send_and_respond!(self, "add_note", Command::AddNote(params.0.pack_key, note))
     }
 
@@ -1800,7 +1813,7 @@ impl McpServer {
 
     #[tool(description = "Optimize the pack identified by `pack_key` by removing unchanged/duplicate data. The `options` is an OptimizerOptions JSON with boolean fields: pack_remove_itm_files, table_remove_duplicated_entries, table_remove_itm_entries, table_remove_itnr_entries, table_remove_empty_file, db_optimize_datacored_tables, etc. See the `rpfm://examples/optimizer_options` resource for all fields.")]
     pub async fn optimize_pack_file(&self, params: Parameters<OptimizePackFileArgs>) -> Result<CallToolResult, McpError> {
-        let options = parse_json(&params.0.options)?;
+        let options = parse_json!(&params.0.options);
         send_and_respond!(self, "optimize_pack_file", Command::OptimizePackFile(params.0.pack_key, options))
     }
 
@@ -2031,7 +2044,7 @@ impl McpServer {
 
     #[tool(description = "Pack map tiles into the pack identified by `pack_key`. The `tile_maps` is a list of tile map file paths on disk. The `tiles` is a JSON array of [path, name] pairs, e.g. [[\"/path/to/tile\", \"tile_name\"]].")]
     pub async fn pack_map(&self, params: Parameters<PackMapArgs>) -> Result<CallToolResult, McpError> {
-        let tiles: Vec<(PathBuf, String)> = parse_json(&params.0.tiles)?;
+        let tiles: Vec<(PathBuf, String)> = parse_json!(&params.0.tiles);
         send_and_respond!(self, "pack_map", Command::PackMap(params.0.pack_key, params.0.tile_maps, tiles))
     }
 
@@ -2082,13 +2095,13 @@ impl McpServer {
 
     #[tool(description = "Export a RigidModel to glTF format. The `rigid_model` is a RigidModel JSON object (as returned by decoding a .rigid_model_v2 file with `decode_packed_file`). The `output_path` is the destination file path on disk.")]
     pub async fn export_rigid_to_gltf(&self, params: Parameters<ExportRigidToGltfArgs>) -> Result<CallToolResult, McpError> {
-        let rigid = parse_json(&params.0.rigid_model)?;
+        let rigid = parse_json!(&params.0.rigid_model);
         send_and_respond!(self, "export_rigid_to_gltf", Command::ExportRigidToGltf(rigid, params.0.output_path))
     }
 
     #[tool(description = "Change the format of a ca_vp8 video file in the pack identified by `pack_key`. Valid formats: \"CaVp8\" (CA custom VP8) or \"Ivf\" (standard VP8 IVF).")]
     pub async fn set_video_format(&self, params: Parameters<SetVideoFormatArgs>) -> Result<CallToolResult, McpError> {
-        let format = parse_json(&params.0.format)?;
+        let format = parse_json!(&params.0.format);
         send_and_respond!(self, "set_video_format", Command::SetVideoFormat(params.0.pack_key, params.0.path, format))
     }
 
